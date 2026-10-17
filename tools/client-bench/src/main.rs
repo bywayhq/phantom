@@ -102,12 +102,14 @@ struct Ready {
 
 fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     // Output paths are fresh: never erase a previous measurement.
-    let mut file = std::fs::OpenOptions::new()
+    let file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(path)?;
+    let mut file = io::BufWriter::new(file);
     serde_json::to_writer(&mut file, value)?;
     file.write_all(b"\n")?;
+    file.flush()?;
     Ok(())
 }
 

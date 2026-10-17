@@ -1,6 +1,7 @@
-# Test and lint dependencies for scripts/capture and scripts/conformance.
+# Test, lint and profiling dependencies for scripts and tools/client-bench.
 # Regenerate scripts/requirements.txt with the command recorded in its header.
 aioquic==1.3.0
 h2==4.4.1
 hpack==4.2.0
+psutil==7.2.2
 ruff==0.16.9

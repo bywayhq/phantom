@@ -61,6 +61,37 @@ allocations are outside that count. Process RSS and private bytes cover a
 broader footprint. The fixed observation buffer is included in start RSS and
 its size is recorded separately.
 
+## Check scaling and recovery
+
+Use `scalability.json` for a longer H2/H3 sweep: 32, 128 and 192 concurrent
+requests, two to eight runtime workers, and planned rates of 10,000 and
+40,000 requests/s. The worker setting applies to both client and peer. Inspect
+their CPU separately before attributing a throughput plateau to the client.
+These are exploratory settings, not capacity promises or acceptance targets.
+The default per-origin bounds allow 100 active and 100 waiting requests.
+Keep a probe beyond those bounds separate from a successful-throughput sweep.
+
+The planned-rate cases retain application wait in scheduled-to-complete
+latency. Inspect it alongside request latency and completed throughput. The
+fixed worker set limits in-flight requests, so overdue arrivals wait in the
+schedule rather than becoming an unbounded queue of tasks.
+
+Pass `--recovery-seconds 180` with a small selected matrix to sample idle
+memory after the measured requests. `recovery.json` keeps the client and
+connection pool alive. That interval is outside request timing and CPU.
+Compare private bytes and RSS with their warm start and phase-end values.
+Account for the retained observation buffer and browser idle timers. One
+burst and idle interval cannot establish long-term memory stability.
+Recovery also checks a peer snapshot before client teardown. It rejects peer
+failures and heap-instrumented builds, whose allocation interval would include
+idle time. Rebuild the tool before using this option.
+
+The H3 peer records idle retirement separately only after the phase snapshot,
+with every expected request complete, both typed transport timeout reasons,
+and successful response-task completion. An interrupted request or different
+transport error remains a failure. The retirement counter and stderr message
+stay in the packet.
+
 ## Interpret the measurements
 
 - `head_ns`: request preparation through receipt of the response head.

@@ -1,0 +1,2745 @@
+{
+  "before-v1": {
+    "trials": 20,
+    "accepted": 10,
+    "tls_busy_trials": 3,
+    "timeout_trials": 4,
+    "successful_measured_requests": 7674,
+    "rows": [
+      {
+        "folder": "000-h3-collect-1m-r0",
+        "tls_busy": false,
+        "timeout": true,
+        "summary": {}
+      },
+      {
+        "folder": "001-h2-32-origins-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0152578,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 33556.607112427744,
+          "completed_mib_s": 32.77012413323022,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.0481327583268887,
+          "sampled_peak_rss_bytes": 19779584,
+          "start_rss_bytes": 19779584,
+          "end_rss_bytes": 19599360,
+          "sampled_peak_private_bytes": 10452992,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 833500,
+              "p95": 1364100,
+              "p99": 1506900,
+              "mean": 858067.96875
+            },
+            "first_byte_ns": {
+              "p50": 835900,
+              "p95": 1364800,
+              "p99": 1507700,
+              "mean": 859408.203125
+            },
+            "complete_ns": {
+              "p50": 836300,
+              "p95": 1365100,
+              "p99": 1508000,
+              "mean": 859789.453125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 836300,
+              "p95": 1365100,
+              "p99": 1508000
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "002-h1-c32-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0216483,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 23650.817847128874,
+          "completed_mib_s": 23.09650180383679,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.4435313627397994,
+          "sampled_peak_rss_bytes": 17686528,
+          "start_rss_bytes": 17354752,
+          "end_rss_bytes": 17686528,
+          "sampled_peak_private_bytes": 8208384,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 1279200,
+              "p95": 1628200,
+              "p99": 1724700,
+              "mean": 1285063.8671875
+            },
+            "first_byte_ns": {
+              "p50": 1281500,
+              "p95": 1630000,
+              "p99": 1725900,
+              "mean": 1288635.15625
+            },
+            "complete_ns": {
+              "p50": 1281800,
+              "p95": 1630400,
+              "p99": 1726300,
+              "mean": 1289141.6015625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1281800,
+              "p95": 1630400,
+              "p99": 1726300
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "003-h2-64-origins-r0",
+        "tls_busy": true,
+        "timeout": false,
+        "summary": {
+          "successes": 510,
+          "failures": 2,
+          "elapsed_s": 0.2776189,
+          "expected_observations_beyond_p99": 5.1000000000000005,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 1837.050719529542,
+          "completed_mib_s": 1.7939948432905684,
+          "client_cpu_s": 0.5625,
+          "client_cpu_us_per_success": 1102.9411764705883,
+          "client_cpu_cores": 2.026158881834054,
+          "sampled_peak_rss_bytes": 21843968,
+          "start_rss_bytes": 20303872,
+          "end_rss_bytes": 20578304,
+          "sampled_peak_private_bytes": 12439552,
+          "peer_cpu_s": 0.375,
+          "timing": {
+            "head_ns": {
+              "p50": 16376300,
+              "p95": 25034200,
+              "p99": 30854900,
+              "mean": 17013571.17647059
+            },
+            "first_byte_ns": {
+              "p50": 16379300,
+              "p95": 25039200,
+              "p99": 30859500,
+              "mean": 17017374.31372549
+            },
+            "complete_ns": {
+              "p50": 16379800,
+              "p95": 25039700,
+              "p99": 30860200,
+              "mean": 17017955.68627451
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 16379800,
+              "p95": 25039700,
+              "p99": 30860200
+            }
+          },
+          "peer": {
+            "connections": 637,
+            "requests": 638,
+            "proxy_connections": 0,
+            "failures": 10,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 637,
+            "requests": 638,
+            "proxy_connections": 0,
+            "failures": 10,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "004-h3-collect-1m-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 2.8579087,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 179.15197920773326,
+          "completed_mib_s": 179.15197920773326,
+          "client_cpu_s": 4.53125,
+          "client_cpu_us_per_success": 8850.09765625,
+          "client_cpu_cores": 1.585512511298909,
+          "sampled_peak_rss_bytes": 32432128,
+          "start_rss_bytes": 18800640,
+          "end_rss_bytes": 19017728,
+          "sampled_peak_private_bytes": 28332032,
+          "peer_cpu_s": 3.234375,
+          "timing": {
+            "head_ns": {
+              "p50": 1460000,
+              "p95": 5743100,
+              "p99": 10881700,
+              "mean": 2089459.5703125
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 78737600,
+              "p95": 146462300,
+              "p99": 156016500,
+              "mean": 88883896.6796875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 78737600,
+              "p95": 146462300,
+              "p99": 156016500
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "005-h1-c32-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0269657,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 18987.083591377195,
+          "completed_mib_s": 18.542073819704292,
+          "client_cpu_s": 0.0625,
+          "client_cpu_us_per_success": 122.0703125,
+          "client_cpu_cores": 2.3177592274630365,
+          "sampled_peak_rss_bytes": 18014208,
+          "start_rss_bytes": 17018880,
+          "end_rss_bytes": 17666048,
+          "sampled_peak_private_bytes": 8290304,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 1602400,
+              "p95": 2115700,
+              "p99": 2309800,
+              "mean": 1575897.0703125
+            },
+            "first_byte_ns": {
+              "p50": 1607900,
+              "p95": 2120000,
+              "p99": 2314600,
+              "mean": 1581233.203125
+            },
+            "complete_ns": {
+              "p50": 1608600,
+              "p95": 2120700,
+              "p99": 2315500,
+              "mean": 1581777.9296875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1608600,
+              "p95": 2120700,
+              "p99": 2315500
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "006-h2-64-origins-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 511,
+          "failures": 1,
+          "elapsed_s": 0.2183085,
+          "expected_observations_beyond_p99": 5.11,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2340.724250315494,
+          "completed_mib_s": 2.2858635256987245,
+          "client_cpu_s": 0.453125,
+          "client_cpu_us_per_success": 886.7416829745597,
+          "client_cpu_cores": 2.0756177611041258,
+          "sampled_peak_rss_bytes": 22003712,
+          "start_rss_bytes": 20525056,
+          "end_rss_bytes": 20979712,
+          "sampled_peak_private_bytes": 13086720,
+          "peer_cpu_s": 0.203125,
+          "timing": {
+            "head_ns": {
+              "p50": 13021700,
+              "p95": 20757600,
+              "p99": 22898300,
+              "mean": 12940903.13111546
+            },
+            "first_byte_ns": {
+              "p50": 13024400,
+              "p95": 20763100,
+              "p99": 22903500,
+              "mean": 12944062.622309197
+            },
+            "complete_ns": {
+              "p50": 13024800,
+              "p95": 20763800,
+              "p99": 22903900,
+              "mean": 12944548.336594911
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 13024800,
+              "p95": 20763800,
+              "p99": 22903900
+            }
+          },
+          "peer": {
+            "connections": 623,
+            "requests": 639,
+            "proxy_connections": 0,
+            "failures": 7,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 623,
+            "requests": 639,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "007-h2-32-origins-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0177622,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 28825.25813243855,
+          "completed_mib_s": 28.14966614495952,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.75935413405997,
+          "sampled_peak_rss_bytes": 19726336,
+          "start_rss_bytes": 19185664,
+          "end_rss_bytes": 19210240,
+          "sampled_peak_private_bytes": 10358784,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 994500,
+              "p95": 1578000,
+              "p99": 1871400,
+              "mean": 1006483.3984375
+            },
+            "first_byte_ns": {
+              "p50": 995600,
+              "p95": 1578700,
+              "p99": 1872300,
+              "mean": 1008084.1796875
+            },
+            "complete_ns": {
+              "p50": 996000,
+              "p95": 1579000,
+              "p99": 1872700,
+              "mean": 1008515.4296875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 996000,
+              "p95": 1579000,
+              "p99": 1872700
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "008-h1-c32-r2",
+        "tls_busy": true,
+        "timeout": false,
+        "summary": {}
+      },
+      {
+        "folder": "009-h2-32-origins-r2",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0243074,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 21063.544435028016,
+          "completed_mib_s": 20.569867612332047,
+          "client_cpu_s": 0.0625,
+          "client_cpu_us_per_success": 122.0703125,
+          "client_cpu_cores": 2.571233451541506,
+          "sampled_peak_rss_bytes": 20299776,
+          "start_rss_bytes": 19689472,
+          "end_rss_bytes": 19812352,
+          "sampled_peak_private_bytes": 10866688,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 1282400,
+              "p95": 2663400,
+              "p99": 3180900,
+              "mean": 1405594.140625
+            },
+            "first_byte_ns": {
+              "p50": 1284700,
+              "p95": 2666100,
+              "p99": 3182500,
+              "mean": 1407878.90625
+            },
+            "complete_ns": {
+              "p50": 1285400,
+              "p95": 2666700,
+              "p99": 3182800,
+              "mean": 1408339.84375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1285400,
+              "p95": 2666700,
+              "p99": 3182800
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "010-h2-64-origins-r2",
+        "tls_busy": true,
+        "timeout": false,
+        "summary": {}
+      },
+      {
+        "folder": "011-h3-collect-1m-r2",
+        "tls_busy": false,
+        "timeout": true,
+        "summary": {}
+      },
+      {
+        "folder": "012-h1-c32-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0203187,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 25198.46250006152,
+          "completed_mib_s": 24.607873535216328,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.5379920959510205,
+          "sampled_peak_rss_bytes": 17321984,
+          "start_rss_bytes": 17088512,
+          "end_rss_bytes": 17321984,
+          "sampled_peak_private_bytes": 7512064,
+          "peer_cpu_s": 0.0,
+          "timing": {
+            "head_ns": {
+              "p50": 983500,
+              "p95": 3270400,
+              "p99": 3379800,
+              "mean": 1195650.78125
+            },
+            "first_byte_ns": {
+              "p50": 985400,
+              "p95": 3272000,
+              "p99": 3386000,
+              "mean": 1198939.6484375
+            },
+            "complete_ns": {
+              "p50": 986300,
+              "p95": 3272300,
+              "p99": 3386700,
+              "mean": 1199404.8828125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 986300,
+              "p95": 3272300,
+              "p99": 3386700
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "013-h2-64-origins-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2496766,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2050.6527243642377,
+          "completed_mib_s": 2.002590551136951,
+          "client_cpu_s": 0.5,
+          "client_cpu_us_per_success": 976.5625,
+          "client_cpu_cores": 2.002590551136951,
+          "sampled_peak_rss_bytes": 22097920,
+          "start_rss_bytes": 19628032,
+          "end_rss_bytes": 20979712,
+          "sampled_peak_private_bytes": 12869632,
+          "peer_cpu_s": 0.265625,
+          "timing": {
+            "head_ns": {
+              "p50": 14980300,
+              "p95": 21808500,
+              "p99": 24107800,
+              "mean": 15184992.3828125
+            },
+            "first_byte_ns": {
+              "p50": 14988000,
+              "p95": 21814600,
+              "p99": 24110500,
+              "mean": 15188941.9921875
+            },
+            "complete_ns": {
+              "p50": 14988600,
+              "p95": 21815200,
+              "p99": 24111000,
+              "mean": 15189499.0234375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 14988600,
+              "p95": 21815200,
+              "p99": 24111000
+            }
+          },
+          "peer": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 10,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 10,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "014-h3-collect-1m-r3",
+        "tls_busy": false,
+        "timeout": true,
+        "summary": {}
+      },
+      {
+        "folder": "015-h2-32-origins-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0293183,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 17463.49549598715,
+          "completed_mib_s": 17.05419482029995,
+          "client_cpu_s": 0.0625,
+          "client_cpu_us_per_success": 122.0703125,
+          "client_cpu_cores": 2.131774352537494,
+          "sampled_peak_rss_bytes": 20324352,
+          "start_rss_bytes": 19775488,
+          "end_rss_bytes": 19726336,
+          "sampled_peak_private_bytes": 11104256,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 1581400,
+              "p95": 2764800,
+              "p99": 3572700,
+              "mean": 1636728.7109375
+            },
+            "first_byte_ns": {
+              "p50": 1585600,
+              "p95": 2766200,
+              "p99": 3576500,
+              "mean": 1639531.4453125
+            },
+            "complete_ns": {
+              "p50": 1586100,
+              "p95": 2766600,
+              "p99": 3577000,
+              "mean": 1640019.7265625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1586100,
+              "p95": 2766600,
+              "p99": 3577000
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 1,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "016-h2-32-origins-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0211861,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 24166.78860196072,
+          "completed_mib_s": 23.600379494102267,
+          "client_cpu_s": 0.0625,
+          "client_cpu_us_per_success": 122.0703125,
+          "client_cpu_cores": 2.9500474367627834,
+          "sampled_peak_rss_bytes": 20344832,
+          "start_rss_bytes": 19718144,
+          "end_rss_bytes": 19697664,
+          "sampled_peak_private_bytes": 10989568,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 1098400,
+              "p95": 2483200,
+              "p99": 3014800,
+              "mean": 1184330.46875
+            },
+            "first_byte_ns": {
+              "p50": 1099100,
+              "p95": 2486100,
+              "p99": 3015600,
+              "mean": 1185750.1953125
+            },
+            "complete_ns": {
+              "p50": 1099400,
+              "p95": 2486600,
+              "p99": 3016000,
+              "mean": 1186181.640625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1099400,
+              "p95": 2486600,
+              "p99": 3016000
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "017-h2-64-origins-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2371018,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2159.4100086966864,
+          "completed_mib_s": 2.108798836617858,
+          "client_cpu_s": 0.4375,
+          "client_cpu_us_per_success": 854.4921875,
+          "client_cpu_cores": 1.8451989820406256,
+          "sampled_peak_rss_bytes": 22339584,
+          "start_rss_bytes": 21008384,
+          "end_rss_bytes": 21405696,
+          "sampled_peak_private_bytes": 12849152,
+          "peer_cpu_s": 0.21875,
+          "timing": {
+            "head_ns": {
+              "p50": 13952100,
+              "p95": 22870500,
+              "p99": 28608900,
+              "mean": 14358026.171875
+            },
+            "first_byte_ns": {
+              "p50": 13956300,
+              "p95": 22876100,
+              "p99": 28613500,
+              "mean": 14361353.515625
+            },
+            "complete_ns": {
+              "p50": 13956700,
+              "p95": 22876800,
+              "p99": 28614100,
+              "mean": 14361845.703125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 13956700,
+              "p95": 22876800,
+              "p99": 28614100
+            }
+          },
+          "peer": {
+            "connections": 638,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 638,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "018-h3-collect-1m-r4",
+        "tls_busy": false,
+        "timeout": true,
+        "summary": {
+          "successes": 509,
+          "failures": 3,
+          "elapsed_s": 17.8253484,
+          "expected_observations_beyond_p99": 5.09,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 28.55484159849577,
+          "completed_mib_s": 28.55484159849577,
+          "client_cpu_s": 4.125,
+          "client_cpu_us_per_success": 8104.125736738703,
+          "client_cpu_cores": 0.2314120267068665,
+          "sampled_peak_rss_bytes": 33824768,
+          "start_rss_bytes": 18780160,
+          "end_rss_bytes": 20086784,
+          "sampled_peak_private_bytes": 28524544,
+          "peer_cpu_s": 3.25,
+          "timing": {
+            "head_ns": {
+              "p50": 1619600,
+              "p95": 6630500,
+              "p99": 18593000,
+              "mean": 2487651.2770137526
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 81310800,
+              "p95": 140550000,
+              "p99": 151459200,
+              "mean": 88563554.61689587
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 81310800,
+              "p95": 140550000,
+              "p99": 151459200
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "019-h1-c32-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0183956,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 27832.742612363825,
+          "completed_mib_s": 27.180412707386548,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.6987757942116593,
+          "sampled_peak_rss_bytes": 17723392,
+          "start_rss_bytes": 17383424,
+          "end_rss_bytes": 17723392,
+          "sampled_peak_private_bytes": 8417280,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 1095500,
+              "p95": 1424800,
+              "p99": 1509600,
+              "mean": 1099580.078125
+            },
+            "first_byte_ns": {
+              "p50": 1099400,
+              "p95": 1426500,
+              "p99": 1510800,
+              "mean": 1102722.8515625
+            },
+            "complete_ns": {
+              "p50": 1099900,
+              "p95": 1426800,
+              "p99": 1512400,
+              "mean": 1103174.609375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1099900,
+              "p95": 1426800,
+              "p99": 1512400
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      }
+    ]
+  },
+  "after-v1": {
+    "trials": 20,
+    "accepted": 15,
+    "tls_busy_trials": 0,
+    "timeout_trials": 0,
+    "successful_measured_requests": 10240,
+    "rows": [
+      {
+        "folder": "000-h3-collect-1m-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 2.3569002,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 217.23448451487252,
+          "completed_mib_s": 217.23448451487252,
+          "client_cpu_s": 3.328125,
+          "client_cpu_us_per_success": 6500.244140625,
+          "client_cpu_cores": 1.4120771851094924,
+          "sampled_peak_rss_bytes": 33173504,
+          "start_rss_bytes": 18706432,
+          "end_rss_bytes": 18599936,
+          "sampled_peak_private_bytes": 28536832,
+          "peer_cpu_s": 2.953125,
+          "timing": {
+            "head_ns": {
+              "p50": 1365900,
+              "p95": 3749600,
+              "p99": 7214600,
+              "mean": 1719584.375
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 72378000,
+              "p95": 89526800,
+              "p99": 99685900,
+              "mean": 73348856.640625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 72378000,
+              "p95": 89526800,
+              "p99": 99685900
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "001-h2-32-origins-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0155757,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 32871.71684097665,
+          "completed_mib_s": 32.10128597751626,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.0063303735947664,
+          "sampled_peak_rss_bytes": 19668992,
+          "start_rss_bytes": 19668992,
+          "end_rss_bytes": 19558400,
+          "sampled_peak_private_bytes": 10633216,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 795200,
+              "p95": 1640700,
+              "p99": 1869600,
+              "mean": 852096.484375
+            },
+            "first_byte_ns": {
+              "p50": 796600,
+              "p95": 1642000,
+              "p99": 1870400,
+              "mean": 853682.421875
+            },
+            "complete_ns": {
+              "p50": 796900,
+              "p95": 1642300,
+              "p99": 1870700,
+              "mean": 854103.515625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 796900,
+              "p95": 1642300,
+              "p99": 1870700
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "002-h1-c32-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0155194,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 32990.96614559842,
+          "completed_mib_s": 32.217740376560954,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.0136087735350596,
+          "sampled_peak_rss_bytes": 17682432,
+          "start_rss_bytes": 17371136,
+          "end_rss_bytes": 17682432,
+          "sampled_peak_private_bytes": 8146944,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 909000,
+              "p95": 1116900,
+              "p99": 1246300,
+              "mean": 904105.46875
+            },
+            "first_byte_ns": {
+              "p50": 910900,
+              "p95": 1121000,
+              "p99": 1247100,
+              "mean": 906287.5
+            },
+            "complete_ns": {
+              "p50": 911200,
+              "p95": 1121400,
+              "p99": 1247400,
+              "mean": 906711.71875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 911200,
+              "p95": 1121400,
+              "p99": 1247400
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "003-h2-64-origins-r0",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2272489,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2253.03620831608,
+          "completed_mib_s": 2.2002306721836717,
+          "client_cpu_s": 0.453125,
+          "client_cpu_us_per_success": 885.009765625,
+          "client_cpu_cores": 1.9939590466664525,
+          "sampled_peak_rss_bytes": 22171648,
+          "start_rss_bytes": 21028864,
+          "end_rss_bytes": 20377600,
+          "sampled_peak_private_bytes": 13078528,
+          "peer_cpu_s": 0.265625,
+          "timing": {
+            "head_ns": {
+              "p50": 13387900,
+              "p95": 21572800,
+              "p99": 24975700,
+              "mean": 13668974.609375
+            },
+            "first_byte_ns": {
+              "p50": 13390600,
+              "p95": 21577800,
+              "p99": 24980400,
+              "mean": 13672472.265625
+            },
+            "complete_ns": {
+              "p50": 13390900,
+              "p95": 21578300,
+              "p99": 24980800,
+              "mean": 13673018.75
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 13390900,
+              "p95": 21578300,
+              "p99": 24980800
+            }
+          },
+          "peer": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 5,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 5,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "004-h3-collect-1m-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 2.1641954,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 236.5775289976127,
+          "completed_mib_s": 236.5775289976127,
+          "client_cpu_s": 3.0625,
+          "client_cpu_us_per_success": 5981.4453125,
+          "client_cpu_cores": 1.4150755518656033,
+          "sampled_peak_rss_bytes": 33296384,
+          "start_rss_bytes": 18726912,
+          "end_rss_bytes": 18747392,
+          "sampled_peak_private_bytes": 29429760,
+          "peer_cpu_s": 2.671875,
+          "timing": {
+            "head_ns": {
+              "p50": 1297200,
+              "p95": 3102000,
+              "p99": 6179100,
+              "mean": 1602728.125
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 67267700,
+              "p95": 76400000,
+              "p99": 78575800,
+              "mean": 67284046.6796875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 67267700,
+              "p95": 76400000,
+              "p99": 78575800
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "005-h1-c32-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.015572,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 32879.52735679424,
+          "completed_mib_s": 32.10891343436938,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.006807089648086,
+          "sampled_peak_rss_bytes": 17809408,
+          "start_rss_bytes": 17547264,
+          "end_rss_bytes": 17809408,
+          "sampled_peak_private_bytes": 8388608,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 939500,
+              "p95": 1215200,
+              "p99": 1297100,
+              "mean": 930562.890625
+            },
+            "first_byte_ns": {
+              "p50": 940000,
+              "p95": 1216100,
+              "p99": 1298600,
+              "mean": 933288.28125
+            },
+            "complete_ns": {
+              "p50": 940400,
+              "p95": 1216600,
+              "p99": 1298900,
+              "mean": 933735.15625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 940400,
+              "p95": 1216600,
+              "p99": 1298900
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "006-h2-64-origins-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.1957906,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2615.0387199385464,
+          "completed_mib_s": 2.5537487499399867,
+          "client_cpu_s": 0.390625,
+          "client_cpu_us_per_success": 762.939453125,
+          "client_cpu_cores": 1.9951162108906146,
+          "sampled_peak_rss_bytes": 22585344,
+          "start_rss_bytes": 20365312,
+          "end_rss_bytes": 21598208,
+          "sampled_peak_private_bytes": 13283328,
+          "peer_cpu_s": 0.1875,
+          "timing": {
+            "head_ns": {
+              "p50": 11885000,
+              "p95": 17750800,
+              "p99": 21583800,
+              "mean": 11884629.8828125
+            },
+            "first_byte_ns": {
+              "p50": 11887300,
+              "p95": 17755300,
+              "p99": 21588700,
+              "mean": 11887279.1015625
+            },
+            "complete_ns": {
+              "p50": 11887800,
+              "p95": 17755800,
+              "p99": 21589300,
+              "mean": 11887747.65625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 11887800,
+              "p95": 17755800,
+              "p99": 21589300
+            }
+          },
+          "peer": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 639,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "007-h2-32-origins-r1",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0165941,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 30854.339795469474,
+          "completed_mib_s": 30.131191206513158,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.8831994504070724,
+          "sampled_peak_rss_bytes": 19681280,
+          "start_rss_bytes": 19681280,
+          "end_rss_bytes": 19652608,
+          "sampled_peak_private_bytes": 10252288,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 943200,
+              "p95": 1496900,
+              "p99": 1826300,
+              "mean": 937550.390625
+            },
+            "first_byte_ns": {
+              "p50": 944300,
+              "p95": 1498300,
+              "p99": 1828200,
+              "mean": 939054.296875
+            },
+            "complete_ns": {
+              "p50": 944600,
+              "p95": 1498600,
+              "p99": 1828600,
+              "mean": 939486.328125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 944600,
+              "p95": 1498600,
+              "p99": 1828600
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "008-h1-c32-r2",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0145852,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 35104.07810657379,
+          "completed_mib_s": 34.28132627595097,
+          "client_cpu_s": 0.015625,
+          "client_cpu_us_per_success": 30.517578125,
+          "client_cpu_cores": 1.0712914461234677,
+          "sampled_peak_rss_bytes": 17883136,
+          "start_rss_bytes": 17559552,
+          "end_rss_bytes": 17883136,
+          "sampled_peak_private_bytes": 8593408,
+          "peer_cpu_s": 0.015625,
+          "timing": {
+            "head_ns": {
+              "p50": 858400,
+              "p95": 1083500,
+              "p99": 1218500,
+              "mean": 862141.9921875
+            },
+            "first_byte_ns": {
+              "p50": 859200,
+              "p95": 1085500,
+              "p99": 1220000,
+              "mean": 864816.9921875
+            },
+            "complete_ns": {
+              "p50": 859600,
+              "p95": 1086100,
+              "p99": 1220300,
+              "mean": 865225.5859375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 859600,
+              "p95": 1086100,
+              "p99": 1220300
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "009-h2-32-origins-r2",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0125549,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 40780.890329672075,
+          "completed_mib_s": 39.825088212570385,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.489068013285649,
+          "sampled_peak_rss_bytes": 19292160,
+          "start_rss_bytes": 19292160,
+          "end_rss_bytes": 19275776,
+          "sampled_peak_private_bytes": 10043392,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 730700,
+              "p95": 1132600,
+              "p99": 1288600,
+              "mean": 721272.265625
+            },
+            "first_byte_ns": {
+              "p50": 731200,
+              "p95": 1133400,
+              "p99": 1290200,
+              "mean": 722375.1953125
+            },
+            "complete_ns": {
+              "p50": 731500,
+              "p95": 1133700,
+              "p99": 1290500,
+              "mean": 722732.8125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 731500,
+              "p95": 1133700,
+              "p99": 1290500
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "010-h2-64-origins-r2",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2022854,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2531.0773787925377,
+          "completed_mib_s": 2.4717552527270876,
+          "client_cpu_s": 0.421875,
+          "client_cpu_us_per_success": 823.974609375,
+          "client_cpu_cores": 2.0855434944884803,
+          "sampled_peak_rss_bytes": 22327296,
+          "start_rss_bytes": 20066304,
+          "end_rss_bytes": 21704704,
+          "sampled_peak_private_bytes": 12476416,
+          "peer_cpu_s": 0.203125,
+          "timing": {
+            "head_ns": {
+              "p50": 11768500,
+              "p95": 19028800,
+              "p99": 23618100,
+              "mean": 12089763.0859375
+            },
+            "first_byte_ns": {
+              "p50": 11771400,
+              "p95": 19030300,
+              "p99": 23620000,
+              "mean": 12092643.359375
+            },
+            "complete_ns": {
+              "p50": 11772100,
+              "p95": 19030700,
+              "p99": 23620300,
+              "mean": 12093136.1328125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 11772100,
+              "p95": 19030700,
+              "p99": 23620300
+            }
+          },
+          "peer": {
+            "connections": 626,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 626,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "011-h3-collect-1m-r2",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 1.9810628,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 258.4471325189691,
+          "completed_mib_s": 258.4471325189691,
+          "client_cpu_s": 3.125,
+          "client_cpu_us_per_success": 6103.515625,
+          "client_cpu_cores": 1.5774361115659736,
+          "sampled_peak_rss_bytes": 32411648,
+          "start_rss_bytes": 18911232,
+          "end_rss_bytes": 19054592,
+          "sampled_peak_private_bytes": 28667904,
+          "peer_cpu_s": 2.34375,
+          "timing": {
+            "head_ns": {
+              "p50": 1077200,
+              "p95": 3173900,
+              "p99": 5835000,
+              "mean": 1376328.7109375
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 60612300,
+              "p95": 74447800,
+              "p99": 85238600,
+              "mean": 61672111.9140625
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 60612300,
+              "p95": 74447800,
+              "p99": 85238600
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "012-h1-c32-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0158495,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 32303.85816587274,
+          "completed_mib_s": 31.5467364901101,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.9716710306318812,
+          "sampled_peak_rss_bytes": 17465344,
+          "start_rss_bytes": 17465344,
+          "end_rss_bytes": 17412096,
+          "sampled_peak_private_bytes": 7979008,
+          "peer_cpu_s": 0.0,
+          "timing": {
+            "head_ns": {
+              "p50": 887900,
+              "p95": 1342600,
+              "p99": 1441800,
+              "mean": 921826.5625
+            },
+            "first_byte_ns": {
+              "p50": 894400,
+              "p95": 1345600,
+              "p99": 1443100,
+              "mean": 924970.1171875
+            },
+            "complete_ns": {
+              "p50": 894700,
+              "p95": 1346300,
+              "p99": 1443400,
+              "mean": 925435.7421875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 894700,
+              "p95": 1346300,
+              "p99": 1443400
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "013-h2-64-origins-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2055266,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2491.161727970978,
+          "completed_mib_s": 2.4327751249716583,
+          "client_cpu_s": 0.453125,
+          "client_cpu_us_per_success": 885.009765625,
+          "client_cpu_cores": 2.204702457005565,
+          "sampled_peak_rss_bytes": 21979136,
+          "start_rss_bytes": 20185088,
+          "end_rss_bytes": 20615168,
+          "sampled_peak_private_bytes": 12623872,
+          "peer_cpu_s": 0.1875,
+          "timing": {
+            "head_ns": {
+              "p50": 12101600,
+              "p95": 18618600,
+              "p99": 22561700,
+              "mean": 12481032.6171875
+            },
+            "first_byte_ns": {
+              "p50": 12104900,
+              "p95": 18621000,
+              "p99": 22564900,
+              "mean": 12483871.6796875
+            },
+            "complete_ns": {
+              "p50": 12105400,
+              "p95": 18621700,
+              "p99": 22566200,
+              "mean": 12484359.9609375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 12105400,
+              "p95": 18621700,
+              "p99": 22566200
+            }
+          },
+          "peer": {
+            "connections": 638,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 638,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 6,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "014-h3-collect-1m-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 2.1732886,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 235.5876711450104,
+          "completed_mib_s": 235.5876711450104,
+          "client_cpu_s": 3.1875,
+          "client_cpu_us_per_success": 6225.5859375,
+          "client_cpu_cores": 1.4666712925287513,
+          "sampled_peak_rss_bytes": 31989760,
+          "start_rss_bytes": 18677760,
+          "end_rss_bytes": 18821120,
+          "sampled_peak_private_bytes": 27574272,
+          "peer_cpu_s": 2.46875,
+          "timing": {
+            "head_ns": {
+              "p50": 1226100,
+              "p95": 2774300,
+              "p99": 5338400,
+              "mean": 1439430.46875
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 65789000,
+              "p95": 85089100,
+              "p99": 105202600,
+              "mean": 67567384.375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 65789000,
+              "p95": 85089100,
+              "p99": 105202600
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "015-h2-32-origins-r3",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0126257,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 40552.2070063442,
+          "completed_mib_s": 39.60176465463301,
+          "client_cpu_s": 0.015625,
+          "client_cpu_us_per_success": 30.517578125,
+          "client_cpu_cores": 1.2375551454572815,
+          "sampled_peak_rss_bytes": 19406848,
+          "start_rss_bytes": 19275776,
+          "end_rss_bytes": 19406848,
+          "sampled_peak_private_bytes": 10002432,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 647800,
+              "p95": 1185900,
+              "p99": 1388900,
+              "mean": 691861.71875
+            },
+            "first_byte_ns": {
+              "p50": 648500,
+              "p95": 1186700,
+              "p99": 1390300,
+              "mean": 693078.90625
+            },
+            "complete_ns": {
+              "p50": 648900,
+              "p95": 1187000,
+              "p99": 1390600,
+              "mean": 693457.421875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 648900,
+              "p95": 1187000,
+              "p99": 1390600
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "016-h2-32-origins-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0145647,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 35153.48754179626,
+          "completed_mib_s": 34.32957767753541,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 2.145598604845963,
+          "sampled_peak_rss_bytes": 19574784,
+          "start_rss_bytes": 19570688,
+          "end_rss_bytes": 19574784,
+          "sampled_peak_private_bytes": 10682368,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 732600,
+              "p95": 1343500,
+              "p99": 1536700,
+              "mean": 784834.5703125
+            },
+            "first_byte_ns": {
+              "p50": 736400,
+              "p95": 1347000,
+              "p99": 1537700,
+              "mean": 786196.2890625
+            },
+            "complete_ns": {
+              "p50": 737100,
+              "p95": 1348000,
+              "p99": 1538000,
+              "mean": 786619.3359375
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 737100,
+              "p95": 1348000,
+              "p99": 1538000
+            }
+          },
+          "peer": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 32,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "017-h2-64-origins-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.2156972,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 2373.6979432278213,
+          "completed_mib_s": 2.318064397683419,
+          "client_cpu_s": 0.46875,
+          "client_cpu_us_per_success": 915.52734375,
+          "client_cpu_cores": 2.1731853728282053,
+          "sampled_peak_rss_bytes": 21708800,
+          "start_rss_bytes": 20070400,
+          "end_rss_bytes": 20254720,
+          "sampled_peak_private_bytes": 12771328,
+          "peer_cpu_s": 0.203125,
+          "timing": {
+            "head_ns": {
+              "p50": 12960200,
+              "p95": 19390500,
+              "p99": 22294400,
+              "mean": 13112844.7265625
+            },
+            "first_byte_ns": {
+              "p50": 12963300,
+              "p95": 19394700,
+              "p99": 22297500,
+              "mean": 13115895.5078125
+            },
+            "complete_ns": {
+              "p50": 12963800,
+              "p95": 19395300,
+              "p99": 22298000,
+              "mean": 13116437.6953125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 12963800,
+              "p95": 19395300,
+              "p99": 22298000
+            }
+          },
+          "peer": {
+            "connections": 640,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 7,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 640,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 7,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": false
+        }
+      },
+      {
+        "folder": "018-h3-collect-1m-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 2.3250519,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 220.21013810487412,
+          "completed_mib_s": 220.21013810487412,
+          "client_cpu_s": 3.453125,
+          "client_cpu_us_per_success": 6744.384765625,
+          "client_cpu_cores": 1.4851819006706903,
+          "sampled_peak_rss_bytes": 33251328,
+          "start_rss_bytes": 18694144,
+          "end_rss_bytes": 18817024,
+          "sampled_peak_private_bytes": 28405760,
+          "peer_cpu_s": 2.578125,
+          "timing": {
+            "head_ns": {
+              "p50": 1331300,
+              "p95": 4511300,
+              "p99": 8996100,
+              "mean": 1770216.796875
+            },
+            "first_byte_ns": {
+              "p50": null,
+              "p95": null,
+              "p99": null,
+              "mean": null
+            },
+            "complete_ns": {
+              "p50": 73706700,
+              "p95": 81832300,
+              "p99": 84705800,
+              "mean": 72428645.1171875
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 73706700,
+              "p95": 81832300,
+              "p99": 84705800
+            }
+          },
+          "peer": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 1,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      },
+      {
+        "folder": "019-h1-c32-r4",
+        "tls_busy": false,
+        "timeout": false,
+        "summary": {
+          "successes": 512,
+          "failures": 0,
+          "elapsed_s": 0.0186999,
+          "expected_observations_beyond_p99": 5.12,
+          "heap_instrumented": false,
+          "observer_storage_bytes": 53248,
+          "completed_requests_s": 27379.8255605645,
+          "completed_mib_s": 26.73811089898877,
+          "client_cpu_s": 0.03125,
+          "client_cpu_us_per_success": 61.03515625,
+          "client_cpu_cores": 1.671131931186798,
+          "sampled_peak_rss_bytes": 17932288,
+          "start_rss_bytes": 17014784,
+          "end_rss_bytes": 17571840,
+          "sampled_peak_private_bytes": 8179712,
+          "peer_cpu_s": 0.03125,
+          "timing": {
+            "head_ns": {
+              "p50": 1091300,
+              "p95": 1359100,
+              "p99": 1441500,
+              "mean": 1089665.4296875
+            },
+            "first_byte_ns": {
+              "p50": 1094100,
+              "p95": 1362400,
+              "p99": 1444400,
+              "mean": 1093449.0234375
+            },
+            "complete_ns": {
+              "p50": 1094500,
+              "p95": 1362900,
+              "p99": 1444800,
+              "mean": 1093936.328125
+            },
+            "build_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "application_wait_ns": {
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "mean": 0
+            },
+            "scheduled_to_complete_ns": {
+              "p50": 1094500,
+              "p95": 1362900,
+              "p99": 1444800
+            }
+          },
+          "peer": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 6,
+            "completed_h3_no_error_closes": 0
+          },
+          "peer_phase": {
+            "connections": 6,
+            "requests": 640,
+            "proxy_connections": 0,
+            "failures": 0,
+            "completed_h1_boundary_closes": 0,
+            "completed_h3_no_error_closes": 0
+          },
+          "accepted": true
+        }
+      }
+    ]
+  }
+}

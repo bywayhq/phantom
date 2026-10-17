@@ -9,7 +9,7 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -28,6 +28,24 @@ struct Stats {
     failures: AtomicUsize,
     completed_h1_boundary_closes: AtomicUsize,
     completed_h3_no_error_closes: AtomicUsize,
+    completed_h3_idle_timeouts: AtomicUsize,
+    #[serde(skip)]
+    phase_complete: AtomicBool,
+    #[serde(skip)]
+    expected_requests: usize,
+}
+
+impl Stats {
+    fn completed_idle_timeout(
+        &self,
+        error: &h3::error::ConnectionError,
+        reason: Option<&quinn::ConnectionError>,
+    ) -> bool {
+        self.phase_complete.load(Ordering::Acquire)
+            && self.requests.load(Ordering::Relaxed) == self.expected_requests
+            && matches!(error, h3::error::ConnectionError::Timeout)
+            && matches!(reason, Some(quinn::ConnectionError::TimedOut))
+    }
 }
 
 #[derive(Debug)]
@@ -270,13 +288,26 @@ async fn quic_listener(
             let result = async {
                 let quic = incoming.await?;
                 let mut connection =
-                    h3::server::Connection::new(h3_quinn::Connection::new(quic)).await?;
+                    h3::server::Connection::new(h3_quinn::Connection::new(quic.clone())).await?;
                 let mut responses = JoinSet::new();
                 let completed = Arc::new(AtomicUsize::new(0));
                 loop {
                     let resolver = match connection.accept().await {
                         Ok(Some(resolver)) => resolver,
                         Ok(None) => break,
+                        Err(error)
+                            if stats
+                                .completed_idle_timeout(&error, quic.close_reason().as_ref()) =>
+                        {
+                            while let Some(result) = responses.join_next().await {
+                                result??;
+                            }
+                            stats
+                                .completed_h3_idle_timeouts
+                                .fetch_add(1, Ordering::Relaxed);
+                            eprintln!("completed H3 connection reached idle timeout: {error}");
+                            break;
+                        }
                         Err(error) if error.is_h3_no_error() => {
                             while let Some(result) = responses.join_next().await {
                                 result??;
@@ -392,7 +423,10 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
     if config.protocol == "h1" {
         tls.alpn_protocols = vec![b"http/1.1".to_vec()];
     }
-    let stats = Arc::new(Stats::default());
+    let stats = Arc::new(Stats {
+        expected_requests: config.requests + config.warmup,
+        ..Stats::default()
+    });
     let body = Arc::new(Body::new(&config)?);
     let mut listeners = JoinSet::new();
     let mut urls = Vec::new();
@@ -460,7 +494,12 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
         match read_control()?.as_str() {
             "snapshot" => {
                 write_json(&output.with_file_name("peer-phase.json"), &*stats)?;
+                stats.phase_complete.store(true, Ordering::Release);
                 signal("snapshotted")?;
+            }
+            "recovery-snapshot" => {
+                write_json(&output.with_file_name("peer-recovery.json"), &*stats)?;
+                signal("recovery-snapshotted")?;
             }
             "stop" => break,
             _ => return Err("controller disconnected or sent an invalid command".into()),
@@ -485,6 +524,26 @@ mod tests {
     };
     use tokio::io::ReadBuf;
 
+    #[test]
+    fn only_a_typed_idle_timeout_after_all_requests_is_completed_retirement() {
+        let stats = Stats {
+            expected_requests: 2,
+            ..Stats::default()
+        };
+        let timeout = h3::error::ConnectionError::Timeout;
+        let reason = quinn::ConnectionError::TimedOut;
+        stats.requests.store(2, Ordering::Relaxed);
+        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
+        stats.phase_complete.store(true, Ordering::Release);
+        assert!(stats.completed_idle_timeout(&timeout, Some(&reason)));
+        stats.requests.store(1, Ordering::Relaxed);
+        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
+        stats.requests.store(3, Ordering::Relaxed);
+        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
+        stats.requests.store(2, Ordering::Relaxed);
+        assert!(!stats.completed_idle_timeout(&timeout, None));
+        assert!(!stats.completed_idle_timeout(&timeout, Some(&quinn::ConnectionError::Reset)));
+    }
     struct AbruptPeer(&'static [u8]);
 
     impl AsyncRead for AbruptPeer {

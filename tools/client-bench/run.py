@@ -24,8 +24,11 @@ def save(path, value):
 
 
 def sha(path):
+    digest = hashlib.sha256()
     with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def output_reader(process):
@@ -56,6 +59,7 @@ def snapshot(process):
         cpu = process.cpu_times()
         memory = process.memory_info()
         return {
+            "pid": process.pid,
             "cpu_user_s": cpu.user,
             "cpu_system_s": cpu.system,
             "rss_bytes": memory.rss,
@@ -148,7 +152,13 @@ def accepted(summary, config, phase):
     )
 
 
-def one(binary, config, folder, timeout):
+def accepted_recovery(raw, config, phase):
+    # DHAT currently stops at "save", so it includes the idle interval.
+    # Never attribute that allocation count to measured requests alone.
+    return not raw["heap_instrumented"] and accepted({"failures": 0}, config, phase)
+
+
+def one(binary, config, folder, timeout, recovery_seconds=0):
     folder.mkdir()
     save(folder / "config.json", config)
     handles = []
@@ -216,10 +226,35 @@ def one(binary, config, folder, timeout):
             "end": after,
             "samples": rows,
             "sampling_target_s": 0.01,
+            "phase_start_monotonic_s": start,
+            "phase_end_monotonic_s": time.perf_counter(),
         }
         save(folder / "process.json", measurements)
         command(peer, "snapshot")
         event(peer_messages, "snapshotted")
+        if recovery_seconds:
+            # The client and its pool stay alive, waiting for "save". Keep
+            # this interval outside request CPU, latency and throughput.
+            recovery_start = time.perf_counter()
+            recovery = []
+            while True:
+                elapsed = time.perf_counter() - recovery_start
+                recovery.append(
+                    {
+                        "t_s": elapsed,
+                        "client": snapshot(client_ps),
+                        "peer": snapshot(peer_ps),
+                    }
+                )
+                if elapsed >= recovery_seconds:
+                    break
+                time.sleep(min(0.25, recovery_seconds - elapsed))
+            command(peer, "recovery-snapshot")
+            event(peer_messages, "recovery-snapshotted")
+            save(
+                folder / "recovery.json",
+                {"requested_seconds": recovery_seconds, "samples": recovery},
+            )
         command(client, "save")
         event(client_messages, "saved", timeout=timeout)
         if client.wait(timeout=timeout) != 0:
@@ -237,6 +272,14 @@ def one(binary, config, folder, timeout):
             (folder / "peer-phase.json").read_text()
         )
         summary["accepted"] = accepted(summary, config, phase)
+        if recovery_seconds:
+            summary["peer_recovery"] = recovery_phase = json.loads(
+                (folder / "peer-recovery.json").read_text()
+            )
+            summary["recovery_accepted"] = accepted_recovery(
+                raw, config, recovery_phase
+            )
+            summary["accepted"] = summary["accepted"] and summary["recovery_accepted"]
         save(folder / "summary.json", summary)
         if not summary["accepted"]:
             raise RuntimeError("failed requests or peer controls: see retained summary")
@@ -268,6 +311,14 @@ def main():
     )
     parser.add_argument("--build-receipt", type=Path)
     parser.add_argument("--external-profiler", action="store_true")
+    parser.add_argument(
+        "--recovery-seconds",
+        type=int,
+        default=0,
+        choices=range(301),
+        metavar="0..300",
+        help="sample idle memory after requests, with the client and pools alive",
+    )
     parser.add_argument(
         "--keep-going",
         action="store_true",
@@ -329,6 +380,7 @@ def main():
             "binary_sha256": sha(binary),
             "measurement_kind": args.measurement_kind,
             "external_profiler": args.external_profiler,
+            "recovery_seconds": args.recovery_seconds,
             "build_receipt": receipt,
             "build_receipt_sha256": sha(args.build_receipt)
             if args.build_receipt
@@ -360,7 +412,7 @@ def main():
         name = config["name"]
         folder = output / f"{index:03d}-{name}-r{repetition}"
         try:
-            summary = one(binary, config, folder, args.timeout)
+            summary = one(binary, config, folder, args.timeout, args.recovery_seconds)
             results.append(
                 {
                     "name": name,

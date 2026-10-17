@@ -1197,6 +1197,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Add an isolated public-client benchmark tool for protocol, concurrency,
   proxy, body and allocation measurements with retained raw results.
+  Include H2/H3 concurrency, worker and offered-rate sweeps, plus optional
+  idle-memory sampling with peer-health checks outside request timing.
+  Distinguish completed H3 idle retirement from interrupted work. Buffer
+  result export for large profiling runs.
 
 - Add `dns::chromium_macos_resolvers` for paired address and HTTPS lookups
   from watched native macOS settings. DNS, hosts-file and observed hostname

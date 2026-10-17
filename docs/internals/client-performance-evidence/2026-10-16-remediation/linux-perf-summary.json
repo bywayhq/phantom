@@ -1,0 +1,532 @@
+{
+  "event": "cpu-clock:u",
+  "frequency_hz": 199,
+  "call_graph": "DWARF, 16384 bytes",
+  "lost_samples": 0,
+  "accepted_trials": 2,
+  "successful_measured_requests": 600000,
+  "limits": [
+    "WSL Linux diagnosis, not Windows throughput comparison",
+    "User-mode CPU only; kernel and off-CPU wait are outside samples",
+    "Inline expansion disabled after addr2line failures; original reports retained",
+    "Some libc addresses are unresolved; percentages are per filtered process"
+  ],
+  "rows": [
+    {
+      "trial": "000-h2-cpu-r0",
+      "role": "client",
+      "report": "linux-cpu-buffered\\000-h2-cpu-r0\\client-perf-relative-self.txt",
+      "samples": 2366,
+      "reported_percent_sum": 99.21000000000001,
+      "top_self": [
+        {
+          "percent": 6.21,
+          "samples": 147,
+          "shared_object": "libc.so.6",
+          "symbol": "malloc"
+        },
+        {
+          "percent": 2.7,
+          "samples": 64,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a19d2"
+        },
+        {
+          "percent": 2.66,
+          "samples": 63,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::client::execute::{closure#0}"
+        },
+        {
+          "percent": 2.07,
+          "samples": 49,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<phantom[228af7d235d689cb]::session::http2_pool::Http2Pool>::send_request::{closure#0}"
+        },
+        {
+          "percent": 1.69,
+          "samples": 40,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<phantom[228af7d235d689cb]::request::RequestBuilder>::send_inner::{closure#0}"
+        },
+        {
+          "percent": 1.52,
+          "samples": 36,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000ab3ed"
+        },
+        {
+          "percent": 1.27,
+          "samples": 30,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom[228af7d235d689cb]::request::attempt::send_once_exact::{closure#0}"
+        },
+        {
+          "percent": 1.18,
+          "samples": 28,
+          "shared_object": "[vdso]",
+          "symbol": "__vdso_clock_gettime"
+        },
+        {
+          "percent": 1.1,
+          "samples": 26,
+          "shared_object": "phantom-client-bench",
+          "symbol": "bytes[dcb91e6493050bbb]::bytes::shared_drop"
+        },
+        {
+          "percent": 1.06,
+          "samples": 25,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9ce6"
+        },
+        {
+          "percent": 1.06,
+          "samples": 25,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9d41"
+        },
+        {
+          "percent": 1.06,
+          "samples": 25,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a1653"
+        },
+        {
+          "percent": 1.06,
+          "samples": 25,
+          "shared_object": "phantom-client-bench",
+          "symbol": "__rustc[9d087a5ab36ea756]::__rdl_alloc"
+        },
+        {
+          "percent": 1.01,
+          "samples": 24,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a1644"
+        },
+        {
+          "percent": 0.85,
+          "samples": 20,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tracing[caf974911c7e0f3d]::instrument::Instrumented<<phantom_net[a023088d7040e0c5]::http2::connection::Http2Connection>::send_prepared_request::{closure#0}::{closure#0}> as core[a9090a07a7fa7517]::future::future::Future>::poll"
+        },
+        {
+          "percent": 0.8,
+          "samples": 19,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::client::run::{closure#0}::{closure#2}"
+        },
+        {
+          "percent": 0.8,
+          "samples": 19,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<phantom_net[a023088d7040e0c5]::http2::request::ValidatedHeaders>::new"
+        },
+        {
+          "percent": 0.76,
+          "samples": 18,
+          "shared_object": "libc.so.6",
+          "symbol": "syscall"
+        },
+        {
+          "percent": 0.76,
+          "samples": 18,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tokio[54a0d5c0b09eb740]::runtime::handle::Handle>::try_current"
+        },
+        {
+          "percent": 0.76,
+          "samples": 18,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tokio[54a0d5c0b09eb740]::runtime::scheduler::multi_thread::worker::Context>::run"
+        }
+      ]
+    },
+    {
+      "trial": "000-h2-cpu-r0",
+      "role": "peer",
+      "report": "linux-cpu-buffered\\000-h2-cpu-r0\\peer-perf-relative-self.txt",
+      "samples": 990,
+      "reported_percent_sum": 99.76,
+      "top_self": [
+        {
+          "percent": 14.24,
+          "samples": 141,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<std[c29fa2d9dbea2b0e]::sys::sync::mutex::futex::Mutex>::lock_contended"
+        },
+        {
+          "percent": 9.9,
+          "samples": 98,
+          "shared_object": "libc.so.6",
+          "symbol": "cfree"
+        },
+        {
+          "percent": 2.53,
+          "samples": 25,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::hpack::table::Table>::index"
+        },
+        {
+          "percent": 1.72,
+          "samples": 17,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a1640"
+        },
+        {
+          "percent": 1.52,
+          "samples": 15,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000ab8b5"
+        },
+        {
+          "percent": 1.41,
+          "samples": 14,
+          "shared_object": "libc.so.6",
+          "symbol": "clock_gettime"
+        },
+        {
+          "percent": 1.41,
+          "samples": 14,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::proto::streams::counts::Counts>::transition_after"
+        },
+        {
+          "percent": 1.31,
+          "samples": 13,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http[fb9bae0faa6e4179]::header::name::HdrName>::from_bytes::<<&str as http[fb9bae0faa6e4179]::header::map::as_header_name::Sealed>::find<http[fb9bae0faa6e4179]::header::value::HeaderValue>::{closure#0}, core[a9090a07a7fa7517]::option::Option<(usize, usize)>>"
+        },
+        {
+          "percent": 1.31,
+          "samples": 13,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::peer::http2::<tokio_rustls[183ecaca4f00b857]::server::TlsStream<tokio[54a0d5c0b09eb740]::net::tcp::stream::TcpStream>>::{closure#0}::{closure#0}"
+        },
+        {
+          "percent": 1.31,
+          "samples": 13,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::proto::streams::send::Send>::check_headers"
+        },
+        {
+          "percent": 1.31,
+          "samples": 13,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::frame::headers::Iter as core[a9090a07a7fa7517]::iter::traits::iterator::Iterator>::next"
+        },
+        {
+          "percent": 1.21,
+          "samples": 12,
+          "shared_object": "libc.so.6",
+          "symbol": "epoll_wait"
+        },
+        {
+          "percent": 1.21,
+          "samples": 12,
+          "shared_object": "phantom-client-bench",
+          "symbol": "bytes[dcb91e6493050bbb]::bytes::shared_clone"
+        },
+        {
+          "percent": 1.11,
+          "samples": 11,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<slab[7ed103dab5eaa40a]::Slab<http2[4263f1172a38d4d3]::proto::streams::buffer::Slot<http2[4263f1172a38d4d3]::frame::Frame>>>::insert_at"
+        },
+        {
+          "percent": 1.11,
+          "samples": 11,
+          "shared_object": "phantom-client-bench",
+          "symbol": "http[fb9bae0faa6e4179]::header::name::parse_hdr"
+        },
+        {
+          "percent": 1.01,
+          "samples": 10,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::hpack::decoder::Decoder>::decode::<<http2[4263f1172a38d4d3]::frame::headers::HeaderBlock>::load::{closure#0}>"
+        },
+        {
+          "percent": 1.01,
+          "samples": 10,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http[fb9bae0faa6e4179]::header::name::StandardHeader>::from_bytes"
+        },
+        {
+          "percent": 1.01,
+          "samples": 10,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::proto::streams::streams::OpaqueStreamRef as core[a9090a07a7fa7517]::clone::Clone>::clone"
+        },
+        {
+          "percent": 1.01,
+          "samples": 10,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http2[4263f1172a38d4d3]::proto::streams::streams::OpaqueStreamRef as core[a9090a07a7fa7517]::ops::drop::Drop>::drop"
+        },
+        {
+          "percent": 0.91,
+          "samples": 9,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<http[fb9bae0faa6e4179]::header::map::HeaderMap>::try_append2::<http[fb9bae0faa6e4179]::header::name::HeaderName>"
+        }
+      ]
+    },
+    {
+      "trial": "001-h3-cpu-r0",
+      "role": "client",
+      "report": "linux-cpu-buffered\\001-h3-cpu-r0\\client-perf-relative-self.txt",
+      "samples": 4157,
+      "reported_percent_sum": 99.17,
+      "top_self": [
+        {
+          "percent": 4.19,
+          "samples": 174,
+          "shared_object": "libc.so.6",
+          "symbol": "cfree"
+        },
+        {
+          "percent": 4.14,
+          "samples": 172,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a19d2"
+        },
+        {
+          "percent": 1.49,
+          "samples": 62,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000ab3ed"
+        },
+        {
+          "percent": 1.4,
+          "samples": 58,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<phantom[228af7d235d689cb]::request::RequestBuilder>::send_inner::{closure#0}"
+        },
+        {
+          "percent": 1.4,
+          "samples": 58,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<h3[265f45a6b3f8fb8c]::qpack::prefix_string::encode::HuffmanEncoder>::put"
+        },
+        {
+          "percent": 1.35,
+          "samples": 56,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::client::execute::{closure#0}"
+        },
+        {
+          "percent": 1.18,
+          "samples": 49,
+          "shared_object": "libc.so.6",
+          "symbol": "realloc"
+        },
+        {
+          "percent": 1.11,
+          "samples": 46,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9ce6"
+        },
+        {
+          "percent": 1.01,
+          "samples": 42,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tracing[caf974911c7e0f3d]::instrument::Instrumented<<phantom_net[a023088d7040e0c5]::http3::connection::Http3Connection>::send_prepared_request_now::{closure#0}::{closure#0}> as core[a9090a07a7fa7517]::future::future::Future>::poll"
+        },
+        {
+          "percent": 0.99,
+          "samples": 41,
+          "shared_object": "[vdso]",
+          "symbol": "__vdso_clock_gettime"
+        },
+        {
+          "percent": 0.96,
+          "samples": 40,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<h3[265f45a6b3f8fb8c]::client::connection::SendRequest<phantom_net[a023088d7040e0c5]::http3::early_streams::Opener<bytes[dcb91e6493050bbb]::bytes::Bytes>, bytes[dcb91e6493050bbb]::bytes::Bytes>>::send_request::{closure#0}::{closure#0}"
+        },
+        {
+          "percent": 0.94,
+          "samples": 39,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<h3[265f45a6b3f8fb8c]::proto::headers::Header as core[a9090a07a7fa7517]::convert::TryFrom<alloc[12ca63220423dfc2]::vec::Vec<h3[265f45a6b3f8fb8c]::qpack::field::HeaderField>>>::try_from"
+        },
+        {
+          "percent": 0.91,
+          "samples": 38,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom[228af7d235d689cb]::request::attempt::send_once_exact::{closure#0}"
+        },
+        {
+          "percent": 0.87,
+          "samples": 36,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9d41"
+        },
+        {
+          "percent": 0.79,
+          "samples": 33,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::client::run::{closure#0}::{closure#2}"
+        },
+        {
+          "percent": 0.79,
+          "samples": 33,
+          "shared_object": "phantom-client-bench",
+          "symbol": "bytes[dcb91e6493050bbb]::bytes::promotable_even_clone"
+        },
+        {
+          "percent": 0.75,
+          "samples": 31,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9bc3"
+        },
+        {
+          "percent": 0.75,
+          "samples": 31,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<core[a9090a07a7fa7517]::future::poll_fn::PollFn<phantom[228af7d235d689cb]::timeout::run_until<core[a9090a07a7fa7517]::result::Result<http[fb9bae0faa6e4179]::response::Response<phantom_net[a023088d7040e0c5]::http3::body::Http3Body>, phantom_net[a023088d7040e0c5]::http3::connector::Http3ConnectorError>, phantom[228af7d235d689cb]::session::http3_pool::dispatch::{closure#0}::{closure#1}>::{closure#0}::{closure#0}> as core[a9090a07a7fa7517]::future::future::Future>::poll"
+        },
+        {
+          "percent": 0.67,
+          "samples": 28,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000ab8b5"
+        },
+        {
+          "percent": 0.67,
+          "samples": 28,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<phantom[228af7d235d689cb]::session::http3_pool::Http3Pool>::send_request::{closure#0}"
+        }
+      ]
+    },
+    {
+      "trial": "001-h3-cpu-r0",
+      "role": "peer",
+      "report": "linux-cpu-buffered\\001-h3-cpu-r0\\peer-perf-relative-self.txt",
+      "samples": 2518,
+      "reported_percent_sum": 100.35,
+      "top_self": [
+        {
+          "percent": 9.73,
+          "samples": 245,
+          "shared_object": "libc.so.6",
+          "symbol": "malloc"
+        },
+        {
+          "percent": 6.83,
+          "samples": 172,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<std[c29fa2d9dbea2b0e]::sys::sync::mutex::futex::Mutex>::lock_contended"
+        },
+        {
+          "percent": 2.54,
+          "samples": 64,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn_proto[1801fedbf339dbe9]::connection::Connection>::poll_transmit"
+        },
+        {
+          "percent": 2.42,
+          "samples": 61,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<h3[265f45a6b3f8fb8c]::qpack::prefix_string::decode::DecodeIter as core[a9090a07a7fa7517]::iter::traits::iterator::Iterator>::next"
+        },
+        {
+          "percent": 2.3,
+          "samples": 58,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a1653"
+        },
+        {
+          "percent": 2.07,
+          "samples": 52,
+          "shared_object": "phantom-client-bench",
+          "symbol": "phantom_client_bench[1e8add6028f240ab]::peer::quic_listener::{closure#0}::{closure#0}::{closure#0}::{closure#0}"
+        },
+        {
+          "percent": 1.83,
+          "samples": 46,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn[b664aac802057c01]::connection::ConnectionDriver as core[a9090a07a7fa7517]::future::future::Future>::poll"
+        },
+        {
+          "percent": 1.79,
+          "samples": 45,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn_proto[1801fedbf339dbe9]::connection::streams::recv::Chunks>::new"
+        },
+        {
+          "percent": 1.67,
+          "samples": 42,
+          "shared_object": "phantom-client-bench",
+          "symbol": "bytes[dcb91e6493050bbb]::bytes::shared_drop"
+        },
+        {
+          "percent": 1.51,
+          "samples": 38,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn[b664aac802057c01]::recv_stream::RecvStream>::poll_read_chunk"
+        },
+        {
+          "percent": 1.39,
+          "samples": 35,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000000a9cbd"
+        },
+        {
+          "percent": 1.39,
+          "samples": 35,
+          "shared_object": "libc.so.6",
+          "symbol": "0x00000000001a1644"
+        },
+        {
+          "percent": 1.23,
+          "samples": 31,
+          "shared_object": "phantom-client-bench",
+          "symbol": "__rustc[9d087a5ab36ea756]::__rdl_alloc"
+        },
+        {
+          "percent": 1.19,
+          "samples": 30,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn[b664aac802057c01]::send_stream::SendStream>::execute_poll::<<quinn[b664aac802057c01]::send_stream::SendStream>::write::{closure#0}::{closure#0}::{closure#0}, usize>"
+        },
+        {
+          "percent": 1.07,
+          "samples": 27,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tokio[54a0d5c0b09eb740]::runtime::scheduler::multi_thread::worker::Context>::run_task"
+        },
+        {
+          "percent": 1.03,
+          "samples": 26,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<quinn_proto[1801fedbf339dbe9]::connection::streams::SendStream>::write"
+        },
+        {
+          "percent": 0.95,
+          "samples": 24,
+          "shared_object": "phantom-client-bench",
+          "symbol": "h3[265f45a6b3f8fb8c]::qpack::prefix_string::decode::<bytes[dcb91e6493050bbb]::bytes::Bytes>"
+        },
+        {
+          "percent": 0.95,
+          "samples": 24,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<tokio[54a0d5c0b09eb740]::sync::task::atomic_waker::AtomicWaker>::register_by_ref"
+        },
+        {
+          "percent": 0.91,
+          "samples": 23,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<h3[265f45a6b3f8fb8c]::frame::FrameStream<h3_quinn[45635a473b3a298a]::RecvStream, bytes[dcb91e6493050bbb]::bytes::Bytes>>::poll_next"
+        },
+        {
+          "percent": 0.87,
+          "samples": 22,
+          "shared_object": "phantom-client-bench",
+          "symbol": "<bytes[dcb91e6493050bbb]::bytes::Bytes>::copy_from_slice"
+        }
+      ]
+    }
+  ]
+}

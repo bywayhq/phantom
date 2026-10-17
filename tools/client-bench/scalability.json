@@ -1,0 +1,28 @@
+{
+  "seed": 20261020,
+  "repeats": 2,
+  "base": {
+    "protocol": "h2",
+    "requests": 200000,
+    "warmup": 1024,
+    "bytes": 1024,
+    "concurrency": 128,
+    "workers": 2
+  },
+  "cases": [
+    {"name": "h2-c32", "concurrency": 32},
+    {"name": "h2-c128"},
+    {"name": "h2-c192", "concurrency": 192},
+    {"name": "h2-workers4", "workers": 4},
+    {"name": "h2-workers8", "workers": 8},
+    {"name": "h3-c32", "protocol": "h3", "concurrency": 32},
+    {"name": "h3-c128", "protocol": "h3"},
+    {"name": "h3-c192", "protocol": "h3", "concurrency": 192},
+    {"name": "h3-workers4", "protocol": "h3", "workers": 4},
+    {"name": "h3-workers8", "protocol": "h3", "workers": 8},
+    {"name": "h2-offered10k", "arrival_interval_us": 100},
+    {"name": "h2-offered40k", "arrival_interval_us": 25},
+    {"name": "h3-offered10k", "protocol": "h3", "arrival_interval_us": 100},
+    {"name": "h3-offered40k", "protocol": "h3", "arrival_interval_us": 25}
+  ]
+}

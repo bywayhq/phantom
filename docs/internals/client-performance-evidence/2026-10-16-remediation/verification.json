@@ -1,0 +1,53 @@
+{
+  "source_head": "a98cfbd4e7266124e1b4faadb950a155e573df26",
+  "scope": "local verification; pending benchmark-tool and documentation changes reviewed separately",
+  "checks": [
+    {
+      "command": "scripts/dev/gate.sh --slots 2 --jobs 2 --test-threads 8",
+      "result": "all 22 steps passed; 5738 tests passed, 3 skipped",
+      "log": "gate-third-run.log",
+      "log_sha256": "82806f081a45c5a72fdf1d4468a29455b3743928f290719577f84eae52ff734f"
+    },
+    {
+      "command": "scripts/ci/check-vendor.sh btls",
+      "result": "passed",
+      "log": "vendor-btls-retry.log",
+      "log_sha256": "96e0b65fa5286dc4581904cf417559e524ec1f361af032eb64382eea266c7960"
+    },
+    {
+      "command": "scripts/ci/check-vendor.sh tokio-btls",
+      "result": "passed",
+      "log": "vendor-tokio-btls.log",
+      "log_sha256": "3b0ee619ee3e5415b0ade23622b6e5d2a2fa29c4876c9d88d39818d1caf8bf65"
+    },
+    {
+      "command": "bash target/client-profiling/remediation/check-scaling-tool.sh",
+      "result": "format, Clippy all targets/features, 4 Rust tests and optimized build passed",
+      "log": "scaling-tool-idle-final.log",
+      "log_sha256": "7b8340f62b7f3658ddc0b4914b80caa3bbcace946fcfba0a2e29130ec7e0cb36"
+    },
+    {
+      "command": "Python 3.10 unittest discovery for tools/client-bench/test_*.py",
+      "result": "9 tests passed",
+      "log": "controller-final-tests.log",
+      "log_sha256": "d9ed743d4a81869adffc2da090e618519204446a5c2891dbc5ff5a9f5b4c0be1"
+    },
+    {
+      "command": "ShellCheck 0.11.0 over CI, development and release scripts",
+      "result": "passed; temporary LF-normalized input copies",
+      "log": "shellcheck-0.11-retry.log",
+      "log_sha256": "44f29875b17ffa2315746b329c5e18a5b88fd24cf92181329bd7ffb1e4d4ebe9"
+    },
+    {
+      "command": "scripts/ci/test-upstream-freshness.sh",
+      "result": "passed",
+      "log": "staging-tests.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limits": [
+    "No remote CI run or push for this delivery",
+    "Historical failed gates and rejected trials retained without rebaselining",
+    "Performance conclusions limited to the documented workloads and shared host"
+  ]
+}

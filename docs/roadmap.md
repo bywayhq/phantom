@@ -679,10 +679,15 @@ remains separate from the completed source reviews.
 
 The [client measurement method](internals/client-performance.md) defines the
 first public-client baseline and separates it from later optimization work.
+The [measurement results](internals/client-performance-results.md) record
+the delivered correctness fixes, scaling observations and allocation decisions.
 
 - Measure the cold cost of building a client for each supported profile.
 - Profile cold and warm connections, proxy routes, multiplexing, streaming
   bodies, SSE, and WebSocket workloads.
+- Check sustained throughput across concurrency, runtime workers and origin
+  counts. Retain offered and completed rates, queueing, CPU/request, latency
+  tails, errors and memory after traffic stops. Separate client and peer costs.
 - Optimize only measured bottlenecks, keeping the packet, frame, ordering,
   cancellation, and bounded-resource evidence.
 - Build health: compile time, generic code that monomorphizes per profile or

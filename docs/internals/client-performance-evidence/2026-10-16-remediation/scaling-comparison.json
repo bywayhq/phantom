@@ -1,0 +1,3598 @@
+{
+  "cases": [
+    {
+      "name": "h2-c128",
+      "trials": [
+        "scaling-v2/024-h2-c128-r1",
+        "scaling-replacements-v1/001-h2-c128-r0"
+      ],
+      "rps": {
+        "median": 59426.53270120456,
+        "min": 58176.922012061645,
+        "max": 60676.14339034747
+      },
+      "cpu_us": {
+        "median": 29.53125,
+        "min": 28.359375,
+        "max": 30.703125
+      },
+      "client_cores": {
+        "median": 1.7534754063061078,
+        "min": 1.7207375039606352,
+        "max": 1.7862133086515803
+      },
+      "peer_cores": {
+        "median": 1.0766177760338862,
+        "min": 1.0760534804381934,
+        "max": 1.077182071629579
+      },
+      "p99_ms": {
+        "median": 3.2919,
+        "min": 3.2197,
+        "max": 3.3641
+      },
+      "scheduled_p99_ms": {
+        "median": 3.2919,
+        "min": 3.2197,
+        "max": 3.3641
+      },
+      "rss_mib": {
+        "median": 39.904296875,
+        "min": 39.83203125,
+        "max": 39.9765625
+      },
+      "private_mib": {
+        "median": 30.4296875,
+        "min": 30.37109375,
+        "max": 30.48828125
+      },
+      "host_busy_percent": {
+        "median": 88.91937955438883,
+        "min": 87.5563063062019,
+        "max": 90.28245280257575
+      }
+    },
+    {
+      "name": "h2-c192",
+      "trials": [
+        "scaling-v2/015-h2-c192-r1",
+        "scaling-replacements-v1/002-h2-c192-r0"
+      ],
+      "rps": {
+        "median": 65991.71864864037,
+        "min": 64755.45055531199,
+        "max": 67227.98674196874
+      },
+      "cpu_us": {
+        "median": 26.484375,
+        "min": 24.921875,
+        "max": 28.046875
+      },
+      "client_cores": {
+        "median": 1.7458177546892588,
+        "min": 1.675447482085002,
+        "max": 1.8161880272935158
+      },
+      "peer_cores": {
+        "median": 1.067982492579311,
+        "min": 1.006744895352116,
+        "max": 1.1292200898065061
+      },
+      "p99_ms": {
+        "median": 4.4945,
+        "min": 4.3962,
+        "max": 4.5928
+      },
+      "scheduled_p99_ms": {
+        "median": 4.4945,
+        "min": 4.3962,
+        "max": 4.5928
+      },
+      "rss_mib": {
+        "median": 41.369140625,
+        "min": 41.3046875,
+        "max": 41.43359375
+      },
+      "private_mib": {
+        "median": 31.919921875,
+        "min": 31.8671875,
+        "max": 31.97265625
+      },
+      "host_busy_percent": {
+        "median": 76.08180311777501,
+        "min": 61.95584577114428,
+        "max": 90.20776046440574
+      }
+    },
+    {
+      "name": "h2-c32",
+      "trials": [
+        "scaling-v2/006-h2-c32-r0",
+        "scaling-v2/016-h2-c32-r1"
+      ],
+      "rps": {
+        "median": 41184.46398872828,
+        "min": 39868.33323475888,
+        "max": 42500.59474269768
+      },
+      "cpu_us": {
+        "median": 40.859375,
+        "min": 40.234375,
+        "max": 41.484375
+      },
+      "client_cores": {
+        "median": 1.6819488765682138,
+        "min": 1.6539128865357005,
+        "max": 1.709984866600727
+      },
+      "peer_cores": {
+        "median": 1.0996776381927567,
+        "min": 1.0870350233539725,
+        "max": 1.1123202530315408
+      },
+      "p99_ms": {
+        "median": 1.5868,
+        "min": 1.5601,
+        "max": 1.6135
+      },
+      "scheduled_p99_ms": {
+        "median": 1.5868,
+        "min": 1.5601,
+        "max": 1.6135
+      },
+      "rss_mib": {
+        "median": 37.080078125,
+        "min": 37.078125,
+        "max": 37.08203125
+      },
+      "private_mib": {
+        "median": 27.595703125,
+        "min": 27.58203125,
+        "max": 27.609375
+      },
+      "host_busy_percent": {
+        "median": 87.27760205714755,
+        "min": 83.89138423846468,
+        "max": 90.66381987583041
+      }
+    },
+    {
+      "name": "h2-offered10k",
+      "trials": [
+        "scaling-v2/010-h2-offered10k-r0",
+        "scaling-v2/021-h2-offered10k-r1"
+      ],
+      "rps": {
+        "median": 9999.214611699772,
+        "min": 9999.203913380437,
+        "max": 9999.225310019106
+      },
+      "cpu_us": {
+        "median": 34.0625,
+        "min": 30.9375,
+        "max": 37.1875
+      },
+      "client_cores": {
+        "median": 0.3405982811432714,
+        "min": 0.30935037107020724,
+        "max": 0.3718461912163355
+      },
+      "peer_cores": {
+        "median": 0.1999843081143132,
+        "min": 0.18514150995868464,
+        "max": 0.21482710626994175
+      },
+      "p99_ms": {
+        "median": 4.3492,
+        "min": 4.3032,
+        "max": 4.3952
+      },
+      "scheduled_p99_ms": {
+        "median": 17.81545,
+        "min": 17.3656,
+        "max": 18.2653
+      },
+      "rss_mib": {
+        "median": 39.6875,
+        "min": 39.66796875,
+        "max": 39.70703125
+      },
+      "private_mib": {
+        "median": 30.2109375,
+        "min": 30.1953125,
+        "max": 30.2265625
+      },
+      "host_busy_percent": {
+        "median": 64.82916609716727,
+        "min": 57.28943263800317,
+        "max": 72.36889955633137
+      }
+    },
+    {
+      "name": "h2-offered40k",
+      "trials": [
+        "scaling-v2/011-h2-offered40k-r0",
+        "scaling-v2/023-h2-offered40k-r1"
+      ],
+      "rps": {
+        "median": 39983.67756414776,
+        "min": 39981.670003570165,
+        "max": 39985.68512472535
+      },
+      "cpu_us": {
+        "median": 36.8359375,
+        "min": 35.234375,
+        "max": 38.4375
+      },
+      "client_cores": {
+        "median": 1.4728394630068367,
+        "min": 1.4087291540320426,
+        "max": 1.5369497719816307
+      },
+      "peer_cores": {
+        "median": 0.8074838827715586,
+        "min": 0.7871391281952876,
+        "max": 0.8278286373478295
+      },
+      "p99_ms": {
+        "median": 3.98245,
+        "min": 3.8803,
+        "max": 4.0846
+      },
+      "scheduled_p99_ms": {
+        "median": 14.396049999999999,
+        "min": 12.2811,
+        "max": 16.511
+      },
+      "rss_mib": {
+        "median": 39.783203125,
+        "min": 39.69921875,
+        "max": 39.8671875
+      },
+      "private_mib": {
+        "median": 30.330078125,
+        "min": 30.23828125,
+        "max": 30.421875
+      },
+      "host_busy_percent": {
+        "median": 74.16736892740371,
+        "min": 63.872663551401864,
+        "max": 84.46207430340557
+      }
+    },
+    {
+      "name": "h2-workers4",
+      "trials": [
+        "scaling-v2/008-h2-workers4-r0",
+        "scaling-v2/025-h2-workers4-r1"
+      ],
+      "rps": {
+        "median": 54603.2368679326,
+        "min": 53890.78391339622,
+        "max": 55315.689822468994
+      },
+      "cpu_us": {
+        "median": 46.953125,
+        "min": 45.15625,
+        "max": 48.75
+      },
+      "client_cores": {
+        "median": 2.565072794967331,
+        "min": 2.433505711089298,
+        "max": 2.6966398788453634
+      },
+      "peer_cores": {
+        "median": 1.322143840959877,
+        "min": 1.318069171551019,
+        "max": 1.326218510368735
+      },
+      "p99_ms": {
+        "median": 3.54855,
+        "min": 3.4441,
+        "max": 3.653
+      },
+      "scheduled_p99_ms": {
+        "median": 3.54855,
+        "min": 3.4441,
+        "max": 3.653
+      },
+      "rss_mib": {
+        "median": 40.419921875,
+        "min": 40.4140625,
+        "max": 40.42578125
+      },
+      "private_mib": {
+        "median": 31.015625,
+        "min": 31.01171875,
+        "max": 31.01953125
+      },
+      "host_busy_percent": {
+        "median": 88.77271961441286,
+        "min": 79.85372340425532,
+        "max": 97.69171582457041
+      }
+    },
+    {
+      "name": "h2-workers8",
+      "trials": [
+        "scaling-v2/020-h2-workers8-r1",
+        "scaling-replacements-v1/000-h2-workers8-r0"
+      ],
+      "rps": {
+        "median": 42013.179756367725,
+        "min": 37995.62009288941,
+        "max": 46030.739419846046
+      },
+      "cpu_us": {
+        "median": 90.2734375,
+        "min": 85.9375,
+        "max": 94.609375
+      },
+      "client_cores": {
+        "median": 3.7752542693093645,
+        "min": 3.594741869725709,
+        "max": 3.9557666688930198
+      },
+      "peer_cores": {
+        "median": 1.4967511851823447,
+        "min": 1.4723302785994647,
+        "max": 1.521172091765225
+      },
+      "p99_ms": {
+        "median": 5.03895,
+        "min": 4.6135,
+        "max": 5.4644
+      },
+      "scheduled_p99_ms": {
+        "median": 5.03895,
+        "min": 4.6135,
+        "max": 5.4644
+      },
+      "rss_mib": {
+        "median": 40.814453125,
+        "min": 40.51171875,
+        "max": 41.1171875
+      },
+      "private_mib": {
+        "median": 31.544921875,
+        "min": 31.23828125,
+        "max": 31.8515625
+      },
+      "host_busy_percent": {
+        "median": 78.20434324164712,
+        "min": 71.11185757473967,
+        "max": 85.29682890855457
+      }
+    },
+    {
+      "name": "h3-c128",
+      "trials": [
+        "scaling-v2/022-h3-c128-r1",
+        "scaling-replacements-v1/003-h3-c128-r0"
+      ],
+      "rps": {
+        "median": 27548.514752643852,
+        "min": 26993.154266146565,
+        "max": 28103.875239141144
+      },
+      "cpu_us": {
+        "median": 62.4609375,
+        "min": 61.953125,
+        "max": 62.96875
+      },
+      "client_cores": {
+        "median": 1.7204240391856662,
+        "min": 1.6997251826964164,
+        "max": 1.741122895674916
+      },
+      "peer_cores": {
+        "median": 1.2945432768337524,
+        "min": 1.2695217865797055,
+        "max": 1.319564767087799
+      },
+      "p99_ms": {
+        "median": 7.9506499999999996,
+        "min": 7.7542,
+        "max": 8.1471
+      },
+      "scheduled_p99_ms": {
+        "median": 7.9506499999999996,
+        "min": 7.7542,
+        "max": 8.1471
+      },
+      "rss_mib": {
+        "median": 43.31640625,
+        "min": 43.3125,
+        "max": 43.3203125
+      },
+      "private_mib": {
+        "median": 32.783203125,
+        "min": 32.77734375,
+        "max": 32.7890625
+      },
+      "host_busy_percent": {
+        "median": 74.22036675742629,
+        "min": 70.23744541464382,
+        "max": 78.20328810020877
+      }
+    },
+    {
+      "name": "h3-c192",
+      "trials": [
+        "scaling-v2/012-h3-c192-r0",
+        "scaling-v2/019-h3-c192-r1"
+      ],
+      "rps": {
+        "median": 26616.77256039997,
+        "min": 25210.911015051657,
+        "max": 28022.634105748286
+      },
+      "cpu_us": {
+        "median": 65.859375,
+        "min": 63.203125,
+        "max": 68.515625
+      },
+      "client_cores": {
+        "median": 1.7492296856152605,
+        "min": 1.7273413250156489,
+        "max": 1.7711180462148721
+      },
+      "peer_cores": {
+        "median": 1.3017154474694186,
+        "min": 1.2920591895213975,
+        "max": 1.3113717054174394
+      },
+      "p99_ms": {
+        "median": 10.902249999999999,
+        "min": 10.6551,
+        "max": 11.1494
+      },
+      "scheduled_p99_ms": {
+        "median": 10.902249999999999,
+        "min": 10.6551,
+        "max": 11.1494
+      },
+      "rss_mib": {
+        "median": 46.208984375,
+        "min": 46.1328125,
+        "max": 46.28515625
+      },
+      "private_mib": {
+        "median": 35.6796875,
+        "min": 35.6015625,
+        "max": 35.7578125
+      },
+      "host_busy_percent": {
+        "median": 73.38606485222189,
+        "min": 64.7943899784164,
+        "max": 81.9777397260274
+      }
+    },
+    {
+      "name": "h3-c32",
+      "trials": [
+        "scaling-v2/009-h3-c32-r0",
+        "scaling-v2/027-h3-c32-r1"
+      ],
+      "rps": {
+        "median": 27288.928767134763,
+        "min": 25382.484212665924,
+        "max": 29195.373321603605
+      },
+      "cpu_us": {
+        "median": 63.0078125,
+        "min": 59.0625,
+        "max": 66.953125
+      },
+      "client_cores": {
+        "median": 1.7118941875541807,
+        "min": 1.6994366383011483,
+        "max": 1.724351736807213
+      },
+      "peer_cores": {
+        "median": 1.295428327958644,
+        "min": 1.2314470856301203,
+        "max": 1.3594095702871678
+      },
+      "p99_ms": {
+        "median": 2.34465,
+        "min": 2.1857,
+        "max": 2.5036
+      },
+      "scheduled_p99_ms": {
+        "median": 2.34465,
+        "min": 2.1857,
+        "max": 2.5036
+      },
+      "rss_mib": {
+        "median": 39.037109375,
+        "min": 39.0,
+        "max": 39.07421875
+      },
+      "private_mib": {
+        "median": 28.498046875,
+        "min": 28.45703125,
+        "max": 28.5390625
+      },
+      "host_busy_percent": {
+        "median": 64.72891497088929,
+        "min": 53.769841269646015,
+        "max": 75.68798867213256
+      }
+    },
+    {
+      "name": "h3-offered10k",
+      "trials": [
+        "scaling-v2/013-h3-offered10k-r0",
+        "scaling-v2/018-h3-offered10k-r1"
+      ],
+      "rps": {
+        "median": 9998.774292856377,
+        "min": 9998.354820706027,
+        "max": 9999.193765006727
+      },
+      "cpu_us": {
+        "median": 64.6484375,
+        "min": 60.390625,
+        "max": 68.90625
+      },
+      "client_cores": {
+        "median": 0.6464069209820973,
+        "min": 0.6038068965942,
+        "max": 0.6890069453699947
+      },
+      "peer_cores": {
+        "median": 0.42729300873437154,
+        "min": 0.3882173707727262,
+        "max": 0.46636864669601685
+      },
+      "p99_ms": {
+        "median": 6.43435,
+        "min": 6.397,
+        "max": 6.4717
+      },
+      "scheduled_p99_ms": {
+        "median": 18.387349999999998,
+        "min": 18.2879,
+        "max": 18.4868
+      },
+      "rss_mib": {
+        "median": 42.900390625,
+        "min": 42.87109375,
+        "max": 42.9296875
+      },
+      "private_mib": {
+        "median": 32.4296875,
+        "min": 32.4140625,
+        "max": 32.4453125
+      },
+      "host_busy_percent": {
+        "median": 60.88067914385563,
+        "min": 54.19747081719311,
+        "max": 67.56388747051815
+      }
+    },
+    {
+      "name": "h3-offered40k",
+      "trials": [
+        "scaling-v2/007-h3-offered40k-r0",
+        "scaling-v2/017-h3-offered40k-r1"
+      ],
+      "rps": {
+        "median": 27263.728007211517,
+        "min": 27243.80970242513,
+        "max": 27283.64631199791
+      },
+      "cpu_us": {
+        "median": 63.046875,
+        "min": 62.1875,
+        "max": 63.90625
+      },
+      "client_cores": {
+        "median": 1.7188757344114878,
+        "min": 1.69670175502737,
+        "max": 1.7410497137956058
+      },
+      "peer_cores": {
+        "median": 1.3035469953448007,
+        "min": 1.3025946513972015,
+        "max": 1.3044993392924
+      },
+      "p99_ms": {
+        "median": 7.8451,
+        "min": 7.84,
+        "max": 7.8502
+      },
+      "scheduled_p99_ms": {
+        "median": 2316.60795,
+        "min": 2310.7303,
+        "max": 2322.4856
+      },
+      "rss_mib": {
+        "median": 43.349609375,
+        "min": 43.2578125,
+        "max": 43.44140625
+      },
+      "private_mib": {
+        "median": 32.81640625,
+        "min": 32.7265625,
+        "max": 32.90625
+      },
+      "host_busy_percent": {
+        "median": 68.82968420624437,
+        "min": 66.28567653276956,
+        "max": 71.37369187971917
+      }
+    },
+    {
+      "name": "h3-workers4",
+      "trials": [
+        "scaling-v2/004-h3-workers4-r0",
+        "scaling-v2/026-h3-workers4-r1"
+      ],
+      "rps": {
+        "median": 11192.034564924546,
+        "min": 11143.978604408021,
+        "max": 11240.090525441074
+      },
+      "cpu_us": {
+        "median": 210.1171875,
+        "min": 206.71875,
+        "max": 213.515625
+      },
+      "client_cores": {
+        "median": 2.351475510006414,
+        "min": 2.323537463306022,
+        "max": 2.3794135567068064
+      },
+      "peer_cores": {
+        "median": 1.6047982519689232,
+        "min": 1.583272126357051,
+        "max": 1.6263243775807956
+      },
+      "p99_ms": {
+        "median": 14.851099999999999,
+        "min": 14.6463,
+        "max": 15.0559
+      },
+      "scheduled_p99_ms": {
+        "median": 14.851099999999999,
+        "min": 14.6463,
+        "max": 15.0559
+      },
+      "rss_mib": {
+        "median": 43.63671875,
+        "min": 43.58203125,
+        "max": 43.69140625
+      },
+      "private_mib": {
+        "median": 33.15625,
+        "min": 33.1015625,
+        "max": 33.2109375
+      },
+      "host_busy_percent": {
+        "median": 85.07853922173811,
+        "min": 83.2669429940517,
+        "max": 86.8901354494245
+      }
+    },
+    {
+      "name": "h3-workers8",
+      "trials": [
+        "scaling-v2/005-h3-workers8-r0",
+        "scaling-v2/014-h3-workers8-r1"
+      ],
+      "rps": {
+        "median": 10176.171453735727,
+        "min": 10022.040421184067,
+        "max": 10330.302486287388
+      },
+      "cpu_us": {
+        "median": 254.5703125,
+        "min": 251.09375,
+        "max": 258.046875
+      },
+      "client_cores": {
+        "median": 2.590015300863228,
+        "min": 2.586156211810232,
+        "max": 2.5938743899162238
+      },
+      "peer_cores": {
+        "median": 1.5263655106257685,
+        "min": 1.507220922717135,
+        "max": 1.5455100985344021
+      },
+      "p99_ms": {
+        "median": 15.5873,
+        "min": 15.335,
+        "max": 15.8396
+      },
+      "scheduled_p99_ms": {
+        "median": 15.5873,
+        "min": 15.335,
+        "max": 15.8396
+      },
+      "rss_mib": {
+        "median": 44.5625,
+        "min": 44.4140625,
+        "max": 44.7109375
+      },
+      "private_mib": {
+        "median": 34.19921875,
+        "min": 34.05078125,
+        "max": 34.34765625
+      },
+      "host_busy_percent": {
+        "median": 84.59480925626866,
+        "min": 79.43727841894848,
+        "max": 89.75234009358886
+      }
+    }
+  ],
+  "rows": [
+    {
+      "folder": "scaling-v2/000-h2-c128-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.4689354,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 57654.576098476784,
+        "completed_mib_s": 56.303296971168734,
+        "client_cpu_s": 6.203125,
+        "client_cpu_us_per_success": 31.015625,
+        "client_cpu_cores": 1.788192711804319,
+        "sampled_peak_rss_bytes": 41676800,
+        "start_rss_bytes": 38195200,
+        "end_rss_bytes": 40157184,
+        "sampled_peak_private_bytes": 31760384,
+        "peer_cpu_s": 3.53125,
+        "timing": {
+          "head_ns": {
+            "p50": 2086500,
+            "p95": 2953200,
+            "p99": 3382300,
+            "mean": 2096297.66
+          },
+          "first_byte_ns": {
+            "p50": 2193400,
+            "p95": 3060700,
+            "p99": 3520600,
+            "mean": 2211876.3005
+          },
+          "complete_ns": {
+            "p50": 2193800,
+            "p95": 3061300,
+            "p99": 3521000,
+            "mean": 2212383.866
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2193800,
+            "p95": 3061300,
+            "p99": 3521000
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": false,
+      "host_busy_percent": 72.9967069154775,
+      "sampling_gap_max_s": 0.12070710002444685,
+      "sampling_gap_median_s": 0.0551409000181593,
+      "peer_cpu_cores": 1.0179636092387307
+    },
+    {
+      "folder": "scaling-v2/001-h2-c192-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 192,
+        "workers": 2,
+        "name": "h2-c192"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.1095501,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 64317.98606492946,
+        "completed_mib_s": 62.81053326653267,
+        "client_cpu_s": 5.734375,
+        "client_cpu_us_per_success": 28.671875,
+        "client_cpu_cores": 1.8441172567053994,
+        "sampled_peak_rss_bytes": 43204608,
+        "start_rss_bytes": 38170624,
+        "end_rss_bytes": 39895040,
+        "sampled_peak_private_bytes": 33288192,
+        "peer_cpu_s": 3.140625,
+        "timing": {
+          "head_ns": {
+            "p50": 2831500,
+            "p95": 3981900,
+            "p99": 4638700,
+            "mean": 2876895.0535
+          },
+          "first_byte_ns": {
+            "p50": 2921200,
+            "p95": 4076800,
+            "p99": 4758600,
+            "mean": 2976656.106
+          },
+          "complete_ns": {
+            "p50": 2921700,
+            "p95": 4077300,
+            "p99": 4759100,
+            "mean": 2977128.605
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2921700,
+            "p95": 4077300,
+            "p99": 4759100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": false,
+      "host_busy_percent": 64.7386328487473,
+      "sampling_gap_max_s": 0.1846566000021994,
+      "sampling_gap_median_s": 0.049370100008673035,
+      "peer_cpu_cores": 1.0099933749258454
+    },
+    {
+      "folder": "scaling-v2/002-h2-workers8-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 8,
+        "name": "h2-workers8"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 5.4733553,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 36540.65724547427,
+        "completed_mib_s": 35.68423559128347,
+        "client_cpu_s": 18.875,
+        "client_cpu_us_per_success": 94.375,
+        "client_cpu_cores": 3.4485245275416343,
+        "sampled_peak_rss_bytes": 43327488,
+        "start_rss_bytes": 39497728,
+        "end_rss_bytes": 41361408,
+        "sampled_peak_private_bytes": 33579008,
+        "peer_cpu_s": 7.734375,
+        "timing": {
+          "head_ns": {
+            "p50": 3380200,
+            "p95": 4734200,
+            "p99": 5170100,
+            "mean": 3452928.962
+          },
+          "first_byte_ns": {
+            "p50": 3425700,
+            "p95": 4761400,
+            "p99": 5197000,
+            "mean": 3499267.6415
+          },
+          "complete_ns": {
+            "p50": 3426600,
+            "p95": 4762200,
+            "p99": 5197900,
+            "mean": 3500087.0825
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 3426600,
+            "p95": 4762200,
+            "p99": 5197900
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": false,
+      "host_busy_percent": 72.78941761363636,
+      "sampling_gap_max_s": 0.11386360001051798,
+      "sampling_gap_median_s": 0.05077114999585319,
+      "peer_cpu_cores": 1.4130957294148254
+    },
+    {
+      "folder": "scaling-v2/003-h3-c128-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.2408839,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 27620.937272589053,
+        "completed_mib_s": 26.973571555262748,
+        "client_cpu_s": 12.828125,
+        "client_cpu_us_per_success": 64.140625,
+        "client_cpu_cores": 1.7716241797496572,
+        "sampled_peak_rss_bytes": 45662208,
+        "start_rss_bytes": 39780352,
+        "end_rss_bytes": 40493056,
+        "sampled_peak_private_bytes": 34615296,
+        "peer_cpu_s": 9.53125,
+        "timing": {
+          "head_ns": {
+            "p50": 4254600,
+            "p95": 5951100,
+            "p99": 6809700,
+            "mean": 4303689.0135
+          },
+          "first_byte_ns": {
+            "p50": 4269500,
+            "p95": 5969000,
+            "p99": 6831000,
+            "mean": 4319360.9175
+          },
+          "complete_ns": {
+            "p50": 4565800,
+            "p95": 6418400,
+            "p99": 7319100,
+            "mean": 4625288.1275
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 4565800,
+            "p95": 6418400,
+            "p99": 7319100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 1
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": false,
+      "host_busy_percent": 67.91680644079167,
+      "sampling_gap_max_s": 0.12666750000789762,
+      "sampling_gap_median_s": 0.05533339999965392,
+      "peer_cpu_cores": 1.3163102918968221
+    },
+    {
+      "folder": "scaling-v2/004-h3-workers4-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 4,
+        "name": "h3-workers4"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 17.9469117,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 11143.978604408021,
+        "completed_mib_s": 10.882791605867208,
+        "client_cpu_s": 42.703125,
+        "client_cpu_us_per_success": 213.515625,
+        "client_cpu_cores": 2.3794135567068064,
+        "sampled_peak_rss_bytes": 45699072,
+        "start_rss_bytes": 39907328,
+        "end_rss_bytes": 41955328,
+        "sampled_peak_private_bytes": 34709504,
+        "peer_cpu_s": 29.1875,
+        "timing": {
+          "head_ns": {
+            "p50": 12051900,
+            "p95": 14082500,
+            "p99": 14967100,
+            "mean": 11418102.674
+          },
+          "first_byte_ns": {
+            "p50": 12078500,
+            "p95": 14111700,
+            "p99": 14999500,
+            "mean": 11443362.3075
+          },
+          "complete_ns": {
+            "p50": 12114100,
+            "p95": 14153400,
+            "p99": 15055900,
+            "mean": 11477564.5535
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 12114100,
+            "p95": 14153400,
+            "p99": 15055900
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 83.2669429940517,
+      "sampling_gap_max_s": 0.3802391999925021,
+      "sampling_gap_median_s": 0.06210379999538418,
+      "peer_cpu_cores": 1.6263243775807956
+    },
+    {
+      "folder": "scaling-v2/005-h3-workers8-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 8,
+        "name": "h3-workers8"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 19.3605173,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 10330.302486287388,
+        "completed_mib_s": 10.088186021765027,
+        "client_cpu_s": 50.21875,
+        "client_cpu_us_per_success": 251.09375,
+        "client_cpu_cores": 2.5938743899162238,
+        "sampled_peak_rss_bytes": 46882816,
+        "start_rss_bytes": 40873984,
+        "end_rss_bytes": 42938368,
+        "sampled_peak_private_bytes": 36016128,
+        "peer_cpu_s": 29.921875,
+        "timing": {
+          "head_ns": {
+            "p50": 13395600,
+            "p95": 15118000,
+            "p99": 15768400,
+            "mean": 12323867.715
+          },
+          "first_byte_ns": {
+            "p50": 13425100,
+            "p95": 15150000,
+            "p99": 15805300,
+            "mean": 12350989.6315
+          },
+          "complete_ns": {
+            "p50": 13454800,
+            "p95": 15184400,
+            "p99": 15839600,
+            "mean": 12381903.1
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 13454800,
+            "p95": 15184400,
+            "p99": 15839600
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 79.43727841894848,
+      "sampling_gap_max_s": 0.24130359999253415,
+      "sampling_gap_median_s": 0.0564528499962762,
+      "peer_cpu_cores": 1.5455100985344021
+    },
+    {
+      "folder": "scaling-v2/006-h2-c32-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 32,
+        "workers": 2,
+        "name": "h2-c32"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 4.7058165,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 42500.59474269768,
+        "completed_mib_s": 41.5044870534157,
+        "client_cpu_s": 8.046875,
+        "client_cpu_us_per_success": 40.234375,
+        "client_cpu_cores": 1.709984866600727,
+        "sampled_peak_rss_bytes": 38883328,
+        "start_rss_bytes": 38170624,
+        "end_rss_bytes": 38883328,
+        "sampled_peak_private_bytes": 28921856,
+        "peer_cpu_s": 5.234375,
+        "timing": {
+          "head_ns": {
+            "p50": 673300,
+            "p95": 1234400,
+            "p99": 1535400,
+            "mean": 717459.319
+          },
+          "first_byte_ns": {
+            "p50": 709700,
+            "p95": 1264900,
+            "p99": 1559500,
+            "mean": 750718.3275
+          },
+          "complete_ns": {
+            "p50": 710200,
+            "p95": 1265500,
+            "p99": 1560100,
+            "mean": 751259.4995
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 710200,
+            "p95": 1265500,
+            "p99": 1560100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 83.89138423846468,
+      "sampling_gap_max_s": 0.15547550001065247,
+      "sampling_gap_median_s": 0.05910725002468098,
+      "peer_cpu_cores": 1.1123202530315408
+    },
+    {
+      "folder": "scaling-v2/007-h3-offered40k-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-offered40k",
+        "arrival_interval_us": 25
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.3303985,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 27283.64631199791,
+        "completed_mib_s": 26.644185851560458,
+        "client_cpu_s": 12.4375,
+        "client_cpu_us_per_success": 62.1875,
+        "client_cpu_cores": 1.69670175502737,
+        "sampled_peak_rss_bytes": 45359104,
+        "start_rss_bytes": 39743488,
+        "end_rss_bytes": 40169472,
+        "sampled_peak_private_bytes": 34316288,
+        "peer_cpu_s": 9.5625,
+        "timing": {
+          "head_ns": {
+            "p50": 4368800,
+            "p95": 6462200,
+            "p99": 7226200,
+            "mean": 4366472.113
+          },
+          "first_byte_ns": {
+            "p50": 4386500,
+            "p95": 6479700,
+            "p99": 7245500,
+            "mean": 4382327.3955
+          },
+          "complete_ns": {
+            "p50": 4685300,
+            "p95": 6967700,
+            "p99": 7840000,
+            "mean": 4682588.6285
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 776223500,
+            "p95": 2217660100,
+            "p99": 2318500300,
+            "mean": 1070307449.435
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 781287800,
+            "p95": 2222607300,
+            "p99": 2322485600
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 71.37369187971917,
+      "sampling_gap_max_s": 0.1362490999745205,
+      "sampling_gap_median_s": 0.051541299995733425,
+      "peer_cpu_cores": 1.3044993392924
+    },
+    {
+      "folder": "scaling-v2/008-h2-workers4-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 4,
+        "name": "h2-workers4"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.7112097,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 53890.78391339622,
+        "completed_mib_s": 52.627718665425995,
+        "client_cpu_s": 9.03125,
+        "client_cpu_us_per_success": 45.15625,
+        "client_cpu_cores": 2.433505711089298,
+        "sampled_peak_rss_bytes": 42377216,
+        "start_rss_bytes": 38805504,
+        "end_rss_bytes": 40755200,
+        "sampled_peak_private_bytes": 32526336,
+        "peer_cpu_s": 4.921875,
+        "timing": {
+          "head_ns": {
+            "p50": 2259500,
+            "p95": 3132300,
+            "p99": 3598900,
+            "mean": 2300910.063
+          },
+          "first_byte_ns": {
+            "p50": 2318500,
+            "p95": 3191100,
+            "p99": 3652400,
+            "mean": 2369570.7495
+          },
+          "complete_ns": {
+            "p50": 2319100,
+            "p95": 3191600,
+            "p99": 3653000,
+            "mean": 2370169.437
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2319100,
+            "p95": 3191600,
+            "p99": 3653000
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 97.69171582457041,
+      "sampling_gap_max_s": 0.3984782999905292,
+      "sampling_gap_median_s": 0.14776600000914186,
+      "peer_cpu_cores": 1.326218510368735
+    },
+    {
+      "folder": "scaling-v2/009-h3-c32-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 32,
+        "workers": 2,
+        "name": "h3-c32"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 6.8504005,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 29195.373321603605,
+        "completed_mib_s": 28.51110675937852,
+        "client_cpu_s": 11.8125,
+        "client_cpu_us_per_success": 59.0625,
+        "client_cpu_cores": 1.724351736807213,
+        "sampled_peak_rss_bytes": 40894464,
+        "start_rss_bytes": 39288832,
+        "end_rss_bytes": 40894464,
+        "sampled_peak_private_bytes": 29839360,
+        "peer_cpu_s": 9.3125,
+        "timing": {
+          "head_ns": {
+            "p50": 868900,
+            "p95": 1521500,
+            "p99": 1898600,
+            "mean": 910005.647
+          },
+          "first_byte_ns": {
+            "p50": 882000,
+            "p95": 1535500,
+            "p99": 1913600,
+            "mean": 924893.741
+          },
+          "complete_ns": {
+            "p50": 1047700,
+            "p95": 1782000,
+            "p99": 2185700,
+            "mean": 1092499.2965
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 1047700,
+            "p95": 1782000,
+            "p99": 2185700
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 53.769841269646015,
+      "sampling_gap_max_s": 0.10381210001651198,
+      "sampling_gap_median_s": 0.047572099982062355,
+      "peer_cpu_cores": 1.3594095702871678
+    },
+    {
+      "folder": "scaling-v2/010-h2-offered10k-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-offered10k",
+        "arrival_interval_us": 100
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 20.0015495,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 9999.225310019106,
+        "completed_mib_s": 9.764868466815534,
+        "client_cpu_s": 7.4375,
+        "client_cpu_us_per_success": 37.1875,
+        "client_cpu_cores": 0.3718461912163355,
+        "sampled_peak_rss_bytes": 41594880,
+        "start_rss_bytes": 38129664,
+        "end_rss_bytes": 39018496,
+        "sampled_peak_private_bytes": 31662080,
+        "peer_cpu_s": 4.296875,
+        "timing": {
+          "head_ns": {
+            "p50": 1356000,
+            "p95": 3160100,
+            "p99": 4351200,
+            "mean": 1536616.4045
+          },
+          "first_byte_ns": {
+            "p50": 1427500,
+            "p95": 3200600,
+            "p99": 4394800,
+            "mean": 1597247.8165
+          },
+          "complete_ns": {
+            "p50": 1428000,
+            "p95": 3201100,
+            "p99": 4395200,
+            "mean": 1597739.153
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 4851100,
+            "p95": 13248000,
+            "p99": 15673000,
+            "mean": 5662149.6845
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 6504800,
+            "p95": 15245900,
+            "p99": 18265300
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 57.28943263800317,
+      "sampling_gap_max_s": 0.2440826000238303,
+      "sampling_gap_median_s": 0.04628600001160521,
+      "peer_cpu_cores": 0.21482710626994175
+    },
+    {
+      "folder": "scaling-v2/011-h2-offered40k-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-offered40k",
+        "arrival_interval_us": 25
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 5.0022923,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 39981.670003570165,
+        "completed_mib_s": 39.04459961286149,
+        "client_cpu_s": 7.046875,
+        "client_cpu_us_per_success": 35.234375,
+        "client_cpu_cores": 1.4087291540320426,
+        "sampled_peak_rss_bytes": 41803776,
+        "start_rss_bytes": 38248448,
+        "end_rss_bytes": 39727104,
+        "sampled_peak_private_bytes": 31899648,
+        "peer_cpu_s": 3.9375,
+        "timing": {
+          "head_ns": {
+            "p50": 1735300,
+            "p95": 3146200,
+            "p99": 3831600,
+            "mean": 1798628.9825
+          },
+          "first_byte_ns": {
+            "p50": 1826200,
+            "p95": 3209600,
+            "p99": 3879600,
+            "mean": 1876471.5035
+          },
+          "complete_ns": {
+            "p50": 1826700,
+            "p95": 3210200,
+            "p99": 3880300,
+            "mean": 1876945.2755
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 1531800,
+            "p95": 10483600,
+            "p99": 14440000,
+            "mean": 2852656.132
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 3690500,
+            "p95": 12445200,
+            "p99": 16511000
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 63.872663551401864,
+      "sampling_gap_max_s": 0.10689559997990727,
+      "sampling_gap_median_s": 0.04836349999823142,
+      "peer_cpu_cores": 0.7871391281952876
+    },
+    {
+      "folder": "scaling-v2/012-h3-c192-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 192,
+        "workers": 2,
+        "name": "h3-c192"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.1370878,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 28022.634105748286,
+        "completed_mib_s": 27.36585361889481,
+        "client_cpu_s": 12.640625,
+        "client_cpu_us_per_success": 63.203125,
+        "client_cpu_cores": 1.7711180462148721,
+        "sampled_peak_rss_bytes": 48533504,
+        "start_rss_bytes": 39702528,
+        "end_rss_bytes": 41242624,
+        "sampled_peak_private_bytes": 37494784,
+        "peer_cpu_s": 9.359375,
+        "timing": {
+          "head_ns": {
+            "p50": 6437400,
+            "p95": 9224200,
+            "p99": 10103400,
+            "mean": 6531726.1525
+          },
+          "first_byte_ns": {
+            "p50": 6450900,
+            "p95": 9242100,
+            "p99": 10121200,
+            "mean": 6547138.1515
+          },
+          "complete_ns": {
+            "p50": 6747500,
+            "p95": 9683300,
+            "p99": 10655100,
+            "mean": 6839181.351
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 6747500,
+            "p95": 9683300,
+            "p99": 10655100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 64.7943899784164,
+      "sampling_gap_max_s": 0.12446009999257512,
+      "sampling_gap_median_s": 0.0489503999997396,
+      "peer_cpu_cores": 1.3113717054174394
+    },
+    {
+      "folder": "scaling-v2/013-h3-offered10k-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-offered10k",
+        "arrival_interval_us": 100
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 20.0016126,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 9999.193765006727,
+        "completed_mib_s": 9.764837661139381,
+        "client_cpu_s": 13.78125,
+        "client_cpu_us_per_success": 68.90625,
+        "client_cpu_cores": 0.6890069453699947,
+        "sampled_peak_rss_bytes": 45015040,
+        "start_rss_bytes": 39424000,
+        "end_rss_bytes": 40927232,
+        "sampled_peak_private_bytes": 34021376,
+        "peer_cpu_s": 9.328125,
+        "timing": {
+          "head_ns": {
+            "p50": 2384500,
+            "p95": 5113400,
+            "p99": 6195000,
+            "mean": 2514144.6015
+          },
+          "first_byte_ns": {
+            "p50": 2399600,
+            "p95": 5129400,
+            "p99": 6211900,
+            "mean": 2530728.2835
+          },
+          "complete_ns": {
+            "p50": 2538900,
+            "p95": 5361400,
+            "p99": 6471700,
+            "mean": 2658744.753
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 2219400,
+            "p95": 11683700,
+            "p99": 14683300,
+            "mean": 3808623.0845
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 5437200,
+            "p95": 15461100,
+            "p99": 18486800
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 1
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 67.56388747051815,
+      "sampling_gap_max_s": 0.24340769997797906,
+      "sampling_gap_median_s": 0.05419175000861287,
+      "peer_cpu_cores": 0.46636864669601685
+    },
+    {
+      "folder": "scaling-v2/014-h3-workers8-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 8,
+        "name": "h3-workers8"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 19.9560161,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 10022.040421184067,
+        "completed_mib_s": 9.787148848812565,
+        "client_cpu_s": 51.609375,
+        "client_cpu_us_per_success": 258.046875,
+        "client_cpu_cores": 2.586156211810232,
+        "sampled_peak_rss_bytes": 46571520,
+        "start_rss_bytes": 41168896,
+        "end_rss_bytes": 42835968,
+        "sampled_peak_private_bytes": 35704832,
+        "peer_cpu_s": 30.078125,
+        "timing": {
+          "head_ns": {
+            "p50": 13162600,
+            "p95": 14722800,
+            "p99": 15266000,
+            "mean": 12706451.9705
+          },
+          "first_byte_ns": {
+            "p50": 13192700,
+            "p95": 14752600,
+            "p99": 15301000,
+            "mean": 12734606.384
+          },
+          "complete_ns": {
+            "p50": 13221100,
+            "p95": 14784500,
+            "p99": 15335000,
+            "mean": 12762446.258
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 13221100,
+            "p95": 14784500,
+            "p99": 15335000
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 89.75234009358886,
+      "sampling_gap_max_s": 0.6876788999943528,
+      "sampling_gap_median_s": 0.0801841000065906,
+      "peer_cpu_cores": 1.507220922717135
+    },
+    {
+      "folder": "scaling-v2/015-h2-c192-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 192,
+        "workers": 2,
+        "name": "h2-c192"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.0885431,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 64755.45055531199,
+        "completed_mib_s": 63.237744682921864,
+        "client_cpu_s": 5.609375,
+        "client_cpu_us_per_success": 28.046875,
+        "client_cpu_cores": 1.8161880272935158,
+        "sampled_peak_rss_bytes": 43311104,
+        "start_rss_bytes": 38141952,
+        "end_rss_bytes": 40181760,
+        "sampled_peak_private_bytes": 33415168,
+        "peer_cpu_s": 3.109375,
+        "timing": {
+          "head_ns": {
+            "p50": 2812700,
+            "p95": 3925000,
+            "p99": 4482200,
+            "mean": 2851603.007
+          },
+          "first_byte_ns": {
+            "p50": 2911400,
+            "p95": 4020200,
+            "p99": 4592400,
+            "mean": 2957491.999
+          },
+          "complete_ns": {
+            "p50": 2911800,
+            "p95": 4020700,
+            "p99": 4592800,
+            "mean": 2957963.926
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2911800,
+            "p95": 4020700,
+            "p99": 4592800
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 61.95584577114428,
+      "sampling_gap_max_s": 0.09621190000325441,
+      "sampling_gap_median_s": 0.0570325999869965,
+      "peer_cpu_cores": 1.006744895352116
+    },
+    {
+      "folder": "scaling-v2/016-h2-c32-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 32,
+        "workers": 2,
+        "name": "h2-c32"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 5.0165127,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 39868.33323475888,
+        "completed_mib_s": 38.93391917456922,
+        "client_cpu_s": 8.296875,
+        "client_cpu_us_per_success": 41.484375,
+        "client_cpu_cores": 1.6539128865357005,
+        "sampled_peak_rss_bytes": 38879232,
+        "start_rss_bytes": 38244352,
+        "end_rss_bytes": 38879232,
+        "sampled_peak_private_bytes": 28950528,
+        "peer_cpu_s": 5.453125,
+        "timing": {
+          "head_ns": {
+            "p50": 719300,
+            "p95": 1289100,
+            "p99": 1590700,
+            "mean": 764583.4865
+          },
+          "first_byte_ns": {
+            "p50": 760800,
+            "p95": 1315700,
+            "p99": 1613000,
+            "mean": 799984.7045
+          },
+          "complete_ns": {
+            "p50": 761300,
+            "p95": 1316200,
+            "p99": 1613500,
+            "mean": 800530.827
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 761300,
+            "p95": 1316200,
+            "p99": 1613500
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 90.66381987583041,
+      "sampling_gap_max_s": 0.13213290000567213,
+      "sampling_gap_median_s": 0.07473719998961315,
+      "peer_cpu_cores": 1.0870350233539725
+    },
+    {
+      "folder": "scaling-v2/017-h3-offered40k-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-offered40k",
+        "arrival_interval_us": 25
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.3411172,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 27243.80970242513,
+        "completed_mib_s": 26.60528291252454,
+        "client_cpu_s": 12.78125,
+        "client_cpu_us_per_success": 63.90625,
+        "client_cpu_cores": 1.7410497137956058,
+        "sampled_peak_rss_bytes": 45551616,
+        "start_rss_bytes": 39428096,
+        "end_rss_bytes": 40267776,
+        "sampled_peak_private_bytes": 34504704,
+        "peer_cpu_s": 9.5625,
+        "timing": {
+          "head_ns": {
+            "p50": 4132400,
+            "p95": 6510900,
+            "p99": 7339700,
+            "mean": 4367762.446
+          },
+          "first_byte_ns": {
+            "p50": 4148200,
+            "p95": 6529700,
+            "p99": 7359600,
+            "mean": 4383956.3715
+          },
+          "complete_ns": {
+            "p50": 4434600,
+            "p95": 6997300,
+            "p99": 7850200,
+            "mean": 4680098.238
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 900243900,
+            "p95": 2169588800,
+            "p99": 2305921400,
+            "mean": 1029309866.526
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 903777500,
+            "p95": 2174890100,
+            "p99": 2310730300
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 66.28567653276956,
+      "sampling_gap_max_s": 0.1326587999938056,
+      "sampling_gap_median_s": 0.053905900014797226,
+      "peer_cpu_cores": 1.3025946513972015
+    },
+    {
+      "folder": "scaling-v2/018-h3-offered10k-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-offered10k",
+        "arrival_interval_us": 100
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 20.0032909,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 9998.354820706027,
+        "completed_mib_s": 9.76401837959573,
+        "client_cpu_s": 12.078125,
+        "client_cpu_us_per_success": 60.390625,
+        "client_cpu_cores": 0.6038068965942,
+        "sampled_peak_rss_bytes": 44953600,
+        "start_rss_bytes": 39403520,
+        "end_rss_bytes": 40472576,
+        "sampled_peak_private_bytes": 33988608,
+        "peer_cpu_s": 7.765625,
+        "timing": {
+          "head_ns": {
+            "p50": 2344900,
+            "p95": 4967700,
+            "p99": 6082800,
+            "mean": 2459798.7165
+          },
+          "first_byte_ns": {
+            "p50": 2359200,
+            "p95": 4984600,
+            "p99": 6099700,
+            "mean": 2476101.585
+          },
+          "complete_ns": {
+            "p50": 2495100,
+            "p95": 5221200,
+            "p99": 6397000,
+            "mean": 2604231.891
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 2521100,
+            "p95": 11687800,
+            "p99": 14477300,
+            "mean": 3957192.8645
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 5606800,
+            "p95": 15219200,
+            "p99": 18287900
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 54.19747081719311,
+      "sampling_gap_max_s": 0.13344290002714843,
+      "sampling_gap_median_s": 0.04896395000105258,
+      "peer_cpu_cores": 0.3882173707727262
+    },
+    {
+      "folder": "scaling-v2/019-h3-c192-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 192,
+        "workers": 2,
+        "name": "h3-c192"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.9330731,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 25210.911015051657,
+        "completed_mib_s": 24.620030288136384,
+        "client_cpu_s": 13.703125,
+        "client_cpu_us_per_success": 68.515625,
+        "client_cpu_cores": 1.7273413250156489,
+        "sampled_peak_rss_bytes": 48373760,
+        "start_rss_bytes": 39456768,
+        "end_rss_bytes": 40587264,
+        "sampled_peak_private_bytes": 37330944,
+        "peer_cpu_s": 10.25,
+        "timing": {
+          "head_ns": {
+            "p50": 7481400,
+            "p95": 9745800,
+            "p99": 10594000,
+            "mean": 7253300.822
+          },
+          "first_byte_ns": {
+            "p50": 7501200,
+            "p95": 9765700,
+            "p99": 10614900,
+            "mean": 7270977.19
+          },
+          "complete_ns": {
+            "p50": 7828100,
+            "p95": 10226300,
+            "p99": 11149400,
+            "mean": 7599745.838
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 7828100,
+            "p95": 10226300,
+            "p99": 11149400
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 81.9777397260274,
+      "sampling_gap_max_s": 0.3850574000098277,
+      "sampling_gap_median_s": 0.06848919999902137,
+      "peer_cpu_cores": 1.2920591895213975
+    },
+    {
+      "folder": "scaling-v2/020-h2-workers8-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 8,
+        "name": "h2-workers8"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 4.3449226,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 46030.739419846046,
+        "completed_mib_s": 44.951893964693404,
+        "client_cpu_s": 17.1875,
+        "client_cpu_us_per_success": 85.9375,
+        "client_cpu_cores": 3.9557666688930198,
+        "sampled_peak_rss_bytes": 43114496,
+        "start_rss_bytes": 39333888,
+        "end_rss_bytes": 41340928,
+        "sampled_peak_private_bytes": 33398784,
+        "peer_cpu_s": 6.609375,
+        "timing": {
+          "head_ns": {
+            "p50": 2635200,
+            "p95": 3609800,
+            "p99": 4576600,
+            "mean": 2701404.887
+          },
+          "first_byte_ns": {
+            "p50": 2711700,
+            "p95": 3690900,
+            "p99": 4613000,
+            "mean": 2776452.096
+          },
+          "complete_ns": {
+            "p50": 2712500,
+            "p95": 3691600,
+            "p99": 4613500,
+            "mean": 2777243.994
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2712500,
+            "p95": 3691600,
+            "p99": 4613500
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 71.11185757473967,
+      "sampling_gap_max_s": 0.10617169999750331,
+      "sampling_gap_median_s": 0.050464800020563416,
+      "peer_cpu_cores": 1.521172091765225
+    },
+    {
+      "folder": "scaling-v2/021-h2-offered10k-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-offered10k",
+        "arrival_interval_us": 100
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 20.0015923,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 9999.203913380437,
+        "completed_mib_s": 9.764847571660583,
+        "client_cpu_s": 6.1875,
+        "client_cpu_us_per_success": 30.9375,
+        "client_cpu_cores": 0.30935037107020724,
+        "sampled_peak_rss_bytes": 41635840,
+        "start_rss_bytes": 38019072,
+        "end_rss_bytes": 38928384,
+        "sampled_peak_private_bytes": 31694848,
+        "peer_cpu_s": 3.703125,
+        "timing": {
+          "head_ns": {
+            "p50": 1491100,
+            "p95": 3258600,
+            "p99": 4195800,
+            "mean": 1652924.6055
+          },
+          "first_byte_ns": {
+            "p50": 1588900,
+            "p95": 3301300,
+            "p99": 4302700,
+            "mean": 1730806.029
+          },
+          "complete_ns": {
+            "p50": 1589400,
+            "p95": 3301900,
+            "p99": 4303200,
+            "mean": 1731323.507
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 4811000,
+            "p95": 12944900,
+            "p99": 14938200,
+            "mean": 5596184.7455
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 6643500,
+            "p95": 15087600,
+            "p99": 17365600
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 72.36889955633137,
+      "sampling_gap_max_s": 0.45912599997245707,
+      "sampling_gap_median_s": 0.048837499984074384,
+      "peer_cpu_cores": 0.18514150995868464
+    },
+    {
+      "folder": "scaling-v2/022-h3-c128-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.1164563,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 28103.875239141144,
+        "completed_mib_s": 27.445190663223773,
+        "client_cpu_s": 12.390625,
+        "client_cpu_us_per_success": 61.953125,
+        "client_cpu_cores": 1.741122895674916,
+        "sampled_peak_rss_bytes": 45424640,
+        "start_rss_bytes": 39342080,
+        "end_rss_bytes": 40452096,
+        "sampled_peak_private_bytes": 34381824,
+        "peer_cpu_s": 9.390625,
+        "timing": {
+          "head_ns": {
+            "p50": 4029400,
+            "p95": 6352900,
+            "p99": 7209500,
+            "mean": 4230228.2135
+          },
+          "first_byte_ns": {
+            "p50": 4043100,
+            "p95": 6372300,
+            "p99": 7233400,
+            "mean": 4246014.97
+          },
+          "complete_ns": {
+            "p50": 4323800,
+            "p95": 6823900,
+            "p99": 7754200,
+            "mean": 4540326.0615
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 4323800,
+            "p95": 6823900,
+            "p99": 7754200
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 70.23744541464382,
+      "sampling_gap_max_s": 0.20672029998968355,
+      "sampling_gap_median_s": 0.051439100003335625,
+      "peer_cpu_cores": 1.319564767087799
+    },
+    {
+      "folder": "scaling-v2/023-h2-offered40k-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-offered40k",
+        "arrival_interval_us": 25
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 5.00179,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 39985.68512472535,
+        "completed_mib_s": 39.0485206296146,
+        "client_cpu_s": 7.6875,
+        "client_cpu_us_per_success": 38.4375,
+        "client_cpu_cores": 1.5369497719816307,
+        "sampled_peak_rss_bytes": 41627648,
+        "start_rss_bytes": 38080512,
+        "end_rss_bytes": 39862272,
+        "sampled_peak_private_bytes": 31707136,
+        "peer_cpu_s": 4.140625,
+        "timing": {
+          "head_ns": {
+            "p50": 1942300,
+            "p95": 3370600,
+            "p99": 4027600,
+            "mean": 2009052.479
+          },
+          "first_byte_ns": {
+            "p50": 2038800,
+            "p95": 3433900,
+            "p99": 4084100,
+            "mean": 2089977.981
+          },
+          "complete_ns": {
+            "p50": 2039400,
+            "p95": 3434400,
+            "p99": 4084600,
+            "mean": 2090487.0835
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 1399500,
+            "p95": 5492600,
+            "p99": 10205500,
+            "mean": 1851679.331
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 3616800,
+            "p95": 7528700,
+            "p99": 12281100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 84.46207430340557,
+      "sampling_gap_max_s": 0.1389422999927774,
+      "sampling_gap_median_s": 0.08160599999246188,
+      "peer_cpu_cores": 0.8278286373478295
+    },
+    {
+      "folder": "scaling-v2/024-h2-c128-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.2961884,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 60676.14339034747,
+        "completed_mib_s": 59.2540462796362,
+        "client_cpu_s": 5.671875,
+        "client_cpu_us_per_success": 28.359375,
+        "client_cpu_cores": 1.7207375039606352,
+        "sampled_peak_rss_bytes": 41918464,
+        "start_rss_bytes": 38227968,
+        "end_rss_bytes": 40472576,
+        "sampled_peak_private_bytes": 31969280,
+        "peer_cpu_s": 3.546875,
+        "timing": {
+          "head_ns": {
+            "p50": 1966900,
+            "p95": 2724500,
+            "p99": 3098500,
+            "mean": 1987282.367
+          },
+          "first_byte_ns": {
+            "p50": 2071000,
+            "p95": 2823400,
+            "p99": 3219200,
+            "mean": 2100780.29
+          },
+          "complete_ns": {
+            "p50": 2071500,
+            "p95": 2823900,
+            "p99": 3219700,
+            "mean": 2101284.392
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2071500,
+            "p95": 2823900,
+            "p99": 3219700
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 90.28245280257575,
+      "sampling_gap_max_s": 0.1341944000159856,
+      "sampling_gap_median_s": 0.07359115000872407,
+      "peer_cpu_cores": 1.0760534804381934
+    },
+    {
+      "folder": "scaling-v2/025-h2-workers4-r1",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 4,
+        "name": "h2-workers4"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.6156107,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 55315.689822468994,
+        "completed_mib_s": 54.01922834225488,
+        "client_cpu_s": 9.75,
+        "client_cpu_us_per_success": 48.75,
+        "client_cpu_cores": 2.6966398788453634,
+        "sampled_peak_rss_bytes": 42389504,
+        "start_rss_bytes": 38572032,
+        "end_rss_bytes": 40689664,
+        "sampled_peak_private_bytes": 32518144,
+        "peer_cpu_s": 4.765625,
+        "timing": {
+          "head_ns": {
+            "p50": 2219400,
+            "p95": 3014000,
+            "p99": 3391700,
+            "mean": 2250801.5985
+          },
+          "first_byte_ns": {
+            "p50": 2274400,
+            "p95": 3065300,
+            "p99": 3443400,
+            "mean": 2309020.872
+          },
+          "complete_ns": {
+            "p50": 2275000,
+            "p95": 3066100,
+            "p99": 3444100,
+            "mean": 2309668.703
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2275000,
+            "p95": 3066100,
+            "p99": 3444100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 79.85372340425532,
+      "sampling_gap_max_s": 0.17333690001396462,
+      "sampling_gap_median_s": 0.05045970001083333,
+      "peer_cpu_cores": 1.318069171551019
+    },
+    {
+      "folder": "scaling-v2/026-h3-workers4-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 4,
+        "name": "h3-workers4"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 17.793451,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 11240.090525441074,
+        "completed_mib_s": 10.976650903751048,
+        "client_cpu_s": 41.34375,
+        "client_cpu_us_per_success": 206.71875,
+        "client_cpu_cores": 2.323537463306022,
+        "sampled_peak_rss_bytes": 45813760,
+        "start_rss_bytes": 39890944,
+        "end_rss_bytes": 42008576,
+        "sampled_peak_private_bytes": 34824192,
+        "peer_cpu_s": 28.171875,
+        "timing": {
+          "head_ns": {
+            "p50": 12138600,
+            "p95": 13881900,
+            "p99": 14573200,
+            "mean": 11321725.8985
+          },
+          "first_byte_ns": {
+            "p50": 12164600,
+            "p95": 13910400,
+            "p99": 14604400,
+            "mean": 11346810.2535
+          },
+          "complete_ns": {
+            "p50": 12197700,
+            "p95": 13946400,
+            "p99": 14646300,
+            "mean": 11382716.44
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 12197700,
+            "p95": 13946400,
+            "p99": 14646300
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 86.8901354494245,
+      "sampling_gap_max_s": 0.3156250000174623,
+      "sampling_gap_median_s": 0.06389180000405759,
+      "peer_cpu_cores": 1.583272126357051
+    },
+    {
+      "folder": "scaling-v2/027-h3-c32-r1",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 32,
+        "workers": 2,
+        "name": "h3-c32"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.8794494,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 25382.484212665924,
+        "completed_mib_s": 24.787582238931567,
+        "client_cpu_s": 13.390625,
+        "client_cpu_us_per_success": 66.953125,
+        "client_cpu_cores": 1.6994366383011483,
+        "sampled_peak_rss_bytes": 40972288,
+        "start_rss_bytes": 39395328,
+        "end_rss_bytes": 40972288,
+        "sampled_peak_private_bytes": 29925376,
+        "peer_cpu_s": 9.703125,
+        "timing": {
+          "head_ns": {
+            "p50": 998400,
+            "p95": 1798500,
+            "p99": 2197000,
+            "mean": 1050088.177
+          },
+          "first_byte_ns": {
+            "p50": 1014000,
+            "p95": 1814800,
+            "p99": 2216100,
+            "mean": 1067364.573
+          },
+          "complete_ns": {
+            "p50": 1205000,
+            "p95": 2090000,
+            "p99": 2503600,
+            "mean": 1257894.949
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 1205000,
+            "p95": 2090000,
+            "p99": 2503600
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 75.68798867213256,
+      "sampling_gap_max_s": 0.15051219999440946,
+      "sampling_gap_median_s": 0.058261199985281564,
+      "peer_cpu_cores": 1.2314470856301203
+    },
+    {
+      "folder": "scaling-replacements-v1/000-h2-workers8-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 8,
+        "name": "h2-workers8"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 5.2637646,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 37995.62009288941,
+        "completed_mib_s": 37.105097746962315,
+        "client_cpu_s": 18.921875,
+        "client_cpu_us_per_success": 94.609375,
+        "client_cpu_cores": 3.594741869725709,
+        "sampled_peak_rss_bytes": 42479616,
+        "start_rss_bytes": 39202816,
+        "end_rss_bytes": 40898560,
+        "sampled_peak_private_bytes": 32755712,
+        "peer_cpu_s": 7.75,
+        "timing": {
+          "head_ns": {
+            "p50": 3167500,
+            "p95": 4751500,
+            "p99": 5433000,
+            "mean": 3286672.1575
+          },
+          "first_byte_ns": {
+            "p50": 3245800,
+            "p95": 4779300,
+            "p99": 5463800,
+            "mean": 3362215.344
+          },
+          "complete_ns": {
+            "p50": 3246600,
+            "p95": 4780200,
+            "p99": 5464400,
+            "mean": 3363040.1715
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 3246600,
+            "p95": 4780200,
+            "p99": 5464400
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 85.29682890855457,
+      "sampling_gap_max_s": 0.13939789999858476,
+      "sampling_gap_median_s": 0.07372334999672603,
+      "peer_cpu_cores": 1.4723302785994647
+    },
+    {
+      "folder": "scaling-replacements-v1/001-h2-c128-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h2-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 3.4377893,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 58176.922012061645,
+        "completed_mib_s": 56.81340040240395,
+        "client_cpu_s": 6.140625,
+        "client_cpu_us_per_success": 30.703125,
+        "client_cpu_cores": 1.7862133086515803,
+        "sampled_peak_rss_bytes": 41766912,
+        "start_rss_bytes": 37998592,
+        "end_rss_bytes": 40386560,
+        "sampled_peak_private_bytes": 31846400,
+        "peer_cpu_s": 3.703125,
+        "timing": {
+          "head_ns": {
+            "p50": 2076300,
+            "p95": 2903700,
+            "p99": 3261700,
+            "mean": 2093008.592
+          },
+          "first_byte_ns": {
+            "p50": 2168900,
+            "p95": 2981200,
+            "p99": 3363400,
+            "mean": 2192781.374
+          },
+          "complete_ns": {
+            "p50": 2169500,
+            "p95": 2981700,
+            "p99": 3364100,
+            "mean": 2193291.5695
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2169500,
+            "p95": 2981700,
+            "p99": 3364100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 87.5563063062019,
+      "sampling_gap_max_s": 0.11901609998312779,
+      "sampling_gap_median_s": 0.06100405000324827,
+      "peer_cpu_cores": 1.077182071629579
+    },
+    {
+      "folder": "scaling-replacements-v1/002-h2-c192-r0",
+      "config": {
+        "protocol": "h2",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 192,
+        "workers": 2,
+        "name": "h2-c192"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 2.9749515,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 67227.98674196874,
+        "completed_mib_s": 65.65233080270384,
+        "client_cpu_s": 4.984375,
+        "client_cpu_us_per_success": 24.921875,
+        "client_cpu_cores": 1.675447482085002,
+        "sampled_peak_rss_bytes": 43446272,
+        "start_rss_bytes": 38137856,
+        "end_rss_bytes": 40120320,
+        "sampled_peak_private_bytes": 33525760,
+        "peer_cpu_s": 3.359375,
+        "timing": {
+          "head_ns": {
+            "p50": 2785700,
+            "p95": 3764800,
+            "p99": 4327400,
+            "mean": 2754907.676
+          },
+          "first_byte_ns": {
+            "p50": 2868800,
+            "p95": 3844800,
+            "p99": 4395800,
+            "mean": 2847603.297
+          },
+          "complete_ns": {
+            "p50": 2869300,
+            "p95": 3845400,
+            "p99": 4396200,
+            "mean": 2848082.1005
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 2869300,
+            "p95": 3845400,
+            "p99": 4396200
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 90.20776046440574,
+      "sampling_gap_max_s": 0.7854819000058342,
+      "sampling_gap_median_s": 0.06460280000464991,
+      "peer_cpu_cores": 1.1292200898065061
+    },
+    {
+      "folder": "scaling-replacements-v1/003-h3-c128-r0",
+      "config": {
+        "protocol": "h3",
+        "requests": 200000,
+        "warmup": 1024,
+        "bytes": 1024,
+        "concurrency": 128,
+        "workers": 2,
+        "name": "h3-c128"
+      },
+      "summary": {
+        "successes": 200000,
+        "failures": 0,
+        "elapsed_s": 7.409286,
+        "expected_observations_beyond_p99": 2000.0,
+        "heap_instrumented": false,
+        "observer_storage_bytes": 20800000,
+        "completed_requests_s": 26993.154266146565,
+        "completed_mib_s": 26.360502213033755,
+        "client_cpu_s": 12.59375,
+        "client_cpu_us_per_success": 62.96875,
+        "client_cpu_cores": 1.6997251826964164,
+        "sampled_peak_rss_bytes": 45416448,
+        "start_rss_bytes": 39473152,
+        "end_rss_bytes": 40534016,
+        "sampled_peak_private_bytes": 34369536,
+        "peer_cpu_s": 9.40625,
+        "timing": {
+          "head_ns": {
+            "p50": 4545600,
+            "p95": 6628100,
+            "p99": 7631200,
+            "mean": 4420243.024
+          },
+          "first_byte_ns": {
+            "p50": 4564000,
+            "p95": 6647200,
+            "p99": 7649500,
+            "mean": 4436699.0295
+          },
+          "complete_ns": {
+            "p50": 4865600,
+            "p95": 7118700,
+            "p99": 8147100,
+            "mean": 4732358.7965
+          },
+          "build_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 4865600,
+            "p95": 7118700,
+            "p99": 8147100
+          }
+        },
+        "peer": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 1
+        },
+        "peer_phase": {
+          "connections": 1,
+          "requests": 201024,
+          "proxy_connections": 0,
+          "failures": 0,
+          "completed_h1_boundary_closes": 0,
+          "completed_h3_no_error_closes": 0
+        },
+        "accepted": true
+      },
+      "selected": true,
+      "host_busy_percent": 78.20328810020877,
+      "sampling_gap_max_s": 0.15776390000246465,
+      "sampling_gap_median_s": 0.048628299991833046,
+      "peer_cpu_cores": 1.2695217865797055
+    }
+  ],
+  "excluded_timing_trials": [
+    "000-h2-c128-r0",
+    "001-h2-c192-r0",
+    "002-h2-workers8-r0",
+    "003-h3-c128-r0"
+  ],
+  "total_successful_measured_requests": 6400000,
+  "selected_successful_measured_requests": 5600000
+}

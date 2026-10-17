@@ -14,7 +14,7 @@ its dependency lock. The library and vendored sources remain unchanged.
 | --- | --- | --- |
 | Cost of a new client | Chrome and Firefox construction | Build time, CPU, allocations |
 | Cost of setup and reuse | Cold clients and warm H1/H2/H3 | Head and complete latency, connections |
-| Scaling with concurrency | 1, 8 and 32 workers | Completed requests/s, CPU/request, tails |
+| Scaling with concurrency | 1, 8 and 32 concurrent requests | Completed requests/s, CPU/request, tails |
 | Body memory cost | Stream and collect the same 1 MiB payload | RSS, private bytes, allocations, MiB/s |
 | Decoding cost | Gzip with the same decoded payload | CPU, allocations, decoded throughput |
 | Proxy overhead | Direct, HTTP CONNECT and SOCKS5 | Latency, CPU, connection counts |
@@ -67,6 +67,24 @@ The scheduled cases retain intended-arrival latency, following the
 finite, fixed-worker schedule is explicit. No synthetic correction replaces
 the retained timestamps, and a low sample count cannot establish deep tails.
 
+## Scaling beyond the first baseline
+
+The longer `scalability.json` sweep holds the browser recipe and payload fixed.
+It varies concurrent requests and runtime workers separately, then offers
+scheduled traffic below and above observed throughput. Record successful
+requests/s together with CPU/request, request tails and scheduled completion.
+Increasing workers applies to the peer too; it cannot isolate client scaling
+without the separate process counters and profiles.
+
+Keep an admission-limit probe separate from successful throughput. Count its
+rejections and reconcile accepted work with the peer. Never remove a bound,
+change a browser setting or retry failures to make that probe pass.
+
+After a longer burst, sample the same idle client with its pools alive.
+Account for the observation buffer, allocator retention and connection timers.
+Retain process-private memory as well as RSS. Repeated bursts and a dedicated
+load generator remain necessary before making a production capacity claim.
+
 ## Attribution and optimization
 
 Use process counters to select a question, then a profiler to locate its
@@ -88,6 +106,46 @@ Accept an improvement only when its measured benefit exceeds run variation
 without an unacceptable regression elsewhere. Otherwise retain the result
 and keep the default unchanged.
 
+## Current optimization pass
+
+Work from correctness failures to measured changes. Keep the first packet
+and binaries unchanged. Each step retains its own results and failed trials.
+
+- [x] Establish the public-client timing and allocation baseline.
+- [x] Fix TLS policy contention with deterministic concurrency controls.
+- [x] Fix the HTTP/3 body-demand race and repeat the failing workloads.
+- [x] Compare body collection before and after one bounded buffer change.
+- [x] Isolate decoder and async-driver allocations before deciding on changes.
+- [x] Review changes, pass the full gate and record adoption decisions in the
+  [results](client-performance-results.md#allocation-experiments-after-the-fixes).
+
+This pass owns TLS policy synchronization, HTTP/3 body demand, response
+collection and the profiling tool and evidence. It does not alter browser
+wire settings, route fallback or pool limits. Historical capture-timing
+investigations remain separate unless a reproduction establishes a link.
+
+## Scaling pass
+
+Measure completed throughput and latency together as concurrency and runtime
+workers increase. Use both a closed-loop sweep and planned arrivals below
+and above the observed saturation point. Keep errors, application wait and
+intended-arrival latency visible when the client falls behind.
+
+- [x] Run the H2/H3 concurrency and worker sweep in `scalability.json`.
+- [x] Compare offered and completed rates with queueing and latency tails.
+- [x] Sample post-burst memory with the client and pools alive.
+- [x] Obtain CPU stacks with separate client and peer reports.
+- [ ] Vary client and peer workers independently and attribute contention.
+- [ ] Repeat burst and recovery cycles across more origins.
+- [ ] Validate with a separate load generator and downstream traffic.
+- [ ] Use the measured bottleneck to select the next bounded change.
+
+Record client and peer CPU separately. Changing the worker count changes both
+processes in this tool. A plateau can come from either process, the runtime
+or the loopback stack. Inspect observation-buffer size and host load before
+interpreting memory growth or a throughput ceiling. These local runs do not
+establish production capacity under network delay and packet loss.
+
 ## Follow-up coverage
 
 The first matrix is a baseline, not completion of the full profiling phase.
@@ -97,8 +155,9 @@ Use controlled RTT, bandwidth and packet-loss conditions on a separate
 network test host for WAN conclusions. Compare peers only with matched TLS,
 protocol, trust, limits, consumption and validation semantics.
 
-CPU sampling, native allocation attribution, post-idle retention and isolated
-cross-platform confirmation remain distinct from the first loopback matrix.
+CPU stacks, native allocation profiles and one-burst retention measurements
+are recorded in the [results](client-performance-results.md). Controlled-host,
+repeated-cycle and cross-platform confirmation remain open.
 Build time, binary size and CI cost remain separate roadmap work.
 
 ## Next
