@@ -2,7 +2,9 @@ import hashlib
 import importlib.util
 import io
 import json
+import sys
 import tarfile
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -22,6 +24,25 @@ publish = load("publish_packages", "publish.py")
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_structured_output_excludes_dependency_download_diagnostics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            metadata = root / "metadata.json"
+            log = root / "metadata.log"
+            verify.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; print('{\"packages\": []}'); "
+                    'print("Downloading crates ...", file=sys.stderr)',
+                ],
+                root,
+                log,
+                stdout=metadata,
+            )
+            self.assertEqual(json.loads(metadata.read_text()), {"packages": []})
+            self.assertEqual(log.read_text().strip(), "Downloading crates ...")
+
     def test_sparse_paths_cover_all_name_lengths(self):
         for name, expected in [
             ("a", "1/a"),

@@ -83,12 +83,16 @@ class RegistryHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def run(command, cwd, log):
+def run(command, cwd, log, *, stdout=None):
     print("+", " ".join(map(str, command)), flush=True)
     with log.open("w", encoding="utf-8") as output:
-        result = subprocess.run(
-            command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT
-        )
+        if stdout is None:
+            result = subprocess.run(
+                command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT
+            )
+        else:
+            with stdout.open("w", encoding="utf-8") as payload:
+                result = subprocess.run(command, cwd=cwd, stdout=payload, stderr=output)
     if result.returncode:
         print(log.read_text(encoding="utf-8", errors="replace"), flush=True)
         raise RuntimeError(f"command failed ({result.returncode}); see {log}")
@@ -201,7 +205,8 @@ def verify(args):
         run(
             [*cargo, "metadata", "--all-features", "--locked", "--format-version", "1"],
             consumer,
-            destination / "metadata.json",
+            logs / "metadata.log",
+            stdout=destination / "metadata.json",
         )
         packages = json.loads(
             (destination / "metadata.json").read_text(encoding="utf-8")
