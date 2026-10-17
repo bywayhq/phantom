@@ -366,3 +366,39 @@ fn an_idle_connection_closes_after_the_runtime_that_set_the_timer_is_gone() -> T
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn close_idle_preserves_weak_spare_setup_and_claimed_openings() -> TestResult {
+    let one = std::num::NonZeroUsize::MIN;
+    let pool = Http1Pool::new(one, one, one);
+    let endpoint = Endpoint::new("idle.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &endpoint,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    let (slower, progress, finish) = gated();
+    entry.connections.adopt(slower);
+    progress.mark_connected();
+    pool.close_idle_connections().await;
+    assert_eq!(entry.connections.lock().spares.len(), 1);
+    let Checkout::Spare(claim) = entry.connections.checkout(false) else {
+        return Err("pending spare could not be claimed".into());
+    };
+    pool.close_idle_connections().await;
+    let (connection, _peer) = connection().await?;
+    finish
+        .send(Some(connection))
+        .map_err(|_| "spare setup cancelled")?;
+    let lease = timeout(WAIT, claim.wait())
+        .await?
+        .ok_or("claimed spare not delivered")?;
+    pool.close_idle_connections().await;
+    assert!(lease.connection.is_reusable());
+    drop(lease);
+    pool.close_idle_connections().await;
+    assert!(entry.connections.lock().idle.is_empty());
+    Ok(())
+}

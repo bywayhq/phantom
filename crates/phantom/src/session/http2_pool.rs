@@ -101,6 +101,37 @@ pub(crate) struct Http2Pool {
 }
 
 impl Http2Pool {
+    pub(super) async fn close_idle_connections(&self) {
+        let mut retired_connections = Vec::new();
+        let mut retired_spares = Vec::new();
+        {
+            let state = self.state.lock().await;
+            for (_, entry) in &state.entries {
+                let mut connections = entry.lock();
+                let mut index = 0;
+                while index < connections.slots.len() {
+                    let connection = &connections.slots[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        retired_connections.push(connections.slots.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+                let mut index = 0;
+                while index < connections.spares.len() {
+                    let spare = &connections.spares[index];
+                    if spare.ready.is_some() && spare.task.is_none() {
+                        retired_spares.push(connections.spares.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+        }
+        drop(retired_connections);
+        drop(retired_spares);
+    }
+
     pub(super) fn new(
         capacity: NonZeroUsize,
         max_active: NonZeroUsize,

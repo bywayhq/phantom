@@ -110,6 +110,43 @@ impl ConnectUdpProxyPool {
         self.inner.state().maximum_pending
     }
 
+    /// Releases retained sessions with no tunnel or setup owners.
+    ///
+    /// This affects every clone of the pool, including other clients using it.
+    /// Active tunnels and pending setup remain open. Connector configuration,
+    /// TLS session tickets and admission limits are retained.
+    pub fn close_idle_connections(&self) {
+        let mut retired = Vec::new();
+        {
+            let entries = lock(&self.inner.state().entries);
+            for entry in entries.iter() {
+                // A tunnel or setup lease holds the entry even when its raw
+                // stream no longer holds a connection handle.
+                if Arc::strong_count(entry) != 1 {
+                    continue;
+                }
+                let mut state = lock(&entry.state);
+                if state.connecting.is_some() {
+                    continue;
+                }
+                let idle = match &state.session {
+                    Some(OuterSession::Http2(connection)) => {
+                        connection.is_exclusively_owned() && !connection.early_data_pending()
+                    }
+                    Some(OuterSession::Http3(connection)) => {
+                        connection.is_exclusively_owned() && !connection.early_data_pending()
+                    }
+                    None => false,
+                };
+                if idle {
+                    retired.extend(state.session.take());
+                    state.authenticated = false;
+                }
+            }
+        }
+        drop(retired);
+    }
+
     /// Retires retained sessions while allowing existing tunnels to finish.
     ///
     /// Active keys and their admission counts remain registered. Pending setup
