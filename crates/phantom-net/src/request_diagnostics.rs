@@ -327,7 +327,7 @@ impl Observation {
 
 /// A phase guard owns its observer, even when its future moves to another task.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PhaseObservation {
     event: Option<(RequestDiagnostics, usize)>,
 }

@@ -401,11 +401,7 @@ impl TimeoutBudget {
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        observe_phase(
-            phase,
-            protocol,
-            run_until(self.deadline(phase), protocol, operation),
-        )
+        run_until(self.deadline(phase), protocol, operation).observe(phase)
     }
 
     pub(crate) fn phase(
@@ -499,30 +495,6 @@ impl TimeoutBudget {
     }
 }
 
-async fn observe_phase<F, T>(
-    phase: TimeoutPhase,
-    protocol: Option<HttpProtocol>,
-    operation: F,
-) -> Result<T, RequestError>
-where
-    F: Future<Output = Result<T, RequestError>>,
-{
-    use crate::RequestTimingPhase;
-    use phantom_net::request_diagnostics::PhaseObservation;
-    let observed = match phase {
-        TimeoutPhase::PoolAdmission => Some(RequestTimingPhase::PoolAdmission),
-        TimeoutPhase::Connect => Some(RequestTimingPhase::ConnectionAcquisition),
-        _ => None,
-    };
-    let mut observation =
-        observed.map(|phase| PhaseObservation::begin(phase, protocol.map(HttpProtocol::version)));
-    let result = operation.await;
-    if let Some(observation) = &mut observation {
-        observation.result(&result);
-    }
-    result
-}
-
 #[derive(Clone, Copy)]
 pub(crate) struct PhaseTimeout {
     deadline: Option<Deadline>,
@@ -538,11 +510,7 @@ impl PhaseTimeout {
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        observe_phase(
-            self.phase,
-            self.protocol,
-            run_until(Ok(self.deadline), self.protocol, operation),
-        )
+        run_until(Ok(self.deadline), self.protocol, operation).observe(self.phase)
     }
 }
 
@@ -551,7 +519,7 @@ fn run_until<Output, Operation>(
     deadline: Result<Option<Deadline>, RequestError>,
     protocol: Option<HttpProtocol>,
     operation: Operation,
-) -> impl Future<Output = Result<Output, RequestError>>
+) -> PhaseOperation<Operation>
 where
     Operation: Future<Output = Result<Output, RequestError>>,
 {
@@ -559,6 +527,8 @@ where
         operation: Some(operation),
         timer: PhaseTimer::New(deadline),
         protocol,
+        diagnostic_phase: None,
+        diagnostic: phantom_net::request_diagnostics::PhaseObservation::default(),
     }
 }
 
@@ -569,6 +539,19 @@ pin_project_lite::pin_project! {
         operation: Option<Operation>,
         timer: PhaseTimer,
         protocol: Option<HttpProtocol>,
+        diagnostic_phase: Option<crate::RequestTimingPhase>,
+        diagnostic: phantom_net::request_diagnostics::PhaseObservation,
+    }
+}
+
+impl<Operation> PhaseOperation<Operation> {
+    fn observe(mut self, phase: TimeoutPhase) -> Self {
+        self.diagnostic_phase = match phase {
+            TimeoutPhase::PoolAdmission => Some(crate::RequestTimingPhase::PoolAdmission),
+            TimeoutPhase::Connect => Some(crate::RequestTimingPhase::ConnectionAcquisition),
+            _ => None,
+        };
+        self
     }
 }
 
@@ -599,6 +582,12 @@ where
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
         let mut this = self.project();
+        if let Some(phase) = this.diagnostic_phase.take() {
+            *this.diagnostic = phantom_net::request_diagnostics::PhaseObservation::begin(
+                phase,
+                this.protocol.map(HttpProtocol::version),
+            );
+        }
         let result = match this.timer.initialize() {
             Err(error) => Poll::Ready(Err(error)),
             Ok(()) => {
@@ -635,6 +624,9 @@ where
             // even when the caller retains this completed wrapper.
             this.operation.set(None);
             *this.timer = PhaseTimer::Active(None);
+            if let Poll::Ready(result) = &result {
+                this.diagnostic.result(result);
+            }
         }
         result
     }
