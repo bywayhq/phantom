@@ -200,6 +200,7 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
+cmp "$candidate_repo/README.md" "$staged_wrapper/README.md"
 grep -F -q 'rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"

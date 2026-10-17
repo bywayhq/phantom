@@ -2815,6 +2815,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Stage the TLS wrapper's verified README without requiring Windows symlink
+  privileges during vendor checks.
+
 - Keep requesting HTTP/3 body frames when data arrives during demand
   submission, avoiding a response-body stall and eventual timeout.
 

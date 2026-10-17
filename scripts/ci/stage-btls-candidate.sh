@@ -114,7 +114,9 @@ git -C "$staging" init --quiet
 git -C "$staging" remote add origin "$repository"
 git -C "$staging" fetch --quiet --depth=1 origin "$candidate" \
   || die "could not fetch exact btls revision $candidate from $repository"
-git -C "$staging" checkout --quiet --detach FETCH_HEAD
+# The wrapper README is materialized below from its verified git-tree target.
+# Avoid requiring host symlink privileges for this temporary checkout.
+git -C "$staging" -c core.symlinks=false checkout --quiet --detach FETCH_HEAD
 actual=$(git -C "$staging" rev-parse HEAD)
 [[ "$actual" == "$candidate" ]] \
   || die "fetched btls revision $actual instead of requested $candidate"
