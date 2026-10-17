@@ -627,6 +627,7 @@ impl ConnectionSetupRetryState {
                 .try_admit()
                 .map_err(|source| RequestError::attempt_budget_exhausted(protocol, source))?;
         }
+        phantom_net::request_diagnostics::Observation::admit(protocol.map(HttpProtocol::version));
         Ok(())
     }
 

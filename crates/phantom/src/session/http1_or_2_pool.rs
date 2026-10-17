@@ -295,8 +295,8 @@ impl Http1Or2Pool {
             if let Some(error) = early_data.failure() {
                 return Err(error);
             }
-            if replay_safe && let Some(budget) = retries.attempt_budget() {
-                early_data.register_attempt(budget);
+            if replay_safe {
+                early_data.register_attempt(retries.attempt_budget());
             }
             // Only an HTTP/2 stream can be refused by a graceful GOAWAY.
             let replays_graceful_goaway = graceful_goaway_replayable
@@ -1530,6 +1530,10 @@ impl PoolEntry {
                 // put first.
                 let http1_sent_headers: Vec<_> =
                     http1_wire_headers.iter().skip(1).cloned().collect();
+                let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+                    crate::RequestTimingPhase::SendResponseHead,
+                    Some(HttpProtocol::Http1.version()),
+                );
                 let result = timeout_budget
                     .run(
                         TimeoutPhase::ResponseHead,
@@ -1550,6 +1554,7 @@ impl PoolEntry {
                         },
                     )
                     .await;
+                diagnostic_head.nested_result(&result);
                 match result {
                     Ok(Ok(response)) => {
                         let (parts, body) = response.into_parts();
@@ -1601,6 +1606,10 @@ impl PoolEntry {
                     return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
                 }
                 let sent_headers = http2_headers;
+                let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+                    crate::RequestTimingPhase::SendResponseHead,
+                    Some(HttpProtocol::Http2.version()),
+                );
                 let result = timeout_budget
                     .run(
                         TimeoutPhase::ResponseHead,
@@ -1622,6 +1631,7 @@ impl PoolEntry {
                         },
                     )
                     .await;
+                diagnostic_head.nested_result(&result);
                 match result {
                     Ok(Ok(response)) => {
                         let (parts, body) = response.into_parts();
@@ -3209,10 +3219,10 @@ enum EarlyDataConnection {
 }
 
 impl EarlyDataConnection {
-    fn register_attempt(&self, budget: &crate::HttpAttemptBudget) {
+    fn register_attempt(&self, budget: Option<&crate::HttpAttemptBudget>) {
         match self {
-            Self::Http1(connection) => connection.register_early_data_attempt(budget),
-            Self::Http2(connection) => connection.register_early_data_attempt(budget),
+            Self::Http1(connection) => connection.register_early_data_attempt_optional(budget),
+            Self::Http2(connection) => connection.register_early_data_attempt_optional(budget),
         }
     }
 

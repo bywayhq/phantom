@@ -93,6 +93,8 @@ async fn request(
             .header(RequestHeader::new("accept-encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(config.bytes as u64));
     }
+    let diagnostics = std::num::NonZeroUsize::new(config.diagnostic_events)
+        .map(|capacity| request.diagnostics(capacity));
     let response = request.send().await?;
     sample.head_ns = nanos(start.elapsed());
     let info = response
@@ -128,6 +130,20 @@ async fn request(
     }
     if sample.bytes != config.bytes {
         return Err("incorrect response length".into());
+    }
+    if let Some(diagnostics) = diagnostics {
+        let timeline = diagnostics.snapshot();
+        let body = timeline
+            .events
+            .iter()
+            .find(|event| event.phase == phantom::RequestTimingPhase::ResponseBody);
+        if timeline.admitted_attempts != 1
+            || timeline.outcome != phantom::RequestTimelineOutcome::ResponseHead
+            || body.is_some_and(|event| event.outcome != phantom::RequestTimingOutcome::Completed)
+            || (body.is_none() && timeline.dropped_events == 0)
+        {
+            return Err("incomplete request diagnostics".into());
+        }
     }
     sample.complete_ns = nanos(start.elapsed());
     Ok(())

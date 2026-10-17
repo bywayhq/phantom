@@ -51,6 +51,8 @@ mod macos_dns_ffi;
 /// HTTP proxy negotiation and tunneled byte streams.
 pub mod proxy;
 pub mod request;
+#[doc(hidden)]
+pub mod request_diagnostics;
 mod response;
 pub mod route;
 mod session_tickets;
@@ -79,6 +81,10 @@ pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use phantom_quic_btls::{QuicSessionRecordMetadata, QuicSessionStoreHeader};
+pub use request_diagnostics::{
+    RequestDiagnostics, RequestTimeline, RequestTimelineOutcome, RequestTiming,
+    RequestTimingOutcome, RequestTimingPhase,
+};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use session_tickets::{
     FrozenSessionTicketCache, PreparedSessionTicketReplacement, PreparedTcpSessionReplacement,

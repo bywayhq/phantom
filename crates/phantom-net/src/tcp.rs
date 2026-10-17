@@ -397,7 +397,13 @@ pub(crate) async fn connect_socks_proxy_sequential(
         };
         let address = candidate.address();
         let socket = prepare_socket(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
-        match socket.connect(address).await {
+        match crate::request_diagnostics::PhaseObservation::run(
+            crate::RequestTimingPhase::TcpConnect,
+            None,
+            socket.connect(address),
+        )
+        .await
+        {
             Ok(stream) => break stream,
             Err(connect) => {
                 if let Err(feedback) = candidate.failed_connect() {
@@ -604,6 +610,10 @@ async fn connect_candidate_within(
     let address = candidate.address();
     let expired = timeout.map(deadline).transpose()?;
     let socket = prepare_socket(address, settings, source)?;
+    let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
+        crate::RequestTimingPhase::TcpConnect,
+        None,
+    );
     let result = match expired {
         None => socket.connect(address).await,
         Some(expired) => {
@@ -614,6 +624,7 @@ async fn connect_candidate_within(
             }
         }
     };
+    diagnostic.result(&result);
     match result {
         Ok(stream) => Ok(stream),
         Err(connect) => match candidate.failed_connect() {

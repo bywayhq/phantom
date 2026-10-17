@@ -74,6 +74,7 @@ const MAXIMUM_DECODING_PUMPS: usize = 8;
 /// ```
 #[must_use = "response bodies must be read or deliberately dropped"]
 pub struct ResponseBody {
+    diagnostics: phantom_net::request_diagnostics::PhaseObservation,
     inner: Option<ResponseBodyInner>,
     timeouts: Option<ResponseTimeouts>,
     content: Option<ContentState>,
@@ -113,7 +114,7 @@ impl ResponseBody {
         let mut collected = BytesMut::new();
         let mut length = 0usize;
 
-        while let Some(frame) = poll_fn(|context| Pin::new(&mut self).poll_frame(context)).await {
+        while let Some(frame) = poll_fn(|context| self.poll_frame_observed(context, false)).await {
             let frame = frame?;
             let Ok(data) = frame.into_data() else {
                 continue;
@@ -121,6 +122,7 @@ impl ResponseBody {
             length = match checked_body_length(length, data.len(), maximum_bytes) {
                 Ok(length) => length,
                 Err(error) => {
+                    self.diagnostics.finish(crate::RequestTimingOutcome::Failed);
                     self.close();
                     return Err(self.error_with_origin(error));
                 }
@@ -131,15 +133,26 @@ impl ResponseBody {
         Ok(collected.freeze())
     }
 
+    pub(crate) fn finish_diagnostics_if_empty(&mut self) {
+        if self.diagnostics.is_retained() && self.is_end_stream() {
+            self.diagnostics
+                .finish(crate::RequestTimingOutcome::Completed);
+        }
+    }
+
     pub(crate) fn authenticate_proxy(
         &mut self,
         authentication: DigestResponseAuthentication,
         protocol: HttpProtocol,
     ) -> Result<(), RequestError> {
         if self.is_end_stream() {
-            return authentication
+            let result = authentication
                 .finish()
                 .map_err(|error| Self::proxy_authentication_error(protocol, error));
+            if result.is_err() {
+                self.diagnostics.finish(crate::RequestTimingOutcome::Failed);
+            }
+            return result;
         }
         self.proxy_authentication = Some((authentication, protocol));
         Ok(())
@@ -159,6 +172,10 @@ impl ResponseBody {
 
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
+            diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
+                crate::RequestTimingPhase::ResponseBody,
+                Some(http::Version::HTTP_11),
+            ),
             inner: Some(ResponseBodyInner::Http1(body)),
             timeouts: None,
             content: None,
@@ -178,6 +195,10 @@ impl ResponseBody {
 
     pub(crate) fn http2(body: Http2Body) -> Self {
         Self {
+            diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
+                crate::RequestTimingPhase::ResponseBody,
+                Some(http::Version::HTTP_2),
+            ),
             inner: Some(ResponseBodyInner::Http2(body)),
             timeouts: None,
             content: None,
@@ -197,6 +218,10 @@ impl ResponseBody {
 
     pub(crate) fn http3(body: Http3Body) -> Self {
         Self {
+            diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
+                crate::RequestTimingPhase::ResponseBody,
+                Some(http::Version::HTTP_3),
+            ),
             inner: Some(ResponseBodyInner::Http3(body)),
             timeouts: None,
             content: None,
@@ -261,6 +286,7 @@ impl ResponseBody {
             };
             match decoder.pump() {
                 Err(error) => {
+                    self.diagnostics.finish(crate::RequestTimingOutcome::Failed);
                     self.close();
                     return Poll::Ready(Some(Err(error)));
                 }
@@ -486,7 +512,49 @@ impl Body for ResponseBody {
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        let this = self.get_mut();
+        self.get_mut().poll_frame_observed(context, true)
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.end_stream()
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        self.body_size_hint()
+    }
+}
+
+impl ResponseBody {
+    fn poll_frame_observed(
+        &mut self,
+        context: &mut Context<'_>,
+        finish_on_last_frame: bool,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        let this = self;
+        let frame = this.poll_frame_inner(context);
+        if !this.diagnostics.is_retained() {
+            return frame;
+        }
+        match &frame {
+            Poll::Ready(Some(Err(_))) => {
+                this.diagnostics.finish(crate::RequestTimingOutcome::Failed)
+            }
+            Poll::Ready(None) => this
+                .diagnostics
+                .finish(crate::RequestTimingOutcome::Completed),
+            Poll::Ready(Some(Ok(_))) if finish_on_last_frame && this.is_end_stream() => this
+                .diagnostics
+                .finish(crate::RequestTimingOutcome::Completed),
+            _ => {}
+        }
+        frame
+    }
+
+    fn poll_frame_inner(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        let this = self;
         let frame = match this.content.take() {
             None => this.poll_wire_frame(context),
             Some(ContentState::Reject(error)) => {
@@ -530,7 +598,7 @@ impl Body for ResponseBody {
         frame.map(|frame| frame.map(|result| result.map_err(|error| this.error_with_origin(error))))
     }
 
-    fn is_end_stream(&self) -> bool {
+    fn end_stream(&self) -> bool {
         if self.content.is_some() || self.proxy_authentication.is_some() {
             return false;
         }
@@ -542,7 +610,7 @@ impl Body for ResponseBody {
         }
     }
 
-    fn size_hint(&self) -> SizeHint {
+    fn body_size_hint(&self) -> SizeHint {
         if self.content.is_some() {
             return SizeHint::default();
         }
@@ -552,6 +620,19 @@ impl Body for ResponseBody {
             Some(ResponseBodyInner::Http3(body)) => body.size_hint(),
             None => SizeHint::with_exact(0),
         }
+    }
+}
+
+impl Drop for ResponseBody {
+    fn drop(&mut self) {
+        if !self.diagnostics.is_retained() {
+            return;
+        }
+        self.diagnostics.finish(if self.is_end_stream() {
+            crate::RequestTimingOutcome::Completed
+        } else {
+            crate::RequestTimingOutcome::Abandoned
+        });
     }
 }
 

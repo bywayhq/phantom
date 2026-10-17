@@ -243,9 +243,11 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
         .request_timeouts(RequestTimeouts::new().response_head(Duration::from_millis(100)))
         .build()?;
 
-    let error = client
+    let mut request = client
         .get(HttpProtocol::Http2, &format!("https://{address}/stalled"))?
-        .timeouts(RequestTimeoutOverrides::new().connect(TimeoutOverride::Disabled))
+        .timeouts(RequestTimeoutOverrides::new().connect(TimeoutOverride::Disabled));
+    let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
+    let error = request
         .send()
         .await
         .err()
@@ -253,6 +255,11 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
     assert_eq!(error.kind(), RequestErrorKind::Timeout);
     assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
     assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ResponseHead));
+    let snapshot = diagnostics.snapshot();
+    assert_eq!(snapshot.outcome, phantom::RequestTimelineOutcome::Failed);
+    assert!(snapshot.events.iter().any(|event| event.phase
+        == phantom::RequestTimingPhase::SendResponseHead
+        && event.outcome == phantom::RequestTimingOutcome::Failed));
 
     timeout(TEST_TIMEOUT, async {
         client
@@ -331,12 +338,13 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
     });
     let client = http3_client(&identity)?;
 
-    let request = client
+    let mut request = client
         .get(HttpProtocol::Http3, &format!("https://{address}/stalled"))?
         .timeouts(
             RequestTimeoutOverrides::disabled()
                 .response_head(TimeoutOverride::Limit(Duration::from_millis(100))),
         );
+    let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
     let request = tokio::spawn(async move { request.send().await });
     request_received
         .await
@@ -349,6 +357,11 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
     assert_eq!(error.kind(), RequestErrorKind::Timeout);
     assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
     assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ResponseHead));
+    let snapshot = diagnostics.snapshot();
+    assert_eq!(snapshot.outcome, phantom::RequestTimelineOutcome::Failed);
+    assert!(snapshot.events.iter().any(|event| event.phase
+        == phantom::RequestTimingPhase::SendResponseHead
+        && event.outcome == phantom::RequestTimingOutcome::Failed));
     inspect_cancel
         .send(())
         .map_err(|_| "HTTP/3 server stopped before cancellation inspection")?;
@@ -414,10 +427,9 @@ async fn read_idle_timeout_retires_http1_connection() -> TestResult {
     let client = client_builder(&identity, false)
         .request_timeouts(RequestTimeouts::new().read_idle(Duration::from_secs(1)))
         .build()?;
-    let response = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
-        .send()
-        .await?;
+    let mut request = client.get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?;
+    let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
+    let response = request.send().await?;
     wait_for_head
         .await
         .map_err(|_| "server stopped before the response head was sent")?;
@@ -431,6 +443,14 @@ async fn read_idle_timeout_retires_http1_connection() -> TestResult {
         .ok_or("idle response body did not time out")?;
     assert_eq!(error.kind(), RequestErrorKind::Timeout);
     assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ReadIdle));
+    let snapshot = diagnostics.snapshot();
+    assert_eq!(
+        snapshot.outcome,
+        phantom::RequestTimelineOutcome::ResponseHead
+    );
+    assert!(snapshot.events.iter().any(|event| event.phase
+        == phantom::RequestTimingPhase::ResponseBody
+        && event.outcome == phantom::RequestTimingOutcome::Failed));
     release_first
         .send(())
         .map_err(|_| "server stopped before first-connection release")?;

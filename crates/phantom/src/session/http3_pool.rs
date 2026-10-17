@@ -1386,6 +1386,10 @@ impl Http3Lease {
             stream,
             permit,
         } = self.wait_for_early_data(connector, timeout_budget).await?;
+        let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+            crate::RequestTimingPhase::SendResponseHead,
+            Some(HttpProtocol::Http3.version()),
+        );
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,
@@ -1405,6 +1409,7 @@ impl Http3Lease {
                 },
             )
             .await;
+        diagnostic_head.nested_result(&result);
         match result {
             Ok(Ok(Http3ExtendedConnectOutcome::Accepted {
                 response,
@@ -1595,6 +1600,10 @@ async fn dispatch(
         return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
     }
     let sent_headers = headers;
+    let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+        crate::RequestTimingPhase::SendResponseHead,
+        Some(HttpProtocol::Http3.version()),
+    );
     let result = timeout_budget
         .run(
             TimeoutPhase::ResponseHead,
@@ -1616,6 +1625,7 @@ async fn dispatch(
             },
         )
         .await;
+    diagnostic_head.nested_result(&result);
     match result {
         Ok(Ok(response)) => {
             // Early setup publishes conservatively at its first successful

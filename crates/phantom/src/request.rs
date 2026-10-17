@@ -81,6 +81,7 @@ pub struct RequestBuilder {
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
     attempt_budget: Option<crate::HttpAttemptBudget>,
+    diagnostics: Option<crate::RequestDiagnostics>,
     content_decoding: ContentDecoding,
     response_body_timeouts: bool,
     body_declares_alt_used_trailer: bool,
@@ -176,6 +177,7 @@ impl RequestBuilder {
             timeouts: None,
             retry_policy: None,
             attempt_budget: None,
+            diagnostics: None,
             content_decoding: ContentDecoding::none(),
             response_body_timeouts: true,
             body_declares_alt_used_trailer: false,
@@ -406,6 +408,37 @@ impl RequestBuilder {
     pub fn trailers(mut self, trailers: Vec<RequestHeader>) -> Self {
         self.trailers = trailers;
         self
+    }
+
+    /// Enables a bounded timeline and returns a live handle for this request.
+    ///
+    /// Call before `send`. Timing starts when `send` is polled. Keep the handle
+    /// to inspect a failed or cancelled request, or later body completion.
+    /// Repeated calls return the same handle and retain the first capacity.
+    /// Omitted records are counted and never affect request execution.
+    /// This does not enable TLS secret logging or qlog output.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
+    /// use std::num::NonZeroUsize;
+    /// use phantom::HttpProtocol;
+    ///
+    /// let mut request = client.get(HttpProtocol::Http2, "https://example.com/")?;
+    /// let diagnostics = request.diagnostics(NonZeroUsize::new(128).unwrap());
+    /// let response = request.send().await?;
+    /// println!("{:?}", diagnostics.snapshot());
+    /// response.into_body().collect_with_limit(1 << 20).await?;
+    /// println!("{:?}", diagnostics.snapshot());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn diagnostics(
+        &mut self,
+        maximum_events: std::num::NonZeroUsize,
+    ) -> crate::RequestDiagnostics {
+        self.diagnostics
+            .get_or_insert_with(|| crate::RequestDiagnostics::new(maximum_events))
+            .clone()
     }
 
     /// Sets the complete owned request body.
@@ -832,9 +865,14 @@ impl RequestBuilder {
             span.record("selected_protocol", protocol.trace_name());
         }
         // Keep the public future small when callers join many requests.
-        let result = crate::session::box_send(self.send_inner(&span).instrument(span.clone()))
-            .await
-            .map_err(|error| error.with_origin(origin));
+        let diagnostics = self.diagnostics.clone();
+        let operation: crate::session::SendBox<'_, _> =
+            Box::pin(self.send_inner(&span).instrument(span.clone()));
+        let result = match diagnostics {
+            Some(diagnostics) => diagnostics.observe(operation).await,
+            None => phantom_net::request_diagnostics::Observation::scope(None, operation).await,
+        }
+        .map_err(|error| error.with_origin(origin));
         if let Err(error) = &result
             && let Some(phase) = error.timeout_phase()
         {
@@ -1058,6 +1096,7 @@ impl RequestBuilder {
             timeouts: _,
             retry_policy: _,
             attempt_budget,
+            diagnostics: _,
             content_decoding: _,
             response_body_timeouts,
             body_declares_alt_used_trailer: _,
@@ -1139,6 +1178,7 @@ impl RequestBuilder {
                 outcome.protocol,
                 decoded_content_codings,
             ));
+            response.body_mut().finish_diagnostics_if_empty();
             return Ok(response);
         }
 
@@ -1252,6 +1292,7 @@ impl RequestBuilder {
                         outcome.protocol,
                         decoded_content_codings,
                     ));
+                    response.body_mut().finish_diagnostics_if_empty();
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {

@@ -37,10 +37,11 @@ They are priorities, not a requirement to finish a whole wave before starting
 an independent task in the next one.
 
 The shared attempt budget (#35) is implemented for downstream integration.
-Profile authoring (#3) is in progress: describe/export, editable round trips
-and a caller-owned custom registry. Request diagnostics (#9) can proceed independently.
-They give downstream users inspectable configuration and measurements for
-bug reports.
+Profile authoring (#3) is delivered in PR #265: describe/export, editable
+round trips and a caller-owned custom registry. Request diagnostics (#9) is
+in progress. Its first slice adds bounded request timelines, including
+response-body completion and failed or cancelled setup. Endpoints, certificate
+details and explicit reuse/resumption identities remain a separate slice.
 Extend the existing comparison harness (#1) and performance baseline (#34)
 alongside them. Each change should deliver a usable part in a separate PR.
 Do not wait for every diagnostic field or performance experiment to finish
@@ -186,9 +187,9 @@ will consume.
 | 33 | Existing fidelity follow-ups | Reconcile each remaining macOS/Android, Firefox speculative/coalescing, DNS and ECH/early-data item against its existing acceptance criteria. Retain completed campaign work and close only the remaining gaps. |
 | 30 | Speculative CONNECT plus TLS | Delivered as an explicit opt-in with bounded route support. Retain authentication, partial-write, rejection, cancellation and replay checks. Broader proxy/WAN measurements can extend its evidence without reopening implementation. |
 
-For #6, the git-sourced native TLS dependency remains a packaging blocker.
-First release readiness does not depend on completing every new API, binding
-or browser profile. Binary and wheel distribution follow their respective
+For #6, version 0.1.0 is published with bundled native TLS sources and Byway
+team ownership. Registry-only minimal and full-feature consumer checks pass.
+Later APIs and profiles follow in subsequent releases. Binary and wheel distribution follow their respective
 tools; the Rust library itself does not need a standalone executable.
 
 Capture work has a separate schedule. No local Mac or physical Android device

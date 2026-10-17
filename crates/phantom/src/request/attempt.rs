@@ -57,6 +57,22 @@ pub(super) async fn send_once(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
+    let observer = phantom_net::request_diagnostics::Observation::next_hop();
+    phantom_net::request_diagnostics::Observation::scope(
+        observer,
+        send_once_inner(client, request, selection, attempt, route, lifecycle),
+    )
+    .await
+}
+
+async fn send_once_inner(
+    client: &Client,
+    request: &ResolvedRequest,
+    selection: ProtocolSelection,
+    attempt: AttemptRequest<'_>,
+    route: &Route,
+    lifecycle: AttemptLifecycle<'_>,
+) -> Result<AttemptOutcome, RequestError> {
     lifecycle
         .retries
         .ensure_http_attempt_available(match selection {

@@ -401,7 +401,11 @@ impl TimeoutBudget {
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        run_until(self.deadline(phase), protocol, operation)
+        observe_phase(
+            phase,
+            protocol,
+            run_until(self.deadline(phase), protocol, operation),
+        )
     }
 
     pub(crate) fn phase(
@@ -412,6 +416,7 @@ impl TimeoutBudget {
         Ok(PhaseTimeout {
             deadline: self.deadline(phase)?,
             protocol,
+            phase,
         })
     }
 
@@ -494,10 +499,42 @@ impl TimeoutBudget {
     }
 }
 
+async fn observe_phase<F, T>(
+    phase: TimeoutPhase,
+    protocol: Option<HttpProtocol>,
+    operation: F,
+) -> Result<T, RequestError>
+where
+    F: Future<Output = Result<T, RequestError>>,
+{
+    use crate::RequestTimingPhase;
+    use phantom_net::request_diagnostics::PhaseObservation;
+    match phase {
+        TimeoutPhase::PoolAdmission => {
+            PhaseObservation::run(
+                RequestTimingPhase::PoolAdmission,
+                protocol.map(HttpProtocol::version),
+                operation,
+            )
+            .await
+        }
+        TimeoutPhase::Connect => {
+            PhaseObservation::run(
+                RequestTimingPhase::ConnectionAcquisition,
+                protocol.map(HttpProtocol::version),
+                operation,
+            )
+            .await
+        }
+        _ => operation.await,
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct PhaseTimeout {
     deadline: Option<Deadline>,
     protocol: Option<HttpProtocol>,
+    phase: TimeoutPhase,
 }
 
 impl PhaseTimeout {
@@ -508,7 +545,11 @@ impl PhaseTimeout {
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        run_until(Ok(self.deadline), self.protocol, operation)
+        observe_phase(
+            self.phase,
+            self.protocol,
+            run_until(Ok(self.deadline), self.protocol, operation),
+        )
     }
 }
 

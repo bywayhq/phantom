@@ -249,11 +249,15 @@ impl Http1Pool {
                 .await?;
             (lease, permit)
         };
-        if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty())
-            && let Some(budget) = retries.attempt_budget()
-        {
-            lease.connection.register_early_data_attempt(budget);
+        if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty()) {
+            lease
+                .connection
+                .register_early_data_attempt_optional(retries.attempt_budget());
         }
+        let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+            crate::RequestTimingPhase::SendResponseHead,
+            Some(HttpProtocol::Http1.version()),
+        );
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,
@@ -281,6 +285,7 @@ impl Http1Pool {
                 },
             )
             .await;
+        diagnostic_head.nested_result(&result);
         match result {
             Ok(Ok(response)) => {
                 if mode == Http1ConnectionMode::Forward

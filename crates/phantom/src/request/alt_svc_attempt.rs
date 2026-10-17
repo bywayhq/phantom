@@ -201,16 +201,20 @@ pub(super) async fn send_once_raced(
         .iter()
         .zip(&connecting)
         .map(|(alternative, connecting)| {
-            box_send(alternative_setup(
-                client.clone(),
-                request.endpoint.clone(),
-                route.clone(),
-                alternative.clone(),
-                timeout_budget,
-                retries.for_alternative_setup(),
-                Arc::clone(connecting),
-                lookup.take(),
-                race.alternative_setup_limit(),
+            box_send(phantom_net::request_diagnostics::Observation::scope(
+                phantom_net::request_diagnostics::Observation::current()
+                    .map(|observer| observer.branch()),
+                alternative_setup(
+                    client.clone(),
+                    request.endpoint.clone(),
+                    route.clone(),
+                    alternative.clone(),
+                    timeout_budget,
+                    retries.for_alternative_setup(),
+                    Arc::clone(connecting),
+                    lookup.take(),
+                    race.alternative_setup_limit(),
+                ),
             ))
         })
         .collect();

@@ -678,6 +678,10 @@ impl TlsConnector {
             outcome = field::Empty,
             error_kind = field::Empty,
         );
+        let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
+            crate::RequestTimingPhase::TlsHandshake,
+            None,
+        );
         let outcome = HandshakeOutcome::new(&span);
         let result = async {
             debug!("TLS handshake started");
@@ -897,6 +901,11 @@ impl TlsConnector {
         }
         .instrument(span.clone())
         .await;
+        diagnostic.finish(match &result {
+            Ok(stream) if stream.early_data.is_some() => crate::RequestTimingOutcome::EarlyData,
+            Ok(_) => crate::RequestTimingOutcome::Completed,
+            Err(_) => crate::RequestTimingOutcome::Failed,
+        });
         outcome.finish(&result);
         result
     }

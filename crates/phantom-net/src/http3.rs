@@ -428,27 +428,41 @@ async fn connect(
     let endpoint = endpoint_with_socket(remote, crypto, options, socket, path_mtu, server_name)?;
 
     debug!("QUIC connection started");
-    let connecting = endpoint.connect(remote, server_name).map_err(|error| {
-        Http3Error::with_source(
-            Http3ErrorKind::Connect,
-            "failed to begin QUIC connection",
-            error,
-        )
-    })?;
-    // A connection that sends early data is used before its handshake ends,
-    // so its TLS metadata, including any peer ALPS, is checked and applied
-    // when the handshake completes; see `complete_early_handshake`.
-    let (connection, zero_rtt) = if sends_early_data {
-        match connecting.into_0rtt() {
-            Ok((connection, accepted)) => {
-                debug!("QUIC connection sending early data before its handshake completes");
-                (connection, Some(accepted))
+    let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
+        crate::RequestTimingPhase::QuicHandshake,
+        Some(http::Version::HTTP_3),
+    );
+    let result = async {
+        let connecting = endpoint.connect(remote, server_name).map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Connect,
+                "failed to begin QUIC connection",
+                error,
+            )
+        })?;
+        // A connection that sends early data is used before its handshake ends,
+        // so its TLS metadata, including any peer ALPS, is checked and applied
+        // when the handshake completes; see `complete_early_handshake`.
+        let connected = if sends_early_data {
+            match connecting.into_0rtt() {
+                Ok((connection, accepted)) => {
+                    debug!("QUIC connection sending early data before its handshake completes");
+                    (connection, Some(accepted))
+                }
+                Err(connecting) => (connecting.await.map_err(connection_error)?, None),
             }
-            Err(connecting) => (connecting.await.map_err(connection_error)?, None),
-        }
-    } else {
-        (connecting.await.map_err(connection_error)?, None)
-    };
+        } else {
+            (connecting.await.map_err(connection_error)?, None)
+        };
+        Ok::<_, Http3Error>(connected)
+    }
+    .await;
+    diagnostic.finish(match &result {
+        Ok((_, Some(_))) => crate::RequestTimingOutcome::EarlyData,
+        Ok(_) => crate::RequestTimingOutcome::Completed,
+        Err(_) => crate::RequestTimingOutcome::Failed,
+    });
+    let (connection, zero_rtt) = result?;
     // Early data starts from the SETTINGS of the connection that issued the
     // ticket, as RFC 9114 section 7.2.4.2 permits and Chromium does, so a
     // request can be encoded before the server's SETTINGS arrive.

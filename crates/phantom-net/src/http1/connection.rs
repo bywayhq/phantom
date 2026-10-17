@@ -285,6 +285,11 @@ impl Http1Connection {
     /// whose TLS early data may be resent. Registration spends nothing; the
     /// TLS stream admits resends before writing any rejected early bytes.
     pub fn register_early_data_attempt(&self, budget: &crate::HttpAttemptBudget) {
+        self.register_early_data_attempt_optional(Some(budget));
+    }
+
+    #[doc(hidden)]
+    pub fn register_early_data_attempt_optional(&self, budget: Option<&crate::HttpAttemptBudget>) {
         if let Some(early) = &self.inner.early_data {
             early.register_attempt(budget);
         }

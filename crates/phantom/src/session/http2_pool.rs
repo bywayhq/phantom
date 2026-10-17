@@ -251,14 +251,18 @@ impl Http2Pool {
                 drop(permit);
                 return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
             }
-            if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty())
-                && let Some(budget) = retries.attempt_budget()
-            {
-                lease.connection.register_early_data_attempt(budget);
+            if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty()) {
+                lease
+                    .connection
+                    .register_early_data_attempt_optional(retries.attempt_budget());
             }
             let response_timeout =
                 timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
             let sent_headers = headers.clone();
+            let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
+                crate::RequestTimingPhase::SendResponseHead,
+                Some(HttpProtocol::Http2.version()),
+            );
             let result = response_timeout
                 .run(async {
                     Ok::<_, RequestError>(match mode {
@@ -292,6 +296,7 @@ impl Http2Pool {
                     })
                 })
                 .await;
+            diagnostic_head.nested_result(&result);
             match result {
                 Ok(Ok(response)) => {
                     let (parts, body) = response.into_parts();

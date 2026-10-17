@@ -91,7 +91,10 @@ pub(crate) type SendBox<'a, T> =
 pub(crate) fn box_send<'a, T>(
     future: impl std::future::Future<Output = T> + Send + 'a,
 ) -> SendBox<'a, T> {
-    Box::pin(future)
+    Box::pin(phantom_net::request_diagnostics::Observation::scope(
+        phantom_net::request_diagnostics::Observation::capture(),
+        future,
+    ))
 }
 
 /// The runtime the calling task runs on, which every pool key includes.

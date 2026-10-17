@@ -120,6 +120,10 @@ pub use phantom_net::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
 pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
+pub use phantom_net::{
+    RequestDiagnostics, RequestTimeline, RequestTimelineOutcome, RequestTiming,
+    RequestTimingOutcome, RequestTimingPhase,
+};
 
 #[cfg(feature = "https-records")]
 pub use alt_svc_https_policy::AltSvcHttpsPolicy;
@@ -262,6 +266,10 @@ struct ComingFromReqwestGuideDoctests;
 #[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/troubleshooting.md")]
 struct TroubleshootingGuideDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/request-diagnostics.md")]
+struct RequestDiagnosticsGuideDoctests;
 
 #[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/performance.md")]

@@ -46,6 +46,7 @@ Find the page you need below. If you're new, start at the top.
 - [Adding Phantom to a project](guides/downstream.md): the git dependency.
 - [Coming from reqwest](guides/coming-from-reqwest.md): reqwest tasks in
   Phantom.
+- [Request timings](guides/request-diagnostics.md): inspect setup and streaming.
 - [Troubleshooting](guides/troubleshooting.md): errors and their fixes.
 - [Examples](../crates/phantom/examples/README.md): runnable programs.
 - [Changelog](../CHANGELOG.md): changes and migration notes.
@@ -59,6 +60,7 @@ Find the page you need below. If you're new, start at the top.
 - [Route matrix](reference/route-matrix.md): schemes, protocols, and proxies.
 - [Environment proxies](reference/environment-proxies.md): snapshot variables,
   route precedence, and bypass rules.
+- [Request diagnostics](reference/request-diagnostics.md): bounded timing records.
 - [Tracing](reference/tracing.md): request spans, fields, and outcomes.
 - [Defaults and limits](reference/limits.md): default values and bounds.
 - [WebSocket reference](reference/websocket.md): WebSocket details.

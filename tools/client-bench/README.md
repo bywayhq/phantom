@@ -63,6 +63,15 @@ Warm pooled requests do not repeat CONNECT. Keep instrumented allocations
 separate from ordinary timing. Cold runs include client construction, TLS,
 request processing and destruction in phase CPU and throughput.
 
+## Measure request diagnostics
+
+Set `diagnostic_events: 128` to create and snapshot a fresh bounded collector
+for each request. Zero, the default, leaves collection disabled. Enabled runs
+validate admission and body-completion records. Their timing includes snapshot
+copying and verification. Compare both settings with the same binary, seeded
+trial order and workload. Keep disabled runs against the previous revision
+separate from this enabled/disabled comparison.
+
 ## Measure allocations separately
 
 Keep a copy of the uninstrumented executable and its symbols before building

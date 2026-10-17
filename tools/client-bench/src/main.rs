@@ -40,6 +40,7 @@ struct Config {
     peer_workers: Option<usize>,
     speculative_tls: bool,
     proxy_delay_ms: u64,
+    diagnostic_events: usize,
 }
 
 impl Default for Config {
@@ -66,6 +67,7 @@ impl Default for Config {
             peer_workers: None,
             speculative_tls: false,
             proxy_delay_ms: 0,
+            diagnostic_events: 0,
         }
     }
 }
@@ -90,6 +92,7 @@ impl Config {
             || self.chunk_delay_ms > 1000
             || self.arrival_interval_us > 1_000_000
             || self.proxy_delay_ms > 250
+            || self.diagnostic_events > 4096
         {
             return Err("invalid or unbounded benchmark configuration".into());
         }

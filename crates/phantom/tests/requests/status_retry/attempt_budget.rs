@@ -135,15 +135,29 @@ async fn redirects_and_enabled_status_retries_spend_the_same_allowance() -> Test
         .retry_policy(RetryPolicy::none().with_status_retry(status_retry(5, Duration::ZERO)?))
         .build()?;
         let budget = HttpAttemptBudget::new(3);
-        let error = client
+        let mut request = client
             .get_negotiated(&server.url("http", "/"))?
-            .attempt_budget(budget.clone())
+            .attempt_budget(budget.clone());
+        let diagnostics = request.diagnostics(NonZeroUsize::MIN.saturating_add(127));
+        let error = request
             .send()
             .await
             .err()
             .ok_or("retry exceeded shared allowance")?;
         assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
         assert_eq!(budget.remaining(), 0);
+        let snapshot = diagnostics.snapshot();
+        assert_eq!(snapshot.outcome, phantom::RequestTimelineOutcome::Failed);
+        assert_eq!(snapshot.admitted_attempts, 3);
+        assert_eq!(snapshot.dropped_events, 0);
+        let admissions = snapshot
+            .events
+            .iter()
+            .filter(|event| event.phase == phantom::RequestTimingPhase::AttemptAdmission)
+            .map(|event| (event.hop, event.admission))
+            .collect::<Vec<_>>();
+        assert_eq!(admissions, [(0, Some(1)), (0, Some(2)), (1, Some(3))]);
+
         assert_eq!(
             request_lines(&server.received()?),
             ["GET / HTTP/1.1", "GET / HTTP/1.1", "GET /next HTTP/1.1"]

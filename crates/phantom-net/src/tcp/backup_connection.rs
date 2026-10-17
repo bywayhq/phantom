@@ -521,7 +521,10 @@ impl<C> SlowerConnection<C> {
     ) -> Self {
         Self {
             progress,
-            future: Box::pin(future),
+            future: Box::pin(crate::request_diagnostics::Observation::scope(
+                crate::request_diagnostics::Observation::capture(),
+                future,
+            )),
         }
     }
 

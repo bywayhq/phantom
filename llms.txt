@@ -73,6 +73,7 @@ For registry dependencies, read the [published API documentation](https://docs.r
 - [WebSocket fields and compression](docs/guides/websocket-fields.md): caller-ordered handshake headers, HTTP/3 WebSocket to your own server (no recipe), and the `websocket-deflate` feature
 - [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
 - [Coming from reqwest](docs/guides/coming-from-reqwest.md): reqwest concepts in Phantom, and what behaves differently
+- [Request timings](docs/guides/request-diagnostics.md): bounded request timelines
 - [Troubleshooting](docs/guides/troubleshooting.md): error kinds, causes, and fixes
 - [Examples](crates/phantom/examples/README.md): runnable programs, one per guide task
 - [Changelog](CHANGELOG.md): breaking changes between commits, each with a migration note
@@ -84,6 +85,7 @@ For registry dependencies, read the [published API documentation](https://docs.r
 - [Custom profile import](docs/reference/fingerprint-import.md): complete JSON format, errors, and resource bounds
 - [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
 - [Environment proxies](docs/reference/environment-proxies.md): opt-in snapshots, explicit route precedence, and NO_PROXY grammar
+- [Request diagnostics](docs/reference/request-diagnostics.md): opt-in timelines, attempts and body completion
 - [Tracing](docs/reference/tracing.md): facade spans and fields, outcome boundaries, and source privacy
 - [Defaults and limits](docs/reference/limits.md): default limits and off-by-default policies
 - [WebSocket reference](docs/reference/websocket.md): WebSocket routes, templates, response checks, recipes, and compression

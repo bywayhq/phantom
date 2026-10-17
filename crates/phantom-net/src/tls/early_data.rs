@@ -50,7 +50,13 @@ pub(super) struct EarlyData {
 #[derive(Debug, Default)]
 struct ReplayAttempts {
     closed: bool,
-    budgets: Vec<crate::HttpAttemptBudget>,
+    registrations: Vec<ReplayRegistration>,
+}
+
+#[derive(Debug)]
+struct ReplayRegistration {
+    budget: Option<crate::HttpAttemptBudget>,
+    observation: Option<crate::request_diagnostics::Observation>,
 }
 
 impl ReplayAttempts {
@@ -58,16 +64,21 @@ impl ReplayAttempts {
         self.closed = true;
         // Admission may conservatively spend some allowances even when another
         // request blocks replay of the connection's shared early-data buffer.
-        let budgets = std::mem::take(&mut self.budgets);
-        for budget in budgets {
-            budget.try_admit()?;
+        let registrations = std::mem::take(&mut self.registrations);
+        for registration in registrations {
+            if let Some(budget) = registration.budget {
+                budget.try_admit()?;
+            }
+            if let Some(observation) = registration.observation {
+                observation.admit_replay();
+            }
         }
         Ok(())
     }
 
     fn clear(&mut self) {
         self.closed = true;
-        self.budgets.clear();
+        self.registrations.clear();
     }
 }
 
@@ -163,6 +174,17 @@ impl EarlyData {
     }
 }
 
+impl Drop for EarlyData {
+    fn drop(&mut self) {
+        // Connection waiters can outlive a cancelled TLS driver. They must
+        // not retain request collectors or allowances after replay is gone.
+        self.attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+}
+
 /// Tells a protocol layer when the server answers a connection's early data.
 ///
 /// A request that is not replay safe ([`crate::request::is_replay_safe`])
@@ -175,13 +197,20 @@ pub(crate) struct EarlyDataWait {
 }
 
 impl EarlyDataWait {
-    pub(crate) fn register_attempt(&self, budget: &crate::HttpAttemptBudget) {
+    pub(crate) fn register_attempt(&self, budget: Option<&crate::HttpAttemptBudget>) {
+        let observation = crate::request_diagnostics::Observation::current();
+        if budget.is_none() && observation.is_none() {
+            return;
+        }
         let mut attempts = self
             .attempts
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !attempts.closed {
-            attempts.budgets.push(budget.clone());
+            attempts.registrations.push(ReplayRegistration {
+                budget: budget.cloned(),
+                observation,
+            });
         }
     }
 
@@ -488,7 +517,18 @@ mod tests {
         let early = EarlyData::new(None, None);
         let waiter = early.wait();
         assert!(waiter.is_pending());
+        let budget = HttpAttemptBudget::new(1);
+        waiter.register_attempt(Some(&budget));
         drop(early);
+        assert!(
+            waiter
+                .attempts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .registrations
+                .is_empty()
+        );
+        assert_eq!(budget.remaining(), 1);
         assert!(!waiter.is_pending());
         let error = tokio::time::timeout(std::time::Duration::from_secs(1), waiter.answered())
             .await
@@ -505,8 +545,8 @@ mod tests {
         let second = HttpAttemptBudget::new(0);
         let early = EarlyData::new(None, None);
         let waiter = early.wait();
-        waiter.register_attempt(&first);
-        waiter.register_attempt(&second);
+        waiter.register_attempt(Some(&first));
+        waiter.register_attempt(Some(&second));
         let mut attempts = early
             .attempts
             .lock()
@@ -514,7 +554,7 @@ mod tests {
         assert!(attempts.admit().is_err());
         assert_eq!(first.remaining(), 0);
         assert_eq!(second.remaining(), 0);
-        assert!(attempts.budgets.is_empty());
+        assert!(attempts.registrations.is_empty());
         assert!(attempts.closed);
     }
 
@@ -525,7 +565,7 @@ mod tests {
         let later = HttpAttemptBudget::new(1);
         let early = EarlyData::new(None, None);
         let waiter = early.wait();
-        waiter.register_attempt(&original);
+        waiter.register_attempt(Some(&original));
         {
             let mut attempts = early
                 .attempts
@@ -535,7 +575,7 @@ mod tests {
             // Further partial-write polls cannot charge this registration again.
             attempts.admit()?;
         }
-        waiter.register_attempt(&later);
+        waiter.register_attempt(Some(&later));
         assert_eq!(original.remaining(), 1);
         assert_eq!(later.remaining(), 1);
         assert!(
@@ -543,7 +583,7 @@ mod tests {
                 .attempts
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .budgets
+                .registrations
                 .is_empty()
         );
         Ok(())
@@ -554,21 +594,55 @@ mod tests {
         let budget = HttpAttemptBudget::new(1);
         let early = EarlyData::new(None, None);
         let waiter = early.wait();
-        waiter.register_attempt(&budget);
+        waiter.register_attempt(Some(&budget));
         early
             .attempts
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
-        waiter.register_attempt(&budget);
+        waiter.register_attempt(Some(&budget));
         assert!(
             early
                 .attempts
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .budgets
+                .registrations
                 .is_empty()
         );
         assert_eq!(budget.remaining(), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_early_data_records_each_request_without_an_attempt_budget()
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        use crate::request_diagnostics::{Observation, RequestDiagnostics};
+        let first = RequestDiagnostics::new(std::num::NonZeroUsize::MIN);
+        let second = RequestDiagnostics::new(std::num::NonZeroUsize::MIN);
+        let early = EarlyData::new(None, None);
+        let waiter = early.wait();
+        for trace in [&first, &second] {
+            trace
+                .observe(async {
+                    Observation::admit(Some(http::Version::HTTP_2));
+                    waiter.register_attempt(None);
+                    Ok::<_, ()>(())
+                })
+                .await
+                .map_err(|()| "observer failed")?;
+        }
+        // The TLS driver has no request task-local scope.
+        assert!(Observation::current().is_none());
+        early
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .admit()?;
+        for trace in [&first, &second] {
+            let snapshot = trace.snapshot();
+            assert_eq!(snapshot.admitted_attempts, 2);
+            assert_eq!(snapshot.events.len(), 1);
+            assert_eq!(snapshot.dropped_events, 1);
+        }
+        Ok(())
     }
 }

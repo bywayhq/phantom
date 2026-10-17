@@ -43,6 +43,13 @@ pub enum HttpProtocol {
 }
 
 impl HttpProtocol {
+    pub(crate) const fn version(self) -> http::Version {
+        match self {
+            Self::Http1 => http::Version::HTTP_11,
+            Self::Http2 => http::Version::HTTP_2,
+            Self::Http3 => http::Version::HTTP_3,
+        }
+    }
     pub(crate) const fn trace_name(self) -> &'static str {
         match self {
             Self::Http1 => "http/1.1",

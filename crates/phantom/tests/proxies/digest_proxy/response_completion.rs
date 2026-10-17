@@ -122,3 +122,36 @@ async fn http2_digest_trailers_are_verified_before_the_nonce_becomes_preemptive(
         Ok(())
     }).await.map_err(|_| "Digest HTTP/2 trailer deadline")?
 }
+
+#[tokio::test]
+async fn empty_digest_response_with_missing_required_proof_records_body_failure() -> TestResult {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let peer = ConnectionPeer::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            read_head(&mut stream).await?;
+            stream.write_all(challenge("SHA-256", "first", false).as_bytes()).await?;
+            let value = authorization(&read_head(&mut stream).await?)?.ok_or("missing authorization")?;
+            oracle::verify(&value, "GET", URL, "SHA-256", "first")?;
+            stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nTrailer: Proxy-Authentication-Info\r\n\r\n").await?;
+            Ok(())
+        });
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_auth("user", "password")?);
+            let client = client_builder(&identity, false).route(route).build()?;
+            let mut request = client.get(HttpProtocol::Http1, URL)?;
+            let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
+            let error = request.send().await.err().ok_or("missing Digest proof accepted")?;
+            assert_eq!(error.kind(), phantom::RequestErrorKind::Proxy);
+            let snapshot = diagnostics.snapshot();
+            assert_eq!(snapshot.outcome, phantom::RequestTimelineOutcome::Failed);
+            assert!(snapshot.events.iter().any(|event| event.phase == phantom::RequestTimingPhase::ResponseBody
+                && event.outcome == phantom::RequestTimingOutcome::Failed));
+            Ok(client)
+        }.await;
+        finish_peer(operation, peer).await?;
+        Ok(())
+    }).await.map_err(|_| "Digest empty-body deadline")?
+}

@@ -8,6 +8,10 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+- Add opt-in, bounded request timelines for admissions, pool and setup waits,
+  TCP/TLS/QUIC setup, response headers and streamed body completion. Retained
+  handles remain readable after send errors, cancellation and body abandonment.
+
 - Add profile describe/export, editable JSON round trips, and a caller-owned
   registry for named custom profiles under `fingerprint-import`.
 - Keep native TLS patch progress in gate logs without treating it as a build

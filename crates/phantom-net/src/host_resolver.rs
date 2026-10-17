@@ -645,16 +645,32 @@ pub(crate) async fn resolve_tcp_noting_cache(
     host: &str,
     port: u16,
 ) -> io::Result<(tcp_addresses::TcpAddresses, bool)> {
-    match resolver {
-        Some(resolver) => resolver.lookup_tcp(host, port).await,
-        None => Ok((
-            tokio::net::lookup_host((host, port))
-                .await?
-                .collect::<Vec<_>>()
-                .into(),
-            false,
-        )),
+    let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
+        crate::RequestTimingPhase::ResolutionWait,
+        None,
+    );
+    let local = diagnostic.is_retained()
+        && (host.parse::<IpAddr>().is_ok()
+            || resolver.is_some_and(|resolver| resolver.override_for(host).is_some()));
+    let result = async {
+        match resolver {
+            Some(resolver) => resolver.lookup_tcp(host, port).await,
+            None => Ok((
+                tokio::net::lookup_host((host, port))
+                    .await?
+                    .collect::<Vec<_>>()
+                    .into(),
+                false,
+            )),
+        }
     }
+    .await;
+    diagnostic.finish(match &result {
+        Ok((_, cached)) if *cached || local => crate::RequestTimingOutcome::Cached,
+        Ok(_) => crate::RequestTimingOutcome::Completed,
+        Err(_) => crate::RequestTimingOutcome::Failed,
+    });
+    result
 }
 
 impl fmt::Debug for HostResolver {
@@ -683,13 +699,29 @@ pub(crate) async fn resolve_noting_cache(
     host: &str,
     port: u16,
 ) -> io::Result<(Vec<SocketAddr>, bool)> {
-    match resolver {
-        Some(resolver) => resolver.lookup(host, port).await,
-        None => Ok((
-            tokio::net::lookup_host((host, port)).await?.collect(),
-            false,
-        )),
+    let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
+        crate::RequestTimingPhase::ResolutionWait,
+        None,
+    );
+    let local = diagnostic.is_retained()
+        && (host.parse::<IpAddr>().is_ok()
+            || resolver.is_some_and(|resolver| resolver.override_for(host).is_some()));
+    let result = async {
+        match resolver {
+            Some(resolver) => resolver.lookup(host, port).await,
+            None => Ok((
+                tokio::net::lookup_host((host, port)).await?.collect(),
+                false,
+            )),
+        }
     }
+    .await;
+    diagnostic.finish(match &result {
+        Ok((_, cached)) if *cached || local => crate::RequestTimingOutcome::Cached,
+        Ok(_) => crate::RequestTimingOutcome::Completed,
+        Err(_) => crate::RequestTimingOutcome::Failed,
+    });
+    result
 }
 
 /// Resolves `host` through `resolver`, or through the operating system on
@@ -699,13 +731,20 @@ pub(crate) async fn resolve(
     host: &str,
     port: u16,
 ) -> io::Result<Vec<SocketAddr>> {
-    match resolver {
-        Some(resolver) => resolver
-            .lookup(host, port)
-            .await
-            .map(|(addresses, _)| addresses),
-        None => Ok(tokio::net::lookup_host((host, port)).await?.collect()),
-    }
+    crate::request_diagnostics::PhaseObservation::run(
+        crate::RequestTimingPhase::ResolutionWait,
+        None,
+        async {
+            match resolver {
+                Some(resolver) => resolver
+                    .lookup(host, port)
+                    .await
+                    .map(|(addresses, _)| addresses),
+                None => Ok(tokio::net::lookup_host((host, port)).await?.collect()),
+            }
+        },
+    )
+    .await
 }
 
 #[cfg(test)]
