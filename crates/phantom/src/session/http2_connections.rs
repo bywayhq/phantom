@@ -60,16 +60,22 @@ impl Http2Spread {
         &mut self,
         connections: impl Iterator<Item = (&'a Http2Connection, &'a StreamCount)>,
     ) -> Choice {
+        let mut connections = connections;
+        // This limit is fixed for the pool's lifetime. With one slot there
+        // is no placement decision; the transport still enforces stream credit.
+        if self.max_connections.get() == 1 {
+            return connections.next().map_or(Choice::Open, |_| Choice::Use(0));
+        }
         let mut least_loaded: Option<(usize, usize)> = None;
         let mut with_room: Option<(usize, usize)> = None;
         let mut count = 0;
         for (index, (connection, streams)) in connections.enumerate() {
             count += 1;
-            if let Some(limit) = connection.peer_max_concurrent_streams() {
+            let peer_limit = connection.peer_max_concurrent_streams();
+            if let Some(limit) = peer_limit {
                 self.learned_peer_limit = Some(limit);
             }
-            let room = connection
-                .peer_max_concurrent_streams()
+            let room = peer_limit
                 .or(self.learned_peer_limit)
                 .map_or(self.local_streams.get(), |peer| {
                     peer.min(self.local_streams.get())

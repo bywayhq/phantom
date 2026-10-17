@@ -428,6 +428,91 @@ The bulk-body live-heap tradeoff and noisy speed comparisons remain visible.
 Further work must measure allocator retention and client worker overhead
 separately. This pass does not establish a memory or throughput optimum.
 
+## Worker contention follow-up
+
+The slower eight-worker setting reproduced on Windows and in the Linux
+diagnostic VM with the peer held at two workers. Each platform completed
+four accepted trials of 300,000 requests, with concurrency 128 and 1 KiB
+responses. These trials used the timeout-storage change already applied.
+
+The Windows control adds stable Tokio counters at the phase boundaries.
+Its library matches `118a48c`. Each row below is one diagnostic trial,
+not a repeated speed comparison.
+
+| Protocol | Client workers | Requests/s | CPU microseconds/request | Parks/request |
+| --- | ---: | ---: | ---: | ---: |
+| H2 | 2 | 76,912 | 23.3 | 0.054 |
+| H2 | 8 | 41,080 | 81.1 | 2.024 |
+| H3 | 2 | 34,365 | 51.6 | 0.041 |
+| H3 | 8 | 14,855 | 189.1 | 6.017 |
+
+Busy time and parks describe scheduler activity, not CPU time, OS context
+switches or individual task wakeups. The snapshots are not atomic. Windows
+host busy time ranged from 35% to 42%, using user and system time divided by user,
+system and idle time. The fixed observation buffer was 29.8 MiB.
+
+Linux sampling used user-space CPU events at 199 Hz, with 16 KiB DWARF
+stacks and separate process/phase filters. No samples were lost. Contended
+mutex locking took 8.08% of the H2 client's filtered self sample weight at
+eight workers and 4.23% for H3. Allocation, scheduling and transport work
+also remained visible. Inline expansion was disabled and some frames were
+unresolved. These stacks do not identify one lock as the cause, or establish
+the same cost distribution on Windows. Instrumented Linux timings are
+excluded from speed comparisons.
+
+The [diagnostic record](client-performance-evidence/2026-10-16-worker-contention/diagnostics.json)
+retains process CPU, memory, peer controls and per-worker counter snapshots.
+
+### Less shared-state work during H2 reuse
+
+The H2 selector now skips peer stream-limit probes when its fixed connection
+limit is one. It also reads each connection's limit once during placement
+across several connections. The transport still waits for actual stream
+credit. Connection limits, protocol selection and request ordering remain
+unchanged.
+
+Both Windows binaries use the same new counter snapshots. Their library
+Rust sources differ only in the H2 selector. Native build receipts confirm
+optimized TLS code for both. Snapshot work falls outside request elapsed
+time but inside process CPU measurements. The
+[build record](client-performance-evidence/2026-10-16-worker-contention/builds.json)
+retains binary identities, source comparisons and the Linux diagnostic scope.
+
+Three alternating pairs covered seven workloads: H2 at two and eight
+workers, lower concurrency, body collection, Firefox, CONNECT and streaming
+64 KiB bodies. All 42 trials passed, completing 7.32 million requests.
+Results varied substantially. Firefox throughput ranged from -23.4% to
++17.7%; CONNECT ranged from -8.3% to +9.7%. One short bulk trial lost 41.3%
+throughput and raised p99 by 298.1%. The
+[complete comparison](client-performance-evidence/2026-10-16-worker-contention/timing.json)
+keeps every trial, including those lower results.
+
+A final confirmation placed each candidate trial immediately beside its
+control, alternating their order. Three pairs covered each worker setting
+and the bulk workload. Small bodies used 300,000 requests per trial; bulk
+used 100,000, five times the earlier count. All 18 trials passed, completing
+4.2 million requests. Ranges below are individual paired percentage changes,
+not pooled percentiles or confidence intervals.
+
+| H2 workload | Requests/s change | CPU/request change | Request p99 change | Peak RSS change |
+| --- | ---: | ---: | ---: | ---: |
+| 1 KiB, eight workers | +11.4% to +26.7% | -13.5% to -4.4% | -20.5% to -8.8% | -0.1% to +2.3% |
+| 1 KiB, two workers | -1.0% to +21.3% | -15.9% to 0.0% | -14.9% to -4.0% | +0.4% to +1.3% |
+| 64 KiB streaming, two workers | -4.0% to +19.7% | -11.3% to -6.4% | -38.7% to +9.8% | +1.1% to +1.8% |
+
+Keep this small change for the repeated reduction in CPU/request at eight
+workers and with bulk bodies. It does not establish a uniform throughput,
+tail-latency or memory improvement. Bulk p95 changes were +31.3%, +0.5% and
+-18.9%. Bulk peak private memory rose by 0.34 to 0.75 MiB, or 1.8% to 4.1%.
+Those costs remain part of the adoption decision. The
+[confirmation record](client-performance-evidence/2026-10-16-worker-contention/confirmation.json)
+retains host load, absolute measurements, execution order and counters.
+
+Across diagnostics and comparisons, 68 accepted trials completed 13.92
+million measured requests without request failures. These local, reused
+single-connection workloads do not establish production capacity. H3's
+worker scaling remains unresolved; no H3 optimization was made in this pass.
+
 ## Verification and retained evidence
 
 The earlier remediation gate passed all 22 steps, including 5,738 passing tests
@@ -450,10 +535,21 @@ identifies the raw trials, rejected prototypes, binaries, symbols and native
 build receipts. This follow-up has Windows local checks, without new Linux
 or remote CI results.
 
+The H2 selector follow-up passed all 22 gate steps in 404 seconds, including
+5,740 passing Rust tests and three skips. Its 50 focused pool tests, five
+benchmark Rust tests and nine controller tests passed. Independent source
+and evidence review found no blocker to the bounded CPU adoption decision.
+The [worker follow-up checks](client-performance-evidence/2026-10-16-worker-contention/verification.json)
+retain commands, step results and log hashes. The
+[worker archive receipt](client-performance-evidence/2026-10-16-worker-contention/archive.json)
+identifies all raw trials, CPU samples, binaries, symbols and build receipts.
+Candidate verification was local to Windows. Linux sampling used the
+baseline library; no new remote CI result is claimed.
+
 ## Remaining investigations
 
-- Profile scheduling, wakeups and contention at the slower client-worker
-  settings.
+- Attribute the remaining H2 and H3 worker overhead to specific scheduling,
+  wakeup and lock paths. The H2 selector change addresses only part of it.
 - Repeat bursts and idle intervals across more origins. The earlier 64-origin
   peer aborts remain unresolved and rejected.
 - Validate the earlier held response-head pinning experiment on a quieter

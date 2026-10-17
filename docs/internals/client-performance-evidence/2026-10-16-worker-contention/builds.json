@@ -1,0 +1,72 @@
+{
+  "windows": {
+    "worker-metrics-control": {
+      "head": "118a48cf28c7e7359acfad8bd249ef3707e7d320",
+      "binary_sha256": "2bf112bd4cd5aecf40b71a3dbb5c7ff857959c6019a6212cb825a9b2e841fc78",
+      "pdb_sha256": "a28657b3c87965c08d6607226ba622998d395e164771e01b98f55b75c58a9319",
+      "features": [],
+      "environment": {
+        "CFLAGS": "-O2 -Zi",
+        "CXXFLAGS": "-O2 -Zi",
+        "DEBUG_x86_64_pc_windows_msvc": "true",
+        "CMAKE_TOOLCHAIN_FILE": "C:/code/phantom/tools/client-bench/msvc.cmake",
+        "CARGO_BUILD_JOBS": "2",
+        "CMAKE_BUILD_PARALLEL_LEVEL": "2"
+      },
+      "native_optimization_verified": true,
+      "native_effective_commands": 282,
+      "build_log": "target/client-profiling/worker-contention-20261016/metrics-build.log",
+      "receipt_sha256": "cfe1c5da5ec866578fbeb8e8717ec623c3fa84a6e3c6722b470fd9681d2ab437",
+      "source_diff_sha256": "03f35247c8a46c2cb4622ff1f663db4d20c8b09079e8f6e84b05330408f36105"
+    },
+    "h2-selection-candidate": {
+      "head": "118a48cf28c7e7359acfad8bd249ef3707e7d320",
+      "binary_sha256": "e955a6c15ec38db1fd8764e3a35f37472393be659466084d1cff4e48fda840fa",
+      "pdb_sha256": "0b177097378bcee7a3b4d8dedb89b8c27571a0ab6cce7a6a6c5ec969a52842da",
+      "features": [],
+      "environment": {
+        "CFLAGS": "-O2 -Zi",
+        "CXXFLAGS": "-O2 -Zi",
+        "DEBUG_x86_64_pc_windows_msvc": "true",
+        "CMAKE_TOOLCHAIN_FILE": "C:/code/phantom/tools/client-bench/msvc.cmake",
+        "CARGO_BUILD_JOBS": "2",
+        "CMAKE_BUILD_PARALLEL_LEVEL": "2"
+      },
+      "native_optimization_verified": true,
+      "native_effective_commands": 282,
+      "build_log": "target/client-profiling/worker-contention-20261016/candidate-build-v2.log",
+      "receipt_sha256": "52e8ba7a3a01a3431a4d76904fa74700797f1c7fb65d75b097ae158e24830a57",
+      "source_diff_sha256": "b07fba6932ac1ba404a8a9598ad7bc78826e35b02fcc4b0d180c2a3be8e81227"
+    }
+  },
+  "rust_source_differences": [
+    "crates/phantom/src/session/http2_connections.rs"
+  ],
+  "selector_source_sha256": {
+    "worker-metrics-control": "2de1d272c456d6f5746e1ae8bd37e55c53101b7ee294f414fda7c3e9ad5c59aa",
+    "h2-selection-candidate": "155fa0852b247fa8ee3e137ae661d7ef43a9215580469bcc09e97072a17835f0"
+  },
+  "untracked_metrics_source_sha256": "15abaaacfc018295aeb97687bdbedf72084fd52735f9cb4597aa53d7f4b0fd48",
+  "all_windows_pair_identities_match_metrics_source": true,
+  "untracked_metrics_note": "This file was not in the tracked-source receipt; both Windows run identities include its matching source hash.",
+  "linux": {
+    "binary_sha256": "06bb07260397fab7e1fe9102a6f1cefb53cb692c3a73260ca7c1dde9c197582c",
+    "compiled_source": "118a48cf28c7e7359acfad8bd249ef3707e7d320",
+    "library_differences_from_windows_control": [],
+    "native_flag_rows": 22,
+    "native_O2_or_O3_verified": true,
+    "scope": "Diagnostic only. Compiled before metrics harness edits. Later controller identity describes updated tool sources, not the compiled Linux harness. Library source hashes match Windows control.",
+    "filters_sha256": "2b0735745d1a5dd8da8c0e4e0e880bc0f5457cb071d6a2978baa57eabc78e84d",
+    "limits": [
+      "User-space CPU samples only; no kernel/off-CPU attribution",
+      "Inline expansion disabled; unresolved frames and ambiguous folded labels remain",
+      "No lost samples; report percentages are relative filtered sample weight",
+      "No candidate Linux verification or speed comparison"
+    ]
+  },
+  "controls": [
+    "Same metrics harness for both Windows variants",
+    "Snapshots outside elapsed_ns, inside process CPU and allocation observation",
+    "Single reused connection, peer fixed at two workers, no instrumented timing comparisons"
+  ]
+}

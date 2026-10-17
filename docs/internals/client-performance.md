@@ -137,6 +137,7 @@ intended-arrival latency visible when the client falls behind.
 - [x] Sample post-burst memory with the client and pools alive.
 - [x] Obtain CPU stacks with separate client and peer reports.
 - [x] Vary client and peer workers independently.
+- [x] Capture worker busy time and park/unpark counters at slower settings.
 - [ ] Attribute the client cost at the slower worker settings.
 - [ ] Repeat burst and recovery cycles across more origins.
 - [ ] Validate with a separate load generator and downstream traffic.

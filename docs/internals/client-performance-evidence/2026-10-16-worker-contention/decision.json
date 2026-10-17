@@ -1,0 +1,18 @@
+{
+  "decision": "Retain bounded H2 CPU optimization; no universal latency or memory claim",
+  "reason": "Focused eight-worker and bulk CPU/request improved in all three pairs; default two-worker results mixed.",
+  "costs": [
+    "Bulk peak private memory +0.34 to +0.75 MiB (+1.8% to +4.1%)",
+    "Bulk p95 +31.3%, +0.5%, -18.9%; p99 mixed",
+    "Broad trials include a -41.3% bulk throughput outlier and Firefox/CONNECT regressions"
+  ],
+  "scope": "Windows loopback, reused single H2 connection; H3 worker scaling unresolved",
+  "accepted_trials": 68,
+  "measured_requests": 13920000,
+  "request_failures": 0,
+  "setup_failures_retained": [
+    "Initial Linux recording preparation stopped at cosmetic CRLF git diff, before measured trials",
+    "Duplicate control build recorder rejected existing destination; first completed build retained",
+    "Initial candidate focused check selected stale native headers; corrected exact native tree then passed"
+  ]
+}

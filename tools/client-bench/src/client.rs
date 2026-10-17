@@ -206,6 +206,7 @@ pub(crate) async fn run(config: Config, ready: Ready, output: &Path) -> Result<(
         .build();
     signal("ready")?;
     control("go")?;
+    let runtime_start = crate::runtime_metrics::Snapshot::capture();
     let start = Instant::now();
     if config.protocol == "construct" {
         for record in &mut groups[0] {
@@ -249,6 +250,7 @@ pub(crate) async fn run(config: Config, ready: Ready, output: &Path) -> Result<(
         }
     }
     let elapsed_ns = nanos(start.elapsed());
+    let runtime_end = crate::runtime_metrics::Snapshot::capture();
     signal("phase_end")?;
     control("save")?;
     #[cfg(feature = "heap")]
@@ -257,7 +259,7 @@ pub(crate) async fn run(config: Config, ready: Ready, output: &Path) -> Result<(
     samples.sort_unstable_by_key(|record| record.id);
     write_json(
         output,
-        &serde_json::json!({"config": config, "elapsed_ns": elapsed_ns, "heap_instrumented": cfg!(feature="heap"), "observer_storage_bytes": config.requests * std::mem::size_of::<Sample>(), "samples": samples}),
+        &serde_json::json!({"config": config, "elapsed_ns": elapsed_ns, "heap_instrumented": cfg!(feature="heap"), "observer_storage_bytes": config.requests * std::mem::size_of::<Sample>(), "runtime_start": runtime_start, "runtime_end": runtime_end, "samples": samples}),
     )?;
     signal("saved")?;
     Ok(())

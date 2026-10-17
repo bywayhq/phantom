@@ -69,6 +69,18 @@ requests, two to eight runtime workers, and planned rates of 10,000 and
 overrides the peer. Both settings accept 1–16. Use `worker-isolation.json`
 to vary each process independently. Inspect their CPU separately before
 attributing a throughput plateau to the client.
+
+The raw result includes `runtime_start` and `runtime_end` snapshots. Subtract
+each worker's cumulative busy time, parks and park/unpark transitions to inspect
+activity during the phase. Busy time includes waits inside a task poll; it is
+not process CPU time. Snapshots are sequential reads, not one atomic view.
+Queue depth and alive tasks describe the boundaries, not peaks. These stable
+[Tokio counters](https://docs.rs/tokio/1.53.1/tokio/runtime/struct.RuntimeMetrics.html)
+do not count task polls, steals, OS context switches or lock contention.
+Snapshot work is outside `elapsed_ns`, but its CPU and small worker-vector
+allocations remain in process and heap measurements. Use the same harness
+on both sides of a comparison.
+
 These are exploratory settings, not capacity promises or acceptance targets.
 The default per-origin bounds allow 100 active and 100 waiting requests.
 Keep a probe beyond those bounds separate from a successful-throughput sweep.

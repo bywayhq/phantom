@@ -1,0 +1,38 @@
+[
+  {
+    "repetition": 0,
+    "variant": "worker-metrics-control",
+    "output": "timing-0-worker-metrics-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "output": "timing-0-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "output": "timing-1-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "worker-metrics-control",
+    "output": "timing-1-worker-metrics-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "worker-metrics-control",
+    "output": "timing-2-worker-metrics-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "output": "timing-2-h2-selection-candidate",
+    "exit": 0
+  }
+]

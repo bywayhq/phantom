@@ -1,0 +1,4681 @@
+{
+  "connect-h2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 43756.99961579167,
+        "client_cpu_us_per_success": 37.03125,
+        "peer_cpu_s": 6.40625,
+        "sampled_peak_rss_bytes": 39952384,
+        "start_rss_bytes": 38449152,
+        "end_rss_bytes": 39952384,
+        "sampled_peak_private_bytes": 29839360,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1119300,
+        "p99_ns": 1334200,
+        "directory": "timing-0-worker-metrics-control\\003-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 62.074829931972786,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 30057800,
+              "index": 0,
+              "park_unpark_transitions": 201,
+              "parks": 101
+            },
+            {
+              "busy_ns": 24951400,
+              "index": 1,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 4025868700,
+              "index": 0,
+              "park_unpark_transitions": 31837,
+              "parks": 15919
+            },
+            {
+              "busy_ns": 4019377700,
+              "index": 1,
+              "park_unpark_transitions": 32007,
+              "parks": 16004
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3995810900,
+            "parks": 15818,
+            "park_unpark_transitions": 31636
+          },
+          {
+            "busy_ns": 3994426300,
+            "parks": 15918,
+            "park_unpark_transitions": 31836
+          }
+        ],
+        "busy_ns_per_request": 39951.186,
+        "parks_per_request": 0.15868,
+        "park_unpark_transitions_per_request": 0.31736,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "connect-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 47983.41539616979,
+        "client_cpu_us_per_success": 32.890625,
+        "peer_cpu_s": 5.71875,
+        "sampled_peak_rss_bytes": 39747584,
+        "start_rss_bytes": 38604800,
+        "end_rss_bytes": 39747584,
+        "sampled_peak_private_bytes": 29618176,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1010800,
+        "p99_ns": 1206800,
+        "directory": "timing-0-h2-selection-candidate\\003-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 49.432870370370374,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 19424300,
+              "index": 0,
+              "park_unpark_transitions": 193,
+              "parks": 97
+            },
+            {
+              "busy_ns": 21994800,
+              "index": 1,
+              "park_unpark_transitions": 187,
+              "parks": 94
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3652123200,
+              "index": 0,
+              "park_unpark_transitions": 32515,
+              "parks": 16258
+            },
+            {
+              "busy_ns": 3657923800,
+              "index": 1,
+              "park_unpark_transitions": 32385,
+              "parks": 16193
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3632698900,
+            "parks": 16161,
+            "park_unpark_transitions": 32322
+          },
+          {
+            "busy_ns": 3635929000,
+            "parks": 16099,
+            "park_unpark_transitions": 32198
+          }
+        ],
+        "busy_ns_per_request": 36343.1395,
+        "parks_per_request": 0.1613,
+        "park_unpark_transitions_per_request": 0.3226,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "connect-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 9.65883359802584,
+        "client_cpu_us_per_success": -11.181434599156114,
+        "p95_ns": -9.693558474046283,
+        "p99_ns": -9.548793284365164,
+        "sampled_peak_rss_bytes": -0.5126102111954078,
+        "sampled_peak_private_bytes": -0.7412491420727529
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 52368.37412092156,
+        "client_cpu_us_per_success": 31.640625,
+        "peer_cpu_s": 5.453125,
+        "sampled_peak_rss_bytes": 39485440,
+        "start_rss_bytes": 38772736,
+        "end_rss_bytes": 39485440,
+        "sampled_peak_private_bytes": 29335552,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 954200,
+        "p99_ns": 1172100,
+        "directory": "timing-1-worker-metrics-control\\000-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 64.06024096385542,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 28582300,
+              "index": 0,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            },
+            {
+              "busy_ns": 26145800,
+              "index": 1,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3409375100,
+              "index": 0,
+              "park_unpark_transitions": 33701,
+              "parks": 16851
+            },
+            {
+              "busy_ns": 3408069700,
+              "index": 1,
+              "park_unpark_transitions": 33757,
+              "parks": 16879
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3380792800,
+            "parks": 16763,
+            "park_unpark_transitions": 33526
+          },
+          {
+            "busy_ns": 3381923900,
+            "parks": 16793,
+            "park_unpark_transitions": 33586
+          }
+        ],
+        "busy_ns_per_request": 33813.5835,
+        "parks_per_request": 0.16778,
+        "park_unpark_transitions_per_request": 0.33556,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "connect-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 48003.85451750234,
+        "client_cpu_us_per_success": 33.28125,
+        "peer_cpu_s": 5.953125,
+        "sampled_peak_rss_bytes": 39907328,
+        "start_rss_bytes": 38813696,
+        "end_rss_bytes": 39907328,
+        "sampled_peak_private_bytes": 29765632,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1032700,
+        "p99_ns": 1254300,
+        "directory": "timing-1-h2-selection-candidate\\000-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 52.56737918215613,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 23814000,
+              "index": 0,
+              "park_unpark_transitions": 187,
+              "parks": 94
+            },
+            {
+              "busy_ns": 26864600,
+              "index": 1,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3644325900,
+              "index": 0,
+              "park_unpark_transitions": 32051,
+              "parks": 16026
+            },
+            {
+              "busy_ns": 3646863500,
+              "index": 1,
+              "park_unpark_transitions": 33151,
+              "parks": 16576
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3620511900,
+            "parks": 15932,
+            "park_unpark_transitions": 31864
+          },
+          {
+            "busy_ns": 3619998900,
+            "parks": 16490,
+            "park_unpark_transitions": 32980
+          }
+        ],
+        "busy_ns_per_request": 36202.554,
+        "parks_per_request": 0.16211,
+        "park_unpark_transitions_per_request": 0.32422,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "connect-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": -8.33426600822339,
+        "client_cpu_us_per_success": 5.185185185185182,
+        "p95_ns": 8.226786837141065,
+        "p99_ns": 7.013053493729204,
+        "sampled_peak_rss_bytes": 1.0684647302904526,
+        "sampled_peak_private_bytes": 1.4660709299078478
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 52853.158861532385,
+        "client_cpu_us_per_success": 31.71875,
+        "peer_cpu_s": 5.421875,
+        "sampled_peak_rss_bytes": 39780352,
+        "start_rss_bytes": 38805504,
+        "end_rss_bytes": 39780352,
+        "sampled_peak_private_bytes": 29638656,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 923900,
+        "p99_ns": 1108900,
+        "directory": "timing-2-worker-metrics-control\\001-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 35.11782786885246,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 16045100,
+              "index": 0,
+              "park_unpark_transitions": 227,
+              "parks": 114
+            },
+            {
+              "busy_ns": 18601100,
+              "index": 1,
+              "park_unpark_transitions": 189,
+              "parks": 95
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3326410900,
+              "index": 0,
+              "park_unpark_transitions": 32615,
+              "parks": 16308
+            },
+            {
+              "busy_ns": 3327816800,
+              "index": 1,
+              "park_unpark_transitions": 33093,
+              "parks": 16547
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3310365800,
+            "parks": 16194,
+            "park_unpark_transitions": 32388
+          },
+          {
+            "busy_ns": 3309215700,
+            "parks": 16452,
+            "park_unpark_transitions": 32904
+          }
+        ],
+        "busy_ns_per_request": 33097.9075,
+        "parks_per_request": 0.16323,
+        "park_unpark_transitions_per_request": 0.32646,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "connect-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 49794.4212421806,
+        "client_cpu_us_per_success": 32.265625,
+        "peer_cpu_s": 5.1875,
+        "sampled_peak_rss_bytes": 39985152,
+        "start_rss_bytes": 38383616,
+        "end_rss_bytes": 39981056,
+        "sampled_peak_private_bytes": 29913088,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 980400,
+        "p99_ns": 1186500,
+        "directory": "timing-2-h2-selection-candidate\\001-connect-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "connect-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 44.63638560002655,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 20351700,
+              "index": 0,
+              "park_unpark_transitions": 173,
+              "parks": 87
+            },
+            {
+              "busy_ns": 17879600,
+              "index": 1,
+              "park_unpark_transitions": 189,
+              "parks": 95
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3532558600,
+              "index": 0,
+              "park_unpark_transitions": 32855,
+              "parks": 16428
+            },
+            {
+              "busy_ns": 3531085000,
+              "index": 1,
+              "park_unpark_transitions": 32911,
+              "parks": 16456
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3512206900,
+            "parks": 16341,
+            "park_unpark_transitions": 32682
+          },
+          {
+            "busy_ns": 3513205400,
+            "parks": 16361,
+            "park_unpark_transitions": 32722
+          }
+        ],
+        "busy_ns_per_request": 35127.0615,
+        "parks_per_request": 0.16351,
+        "park_unpark_transitions_per_request": 0.32702,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "connect-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": -5.787237102261445,
+        "client_cpu_us_per_success": 1.724137931034475,
+        "p95_ns": 6.115380452429919,
+        "p99_ns": 6.997925872486244,
+        "sampled_peak_rss_bytes": 0.5148270181219106,
+        "sampled_peak_private_bytes": 0.92592592592593
+      }
+    }
+  ],
+  "firefox-h2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 74456.50197173847,
+        "client_cpu_us_per_success": 23.828125,
+        "peer_cpu_s": 3.171875,
+        "sampled_peak_rss_bytes": 43429888,
+        "start_rss_bytes": 39030784,
+        "end_rss_bytes": 40386560,
+        "sampled_peak_private_bytes": 34013184,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2291300,
+        "p99_ns": 2585800,
+        "directory": "timing-0-worker-metrics-control\\001-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 61.82528409050508,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 15644500,
+              "index": 0,
+              "park_unpark_transitions": 157,
+              "parks": 79
+            },
+            {
+              "busy_ns": 14247500,
+              "index": 1,
+              "park_unpark_transitions": 179,
+              "parks": 90
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2516943100,
+              "index": 0,
+              "park_unpark_transitions": 15807,
+              "parks": 7904
+            },
+            {
+              "busy_ns": 2517534300,
+              "index": 1,
+              "park_unpark_transitions": 15597,
+              "parks": 7799
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2501298600,
+            "parks": 7825,
+            "park_unpark_transitions": 15650
+          },
+          {
+            "busy_ns": 2503286800,
+            "parks": 7709,
+            "park_unpark_transitions": 15418
+          }
+        ],
+        "busy_ns_per_request": 25022.927,
+        "parks_per_request": 0.07767,
+        "park_unpark_transitions_per_request": 0.15534,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "firefox-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 87661.43785183193,
+        "client_cpu_us_per_success": 20.625,
+        "peer_cpu_s": 2.828125,
+        "sampled_peak_rss_bytes": 43003904,
+        "start_rss_bytes": 38055936,
+        "end_rss_bytes": 39903232,
+        "sampled_peak_private_bytes": 33583104,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1971200,
+        "p99_ns": 2247500,
+        "directory": "timing-0-h2-selection-candidate\\001-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 48.93707482993197,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13065600,
+              "index": 0,
+              "park_unpark_transitions": 145,
+              "parks": 73
+            },
+            {
+              "busy_ns": 14421400,
+              "index": 1,
+              "park_unpark_transitions": 95,
+              "parks": 48
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2118785600,
+              "index": 0,
+              "park_unpark_transitions": 19023,
+              "parks": 9512
+            },
+            {
+              "busy_ns": 2123192100,
+              "index": 1,
+              "park_unpark_transitions": 18335,
+              "parks": 9168
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2105720000,
+            "parks": 9439,
+            "park_unpark_transitions": 18878
+          },
+          {
+            "busy_ns": 2108770700,
+            "parks": 9120,
+            "park_unpark_transitions": 18240
+          }
+        ],
+        "busy_ns_per_request": 21072.4535,
+        "parks_per_request": 0.092795,
+        "park_unpark_transitions_per_request": 0.18559,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 17.7351010729804,
+        "client_cpu_us_per_success": -13.442622950819672,
+        "p95_ns": -13.970235237638018,
+        "p99_ns": -13.082991724031245,
+        "sampled_peak_rss_bytes": -0.9808544751485404,
+        "sampled_peak_private_bytes": -1.264450867052025
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 91122.34619265552,
+        "client_cpu_us_per_success": 19.921875,
+        "peer_cpu_s": 2.515625,
+        "sampled_peak_rss_bytes": 43720704,
+        "start_rss_bytes": 38658048,
+        "end_rss_bytes": 40292352,
+        "sampled_peak_private_bytes": 34127872,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1872200,
+        "p99_ns": 2108200,
+        "directory": "timing-1-worker-metrics-control\\006-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 32.93137469853102,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 14225200,
+              "index": 0,
+              "park_unpark_transitions": 77,
+              "parks": 39
+            },
+            {
+              "busy_ns": 15467000,
+              "index": 1,
+              "park_unpark_transitions": 69,
+              "parks": 35
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2054649300,
+              "index": 0,
+              "park_unpark_transitions": 17281,
+              "parks": 8641
+            },
+            {
+              "busy_ns": 2054072800,
+              "index": 1,
+              "park_unpark_transitions": 17527,
+              "parks": 8764
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2040424100,
+            "parks": 8602,
+            "park_unpark_transitions": 17204
+          },
+          {
+            "busy_ns": 2038605800,
+            "parks": 8729,
+            "park_unpark_transitions": 17458
+          }
+        ],
+        "busy_ns_per_request": 20395.1495,
+        "parks_per_request": 0.086655,
+        "park_unpark_transitions_per_request": 0.17331,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "firefox-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 69769.56334195512,
+        "client_cpu_us_per_success": 26.09375,
+        "peer_cpu_s": 3.375,
+        "sampled_peak_rss_bytes": 43065344,
+        "start_rss_bytes": 38465536,
+        "end_rss_bytes": 40030208,
+        "sampled_peak_private_bytes": 33628160,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2393800,
+        "p99_ns": 2670000,
+        "directory": "timing-1-h2-selection-candidate\\006-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 76.91156914893617,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 16839200,
+              "index": 0,
+              "park_unpark_transitions": 97,
+              "parks": 49
+            },
+            {
+              "busy_ns": 18644500,
+              "index": 1,
+              "park_unpark_transitions": 81,
+              "parks": 41
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2717471200,
+              "index": 0,
+              "park_unpark_transitions": 13537,
+              "parks": 6769
+            },
+            {
+              "busy_ns": 2723844000,
+              "index": 1,
+              "park_unpark_transitions": 13153,
+              "parks": 6577
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2700632000,
+            "parks": 6720,
+            "park_unpark_transitions": 13440
+          },
+          {
+            "busy_ns": 2705199500,
+            "parks": 6536,
+            "park_unpark_transitions": 13072
+          }
+        ],
+        "busy_ns_per_request": 27029.1575,
+        "parks_per_request": 0.06628,
+        "park_unpark_transitions_per_request": 0.13256,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": -23.433091599238743,
+        "client_cpu_us_per_success": 30.980392156862745,
+        "p95_ns": 27.860271338532215,
+        "p99_ns": 26.648325585807807,
+        "sampled_peak_rss_bytes": -1.498969458497279,
+        "sampled_peak_private_bytes": -1.4642342774843997
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 87117.61356978797,
+        "client_cpu_us_per_success": 20.234375,
+        "peer_cpu_s": 2.625,
+        "sampled_peak_rss_bytes": 43085824,
+        "start_rss_bytes": 38723584,
+        "end_rss_bytes": 39841792,
+        "sampled_peak_private_bytes": 33280000,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1881800,
+        "p99_ns": 2102400,
+        "directory": "timing-2-worker-metrics-control\\003-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 34.54545454607737,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13684600,
+              "index": 0,
+              "park_unpark_transitions": 115,
+              "parks": 58
+            },
+            {
+              "busy_ns": 13141200,
+              "index": 1,
+              "park_unpark_transitions": 87,
+              "parks": 44
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2169965400,
+              "index": 0,
+              "park_unpark_transitions": 13869,
+              "parks": 6935
+            },
+            {
+              "busy_ns": 2168146200,
+              "index": 1,
+              "park_unpark_transitions": 13873,
+              "parks": 6937
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2156280800,
+            "parks": 6877,
+            "park_unpark_transitions": 13754
+          },
+          {
+            "busy_ns": 2155005000,
+            "parks": 6893,
+            "park_unpark_transitions": 13786
+          }
+        ],
+        "busy_ns_per_request": 21556.429,
+        "parks_per_request": 0.06885,
+        "park_unpark_transitions_per_request": 0.1377,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "firefox-h2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 87156.39408722306,
+        "client_cpu_us_per_success": 21.09375,
+        "peer_cpu_s": 2.75,
+        "sampled_peak_rss_bytes": 43077632,
+        "start_rss_bytes": 38379520,
+        "end_rss_bytes": 39940096,
+        "sampled_peak_private_bytes": 33165312,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1912600,
+        "p99_ns": 2144200,
+        "directory": "timing-2-h2-selection-candidate\\003-firefox-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 37.104166666666664,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 12913500,
+              "index": 0,
+              "park_unpark_transitions": 157,
+              "parks": 79
+            },
+            {
+              "busy_ns": 14036400,
+              "index": 1,
+              "park_unpark_transitions": 111,
+              "parks": 56
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2159758000,
+              "index": 0,
+              "park_unpark_transitions": 15893,
+              "parks": 7947
+            },
+            {
+              "busy_ns": 2160942000,
+              "index": 1,
+              "park_unpark_transitions": 15831,
+              "parks": 7916
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2146844500,
+            "parks": 7868,
+            "park_unpark_transitions": 15736
+          },
+          {
+            "busy_ns": 2146905600,
+            "parks": 7860,
+            "park_unpark_transitions": 15720
+          }
+        ],
+        "busy_ns_per_request": 21468.7505,
+        "parks_per_request": 0.07864,
+        "park_unpark_transitions_per_request": 0.15728,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 0.04451512828003157,
+        "client_cpu_us_per_success": 4.247104247104239,
+        "p95_ns": 1.6367307896694605,
+        "p99_ns": 1.9882039573820398,
+        "sampled_peak_rss_bytes": -0.019013214183860594,
+        "sampled_peak_private_bytes": -0.34461538461538765
+      }
+    }
+  ],
+  "h2-c32": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 54355.51561995428,
+        "client_cpu_us_per_success": 32.65625,
+        "peer_cpu_s": 4.09375,
+        "sampled_peak_rss_bytes": 39526400,
+        "start_rss_bytes": 38555648,
+        "end_rss_bytes": 39526400,
+        "sampled_peak_private_bytes": 29519872,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 946700,
+        "p99_ns": 1144000,
+        "directory": "timing-0-worker-metrics-control\\006-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 51.50316455696203,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18011500,
+              "index": 0,
+              "park_unpark_transitions": 177,
+              "parks": 89
+            },
+            {
+              "busy_ns": 16393900,
+              "index": 1,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3468222400,
+              "index": 0,
+              "park_unpark_transitions": 31835,
+              "parks": 15918
+            },
+            {
+              "busy_ns": 3464527200,
+              "index": 1,
+              "park_unpark_transitions": 32341,
+              "parks": 16171
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3450210900,
+            "parks": 15829,
+            "park_unpark_transitions": 31658
+          },
+          {
+            "busy_ns": 3448133300,
+            "parks": 16083,
+            "park_unpark_transitions": 32166
+          }
+        ],
+        "busy_ns_per_request": 34491.721,
+        "parks_per_request": 0.15956,
+        "park_unpark_transitions_per_request": 0.31912,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "h2-c32"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 62066.546634103244,
+        "client_cpu_us_per_success": 27.5,
+        "peer_cpu_s": 3.671875,
+        "sampled_peak_rss_bytes": 39645184,
+        "start_rss_bytes": 38457344,
+        "end_rss_bytes": 39645184,
+        "sampled_peak_private_bytes": 29638656,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 828100,
+        "p99_ns": 1003400,
+        "directory": "timing-0-h2-selection-candidate\\006-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 47.37317477043504,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 16228600,
+              "index": 0,
+              "park_unpark_transitions": 255,
+              "parks": 128
+            },
+            {
+              "busy_ns": 18358700,
+              "index": 1,
+              "park_unpark_transitions": 191,
+              "parks": 96
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3037116400,
+              "index": 0,
+              "park_unpark_transitions": 33409,
+              "parks": 16705
+            },
+            {
+              "busy_ns": 3036522800,
+              "index": 1,
+              "park_unpark_transitions": 33705,
+              "parks": 16853
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3020887800,
+            "parks": 16577,
+            "park_unpark_transitions": 33154
+          },
+          {
+            "busy_ns": 3018164100,
+            "parks": 16757,
+            "park_unpark_transitions": 33514
+          }
+        ],
+        "busy_ns_per_request": 30195.2595,
+        "parks_per_request": 0.16667,
+        "park_unpark_transitions_per_request": 0.33334,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h2-c32"
+      },
+      "delta_percent": {
+        "completed_requests_s": 14.186289884661107,
+        "client_cpu_us_per_success": -15.789473684210531,
+        "p95_ns": -12.527727896905038,
+        "p99_ns": -12.290209790209794,
+        "sampled_peak_rss_bytes": 0.3005181347150332,
+        "sampled_peak_private_bytes": 0.4023865686138439
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 62019.06925129897,
+        "client_cpu_us_per_success": 28.046875,
+        "peer_cpu_s": 3.46875,
+        "sampled_peak_rss_bytes": 39665664,
+        "start_rss_bytes": 38510592,
+        "end_rss_bytes": 39661568,
+        "sampled_peak_private_bytes": 29655040,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 821300,
+        "p99_ns": 981300,
+        "directory": "timing-1-worker-metrics-control\\003-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 31.868961352657006,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18479200,
+              "index": 0,
+              "park_unpark_transitions": 167,
+              "parks": 84
+            },
+            {
+              "busy_ns": 16765300,
+              "index": 1,
+              "park_unpark_transitions": 179,
+              "parks": 90
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3051552800,
+              "index": 0,
+              "park_unpark_transitions": 32195,
+              "parks": 16098
+            },
+            {
+              "busy_ns": 3049975600,
+              "index": 1,
+              "park_unpark_transitions": 32649,
+              "parks": 16325
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3033073600,
+            "parks": 16014,
+            "park_unpark_transitions": 32028
+          },
+          {
+            "busy_ns": 3033210300,
+            "parks": 16235,
+            "park_unpark_transitions": 32470
+          }
+        ],
+        "busy_ns_per_request": 30331.4195,
+        "parks_per_request": 0.161245,
+        "park_unpark_transitions_per_request": 0.32249,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "h2-c32"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 54478.907074674455,
+        "client_cpu_us_per_success": 30.859375,
+        "peer_cpu_s": 4.0,
+        "sampled_peak_rss_bytes": 39796736,
+        "start_rss_bytes": 38940672,
+        "end_rss_bytes": 39796736,
+        "sampled_peak_private_bytes": 29913088,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 969400,
+        "p99_ns": 1196400,
+        "directory": "timing-1-h2-selection-candidate\\003-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 51.34922714135449,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 21253200,
+              "index": 0,
+              "park_unpark_transitions": 135,
+              "parks": 68
+            },
+            {
+              "busy_ns": 23049400,
+              "index": 1,
+              "park_unpark_transitions": 177,
+              "parks": 89
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3463302600,
+              "index": 0,
+              "park_unpark_transitions": 32711,
+              "parks": 16356
+            },
+            {
+              "busy_ns": 3464892000,
+              "index": 1,
+              "park_unpark_transitions": 32357,
+              "parks": 16179
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3442049400,
+            "parks": 16288,
+            "park_unpark_transitions": 32576
+          },
+          {
+            "busy_ns": 3441842600,
+            "parks": 16090,
+            "park_unpark_transitions": 32180
+          }
+        ],
+        "busy_ns_per_request": 34419.46,
+        "parks_per_request": 0.16189,
+        "park_unpark_transitions_per_request": 0.32378,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h2-c32"
+      },
+      "delta_percent": {
+        "completed_requests_s": -12.15781253677326,
+        "client_cpu_us_per_success": 10.027855153203348,
+        "p95_ns": 18.03238767807136,
+        "p99_ns": 21.919902170590035,
+        "sampled_peak_rss_bytes": 0.330441966129702,
+        "sampled_peak_private_bytes": 0.8701657458563439
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 59612.36759906868,
+        "client_cpu_us_per_success": 29.609375,
+        "peer_cpu_s": 3.875,
+        "sampled_peak_rss_bytes": 39448576,
+        "start_rss_bytes": 38420480,
+        "end_rss_bytes": 39448576,
+        "sampled_peak_private_bytes": 29528064,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 836300,
+        "p99_ns": 997700,
+        "directory": "timing-2-worker-metrics-control\\002-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 32.7044930875576,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18171000,
+              "index": 0,
+              "park_unpark_transitions": 173,
+              "parks": 87
+            },
+            {
+              "busy_ns": 19982900,
+              "index": 1,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3177314100,
+              "index": 0,
+              "park_unpark_transitions": 31677,
+              "parks": 15839
+            },
+            {
+              "busy_ns": 3185037600,
+              "index": 1,
+              "park_unpark_transitions": 30909,
+              "parks": 15455
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3159143100,
+            "parks": 15752,
+            "park_unpark_transitions": 31504
+          },
+          {
+            "busy_ns": 3165054700,
+            "parks": 15367,
+            "park_unpark_transitions": 30734
+          }
+        ],
+        "busy_ns_per_request": 31620.989,
+        "parks_per_request": 0.155595,
+        "park_unpark_transitions_per_request": 0.31119,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "h2-c32"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 57686.14692275124,
+        "client_cpu_us_per_success": 29.375,
+        "peer_cpu_s": 3.8125,
+        "sampled_peak_rss_bytes": 39284736,
+        "start_rss_bytes": 38150144,
+        "end_rss_bytes": 39284736,
+        "sampled_peak_private_bytes": 29290496,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 856700,
+        "p99_ns": 1018400,
+        "directory": "timing-2-h2-selection-candidate\\002-h2-c32-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-c32",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 36.887769381472154,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18923900,
+              "index": 0,
+              "park_unpark_transitions": 141,
+              "parks": 71
+            },
+            {
+              "busy_ns": 20512000,
+              "index": 1,
+              "park_unpark_transitions": 163,
+              "parks": 82
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3278148400,
+              "index": 0,
+              "park_unpark_transitions": 31591,
+              "parks": 15796
+            },
+            {
+              "busy_ns": 3286400200,
+              "index": 1,
+              "park_unpark_transitions": 30287,
+              "parks": 15144
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3259224500,
+            "parks": 15725,
+            "park_unpark_transitions": 31450
+          },
+          {
+            "busy_ns": 3265888200,
+            "parks": 15062,
+            "park_unpark_transitions": 30124
+          }
+        ],
+        "busy_ns_per_request": 32625.5635,
+        "parks_per_request": 0.153935,
+        "park_unpark_transitions_per_request": 0.30787,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h2-c32"
+      },
+      "delta_percent": {
+        "completed_requests_s": -3.2312433709603794,
+        "client_cpu_us_per_success": -0.79155672823219,
+        "p95_ns": 2.439316034915695,
+        "p99_ns": 2.0747719755437544,
+        "sampled_peak_rss_bytes": -0.4153255113695353,
+        "sampled_peak_private_bytes": -0.8045498682202834
+      }
+    }
+  ],
+  "h2-collect": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 52401.99889520866,
+        "client_cpu_us_per_success": 32.734375,
+        "peer_cpu_s": 4.09375,
+        "sampled_peak_rss_bytes": 39448576,
+        "start_rss_bytes": 38649856,
+        "end_rss_bytes": 39448576,
+        "sampled_peak_private_bytes": 29429760,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 979900,
+        "p99_ns": 1189900,
+        "directory": "timing-0-worker-metrics-control\\000-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 50.38109756097561,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 26930900,
+              "index": 0,
+              "park_unpark_transitions": 151,
+              "parks": 76
+            },
+            {
+              "busy_ns": 24836100,
+              "index": 1,
+              "park_unpark_transitions": 161,
+              "parks": 81
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3612020000,
+              "index": 0,
+              "park_unpark_transitions": 30787,
+              "parks": 15394
+            },
+            {
+              "busy_ns": 3612139600,
+              "index": 1,
+              "park_unpark_transitions": 30603,
+              "parks": 15302
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3585089100,
+            "parks": 15318,
+            "park_unpark_transitions": 30636
+          },
+          {
+            "busy_ns": 3587303500,
+            "parks": 15221,
+            "park_unpark_transitions": 30442
+          }
+        ],
+        "busy_ns_per_request": 35861.963,
+        "parks_per_request": 0.152695,
+        "park_unpark_transitions_per_request": 0.30539,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "h2-collect"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 57495.628966677345,
+        "client_cpu_us_per_success": 29.609375,
+        "peer_cpu_s": 4.046875,
+        "sampled_peak_rss_bytes": 39403520,
+        "start_rss_bytes": 38699008,
+        "end_rss_bytes": 39403520,
+        "sampled_peak_private_bytes": 29380608,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 893200,
+        "p99_ns": 1085300,
+        "directory": "timing-0-h2-selection-candidate\\000-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 47.684151785714285,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 26762100,
+              "index": 0,
+              "park_unpark_transitions": 173,
+              "parks": 87
+            },
+            {
+              "busy_ns": 28927600,
+              "index": 1,
+              "park_unpark_transitions": 159,
+              "parks": 80
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3287472800,
+              "index": 0,
+              "park_unpark_transitions": 32567,
+              "parks": 16284
+            },
+            {
+              "busy_ns": 3293394800,
+              "index": 1,
+              "park_unpark_transitions": 31973,
+              "parks": 15987
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3260710700,
+            "parks": 16197,
+            "park_unpark_transitions": 32394
+          },
+          {
+            "busy_ns": 3264467200,
+            "parks": 15907,
+            "park_unpark_transitions": 31814
+          }
+        ],
+        "busy_ns_per_request": 32625.8895,
+        "parks_per_request": 0.16052,
+        "park_unpark_transitions_per_request": 0.32104,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h2-collect"
+      },
+      "delta_percent": {
+        "completed_requests_s": 9.720297276549928,
+        "client_cpu_us_per_success": -9.54653937947494,
+        "p95_ns": -8.84784161649148,
+        "p99_ns": -8.790654676863607,
+        "sampled_peak_rss_bytes": -0.11421451562662055,
+        "sampled_peak_private_bytes": -0.1670146137787043
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 47584.12200645017,
+        "client_cpu_us_per_success": 31.796875,
+        "peer_cpu_s": 4.5,
+        "sampled_peak_rss_bytes": 39534592,
+        "start_rss_bytes": 38117376,
+        "end_rss_bytes": 39534592,
+        "sampled_peak_private_bytes": 29474816,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1004200,
+        "p99_ns": 1624900,
+        "directory": "timing-1-worker-metrics-control\\002-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 72.72832103339778,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 40202500,
+              "index": 0,
+              "park_unpark_transitions": 185,
+              "parks": 93
+            },
+            {
+              "busy_ns": 16662700,
+              "index": 1,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3840677500,
+              "index": 0,
+              "park_unpark_transitions": 29409,
+              "parks": 14705
+            },
+            {
+              "busy_ns": 3840003600,
+              "index": 1,
+              "park_unpark_transitions": 29099,
+              "parks": 14550
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3800475000,
+            "parks": 14612,
+            "park_unpark_transitions": 29224
+          },
+          {
+            "busy_ns": 3823340900,
+            "parks": 14464,
+            "park_unpark_transitions": 28928
+          }
+        ],
+        "busy_ns_per_request": 38119.0795,
+        "parks_per_request": 0.14538,
+        "park_unpark_transitions_per_request": 0.29076,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "h2-collect"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 53391.60564362086,
+        "client_cpu_us_per_success": 31.09375,
+        "peer_cpu_s": 4.203125,
+        "sampled_peak_rss_bytes": 39391232,
+        "start_rss_bytes": 38637568,
+        "end_rss_bytes": 39391232,
+        "sampled_peak_private_bytes": 29364224,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 1092400,
+        "p99_ns": 1375500,
+        "directory": "timing-1-h2-selection-candidate\\002-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 58.022460307215695,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 26330000,
+              "index": 0,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            },
+            {
+              "busy_ns": 23718100,
+              "index": 1,
+              "park_unpark_transitions": 143,
+              "parks": 72
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3541503000,
+              "index": 0,
+              "park_unpark_transitions": 32335,
+              "parks": 16168
+            },
+            {
+              "busy_ns": 3547382000,
+              "index": 1,
+              "park_unpark_transitions": 31051,
+              "parks": 15526
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3515173000,
+            "parks": 16082,
+            "park_unpark_transitions": 32164
+          },
+          {
+            "busy_ns": 3523663900,
+            "parks": 15454,
+            "park_unpark_transitions": 30908
+          }
+        ],
+        "busy_ns_per_request": 35194.1845,
+        "parks_per_request": 0.15768,
+        "park_unpark_transitions_per_request": 0.31536,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h2-collect"
+      },
+      "delta_percent": {
+        "completed_requests_s": 12.20466700296261,
+        "client_cpu_us_per_success": -2.211302211302213,
+        "p95_ns": 8.783110934076888,
+        "p99_ns": -15.3486368391901,
+        "sampled_peak_rss_bytes": -0.3626191462909212,
+        "sampled_peak_private_bytes": -0.3752084491384089
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 56316.21079304122,
+        "client_cpu_us_per_success": 30.703125,
+        "peer_cpu_s": 3.78125,
+        "sampled_peak_rss_bytes": 39387136,
+        "start_rss_bytes": 38072320,
+        "end_rss_bytes": 39387136,
+        "sampled_peak_private_bytes": 29368320,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 880800,
+        "p99_ns": 1048200,
+        "directory": "timing-2-worker-metrics-control\\006-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 37.784749693084166,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 19183300,
+              "index": 0,
+              "park_unpark_transitions": 203,
+              "parks": 102
+            },
+            {
+              "busy_ns": 21267600,
+              "index": 1,
+              "park_unpark_transitions": 165,
+              "parks": 83
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3370292700,
+              "index": 0,
+              "park_unpark_transitions": 30077,
+              "parks": 15039
+            },
+            {
+              "busy_ns": 3368352700,
+              "index": 1,
+              "park_unpark_transitions": 30569,
+              "parks": 15285
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3351109400,
+            "parks": 14937,
+            "park_unpark_transitions": 29874
+          },
+          {
+            "busy_ns": 3347085100,
+            "parks": 15202,
+            "park_unpark_transitions": 30404
+          }
+        ],
+        "busy_ns_per_request": 33490.9725,
+        "parks_per_request": 0.150695,
+        "park_unpark_transitions_per_request": 0.30139,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "h2-collect"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 58037.20887339011,
+        "client_cpu_us_per_success": 29.453125,
+        "peer_cpu_s": 3.796875,
+        "sampled_peak_rss_bytes": 39141376,
+        "start_rss_bytes": 38244352,
+        "end_rss_bytes": 39141376,
+        "sampled_peak_private_bytes": 29143040,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 861000,
+        "p99_ns": 1027900,
+        "directory": "timing-2-h2-selection-candidate\\006-h2-collect-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "collect",
+          "gzip": false,
+          "name": "h2-collect",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 41.19061085972851,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18916000,
+              "index": 0,
+              "park_unpark_transitions": 191,
+              "parks": 96
+            },
+            {
+              "busy_ns": 20370500,
+              "index": 1,
+              "park_unpark_transitions": 213,
+              "parks": 107
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3233589300,
+              "index": 0,
+              "park_unpark_transitions": 33205,
+              "parks": 16603
+            },
+            {
+              "busy_ns": 3241330600,
+              "index": 1,
+              "park_unpark_transitions": 31933,
+              "parks": 15967
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 3214673300,
+            "parks": 16507,
+            "park_unpark_transitions": 33014
+          },
+          {
+            "busy_ns": 3220960100,
+            "parks": 15860,
+            "park_unpark_transitions": 31720
+          }
+        ],
+        "busy_ns_per_request": 32178.167,
+        "parks_per_request": 0.161835,
+        "park_unpark_transitions_per_request": 0.32367,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h2-collect"
+      },
+      "delta_percent": {
+        "completed_requests_s": 3.0559550369492428,
+        "client_cpu_us_per_success": -4.071246819338425,
+        "p95_ns": -2.2479564032697574,
+        "p99_ns": -1.936653310436942,
+        "sampled_peak_rss_bytes": -0.6239600665557399,
+        "sampled_peak_private_bytes": -0.7670850767085069
+      }
+    }
+  ],
+  "h2-workers2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 64863.29201768653,
+        "client_cpu_us_per_success": 27.65625,
+        "peer_cpu_s": 3.125,
+        "sampled_peak_rss_bytes": 43294720,
+        "start_rss_bytes": 38473728,
+        "end_rss_bytes": 40464384,
+        "sampled_peak_private_bytes": 33734656,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2671100,
+        "p99_ns": 3017700,
+        "directory": "timing-0-worker-metrics-control\\002-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 61.65625,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 20120500,
+              "index": 0,
+              "park_unpark_transitions": 69,
+              "parks": 35
+            },
+            {
+              "busy_ns": 21950400,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2995683500,
+              "index": 0,
+              "park_unpark_transitions": 9887,
+              "parks": 4944
+            },
+            {
+              "busy_ns": 2997829900,
+              "index": 1,
+              "park_unpark_transitions": 9985,
+              "parks": 4993
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2975563000,
+            "parks": 4909,
+            "park_unpark_transitions": 9818
+          },
+          {
+            "busy_ns": 2975879500,
+            "parks": 4969,
+            "park_unpark_transitions": 9938
+          }
+        ],
+        "busy_ns_per_request": 29757.2125,
+        "parks_per_request": 0.04939,
+        "park_unpark_transitions_per_request": 0.09878,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 73020.41917444648,
+        "client_cpu_us_per_success": 25.234375,
+        "peer_cpu_s": 2.984375,
+        "sampled_peak_rss_bytes": 43479040,
+        "start_rss_bytes": 38256640,
+        "end_rss_bytes": 40275968,
+        "sampled_peak_private_bytes": 33558528,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2319800,
+        "p99_ns": 2606200,
+        "directory": "timing-0-h2-selection-candidate\\002-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 46.83968926553672,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 17594000,
+              "index": 0,
+              "park_unpark_transitions": 39,
+              "parks": 20
+            },
+            {
+              "busy_ns": 18829900,
+              "index": 1,
+              "park_unpark_transitions": 65,
+              "parks": 33
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2657534900,
+              "index": 0,
+              "park_unpark_transitions": 10183,
+              "parks": 5092
+            },
+            {
+              "busy_ns": 2655598000,
+              "index": 1,
+              "park_unpark_transitions": 10669,
+              "parks": 5335
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2639940900,
+            "parks": 5072,
+            "park_unpark_transitions": 10144
+          },
+          {
+            "busy_ns": 2636768100,
+            "parks": 5302,
+            "park_unpark_transitions": 10604
+          }
+        ],
+        "busy_ns_per_request": 26383.545,
+        "parks_per_request": 0.05187,
+        "park_unpark_transitions_per_request": 0.10374,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 12.575875973941786,
+        "client_cpu_us_per_success": -8.757062146892657,
+        "p95_ns": -13.151884991202124,
+        "p99_ns": -13.636213009908204,
+        "sampled_peak_rss_bytes": 0.42573320719017094,
+        "sampled_peak_private_bytes": -0.5220981058766339
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 77866.98046021567,
+        "client_cpu_us_per_success": 22.890625,
+        "peer_cpu_s": 2.9375,
+        "sampled_peak_rss_bytes": 43716608,
+        "start_rss_bytes": 39223296,
+        "end_rss_bytes": 40615936,
+        "sampled_peak_private_bytes": 33824768,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2153200,
+        "p99_ns": 2389000,
+        "directory": "timing-1-worker-metrics-control\\004-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 32.804232804232804,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13411600,
+              "index": 0,
+              "park_unpark_transitions": 91,
+              "parks": 46
+            },
+            {
+              "busy_ns": 14415000,
+              "index": 1,
+              "park_unpark_transitions": 55,
+              "parks": 28
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2497061900,
+              "index": 0,
+              "park_unpark_transitions": 9689,
+              "parks": 4845
+            },
+            {
+              "busy_ns": 2500421500,
+              "index": 1,
+              "park_unpark_transitions": 9301,
+              "parks": 4651
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2483650300,
+            "parks": 4799,
+            "park_unpark_transitions": 9598
+          },
+          {
+            "busy_ns": 2486006500,
+            "parks": 4623,
+            "park_unpark_transitions": 9246
+          }
+        ],
+        "busy_ns_per_request": 24848.284,
+        "parks_per_request": 0.04711,
+        "park_unpark_transitions_per_request": 0.09422,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 75049.78521314345,
+        "client_cpu_us_per_success": 24.296875,
+        "peer_cpu_s": 3.03125,
+        "sampled_peak_rss_bytes": 43884544,
+        "start_rss_bytes": 38768640,
+        "end_rss_bytes": 40681472,
+        "sampled_peak_private_bytes": 34140160,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2268200,
+        "p99_ns": 2561700,
+        "directory": "timing-1-h2-selection-candidate\\004-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 43.64098837209303,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 22534900,
+              "index": 0,
+              "park_unpark_transitions": 63,
+              "parks": 32
+            },
+            {
+              "busy_ns": 24108300,
+              "index": 1,
+              "park_unpark_transitions": 49,
+              "parks": 25
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2596716400,
+              "index": 0,
+              "park_unpark_transitions": 9631,
+              "parks": 4816
+            },
+            {
+              "busy_ns": 2597780100,
+              "index": 1,
+              "park_unpark_transitions": 9661,
+              "parks": 4831
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2574181500,
+            "parks": 4784,
+            "park_unpark_transitions": 9568
+          },
+          {
+            "busy_ns": 2573671800,
+            "parks": 4806,
+            "park_unpark_transitions": 9612
+          }
+        ],
+        "busy_ns_per_request": 25739.2665,
+        "parks_per_request": 0.04795,
+        "park_unpark_transitions_per_request": 0.0959,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers2"
+      },
+      "delta_percent": {
+        "completed_requests_s": -3.6179587681733683,
+        "client_cpu_us_per_success": 6.1433447098976135,
+        "p95_ns": 5.340887980679909,
+        "p99_ns": 7.228966094600242,
+        "sampled_peak_rss_bytes": 0.38414691277053326,
+        "sampled_peak_private_bytes": 0.93242915960281
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 76649.90844168437,
+        "client_cpu_us_per_success": 23.359375,
+        "peer_cpu_s": 2.78125,
+        "sampled_peak_rss_bytes": 43376640,
+        "start_rss_bytes": 38232064,
+        "end_rss_bytes": 40206336,
+        "sampled_peak_private_bytes": 33898496,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2204700,
+        "p99_ns": 2454100,
+        "directory": "timing-2-worker-metrics-control\\000-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 33.52504638218924,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 17094500,
+              "index": 0,
+              "park_unpark_transitions": 43,
+              "parks": 22
+            },
+            {
+              "busy_ns": 16169900,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2542846800,
+              "index": 0,
+              "park_unpark_transitions": 9413,
+              "parks": 4707
+            },
+            {
+              "busy_ns": 2542839600,
+              "index": 1,
+              "park_unpark_transitions": 9347,
+              "parks": 4674
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2525752300,
+            "parks": 4685,
+            "park_unpark_transitions": 9370
+          },
+          {
+            "busy_ns": 2526669700,
+            "parks": 4650,
+            "park_unpark_transitions": 9300
+          }
+        ],
+        "busy_ns_per_request": 25262.11,
+        "parks_per_request": 0.046675,
+        "park_unpark_transitions_per_request": 0.09335,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 78441.45919783175,
+        "client_cpu_us_per_success": 23.046875,
+        "peer_cpu_s": 2.84375,
+        "sampled_peak_rss_bytes": 43356160,
+        "start_rss_bytes": 38137856,
+        "end_rss_bytes": 40218624,
+        "sampled_peak_private_bytes": 33501184,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2140100,
+        "p99_ns": 2399300,
+        "directory": "timing-2-h2-selection-candidate\\000-h2-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 31.665393429321416,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 16368000,
+              "index": 0,
+              "park_unpark_transitions": 71,
+              "parks": 36
+            },
+            {
+              "busy_ns": 17967400,
+              "index": 1,
+              "park_unpark_transitions": 41,
+              "parks": 21
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2470620300,
+              "index": 0,
+              "park_unpark_transitions": 10839,
+              "parks": 5420
+            },
+            {
+              "busy_ns": 2470246300,
+              "index": 1,
+              "park_unpark_transitions": 10555,
+              "parks": 5278
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2454252300,
+            "parks": 5384,
+            "park_unpark_transitions": 10768
+          },
+          {
+            "busy_ns": 2452278900,
+            "parks": 5257,
+            "park_unpark_transitions": 10514
+          }
+        ],
+        "busy_ns_per_request": 24532.656,
+        "parks_per_request": 0.053205,
+        "park_unpark_transitions_per_request": 0.10641,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 2.3373162376448153,
+        "client_cpu_us_per_success": -1.3377926421404673,
+        "p95_ns": -2.930103869007117,
+        "p99_ns": -2.232997840348805,
+        "sampled_peak_rss_bytes": -0.047214353163360645,
+        "sampled_peak_private_bytes": -1.1720637989366844
+      }
+    }
+  ],
+  "h2-workers8": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 37346.34081486354,
+        "client_cpu_us_per_success": 88.515625,
+        "peer_cpu_s": 6.0625,
+        "sampled_peak_rss_bytes": 43520000,
+        "start_rss_bytes": 40468480,
+        "end_rss_bytes": 41459712,
+        "sampled_peak_private_bytes": 34279424,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 4314700,
+        "p99_ns": 4711400,
+        "directory": "timing-0-worker-metrics-control\\004-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 57.089653919520394,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 20725300,
+              "index": 0,
+              "park_unpark_transitions": 113,
+              "parks": 57
+            },
+            {
+              "busy_ns": 21227500,
+              "index": 1,
+              "park_unpark_transitions": 151,
+              "parks": 76
+            },
+            {
+              "busy_ns": 20809200,
+              "index": 2,
+              "park_unpark_transitions": 129,
+              "parks": 65
+            },
+            {
+              "busy_ns": 23376700,
+              "index": 3,
+              "park_unpark_transitions": 129,
+              "parks": 65
+            },
+            {
+              "busy_ns": 20930900,
+              "index": 4,
+              "park_unpark_transitions": 101,
+              "parks": 51
+            },
+            {
+              "busy_ns": 21553200,
+              "index": 5,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            },
+            {
+              "busy_ns": 21718600,
+              "index": 6,
+              "park_unpark_transitions": 119,
+              "parks": 60
+            },
+            {
+              "busy_ns": 21092200,
+              "index": 7,
+              "park_unpark_transitions": 121,
+              "parks": 61
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2970458800,
+              "index": 0,
+              "park_unpark_transitions": 98883,
+              "parks": 49442
+            },
+            {
+              "busy_ns": 2967687800,
+              "index": 1,
+              "park_unpark_transitions": 98657,
+              "parks": 49329
+            },
+            {
+              "busy_ns": 2950451600,
+              "index": 2,
+              "park_unpark_transitions": 98239,
+              "parks": 49120
+            },
+            {
+              "busy_ns": 2992139000,
+              "index": 3,
+              "park_unpark_transitions": 97409,
+              "parks": 48705
+            },
+            {
+              "busy_ns": 2951476500,
+              "index": 4,
+              "park_unpark_transitions": 98257,
+              "parks": 49129
+            },
+            {
+              "busy_ns": 2925136800,
+              "index": 5,
+              "park_unpark_transitions": 98327,
+              "parks": 49164
+            },
+            {
+              "busy_ns": 2961584100,
+              "index": 6,
+              "park_unpark_transitions": 98231,
+              "parks": 49116
+            },
+            {
+              "busy_ns": 2944805300,
+              "index": 7,
+              "park_unpark_transitions": 98639,
+              "parks": 49320
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2949733500,
+            "parks": 49385,
+            "park_unpark_transitions": 98770
+          },
+          {
+            "busy_ns": 2946460300,
+            "parks": 49253,
+            "park_unpark_transitions": 98506
+          },
+          {
+            "busy_ns": 2929642400,
+            "parks": 49055,
+            "park_unpark_transitions": 98110
+          },
+          {
+            "busy_ns": 2968762300,
+            "parks": 48640,
+            "park_unpark_transitions": 97280
+          },
+          {
+            "busy_ns": 2930545600,
+            "parks": 49078,
+            "park_unpark_transitions": 98156
+          },
+          {
+            "busy_ns": 2903583600,
+            "parks": 49078,
+            "park_unpark_transitions": 98156
+          },
+          {
+            "busy_ns": 2939865500,
+            "parks": 49056,
+            "park_unpark_transitions": 98112
+          },
+          {
+            "busy_ns": 2923713100,
+            "parks": 49259,
+            "park_unpark_transitions": 98518
+          }
+        ],
+        "busy_ns_per_request": 117461.5315,
+        "parks_per_request": 1.96402,
+        "park_unpark_transitions_per_request": 3.92804,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 53097.787301042925,
+        "client_cpu_us_per_success": 73.984375,
+        "peer_cpu_s": 3.625,
+        "sampled_peak_rss_bytes": 44359680,
+        "start_rss_bytes": 40755200,
+        "end_rss_bytes": 42729472,
+        "sampled_peak_private_bytes": 34729984,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 3470800,
+        "p99_ns": 3947700,
+        "directory": "timing-0-h2-selection-candidate\\004-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 53.97457300629254,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 15771300,
+              "index": 0,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            },
+            {
+              "busy_ns": 15523700,
+              "index": 1,
+              "park_unpark_transitions": 145,
+              "parks": 73
+            },
+            {
+              "busy_ns": 15542800,
+              "index": 2,
+              "park_unpark_transitions": 173,
+              "parks": 87
+            },
+            {
+              "busy_ns": 15121500,
+              "index": 3,
+              "park_unpark_transitions": 197,
+              "parks": 99
+            },
+            {
+              "busy_ns": 16872400,
+              "index": 4,
+              "park_unpark_transitions": 199,
+              "parks": 100
+            },
+            {
+              "busy_ns": 15317900,
+              "index": 5,
+              "park_unpark_transitions": 185,
+              "parks": 93
+            },
+            {
+              "busy_ns": 14891300,
+              "index": 6,
+              "park_unpark_transitions": 193,
+              "parks": 97
+            },
+            {
+              "busy_ns": 16160400,
+              "index": 7,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2748359600,
+              "index": 0,
+              "park_unpark_transitions": 44763,
+              "parks": 22382
+            },
+            {
+              "busy_ns": 2752527400,
+              "index": 1,
+              "park_unpark_transitions": 44533,
+              "parks": 22267
+            },
+            {
+              "busy_ns": 2781020000,
+              "index": 2,
+              "park_unpark_transitions": 44201,
+              "parks": 22101
+            },
+            {
+              "busy_ns": 2757901600,
+              "index": 3,
+              "park_unpark_transitions": 45165,
+              "parks": 22583
+            },
+            {
+              "busy_ns": 2763064000,
+              "index": 4,
+              "park_unpark_transitions": 45747,
+              "parks": 22874
+            },
+            {
+              "busy_ns": 2762733900,
+              "index": 5,
+              "park_unpark_transitions": 45059,
+              "parks": 22530
+            },
+            {
+              "busy_ns": 2752479000,
+              "index": 6,
+              "park_unpark_transitions": 45213,
+              "parks": 22607
+            },
+            {
+              "busy_ns": 2771135400,
+              "index": 7,
+              "park_unpark_transitions": 44151,
+              "parks": 22076
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2732588300,
+            "parks": 22296,
+            "park_unpark_transitions": 44592
+          },
+          {
+            "busy_ns": 2737003700,
+            "parks": 22194,
+            "park_unpark_transitions": 44388
+          },
+          {
+            "busy_ns": 2765477200,
+            "parks": 22014,
+            "park_unpark_transitions": 44028
+          },
+          {
+            "busy_ns": 2742780100,
+            "parks": 22484,
+            "park_unpark_transitions": 44968
+          },
+          {
+            "busy_ns": 2746191600,
+            "parks": 22774,
+            "park_unpark_transitions": 45548
+          },
+          {
+            "busy_ns": 2747416000,
+            "parks": 22437,
+            "park_unpark_transitions": 44874
+          },
+          {
+            "busy_ns": 2737587700,
+            "parks": 22510,
+            "park_unpark_transitions": 45020
+          },
+          {
+            "busy_ns": 2754975000,
+            "parks": 21988,
+            "park_unpark_transitions": 43976
+          }
+        ],
+        "busy_ns_per_request": 109820.098,
+        "parks_per_request": 0.893485,
+        "park_unpark_transitions_per_request": 1.78697,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers8"
+      },
+      "delta_percent": {
+        "completed_requests_s": 42.17667954208364,
+        "client_cpu_us_per_success": -16.41659311562225,
+        "p95_ns": -19.558717871462672,
+        "p99_ns": -16.209619221462834,
+        "sampled_peak_rss_bytes": 1.9294117647058906,
+        "sampled_peak_private_bytes": 1.3143744772374344
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 41070.39638435944,
+        "client_cpu_us_per_success": 88.359375,
+        "peer_cpu_s": 5.671875,
+        "sampled_peak_rss_bytes": 43835392,
+        "start_rss_bytes": 40419328,
+        "end_rss_bytes": 41689088,
+        "sampled_peak_private_bytes": 34152448,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 3796400,
+        "p99_ns": 4166000,
+        "directory": "timing-1-worker-metrics-control\\005-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 40.90455271565495,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 16155300,
+              "index": 0,
+              "park_unpark_transitions": 171,
+              "parks": 86
+            },
+            {
+              "busy_ns": 16299100,
+              "index": 1,
+              "park_unpark_transitions": 187,
+              "parks": 94
+            },
+            {
+              "busy_ns": 17693600,
+              "index": 2,
+              "park_unpark_transitions": 209,
+              "parks": 105
+            },
+            {
+              "busy_ns": 16143500,
+              "index": 3,
+              "park_unpark_transitions": 193,
+              "parks": 97
+            },
+            {
+              "busy_ns": 16700600,
+              "index": 4,
+              "park_unpark_transitions": 165,
+              "parks": 83
+            },
+            {
+              "busy_ns": 16333400,
+              "index": 5,
+              "park_unpark_transitions": 139,
+              "parks": 70
+            },
+            {
+              "busy_ns": 15753400,
+              "index": 6,
+              "park_unpark_transitions": 179,
+              "parks": 90
+            },
+            {
+              "busy_ns": 16394900,
+              "index": 7,
+              "park_unpark_transitions": 187,
+              "parks": 94
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2617174800,
+              "index": 0,
+              "park_unpark_transitions": 101245,
+              "parks": 50623
+            },
+            {
+              "busy_ns": 2608171000,
+              "index": 1,
+              "park_unpark_transitions": 102703,
+              "parks": 51352
+            },
+            {
+              "busy_ns": 2597133900,
+              "index": 2,
+              "park_unpark_transitions": 102319,
+              "parks": 51160
+            },
+            {
+              "busy_ns": 2612827500,
+              "index": 3,
+              "park_unpark_transitions": 101889,
+              "parks": 50945
+            },
+            {
+              "busy_ns": 2618848600,
+              "index": 4,
+              "park_unpark_transitions": 102513,
+              "parks": 51257
+            },
+            {
+              "busy_ns": 2629482800,
+              "index": 5,
+              "park_unpark_transitions": 103707,
+              "parks": 51854
+            },
+            {
+              "busy_ns": 2615211100,
+              "index": 6,
+              "park_unpark_transitions": 102213,
+              "parks": 51107
+            },
+            {
+              "busy_ns": 2626229300,
+              "index": 7,
+              "park_unpark_transitions": 101878,
+              "parks": 50939
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2601019500,
+            "parks": 50537,
+            "park_unpark_transitions": 101074
+          },
+          {
+            "busy_ns": 2591871900,
+            "parks": 51258,
+            "park_unpark_transitions": 102516
+          },
+          {
+            "busy_ns": 2579440300,
+            "parks": 51055,
+            "park_unpark_transitions": 102110
+          },
+          {
+            "busy_ns": 2596684000,
+            "parks": 50848,
+            "park_unpark_transitions": 101696
+          },
+          {
+            "busy_ns": 2602148000,
+            "parks": 51174,
+            "park_unpark_transitions": 102348
+          },
+          {
+            "busy_ns": 2613149400,
+            "parks": 51784,
+            "park_unpark_transitions": 103568
+          },
+          {
+            "busy_ns": 2599457700,
+            "parks": 51017,
+            "park_unpark_transitions": 102034
+          },
+          {
+            "busy_ns": 2609834400,
+            "parks": 50845,
+            "park_unpark_transitions": 101691
+          }
+        ],
+        "busy_ns_per_request": 103968.026,
+        "parks_per_request": 2.04259,
+        "park_unpark_transitions_per_request": 4.085185,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 52814.81299172571,
+        "client_cpu_us_per_success": 73.359375,
+        "peer_cpu_s": 4.015625,
+        "sampled_peak_rss_bytes": 44179456,
+        "start_rss_bytes": 40566784,
+        "end_rss_bytes": 41988096,
+        "sampled_peak_private_bytes": 34435072,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 3237200,
+        "p99_ns": 3703800,
+        "directory": "timing-1-h2-selection-candidate\\005-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 83.15272177419355,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 21901800,
+              "index": 0,
+              "park_unpark_transitions": 147,
+              "parks": 74
+            },
+            {
+              "busy_ns": 23185900,
+              "index": 1,
+              "park_unpark_transitions": 133,
+              "parks": 67
+            },
+            {
+              "busy_ns": 23868200,
+              "index": 2,
+              "park_unpark_transitions": 167,
+              "parks": 84
+            },
+            {
+              "busy_ns": 23562600,
+              "index": 3,
+              "park_unpark_transitions": 135,
+              "parks": 68
+            },
+            {
+              "busy_ns": 21544100,
+              "index": 4,
+              "park_unpark_transitions": 209,
+              "parks": 105
+            },
+            {
+              "busy_ns": 22430900,
+              "index": 5,
+              "park_unpark_transitions": 125,
+              "parks": 63
+            },
+            {
+              "busy_ns": 23656000,
+              "index": 6,
+              "park_unpark_transitions": 155,
+              "parks": 78
+            },
+            {
+              "busy_ns": 22088500,
+              "index": 7,
+              "park_unpark_transitions": 231,
+              "parks": 116
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3005379700,
+              "index": 0,
+              "park_unpark_transitions": 33315,
+              "parks": 16658
+            },
+            {
+              "busy_ns": 3008585400,
+              "index": 1,
+              "park_unpark_transitions": 33289,
+              "parks": 16645
+            },
+            {
+              "busy_ns": 3010076300,
+              "index": 2,
+              "park_unpark_transitions": 33553,
+              "parks": 16777
+            },
+            {
+              "busy_ns": 2996807200,
+              "index": 3,
+              "park_unpark_transitions": 33527,
+              "parks": 16764
+            },
+            {
+              "busy_ns": 3012738200,
+              "index": 4,
+              "park_unpark_transitions": 32733,
+              "parks": 16367
+            },
+            {
+              "busy_ns": 2997531300,
+              "index": 5,
+              "park_unpark_transitions": 33415,
+              "parks": 16708
+            },
+            {
+              "busy_ns": 2990138800,
+              "index": 6,
+              "park_unpark_transitions": 33691,
+              "parks": 16846
+            },
+            {
+              "busy_ns": 3018033400,
+              "index": 7,
+              "park_unpark_transitions": 33219,
+              "parks": 16610
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2983477900,
+            "parks": 16584,
+            "park_unpark_transitions": 33168
+          },
+          {
+            "busy_ns": 2985399500,
+            "parks": 16578,
+            "park_unpark_transitions": 33156
+          },
+          {
+            "busy_ns": 2986208100,
+            "parks": 16693,
+            "park_unpark_transitions": 33386
+          },
+          {
+            "busy_ns": 2973244600,
+            "parks": 16696,
+            "park_unpark_transitions": 33392
+          },
+          {
+            "busy_ns": 2991194100,
+            "parks": 16262,
+            "park_unpark_transitions": 32524
+          },
+          {
+            "busy_ns": 2975100400,
+            "parks": 16645,
+            "park_unpark_transitions": 33290
+          },
+          {
+            "busy_ns": 2966482800,
+            "parks": 16768,
+            "park_unpark_transitions": 33536
+          },
+          {
+            "busy_ns": 2995944900,
+            "parks": 16494,
+            "park_unpark_transitions": 32988
+          }
+        ],
+        "busy_ns_per_request": 119285.2615,
+        "parks_per_request": 0.6636,
+        "park_unpark_transitions_per_request": 1.3272,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers8"
+      },
+      "delta_percent": {
+        "completed_requests_s": 28.595819961062794,
+        "client_cpu_us_per_success": -16.9761273209549,
+        "p95_ns": -14.729743967969656,
+        "p99_ns": -11.094575132021124,
+        "sampled_peak_rss_bytes": 0.784900018688095,
+        "sampled_peak_private_bytes": 0.8275365795154643
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 61961.40436514376,
+        "client_cpu_us_per_success": 73.4375,
+        "peer_cpu_s": 2.875,
+        "sampled_peak_rss_bytes": 43995136,
+        "start_rss_bytes": 40300544,
+        "end_rss_bytes": 41672704,
+        "sampled_peak_private_bytes": 34295808,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 2754000,
+        "p99_ns": 3064700,
+        "directory": "timing-2-worker-metrics-control\\004-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 43.40946409911927,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 17316900,
+              "index": 0,
+              "park_unpark_transitions": 161,
+              "parks": 81
+            },
+            {
+              "busy_ns": 17110100,
+              "index": 1,
+              "park_unpark_transitions": 195,
+              "parks": 98
+            },
+            {
+              "busy_ns": 18779500,
+              "index": 2,
+              "park_unpark_transitions": 145,
+              "parks": 73
+            },
+            {
+              "busy_ns": 17532700,
+              "index": 3,
+              "park_unpark_transitions": 161,
+              "parks": 81
+            },
+            {
+              "busy_ns": 18732700,
+              "index": 4,
+              "park_unpark_transitions": 141,
+              "parks": 71
+            },
+            {
+              "busy_ns": 18100800,
+              "index": 5,
+              "park_unpark_transitions": 103,
+              "parks": 52
+            },
+            {
+              "busy_ns": 18603400,
+              "index": 6,
+              "park_unpark_transitions": 155,
+              "parks": 78
+            },
+            {
+              "busy_ns": 17754700,
+              "index": 7,
+              "park_unpark_transitions": 141,
+              "parks": 71
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2752730100,
+              "index": 0,
+              "park_unpark_transitions": 27481,
+              "parks": 13741
+            },
+            {
+              "busy_ns": 2752625800,
+              "index": 1,
+              "park_unpark_transitions": 27643,
+              "parks": 13822
+            },
+            {
+              "busy_ns": 2755353900,
+              "index": 2,
+              "park_unpark_transitions": 27889,
+              "parks": 13945
+            },
+            {
+              "busy_ns": 2746995400,
+              "index": 3,
+              "park_unpark_transitions": 27575,
+              "parks": 13788
+            },
+            {
+              "busy_ns": 2746680700,
+              "index": 4,
+              "park_unpark_transitions": 27953,
+              "parks": 13977
+            },
+            {
+              "busy_ns": 2763524500,
+              "index": 5,
+              "park_unpark_transitions": 27279,
+              "parks": 13640
+            },
+            {
+              "busy_ns": 2751897500,
+              "index": 6,
+              "park_unpark_transitions": 27979,
+              "parks": 13990
+            },
+            {
+              "busy_ns": 2756772600,
+              "index": 7,
+              "park_unpark_transitions": 27665,
+              "parks": 13833
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2735413200,
+            "parks": 13660,
+            "park_unpark_transitions": 27320
+          },
+          {
+            "busy_ns": 2735515700,
+            "parks": 13724,
+            "park_unpark_transitions": 27448
+          },
+          {
+            "busy_ns": 2736574400,
+            "parks": 13872,
+            "park_unpark_transitions": 27744
+          },
+          {
+            "busy_ns": 2729462700,
+            "parks": 13707,
+            "park_unpark_transitions": 27414
+          },
+          {
+            "busy_ns": 2727948000,
+            "parks": 13906,
+            "park_unpark_transitions": 27812
+          },
+          {
+            "busy_ns": 2745423700,
+            "parks": 13588,
+            "park_unpark_transitions": 27176
+          },
+          {
+            "busy_ns": 2733294100,
+            "parks": 13912,
+            "park_unpark_transitions": 27824
+          },
+          {
+            "busy_ns": 2739017900,
+            "parks": 13762,
+            "park_unpark_transitions": 27524
+          }
+        ],
+        "busy_ns_per_request": 109413.2485,
+        "parks_per_request": 0.550655,
+        "park_unpark_transitions_per_request": 1.10131,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "h2-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 57439.014341918766,
+        "client_cpu_us_per_success": 70.234375,
+        "peer_cpu_s": 2.890625,
+        "sampled_peak_rss_bytes": 44797952,
+        "start_rss_bytes": 40730624,
+        "end_rss_bytes": 42749952,
+        "sampled_peak_private_bytes": 35201024,
+        "observer_storage_bytes": 20800000,
+        "p95_ns": 3079200,
+        "p99_ns": 3604600,
+        "directory": "timing-2-h2-selection-candidate\\004-h2-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "host_busy_percent": 48.479352678999845,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 18741800,
+              "index": 0,
+              "park_unpark_transitions": 163,
+              "parks": 82
+            },
+            {
+              "busy_ns": 19205700,
+              "index": 1,
+              "park_unpark_transitions": 149,
+              "parks": 75
+            },
+            {
+              "busy_ns": 19389300,
+              "index": 2,
+              "park_unpark_transitions": 219,
+              "parks": 110
+            },
+            {
+              "busy_ns": 20995600,
+              "index": 3,
+              "park_unpark_transitions": 189,
+              "parks": 95
+            },
+            {
+              "busy_ns": 20244600,
+              "index": 4,
+              "park_unpark_transitions": 169,
+              "parks": 85
+            },
+            {
+              "busy_ns": 20522200,
+              "index": 5,
+              "park_unpark_transitions": 153,
+              "parks": 77
+            },
+            {
+              "busy_ns": 19934000,
+              "index": 6,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            },
+            {
+              "busy_ns": 19935100,
+              "index": 7,
+              "park_unpark_transitions": 141,
+              "parks": 71
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2830448200,
+              "index": 0,
+              "park_unpark_transitions": 32117,
+              "parks": 16059
+            },
+            {
+              "busy_ns": 2835116800,
+              "index": 1,
+              "park_unpark_transitions": 31873,
+              "parks": 15937
+            },
+            {
+              "busy_ns": 2817708700,
+              "index": 2,
+              "park_unpark_transitions": 32679,
+              "parks": 16340
+            },
+            {
+              "busy_ns": 2821023400,
+              "index": 3,
+              "park_unpark_transitions": 32315,
+              "parks": 16158
+            },
+            {
+              "busy_ns": 2822304100,
+              "index": 4,
+              "park_unpark_transitions": 31851,
+              "parks": 15926
+            },
+            {
+              "busy_ns": 2825432700,
+              "index": 5,
+              "park_unpark_transitions": 31761,
+              "parks": 15881
+            },
+            {
+              "busy_ns": 2836038300,
+              "index": 6,
+              "park_unpark_transitions": 31863,
+              "parks": 15932
+            },
+            {
+              "busy_ns": 2838566700,
+              "index": 7,
+              "park_unpark_transitions": 32095,
+              "parks": 16048
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 2811706400,
+            "parks": 15977,
+            "park_unpark_transitions": 31954
+          },
+          {
+            "busy_ns": 2815911100,
+            "parks": 15862,
+            "park_unpark_transitions": 31724
+          },
+          {
+            "busy_ns": 2798319400,
+            "parks": 16230,
+            "park_unpark_transitions": 32460
+          },
+          {
+            "busy_ns": 2800027800,
+            "parks": 16063,
+            "park_unpark_transitions": 32126
+          },
+          {
+            "busy_ns": 2802059500,
+            "parks": 15841,
+            "park_unpark_transitions": 31682
+          },
+          {
+            "busy_ns": 2804910500,
+            "parks": 15804,
+            "park_unpark_transitions": 31608
+          },
+          {
+            "busy_ns": 2816104300,
+            "parks": 15844,
+            "park_unpark_transitions": 31688
+          },
+          {
+            "busy_ns": 2818631600,
+            "parks": 15977,
+            "park_unpark_transitions": 31954
+          }
+        ],
+        "busy_ns_per_request": 112338.353,
+        "parks_per_request": 0.63799,
+        "park_unpark_transitions_per_request": 1.27598,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h2-workers8"
+      },
+      "delta_percent": {
+        "completed_requests_s": -7.298720985364005,
+        "client_cpu_us_per_success": -4.361702127659573,
+        "p95_ns": 11.808278867102405,
+        "p99_ns": 17.61673246973603,
+        "sampled_peak_rss_bytes": 1.8247835397076528,
+        "sampled_peak_private_bytes": 2.6394362832915297
+      }
+    }
+  ],
+  "stream-h2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 12284.42900100628,
+        "client_cpu_us_per_success": 88.28125,
+        "peer_cpu_s": 1.0625,
+        "sampled_peak_rss_bytes": 20951040,
+        "start_rss_bytes": 20246528,
+        "end_rss_bytes": 20021248,
+        "sampled_peak_private_bytes": 10993664,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 11740400,
+        "p99_ns": 18004000,
+        "directory": "timing-0-worker-metrics-control\\005-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 50.90537383263033,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 50545200,
+              "index": 0,
+              "park_unpark_transitions": 1217,
+              "parks": 609
+            },
+            {
+              "busy_ns": 50118000,
+              "index": 1,
+              "park_unpark_transitions": 1139,
+              "parks": 570
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 924823000,
+              "index": 0,
+              "park_unpark_transitions": 27781,
+              "parks": 13891
+            },
+            {
+              "busy_ns": 935993300,
+              "index": 1,
+              "park_unpark_transitions": 25071,
+              "parks": 12536
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 874277800,
+            "parks": 13282,
+            "park_unpark_transitions": 26564
+          },
+          {
+            "busy_ns": 885875300,
+            "parks": 11966,
+            "park_unpark_transitions": 23932
+          }
+        ],
+        "busy_ns_per_request": 88007.655,
+        "parks_per_request": 1.2624,
+        "park_unpark_transitions_per_request": 2.5248,
+        "repetition": 0,
+        "variant": "worker-metrics-control",
+        "name": "stream-h2"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 13435.820879279081,
+        "client_cpu_us_per_success": 79.6875,
+        "peer_cpu_s": 0.921875,
+        "sampled_peak_rss_bytes": 20738048,
+        "start_rss_bytes": 19136512,
+        "end_rss_bytes": 19619840,
+        "sampled_peak_private_bytes": 10850304,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 9769300,
+        "p99_ns": 17245100,
+        "directory": "timing-0-h2-selection-candidate\\005-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 40.79714841218406,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 44206800,
+              "index": 0,
+              "park_unpark_transitions": 1407,
+              "parks": 704
+            },
+            {
+              "busy_ns": 44881700,
+              "index": 1,
+              "park_unpark_transitions": 1567,
+              "parks": 784
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 866914900,
+              "index": 0,
+              "park_unpark_transitions": 28841,
+              "parks": 14421
+            },
+            {
+              "busy_ns": 870244600,
+              "index": 1,
+              "park_unpark_transitions": 28253,
+              "parks": 14127
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 822708100,
+            "parks": 13717,
+            "park_unpark_transitions": 27434
+          },
+          {
+            "busy_ns": 825362900,
+            "parks": 13343,
+            "park_unpark_transitions": 26686
+          }
+        ],
+        "busy_ns_per_request": 82403.55,
+        "parks_per_request": 1.353,
+        "park_unpark_transitions_per_request": 2.706,
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 9.372774902101554,
+        "client_cpu_us_per_success": -9.734513274336287,
+        "p95_ns": -16.789036148683177,
+        "p99_ns": -4.215174405687627,
+        "sampled_peak_rss_bytes": -1.016617790811336,
+        "sampled_peak_private_bytes": -1.3040238450074515
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 15426.349593477122,
+        "client_cpu_us_per_success": 85.15625,
+        "peer_cpu_s": 1.296875,
+        "sampled_peak_rss_bytes": 20860928,
+        "start_rss_bytes": 19738624,
+        "end_rss_bytes": 20312064,
+        "sampled_peak_private_bytes": 10883072,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 2802000,
+        "p99_ns": 6254300,
+        "directory": "timing-1-worker-metrics-control\\001-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 44754000,
+              "index": 0,
+              "park_unpark_transitions": 3039,
+              "parks": 1520
+            },
+            {
+              "busy_ns": 47440900,
+              "index": 1,
+              "park_unpark_transitions": 2893,
+              "parks": 1447
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 872696600,
+              "index": 0,
+              "park_unpark_transitions": 62027,
+              "parks": 31014
+            },
+            {
+              "busy_ns": 887028600,
+              "index": 1,
+              "park_unpark_transitions": 65513,
+              "parks": 32757
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 827942600,
+            "parks": 29494,
+            "park_unpark_transitions": 58988
+          },
+          {
+            "busy_ns": 839587700,
+            "parks": 31310,
+            "park_unpark_transitions": 62620
+          }
+        ],
+        "busy_ns_per_request": 83376.515,
+        "parks_per_request": 3.0402,
+        "park_unpark_transitions_per_request": 6.0804,
+        "repetition": 1,
+        "variant": "worker-metrics-control",
+        "name": "stream-h2"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 9059.711972730991,
+        "client_cpu_us_per_success": 96.09375,
+        "peer_cpu_s": 1.09375,
+        "sampled_peak_rss_bytes": 20795392,
+        "start_rss_bytes": 19730432,
+        "end_rss_bytes": 19931136,
+        "sampled_peak_private_bytes": 11026432,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 16705200,
+        "p99_ns": 24897700,
+        "directory": "timing-1-h2-selection-candidate\\001-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 62.65190972222222,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 45570400,
+              "index": 0,
+              "park_unpark_transitions": 1217,
+              "parks": 609
+            },
+            {
+              "busy_ns": 47052100,
+              "index": 1,
+              "park_unpark_transitions": 1411,
+              "parks": 706
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1017049700,
+              "index": 0,
+              "park_unpark_transitions": 26553,
+              "parks": 13277
+            },
+            {
+              "busy_ns": 1028929600,
+              "index": 1,
+              "park_unpark_transitions": 24793,
+              "parks": 12397
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 971479300,
+            "parks": 12668,
+            "park_unpark_transitions": 25336
+          },
+          {
+            "busy_ns": 981877500,
+            "parks": 11691,
+            "park_unpark_transitions": 23382
+          }
+        ],
+        "busy_ns_per_request": 97667.84,
+        "parks_per_request": 1.21795,
+        "park_unpark_transitions_per_request": 2.4359,
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": -41.27118721228903,
+        "client_cpu_us_per_success": 12.844036697247695,
+        "p95_ns": 496.18843683083514,
+        "p99_ns": 298.08931455158853,
+        "sampled_peak_rss_bytes": -0.3141566856469713,
+        "sampled_peak_private_bytes": 1.3172751223184065
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 12947.537291011373,
+        "client_cpu_us_per_success": 83.59375,
+        "peer_cpu_s": 1.078125,
+        "sampled_peak_rss_bytes": 21307392,
+        "start_rss_bytes": 19644416,
+        "end_rss_bytes": 20279296,
+        "sampled_peak_private_bytes": 11362304,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 10354600,
+        "p99_ns": 17295700,
+        "directory": "timing-2-worker-metrics-control\\005-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 27.846534653465348,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 43100300,
+              "index": 0,
+              "park_unpark_transitions": 1283,
+              "parks": 642
+            },
+            {
+              "busy_ns": 45198900,
+              "index": 1,
+              "park_unpark_transitions": 1173,
+              "parks": 587
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 882532600,
+              "index": 0,
+              "park_unpark_transitions": 25989,
+              "parks": 12995
+            },
+            {
+              "busy_ns": 891520200,
+              "index": 1,
+              "park_unpark_transitions": 25132,
+              "parks": 12566
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 839432300,
+            "parks": 12353,
+            "park_unpark_transitions": 24706
+          },
+          {
+            "busy_ns": 846321300,
+            "parks": 11979,
+            "park_unpark_transitions": 23959
+          }
+        ],
+        "busy_ns_per_request": 84287.68,
+        "parks_per_request": 1.2166,
+        "park_unpark_transitions_per_request": 2.43325,
+        "repetition": 2,
+        "variant": "worker-metrics-control",
+        "name": "stream-h2"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 14110.283151051994,
+        "client_cpu_us_per_success": 82.8125,
+        "peer_cpu_s": 1.0625,
+        "sampled_peak_rss_bytes": 21315584,
+        "start_rss_bytes": 19910656,
+        "end_rss_bytes": 20578304,
+        "sampled_peak_private_bytes": 11264000,
+        "observer_storage_bytes": 2080000,
+        "p95_ns": 2726000,
+        "p99_ns": 20312400,
+        "directory": "timing-2-h2-selection-candidate\\005-stream-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "host_busy_percent": 34.07230559345157,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 41112700,
+              "index": 0,
+              "park_unpark_transitions": 1679,
+              "parks": 840
+            },
+            {
+              "busy_ns": 46100500,
+              "index": 1,
+              "park_unpark_transitions": 1293,
+              "parks": 647
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 863670400,
+              "index": 0,
+              "park_unpark_transitions": 28113,
+              "parks": 14057
+            },
+            {
+              "busy_ns": 874848700,
+              "index": 1,
+              "park_unpark_transitions": 27189,
+              "parks": 13595
+            }
+          ]
+        },
+        "worker_deltas": [
+          {
+            "busy_ns": 822557700,
+            "parks": 13217,
+            "park_unpark_transitions": 26434
+          },
+          {
+            "busy_ns": 828748200,
+            "parks": 12948,
+            "park_unpark_transitions": 25896
+          }
+        ],
+        "busy_ns_per_request": 82565.295,
+        "parks_per_request": 1.30825,
+        "park_unpark_transitions_per_request": 2.6165,
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h2"
+      },
+      "delta_percent": {
+        "completed_requests_s": 8.98044032549603,
+        "client_cpu_us_per_success": -0.9345794392523366,
+        "p95_ns": -73.67353639928147,
+        "p99_ns": 17.441907526148114,
+        "sampled_peak_rss_bytes": 0.038446751249510136,
+        "sampled_peak_private_bytes": -0.8651766402307137
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ use std::{
 
 mod client;
 mod peer;
+mod runtime_metrics;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

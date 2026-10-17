@@ -1195,6 +1195,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Record per-worker busy time and park/unpark counters in client benchmark
+  results, alongside process CPU and memory measurements.
+
 - Add an isolated public-client benchmark tool for protocol, concurrency,
   proxy, body and allocation measurements with retained raw results.
   Include H2/H3 concurrency, worker and offered-rate sweeps, plus optional
@@ -2267,6 +2270,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `http3_early_data`, a session keeps its client's early-data choice.
 
 ### Changed
+
+- Reduce shared-state work when reusing an HTTP/2 connection. The pool skips
+  stream-placement probes when it allows one connection and reads each peer
+  limit once when choosing among several.
 
 - Reduce request-future allocation sizes by storing each timed operation
   once. Keep deadline ordering and prompt cancellation of owned work.
