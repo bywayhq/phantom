@@ -15,5 +15,8 @@
     "No ordinary timing comparison for connection details; a bounded quiet-window wait expired.",
     "One original ordinary-baseline crypto command log changed in a later build; original verification receipt and hash remain.",
     "Full integration gate and remote CI are retained separately after this measurement archive."
+  ],
+  "summary_errata": [
+    "The archived summary limit mentions three timing repetitions. Those were planned only: the zero trial count and unavailable-window record are authoritative. The tracked summary corrects that sentence."
   ]
 }

@@ -3050,7 +3050,7 @@
   "heap_failures": [],
   "limits": [
     "Windows loopback only; finite closed-loop workloads, not a capacity claim.",
-    "Three timing repetitions; full ranges retained without trimming.",
+    "Three timing repetitions were planned but none ran because the quiet-window wait expired.",
     "Timing trials with observed compiler processes are retained but excluded from performance comparisons.",
     "Allocation trials overlapped other builds; instrumented times and their RSS are not speed or process-memory comparisons.",
     "One original ordinary-baseline crypto command log changed in a later build; its original hash and verification receipt remain.",
