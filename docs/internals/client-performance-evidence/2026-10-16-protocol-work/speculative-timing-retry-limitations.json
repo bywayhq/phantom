@@ -1,0 +1,23 @@
+{
+  "policy": "One complete-pair retry on rejection only, never on measured speed; originals and retries retained; no acceptance rules changed",
+  "original_trials": 48,
+  "retry_trials": 8,
+  "selected_trials": 42,
+  "limited": [
+    {
+      "repetition": 1,
+      "name": "h2-cold-delay25",
+      "reason": "A complete-pair retry still had a controller rejection; neither partial pair selected"
+    },
+    {
+      "repetition": 2,
+      "name": "h2-cold-delay10",
+      "reason": "A complete-pair retry still had a controller rejection; neither partial pair selected"
+    },
+    {
+      "repetition": 2,
+      "name": "h2-cold-delay25",
+      "reason": "A complete-pair retry still had a controller rejection; neither partial pair selected"
+    }
+  ]
+}

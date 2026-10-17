@@ -29,6 +29,7 @@ async fn opening(
     let (opening, slower) = connector
         .open_http_connect_retaining(
             HttpConnectRoute {
+                speculative_tls: false,
                 proxy: ProxyTransport::Tcp(NetEndpoint {
                     host: "127.0.0.1",
                     port: address.port(),
@@ -209,6 +210,7 @@ async fn checked_on_request_expiry_closes_quiet_backup_before_opening_a_fresh_pr
         let connector = Http2TlsConnector::new(&firefox::v157_tcp_tls(), &firefox::v157_http2())?;
         let proxy = route.as_http_proxy().ok_or("missing proxy")?;
         let (opening, slower) = connector.open_http_connect_retaining(HttpConnectRoute {
+            speculative_tls: false,
             proxy: ProxyTransport::Tcp(NetEndpoint { host: "127.0.0.1", port: address.port() }),
             authority: "127.0.0.1:443",
             headers: proxy.ordered_connect_headers(), credentials: None,

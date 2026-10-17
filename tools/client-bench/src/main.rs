@@ -38,6 +38,8 @@ struct Config {
     arrival_interval_us: u64,
     workers: usize,
     peer_workers: Option<usize>,
+    speculative_tls: bool,
+    proxy_delay_ms: u64,
 }
 
 impl Default for Config {
@@ -62,6 +64,8 @@ impl Default for Config {
             arrival_interval_us: 0,
             workers: 2,
             peer_workers: None,
+            speculative_tls: false,
+            proxy_delay_ms: 0,
         }
     }
 }
@@ -85,11 +89,15 @@ impl Config {
             || self.server_delay_ms > 1000
             || self.chunk_delay_ms > 1000
             || self.arrival_interval_us > 1_000_000
+            || self.proxy_delay_ms > 250
         {
             return Err("invalid or unbounded benchmark configuration".into());
         }
         if self.protocol == "h3" && self.route != "direct" {
             return Err("TCP proxies do not support exact HTTP/3".into());
+        }
+        if (self.speculative_tls || self.proxy_delay_ms != 0) && self.route != "connect" {
+            return Err("speculative TLS and proxy delay require the CONNECT route".into());
         }
         if self.protocol == "construct" && (self.concurrency != 1 || self.arrival_interval_us != 0)
         {

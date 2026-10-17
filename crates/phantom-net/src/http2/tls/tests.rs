@@ -247,6 +247,7 @@ async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> 
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                        speculative_tls: false,
                         proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                             host: "127.0.0.1",
                             port: address.port(),
@@ -649,6 +650,7 @@ fn validation_routes() -> [TcpRoute<'static>; 4] {
     [
         TcpRoute::Direct(endpoint),
         TcpRoute::HttpConnect(HttpConnectRoute {
+            speculative_tls: false,
             proxy: ProxyTransport::Tcp(endpoint),
             authority: "",
             headers: &[],

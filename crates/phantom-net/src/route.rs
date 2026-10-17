@@ -61,6 +61,11 @@ pub struct HttpConnectRoute<'a> {
     pub headers: &'a [HttpConnectHeader],
     /// Credentials for the selected challenge-driven authentication scheme.
     pub credentials: Option<HttpProxyAuthentication<'a>>,
+    /// Send CONNECT with the origin's first TLS write, before proxy acceptance.
+    ///
+    /// Requires origin TLS and an HTTP/1.1 proxy leg. Basic credentials are
+    /// sent preemptively. Digest and challenge retries are unsupported.
+    pub speculative_tls: bool,
 }
 
 /// A SOCKS5 CONNECT target with explicit DNS ownership.
@@ -188,6 +193,9 @@ impl OriginRoute<'_> {
         let invalid = |message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message);
         match self {
             Self::Plaintext { tcp, family } => {
+                if matches!(tcp, TcpRoute::HttpConnect(route) if route.speculative_tls) {
+                    return Err(invalid("speculative CONNECT requires origin TLS"));
+                }
                 if !plaintext {
                     return Err(invalid("this protocol requires origin TLS"));
                 }
@@ -262,6 +270,7 @@ mod tests {
         let password = format!("{:?}", std::time::Instant::now());
         let credentials = crate::proxy::HttpBasicCredentials::new("private-user", &password)?;
         let route = TcpRoute::HttpConnect(HttpConnectRoute {
+            speculative_tls: false,
             proxy: ProxyTransport::Tcp(Endpoint {
                 host: "proxy.example",
                 port: 8080,

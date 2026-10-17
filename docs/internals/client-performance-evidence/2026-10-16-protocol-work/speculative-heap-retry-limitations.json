@@ -1,0 +1,7 @@
+{
+  "policy": "One complete-pair retry on rejection only, never on measured speed; originals and retries retained; no acceptance rules changed",
+  "original_trials": 12,
+  "retry_trials": 0,
+  "selected_trials": 12,
+  "limited": []
+}

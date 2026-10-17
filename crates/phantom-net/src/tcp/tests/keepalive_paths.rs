@@ -280,6 +280,7 @@ async fn an_http2_proxy_connection_turns_keepalive_off() -> TestResult<()> {
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tls {
                         endpoint: crate::route::Endpoint {
                             host: "127.0.0.1",

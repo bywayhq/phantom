@@ -1198,6 +1198,40 @@ pub struct TlsError {
 }
 
 impl TlsError {
+    pub(crate) fn into_speculative_proxy_error(
+        mut self,
+    ) -> Result<crate::proxy::HttpConnectError, Self> {
+        use crate::proxy::speculative::ProxyFailure;
+        let is_proxy = self
+            .source
+            .as_ref()
+            .and_then(|source| source.downcast_ref::<btls::ssl::Error>())
+            .and_then(btls::ssl::Error::io_error)
+            .and_then(io::Error::get_ref)
+            .is_some_and(|source| source.is::<ProxyFailure>());
+        if !is_proxy {
+            return Err(self);
+        }
+        let Some(source) = self.source.take() else {
+            return Err(self);
+        };
+        let source = match source.downcast::<btls::ssl::Error>() {
+            Ok(backend) => match backend.into_io_error() {
+                Ok(error) => match error.into_inner() {
+                    Some(source) => match source.downcast::<ProxyFailure>() {
+                        Ok(error) => return Ok(error.0),
+                        Err(source) => source,
+                    },
+                    None => Box::new(io::Error::other("missing speculative proxy failure")),
+                },
+                Err(error) => Box::new(error),
+            },
+            Err(source) => source,
+        };
+        self.source = Some(source);
+        Err(self)
+    }
+
     fn new(
         kind: TlsErrorKind,
         field: Option<&'static str>,

@@ -133,6 +133,7 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                         host: PROXY,
                         port: peer.port,
@@ -262,6 +263,7 @@ async fn https_proxy_host_resolves_through_the_proxy_connector() -> TestResult {
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tls {
                         endpoint: crate::route::Endpoint {
                             host: PROXY,

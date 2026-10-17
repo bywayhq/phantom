@@ -19,6 +19,7 @@ mod socks4;
 mod socks5;
 mod socks5_udp;
 pub(crate) mod socks_connection;
+pub(crate) mod speculative;
 mod tunnel;
 
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};

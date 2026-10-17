@@ -1,0 +1,422 @@
+[
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h3-workers8",
+    "output": "timing-0-h3-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h3-workers8",
+    "output": "timing-0-h3-workers8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "firefox-h3-template",
+    "output": "timing-0-firefox-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "firefox-h3-template",
+    "output": "timing-0-firefox-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h3-stream64k",
+    "output": "timing-0-h3-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h3-stream64k",
+    "output": "timing-0-h3-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h2-workers8",
+    "output": "timing-0-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h2-workers8",
+    "output": "timing-0-h2-workers8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h3-template",
+    "output": "timing-0-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h3-template",
+    "output": "timing-0-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h2-template",
+    "output": "timing-0-h2-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h2-template",
+    "output": "timing-0-h2-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h1-c8",
+    "output": "timing-0-h1-c8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h1-c8",
+    "output": "timing-0-h1-c8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "heldout-construct",
+    "output": "timing-0-heldout-construct-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "heldout-construct",
+    "output": "timing-0-heldout-construct-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h1-c1",
+    "output": "timing-0-h1-c1-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h1-c1",
+    "output": "timing-0-h1-c1-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "h1-stream64k",
+    "output": "timing-0-h1-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate",
+    "name": "h1-stream64k",
+    "output": "timing-0-h1-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h1-stream64k",
+    "output": "timing-1-h1-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h1-stream64k",
+    "output": "timing-1-h1-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h1-c8",
+    "output": "timing-1-h1-c8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h1-c8",
+    "output": "timing-1-h1-c8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h3-workers8",
+    "output": "timing-1-h3-workers8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h3-workers8",
+    "output": "timing-1-h3-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h3-stream64k",
+    "output": "timing-1-h3-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h3-stream64k",
+    "output": "timing-1-h3-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h2-template",
+    "output": "timing-1-h2-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h2-template",
+    "output": "timing-1-h2-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h3-template",
+    "output": "timing-1-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h3-template",
+    "output": "timing-1-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h2-workers8",
+    "output": "timing-1-h2-workers8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h2-workers8",
+    "output": "timing-1-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "firefox-h3-template",
+    "output": "timing-1-firefox-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "firefox-h3-template",
+    "output": "timing-1-firefox-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "heldout-construct",
+    "output": "timing-1-heldout-construct-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "heldout-construct",
+    "output": "timing-1-heldout-construct-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate",
+    "name": "h1-c1",
+    "output": "timing-1-h1-c1-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "h1-c1",
+    "output": "timing-1-h1-c1-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h1-c1",
+    "output": "timing-2-h1-c1-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h1-c1",
+    "output": "timing-2-h1-c1-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h3-template",
+    "output": "timing-2-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h3-template",
+    "output": "timing-2-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h3-workers8",
+    "output": "timing-2-h3-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h3-workers8",
+    "output": "timing-2-h3-workers8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h2-template",
+    "output": "timing-2-h2-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h2-template",
+    "output": "timing-2-h2-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h1-c8",
+    "output": "timing-2-h1-c8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h1-c8",
+    "output": "timing-2-h1-c8-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h3-stream64k",
+    "output": "timing-2-h3-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h3-stream64k",
+    "output": "timing-2-h3-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h1-stream64k",
+    "output": "timing-2-h1-stream64k-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h1-stream64k",
+    "output": "timing-2-h1-stream64k-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "heldout-construct",
+    "output": "timing-2-heldout-construct-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "heldout-construct",
+    "output": "timing-2-heldout-construct-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "firefox-h3-template",
+    "output": "timing-2-firefox-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "firefox-h3-template",
+    "output": "timing-2-firefox-h3-template-protocol-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "h2-workers8",
+    "output": "timing-2-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate",
+    "name": "h2-workers8",
+    "output": "timing-2-h2-workers8-protocol-candidate",
+    "exit": 0
+  }
+]

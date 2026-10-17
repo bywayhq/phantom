@@ -116,6 +116,7 @@ async fn invalid_https_connect_fields_do_not_consume_dns_or_open_proxy_tls() -> 
         "bad\r\nfield",
     ))];
     let route = HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tls {
             endpoint: Endpoint {
                 host: "must-not-resolve.invalid",

@@ -1738,6 +1738,7 @@ impl PoolEntry {
         };
         claim
             .finish(HttpConnectRoute {
+                speculative_tls: proxy.speculative_tls(),
                 proxy: transport,
                 authority: &authority,
                 headers: proxy.ordered_connect_headers(),
@@ -1841,6 +1842,7 @@ impl PoolEntry {
                 };
 
                 let connect = HttpConnectRoute {
+                    speculative_tls: proxy.speculative_tls(),
                     proxy: transport,
                     authority: &authority,
                     headers: proxy.ordered_connect_headers(),

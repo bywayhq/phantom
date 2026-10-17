@@ -592,6 +592,135 @@ Neither comparison establishes a general speed ranking or production limit.
 H3's scheduler overhead remains open; changing these channels alone did not
 resolve it within this measurement scope.
 
+## Protocol processing and CONNECT overlap
+
+The protocol-processing comparison used fresh ordinary and DHAT control
+builds and three paired repetitions. The ordinary matrix completed 60
+accepted trials: 5.7 million HTTP requests and 3,000 client constructions.
+The separate heap matrix completed 48 accepted trials and 5,376 requests.
+There were no request failures in these measurements.
+
+| Candidate | Allocation result | Decision |
+| --- | --- | --- |
+| H2 unused content-length string | About 1.66% fewer blocks on tiny GETs | Keep |
+| H3 redundant request-map validation | 13.11% fewer bytes on Chrome templates | Keep |
+| H3 Firefox templates | 8.50–8.51% fewer bytes | Same H3 change |
+| H3 small GETs | 3.55–3.56% fewer bytes | Same H3 change |
+| H1 response-head copy fast path | No stable saving | Reject |
+
+H2 formats a length only when checking or emitting that field. H3 avoids
+rechecking two views built privately from the same validated header list.
+The remaining comparison uses iterators instead of allocating vectors.
+Validation errors, duplicate-value order, cookie splitting and sensitivity
+remain covered by protocol tests. No vendored encoder was changed.
+
+These are allocated Rust bytes and blocks during the measured phase, not
+process-memory reductions. Instrumented timing is excluded. Ordinary timing
+varied in sign, including substantial CPU and tail changes on the shared
+host, so this comparison does not establish a general H2/H3 speedup or a
+stable RSS reduction. The H1 streamed-body case was slower in all three
+pairs: completed throughput fell 11.84–14.95%, and CPU/request rose
+14.23–17.00%. Its source and tests were restored to the control.
+
+Peak newly tracked live allocations were mixed: H3 streaming ranged from
+-31.04% to +11.97%, and Firefox template peaks rose by up to 3.41%.
+These peaks exclude pre-existing and native allocations. The worst H3
+template timing pair showed CPU/request up 31.47%, request p95 up 31.13%,
+and throughput down 23.70%. Allocation savings alone do not establish a
+speed or peak-memory improvement.
+
+Build receipts bind each executable to its source hashes and patch. Later
+CONNECT feature edits began while the heap runs were finishing; the working
+source snapshots recorded by those trial controllers therefore include
+later edits. Those snapshots are not the source used to build the frozen
+executables. The internal candidate differs from its control in only four
+Rust files, recorded in the compact build comparison.
+
+CONNECT overlap is a separate opt-in feature. It sends the validated CONNECT
+and first origin TLS write through the same bounded write buffer, handles
+partial I/O, and exposes tunnel input only after a successful final response.
+A rejection closes the connection and keeps its typed proxy error. Basic
+credentials are preemptive. Digest and HTTP/2 proxy transport fail before
+I/O. Origin verification remains enabled, and proxied TLS uses the ordinary
+connection path without early application data.
+
+### Final default paths
+
+A separate comparison used the final production Rust sources, with overlap
+disabled, against the original control. Twelve accepted trials completed
+1.8 million requests. Each row gives the range across three complete pairs.
+These are individual paired changes, not confidence intervals.
+
+| Workload | Requests/s | CPU/request | Request p95 | Peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| H2, eight workers | +0.57% to +13.71% | -9.96% to -1.30% | -14.69% to +0.35% | -0.25% to +0.22% |
+| H3, Chrome template | -21.59% to +3.90% | -20.57% to +6.00% | -1.65% to +38.69% | -0.62% to +0.99% |
+
+H3 request p99 rose in all three pairs: 61.22%, 22.20% and 197.91%.
+Host busy fractions ranged from 64.1% to 99.9%. Keep the H3 change for its
+measured allocation reduction; these timings do not establish a speedup or
+exclude a tail-latency cost. The
+[final default results](client-performance-evidence/2026-10-16-protocol-work/final-default-timing-summary.json)
+retain absolute values, private memory, all latency percentiles and worker
+counters. Production Rust matches the final v2 build receipts. Two test
+files received formatting-only changes afterward.
+
+### CONNECT measurements
+
+Strict and overlapping setup used the same final executable. Cold cases
+built a fresh client for each of 40 measured requests, at concurrency one.
+Each response contained 1 KiB. The delay relay added a nominal delay in each
+direction. Its ordered chunks, Windows timers and shared host do not model
+a real WAN, bandwidth, congestion or packet loss.
+
+| Cold workload | Delay per direction | Complete pairs | Median request change | Request p95 change |
+| --- | ---: | ---: | ---: | ---: |
+| H1 | 0 ms | 3 | -29.35% to +29.85% | -19.45% to +8.33% |
+| H1 | 10 ms | 3 | -29.45% to -29.20% | -30.07% to -25.90% |
+| H1 | 25 ms | 3 | -31.33% to -30.85% | -33.05% to -28.76% |
+| H2 | 0 ms | 3 | -0.82% to +31.47% | -8.22% to +15.81% |
+| H2 | 10 ms | 2 | -29.39% to -28.98% | -29.36% to -25.72% |
+| H2 | 25 ms | 1 | -30.30% | -26.04% |
+
+For H1 at 25 ms, strict medians were 197.6–201.7 ms, versus 135.7–138.8 ms
+with overlap. This demonstrates the setup mechanism on this model. It does
+not establish an equivalent saving through a deployed proxy. Forty samples
+per cold trial provide little evidence about high percentiles.
+
+There were 56 timing attempts, including eight attempts from once-only
+complete-pair retries. All 601,760 measured client requests completed.
+Eight trials were rejected because the peer reported Windows error 10053,
+including strict and overlapping runs. No acceptance rule was relaxed.
+Only 42 trials formed selected complete pairs. Six other individually
+accepted trials were left unpaired and unused. H2 at 10 ms has two usable
+pairs; at 25 ms it has one. Those H2 results remain limited.
+The [attempt records](client-performance-evidence/2026-10-16-protocol-work/speculative-timing-rejected-trials.json)
+retain the errors and every rejected summary.
+
+Warm cases used 50,000 requests per trial at concurrency 32, after warming
+the pool. They do not repeat CONNECT. Their paired results show a possible
+steady-state cost, especially for H1:
+
+| Warm workload | Requests/s | CPU/request | Request p95 | Peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| H1 | -21.23% to -4.53% | -5.30% to +32.26% | +7.60% to +33.75% | -1.62% to -1.21% |
+| H2 | -7.28% to +19.10% | -20.00% to +10.62% | -16.00% to +13.16% | -0.24% to +0.77% |
+
+Host busy fractions ranged from 31.7% to 100% across the selected CONNECT
+trials. Do not treat overlap as a general throughput improvement or enable
+it by default. The
+[timing results](client-performance-evidence/2026-10-16-protocol-work/speculative-timing-summary.json)
+retain every selected pair, including cold CPU, private memory and tails.
+
+Twelve separate heap trials completed 192 cold requests without rejection.
+Overlap increased allocated Rust bytes by 9.57% for H1 and 9.91–9.92% for H2:
+about 15 KiB more per new connection. Peak newly tracked live bytes rose
+0.23–0.24%. This is a setup-buffer tradeoff, not a process-memory saving.
+Native allocations and pre-existing state are excluded. Instrumented timing
+is excluded too. The
+[heap results](client-performance-evidence/2026-10-16-protocol-work/speculative-heap-summary.json)
+retain absolute totals and profile hashes.
+
 ## Verification and retained evidence
 
 The earlier remediation gate passed all 22 steps, including 5,738 passing tests
@@ -636,6 +765,19 @@ retain prototype test counts, source scope and log hashes. The
 [coordination archive receipt](client-performance-evidence/2026-10-16-h3-coordination/archive.json)
 identifies the checked local archive of raw trials, heap profiles, binaries,
 symbols, prototypes and baseline gate logs.
+
+The protocol-processing and CONNECT follow-up passed all 22 gate steps in
+446 seconds, including 5,756 passing Rust tests and three skips. Benchmark
+Clippy and six tests passed separately, as did nine controller tests.
+Independent source, evidence and final report review found no remaining
+blocker within the adoption limits above. The
+[protocol verification record](client-performance-evidence/2026-10-16-protocol-work/verification.json)
+retains commands, step results, prior failures and log hashes. The
+[protocol archive receipt](client-performance-evidence/2026-10-16-protocol-work/archive.json)
+identifies the checked local archive of raw trials, rejected attempts,
+heap profiles, eight binaries, symbols, source patches and native build
+receipts. Checks were local to Windows, without new Linux or remote CI
+results.
 
 ## Remaining investigations
 

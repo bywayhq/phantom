@@ -217,6 +217,7 @@ async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
         TEST_TIMEOUT,
         connector.connect(crate::route::OriginRoute::Tls {
             tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                speculative_tls: false,
                 proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                     host: "127.0.0.1",
                     port: address.port(),

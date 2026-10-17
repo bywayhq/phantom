@@ -32,7 +32,7 @@ async fn proxy_finish_installs_extended_connect_settings_with_original_tls_and_f
                 let fields = [HttpConnectHeader::authority("Host"), HttpConnectHeader::field(RequestHeader::new("X-Claim", "current"))];
                 let transport = if https { ProxyTransport::Tls { endpoint: Endpoint { host: "127.0.0.1", port: address.port() }, server_name: "127.0.0.1", connector: &outer } }
                     else { ProxyTransport::Tcp(Endpoint { host: "127.0.0.1", port: address.port() }) };
-                let route = HttpConnectRoute { proxy: transport, authority: "127.0.0.1:443", headers: &fields, credentials: None };
+                let route = HttpConnectRoute { speculative_tls: false, proxy: transport, authority: "127.0.0.1:443", headers: &fields, credentials: None };
                 let family = AddressFamilyMemory::new();
                 let (opened, ready) = oneshot::channel();
                 let (enabled, capability) = oneshot::channel();
@@ -115,7 +115,7 @@ async fn proxy_extended_connect_rejects_changed_route_and_invalid_fields_before_
                 let negotiated_connector = Http1Or2TlsConnector::new_with_additional_roots(&tls_settings(), &v154_http2(), [identity.root_der()])?;
                 let (address, listener) = loopback_listener().await?;
                 let fields = [HttpConnectHeader::authority("Host")];
-                let route = HttpConnectRoute { proxy: ProxyTransport::Tcp(Endpoint { host: "127.0.0.1", port: address.port() }), authority: "127.0.0.1:443", headers: &fields, credentials: None };
+                let route = HttpConnectRoute { speculative_tls: false, proxy: ProxyTransport::Tcp(Endpoint { host: "127.0.0.1", port: address.port() }), authority: "127.0.0.1:443", headers: &fields, credentials: None };
                 let family = AddressFamilyMemory::new();
                 let caller = async {
                     let current = HttpConnectRoute { authority: if changed { "other.test:443" } else { route.authority }, ..route };
@@ -170,6 +170,7 @@ async fn proxy_extended_connect_resumes_the_original_origin_ticket_context() -> 
             let (address, listener) = loopback_listener().await?;
             let fields = [HttpConnectHeader::authority("Host")];
             let route = HttpConnectRoute {
+                speculative_tls: false,
                 proxy: ProxyTransport::Tcp(Endpoint {
                     host: "127.0.0.1",
                     port: address.port(),

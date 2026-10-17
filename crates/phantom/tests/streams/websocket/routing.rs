@@ -866,6 +866,17 @@ async fn origin_rejection_inside_a_ws_tunnel_is_returned_with_its_body() -> Test
 
 #[tokio::test]
 async fn connects_through_http_connect_without_origin_fallback() -> TestResult<()> {
+    connects_through_http_connect_without_origin_fallback_with_mode(false).await
+}
+
+#[tokio::test]
+async fn speculative_connects_through_http_connect_without_origin_fallback() -> TestResult<()> {
+    connects_through_http_connect_without_origin_fallback_with_mode(true).await
+}
+
+async fn connects_through_http_connect_without_origin_fallback_with_mode(
+    speculative: bool,
+) -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -875,7 +886,7 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
 
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?.with_speculative_tls(speculative));
         let client = client_builder(&identity, false).route(route).build()?;
 
         let origin = ConnectionPeer::spawn(async move {
@@ -982,6 +993,15 @@ async fn basic_proxy_challenge_reconnects_before_websocket_upgrade() -> TestResu
 
 #[tokio::test]
 async fn connects_through_verified_https_proxy() -> TestResult<()> {
+    connects_through_verified_https_proxy_with_mode(false).await
+}
+
+#[tokio::test]
+async fn speculative_connects_through_verified_https_proxy() -> TestResult<()> {
+    connects_through_verified_https_proxy_with_mode(true).await
+}
+
+async fn connects_through_verified_https_proxy_with_mode(speculative: bool) -> TestResult<()> {
     bounded(async {
         let origin_identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -993,7 +1013,7 @@ async fn connects_through_verified_https_proxy() -> TestResult<()> {
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
 
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?.with_speculative_tls(speculative));
         let client = client_builder(&origin_identity, false)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .route(route)

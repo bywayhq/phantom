@@ -51,10 +51,10 @@ fn client(config: &Config, ready: &Ready) -> Result<Client> {
                 .total(Duration::from_secs(15)),
         );
     builder = match config.route.as_str() {
-        "connect" => builder.route(Route::http_proxy(HttpProxy::new(&format!(
-            "http://{}",
-            ready.proxy
-        ))?)),
+        "connect" => builder.route(Route::http_proxy(
+            HttpProxy::new(&format!("http://{}", ready.proxy))?
+                .with_speculative_tls(config.speculative_tls),
+        )),
         "socks5" => builder.route(Route::socks5(Socks5Proxy::new(&format!(
             "socks5://{}",
             ready.proxy

@@ -1,6 +1,12 @@
 //! Quiet HTTP/1 proxy transport before claimant-owned CONNECT and origin TLS.
 
-use std::io;
+use std::{
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
     HttpConnectError, HttpProxyAuthentication, HttpProxyCredentials, ProxyCredentialCache,
@@ -86,6 +92,7 @@ enum ProxyPurpose {
         authority: Box<str>,
         server_name: Box<str>,
         credentials: Option<HttpProxyCredentials>,
+        speculative_tls: bool,
     },
     Forward,
 }
@@ -106,7 +113,7 @@ impl ProxyBinding {
             }
             ProxyTransport::Tls { .. } => return Err(binding_error()),
         };
-        crate::proxy::validate_http_tunnel(route.authority, route.headers, route.credentials)?;
+        validate_request(route)?;
         let credentials = route.credentials.map(|credentials| match credentials {
             HttpProxyAuthentication::Basic(value) => HttpProxyCredentials::Basic(value.clone()),
             HttpProxyAuthentication::Digest(value) => HttpProxyCredentials::Digest(value.clone()),
@@ -119,6 +126,7 @@ impl ProxyBinding {
                 authority: route.authority.into(),
                 server_name: server_name.into(),
                 credentials,
+                speculative_tls: route.speculative_tls,
             },
         })
     }
@@ -169,6 +177,7 @@ impl ProxyBinding {
         let ProxyPurpose::Connect {
             authority,
             credentials,
+            speculative_tls,
             ..
         } = &self.purpose
         else {
@@ -177,6 +186,7 @@ impl ProxyBinding {
         self.matches_transport(route.proxy)
             && route.authority == authority.as_ref()
             && route.credentials == credentials.as_ref().map(HttpProxyCredentials::as_ref)
+            && route.speculative_tls == *speculative_tls
     }
 }
 
@@ -207,7 +217,7 @@ impl ProxyBinding {
         if !self.matches(route) {
             return Err(binding_error());
         }
-        super::validate_http_tunnel(route.authority, route.headers, route.credentials)?;
+        validate_request(route)?;
         Ok(())
     }
 
@@ -247,6 +257,13 @@ impl ProxyBinding {
         let ProxyPurpose::Connect { server_name, .. } = self.purpose else {
             return Err(binding_error());
         };
+        if route.speculative_tls {
+            let request = super::speculative::prepare(route)?;
+            let leg = ConnectionLeg::Speculative(Box::new(
+                super::speculative::SpeculativeConnect::new(stream, request),
+            ));
+            return Ok((leg, server_name));
+        }
         let leg = match stream {
             ProxyStream::Tcp(stream) => ConnectionLeg::HttpConnect(
                 super::connect_http_tunnel_from_stream(
@@ -282,6 +299,69 @@ impl ProxyBinding {
             ProxyStream::HttpsPending(_) => return Err(binding_error()),
         };
         Ok((leg, server_name))
+    }
+}
+
+fn validate_request(route: HttpConnectRoute<'_>) -> Result<(), HttpConnectError> {
+    if route.speculative_tls {
+        super::speculative::prepare(route).map(drop)
+    } else {
+        super::validate_http_tunnel(route.authority, route.headers, route.credentials)
+    }
+}
+
+impl AsyncRead for ProxyStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        output: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => {
+                Pin::new(stream).poll_read(context, output)
+            }
+            Self::HttpsReady(stream) => Pin::new(stream).poll_read(context, output),
+        }
+    }
+}
+
+impl AsyncWrite for ProxyStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        bytes: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.get_mut() {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => {
+                Pin::new(stream).poll_write(context, bytes)
+            }
+            Self::HttpsReady(stream) => Pin::new(stream).poll_write(context, bytes),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => Pin::new(stream).poll_flush(context),
+            Self::HttpsReady(stream) => Pin::new(stream).poll_flush(context),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.get_mut() {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => {
+                Pin::new(stream).poll_shutdown(context)
+            }
+            Self::HttpsReady(stream) => Pin::new(stream).poll_shutdown(context),
+        }
+    }
+}
+
+impl crate::tcp::TcpKeepaliveSource for ProxyStream {
+    fn tcp_keepalive(&self) -> Option<crate::tcp::TcpKeepaliveControl> {
+        match self {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => stream.tcp_keepalive(),
+            Self::HttpsReady(stream) => stream.tcp_keepalive(),
+        }
     }
 }
 

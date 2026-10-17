@@ -54,6 +54,7 @@ fn routed(base: &Route, value: &str) -> TestResult<Route> {
 fn borrowed<'a>(route: &'a Route, authority: &'a str) -> TestResult<HttpConnectRoute<'a>> {
     let proxy = route.as_http_proxy().ok_or("missing proxy")?;
     Ok(HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(NetEndpoint {
             host: proxy.host(),
             port: proxy.port(),
@@ -156,6 +157,7 @@ async fn ready(connections: &Arc<EntryConnections>) -> TestResult<(Http1ProxyOpe
     let address = listener.local_addr()?;
     let fields = [HttpConnectHeader::authority("Host")];
     let route = HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(NetEndpoint {
             host: "127.0.0.1",
             port: address.port(),
@@ -260,7 +262,7 @@ async fn cancelling_a_claim_during_connect_or_origin_tls_never_returns_a_partial
             put(&connections, opening, Instant::now());
             let Checkout::Proxy(claim) = connections.checkout(false) else { return Err("raw opening not claimed".into()); };
             let fields = [HttpConnectHeader::authority("Host")];
-            let route = HttpConnectRoute { proxy: ProxyTransport::Tcp(NetEndpoint { host: "127.0.0.1", port: address.port() }), authority: "127.0.0.1:443", headers: &fields, credentials: None };
+            let route = HttpConnectRoute { speculative_tls: false, proxy: ProxyTransport::Tcp(NetEndpoint { host: "127.0.0.1", port: address.port() }), authority: "127.0.0.1:443", headers: &fields, credentials: None };
             let mut finish = Box::pin(claim.finish(route));
             tokio::select! {
                 result = &mut finish => { drop(result); return Err("CONNECT completed without a response".into()); }

@@ -5,6 +5,7 @@ use tokio::sync::oneshot;
 
 fn route<'a>(port: u16, fields: &'a [HttpConnectHeader]) -> HttpConnectRoute<'a> {
     HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint {
             host: "127.0.0.1",
             port,
@@ -54,11 +55,11 @@ async fn quiet_connect_opening_settles_exact_h2_and_rejects_other_origin_alpn() 
             } else { ProxyTransport::Tcp(Endpoint { host: "127.0.0.1", port: address.port() }) };
             let client = async {
                 let (opening, slower) = connector.open_http_connect_retaining(
-                    HttpConnectRoute { proxy: transport, ..route(address.port(), &fields) }, "127.0.0.1", &family,
+                    HttpConnectRoute { speculative_tls: false, proxy: transport, ..route(address.port(), &fields) }, "127.0.0.1", &family,
                 ).await?;
                 assert!(slower.is_none());
                 checked.await?;
-                let result = opening.finish(HttpConnectRoute { proxy: transport, ..route(address.port(), &fields) }).await;
+                let result = opening.finish(HttpConnectRoute { speculative_tls: false, proxy: transport, ..route(address.port(), &fields) }).await;
                 let _ = finished.send(());
                 Ok::<_, Box<dyn Error + Send + Sync>>(result)
             };
@@ -139,6 +140,7 @@ fn h2_proxy_transport_is_rejected_before_runtime_or_proxy_io() -> TestResult<()>
         .with_http2_settings(&v154_http2());
     let fields = [HttpConnectHeader::authority("host")];
     let route = HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tls {
             endpoint: Endpoint {
                 host: "127.0.0.1",

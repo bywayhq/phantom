@@ -136,6 +136,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "socks5",
                 "socks5_local",
                 "socks_retention",
+                "speculative_connect",
             ],
         ),
         "streams": (

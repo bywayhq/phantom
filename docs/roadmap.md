@@ -682,6 +682,11 @@ first public-client baseline and separates it from later optimization work.
 The [measurement results](internals/client-performance-results.md) record
 the delivered correctness fixes, scaling observations and allocation decisions.
 
+The protocol pass removes unused H2/H3 request allocations and adds opt-in
+CONNECT/TLS overlap for compatible HTTP/1.1 proxies. The H1 copy prototype
+and H3 coordination prototypes were rejected. Broader workload coverage,
+H3 worker scaling and measurements beyond this Windows host remain open.
+
 - Measure the cold cost of building a client for each supported profile.
 - Profile cold and warm connections, proxy routes, multiplexing, streaming
   bodies, SSE, and WebSocket workloads.

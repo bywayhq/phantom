@@ -24,6 +24,7 @@ const WAIT: Duration = Duration::from_secs(5);
 
 fn route(port: u16, headers: &[HttpConnectHeader]) -> HttpConnectRoute<'_> {
     HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint {
             host: "127.0.0.1",
             port,

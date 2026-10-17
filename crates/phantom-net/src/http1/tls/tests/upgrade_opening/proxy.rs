@@ -48,6 +48,7 @@ impl Opening {
 
 fn route(port: u16, fields: &[HttpConnectHeader]) -> HttpConnectRoute<'_> {
     HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint {
             host: "127.0.0.1",
             port,
@@ -161,6 +162,7 @@ async fn invalid_proxy_upgrade_fields_or_binding_close_before_connect() -> TestR
             let (mut peer, _) = listener.accept().await?;
             let claimed = if changed_binding {
                 HttpConnectRoute {
+                    speculative_tls: false,
                     authority: "other.test:443",
                     ..original
                 }

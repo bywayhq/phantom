@@ -36,6 +36,17 @@ const ORIGIN_NAME: &str = "localhost";
 
 #[tokio::test]
 async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
+    h2_websocket_over_http_connect_exchanges_messages_with_mode(false).await
+}
+
+#[tokio::test]
+async fn speculative_h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
+    h2_websocket_over_http_connect_exchanges_messages_with_mode(true).await
+}
+
+async fn h2_websocket_over_http_connect_exchanges_messages_with_mode(
+    speculative: bool,
+) -> TestResult<()> {
     let mut proxy_owner = None;
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
@@ -48,7 +59,10 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
         let client = h2_websocket_client(
             &identity,
             None,
-            Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?),
+            Route::http_proxy(
+                HttpProxy::new(&format!("http://{proxy_address}"))?
+                    .with_speculative_tls(speculative),
+            ),
         )?;
         let socket = client
             .websocket_with_protocol(

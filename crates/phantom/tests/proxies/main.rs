@@ -26,3 +26,4 @@ mod socks5_local;
 mod http_connect_retention;
 
 mod socks_retention;
+mod speculative_connect;

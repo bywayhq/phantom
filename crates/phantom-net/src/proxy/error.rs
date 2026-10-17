@@ -49,6 +49,8 @@ pub enum HttpConnectError {
     ForwardingRequiresHttp1,
     /// HTTP/2 forwarding requires HTTP/2 transport to the proxy.
     ForwardingRequiresHttp2,
+    /// Speculative TLS requires an HTTP/1.1 proxy leg without Digest auth.
+    SpeculativeTlsUnsupported,
     /// The HTTP Basic username is invalid.
     InvalidBasicUsername,
     /// The HTTP Basic password is invalid.
@@ -179,6 +181,7 @@ impl HttpConnectError {
             | Self::MissingH2Alpn
             | Self::MissingHttp2Settings
             | Self::ForwardingRequiresHttp1
+            | Self::SpeculativeTlsUnsupported
             | Self::ForwardingRequiresHttp2 => HttpConnectErrorKind::InvalidConfiguration,
             Self::InvalidBasicUsername
             | Self::InvalidBasicPassword
@@ -245,6 +248,9 @@ impl fmt::Display for HttpConnectError {
             Self::ForwardingRequiresHttp2 => {
                 formatter.write_str("HTTP/2 forwarding requires HTTP/2 transport to the proxy")
             }
+            Self::SpeculativeTlsUnsupported => formatter.write_str(
+                "speculative TLS requires an HTTP/1.1 proxy leg without Digest authentication",
+            ),
             Self::InvalidBasicUsername => {
                 formatter.write_str("HTTP Basic proxy username is invalid")
             }

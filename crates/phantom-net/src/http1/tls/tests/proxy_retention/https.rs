@@ -35,6 +35,7 @@ fn route<'a>(
     credentials: Option<HttpProxyAuthentication<'a>>,
 ) -> HttpConnectRoute<'a> {
     HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tls {
             endpoint: Endpoint {
                 host: "127.0.0.1",
@@ -269,6 +270,7 @@ async fn changed_https_cache_sni_or_auth_scope_sends_no_outer_tls_or_connect() -
                 _ => proxy.clone(),
             };
             let changed = HttpConnectRoute {
+                speculative_tls: false,
                 proxy: ProxyTransport::Tls {
                     endpoint: Endpoint {
                         host: if part == 5 {

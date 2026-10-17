@@ -11,6 +11,7 @@ fn borrowed<'a>(
 ) -> TestResult<HttpConnectRoute<'a>> {
     let proxy = route.as_http_proxy().ok_or("missing HTTPS proxy")?;
     Ok(HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tls {
             endpoint: NetEndpoint {
                 host: proxy.host(),

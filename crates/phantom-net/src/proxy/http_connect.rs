@@ -593,7 +593,7 @@ where
     }
 }
 
-fn parse_response(
+pub(super) fn parse_response(
     head: &[u8],
     inspect_challenge: bool,
 ) -> Result<ParsedResponse, HttpConnectError> {
@@ -623,7 +623,7 @@ fn parse_response(
     })
 }
 
-fn find_head_end(bytes: &[u8]) -> Option<usize> {
+pub(super) fn find_head_end(bytes: &[u8]) -> Option<usize> {
     bytes
         .windows(4)
         .position(|window| window == b"\r\n\r\n")
@@ -713,6 +713,9 @@ pub(super) struct PreparedConnect {
 }
 
 impl PreparedConnect {
+    pub(super) fn into_bytes(self) -> Zeroizing<Vec<u8>> {
+        self.bytes
+    }
     pub(super) fn bytes(&self) -> &[u8] {
         &self.bytes
     }
@@ -866,8 +869,8 @@ enum ExchangeOutcome<S> {
     Retry(Option<S>),
 }
 
-struct ParsedResponse {
-    status: u16,
+pub(super) struct ParsedResponse {
+    pub(super) status: u16,
     authentication: Option<Result<(), HttpConnectError>>,
     /// How a `407` body ends, when the connection outlives it.
     challenge_body: Option<ChallengeBody>,

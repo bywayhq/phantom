@@ -47,6 +47,22 @@ bodies, gzip decoding and server delays. The default matrix has three
 repetitions. Increase repetitions and phase lengths for a decision about a
 small difference. Short cold runs have few observations beyond p99.
 
+## Compare CONNECT overlap
+
+For `route: "connect"`, set `speculative_tls: true` to overlap CONNECT and
+origin TLS. The default is false. Set `proxy_delay_ms` to 0–250 to add a
+userspace propagation delay in each direction of the client-to-proxy link.
+The delay relay queues at most sixteen 16 KiB chunks per direction. Each
+chunk receives its deadline when read, preserving order without serializing
+a new delay after every previous chunk. It does not model bandwidth, loss,
+congestion or a real network stack.
+
+Compare strict and speculative settings with the same binary and delay.
+Use `cold: true`, one origin and low concurrency to measure new connections.
+Warm pooled requests do not repeat CONNECT. Keep instrumented allocations
+separate from ordinary timing. Cold runs include client construction, TLS,
+request processing and destruction in phase CPU and throughput.
+
 ## Measure allocations separately
 
 Keep a copy of the uninstrumented executable and its symbols before building

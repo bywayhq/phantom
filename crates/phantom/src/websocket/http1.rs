@@ -308,6 +308,7 @@ async fn upgrade_proxy(
     };
     let authority = endpoint.tunnel_authority();
     let connect = HttpConnectRoute {
+        speculative_tls: proxy.speculative_tls(),
         proxy: transport,
         authority: &authority,
         headers: proxy.ordered_connect_headers(),
@@ -686,6 +687,8 @@ impl WebSocketRequestBuilder {
                         None => ProxyTransport::Tcp(endpoint),
                     };
                     TcpRoute::HttpConnect(HttpConnectRoute {
+                        speculative_tls: proxy.speculative_tls()
+                            && matches!(request.transport, WebSocketTransport::Tls),
                         proxy: transport,
                         authority: &authority,
                         headers: proxy.ordered_connect_headers(),

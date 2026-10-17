@@ -29,6 +29,7 @@ fn route<'a>(
     credentials: Option<HttpProxyAuthentication<'a>>,
 ) -> HttpConnectRoute<'a> {
     HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint { host, port }),
         authority: "server.phantom.test:443",
         headers: fields,
@@ -58,7 +59,7 @@ async fn an_unclaimed_proxy_opening_is_quiet_and_records_the_proxy_family() -> T
         let fields = fields("unused", true);
         let credentials = HttpBasicCredentials::new("quiet-user", "quiet-secret")?;
         let family = AddressFamilyMemory::default();
-        let (opening, slower) = connector.open_http_connect_retaining(route("127.0.0.1", address.port(), &fields, Some(HttpProxyAuthentication::Basic(&credentials))), TEST_SERVER_NAME, &family).await?;
+        let (opening, slower) = connector.open_http_connect_retaining(HttpConnectRoute { speculative_tls: true, ..route("127.0.0.1", address.port(), &fields, Some(HttpProxyAuthentication::Basic(&credentials))) }, TEST_SERVER_NAME, &family).await?;
         assert!(slower.is_none());
         let debug = format!("{opening:?}");
         assert!(!debug.contains("quiet-user"));
@@ -77,7 +78,7 @@ async fn an_unclaimed_proxy_opening_is_quiet_and_records_the_proxy_family() -> T
 async fn changing_a_proxy_openings_endpoint_authority_or_credentials_sends_no_connect()
 -> TestResult<()> {
     timeout(TEST_TIMEOUT, async {
-        for changed_part in 0..3 {
+        for changed_part in 0..4 {
             let identity = TestIdentity::generate()?;
             let connector = test_connector(&identity)?;
             let (address, listener) = loopback_listener().await?;
@@ -90,7 +91,8 @@ async fn changing_a_proxy_openings_endpoint_authority_or_credentials_sends_no_co
             let changed = if changed_part == 0 {
                 HttpConnectRoute { credentials: Some(HttpProxyAuthentication::Basic(&credentials)), ..original }
             } else if changed_part == 1 { HttpConnectRoute { authority: "other.test:443", ..original } }
-            else { HttpConnectRoute { proxy: ProxyTransport::Tcp(Endpoint { host: "other.invalid", port: address.port() }), ..original } };
+            else if changed_part == 2 { HttpConnectRoute { speculative_tls: false, proxy: ProxyTransport::Tcp(Endpoint { host: "other.invalid", port: address.port() }), ..original } }
+            else { HttpConnectRoute { speculative_tls: true, ..original } };
             let result = opening.finish(changed).await;
             assert!(matches!(result, Err(Http1TlsError::Connect(error)) if error.kind() == io::ErrorKind::InvalidInput));
             let mut bytes = Vec::new();

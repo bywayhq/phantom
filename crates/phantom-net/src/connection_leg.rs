@@ -26,6 +26,11 @@ use crate::{
 #[derive(Debug)]
 pub(crate) enum ConnectionLeg {
     Tcp(ProfileTcpStream),
+    Speculative(
+        Box<
+            crate::proxy::speculative::SpeculativeConnect<crate::proxy::http1_opening::ProxyStream>,
+        >,
+    ),
     HttpConnect(TunnelStream<ProfileTcpStream>),
     HttpsConnect(HttpsProxyTunnel),
     Connected(ConnectedStream),
@@ -94,6 +99,12 @@ pub(crate) async fn connect(
             .await
             .map(ConnectionLeg::Tcp)
             .map_err(ConnectionLegError::Direct),
+        TcpRoute::HttpConnect(route) if route.speculative_tls => {
+            crate::proxy::speculative::connect(route, dialer)
+                .await
+                .map(|stream| ConnectionLeg::Speculative(Box::new(stream)))
+                .map_err(ConnectionLegError::HttpProxy)
+        }
         TcpRoute::HttpConnect(route) => match route.proxy {
             ProxyTransport::Tcp(endpoint) => {
                 let tunnel = match route.credentials {
@@ -235,6 +246,7 @@ impl AsyncRead for ConnectionLeg {
     ) -> Poll<io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
+            Self::Speculative(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
             Self::HttpConnect(stream) => Pin::new(stream).poll_read(context, buffer),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_read(context, buffer),
             Self::Connected(stream) => Pin::new(stream).poll_read(context, buffer),
@@ -250,6 +262,7 @@ impl AsyncWrite for ConnectionLeg {
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
+            Self::Speculative(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
             Self::HttpConnect(stream) => Pin::new(stream).poll_write(context, buffer),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_write(context, buffer),
             Self::Connected(stream) => Pin::new(stream).poll_write(context, buffer),
@@ -259,6 +272,7 @@ impl AsyncWrite for ConnectionLeg {
     fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_flush(context),
+            Self::Speculative(stream) => Pin::new(stream.as_mut()).poll_flush(context),
             Self::HttpConnect(stream) => Pin::new(stream).poll_flush(context),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_flush(context),
             Self::Connected(stream) => Pin::new(stream).poll_flush(context),
@@ -268,6 +282,7 @@ impl AsyncWrite for ConnectionLeg {
     fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::Speculative(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
             Self::HttpConnect(stream) => Pin::new(stream).poll_shutdown(context),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_shutdown(context),
             Self::Connected(stream) => Pin::new(stream).poll_shutdown(context),
@@ -281,6 +296,9 @@ impl AsyncWrite for ConnectionLeg {
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
+            Self::Speculative(stream) => {
+                Pin::new(stream.as_mut()).poll_write_vectored(context, buffers)
+            }
             Self::HttpConnect(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
             Self::Connected(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
@@ -290,6 +308,7 @@ impl AsyncWrite for ConnectionLeg {
     fn is_write_vectored(&self) -> bool {
         match self {
             Self::Tcp(stream) => stream.is_write_vectored(),
+            Self::Speculative(stream) => stream.is_write_vectored(),
             Self::HttpConnect(stream) => stream.is_write_vectored(),
             Self::HttpsConnect(stream) => stream.is_write_vectored(),
             Self::Connected(stream) => stream.is_write_vectored(),
@@ -301,6 +320,7 @@ impl TcpKeepaliveSource for ConnectionLeg {
     fn tcp_keepalive(&self) -> Option<TcpKeepaliveControl> {
         match self {
             Self::Tcp(stream) => stream.tcp_keepalive(),
+            Self::Speculative(stream) => stream.tcp_keepalive(),
             Self::HttpConnect(stream) => stream.tcp_keepalive(),
             Self::HttpsConnect(stream) => stream.tcp_keepalive(),
             Self::Connected(_) => None,

@@ -1,0 +1,338 @@
+[
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h3-stream64k",
+    "output": "heap-0-h3-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-stream64k",
+    "output": "heap-0-h3-stream64k-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-0-firefox-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-0-firefox-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h2-template",
+    "output": "heap-0-h2-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-template",
+    "output": "heap-0-h2-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h3-tiny",
+    "output": "heap-0-h3-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-tiny",
+    "output": "heap-0-h3-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h3-template",
+    "output": "heap-0-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-template",
+    "output": "heap-0-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h1-stream64k",
+    "output": "heap-0-h1-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-stream64k",
+    "output": "heap-0-h1-stream64k-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h1-tiny",
+    "output": "heap-0-h1-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-tiny",
+    "output": "heap-0-h1-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control-heap",
+    "name": "h2-tiny",
+    "output": "heap-0-h2-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-tiny",
+    "output": "heap-0-h2-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-tiny",
+    "output": "heap-1-h2-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h2-tiny",
+    "output": "heap-1-h2-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-template",
+    "output": "heap-1-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h3-template",
+    "output": "heap-1-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-stream64k",
+    "output": "heap-1-h1-stream64k-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h1-stream64k",
+    "output": "heap-1-h1-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-tiny",
+    "output": "heap-1-h3-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h3-tiny",
+    "output": "heap-1-h3-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-stream64k",
+    "output": "heap-1-h3-stream64k-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h3-stream64k",
+    "output": "heap-1-h3-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-1-firefox-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-1-firefox-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-tiny",
+    "output": "heap-1-h1-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h1-tiny",
+    "output": "heap-1-h1-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-template",
+    "output": "heap-1-h2-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control-heap",
+    "name": "h2-template",
+    "output": "heap-1-h2-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h3-tiny",
+    "output": "heap-2-h3-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-tiny",
+    "output": "heap-2-h3-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h1-tiny",
+    "output": "heap-2-h1-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-tiny",
+    "output": "heap-2-h1-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h2-tiny",
+    "output": "heap-2-h2-tiny-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-tiny",
+    "output": "heap-2-h2-tiny-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-2-firefox-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "firefox-h3-template",
+    "output": "heap-2-firefox-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h3-stream64k",
+    "output": "heap-2-h3-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-stream64k",
+    "output": "heap-2-h3-stream64k-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h2-template",
+    "output": "heap-2-h2-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h2-template",
+    "output": "heap-2-h2-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h3-template",
+    "output": "heap-2-h3-template-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h3-template",
+    "output": "heap-2-h3-template-protocol-candidate-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control-heap",
+    "name": "h1-stream64k",
+    "output": "heap-2-h1-stream64k-protocol-control-heap",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-candidate-heap",
+    "name": "h1-stream64k",
+    "output": "heap-2-h1-stream64k-protocol-candidate-heap",
+    "exit": 0
+  }
+]

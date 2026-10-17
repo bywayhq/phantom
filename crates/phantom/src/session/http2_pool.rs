@@ -818,6 +818,7 @@ impl PoolEntry {
         };
         claim
             .finish(phantom_net::route::HttpConnectRoute {
+                speculative_tls: proxy.speculative_tls(),
                 proxy: transport,
                 authority: &authority,
                 headers: proxy.ordered_connect_headers(),
@@ -1018,6 +1019,7 @@ impl PoolEntry {
                     phantom_net::route::ProxyTransport::Tcp(proxy_endpoint)
                 };
                 let connect = phantom_net::route::HttpConnectRoute {
+                    speculative_tls: proxy.speculative_tls(),
                     proxy: transport,
                     authority: &connect_authority,
                     headers: proxy.ordered_connect_headers(),

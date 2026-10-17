@@ -20,6 +20,8 @@ use tokio::{
 };
 use tokio_rustls::TlsAcceptor;
 
+mod delay;
+
 #[derive(Default, Serialize)]
 struct Stats {
     connections: AtomicUsize,
@@ -364,7 +366,28 @@ async fn quic_listener(
     Ok(())
 }
 
-async fn proxy(socket: TcpStream, targets: Arc<Vec<SocketAddr>>, socks: bool) -> Result<()> {
+async fn proxy(
+    socket: TcpStream,
+    targets: Arc<Vec<SocketAddr>>,
+    socks: bool,
+    delay_ms: u64,
+) -> Result<()> {
+    if delay_ms == 0 {
+        return proxy_stream(socket, targets, socks).await;
+    }
+    let (stream, relay) = tokio::io::duplex(64 * 1024);
+    tokio::try_join!(proxy_stream(stream, targets, socks), async {
+        delay::relay(socket, relay, Duration::from_millis(delay_ms)).await?;
+        Result::Ok(())
+    },)?;
+    Ok(())
+}
+
+async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
+    socket: S,
+    targets: Arc<Vec<SocketAddr>>,
+    socks: bool,
+) -> Result<()> {
     let mut stream = BufReader::new(socket);
     let target: SocketAddr = if socks {
         let mut greeting = [0; 2];
@@ -471,8 +494,9 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
                 .fetch_add(1, Ordering::Relaxed);
             let (targets, stats) = (targets.clone(), proxy_stats.clone());
             let socks = config.route == "socks5";
+            let delay_ms = config.proxy_delay_ms;
             connections.spawn(async move {
-                record(proxy(socket, targets, socks).await, &stats);
+                record(proxy(socket, targets, socks, delay_ms).await, &stats);
             });
             while let Some(result) = connections.try_join_next() {
                 result?;

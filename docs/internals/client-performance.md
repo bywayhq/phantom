@@ -150,6 +150,44 @@ or the loopback stack. Inspect observation-buffer size and host load before
 interpreting memory growth or a throughput ceiling. These local runs do not
 establish production capacity under network delay and packet loss.
 
+## Protocol work
+
+Keep origin-visible browser settings intact when removing internal work.
+Proxy-visible timing may change only when the caller enables it.
+
+| Opportunity | Decision | Boundary |
+| --- | --- | --- |
+| H2 content-length formatting | Avoid unused strings | Same validation and fields |
+| H3 request-map checks | Remove redundant allocation | Same order and sensitivity |
+| H1 response-head copy | Reject prototype | Streamed-body regression |
+| CONNECT plus ClientHello | Opt-in implementation | Compatible HTTP/1.1 proxy |
+| QUIC transmit batching | Already present | Quinn segment batching |
+| Larger flow-control windows | Profile policy | Origin-visible frames |
+| Different QPACK or ACK policy | Profile policy | Origin-visible settings and traffic |
+| More connections or coalescing | Explicit pool policy | Changes peer connections |
+| TLS early application data | Separate existing policy | Replay semantics |
+
+CONNECT overlap is distinct from TLS early application data. The origin
+handshake still verifies its peer before sending application requests.
+Basic credentials are preemptive, and proxy rejection closes the connection
+without retry. Digest and outer HTTP/2 are unsupported in this first slice.
+Quiet retained proxy openings remain quiet until claimed.
+
+The peer example is httpcloak's
+[pinned speculative transport](https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/transport/speculative_conn.go).
+Its implementation motivates the experiment, not a performance prediction.
+Classic CONNECT semantics are in
+[RFC 9110 section 9.3.6](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.3.6).
+The separate
+[CONNECT-TCP draft](https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/)
+has its own optimistic-data rules; do not apply those rules retroactively
+to every classic CONNECT implementation.
+
+Measure cold connections with the same binary, alternating strict and
+opt-in configurations. Use bounded userspace delay only as a mechanism
+check. Real network, proxy-vendor and cross-platform results remain separate.
+Keep allocation profiles apart from timing and retain rejected prototypes.
+
 ## Follow-up coverage
 
 The first matrix is a baseline, not completion of the full profiling phase.

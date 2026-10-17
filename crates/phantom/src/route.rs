@@ -301,6 +301,7 @@ pub struct HttpProxy {
     /// `connect_headers` on the wire and are not part of route identity.
     profile_connect_headers: Option<Arc<[HttpConnectHeader]>>,
     credentials: Option<HttpProxyCredentials>,
+    speculative_tls: bool,
 }
 
 impl PartialEq for HttpProxy {
@@ -311,6 +312,7 @@ impl PartialEq for HttpProxy {
             && self.connect_headers == other.connect_headers
             && self.connect_headers_set == other.connect_headers_set
             && self.credentials == other.credentials
+            && self.speculative_tls == other.speculative_tls
     }
 }
 
@@ -332,9 +334,11 @@ impl HttpProxy {
             HttpProxyTransport::Plaintext => 0,
             HttpProxyTransport::Tls => 1,
         })?;
-        e.u8(match self.protocol {
-            HttpsProxyProtocol::Http1 => 0,
-            HttpsProxyProtocol::Http2 => 1,
+        e.u8(match (self.protocol, self.speculative_tls) {
+            (HttpsProxyProtocol::Http1, false) => 0,
+            (HttpsProxyProtocol::Http2, false) => 1,
+            (HttpsProxyProtocol::Http1, true) => 2,
+            (HttpsProxyProtocol::Http2, true) => 3,
             _ => return Err(PreparationError::Unsupported("HttpsProxyProtocol")),
         })?;
         e.text(self.endpoint.host())?;
@@ -414,12 +418,15 @@ impl HttpProxy {
             connect_headers_set: false,
             profile_connect_headers: None,
             credentials: None,
+            speculative_tls: false,
         })
     }
 
     /// Configures challenge-driven HTTP Basic proxy authentication.
     ///
-    /// The first request to the proxy omits credentials. After a valid Basic
+    /// With ordinary setup, the first request to the proxy omits credentials.
+    /// [`Self::with_speculative_tls`] sends them on the first CONNECT.
+    /// After a valid Basic
     /// proxy challenge, Phantom retries once with them. A CONNECT tunnel or
     /// HTTP/1.1 forwarding retries on the challenged proxy connection when the
     /// `407` keeps it open and its body ends within
@@ -540,6 +547,27 @@ impl HttpProxy {
 
         self.protocol = HttpsProxyProtocol::Http2;
         Ok(self)
+    }
+
+    /// Sends CONNECT together with the origin's first TLS write.
+    ///
+    /// Disabled by default. Enable this only for a proxy that buffers tunnel
+    /// bytes before accepting CONNECT. It applies to HTTPS and secure
+    /// WebSocket openings through HTTP/1.1 proxy transport, over TCP or TLS.
+    /// Plaintext forwarding and plaintext WebSockets do not use it.
+    ///
+    /// Configured Basic credentials are sent on the first CONNECT. Any
+    /// rejection closes the connection without a challenge retry. Digest
+    /// authentication and HTTP/2 proxy transport fail before proxy I/O.
+    /// Origin certificate verification and TLS settings remain in effect.
+    #[must_use]
+    pub fn with_speculative_tls(mut self, enabled: bool) -> Self {
+        self.speculative_tls = enabled;
+        self
+    }
+
+    pub(crate) const fn speculative_tls(&self) -> bool {
+        self.speculative_tls
     }
 
     /// Appends one ordered field to the CONNECT request.
@@ -743,6 +771,7 @@ impl fmt::Debug for HttpProxy {
             .field("authority", self.endpoint.authority())
             .field("connect_header_count", &self.connect_headers.len())
             .field("credentials_configured", &self.credentials.is_some())
+            .field("speculative_tls", &self.speculative_tls)
             .finish_non_exhaustive()
     }
 }
@@ -976,6 +1005,22 @@ mod tests {
         assert_eq!(default.trace_name(), "https_connect");
         assert_eq!(http2.trace_name(), "https_h2_connect");
         assert!(format!("{http2:?}").contains("proxy_protocol: \"h2\""));
+        Ok(())
+    }
+
+    #[test]
+    fn speculative_tls_separates_proxy_routes_and_ticket_bindings()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let strict = HttpProxy::new("http://proxy.example:8080")?;
+        let speculative = strict.clone().with_speculative_tls(true);
+        assert_ne!(strict, speculative);
+        assert_eq!(strict, speculative.clone().with_speculative_tls(false));
+        let mut strict_binding = crate::session::TicketBindingEncoder::new();
+        strict.encode_ticket_route(&mut strict_binding)?;
+        let mut speculative_binding = crate::session::TicketBindingEncoder::new();
+        speculative.encode_ticket_route(&mut speculative_binding)?;
+        assert_ne!(strict_binding.finish(), speculative_binding.finish());
+        assert!(format!("{speculative:?}").contains("speculative_tls: true"));
         Ok(())
     }
 

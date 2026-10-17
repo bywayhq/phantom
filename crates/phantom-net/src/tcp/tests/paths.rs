@@ -168,6 +168,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                         host: "127.0.0.1",
                         port: peer.port,
@@ -187,6 +188,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                         host: "127.0.0.1",
                         port: peer.port,
@@ -273,6 +275,7 @@ async fn https_proxy_connections_apply_the_proxy_connectors_tcp_settings() -> Te
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tls {
                         endpoint: crate::route::Endpoint {
                             host: "127.0.0.1",
@@ -320,6 +323,7 @@ async fn http2_connect_paths_apply_tcp_settings() -> TestResult {
         .connect(crate::route::Http2Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    speculative_tls: false,
                     proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                         host: "127.0.0.1",
                         port: peer.port,

@@ -1,0 +1,81 @@
+{
+  "internal-timing": {
+    "accepted_trials": 60,
+    "measured_http_requests": 5700000,
+    "client_constructions": 3000,
+    "selected_complete_pairs_per_case": {
+      "firefox-h3-template": 3,
+      "h1-c1": 3,
+      "h1-c8": 3,
+      "h1-stream64k": 3,
+      "h2-template": 3,
+      "h2-workers8": 3,
+      "h3-stream64k": 3,
+      "h3-template": 3,
+      "h3-workers8": 3,
+      "heldout-construct": 3
+    }
+  },
+  "internal-heap": {
+    "accepted_trials": 48,
+    "measured_http_requests": 5376,
+    "client_constructions": 0,
+    "selected_complete_pairs_per_case": {
+      "firefox-h3-template": 3,
+      "h1-stream64k": 3,
+      "h1-tiny": 3,
+      "h2-template": 3,
+      "h2-tiny": 3,
+      "h3-stream64k": 3,
+      "h3-template": 3,
+      "h3-tiny": 3
+    }
+  },
+  "speculative-timing": {
+    "accepted_trials": 42,
+    "measured_http_requests": 601200,
+    "client_constructions": 0,
+    "selected_complete_pairs_per_case": {
+      "h1-cold-delay0": 3,
+      "h1-cold-delay10": 3,
+      "h1-cold-delay25": 3,
+      "h1-warm": 3,
+      "h2-cold-delay0": 3,
+      "h2-cold-delay10": 2,
+      "h2-cold-delay25": 1,
+      "h2-warm": 3
+    },
+    "attempted_trials": 56,
+    "rejected_trials": 8,
+    "attempted_client_successes": 601760,
+    "attempted_client_failures": 0,
+    "accepted_attempts": 48,
+    "selected_accepted_trials": 42,
+    "accepted_unselected_trials": 6
+  },
+  "speculative-heap": {
+    "accepted_trials": 12,
+    "measured_http_requests": 192,
+    "client_constructions": 0,
+    "selected_complete_pairs_per_case": {
+      "h1-cold-delay0": 3,
+      "h2-cold-delay0": 3
+    },
+    "attempted_trials": 12,
+    "rejected_trials": 0,
+    "attempted_client_successes": 192,
+    "attempted_client_failures": 0,
+    "accepted_attempts": 12,
+    "selected_accepted_trials": 12,
+    "accepted_unselected_trials": 0
+  },
+  "final-default-timing": {
+    "accepted_trials": 12,
+    "measured_http_requests": 1800000,
+    "client_constructions": 0,
+    "selected_complete_pairs_per_case": {
+      "final-h2-workers8": 3,
+      "final-h3-template": 3
+    }
+  }
+}

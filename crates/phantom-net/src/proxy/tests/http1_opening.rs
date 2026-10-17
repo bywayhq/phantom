@@ -16,6 +16,7 @@ fn connect_binding_allows_current_fields_but_not_another_endpoint_or_authority()
         HttpConnectHeader::authority("host"),
     ];
     let route = HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint {
             host: "PROXY.example",
             port: 8080,
@@ -31,6 +32,7 @@ fn connect_binding_allows_current_fields_but_not_another_endpoint_or_authority()
     assert!(
         binding
             .validate_connect(HttpConnectRoute {
+                speculative_tls: false,
                 headers: &current,
                 proxy: ProxyTransport::Tcp(Endpoint {
                     host: "proxy.example",
@@ -42,6 +44,7 @@ fn connect_binding_allows_current_fields_but_not_another_endpoint_or_authority()
     );
     assert!(matches!(
         binding.validate_connect(HttpConnectRoute {
+            speculative_tls: false,
             authority: "other.example:443",
             ..route
         }),
@@ -49,6 +52,7 @@ fn connect_binding_allows_current_fields_but_not_another_endpoint_or_authority()
     ));
     assert!(matches!(
         binding.validate_connect(HttpConnectRoute {
+            speculative_tls: false,
             proxy: ProxyTransport::Tcp(Endpoint {
                 host: "proxy.example",
                 port: 8081
@@ -59,6 +63,7 @@ fn connect_binding_allows_current_fields_but_not_another_endpoint_or_authority()
     ));
     assert!(matches!(
         binding.validate_connect(HttpConnectRoute {
+            speculative_tls: false,
             headers: &[],
             ..route
         }),
@@ -83,6 +88,7 @@ fn connect_binding_retains_credentials_and_validates_their_current_placeholder()
         HttpConnectHeader::proxy_authorization("proxy-authorization"),
     ];
     let route = HttpConnectRoute {
+        speculative_tls: false,
         proxy: ProxyTransport::Tcp(Endpoint {
             host: "proxy.example",
             port: 8080,
@@ -99,6 +105,7 @@ fn connect_binding_retains_credentials_and_validates_their_current_placeholder()
     for credentials in [None, Some(HttpProxyAuthentication::Basic(&changed))] {
         assert!(matches!(
             binding.validate_connect(HttpConnectRoute {
+                speculative_tls: false,
                 credentials,
                 ..route
             }),

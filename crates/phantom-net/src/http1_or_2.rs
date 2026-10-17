@@ -232,7 +232,10 @@ impl From<Socks5Error> for Http1Or2TlsError {
 
 impl From<TlsError> for Http1Or2TlsError {
     fn from(error: TlsError) -> Self {
-        Self::Tls(error)
+        match error.into_speculative_proxy_error() {
+            Ok(error) => Self::Proxy(error),
+            Err(error) => Self::Tls(error),
+        }
     }
 }
 

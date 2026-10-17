@@ -178,7 +178,7 @@ async fn forward_and_connect_purposes_cannot_be_interchanged_before_outer_tls() 
             let (address, listener) = loopback_listener().await?;
             let transport = transport(address.port(), &proxy);
             let headers = [HttpConnectHeader::authority("Host")];
-            let route = HttpConnectRoute { proxy: transport, authority: "target.invalid:443", headers: &headers, credentials: None };
+            let route = HttpConnectRoute { speculative_tls: false, proxy: transport, authority: "target.invalid:443", headers: &headers, credentials: None };
             let family = AddressFamilyMemory::default();
             let (opening, _) = if forward { connector.open_https_forward_retaining(transport, &family).await? }
                 else { connector.open_http_connect_retaining(route, "target.invalid", &family).await? };

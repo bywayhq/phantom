@@ -13,6 +13,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Add opt-in CONNECT/TLS overlap with `HttpProxy::with_speculative_tls`.
+  Compatible HTTP/1.1 proxies receive CONNECT and the first origin TLS write
+  together. Basic credentials are preemptive and rejection is terminal.
+  Digest and HTTP/2 proxy transport are rejected before I/O.
+  Migrate: add `speculative_tls: false` to `HttpConnectRoute` literals to
+  retain sequential setup. Origin certificate checks remain enabled.
+
 - Require CPython 3.12.3 or later for Windows SSE captures over HTTP/3.
   Migrate: replace Python 3.10 or 3.11 in those capture commands with the
   interpreter pinned in `scripts/capture/windows-python-version.txt`, or

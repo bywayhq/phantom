@@ -1030,6 +1030,7 @@ impl PoolEntry {
         }
         claim
             .finish(HttpConnectRoute {
+                speculative_tls: proxy.speculative_tls(),
                 proxy: transport,
                 authority: &authority,
                 headers: proxy.ordered_connect_headers(),
@@ -1157,6 +1158,7 @@ impl PoolEntry {
                         if connector.protocol() == phantom_net::proxy::HttpsProxyProtocol::Http1))
                 {
                     let connect_route = HttpConnectRoute {
+                        speculative_tls: proxy.speculative_tls(),
                         proxy: transport,
                         authority: &authority,
                         headers: proxy.ordered_connect_headers(),
@@ -1175,6 +1177,8 @@ impl PoolEntry {
                     return Ok((connection, None));
                 }
                 TcpRoute::HttpConnect(HttpConnectRoute {
+                    speculative_tls: proxy.speculative_tls()
+                        && mode == Http1ConnectionMode::TlsOrigin,
                     proxy: transport,
                     authority: &authority,
                     headers: proxy.ordered_connect_headers(),

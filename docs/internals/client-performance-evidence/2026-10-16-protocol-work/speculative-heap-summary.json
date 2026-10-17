@@ -1,0 +1,1530 @@
+{
+  "h1-cold-delay0": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 98.666765333432,
+        "client_cpu_us_per_success": 10742.1875,
+        "peer_cpu_s": 0.015625,
+        "sampled_peak_rss_bytes": 24301568,
+        "sampled_peak_private_bytes": 12816384,
+        "start_rss_bytes": 19484672,
+        "end_rss_bytes": 21139456,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8260300,
+            "p95": 8830600,
+            "p99": 8830600,
+            "mean": 8131131.25
+          },
+          "first_byte_ns": {
+            "p50": 8270500,
+            "p95": 8843700,
+            "p99": 8843700,
+            "mean": 8139006.25
+          },
+          "complete_ns": {
+            "p50": 8271500,
+            "p95": 8844400,
+            "p99": 8844400,
+            "mean": 8139706.25
+          },
+          "build_ns": {
+            "p50": 6394400,
+            "p95": 6695700,
+            "p99": 6695700,
+            "mean": 6327231.25
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8271500,
+            "p95": 8844400,
+            "p99": 8844400
+          }
+        },
+        "directory": "speculative-heap-0-h1-cold-delay0-strict\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 12715700,
+              "index": 0,
+              "park_unpark_transitions": 51,
+              "parks": 26
+            },
+            {
+              "busy_ns": 29709900,
+              "index": 1,
+              "park_unpark_transitions": 55,
+              "parks": 28
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 75908600,
+              "index": 0,
+              "park_unpark_transitions": 231,
+              "parks": 116
+            },
+            {
+              "busy_ns": 132817800,
+              "index": 1,
+              "park_unpark_transitions": 238,
+              "parks": 119
+            }
+          ]
+        },
+        "complete_ns_p50": 8271500,
+        "complete_ns_p95": 8844400,
+        "complete_ns_p99": 8844400,
+        "head_ns_p50": 8260300,
+        "head_ns_p95": 8830600,
+        "head_ns_p99": 8830600,
+        "build_ns_p50": 6394400,
+        "build_ns_p95": 6695700,
+        "build_ns_p99": 6695700,
+        "host_busy_percent": 38.05774278215223,
+        "allocated_bytes": 2583769,
+        "allocated_blocks": 12131,
+        "new_live_peak_bytes": 114731,
+        "heap_sha256": "89dac2ae2f6ed79de3e0ca3a368d74ca1046353983958c96980155f18fe023bb"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 92.92271559667127,
+        "client_cpu_us_per_success": 10742.1875,
+        "peer_cpu_s": 0.015625,
+        "sampled_peak_rss_bytes": 23572480,
+        "sampled_peak_private_bytes": 12476416,
+        "start_rss_bytes": 19320832,
+        "end_rss_bytes": 20520960,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8146900,
+            "p95": 12546100,
+            "p99": 12546100,
+            "mean": 8532043.75
+          },
+          "first_byte_ns": {
+            "p50": 8153700,
+            "p95": 12559600,
+            "p99": 12559600,
+            "mean": 8541050
+          },
+          "complete_ns": {
+            "p50": 8154400,
+            "p95": 12560800,
+            "p99": 12560800,
+            "mean": 8541843.75
+          },
+          "build_ns": {
+            "p50": 6310400,
+            "p95": 9726200,
+            "p99": 9726200,
+            "mean": 6661943.75
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8154400,
+            "p95": 12560800,
+            "p99": 12560800
+          }
+        },
+        "directory": "speculative-heap-0-h1-cold-delay0-overlap\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13762300,
+              "index": 0,
+              "park_unpark_transitions": 49,
+              "parks": 25
+            },
+            {
+              "busy_ns": 29304000,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 71910600,
+              "index": 0,
+              "park_unpark_transitions": 229,
+              "parks": 115
+            },
+            {
+              "busy_ns": 146727700,
+              "index": 1,
+              "park_unpark_transitions": 250,
+              "parks": 125
+            }
+          ]
+        },
+        "complete_ns_p50": 8154400,
+        "complete_ns_p95": 12560800,
+        "complete_ns_p99": 12560800,
+        "head_ns_p50": 8146900,
+        "head_ns_p95": 12546100,
+        "head_ns_p99": 12546100,
+        "build_ns_p50": 6310400,
+        "build_ns_p95": 9726200,
+        "build_ns_p99": 9726200,
+        "host_busy_percent": 42.5,
+        "allocated_bytes": 2830953,
+        "allocated_blocks": 12083,
+        "new_live_peak_bytes": 115012,
+        "heap_sha256": "dceb51385cb0a57f61106b9372b96a394bdb631671dd5bcd472dded370159f9e"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.56679950877961,
+        "allocated_blocks": -0.3956804880059339,
+        "new_live_peak_bytes": 0.2449207276150389
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 94.93374218131632,
+        "client_cpu_us_per_success": 10742.1875,
+        "peer_cpu_s": 0.015625,
+        "sampled_peak_rss_bytes": 23908352,
+        "sampled_peak_private_bytes": 12701696,
+        "start_rss_bytes": 19640320,
+        "end_rss_bytes": 21000192,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8350100,
+            "p95": 9439100,
+            "p99": 9439100,
+            "mean": 8441543.75
+          },
+          "first_byte_ns": {
+            "p50": 8360600,
+            "p95": 9452800,
+            "p99": 9452800,
+            "mean": 8450018.75
+          },
+          "complete_ns": {
+            "p50": 8361400,
+            "p95": 9453600,
+            "p99": 9453600,
+            "mean": 8450756.25
+          },
+          "build_ns": {
+            "p50": 6357300,
+            "p95": 6742200,
+            "p99": 6742200,
+            "mean": 6437318.75
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8361400,
+            "p95": 9453600,
+            "p99": 9453600
+          }
+        },
+        "directory": "speculative-heap-1-h1-cold-delay0-strict\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 14799500,
+              "index": 0,
+              "park_unpark_transitions": 63,
+              "parks": 32
+            },
+            {
+              "busy_ns": 27928700,
+              "index": 1,
+              "park_unpark_transitions": 41,
+              "parks": 21
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 92793200,
+              "index": 0,
+              "park_unpark_transitions": 269,
+              "parks": 135
+            },
+            {
+              "busy_ns": 121483100,
+              "index": 1,
+              "park_unpark_transitions": 228,
+              "parks": 114
+            }
+          ]
+        },
+        "complete_ns_p50": 8361400,
+        "complete_ns_p95": 9453600,
+        "complete_ns_p99": 9453600,
+        "head_ns_p50": 8350100,
+        "head_ns_p95": 9439100,
+        "head_ns_p99": 9439100,
+        "build_ns_p50": 6357300,
+        "build_ns_p95": 6742200,
+        "build_ns_p99": 6742200,
+        "host_busy_percent": 42.780748663101605,
+        "allocated_bytes": 2583769,
+        "allocated_blocks": 12131,
+        "new_live_peak_bytes": 114731,
+        "heap_sha256": "51dc0eb317436aa6dedfc3e9625018abd9382b67ed505880c84fd4cb672332d5"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 102.51435681531461,
+        "client_cpu_us_per_success": 7812.5,
+        "peer_cpu_s": 0.0625,
+        "sampled_peak_rss_bytes": 23953408,
+        "sampled_peak_private_bytes": 12611584,
+        "start_rss_bytes": 19365888,
+        "end_rss_bytes": 21704704,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 7541200,
+            "p95": 16079700,
+            "p99": 16079700,
+            "mean": 8208681.25
+          },
+          "first_byte_ns": {
+            "p50": 7547100,
+            "p95": 16089200,
+            "p99": 16089200,
+            "mean": 8216106.25
+          },
+          "complete_ns": {
+            "p50": 7547700,
+            "p95": 16089900,
+            "p99": 16089900,
+            "mean": 8216856.25
+          },
+          "build_ns": {
+            "p50": 6000700,
+            "p95": 6877700,
+            "p99": 6877700,
+            "mean": 6034331.25
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 7547700,
+            "p95": 16089900,
+            "p99": 16089900
+          }
+        },
+        "directory": "speculative-heap-1-h1-cold-delay0-overlap\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 23115600,
+              "index": 0,
+              "park_unpark_transitions": 49,
+              "parks": 25
+            },
+            {
+              "busy_ns": 22824100,
+              "index": 1,
+              "park_unpark_transitions": 43,
+              "parks": 22
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 106094700,
+              "index": 0,
+              "park_unpark_transitions": 255,
+              "parks": 128
+            },
+            {
+              "busy_ns": 89287700,
+              "index": 1,
+              "park_unpark_transitions": 222,
+              "parks": 111
+            }
+          ]
+        },
+        "complete_ns_p50": 7547700,
+        "complete_ns_p95": 16089900,
+        "complete_ns_p99": 16089900,
+        "head_ns_p50": 7541200,
+        "head_ns_p95": 16079700,
+        "head_ns_p99": 16079700,
+        "build_ns_p50": 6000700,
+        "build_ns_p95": 6877700,
+        "build_ns_p99": 6877700,
+        "host_busy_percent": 28.977272727272727,
+        "allocated_bytes": 2830921,
+        "allocated_blocks": 12083,
+        "new_live_peak_bytes": 115011,
+        "heap_sha256": "352d57110da91b8a6362d73cebc9a378339eca2deb4a41926e76af5d413796a4"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.56556100796937,
+        "allocated_blocks": -0.3956804880059339,
+        "new_live_peak_bytes": 0.24404912360216358
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 96.61474026938605,
+        "client_cpu_us_per_success": 9765.625,
+        "peer_cpu_s": 0.0,
+        "sampled_peak_rss_bytes": 24240128,
+        "sampled_peak_private_bytes": 12869632,
+        "start_rss_bytes": 19324928,
+        "end_rss_bytes": 21917696,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8252100,
+            "p95": 9517500,
+            "p99": 9517500,
+            "mean": 8384943.75
+          },
+          "first_byte_ns": {
+            "p50": 8261400,
+            "p95": 9526600,
+            "p99": 9526600,
+            "mean": 8394881.25
+          },
+          "complete_ns": {
+            "p50": 8262400,
+            "p95": 9527400,
+            "p99": 9527400,
+            "mean": 8395762.5
+          },
+          "build_ns": {
+            "p50": 6352600,
+            "p95": 7439000,
+            "p99": 7439000,
+            "mean": 6416381.25
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8262400,
+            "p95": 9527400,
+            "p99": 9527400
+          }
+        },
+        "directory": "speculative-heap-2-h1-cold-delay0-strict\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 5237600,
+              "index": 0,
+              "park_unpark_transitions": 39,
+              "parks": 20
+            },
+            {
+              "busy_ns": 36764100,
+              "index": 1,
+              "park_unpark_transitions": 61,
+              "parks": 31
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 76637200,
+              "index": 0,
+              "park_unpark_transitions": 243,
+              "parks": 122
+            },
+            {
+              "busy_ns": 133220400,
+              "index": 1,
+              "park_unpark_transitions": 258,
+              "parks": 129
+            }
+          ]
+        },
+        "complete_ns_p50": 8262400,
+        "complete_ns_p95": 9527400,
+        "complete_ns_p99": 9527400,
+        "head_ns_p50": 8252100,
+        "head_ns_p95": 9517500,
+        "head_ns_p99": 9517500,
+        "build_ns_p50": 6352600,
+        "build_ns_p95": 7439000,
+        "build_ns_p99": 7439000,
+        "host_busy_percent": 35.78947368421053,
+        "allocated_bytes": 2583801,
+        "allocated_blocks": 12131,
+        "new_live_peak_bytes": 114732,
+        "heap_sha256": "9218fdf6ffbd7550063aa218c23a9ed49d82cfd236a657f019f2624ac88f505a"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 73.44088444857141,
+        "client_cpu_us_per_success": 14648.4375,
+        "peer_cpu_s": 0.03125,
+        "sampled_peak_rss_bytes": 23666688,
+        "sampled_peak_private_bytes": 12615680,
+        "start_rss_bytes": 19152896,
+        "end_rss_bytes": 21561344,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h1-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h1",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 10563600,
+            "p95": 13703000,
+            "p99": 13703000,
+            "mean": 11086000
+          },
+          "first_byte_ns": {
+            "p50": 10573000,
+            "p95": 13721600,
+            "p99": 13721600,
+            "mean": 11098225
+          },
+          "complete_ns": {
+            "p50": 10574000,
+            "p95": 13723600,
+            "p99": 13723600,
+            "mean": 11099225
+          },
+          "build_ns": {
+            "p50": 8103900,
+            "p95": 10355900,
+            "p99": 10355900,
+            "mean": 8329725
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 10574000,
+            "p95": 13723600,
+            "p99": 13723600
+          }
+        },
+        "directory": "speculative-heap-2-h1-cold-delay0-overlap\\000-h1-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13969100,
+              "index": 0,
+              "park_unpark_transitions": 43,
+              "parks": 22
+            },
+            {
+              "busy_ns": 30755600,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 127323300,
+              "index": 0,
+              "park_unpark_transitions": 232,
+              "parks": 116
+            },
+            {
+              "busy_ns": 137926400,
+              "index": 1,
+              "park_unpark_transitions": 245,
+              "parks": 123
+            }
+          ]
+        },
+        "complete_ns_p50": 10574000,
+        "complete_ns_p95": 13723600,
+        "complete_ns_p99": 13723600,
+        "head_ns_p50": 10563600,
+        "head_ns_p95": 13703000,
+        "head_ns_p99": 13703000,
+        "build_ns_p50": 8103900,
+        "build_ns_p95": 10355900,
+        "build_ns_p99": 10355900,
+        "host_busy_percent": 65.625,
+        "allocated_bytes": 2830953,
+        "allocated_blocks": 12083,
+        "new_live_peak_bytes": 115012,
+        "heap_sha256": "b1201121a9156132468ba44e5043b57e7275f2888507e522449b7408eed29027"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.565442539886003,
+        "allocated_blocks": -0.3956804880059339,
+        "new_live_peak_bytes": 0.24404699647875283
+      }
+    }
+  ],
+  "h2-cold-delay0": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 62.1632741707322,
+        "client_cpu_us_per_success": 15625.0,
+        "peer_cpu_s": 0.015625,
+        "sampled_peak_rss_bytes": 24551424,
+        "sampled_peak_private_bytes": 13357056,
+        "start_rss_bytes": 20217856,
+        "end_rss_bytes": 22671360,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 12492600,
+            "p95": 15962300,
+            "p99": 15962300,
+            "mean": 12652881.25
+          },
+          "first_byte_ns": {
+            "p50": 12506600,
+            "p95": 15971200,
+            "p99": 15971200,
+            "mean": 12664725
+          },
+          "complete_ns": {
+            "p50": 12508300,
+            "p95": 15972100,
+            "p99": 15972100,
+            "mean": 12665812.5
+          },
+          "build_ns": {
+            "p50": 8864500,
+            "p95": 12263300,
+            "p99": 12263300,
+            "mean": 9368450
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 12508300,
+            "p95": 15972100,
+            "p99": 15972100
+          }
+        },
+        "directory": "speculative-heap-0-h2-cold-delay0-strict\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 36544700,
+              "index": 0,
+              "park_unpark_transitions": 53,
+              "parks": 27
+            },
+            {
+              "busy_ns": 15077300,
+              "index": 1,
+              "park_unpark_transitions": 33,
+              "parks": 17
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 73956500,
+              "index": 0,
+              "park_unpark_transitions": 134,
+              "parks": 67
+            },
+            {
+              "busy_ns": 240109900,
+              "index": 1,
+              "park_unpark_transitions": 227,
+              "parks": 114
+            }
+          ]
+        },
+        "complete_ns_p50": 12508300,
+        "complete_ns_p95": 15972100,
+        "complete_ns_p99": 15972100,
+        "head_ns_p50": 12492600,
+        "head_ns_p95": 15962300,
+        "head_ns_p99": 15962300,
+        "build_ns_p50": 8864500,
+        "build_ns_p95": 12263300,
+        "build_ns_p99": 12263300,
+        "host_busy_percent": 63.81578947368421,
+        "allocated_bytes": 2542235,
+        "allocated_blocks": 11959,
+        "new_live_peak_bytes": 122582,
+        "heap_sha256": "feaf19693bdc8236f88ce9ea5cf9e25eb10aaf7a97166914fb0a788c8ced47cf"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 101.17956400461127,
+        "client_cpu_us_per_success": 10742.1875,
+        "peer_cpu_s": 0.0,
+        "sampled_peak_rss_bytes": 23908352,
+        "sampled_peak_private_bytes": 12427264,
+        "start_rss_bytes": 20193280,
+        "end_rss_bytes": 22700032,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8096100,
+            "p95": 8893000,
+            "p99": 8893000,
+            "mean": 8066381.25
+          },
+          "first_byte_ns": {
+            "p50": 8100700,
+            "p95": 8898600,
+            "p99": 8898600,
+            "mean": 8071712.5
+          },
+          "complete_ns": {
+            "p50": 8101300,
+            "p95": 8899500,
+            "p99": 8899500,
+            "mean": 8072406.25
+          },
+          "build_ns": {
+            "p50": 6221800,
+            "p95": 7084100,
+            "p99": 7084100,
+            "mean": 6222393.75
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8101300,
+            "p95": 8899500,
+            "p99": 8899500
+          }
+        },
+        "directory": "speculative-heap-0-h2-cold-delay0-overlap\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 29360800,
+              "index": 0,
+              "park_unpark_transitions": 63,
+              "parks": 32
+            },
+            {
+              "busy_ns": 12576600,
+              "index": 1,
+              "park_unpark_transitions": 17,
+              "parks": 9
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 111875500,
+              "index": 0,
+              "park_unpark_transitions": 199,
+              "parks": 100
+            },
+            {
+              "busy_ns": 91849500,
+              "index": 1,
+              "park_unpark_transitions": 130,
+              "parks": 65
+            }
+          ]
+        },
+        "complete_ns_p50": 8101300,
+        "complete_ns_p95": 8899500,
+        "complete_ns_p99": 8899500,
+        "head_ns_p50": 8096100,
+        "head_ns_p95": 8893000,
+        "head_ns_p99": 8893000,
+        "build_ns_p50": 6221800,
+        "build_ns_p95": 7084100,
+        "build_ns_p99": 7084100,
+        "host_busy_percent": 30.729166666666668,
+        "allocated_bytes": 2794139,
+        "allocated_blocks": 11975,
+        "new_live_peak_bytes": 122862,
+        "heap_sha256": "4e21ff6725535ed6e4ec981a8cace045efb94938b9a44388c83d12d9d7a1a520"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.908761385159126,
+        "allocated_blocks": 0.13379045070658346,
+        "new_live_peak_bytes": 0.22841852800574713
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 69.74406543388218,
+        "client_cpu_us_per_success": 11718.75,
+        "peer_cpu_s": 0.0625,
+        "sampled_peak_rss_bytes": 24612864,
+        "sampled_peak_private_bytes": 13258752,
+        "start_rss_bytes": 20086784,
+        "end_rss_bytes": 22626304,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8937500,
+            "p95": 28118800,
+            "p99": 28118800,
+            "mean": 12045975
+          },
+          "first_byte_ns": {
+            "p50": 8944200,
+            "p95": 28125900,
+            "p99": 28125900,
+            "mean": 12052387.5
+          },
+          "complete_ns": {
+            "p50": 8945000,
+            "p95": 28126700,
+            "p99": 28126700,
+            "mean": 12053175
+          },
+          "build_ns": {
+            "p50": 6525600,
+            "p95": 7650600,
+            "p99": 7650600,
+            "mean": 6718456.25
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8945000,
+            "p95": 28126700,
+            "p99": 28126700
+          }
+        },
+        "directory": "speculative-heap-1-h2-cold-delay0-strict\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 27341800,
+              "index": 0,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            },
+            {
+              "busy_ns": 13315400,
+              "index": 1,
+              "park_unpark_transitions": 31,
+              "parks": 16
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 51835200,
+              "index": 0,
+              "park_unpark_transitions": 116,
+              "parks": 58
+            },
+            {
+              "busy_ns": 172725600,
+              "index": 1,
+              "park_unpark_transitions": 215,
+              "parks": 108
+            }
+          ]
+        },
+        "complete_ns_p50": 8945000,
+        "complete_ns_p95": 28126700,
+        "complete_ns_p99": 28126700,
+        "head_ns_p50": 8937500,
+        "head_ns_p95": 28118800,
+        "head_ns_p99": 28118800,
+        "build_ns_p50": 6525600,
+        "build_ns_p95": 7650600,
+        "build_ns_p99": 7650600,
+        "host_busy_percent": 44.53280318091451,
+        "allocated_bytes": 2542073,
+        "allocated_blocks": 11955,
+        "new_live_peak_bytes": 122581,
+        "heap_sha256": "f4badf18fdf84d224810c59cbcab56fb645a2b8b46b4ea25995e5e9c89c22b3a"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 97.38662978959618,
+        "client_cpu_us_per_success": 9765.625,
+        "peer_cpu_s": 0.03125,
+        "sampled_peak_rss_bytes": 24543232,
+        "sampled_peak_private_bytes": 13238272,
+        "start_rss_bytes": 20307968,
+        "end_rss_bytes": 20549632,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 8062500,
+            "p95": 10256300,
+            "p99": 10256300,
+            "mean": 8423075
+          },
+          "first_byte_ns": {
+            "p50": 8067700,
+            "p95": 10264400,
+            "p99": 10264400,
+            "mean": 8428956.25
+          },
+          "complete_ns": {
+            "p50": 8068500,
+            "p95": 10265200,
+            "p99": 10265200,
+            "mean": 8429693.75
+          },
+          "build_ns": {
+            "p50": 6317100,
+            "p95": 7596600,
+            "p99": 7596600,
+            "mean": 6390781.25
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 8068500,
+            "p95": 10265200,
+            "p99": 10265200
+          }
+        },
+        "directory": "speculative-heap-1-h2-cold-delay0-overlap\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 35829100,
+              "index": 0,
+              "park_unpark_transitions": 65,
+              "parks": 33
+            },
+            {
+              "busy_ns": 13490500,
+              "index": 1,
+              "park_unpark_transitions": 17,
+              "parks": 9
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 120363100,
+              "index": 0,
+              "park_unpark_transitions": 194,
+              "parks": 97
+            },
+            {
+              "busy_ns": 95516300,
+              "index": 1,
+              "park_unpark_transitions": 135,
+              "parks": 68
+            }
+          ]
+        },
+        "complete_ns_p50": 8068500,
+        "complete_ns_p95": 10265200,
+        "complete_ns_p99": 10265200,
+        "head_ns_p50": 8062500,
+        "head_ns_p95": 10256300,
+        "head_ns_p99": 10256300,
+        "build_ns_p50": 6317100,
+        "build_ns_p95": 7596600,
+        "build_ns_p99": 7596600,
+        "host_busy_percent": 31.25,
+        "allocated_bytes": 2794139,
+        "allocated_blocks": 11975,
+        "new_live_peak_bytes": 122862,
+        "heap_sha256": "c490a5f74a6600d449f022a60a2076b8ffe97677b30b171b77334bf7c21887c9"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.915765597604786,
+        "allocated_blocks": 0.16729401923880616,
+        "new_live_peak_bytes": 0.2292361785268593
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 89.13917187480848,
+        "client_cpu_us_per_success": 11718.75,
+        "peer_cpu_s": 0.0,
+        "sampled_peak_rss_bytes": 23789568,
+        "sampled_peak_private_bytes": 12566528,
+        "start_rss_bytes": 20578304,
+        "end_rss_bytes": 20549632,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": false,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 9079000,
+            "p95": 9957800,
+            "p99": 9957800,
+            "mean": 8992006.25
+          },
+          "first_byte_ns": {
+            "p50": 9088100,
+            "p95": 9963500,
+            "p99": 9963500,
+            "mean": 8998475
+          },
+          "complete_ns": {
+            "p50": 9089000,
+            "p95": 9964200,
+            "p99": 9964200,
+            "mean": 8999206.25
+          },
+          "build_ns": {
+            "p50": 6596800,
+            "p95": 7597800,
+            "p99": 7597800,
+            "mean": 6704012.5
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 9089000,
+            "p95": 9964200,
+            "p99": 9964200
+          }
+        },
+        "directory": "speculative-heap-2-h2-cold-delay0-strict\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 31940400,
+              "index": 0,
+              "park_unpark_transitions": 69,
+              "parks": 35
+            },
+            {
+              "busy_ns": 11772500,
+              "index": 1,
+              "park_unpark_transitions": 17,
+              "parks": 9
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 47140600,
+              "index": 0,
+              "park_unpark_transitions": 140,
+              "parks": 70
+            },
+            {
+              "busy_ns": 178032700,
+              "index": 1,
+              "park_unpark_transitions": 199,
+              "parks": 100
+            }
+          ]
+        },
+        "complete_ns_p50": 9089000,
+        "complete_ns_p95": 9964200,
+        "complete_ns_p99": 9964200,
+        "head_ns_p50": 9079000,
+        "head_ns_p95": 9957800,
+        "head_ns_p99": 9957800,
+        "build_ns_p50": 6596800,
+        "build_ns_p95": 7597800,
+        "build_ns_p99": 7597800,
+        "host_busy_percent": 47.135416666666664,
+        "allocated_bytes": 2542203,
+        "allocated_blocks": 11959,
+        "new_live_peak_bytes": 122581,
+        "heap_sha256": "2c573568a25f1412e2dbfe56def855cdfb088271275b8063ec04613ef1ba5f2a"
+      },
+      "candidate": {
+        "successes": 16,
+        "failures": 0,
+        "completed_requests_s": 109.76308324500836,
+        "client_cpu_us_per_success": 8789.0625,
+        "peer_cpu_s": 0.015625,
+        "sampled_peak_rss_bytes": 24428544,
+        "sampled_peak_private_bytes": 13262848,
+        "start_rss_bytes": 20254720,
+        "end_rss_bytes": 22069248,
+        "observer_storage_bytes": 1664,
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": true,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h2-cold-delay0",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "proxy_delay_ms": 0,
+          "requests": 16,
+          "route": "connect",
+          "server_delay_ms": 0,
+          "speculative_tls": true,
+          "template": false,
+          "warmup": 4,
+          "workers": 2
+        },
+        "timing": {
+          "head_ns": {
+            "p50": 7626700,
+            "p95": 8509500,
+            "p99": 8509500,
+            "mean": 7714181.25
+          },
+          "first_byte_ns": {
+            "p50": 7631500,
+            "p95": 8514000,
+            "p99": 8514000,
+            "mean": 7718318.75
+          },
+          "complete_ns": {
+            "p50": 7632300,
+            "p95": 8514700,
+            "p99": 8514700,
+            "mean": 7719062.5
+          },
+          "build_ns": {
+            "p50": 5939600,
+            "p95": 6575100,
+            "p99": 6575100,
+            "mean": 6043850
+          },
+          "application_wait_ns": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "mean": 0
+          },
+          "scheduled_to_complete_ns": {
+            "p50": 7632300,
+            "p95": 8514700,
+            "p99": 8514700
+          }
+        },
+        "directory": "speculative-heap-2-h2-cold-delay0-overlap\\000-h2-cold-delay0-r0",
+        "runtime_start": {
+          "alive_tasks": 0,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 25008500,
+              "index": 0,
+              "park_unpark_transitions": 67,
+              "parks": 34
+            },
+            {
+              "busy_ns": 11546700,
+              "index": 1,
+              "park_unpark_transitions": 17,
+              "parks": 9
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 2,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 77326600,
+              "index": 0,
+              "park_unpark_transitions": 173,
+              "parks": 87
+            },
+            {
+              "busy_ns": 106759700,
+              "index": 1,
+              "park_unpark_transitions": 144,
+              "parks": 72
+            }
+          ]
+        },
+        "complete_ns_p50": 7632300,
+        "complete_ns_p95": 8514700,
+        "complete_ns_p99": 8514700,
+        "head_ns_p50": 7626700,
+        "head_ns_p95": 8509500,
+        "head_ns_p99": 8509500,
+        "build_ns_p50": 5939600,
+        "build_ns_p95": 6575100,
+        "build_ns_p99": 6575100,
+        "host_busy_percent": 20.0,
+        "allocated_bytes": 2794107,
+        "allocated_blocks": 11975,
+        "new_live_peak_bytes": 122861,
+        "heap_sha256": "675776966970b25371f33a73a433fa780345216b17e2dddd7caf156dd07ad18a"
+      },
+      "percent_change": {
+        "allocated_bytes": 9.908886111769988,
+        "allocated_blocks": 0.13379045070658346,
+        "new_live_peak_bytes": 0.2284203914146632
+      }
+    }
+  ]
+}

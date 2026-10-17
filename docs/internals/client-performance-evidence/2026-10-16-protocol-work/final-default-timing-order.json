@@ -1,0 +1,86 @@
+[
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-0-final-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-final-v2",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-0-final-h2-workers8-protocol-final-v2",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-control",
+    "name": "final-h3-template",
+    "output": "final-default-timing-0-final-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "protocol-final-v2",
+    "name": "final-h3-template",
+    "output": "final-default-timing-0-final-h3-template-protocol-final-v2",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-final-v2",
+    "name": "final-h3-template",
+    "output": "final-default-timing-1-final-h3-template-protocol-final-v2",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "final-h3-template",
+    "output": "final-default-timing-1-final-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-final-v2",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-1-final-h2-workers8-protocol-final-v2",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "protocol-control",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-1-final-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-2-final-h2-workers8-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-final-v2",
+    "name": "final-h2-workers8",
+    "output": "final-default-timing-2-final-h2-workers8-protocol-final-v2",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-control",
+    "name": "final-h3-template",
+    "output": "final-default-timing-2-final-h3-template-protocol-control",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "protocol-final-v2",
+    "name": "final-h3-template",
+    "output": "final-default-timing-2-final-h3-template-protocol-final-v2",
+    "exit": 0
+  }
+]

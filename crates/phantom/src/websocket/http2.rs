@@ -186,6 +186,7 @@ async fn extended_connect_proxy(
     };
     let authority = endpoint.tunnel_authority();
     let connect = phantom_net::route::HttpConnectRoute {
+        speculative_tls: proxy.speculative_tls(),
         proxy: transport,
         authority: &authority,
         headers: proxy.ordered_connect_headers(),
@@ -627,6 +628,7 @@ impl WebSocketRequestBuilder {
                                 phantom_net::route::OriginRoute::Tls {
                                     tcp: phantom_net::route::TcpRoute::HttpConnect(
                                         phantom_net::route::HttpConnectRoute {
+                                            speculative_tls: proxy.speculative_tls(),
                                             proxy: phantom_net::route::ProxyTransport::Tls {
                                                 endpoint: phantom_net::route::Endpoint {
                                                     host: proxy.host(),
@@ -655,6 +657,7 @@ impl WebSocketRequestBuilder {
                                 phantom_net::route::OriginRoute::Tls {
                                     tcp: phantom_net::route::TcpRoute::HttpConnect(
                                         phantom_net::route::HttpConnectRoute {
+                                            speculative_tls: proxy.speculative_tls(),
                                             proxy: phantom_net::route::ProxyTransport::Tls {
                                                 endpoint: phantom_net::route::Endpoint {
                                                     host: proxy.host(),
@@ -684,6 +687,7 @@ impl WebSocketRequestBuilder {
                             phantom_net::route::OriginRoute::Tls {
                                 tcp: phantom_net::route::TcpRoute::HttpConnect(
                                     phantom_net::route::HttpConnectRoute {
+                                        speculative_tls: proxy.speculative_tls(),
                                         proxy: phantom_net::route::ProxyTransport::Tcp(
                                             phantom_net::route::Endpoint {
                                                 host: proxy.host(),
@@ -710,6 +714,7 @@ impl WebSocketRequestBuilder {
                             phantom_net::route::OriginRoute::Tls {
                                 tcp: phantom_net::route::TcpRoute::HttpConnect(
                                     phantom_net::route::HttpConnectRoute {
+                                        speculative_tls: proxy.speculative_tls(),
                                         proxy: phantom_net::route::ProxyTransport::Tcp(
                                             phantom_net::route::Endpoint {
                                                 host: proxy.host(),

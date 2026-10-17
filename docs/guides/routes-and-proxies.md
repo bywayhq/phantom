@@ -14,8 +14,6 @@ through another.
 
 ## Set a route for a client or a request
 
-Set a default route on the builder, and override it for one request.
-
 ```rust
 use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol, Route, Socks5Proxy};
@@ -106,9 +104,6 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
   them, later requests through it send them up front.
   `ClientBuilder::preemptive_proxy_authentication(false)` turns that off
   ([Proxy authentication](../explanation/design.md#proxy-authentication)).
-- To authenticate the very first request, leave out `with_basic_auth` and
-  send your own `Proxy-Authorization` header. Put it on the request for an
-  `http://` URL, or on the CONNECT request with `HttpProxy::header`.
 - A profile with `with_proxy_connect(chrome::v154_proxy_connect())`, or
   the Firefox recipe, sends the browser's CONNECT headers.
   `HttpProxy::header`, `headers`, and `connect_headers` replace them with
@@ -119,7 +114,24 @@ requires Digest. For MD5, pass credentials configured with
 `DigestPolicy::AllowLegacyMd5` to `with_digest_credentials`. For forwarded
 requests, read the response body to finish verification and remember its nonce.
 
-An `http://` proxy leaves proxy traffic unencrypted.
+## Overlap CONNECT and TLS
+
+Opt in for a compatible HTTP/1.1 proxy with frequent new connections:
+
+```rust
+# fn route() -> Result<(), Box<dyn std::error::Error>> {
+let proxy = phantom::HttpProxy::new("http://proxy.example:8080")?
+    .with_speculative_tls(true);
+let route = phantom::Route::http_proxy(proxy);
+# let _ = route;
+# Ok(())
+# }
+```
+
+The proxy must buffer tunnel bytes before acceptance. Basic credentials go
+on the first CONNECT, and rejection ends the attempt. Digest and HTTP/2
+proxy transport are unsupported. Origin certificate checks still apply.
+It costs extra buffering and can slow reused connections.
 
 ## Speak HTTP/2 to the proxy
 
@@ -144,8 +156,6 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
   `HttpProtocol::Http2` or `get_negotiated`.
 
 ## Trust a private root or a proxy's root
-
-Add roots or change verification separately for servers and proxies.
 
 ```rust
 use phantom::profile::{ClientProfile, browser::chrome};
@@ -178,8 +188,8 @@ profile, and disabled proxy verification rules out a CONNECT-UDP route.
 
 ## Limits
 
-- Basic authentication permits one challenge replay. Digest also permits one
-  stale nonce replay.
+- Ordinary Basic authentication permits one challenge replay. Digest also
+  permits one stale nonce replay.
 - A request with a one-shot streaming body can't be replayed after a `407`,
   so it fails.
 
