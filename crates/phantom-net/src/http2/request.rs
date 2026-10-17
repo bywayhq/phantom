@@ -277,7 +277,6 @@ impl ValidatedHeaders {
         let mut ordered = Vec::with_capacity(headers.len());
         let mut content_length_index = None;
         let exact_length = body.and_then(RequestBodyMetadata::exact_length);
-        let expected_content_length = exact_length.unwrap_or(0).to_string();
         let expects_continue = body.and_then(RequestBodyMetadata::continue_wait).is_some();
         let mut expect_index = None;
         for (index, header) in headers.into_iter().enumerate() {
@@ -320,6 +319,7 @@ impl ValidatedHeaders {
                 if body.is_some() && exact_length.is_none() {
                     return Err(Http2Error::ContentLengthRequiresExactBody { index });
                 }
+                let expected_content_length = exact_length.unwrap_or(0).to_string();
                 if value.as_bytes() != expected_content_length.as_bytes() {
                     return Err(Http2Error::InvalidContentLength { index });
                 }
@@ -350,6 +350,7 @@ impl ValidatedHeaders {
                     maximum: MAX_REQUEST_HEADERS,
                 });
             }
+            let expected_content_length = exact_length.unwrap_or(0).to_string();
             total_bytes = total_bytes
                 .checked_add(CONTENT_LENGTH.as_str().len())
                 .and_then(|size| size.checked_add(expected_content_length.len()))

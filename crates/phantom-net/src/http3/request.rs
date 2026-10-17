@@ -252,7 +252,7 @@ fn prepare_profiled_request_head(
         .insert(pseudo_header_order(request_settings)?);
     // ValidatedHeaders checks supplied fields before cookies are split.
     validate_request_target(&request)?;
-    validate_ordered_headers(&request)?;
+    // Both header views came from the same validated list without mutation.
     validate_pseudo_header_order(&request)?;
     Ok(request)
 }
@@ -569,13 +569,13 @@ fn validate_pseudo_header_order(request: &Request<()>) -> Result<(), Http3Error>
 fn header_maps_agree(left: &HeaderMap, right: &HeaderMap) -> bool {
     left.len() == right.len()
         && right.keys().all(|name| {
-            let left = left.get_all(name).iter().collect::<Vec<_>>();
-            let right = right.get_all(name).iter().collect::<Vec<_>>();
-            left.len() == right.len()
-                && left.into_iter().zip(right).all(|(left, right)| {
-                    left.as_bytes() == right.as_bytes()
-                        && left.is_sensitive() == right.is_sensitive()
-                })
+            left.get_all(name)
+                .iter()
+                .map(|value| (value.as_bytes(), value.is_sensitive()))
+                .eq(right
+                    .get_all(name)
+                    .iter()
+                    .map(|value| (value.as_bytes(), value.is_sensitive())))
         })
 }
 

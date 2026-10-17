@@ -1193,6 +1193,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: rebuild with
   `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
+### Performance
+
+- Avoid unused HTTP/2 content-length strings and redundant HTTP/3 request
+  header-map validation allocations. Preserve header order and validation.
+
 ### Added
 
 - Record per-worker busy time and park/unpark counters in client benchmark

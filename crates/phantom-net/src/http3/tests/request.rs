@@ -354,6 +354,66 @@ fn exact_caller_content_length_keeps_its_ordered_position() -> TestResult<()> {
 }
 
 #[test]
+fn interleaved_fields_keep_both_header_views_with_each_cookie_policy() -> TestResult<()> {
+    use phantom_profile::Http3CookieCrumbs;
+
+    for policy in [Http3CookieCrumbs::Whole, Http3CookieCrumbs::Split] {
+        let mut settings = chrome::v154_http3_request();
+        settings.cookie_crumbs = policy;
+        let request = crate::http3::request::prepare_get(
+            &settings,
+            "server.phantom.test",
+            OriginForm::parse("/interleaved")?,
+            vec![
+                RequestHeader::new("x-mark", "first").sensitive(),
+                RequestHeader::new("cookie", "a=1; b=2").sensitive(),
+                RequestHeader::new("x-after", "kept"),
+                RequestHeader::new("x-mark", "second"),
+            ],
+        )?;
+        let mut expected = vec![("x-mark", b"first".as_slice(), true)];
+        if policy == Http3CookieCrumbs::Whole {
+            expected.push(("cookie", b"a=1; b=2".as_slice(), true));
+        } else {
+            expected.extend([
+                ("cookie", b"a=1".as_slice(), false),
+                ("cookie", b"b=2".as_slice(), false),
+            ]);
+        }
+        expected.extend([
+            ("x-after", b"kept".as_slice(), false),
+            ("x-mark", b"second".as_slice(), false),
+        ]);
+        let ordered = request
+            .extensions()
+            .get::<OrderedHeaders>()
+            .ok_or("prepared request omitted ordered fields")?;
+        assert_eq!(
+            ordered
+                .as_slice()
+                .iter()
+                .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
+                .collect::<Vec<_>>(),
+            expected
+        );
+        for name in ["x-mark", "cookie", "x-after"] {
+            assert!(
+                request
+                    .headers()
+                    .get_all(name)
+                    .iter()
+                    .map(|value| { (value.as_bytes(), value.is_sensitive()) })
+                    .eq(expected
+                        .iter()
+                        .filter(|field| field.0 == name)
+                        .map(|field| (field.1, field.2)))
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> {
     let request = crate::http3::request::prepare_get(
         &chrome::v154_http3_request(),
