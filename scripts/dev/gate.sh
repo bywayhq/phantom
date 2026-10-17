@@ -139,6 +139,11 @@ mkdir -p -- "$logs"
 # A Cargo diagnostic, a failed Rust or Python test, a nextest failure line, or
 # a docs checker finding. Each is a failure even when the command exits 0.
 failure_pattern='^(error|warning)(\[[^]]*\])?:|FAILED|^ +(FAIL|LEAK(-FAIL)?|SIGSEGV|SIGABRT|TIMEOUT|ABORT) \[|^[1-9][0-9]* error\(s\)|, [1-9][0-9]* warning\(s\)'
+# The native build reports successful patch application through Cargo's warning
+# channel. Retain these progress lines in the log without treating them as
+# diagnostics. Toolchain, compiler, missing-source, and unknown notices still fail.
+native_patch_names='0001-boringssl-ffdhe|0002-boringssl-legacy-ciphers|0003-boringssl-tls-options|0004-boringssl-extension-order|0005-record-size-limit|0006-delegated-credentials|0007-boringssl-cipher-preferences|0008-boringssl-sigalgs|0009-boringssl-zstd-cert-compression|0010-boringssl-build-compat|0011-boringssl-ech-grease-payload-length|0012-boringssl-ech-grease-aead|0013-boringssl-record-size-limit-early-data|0014-boringssl-extension-order-tail|0015-boringssl-quic-record-size-limit|0016-boringssl-tls13-legacy-extensions|0017-boringssl-ech-grease-payload-from-client-hello'
+native_progress_pattern="^warning: phantom-btls-sys@[[:alnum:].+-]+: (applying (post quantum crypto patch|loongarch patch|($native_patch_names)\\.patch) to boringssl|skipping git patches application, providednative BoringSSL is expected to have the patches included)$"
 
 # run_step NAME TARGET COMMAND...: runs COMMAND with its output in NAME's log
 # and records its exit status, duration, and first suspicious log lines.
@@ -158,7 +163,8 @@ run_step() {
     fi
   } >"$log" 2>&1
   status=$?
-  grep -E -m 5 -- "$failure_pattern" "$log" >"$logs/$name.flags"
+  grep -E -- "$failure_pattern" "$log" |
+    grep -Ev -m 5 -- "$native_progress_pattern" >"$logs/$name.flags"
   printf '%s %s\n' "$status" "$(($(date +%s) - start))" >"$logs/$name.status"
 }
 

@@ -422,10 +422,12 @@ mkdir -p "$darwin_tmp"
     scripts/ci/probe-upstream-candidate.sh btls "$candidate_revision"
 )
 # The wrapper candidate replaces vendor/btls only; root dependency sources and
-# the vendored tokio-btls fork stay pinned to the reviewed revision.
+# the packaged native library stay pinned to their reviewed versions.
 git -C "$probe_checkout" diff --quiet -- Cargo.toml
-grep -F -q 'rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
+grep -F -q 'btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.1", path = "../btls-sys" }' \
   "$probe_checkout/vendor/btls/Cargo.toml"
+grep -F -q 'upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
+  "$probe_checkout/vendor/btls-sys/Cargo.toml"
 grep -F -x -q 'cargo update -p phantom-btls' "$command_log"
 grep -F -x -q 'cargo tree -i phantom-btls --locked' "$command_log"
 grep -F -x -q \

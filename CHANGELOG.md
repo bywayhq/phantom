@@ -8,6 +8,9 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+- Keep native TLS patch progress in gate logs without treating it as a build
+  warning. Compiler, setup, and unknown warnings still fail the gate.
+
 ## [0.1.0] - 2026-10-17
 
 - Prepare registry packages with bundled native TLS sources and licenses,
