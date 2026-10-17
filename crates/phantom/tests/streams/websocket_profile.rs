@@ -241,10 +241,7 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
         exchange(socket).await?;
 
-        let mut request = client.get(
-            phantom::HttpProtocol::Http2,
-            &format!("https://{}/page", server.address),
-        )?;
+        let mut request = client.get_negotiated(&format!("https://{}/page", server.address))?;
         let diagnostics = request.diagnostics(NonZeroUsize::MIN.saturating_add(31));
         request.send().await?.into_body().collect().await?;
         let snapshot = diagnostics.snapshot();
