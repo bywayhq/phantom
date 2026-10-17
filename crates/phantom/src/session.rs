@@ -91,10 +91,17 @@ pub(crate) type SendBox<'a, T> =
 pub(crate) fn box_send<'a, T>(
     future: impl std::future::Future<Output = T> + Send + 'a,
 ) -> SendBox<'a, T> {
-    Box::pin(phantom_net::request_diagnostics::Observation::scope(
+    box_send_unscoped(phantom_net::request_diagnostics::Observation::scope(
         phantom_net::request_diagnostics::Observation::capture(),
         future,
     ))
+}
+
+/// Ends the `Send` proof without capturing the caller's observation scope.
+pub(crate) fn box_send_unscoped<'a, T>(
+    future: impl std::future::Future<Output = T> + Send + 'a,
+) -> SendBox<'a, T> {
+    Box::pin(future)
 }
 
 /// The runtime the calling task runs on, which every pool key includes.

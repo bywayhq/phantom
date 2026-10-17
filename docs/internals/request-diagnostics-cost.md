@@ -5,7 +5,10 @@ They cover one Windows host and local controlled peers.
 
 ## Method
 
-The control is `becf77c3`; the final production source is `ec0bc2a8`.
+The control is `becf77c3`; the measured production source is `ec0bc2a8`.
+The subsequent compiler fix moves the existing box coercion into a generic
+`Send` helper. It adds no allocation or future wrapper. These measurements
+precede that fix.
 The existing public-client harness compares three settings:
 
 - Control: the main branch before request diagnostics.

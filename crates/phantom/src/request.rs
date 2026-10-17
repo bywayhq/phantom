@@ -866,8 +866,8 @@ impl RequestBuilder {
         }
         // Keep the public future small when callers join many requests.
         let diagnostics = self.diagnostics.clone();
-        let operation: crate::session::SendBox<'_, _> =
-            Box::pin(self.send_inner(&span).instrument(span.clone()));
+        let operation =
+            crate::session::box_send_unscoped(self.send_inner(&span).instrument(span.clone()));
         let result = match diagnostics {
             Some(diagnostics) => diagnostics.observe(operation).await,
             None => phantom_net::request_diagnostics::Observation::scope(None, operation).await,
