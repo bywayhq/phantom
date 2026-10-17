@@ -1,6 +1,6 @@
-# Import complete custom profiles
+# Edit complete custom profiles
 
-You can load your own connection settings and request fields from JSON.
+You can inspect, export and load connection settings and request fields as JSON.
 Enable the `fingerprint-import` feature, which is also included in `full`.
 
 ```rust,no_run
@@ -16,6 +16,58 @@ let client = phantom::Client::builder(profile).build()?;
 Import only parses and validates settings. Building a client checks backend
 and host support. Imported settings have no catalog identity or browser
 validation claim.
+
+## Export and edit
+
+`describe_profile` returns an editable JSON document. `export_profile_json`
+returns the same document as indented UTF-8 bytes. Both use the format below.
+The editing example also needs `serde_json = "1"` in your dependencies.
+
+```rust,no_run
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+use phantom::{fingerprint, profile::browser::chrome};
+
+let profile = chrome::v154_windows();
+std::fs::write("profile.json", fingerprint::export_profile_json(&profile)?)?;
+
+let mut document = fingerprint::describe_profile(&profile)?;
+document["profile"]["tls"]["session_ticket_order"] = "OldestFirst".into();
+let edited = fingerprint::import_profile_json(&serde_json::to_vec(&document)?)?;
+let client = phantom::Client::builder(edited).build()?;
+# let _ = client;
+# Ok(())
+# }
+```
+
+Export preserves array order, duplicate candidate slots, raw bytes, durations
+and absent layers. It validates the document through the strict importer and
+rejects settings it cannot preserve. It does not draw random choices or add
+catalog identity. Literal header values stored in the profile are included.
+Comments and object-key order from an imported document are not retained.
+
+## Name custom profiles
+
+`ProfileRegistry` stores owned settings under exact caller-chosen names. It
+does not download profiles or look up missing names in the built-in catalog.
+
+```rust,no_run
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+use phantom::fingerprint::ProfileRegistry;
+
+let mut registry = ProfileRegistry::new();
+registry.import_json("custom/shop", &std::fs::read("profile.json")?)?;
+let profile = registry.get("custom/shop").ok_or("profile absent")?.clone();
+let client = phantom::Client::builder(profile).build()?;
+# let _ = client;
+# Ok(())
+# }
+```
+
+Names have 1–128 ASCII bytes. They start with a lowercase letter or digit.
+The remaining bytes may also include `.`, `_`, `/` or `-`. Names are labels,
+not paths. `names()` returns them in sorted order. Duplicate insertion fails
+without changing the existing entry. Use `remove()` before replacing one.
+Registry changes do not alter clients already built from its settings.
 
 ## Document
 
@@ -179,6 +231,12 @@ a known field path. Display and Debug omit supplied values. Native policy
 failures retain a typed source. Compact JA3/JA4 descriptions cannot restore
 missing order or policy; an explicit compact format gets `LossyDescription`.
 Bare hashes are not JSON documents.
+
+`FingerprintExportError` exposes the same `kind()` and `field()` information.
+Its source retains the document error and any native validation cause.
+`ProfileRegistryError::kind()` distinguishes invalid names, duplicate names
+and invalid profiles. Invalid-profile errors retain their import or export
+source. All three error types omit supplied names and values from diagnostics.
 
 | Resource | Maximum |
 | --- | --- |

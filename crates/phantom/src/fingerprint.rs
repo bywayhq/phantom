@@ -1,4 +1,4 @@
-//! Import complete custom settings without assigning catalog evidence.
+//! Inspect, edit and name custom profiles without assigning catalog evidence.
 
 use phantom_profile::ClientProfile;
 use std::{error::Error, fmt};
@@ -6,19 +6,23 @@ use std::{error::Error, fmt};
 mod client_hints;
 mod cookie;
 mod dns_cache;
+mod export;
 mod http1;
 mod http2;
 mod http3;
 mod json;
 mod proxy_connect;
 mod quic;
+mod registry;
 mod request_template;
 mod tcp;
 mod tls;
 mod udp;
 mod websocket;
 
-/// Recovery category for a custom-profile import error.
+pub use registry::{ProfileRegistry, ProfileRegistryError, ProfileRegistryErrorKind};
+
+/// Recovery category for a custom-profile document error.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum FingerprintImportErrorKind {
@@ -100,6 +104,74 @@ impl Error for FingerprintImportError {
     }
 }
 type Result<T> = std::result::Result<T, FingerprintImportError>;
+
+/// An export failure with a canonical field path and the document error cause.
+#[derive(Debug)]
+pub struct FingerprintExportError(FingerprintImportError);
+
+impl FingerprintExportError {
+    /// Returns the document error's recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> FingerprintImportErrorKind {
+        self.0.kind()
+    }
+    /// Returns the canonical field path, without supplied values.
+    #[must_use]
+    pub fn field(&self) -> &str {
+        self.0.field()
+    }
+}
+impl fmt::Display for FingerprintExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "custom-profile export {:?} at {}",
+            self.kind(),
+            self.field()
+        )
+    }
+}
+impl Error for FingerprintExportError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+/// Describes all configured settings as an editable version-1 JSON document.
+///
+/// Uses the same format as [`import_profile_json`]. Arrays retain their order,
+/// duplicate candidate slots and raw bytes. Optional layers remain explicit
+/// `null`. The document includes configured literal header values. It carries
+/// no catalog identity or browser validation claim and draws no random values.
+///
+/// # Errors
+///
+/// Rejects settings that cannot round-trip through the strict importer, native
+/// validation failures and documents exceeding the import resource bounds.
+/// Backend and host support are still checked when building a client.
+pub fn describe_profile(
+    profile: &ClientProfile,
+) -> std::result::Result<serde_json::Value, FingerprintExportError> {
+    export::describe(profile)
+        .map(|(document, _)| document)
+        .map_err(FingerprintExportError)
+}
+
+/// Exports a complete profile as indented, UTF-8 JSON for editing or storage.
+///
+/// See [`describe_profile`] for the document's contents and evidence limits.
+/// Export performs no I/O and does not mutate the profile or a running client.
+///
+/// # Errors
+///
+/// Returns the same validation and resource-bound errors as [`describe_profile`].
+pub fn export_profile_json(
+    profile: &ClientProfile,
+) -> std::result::Result<Vec<u8>, FingerprintExportError> {
+    export::describe(profile)
+        .map(|(_, bytes)| bytes)
+        .map_err(FingerprintExportError)
+}
 
 /// Imports a version-1 `phantom.custom-profile` JSON document.
 ///

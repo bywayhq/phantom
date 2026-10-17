@@ -8,6 +8,8 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+- Add profile describe/export, editable JSON round trips, and a caller-owned
+  registry for named custom profiles under `fingerprint-import`.
 - Keep native TLS patch progress in gate logs without treating it as a build
   warning. Compiler, setup, and unknown warnings still fail the gate.
 

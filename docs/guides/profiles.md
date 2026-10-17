@@ -84,6 +84,9 @@ fn chrome_on_macos() -> ClientProfile {
 Built-in and custom profiles use the same types. A setting that conflicts
 with another fails instead of being ignored.
 
+Enable `fingerprint-import` to export settings, edit JSON and register custom
+names. See [Edit complete custom profiles](../reference/fingerprint-import.md).
+
 A setting the host can't apply makes `ClientBuilder::build` fail. Windows,
 for example, needs a keepalive interval, so the profile above fails to
 build there.

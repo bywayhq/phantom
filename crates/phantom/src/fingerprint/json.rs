@@ -8,12 +8,12 @@ use std::{
     time::Duration,
 };
 
-const MAX_BYTES: usize = 16 * 1024 * 1024;
+pub(super) const MAX_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DEPTH: usize = 16;
-const MAX_STRING: usize = 64 * 1024;
+pub(super) const MAX_STRING: usize = 64 * 1024;
 const MAX_MEMBERS: usize = 64;
-const MAX_ARRAY: usize = 65_535;
-const MAX_NODES: usize = 1_048_576;
+pub(super) const MAX_ARRAY: usize = 65_535;
+pub(super) const MAX_NODES: usize = 1_048_576;
 
 #[derive(Debug)]
 pub(super) enum Value {

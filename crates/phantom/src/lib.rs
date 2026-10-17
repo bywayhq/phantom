@@ -370,7 +370,7 @@ pub mod dns {
 }
 
 #[cfg(feature = "fingerprint-import")]
-/// Import complete custom connection settings and request fields from JSON.
+/// Inspect, export, import and name complete custom profiles.
 ///
 /// See the [document format](https://github.com/bywayhq/phantom/blob/main/docs/reference/fingerprint-import.md).
 /// Imported settings carry no catalog identity or browser validation claim.

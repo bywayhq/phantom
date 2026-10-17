@@ -37,7 +37,8 @@ They are priorities, not a requirement to finish a whole wave before starting
 an independent task in the next one.
 
 The shared attempt budget (#35) is implemented for downstream integration.
-Profile authoring (#3) and request diagnostics (#9) can proceed independently.
+Profile authoring (#3) is in progress: describe/export, editable round trips
+and a caller-owned custom registry. Request diagnostics (#9) can proceed independently.
 They give downstream users inspectable configuration and measurements for
 bug reports.
 Extend the existing comparison harness (#1) and performance baseline (#34)

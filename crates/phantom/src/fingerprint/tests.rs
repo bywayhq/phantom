@@ -1,4 +1,5 @@
 mod address_failure;
+mod authoring;
 mod invalid;
 mod json;
 mod policies;
