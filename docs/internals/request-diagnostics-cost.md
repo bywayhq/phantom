@@ -163,7 +163,7 @@ their instrumented times and sampled RSS are not performance comparisons.
 Warm disabled differences are about 0–14 bytes per request. Enabled warm
 differences are about 309–336 bytes. New connections retain backend TLS facts;
 retained observations encode certificates once and share them across requests.
-Enabled cold differences are about 1.5–3.3 KiB per request in these workloads.
+Enabled cold differences are about 1.4–3.2 KiB per request in these workloads.
 Cold trials also include client construction and teardown.
 
 The ordinary before/after timing matrix did not run. Its controller waited
