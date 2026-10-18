@@ -47,6 +47,59 @@ bodies, gzip decoding and server delays. The default matrix has three
 repetitions. Increase repetitions and phase lengths for a decision about a
 small difference. Short cold runs have few observations beyond p99.
 
+## Use another client executable
+
+`--binary` owns the independent peer. By default it also runs Phantom.
+Pass `--client PATH` to run another adapter against that same peer. The
+comparison set is Phantom, wreq, curl_cffi and httpcloak. Adapters for the
+other three are separate work; this option alone does not establish parity.
+
+The descriptor has exactly four fields:
+
+```json
+{
+  "name": "curl_cffi",
+  "version": "0.16.3",
+  "command": ["/absolute/python", "/absolute/adapter.py"],
+  "artifacts": [
+    {"path": "/absolute/python", "sha256": "<64 lowercase hex digits>"},
+    {"path": "/absolute/adapter.py", "sha256": "<64 lowercase hex digits>"}
+  ]
+}
+```
+
+List every loaded client input, including shared libraries, wheel archives,
+module locks and adapter source. The controller checks the listed files and
+command files, then retains their hashes and the complete descriptor. It
+cannot discover every dynamically loaded dependency. Use an isolated pinned
+environment. The example above needs those additional artifact entries.
+
+The command is an argument array, executed directly without a shell. It must
+run the measured client in that process; do not use a shell or child-process
+launcher. Runtime and binding overhead remain part of the client result.
+The controller appends `run CONFIG READY RESULT`, using absolute paths.
+The adapter must follow the existing JSON and stdin/stdout contract:
+
+1. Read the config and peer ready files, then finish unmeasured warmup.
+2. Emit `{"event":"ready"}` and wait for `go` on stdin.
+3. Finish the measured work, emit `{"event":"phase_end"}`, and wait for `save`.
+4. Write the result JSON, emit `{"event":"saved"}`, then exit successfully.
+
+Flush each event. Keep the client and its pool alive through `save`.
+Reject unsupported configs before `ready`; never silently change protocols,
+routes or workloads. Verify response bytes, protocol and operation counts.
+Use the same sample fields and timestamp boundaries as `src/client.rs`.
+Client-specific limits and effective settings must accompany each adapter.
+Results with invalid numeric fields, changed configuration, duplicate operation
+IDs or incorrect successful byte counts fail before measurement summaries.
+
+Timing runs need both the peer's existing `--build-receipt` and the adapter's
+`--client-build-receipt`. The latter includes `native_optimization_verified`,
+the command executable's `binary_sha256` and an `artifact_sha256` map of every
+descriptor path to its hash. These are retained build attestations, not an
+automatic audit of compiler flags or dependency completeness. Keep compiler
+logs and native configuration with them. Diagnostic runs need no build receipt.
+
 ## Compare CONNECT overlap
 
 For `route: "connect"`, set `speculative_tls: true` to overlap CONNECT and

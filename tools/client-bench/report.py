@@ -100,6 +100,13 @@ def main():
         "| Case | Accepted / failed | Operations/s (range) | p50 / p99 ms | CPU µs/op | Sampled RSS / private MiB |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
+    if identity.get("client"):
+        client = identity["client"]
+        lines[2:2] = [
+            f"Client: {client['name']} {client['version']}. "
+            "See identity.json for the exact command and artifacts.",
+            "",
+        ]
     for row in rows:
         if not row["accepted_trials"]:
             lines.append(

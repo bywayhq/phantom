@@ -5,6 +5,8 @@
 - Add client and per-request hooks for logical request start, final response
   heads and terminal send errors. Callbacks borrow metadata without consuming
   bodies or changing retries, redirects or header order.
+- Let the benchmark controller run a separately pinned client command against
+  its existing independent peer, retaining both commands and artifact identities.
 
 - Add optional bounded redirect history with resolved URLs, method changes and
   response statuses. Debug output omits URLs, and later hops are counted.

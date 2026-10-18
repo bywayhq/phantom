@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 
 import psutil
+from client_command import load_client, verified_client_build
+from client_result import validate_result
 
 
 def save(path, value):
@@ -158,7 +160,7 @@ def accepted_recovery(raw, config, phase):
     return not raw["heap_instrumented"] and accepted({"failures": 0}, config, phase)
 
 
-def one(binary, config, folder, timeout, recovery_seconds=0):
+def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None):
     folder.mkdir()
     save(folder / "config.json", config)
     handles = []
@@ -168,14 +170,20 @@ def one(binary, config, folder, timeout, recovery_seconds=0):
         def spawn(mode, result):
             log = (folder / f"{mode}.stderr.log").open("x", encoding="utf-8")
             handles.append(log)
+            argv = [
+                *(
+                    client_command
+                    if mode == "run" and client_command
+                    else [str(binary)]
+                ),
+                mode,
+                str(folder / "config.json"),
+                str(folder / "ready.json"),
+                str(folder / result),
+            ]
+            save(folder / f"{mode}.command.json", argv)
             process = subprocess.Popen(
-                [
-                    str(binary),
-                    mode,
-                    str(folder / "config.json"),
-                    str(folder / "ready.json"),
-                    str(folder / result),
-                ],
+                argv,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=log,
@@ -264,8 +272,7 @@ def one(binary, config, folder, timeout, recovery_seconds=0):
         if peer.wait(timeout=15) != 0:
             raise RuntimeError("peer failed")
         raw = json.loads((folder / "client.json").read_text())
-        if len(raw["samples"]) != config.get("requests", 2000):
-            raise RuntimeError("wrong number of measured operations")
+        validate_result(raw, config)
         summary = summarize(raw, measurements)
         summary["peer"] = json.loads((folder / "peer.json").read_text())
         summary["peer_phase"] = phase = json.loads(
@@ -294,6 +301,9 @@ def one(binary, config, folder, timeout, recovery_seconds=0):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=10)
+            for pipe in (process.stdin, process.stdout):
+                if pipe is not None:
+                    pipe.close()
         for handle in handles:
             handle.close()
 
@@ -310,6 +320,12 @@ def main():
         default="diagnostic",
     )
     parser.add_argument("--build-receipt", type=Path)
+    parser.add_argument(
+        "--client",
+        type=Path,
+        help="external client descriptor; --binary remains the independent peer",
+    )
+    parser.add_argument("--client-build-receipt", type=Path)
     parser.add_argument("--external-profiler", action="store_true")
     parser.add_argument(
         "--recovery-seconds",
@@ -326,6 +342,14 @@ def main():
     )
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
+    client = load_client(args.client.resolve(strict=True), sha) if args.client else None
+    if args.client_build_receipt and not client:
+        raise ValueError("--client-build-receipt requires --client")
+    client_receipt = (
+        json.loads(args.client_build_receipt.read_text(encoding="utf-8"))
+        if args.client_build_receipt
+        else None
+    )
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     matrix = json.loads(args.matrix.read_text())
@@ -335,6 +359,7 @@ def main():
         or not receipt
         or not receipt.get("native_optimization_verified")
         or receipt.get("binary_sha256") != sha(binary)
+        or (client and not verified_client_build(client, client_receipt))
     ):
         raise ValueError(
             "timing needs a matching verified native build and no external profiler"
@@ -378,6 +403,11 @@ def main():
             "source_sha256": sources,
             "binary": str(binary),
             "binary_sha256": sha(binary),
+            "client": client,
+            "client_build_receipt": client_receipt,
+            "client_build_receipt_sha256": sha(args.client_build_receipt)
+            if args.client_build_receipt
+            else None,
             "measurement_kind": args.measurement_kind,
             "external_profiler": args.external_profiler,
             "recovery_seconds": args.recovery_seconds,
@@ -412,7 +442,14 @@ def main():
         name = config["name"]
         folder = output / f"{index:03d}-{name}-r{repetition}"
         try:
-            summary = one(binary, config, folder, args.timeout, args.recovery_seconds)
+            summary = one(
+                binary,
+                config,
+                folder,
+                args.timeout,
+                args.recovery_seconds,
+                client["command"] if client else None,
+            )
             results.append(
                 {
                     "name": name,
