@@ -24,4 +24,5 @@ session-transfer-cold-custody.patch
 session-transfer-dependency.patch
 session-transfer-selected-custody.patch
 concurrent-session-configuration.patch
+leaf-spki-pins.patch
 publish-identity.patch

@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.16`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.17`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -54,6 +54,14 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`leaf-spki-pins.patch` adds an immutable, bounded leaf-SPKI restriction after
+normal native chain and hostname verification. It uses the native-prepared
+store context, including its ECH public-name handling, and retains per-SSL
+outcomes. Scoped attachment requires authenticated source proof before offering
+a session with this policy. Built-in publication still rejects arbitrary
+verifiers. Portable owners must bind canonical pins into their policy.
+This wrapper boundary does not itself add a Phantom client builder option.
 
 `concurrent-session-configuration.patch` admits ordinary policy binding and
 connection setup through shared context guards. Context mutation stays
@@ -449,6 +457,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --lo
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_publication
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::pinning::tests
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_context
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
@@ -475,6 +484,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_publication
+cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::pinning::tests
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_context
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit

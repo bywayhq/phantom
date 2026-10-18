@@ -470,7 +470,7 @@ impl SslSessionScope {
             || !context.verify_mode().contains(super::SslVerifyMode::PEER)
             || !matches!(
                 context.ex_data(SslContext::cached_ex_index::<SessionVerifierProvenance>()),
-                Some(SessionVerifierProvenance::Default)
+                Some(SessionVerifierProvenance::Default | SessionVerifierProvenance::SpkiPins)
             )
         {
             return Err(SessionTransferError::Policy);

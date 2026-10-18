@@ -506,6 +506,16 @@ impl ConnectConfiguration {
         {
             return Ok(None);
         }
+        if self.ssl.ssl_context().spki_pins().is_some()
+            && (!self.ssl.verify_mode().contains(SslVerifyMode::PEER)
+                || self
+                    .ssl
+                    .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
+                    .is_some()
+                || session.is_some_and(|session| !session.is_authenticated()))
+        {
+            return Ok(None);
+        }
         let context = self.ssl.ssl_context().to_owned();
         if let Some(session) = session {
             // SAFETY: consuming `ConnectConfiguration` proves the handshake has
@@ -645,7 +655,7 @@ impl SslRef {
         let default_verifier = matches!(
             self.ssl_context()
                 .ex_data(SslContext::cached_ex_index::<SessionVerifierProvenance>()),
-            Some(SessionVerifierProvenance::Default)
+            Some(SessionVerifierProvenance::Default | SessionVerifierProvenance::SpkiPins)
         );
         if !default_verifier
             || self
@@ -659,7 +669,10 @@ impl SslRef {
         if self.is_server() || !self.is_init_finished() || self.in_early_data() {
             return false;
         }
-        if !self.verify_mode().contains(SslVerifyMode::PEER) || self.verify_result().is_err() {
+        if !self.verify_mode().contains(SslVerifyMode::PEER)
+            || self.verify_result().is_err()
+            || !self.spki_pins_allow_session_publication()
+        {
             binding.publication.invalidate();
             return false;
         }
@@ -688,6 +701,31 @@ impl SslRef {
             return false;
         }
         binding.publication.authenticate()
+    }
+
+    pub(super) fn spki_resumption_authenticated(&self) -> bool {
+        let Some(binding) = self.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
+            return false;
+        };
+        !self.is_server()
+            && self.is_init_finished()
+            && !self.in_early_data()
+            && self.session_reused()
+            && self.verify_mode().contains(SslVerifyMode::PEER)
+            && self.verify_result().is_ok()
+            && self
+                .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
+                .is_none()
+            && self.ssl_context().as_ptr() == binding.context.as_ptr()
+            && binding
+                .offered_publication
+                .as_ref()
+                .is_some_and(|source| source.is_authenticated())
+            && binding.transfer.as_ref().is_none_or(|token| token.valid())
+            && binding
+                .offered_imported_transfer
+                .as_ref()
+                .is_none_or(|token| token.valid())
     }
 
     pub(super) fn invalidate_scoped_session_publication(&self) {

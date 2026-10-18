@@ -125,6 +125,8 @@ mod credential;
 mod ech;
 mod error;
 mod mut_only;
+mod pinning;
+pub use pinning::{SpkiPinConfigurationError, SpkiPinVerification, SpkiPins};
 mod session_transfer;
 pub use session_transfer::{
     open_envelope, seal_envelope, AuthenticatedSessionRecord, FrozenSessionPolicies,
@@ -3268,6 +3270,7 @@ pub struct SslSessionScope(Arc<session_transfer::ScopeState>);
 #[derive(Clone, Copy)]
 enum SessionVerifierProvenance {
     Default,
+    SpkiPins,
     Custom,
 }
 
