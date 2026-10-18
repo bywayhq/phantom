@@ -22,6 +22,7 @@ type config struct {
 	Bytes              int    `json:"bytes"`
 	Method             string `json:"method"`
 	UploadBytes        int    `json:"upload_bytes"`
+	Redirects          int    `json:"redirects"`
 	Consume            string `json:"consume"`
 	Cold               bool   `json:"cold"`
 	Origins            int    `json:"origins"`
@@ -80,6 +81,8 @@ func (c config) validate() error {
 		c.Bytes < 0 || c.Bytes > 16*1024*1024 || c.ChunkBytes < 1 || c.ChunkBytes > 65536 ||
 		(c.Method != "GET" && c.Method != "POST") || c.UploadBytes < 0 || c.UploadBytes > 16*1024*1024 ||
 		(c.Method == "GET" && c.UploadBytes != 0) ||
+		c.Redirects < 0 || c.Redirects > 3 ||
+		(c.Redirects != 0 && (c.Method != "GET" || c.Consume != "collect")) ||
 		c.Workers < 1 || c.Workers > 16 ||
 		(c.PeerWorkers != nil && (*c.PeerWorkers < 1 || *c.PeerWorkers > 16)) ||
 		c.ServerDelayMS > 1000 || c.ChunkDelayMS > 1000 || c.ArrivalIntervalUS > 1_000_000 {

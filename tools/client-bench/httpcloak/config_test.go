@@ -15,18 +15,21 @@ func validConfig() config {
 
 func TestUnsupportedWorkFailsBeforeWarmup(t *testing.T) {
 	for name, change := range map[string]func(*config){
-		"protocol":     func(c *config) { c.Protocol = "construct" },
-		"profile":      func(c *config) { c.Profile = "firefox" },
-		"proxy":        func(c *config) { c.Route = "connect" },
-		"gzip":         func(c *config) { c.Gzip = true },
-		"speculative":  func(c *config) { c.SpeculativeTLS = true },
-		"diagnostics":  func(c *config) { c.DiagnosticEvents = 1 },
-		"workers":      func(c *config) { c.Workers = 0 },
-		"concurrency":  func(c *config) { c.Concurrency = 257 },
-		"body":         func(c *config) { c.Bytes = 16*1024*1024 + 1 },
-		"upload":       func(c *config) { c.UploadBytes = 1 },
-		"upload limit": func(c *config) { c.Method = "POST"; c.UploadBytes = 16*1024*1024 + 1 },
-		"method":       func(c *config) { c.Method = "PATCH" },
+		"protocol":           func(c *config) { c.Protocol = "construct" },
+		"profile":            func(c *config) { c.Profile = "firefox" },
+		"proxy":              func(c *config) { c.Route = "connect" },
+		"gzip":               func(c *config) { c.Gzip = true },
+		"speculative":        func(c *config) { c.SpeculativeTLS = true },
+		"diagnostics":        func(c *config) { c.DiagnosticEvents = 1 },
+		"workers":            func(c *config) { c.Workers = 0 },
+		"concurrency":        func(c *config) { c.Concurrency = 257 },
+		"body":               func(c *config) { c.Bytes = 16*1024*1024 + 1 },
+		"upload":             func(c *config) { c.UploadBytes = 1 },
+		"upload limit":       func(c *config) { c.Method = "POST"; c.UploadBytes = 16*1024*1024 + 1 },
+		"method":             func(c *config) { c.Method = "PATCH" },
+		"redirect bound":     func(c *config) { c.Redirects = 4 },
+		"redirect streaming": func(c *config) { c.Redirects = 1 },
+		"redirect upload":    func(c *config) { c.Redirects = 1; c.Method = "POST"; c.Consume = "collect" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			c := validConfig()

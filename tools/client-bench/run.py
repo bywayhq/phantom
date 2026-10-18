@@ -139,16 +139,18 @@ def summarize(raw, measurements):
 
 
 def accepted(summary, config, phase):
-    expected = (
+    logical = (
         0
         if config.get("protocol") == "construct"
         else config.get("requests", 2000) + config.get("warmup", 100)
     )
+    expected = logical * (config.get("redirects", 0) + 1)
     return (
         summary["failures"] == 0
         and phase["requests"] == expected
         and phase["failures"] == 0
         and phase.get("uploaded_bytes", 0) == expected * config.get("upload_bytes", 0)
+        and phase.get("redirect_responses", 0) == logical * config.get("redirects", 0)
         and (
             phase["proxy_connections"] == 0
             if config.get("route", "direct") == "direct"

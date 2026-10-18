@@ -29,6 +29,7 @@ struct Config {
     bytes: usize,
     method: String,
     upload_bytes: usize,
+    redirects: usize,
     consume: String,
     cold: bool,
     origins: usize,
@@ -59,6 +60,7 @@ impl Default for Config {
             bytes: 1024,
             method: "GET".into(),
             upload_bytes: 0,
+            redirects: 0,
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -91,6 +93,7 @@ impl Config {
             || self.bytes > 16 * 1024 * 1024
             || !["GET", "POST"].contains(&self.method.as_str())
             || self.upload_bytes > 16 * 1024 * 1024
+            || self.redirects > 3
             || !(1..=65536).contains(&self.chunk_bytes)
             || !(1..=16).contains(&self.workers)
             || self
@@ -103,6 +106,11 @@ impl Config {
             || self.diagnostic_events > 4096
         {
             return Err("invalid or unbounded benchmark configuration".into());
+        }
+        if self.redirects != 0
+            && (self.method != "GET" || self.consume != "collect" || self.protocol == "construct")
+        {
+            return Err("redirect workloads require collected GET requests".into());
         }
         if (self.method == "GET" || self.protocol == "construct") && self.upload_bytes != 0 {
             return Err("uploads require a POST request workload".into());

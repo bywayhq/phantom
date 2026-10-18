@@ -30,6 +30,7 @@ def configuration(supplied):
         "warmup": (0, 100_000),
         "bytes": (0, 16 * 1024 * 1024),
         "upload_bytes": (0, 16 * 1024 * 1024),
+        "redirects": (0, 3),
         "origins": (1, 128),
         "chunk_bytes": (1, 65536),
         "server_delay_ms": (0, 1000),
@@ -52,6 +53,10 @@ def configuration(supplied):
         config["method"] == "GET" and config["upload_bytes"] != 0
     ):
         raise ValueError("uploads require a POST request workload")
+    if config["redirects"] and (
+        config["method"] != "GET" or config["consume"] != "collect"
+    ):
+        raise ValueError("redirect workloads require collected GET requests")
     required = {
         "profile": "chrome",
         "route": "direct",
@@ -107,7 +112,8 @@ def session_factory(config, certificate):
             trust_env=False,
             discard_cookies=True,
             retry=0,
-            allow_redirects=False,
+            allow_redirects=config["redirects"] != 0,
+            max_redirects=config["redirects"],
             verify=str(certificate),
             http_version=requested,
             interface="127.0.0.1",
@@ -294,7 +300,7 @@ async def run(supplied, ready, output):
                     "application_timeout_s": 15,
                     "max_clients": config["concurrency"],
                     "retry": 0,
-                    "redirects": False,
+                    "redirects": config["redirects"],
                     "environment_proxy": False,
                     "stream_buffer": "library-default unbounded queue",
                     "pool_limits": "library defaults; max_clients caps easy handles",

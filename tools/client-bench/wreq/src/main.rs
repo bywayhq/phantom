@@ -62,7 +62,11 @@ fn client(config: &Config, ready: &Ready) -> Result<Client> {
             .root_der
             .as_slice()])?)
         .no_proxy()
-        .redirect(wreq::redirect::Policy::none())
+        .redirect(if config.redirects == 0 {
+            wreq::redirect::Policy::none()
+        } else {
+            wreq::redirect::Policy::limited(config.redirects)
+        })
         .retry(wreq::retry::Policy::never())
         .local_address(IpAddr::V4(Ipv4Addr::LOCALHOST))
         .connect_timeout(Duration::from_secs(5))
@@ -233,7 +237,7 @@ async fn run(config: Config, ready: Ready, output: &Path) -> Result<()> {
         "samples": samples,
         "adapter_settings": {
             "library": "wreq=0.16.1", "recipes": "wreq-util=0.2.0 Chrome149 Windows",
-            "automatic_headers": false, "retry": "never", "redirects": false,
+            "automatic_headers": false, "retry": "never", "redirects": config.redirects,
             "environment_proxy": false, "connect_timeout_ms": 5000,
             "application_timeout_ms": 15000, "pool_limits": "library defaults",
             "runtime_workers": config.workers,

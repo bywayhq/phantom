@@ -2,6 +2,7 @@ use crate::{Config, Result};
 use http::{HeaderMap, Method, header};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
+#[derive(Clone)]
 pub(super) struct Upload {
     method: Method,
     length: usize,
@@ -62,13 +63,14 @@ impl Upload {
         &self,
         head: &str,
         stream: &mut S,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let mut fields = [httparse::EMPTY_HEADER; 128];
         let mut request = httparse::Request::new(&mut fields);
         if !request.parse(head.as_bytes())?.is_complete() {
             return Err("incomplete upload request head".into());
         }
         let method = Method::from_bytes(request.method.ok_or("missing method")?.as_bytes())?;
+        let target = request.path.ok_or("missing request target")?.to_owned();
         let mut headers = HeaderMap::new();
         for field in request.headers {
             headers.append(
@@ -87,7 +89,8 @@ impl Upload {
             }
             self.chunk(&mut observed, &buffer[..length])?;
         }
-        self.finish(observed)
+        self.finish(observed)?;
+        Ok(target)
     }
 }
 

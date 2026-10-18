@@ -17,6 +17,7 @@ pub(crate) struct Config {
     pub bytes: usize,
     pub method: String,
     pub upload_bytes: usize,
+    pub redirects: usize,
     pub consume: String,
     pub cold: bool,
     pub origins: usize,
@@ -57,6 +58,8 @@ impl Config {
             || self.bytes > 16 * 1024 * 1024
             || !["GET", "POST"].contains(&self.method.as_str())
             || self.upload_bytes > 16 * 1024 * 1024
+            || self.redirects > 3
+            || (self.redirects != 0 && (self.method != "GET" || self.consume != "collect"))
             || (self.method == "GET" && self.upload_bytes != 0)
             || !(1..=65536).contains(&self.chunk_bytes)
             || !(1..=16).contains(&self.workers)
@@ -114,6 +117,7 @@ mod tests {
             bytes: 32768,
             method: "GET".into(),
             upload_bytes: 0,
+            redirects: 0,
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -151,6 +155,8 @@ mod tests {
             |c| c.bytes = 16 * 1024 * 1024 + 1,
             |c| c.upload_bytes = 1,
             |c| c.method = "PATCH".into(),
+            |c| c.redirects = 4,
+            |c| c.redirects = 1,
         ];
         for change in unsupported {
             let mut config = config();

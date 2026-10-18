@@ -131,6 +131,26 @@ class AcceptanceTests(unittest.TestCase):
         phase["uploaded_bytes"] = 12 * 65536
         self.assertTrue(accepted({"failures": 0}, config, phase))
 
+    def test_redirect_work_requires_every_hop_and_terminal_response(self):
+        config = {"protocol": "h2", "requests": 10, "warmup": 2, "redirects": 3}
+        phase = {
+            "requests": 48,
+            "redirect_responses": 36,
+            "failures": 0,
+            "proxy_connections": 0,
+        }
+        self.assertTrue(accepted({"failures": 0}, config, phase))
+        for field, wrong in (
+            ("requests", 47),
+            ("requests", 49),
+            ("redirect_responses", 35),
+            ("redirect_responses", 37),
+        ):
+            with self.subTest(field=field, wrong=wrong):
+                self.assertFalse(
+                    accepted({"failures": 0}, config, phase | {field: wrong})
+                )
+
     def test_proxy_route_must_actually_open_a_proxy_connection(self):
         phase = {"requests": 12, "failures": 0, "proxy_connections": 0}
         config = {"protocol": "h2", "requests": 10, "warmup": 2, "route": "connect"}

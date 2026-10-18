@@ -58,6 +58,14 @@ content length; chunked uploads and trailers are outside this workload.
 payload across every request. It counts application payload, not transport
 overhead. Response streaming and collection remain independent of uploads.
 
+Set `redirects` to 1, 2 or 3 for same-origin GET redirect chains with
+`consume: "collect"`. The peer serves an empty 302 response at each hop, then
+the configured payload. It counts every origin request and redirect response.
+Reported requests/s counts completed logical requests, including the whole
+chain within the application deadline. Cross-origin redirects are outside this
+workload. The httpcloak adapter uses its buffered redirect API and reports
+response-head timing as unavailable.
+
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The
 comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents

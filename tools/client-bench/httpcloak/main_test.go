@@ -11,10 +11,57 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestBufferedRedirectsFollowTheConfiguredHopsWithoutInventingHeadTiming(t *testing.T) {
+	for _, protocol := range []string{"h1", "h2"} {
+		observed := make(chan int, 4)
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			remaining, err := strconv.Atoi(r.URL.Query().Get("redirects"))
+			if err != nil {
+				t.Error(err)
+			}
+			observed <- remaining
+			if remaining != 0 {
+				w.Header().Set("Location", "/?redirects="+strconv.Itoa(remaining-1))
+				w.WriteHeader(302)
+				return
+			}
+			if _, err := io.WriteString(w, "ZZZ"); err != nil {
+				t.Error(err)
+			}
+		}))
+		server.EnableHTTP2 = protocol == "h2"
+		server.StartTLS()
+		c := validConfig()
+		c.Protocol, c.Redirects, c.Consume, c.Bytes = protocol, 3, "collect", 3
+		r := ready{URLs: []string{server.URL + "/?redirects=3"}, RootDER: server.Certificate().Raw}
+		shared, err := newClient(c, r)
+		if err != nil {
+			server.Close()
+			t.Fatal(err)
+		}
+		record := sample{}
+		execute(c, r, shared, &record)
+		shared.Close()
+		server.Close()
+		if record.Error != nil {
+			t.Fatal(*record.Error)
+		}
+		if record.HeadNS != nil || record.FirstByteNS != nil || record.Bytes != 3 {
+			t.Fatalf("incorrect timing or payload: %+v", record)
+		}
+		for remaining := 3; remaining >= 0; remaining-- {
+			if actual := <-observed; actual != remaining {
+				t.Fatalf("wrong hop: %d", actual)
+			}
+		}
+	}
+}
 
 func TestPublicSessionUploadsTheCompletePayloadBeforeReadingTheResponse(t *testing.T) {
 	for _, protocol := range []string{"h1", "h2"} {

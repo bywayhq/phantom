@@ -16,7 +16,8 @@ Set `workers: 1` explicitly. This adapter uses one Python event loop.
 Use the same workload parameters for each library. Start with a short
 diagnostic matrix before collecting timing data. Unsupported routes, profiles,
 compression, templates and Phantom diagnostics fail before warmup.
-Streaming uploads, redirects, proxy authentication and cancellation need separate
+Redirects cover up to three same-origin GET hops in collection mode.
+Streaming uploads, proxy authentication and cancellation need separate
 workloads and are not covered by this adapter yet.
 
 ## Settings and measurement boundaries
@@ -25,7 +26,7 @@ workloads and are not covered by this adapter yet.
 - Trust: the peer's generated root, with certificate and hostname checks.
 - Protocol: an explicit version, checked again on every response.
 - Limits: 5-second connect, 15-second native transfer and application deadlines.
-- Replay: application retries and redirect following disabled.
+- Replay: application retries disabled; up to three configured redirects.
 - Proxy: disabled explicitly, including environment proxy settings.
 - Handles: `max_clients` equals configured concurrency. Connection pools keep
   library defaults, so equivalent per-origin pool limits are not established.

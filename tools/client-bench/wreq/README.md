@@ -23,7 +23,7 @@ Worker count selects Tokio runtime workers. Peer workers remain independent.
 - Trust: only the peer's supplied root, with hostname and certificate checks.
 - Routing: IPv4 loopback source and destination, with proxies disabled.
 - Limits: 5-second connect and 15-second application deadline through body EOF.
-- Replay: redirects and the library's protocol-NACK retry policy disabled.
+- Replay: protocol-NACK retries disabled; up to three configured redirects.
 - Pools: library defaults. Equivalent per-origin limits are not established.
 
 Response-head timing ends when `send()` returns. First-byte timing ends at the
@@ -38,8 +38,8 @@ Observation storage records vector capacities for sample records and group
 headers. It excludes allocator slack and task storage. The measured process
 also includes the runtime, TLS backend, pools and observation overhead.
 This is not a browser-fingerprint equivalence claim. Recipe versions differ
-between adapters. Streaming uploads, redirects, authentication and cancellation
-workloads remain open.
+between adapters. Redirects cover same-origin GETs in collection mode.
+Streaming uploads, authentication and cancellation workloads remain open.
 
 ## Next
 

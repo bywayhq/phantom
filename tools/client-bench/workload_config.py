@@ -11,6 +11,7 @@ DEFAULTS = {
     "bytes": 1024,
     "method": "GET",
     "upload_bytes": 0,
+    "redirects": 0,
     "consume": "stream",
     "cold": False,
     "origins": 1,

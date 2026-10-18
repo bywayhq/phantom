@@ -31,11 +31,12 @@ At most `concurrency` application goroutines issue requests at once.
 - Trust: only the peer root, with certificate and hostname checks.
 - Routing: IPv4 loopback source and destination, with proxies disabled.
 - Deadline: 15 seconds from request start through body consumption.
-- Replay: caller-enabled retries and redirect following disabled.
+- Replay: retries disabled; up to three redirects when configured.
 - Pools and connect timeout: library defaults, within the total deadline.
 
 The HTTP/1.1 streaming API opens a connection for each request and closes it
-with the response. This applies to both consumption modes here. `cold: false`
+with the response. This applies to non-redirect workloads in both consumption
+modes. `cold: false`
 reuses the Session, but does not establish warm HTTP/1.1 connection reuse.
 
 `template: false` selects TLS-only mode and disables automatic client hints.
@@ -44,7 +45,11 @@ high-entropy client hints are disabled in both modes. Compression, other
 profiles, proxy routes and Phantom diagnostics fail before warmup. An
 uncompressed peer response requires no decompression work.
 
-Head timing ends when `GetStream` returns. First-byte timing ends on the first
+Redirect workloads use the buffered `Do` API because `DoStream` does not
+follow redirects. They report no head or first-byte timing. Connection reuse
+for this buffered path must be measured separately.
+
+For other workloads, head timing ends when `DoStream` returns. First-byte timing ends on the first
 nonempty application read. Collection uses `io.ReadAll` and has no first-byte
 timing. Both modes verify every byte and read through EOF. Completion includes
 payload verification. Response and cold-client cleanup follow successful
@@ -57,8 +62,9 @@ Process memory includes the Go runtime, transports, pools and observation work.
 
 Recipe versions, headers, scheduler behavior and default pool limits differ
 between libraries. Functional acceptance does not establish equivalent
-fingerprints, performance or connection limits. Streaming uploads, redirects, proxy
-authentication and cancellation need additional workloads.
+fingerprints, performance or connection limits. Redirects cover same-origin
+GETs in collection mode. Streaming uploads, proxy authentication and
+cancellation need additional workloads.
 
 ## Next
 

@@ -30,6 +30,7 @@ struct Stats {
     proxy_connections: AtomicUsize,
     failures: AtomicUsize,
     uploaded_bytes: AtomicU64,
+    redirect_responses: AtomicUsize,
     completed_h1_boundary_closes: AtomicUsize,
     completed_h2_boundary_closes: AtomicUsize,
     completed_h3_no_error_closes: AtomicUsize,
@@ -103,6 +104,7 @@ impl std::fmt::Display for BoundaryClose {
 
 impl std::error::Error for BoundaryClose {}
 
+#[derive(Clone)]
 struct Body {
     bytes: Bytes,
     chunk_bytes: usize,
@@ -110,6 +112,8 @@ struct Body {
     chunk_delay: Duration,
     gzip: bool,
     upload: upload::Upload,
+    redirects: usize,
+    redirect_location: Option<String>,
 }
 
 impl Body {
@@ -127,6 +131,8 @@ impl Body {
             chunk_delay: Duration::from_millis(config.chunk_delay_ms),
             gzip: config.gzip,
             upload: upload::Upload::new(config),
+            redirects: config.redirects,
+            redirect_location: None,
         })
     }
 
@@ -142,12 +148,40 @@ impl Body {
     }
     fn head(&self) -> Result<http::Response<()>> {
         let mut response = http::Response::builder()
-            .status(200)
+            .status(if self.redirect_location.is_some() {
+                302
+            } else {
+                200
+            })
             .header("content-length", self.bytes.len());
         if self.gzip {
             response = response.header("content-encoding", "gzip");
         }
+        if let Some(location) = &self.redirect_location {
+            response = response.header("location", location);
+        }
         Ok(response.body(())?)
+    }
+
+    fn for_target(&self, target: &str) -> Result<Self> {
+        let target: http::Uri = target.parse()?;
+        let mut response = self.clone();
+        if self.redirects != 0 {
+            let remaining: usize = target
+                .query()
+                .and_then(|query| query.strip_prefix("redirects="))
+                .ok_or("missing redirect target")?
+                .parse()?;
+            if remaining > self.redirects {
+                return Err("invalid redirect target".into());
+            }
+            if remaining != 0 {
+                response.bytes = Bytes::new();
+                response.gzip = false;
+                response.redirect_location = Some(format!("/?redirects={}", remaining - 1));
+            }
+        }
+        Ok(response)
     }
 }
 
@@ -203,10 +237,11 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
             }
             Err(error) => return Err(error),
         };
-        body.upload.http1(&head, &mut stream).await?;
+        let target = body.upload.http1(&head, &mut stream).await?;
         stats
             .uploaded_bytes
             .fetch_add(body.upload.length() as u64, Ordering::Relaxed);
+        let body = body.for_target(&target)?;
         body.before_head().await;
         let encoding = if body.gzip {
             "content-encoding: gzip\r\n"
@@ -214,8 +249,17 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
             ""
         };
         let head = format!(
-            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n{encoding}\r\n",
-            body.bytes.len()
+            "HTTP/1.1 {}\r\ncontent-length: {}\r\n{encoding}{}\r\n",
+            if body.redirect_location.is_some() {
+                "302 Found"
+            } else {
+                "200 OK"
+            },
+            body.bytes.len(),
+            body.redirect_location
+                .as_ref()
+                .map(|location| format!("location: {location}\r\n"))
+                .unwrap_or_default()
         );
         stream.get_mut().write_all(head.as_bytes()).await?;
         for chunk in body.bytes.chunks(body.chunk_bytes) {
@@ -224,6 +268,9 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
         }
         stream.get_mut().flush().await?;
         stats.requests.fetch_add(1, Ordering::Relaxed);
+        if body.redirect_location.is_some() {
+            stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+        }
         completed += 1;
     }
     Ok(())
@@ -248,9 +295,10 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         };
         body.upload
             .head(request.method(), request.headers(), false)?;
+        let response_body = body.for_target(&request.uri().to_string())?;
         let mut incoming = request.into_body();
         received += 1;
-        let (body, stats) = (body.clone(), stats.clone());
+        let (body, stats) = (response_body, stats.clone());
         responses.spawn(async move {
             let mut observed = 0;
             while let Some(data) = incoming.data().await {
@@ -289,6 +337,9 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                 }
             }
             stats.requests.fetch_add(1, Ordering::Relaxed);
+            if body.redirect_location.is_some() {
+                stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+            }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
         while let Some(result) = responses.try_join_next() {
@@ -437,6 +488,7 @@ async fn quic_listener(
                     let completed = completed.clone();
                     responses.spawn(async move {
                         let (request, mut stream) = resolver.resolve_request().await?;
+                        let body = body.for_target(&request.uri().to_string())?;
                         body.upload.head(request.method(), request.headers(), false)?;
                         // Reach request FIN before dropping its receive half.
                         // Quinn otherwise sends STOP_SENDING from that drop.
@@ -466,6 +518,9 @@ async fn quic_listener(
                         }
                         stream.finish().await?;
                         stats.requests.fetch_add(1, Ordering::Relaxed);
+                        if body.redirect_location.is_some() {
+                            stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+                        }
                         completed.fetch_add(1, Ordering::Relaxed);
                         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
                     });
@@ -569,7 +624,7 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
         tls.alpn_protocols = vec![b"http/1.1".to_vec()];
     }
     let stats = Arc::new(Stats {
-        expected_requests: config.requests + config.warmup,
+        expected_requests: (config.requests + config.warmup) * (config.redirects + 1),
         ..Stats::default()
     });
     let body = Arc::new(Body::new(&config)?);
@@ -599,7 +654,11 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
                 stats.clone(),
             ));
         }
-        urls.push(format!("https://{address}/"));
+        urls.push(if config.redirects == 0 {
+            format!("https://{address}/")
+        } else {
+            format!("https://{address}/?redirects={}", config.redirects)
+        });
         addresses.push(address);
     }
     let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -662,287 +721,4 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-
-    #[tokio::test]
-    async fn completed_disconnects_keep_transport_and_application_errors_distinct() -> Result<()> {
-        for kind in [
-            std::io::ErrorKind::ConnectionReset,
-            std::io::ErrorKind::ConnectionAborted,
-            std::io::ErrorKind::BrokenPipe,
-            std::io::ErrorKind::UnexpectedEof,
-        ] {
-            let error = http2::server::handshake(AbruptPeer(b"", kind))
-                .await
-                .err()
-                .ok_or("failed transport completed the handshake")?;
-            assert!(completed_http2_close(&error, 1, 1));
-            assert!(!completed_http2_close(&error, 0, 0));
-            assert!(!completed_http2_close(&error, 2, 1));
-        }
-        assert!(!completed_http2_close(
-            &http2::Reason::PROTOCOL_ERROR.into(),
-            1,
-            1
-        ));
-        let timeout = http2::server::handshake(AbruptPeer(b"", std::io::ErrorKind::TimedOut))
-            .await
-            .err()
-            .ok_or("failed transport completed the handshake")?;
-        assert!(!completed_http2_close(&timeout, 1, 1));
-        let zero = h3::error::ConnectionError::Remote(
-            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
-        );
-        assert!(quic_application_zero(&zero));
-        assert!(!quic_transport_no_error(&zero));
-        assert!(!quic_application_zero(&h3::error::ConnectionError::Remote(
-            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0x102 },
-        )));
-        assert!(!quic_application_zero(&h3::error::ConnectionError::Local {
-            error: h3::error::internal_error::InternalConnectionError::new(
-                h3::error::Code::H3_NO_ERROR,
-                "local close".into(),
-            )
-            .into(),
-        }));
-        Ok(())
-    }
-    use tokio::io::ReadBuf;
-
-    #[test]
-    fn transport_no_error_requires_the_remote_transport_close_code() {
-        use h3::{error::ConnectionError, quic::ConnectionErrorIncoming};
-
-        let reason = |error_code| {
-            quinn::ConnectionError::ConnectionClosed(quinn::ConnectionClose {
-                error_code,
-                frame_type: None,
-                reason: Bytes::new(),
-            })
-        };
-        let remote =
-            |reason| ConnectionError::Remote(ConnectionErrorIncoming::Undefined(Arc::new(reason)));
-        assert!(quic_transport_no_error(&remote(reason(
-            quinn::TransportErrorCode::NO_ERROR
-        ))));
-        assert!(!quic_application_zero(&remote(reason(
-            quinn::TransportErrorCode::NO_ERROR
-        ))));
-        assert!(!quic_transport_no_error(&remote(reason(
-            quinn::TransportErrorCode::INTERNAL_ERROR
-        ))));
-        assert!(!quic_transport_no_error(&remote(
-            quinn::ConnectionError::Reset
-        )));
-        assert!(!quic_transport_no_error(&remote(
-            quinn::ConnectionError::TimedOut
-        )));
-        assert!(!quic_transport_no_error(&ConnectionError::Timeout));
-        assert!(!quic_transport_no_error(&ConnectionError::Local {
-            error: h3::error::internal_error::InternalConnectionError::new(
-                h3::error::Code::H3_SETTINGS_ERROR,
-                "invalid settings".into(),
-            )
-            .into(),
-        }));
-        assert!(!quic_transport_no_error(&ConnectionError::Remote(
-            ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
-        )));
-    }
-
-    #[test]
-    fn only_a_typed_idle_timeout_after_all_requests_is_completed_retirement() {
-        let stats = Stats {
-            expected_requests: 2,
-            ..Stats::default()
-        };
-        let timeout = h3::error::ConnectionError::Timeout;
-        let reason = quinn::ConnectionError::TimedOut;
-        stats.requests.store(2, Ordering::Relaxed);
-        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
-        stats.phase_complete.store(true, Ordering::Release);
-        assert!(stats.completed_idle_timeout(&timeout, Some(&reason)));
-        stats.requests.store(1, Ordering::Relaxed);
-        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
-        stats.requests.store(3, Ordering::Relaxed);
-        assert!(!stats.completed_idle_timeout(&timeout, Some(&reason)));
-        stats.requests.store(2, Ordering::Relaxed);
-        assert!(!stats.completed_idle_timeout(&timeout, None));
-        assert!(!stats.completed_idle_timeout(&timeout, Some(&quinn::ConnectionError::Reset)));
-    }
-    struct AbruptPeer(&'static [u8], std::io::ErrorKind);
-
-    struct ResetAtEof(tokio::io::DuplexStream);
-
-    impl AsyncRead for ResetAtEof {
-        fn poll_read(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &mut ReadBuf<'_>,
-        ) -> Poll<std::io::Result<()>> {
-            let before = buf.filled().len();
-            match Pin::new(&mut self.0).poll_read(cx, buf) {
-                Poll::Ready(Ok(())) if buf.filled().len() == before => {
-                    Poll::Ready(Err(std::io::ErrorKind::ConnectionReset.into()))
-                }
-                result => result,
-            }
-        }
-    }
-
-    impl AsyncWrite for ResetAtEof {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Pin::new(&mut self.0).poll_write(cx, buf)
-        }
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_flush(cx)
-        }
-        fn poll_shutdown(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-        ) -> Poll<std::io::Result<()>> {
-            Pin::new(&mut self.0).poll_shutdown(cx)
-        }
-    }
-
-    #[tokio::test]
-    async fn h2_disconnect_only_records_fully_completed_responses() -> Result<()> {
-        for consume in [true, false] {
-            let (client, server) = tokio::io::duplex(65536);
-            let config = Config {
-                bytes: 65536,
-                chunk_bytes: 1024,
-                chunk_delay_ms: 1,
-                ..Config::default()
-            };
-            let stats = Arc::new(Stats::default());
-            let peer = tokio::spawn(http2(
-                ResetAtEof(server),
-                Arc::new(Body::new(&config)?),
-                stats.clone(),
-            ));
-            let (mut sender, connection) = http2::client::handshake(client).await?;
-            let driver = tokio::spawn(connection);
-            let request = http::Request::builder()
-                .uri("https://localhost/")
-                .body(())?;
-            let (response, _) = sender.send_request(request, true)?;
-            let mut response = response.await?.into_body();
-            if consume {
-                let mut bytes = 0;
-                while let Some(data) = response.data().await {
-                    let data = data?;
-                    assert!(data.iter().all(|byte| *byte == b'Z'));
-                    bytes += data.len();
-                    response.flow_control().release_capacity(data.len())?;
-                }
-                assert_eq!(bytes, config.bytes);
-            }
-            driver.abort();
-            assert!(driver.await.is_err_and(|error| error.is_cancelled()));
-            let outcome = tokio::time::timeout(Duration::from_secs(5), peer).await??;
-            assert_eq!(outcome.is_ok(), consume);
-            assert_eq!(
-                stats.completed_h2_boundary_closes.load(Ordering::Relaxed),
-                usize::from(consume)
-            );
-            assert_eq!(stats.requests.load(Ordering::Relaxed), usize::from(consume));
-        }
-        Ok(())
-    }
-
-    impl AsyncRead for AbruptPeer {
-        fn poll_read(
-            mut self: Pin<&mut Self>,
-            _: &mut Context<'_>,
-            buf: &mut ReadBuf<'_>,
-        ) -> Poll<std::io::Result<()>> {
-            if self.0.is_empty() {
-                return Poll::Ready(Err(self.1.into()));
-            }
-            let length = self.0.len().min(buf.remaining());
-            buf.put_slice(&self.0[..length]);
-            self.0 = &self.0[length..];
-            Poll::Ready(Ok(()))
-        }
-    }
-
-    impl AsyncWrite for AbruptPeer {
-        fn poll_write(
-            self: Pin<&mut Self>,
-            _: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<std::io::Result<usize>> {
-            Poll::Ready(Ok(buf.len()))
-        }
-        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Poll::Ready(Ok(()))
-        }
-        fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-            Poll::Ready(Ok(()))
-        }
-    }
-
-    #[tokio::test]
-    async fn abrupt_close_before_any_response_fails() -> Result<()> {
-        let stats = Arc::new(Stats::default());
-        let result = http1(
-            AbruptPeer(b"", std::io::ErrorKind::UnexpectedEof),
-            Arc::new(Body::new(&Config::default())?),
-            stats.clone(),
-        )
-        .await;
-        assert!(result.is_err());
-        assert_eq!(
-            stats.completed_h1_boundary_closes.load(Ordering::Relaxed),
-            0
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn abrupt_close_after_complete_response_is_recorded() -> Result<()> {
-        let stats = Arc::new(Stats::default());
-        http1(
-            AbruptPeer(b"GET / HTTP/1.1\r\n\r\n", std::io::ErrorKind::UnexpectedEof),
-            Arc::new(Body::new(&Config::default())?),
-            stats.clone(),
-        )
-        .await?;
-        assert_eq!(stats.requests.load(Ordering::Relaxed), 1);
-        assert_eq!(
-            stats.completed_h1_boundary_closes.load(Ordering::Relaxed),
-            1
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn partial_next_head_still_fails_after_a_complete_response() -> Result<()> {
-        let stats = Arc::new(Stats::default());
-        let result = http1(
-            AbruptPeer(
-                b"GET / HTTP/1.1\r\n\r\nGET /part",
-                std::io::ErrorKind::UnexpectedEof,
-            ),
-            Arc::new(Body::new(&Config::default())?),
-            stats.clone(),
-        )
-        .await;
-        assert!(result.is_err());
-        assert_eq!(
-            stats.completed_h1_boundary_closes.load(Ordering::Relaxed),
-            0
-        );
-        Ok(())
-    }
-}
+mod tests;

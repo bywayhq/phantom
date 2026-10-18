@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add bounded GET redirect chains and per-hop counts to comparison workloads.
 - Add bounded POST uploads and verified peer upload totals to comparison workloads.
 - Keep capture lifecycle tests responsive to process-startup failures on Windows.
 - Add a pinned wreq adapter for controlled benchmark HTTP/1.1 and HTTP/2 GETs.

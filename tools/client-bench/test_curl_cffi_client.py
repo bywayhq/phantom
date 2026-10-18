@@ -25,6 +25,9 @@ class ConfigurationTests(unittest.TestCase):
             {"upload_bytes": 1},
             {"method": "POST", "upload_bytes": 16 * 1024 * 1024 + 1},
             {"method": "PATCH"},
+            {"redirects": 4},
+            {"redirects": 1},
+            {"method": "POST", "consume": "collect", "redirects": 1},
         ):
             with self.subTest(setting=setting), self.assertRaises(ValueError):
                 adapter.configuration({"workers": 1} | setting)

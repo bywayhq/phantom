@@ -43,7 +43,7 @@ func newClient(c config, r ready) (*client.Session, error) {
 	roots.AddCert(certificate)
 	opts := []client.SessionOption{
 		client.WithTLSConfig(&tls.Config{RootCAs: roots}),
-		client.WithSessionTimeout(15 * time.Second), client.WithoutRedirects(), client.WithoutRetry(),
+		client.WithSessionTimeout(15 * time.Second), client.WithRedirects(c.Redirects != 0, c.Redirects), client.WithoutRetry(),
 		client.WithSessionProxy(""), client.WithSessionPreferIPv4(), client.WithDisableECH(),
 		client.WithLocalAddress("127.0.0.1"), client.WithoutCookieJar(),
 		client.WithoutConditionalCache(), client.WithoutHighEntropyClientHints(),
@@ -124,6 +124,23 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 	req := &client.Request{Method: c.Method, URL: r.URLs[record.ID%len(r.URLs)]}
 	if c.Method == "POST" {
 		req.Body = bytes.NewReader(bytes.Repeat([]byte{'U'}, c.UploadBytes))
+	}
+	if c.Redirects != 0 {
+		response, requestErr := selected.Do(ctx, req)
+		if response != nil {
+			defer func() { err = errors.Join(err, response.Close()) }()
+		}
+		if requestErr != nil {
+			return requestErr
+		}
+		if response == nil || response.StatusCode != 200 || response.Protocol != c.Protocol || len(response.History) != c.Redirects {
+			return errors.New("unexpected buffered response status, protocol or redirect history")
+		}
+		if err = consumeBody(response.Body, c, record, start); err != nil {
+			return err
+		}
+		record.CompleteNS = time.Since(start).Nanoseconds()
+		return nil
 	}
 	response, err := selected.DoStream(ctx, req)
 	if err != nil {
@@ -240,14 +257,18 @@ func run(c config, r ready, output string) error {
 		"observer_storage_bytes": observerBytes, "samples": samples,
 		"adapter_settings": map[string]any{
 			"library": "httpcloak=1.7.3", "recipe": "chrome-150-windows",
-			"automatic_headers": c.Template, "retry": false, "redirects": false,
+			"automatic_headers": c.Template, "retry": false, "redirects": c.Redirects,
 			"cookies": false, "conditional_cache": false, "high_entropy_client_hints": false,
 			"proxy": "none", "application_timeout_ms": 15000,
 			"connect_timeout_ms": nil, "connect_timeout_note": "library defaults, bounded by the total context deadline",
 			"pool_limits": "library defaults", "runtime_gomaxprocs": c.Workers,
 			"h1_streaming_reuse": false,
+			"streaming_api":      c.Redirects == 0,
 			"go_version":         runtime.Version(),
 		},
+	}
+	if c.Redirects != 0 {
+		result["unavailable_timings"] = map[string]string{"head_ns": "The buffered redirect API returns after body delivery."}
 	}
 	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {

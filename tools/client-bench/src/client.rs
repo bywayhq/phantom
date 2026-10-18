@@ -100,6 +100,9 @@ async fn request(
             .header(RequestHeader::new("accept-encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(config.bytes as u64));
     }
+    if let Some(hops) = std::num::NonZeroUsize::new(config.redirects) {
+        request = request.redirect_policy(phantom::RedirectPolicy::limited(hops));
+    }
     let diagnostics = std::num::NonZeroUsize::new(config.diagnostic_events)
         .map(|capacity| request.diagnostics(capacity));
     let response = request.send().await?;
@@ -111,6 +114,7 @@ async fn request(
     if response.status() != 200
         || info.protocol() != protocol(config)
         || info.retries_performed() != 0
+        || info.redirects_followed() != config.redirects
     {
         return Err("unexpected status, protocol or replay".into());
     }
@@ -144,7 +148,7 @@ async fn request(
             .events
             .iter()
             .find(|event| event.phase == phantom::RequestTimingPhase::ResponseBody);
-        if timeline.admitted_attempts != 1
+        if timeline.admitted_attempts != config.redirects + 1
             || timeline.outcome != phantom::RequestTimelineOutcome::ResponseHead
             || body.is_some_and(|event| event.outcome != phantom::RequestTimingOutcome::Completed)
             || (body.is_none() && timeline.dropped_events == 0)
