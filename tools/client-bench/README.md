@@ -51,9 +51,9 @@ small difference. Short cold runs have few observations beyond p99.
 
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The
-comparison set is Phantom, wreq, curl_cffi and httpcloak. The httpcloak adapter
-remains separate work; this option alone does not establish
-parity.
+comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents
+its supported workloads and measurement limits. Their availability alone does
+not establish parity.
 
 The descriptor has exactly four fields:
 
@@ -221,6 +221,12 @@ It never follows a protocol fallback. A run fails if requests fail, payloads
 or protocols differ, peer request totals differ, or route controls fail.
 Warmup and measured requests must reconcile with the peer before teardown.
 Expected teardown behavior remains in the separate final peer log/counters.
+
+The peer records transport disconnects after all HTTP/2 response tasks finish
+separately from interrupted responses. It also records HTTP/3 application code
+zero after completed responses. That code is used by httpcloak's explicit close
+API and remains distinct from HTTP/3 `H3_NO_ERROR` and QUIC transport `NO_ERROR`.
+Other application errors and failed response tasks still reject the trial.
 
 Connection setup and internal pool admission are included in head latency.
 This harness cannot split them with public timestamps. It does not claim

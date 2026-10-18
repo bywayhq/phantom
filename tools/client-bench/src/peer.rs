@@ -29,8 +29,10 @@ struct Stats {
     proxy_connections: AtomicUsize,
     failures: AtomicUsize,
     completed_h1_boundary_closes: AtomicUsize,
+    completed_h2_boundary_closes: AtomicUsize,
     completed_h3_no_error_closes: AtomicUsize,
     completed_h3_transport_no_error_closes: AtomicUsize,
+    completed_h3_application_zero_closes: AtomicUsize,
     completed_h3_idle_timeouts: AtomicUsize,
     #[serde(skip)]
     phase_complete: AtomicBool,
@@ -50,6 +52,29 @@ fn quic_transport_no_error(error: &h3::error::ConnectionError) -> bool {
         Some(quinn::ConnectionError::ConnectionClosed(close))
             if close.error_code == quinn::TransportErrorCode::NO_ERROR
     )
+}
+
+fn quic_application_zero(error: &h3::error::ConnectionError) -> bool {
+    matches!(
+        error,
+        h3::error::ConnectionError::Remote(h3::quic::ConnectionErrorIncoming::ApplicationClose {
+            error_code: 0
+        })
+    )
+}
+
+fn completed_http2_close(error: &http2::Error, received: usize, completed: usize) -> bool {
+    received > 0
+        && received == completed
+        && error.get_io().is_some_and(|error| {
+            matches!(
+                error.kind(),
+                std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::BrokenPipe
+                    | std::io::ErrorKind::UnexpectedEof
+            )
+        })
 }
 
 impl Stats {
@@ -206,11 +231,20 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
 ) -> Result<()> {
     let mut connection = http2::server::handshake(stream).await?;
     let mut responses = JoinSet::new();
+    let (mut received, mut completed) = (0, 0);
+    let mut close_error = None;
     while let Some(request) = connection.accept().await {
-        let (request, mut respond) = request?;
+        let (request, mut respond) = match request {
+            Ok(request) => request,
+            Err(error) => {
+                close_error = Some(error);
+                break;
+            }
+        };
         if request.method() != http::Method::GET {
             return Err("benchmark peer accepts only GET".into());
         }
+        received += 1;
         let (body, stats) = (body.clone(), stats.clone());
         responses.spawn(async move {
             body.before_head().await;
@@ -241,10 +275,21 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         });
         while let Some(result) = responses.try_join_next() {
             result??;
+            completed += 1;
         }
     }
     while let Some(result) = responses.join_next().await {
         result??;
+        completed += 1;
+    }
+    if let Some(error) = close_error {
+        if !completed_http2_close(&error, received, completed) {
+            return Err(error.into());
+        }
+        stats
+            .completed_h2_boundary_closes
+            .fetch_add(1, Ordering::Relaxed);
+        eprintln!("completed H2 connection closed after all responses: {error}");
     }
     Ok(())
 }
@@ -350,6 +395,21 @@ async fn quic_listener(
                                 .fetch_add(1, Ordering::Relaxed);
                             eprintln!(
                                 "completed H3 connection closed with QUIC transport NO_ERROR: {error}"
+                            );
+                            break;
+                        }
+                        Err(error) if quic_application_zero(&error) => {
+                            while let Some(result) = responses.join_next().await {
+                                result??;
+                            }
+                            if completed.load(Ordering::Relaxed) == 0 {
+                                return Err(error.into());
+                            }
+                            stats
+                                .completed_h3_application_zero_closes
+                                .fetch_add(1, Ordering::Relaxed);
+                            eprintln!(
+                                "completed H3 connection closed with application code zero: {error}"
                             );
                             break;
                         }
@@ -586,6 +646,46 @@ mod tests {
         pin::Pin,
         task::{Context, Poll},
     };
+
+    #[test]
+    fn completed_disconnects_keep_transport_and_application_errors_distinct() {
+        for kind in [
+            std::io::ErrorKind::ConnectionReset,
+            std::io::ErrorKind::ConnectionAborted,
+            std::io::ErrorKind::BrokenPipe,
+            std::io::ErrorKind::UnexpectedEof,
+        ] {
+            let error = http2::Error::from(std::io::Error::from(kind));
+            assert!(completed_http2_close(&error, 1, 1));
+            assert!(!completed_http2_close(&error, 0, 0));
+            assert!(!completed_http2_close(&error, 2, 1));
+        }
+        assert!(!completed_http2_close(
+            &http2::Reason::PROTOCOL_ERROR.into(),
+            1,
+            1
+        ));
+        assert!(!completed_http2_close(
+            &std::io::Error::from(std::io::ErrorKind::TimedOut).into(),
+            1,
+            1
+        ));
+        let zero = h3::error::ConnectionError::Remote(
+            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
+        );
+        assert!(quic_application_zero(&zero));
+        assert!(!quic_transport_no_error(&zero));
+        assert!(!quic_application_zero(&h3::error::ConnectionError::Remote(
+            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0x102 },
+        )));
+        assert!(!quic_application_zero(&h3::error::ConnectionError::Local {
+            error: h3::error::internal_error::InternalConnectionError::new(
+                h3::error::Code::H3_NO_ERROR,
+                "local close".into(),
+            )
+            .into(),
+        }));
+    }
     use tokio::io::ReadBuf;
 
     #[test]
@@ -602,6 +702,9 @@ mod tests {
         let remote =
             |reason| ConnectionError::Remote(ConnectionErrorIncoming::Undefined(Arc::new(reason)));
         assert!(quic_transport_no_error(&remote(reason(
+            quinn::TransportErrorCode::NO_ERROR
+        ))));
+        assert!(!quic_application_zero(&remote(reason(
             quinn::TransportErrorCode::NO_ERROR
         ))));
         assert!(!quic_transport_no_error(&remote(reason(
@@ -647,6 +750,89 @@ mod tests {
         assert!(!stats.completed_idle_timeout(&timeout, Some(&quinn::ConnectionError::Reset)));
     }
     struct AbruptPeer(&'static [u8]);
+
+    struct ResetAtEof(tokio::io::DuplexStream);
+
+    impl AsyncRead for ResetAtEof {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            let before = buf.filled().len();
+            match Pin::new(&mut self.0).poll_read(cx, buf) {
+                Poll::Ready(Ok(())) if buf.filled().len() == before => {
+                    Poll::Ready(Err(std::io::ErrorKind::ConnectionReset.into()))
+                }
+                result => result,
+            }
+        }
+    }
+
+    impl AsyncWrite for ResetAtEof {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            Pin::new(&mut self.0).poll_write(cx, buf)
+        }
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.0).poll_flush(cx)
+        }
+        fn poll_shutdown(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Pin::new(&mut self.0).poll_shutdown(cx)
+        }
+    }
+
+    #[tokio::test]
+    async fn h2_disconnect_only_records_fully_completed_responses() -> Result<()> {
+        for consume in [true, false] {
+            let (client, server) = tokio::io::duplex(65536);
+            let config = Config {
+                bytes: 65536,
+                chunk_bytes: 1024,
+                chunk_delay_ms: 1,
+                ..Config::default()
+            };
+            let stats = Arc::new(Stats::default());
+            let peer = tokio::spawn(http2(
+                ResetAtEof(server),
+                Arc::new(Body::new(&config)?),
+                stats.clone(),
+            ));
+            let (mut sender, connection) = http2::client::handshake(client).await?;
+            let driver = tokio::spawn(connection);
+            let request = http::Request::builder()
+                .uri("https://localhost/")
+                .body(())?;
+            let (response, _) = sender.send_request(request, true)?;
+            let mut response = response.await?.into_body();
+            if consume {
+                let mut bytes = 0;
+                while let Some(data) = response.data().await {
+                    let data = data?;
+                    assert!(data.iter().all(|byte| *byte == b'Z'));
+                    bytes += data.len();
+                    response.flow_control().release_capacity(data.len())?;
+                }
+                assert_eq!(bytes, config.bytes);
+            }
+            driver.abort();
+            assert!(driver.await.is_err_and(|error| error.is_cancelled()));
+            let outcome = tokio::time::timeout(Duration::from_secs(5), peer).await??;
+            assert_eq!(outcome.is_ok(), consume);
+            assert_eq!(
+                stats.completed_h2_boundary_closes.load(Ordering::Relaxed),
+                usize::from(consume)
+            );
+            assert_eq!(stats.requests.load(Ordering::Relaxed), usize::from(consume));
+        }
+        Ok(())
+    }
 
     impl AsyncRead for AbruptPeer {
         fn poll_read(
