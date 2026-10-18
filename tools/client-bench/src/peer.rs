@@ -647,15 +647,18 @@ mod tests {
         task::{Context, Poll},
     };
 
-    #[test]
-    fn completed_disconnects_keep_transport_and_application_errors_distinct() {
+    #[tokio::test]
+    async fn completed_disconnects_keep_transport_and_application_errors_distinct() -> Result<()> {
         for kind in [
             std::io::ErrorKind::ConnectionReset,
             std::io::ErrorKind::ConnectionAborted,
             std::io::ErrorKind::BrokenPipe,
             std::io::ErrorKind::UnexpectedEof,
         ] {
-            let error = http2::Error::from(std::io::Error::from(kind));
+            let error = http2::server::handshake(AbruptPeer(b"", kind))
+                .await
+                .err()
+                .ok_or("failed transport completed the handshake")?;
             assert!(completed_http2_close(&error, 1, 1));
             assert!(!completed_http2_close(&error, 0, 0));
             assert!(!completed_http2_close(&error, 2, 1));
@@ -665,11 +668,11 @@ mod tests {
             1,
             1
         ));
-        assert!(!completed_http2_close(
-            &std::io::Error::from(std::io::ErrorKind::TimedOut).into(),
-            1,
-            1
-        ));
+        let timeout = http2::server::handshake(AbruptPeer(b"", std::io::ErrorKind::TimedOut))
+            .await
+            .err()
+            .ok_or("failed transport completed the handshake")?;
+        assert!(!completed_http2_close(&timeout, 1, 1));
         let zero = h3::error::ConnectionError::Remote(
             h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
         );
@@ -685,6 +688,7 @@ mod tests {
             )
             .into(),
         }));
+        Ok(())
     }
     use tokio::io::ReadBuf;
 
@@ -749,7 +753,7 @@ mod tests {
         assert!(!stats.completed_idle_timeout(&timeout, None));
         assert!(!stats.completed_idle_timeout(&timeout, Some(&quinn::ConnectionError::Reset)));
     }
-    struct AbruptPeer(&'static [u8]);
+    struct AbruptPeer(&'static [u8], std::io::ErrorKind);
 
     struct ResetAtEof(tokio::io::DuplexStream);
 
@@ -841,7 +845,7 @@ mod tests {
             buf: &mut ReadBuf<'_>,
         ) -> Poll<std::io::Result<()>> {
             if self.0.is_empty() {
-                return Poll::Ready(Err(std::io::ErrorKind::UnexpectedEof.into()));
+                return Poll::Ready(Err(self.1.into()));
             }
             let length = self.0.len().min(buf.remaining());
             buf.put_slice(&self.0[..length]);
@@ -870,7 +874,7 @@ mod tests {
     async fn abrupt_close_before_any_response_fails() -> Result<()> {
         let stats = Arc::new(Stats::default());
         let result = http1(
-            AbruptPeer(b""),
+            AbruptPeer(b"", std::io::ErrorKind::UnexpectedEof),
             Arc::new(Body::new(&Config::default())?),
             stats.clone(),
         )
@@ -887,7 +891,7 @@ mod tests {
     async fn abrupt_close_after_complete_response_is_recorded() -> Result<()> {
         let stats = Arc::new(Stats::default());
         http1(
-            AbruptPeer(b"GET / HTTP/1.1\r\n\r\n"),
+            AbruptPeer(b"GET / HTTP/1.1\r\n\r\n", std::io::ErrorKind::UnexpectedEof),
             Arc::new(Body::new(&Config::default())?),
             stats.clone(),
         )
@@ -904,7 +908,10 @@ mod tests {
     async fn partial_next_head_still_fails_after_a_complete_response() -> Result<()> {
         let stats = Arc::new(Stats::default());
         let result = http1(
-            AbruptPeer(b"GET / HTTP/1.1\r\n\r\nGET /part"),
+            AbruptPeer(
+                b"GET / HTTP/1.1\r\n\r\nGET /part",
+                std::io::ErrorKind::UnexpectedEof,
+            ),
             Arc::new(Body::new(&Config::default())?),
             stats.clone(),
         )
