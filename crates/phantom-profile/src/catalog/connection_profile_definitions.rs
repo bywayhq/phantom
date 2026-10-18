@@ -54,6 +54,7 @@ impl TlsComponent {
 #[rustfmt::skip]
 pub(super) enum TcpComponent {
     Chromium154Android,
+    Chromium154Macos,
     Chromium154,
     Firefox156Android,
     Firefox157,
@@ -64,6 +65,7 @@ impl TcpComponent {
     pub(super) fn create(self) -> crate::TcpSettings {
         match self {
             Self::Chromium154Android => super::tcp_components::chromium_154_android_tcp(),
+            Self::Chromium154Macos => super::tcp_components::chromium_154_macos_tcp(),
             Self::Chromium154 => super::tcp_components::chromium_154_tcp(),
             Self::Firefox156Android => super::tcp_components::firefox_156_android_tcp(),
             Self::Firefox157 => super::tcp_components::firefox_157_tcp(),
@@ -194,6 +196,7 @@ pub(super) enum ClientHintsComponent {
     BraveAndroid153,
     BraveWindows154,
     ChromeAndroid154,
+    ChromeMacos154,
     ChromeWindows154,
     EdgeAndroid153,
     EdgeWindows153,
@@ -209,6 +212,7 @@ impl ClientHintsComponent {
             Self::BraveAndroid153 => super::client_hints_components::brave_android_153_client_hints(),
             Self::BraveWindows154 => super::client_hints_components::brave_windows_154_client_hints(),
             Self::ChromeAndroid154 => super::client_hints_components::chrome_android_154_client_hints(),
+            Self::ChromeMacos154 => super::client_hints_components::chrome_macos_154_client_hints(),
             Self::ChromeWindows154 => super::client_hints_components::chrome_windows_154_client_hints(),
             Self::EdgeAndroid153 => super::client_hints_components::edge_android_153_client_hints(),
             Self::EdgeWindows153 => super::client_hints_components::edge_windows_153_client_hints(),
@@ -330,6 +334,26 @@ pub(super) static CHROMEANDROID154: ConnectionProfileDefinition = ConnectionProf
     websocket: Some(WebSocketComponent::Chromium154),
     proxy_connect: None,
     cookie_placement: None,
+};
+
+#[rustfmt::skip]
+pub(super) static CHROMEMACOS154: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Chromium154Tcp,
+    tcp: Some(TcpComponent::Chromium154Macos),
+    udp: None,
+    dns_cache: None,
+    http1: Some(Http1Component::Chromium154),
+    http2: Some(Http2Component::Chromium154),
+    http3: Some(Http3Definition {
+        tls: TlsComponent::Chromium154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
+    }),
+    client_hints: Some(ClientHintsComponent::ChromeMacos154),
+    websocket: Some(WebSocketComponent::Chromium154),
+    proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
 };
 
 #[rustfmt::skip]

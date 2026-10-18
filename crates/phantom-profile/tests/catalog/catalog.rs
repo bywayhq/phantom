@@ -45,6 +45,10 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
 fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
     let factories: &[(&str, ProfileFactory)] = &[
         (
+            "chrome/154.0.8037.95/macos-15.5-arm64/r1",
+            browser::chrome::v154_macos,
+        ),
+        (
             "chrome/154.0.8037.97/windows-11-26200/r1",
             browser::chrome::v154_windows,
         ),

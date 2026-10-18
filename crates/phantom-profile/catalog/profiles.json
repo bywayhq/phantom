@@ -950,6 +950,294 @@
       }
     },
     {
+      "id": "chrome/154.0.8037.95/macos-15.5-arm64/r1",
+      "metadata": {
+        "browser": "Chrome",
+        "build": "154.0.8037.95",
+        "platform": "Macos",
+        "platform_release": "macos-15.5-arm64",
+        "architecture": "arm64",
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/chrome/154.0.8037.95/macos-15.5-arm64/resumption-sequential.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer.",
+            "The macOS TCP TLS observation covers sequential resumption, not a standalone fresh ClientHello capture."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Source",
+              "location": "https://chromium.googlesource.com/chromium/src/+/154.0.8037.58/net/socket/tcp_socket_posix.cc",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Source-derived macOS policy: only the keepalive idle time is set. No macOS socket-hook capture verifies these settings; kernel TCP behavior is not emulated."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No macOS recipe is selected for this layer; generic client defaults apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No macOS recipe is selected for this layer; generic client defaults apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/h1-accept.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/accept.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/quic-client-hello-1.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/154.0.8037.95/macos-15.5-arm64/navigation.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "HTTP/1.1 navigation header order"
+          ],
+          "limitations": [
+            "Three headless navigation runs on macOS 15.5 arm64. Other request contexts need their own comparisons."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/accept.txt",
+              "build": "154.0.8037.95"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.95"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
+          ]
+        }
+      ],
+      "templates": {
+        "Fetch": "chrome_macos154_fetch",
+        "FetchNoStore": "chrome_macos154_fetch_no_store",
+        "Navigation": "chrome_macos154_navigation"
+      },
+      "target": "ChromeMacos154",
+      "composition": {
+        "TcpTls": "chromium_154_tcp_tls",
+        "Tcp": "chromium_154_macos_tcp",
+        "Udp": null,
+        "Dns": null,
+        "Http1": "chromium_154_http1",
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_macos_154_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": "chromium_154_proxy_connect",
+        "CookiePlacement": "chromium_154_cookie"
+      }
+    },
+    {
       "id": "chrome/154.0.8037.97/windows-11-26200/r1",
       "metadata": {
         "browser": "Chrome",

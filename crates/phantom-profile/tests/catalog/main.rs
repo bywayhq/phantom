@@ -11,6 +11,7 @@ mod historical;
 mod http1_components;
 mod http2_components;
 mod http3_components;
+mod macos;
 mod proxy_connect_components;
 mod quic_components;
 mod request_templates;

@@ -38,6 +38,23 @@ class CatalogDeclarationTests(unittest.TestCase):
                 self.assertEqual(tcp["support"], "Unavailable")
                 self.assertIsNone(profile["composition"]["Tcp"])
 
+    def test_macos_tcp_is_source_only_and_missing_layers_stay_explicit(self):
+        profile = next(
+            p for p in self.document["profiles"] if p["target"] == "ChromeMacos154"
+        )
+        self.assertEqual(profile["metadata"]["environment"], "Desktop")
+        self.assertEqual(profile["composition"]["Tcp"], "chromium_154_macos_tcp")
+        layers = {layer["layer"]: layer for layer in profile["layers"]}
+        self.assertEqual(layers["Tcp"]["verified_fields"], [])
+        self.assertEqual(
+            {r["kind"] for r in layers["Tcp"]["references"]}, {"Source", "Recipe"}
+        )
+        for name in ("Udp", "Dns"):
+            self.assertEqual(layers[name]["support"], "Unavailable")
+            self.assertIsNone(profile["composition"][name])
+        profile["metadata"]["environment"] = "Emulator"
+        self.reject(self.document)
+
     def test_generation_is_independent_of_record_and_layer_object_order(self):
         expected = generator.generate(generator.validate(self.document))
         self.document["profiles"].reverse()

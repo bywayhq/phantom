@@ -58,6 +58,7 @@ ANDROID = {
 
 TARGET_CONTRACTS = {
     "ChromeWindows154": ("Chrome", "Windows", WINDOWS),
+    "ChromeMacos154": ("Chrome", "Macos", WINDOWS - {"Udp", "Dns"}),
     "ChromeAndroid154": ("Chrome", "Android", ANDROID | {"Tcp"}),
     "EdgeWindows154": ("Edge", "Windows", WINDOWS),
     "EdgeWindows153": (
@@ -85,6 +86,7 @@ TARGET_CONTRACTS = {
 
 TARGET_METADATA = {
     "ChromeWindows154": ("154.0.8037.97", "windows-11-26200", None, "Desktop", 1),
+    "ChromeMacos154": ("154.0.8037.95", "macos-15.5-arm64", "arm64", "Desktop", 1),
     "ChromeAndroid154": (
         "154.0.8037.57",
         "android-17-pixel7-emulator",
@@ -201,7 +203,7 @@ def validate(document, repo=REPO):
             ("Desktop", "Emulator", "PhysicalDevice"),
             "environment",
         )
-        if (platform == "Windows") != (environment == "Desktop"):
+        if (platform in ("Windows", "Macos", "Linux")) != (environment == "Desktop"):
             raise DeclarationError(f"{identifier}: incompatible capture environment")
         revision = metadata["revision"]
         if type(revision) is not int or not 1 <= revision <= 0xFFFFFFFF:

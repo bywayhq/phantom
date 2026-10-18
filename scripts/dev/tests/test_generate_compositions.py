@@ -68,7 +68,11 @@ class CompositionDeclarationTests(unittest.TestCase):
     ):
         profiles = cli.validate(self.document)
         composition.validate_composition_bindings(profiles, self.components)
-        original = [entry for entry in profiles if entry["target"] != "EdgeWindows153"]
+        original = [
+            entry
+            for entry in profiles
+            if entry["target"] not in ("EdgeWindows153", "ChromeMacos154")
+        ]
         self.assertEqual(len(original), 10)
         pairs = [value for entry in original for value in entry["composition"].values()]
         self.assertEqual(len(pairs), 140)
@@ -205,7 +209,7 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 11)
+        self.assertEqual(generated.count("static "), 12)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
         self,

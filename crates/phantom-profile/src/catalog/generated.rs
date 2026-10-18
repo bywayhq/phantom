@@ -772,6 +772,248 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("chrome/154.0.8037.95/macos-15.5-arm64/r1"),
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            build: "154.0.8037.95",
+            platform: ProfilePlatform::Macos,
+            platform_release: "macos-15.5-arm64",
+            architecture: Some("arm64"),
+            environment: CaptureEnvironment::Desktop,
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/tls/chrome/154.0.8037.95/macos-15.5-arm64/resumption-sequential.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer.", "The macOS TCP TLS observation covers sequential resumption, not a standalone fresh ClientHello capture."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/154.0.8037.58/net/socket/tcp_socket_posix.cc",
+                        build: "154.0.8037.58",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Source-derived macOS policy: only the keepalive idle time is set. No macOS socket-hook capture verifies these settings; kernel TCP behavior is not emulated."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No macOS recipe is selected for this layer; generic client defaults apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No macOS recipe is selected for this layer; generic client defaults apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/h1-accept.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/accept.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/quic-client-hello-1.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/154.0.8037.95/macos-15.5-arm64/navigation.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &["header values", "HTTP/1.1 navigation header order"],
+                limitations: &["Three headless navigation runs on macOS 15.5 arm64. Other request contexts need their own comparisons."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/accept.txt",
+                        build: "154.0.8037.95",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.95",
+                    },
+                ],
+                verified_fields: &[],
+                limitations: &["Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMEMACOS154,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS154_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_MACOS154_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROME_MACOS154_FETCH },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.97/windows-11-26200/r1"),
         metadata: ProfileMetadata {
             browser: Browser::Chrome,

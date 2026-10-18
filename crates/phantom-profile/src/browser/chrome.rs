@@ -1081,6 +1081,33 @@ pub fn v154_windows() -> ClientProfile {
         .with_cookie_placement(v154_cookie_placement())
 }
 
+/// Returns the Chrome 154.0.8037.95 profile for macOS 15.5 arm64.
+///
+/// Uses the macOS TCP policy and client hints. TLS, HTTP/1.1, HTTP/2,
+/// HTTP/3, WebSocket, proxy CONNECT and cookie settings reuse Chromium 154
+/// components. The catalog records each layer's observations and limits;
+/// this is not a completely captured macOS profile.
+///
+/// UDP socket and address-cache recipes are absent. Generic defaults apply.
+/// No request template is selected. macOS templates require your `User-Agent`.
+#[must_use]
+pub fn v154_macos() -> ClientProfile {
+    ClientProfile::new(v154_tcp_tls())
+        .with_tcp(v154_macos_tcp())
+        .with_http1(v154_http1())
+        .with_http2(v154_http2())
+        .with_http3(Http3ClientSettings::new(
+            v154_quic_tls(),
+            v154_quic(),
+            v154_http3(),
+            v154_http3_request(),
+        ))
+        .with_client_hints(v154_macos_client_hints())
+        .with_websocket(v154_websocket())
+        .with_proxy_connect(v154_proxy_connect())
+        .with_cookie_placement(v154_cookie_placement())
+}
+
 /// Returns the Chrome 154 Android profile.
 ///
 /// Supplies source-derived TCP socket settings, captured TCP TLS, HTTP/2,

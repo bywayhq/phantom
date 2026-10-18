@@ -18,6 +18,9 @@
 - Include the Chrome 154 Windows navigation capture in `phantom-testkit`.
   Expose navigation and existing HTTP/1 browser captures through
   `phantom_testkit::fixtures`, usable without a repository checkout.
+- Add the Chrome 154.0.8037.95 macOS catalog entry and `chrome::v154_macos`.
+  Select macOS TCP and client hints with explicit reused-layer limits and
+  required caller User-Agent slots. UDP and DNS recipes remain unavailable.
 
 - Add `Client::close_idle_connections` to release idle origin and proxy
   connections while retaining active work, TLS tickets and session state.

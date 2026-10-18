@@ -20,6 +20,15 @@ fn original_factory(id: &str, kind: RequestTemplateKind) -> Option<RequestTempla
     use RequestTemplateKind::{Fetch, FetchNoStore, FetchUpload, Navigation};
 
     let value = match (id, kind) {
+        ("chrome/154.0.8037.95/macos-15.5-arm64/r1", Navigation) => {
+            browser::chrome::v154_macos_navigation_template()
+        }
+        ("chrome/154.0.8037.95/macos-15.5-arm64/r1", FetchNoStore) => {
+            browser::chrome::v154_macos_fetch_no_store_template()
+        }
+        ("chrome/154.0.8037.95/macos-15.5-arm64/r1", Fetch) => {
+            browser::chrome::v154_macos_fetch_template()
+        }
         ("chrome/154.0.8037.97/windows-11-26200/r1", Navigation) => {
             browser::chrome::v154_windows_navigation_template()
         }
@@ -106,6 +115,24 @@ fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTe
         .collect::<Vec<_>>();
     assert_eq!(historical.len(), 2);
     expected.extend(historical);
+    let id = "chrome/154.0.8037.95/macos-15.5-arm64/r1";
+    expected.extend([
+        (
+            id,
+            RequestTemplateKind::Navigation,
+            browser::chrome::v154_macos_navigation_template(),
+        ),
+        (
+            id,
+            RequestTemplateKind::FetchNoStore,
+            browser::chrome::v154_macos_fetch_no_store_template(),
+        ),
+        (
+            id,
+            RequestTemplateKind::Fetch,
+            browser::chrome::v154_macos_fetch_template(),
+        ),
+    ]);
     expected
 }
 
@@ -155,7 +182,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (22, 22));
+    assert_eq!((supported, unsupported), (25, 23));
     Ok(())
 }
 

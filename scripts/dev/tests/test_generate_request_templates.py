@@ -60,9 +60,13 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 18)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 22)
-        original = [row for row in profiles if row["target"] != "EdgeWindows153"]
+        self.assertEqual(len(templates), 21)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 25)
+        original = [
+            row
+            for row in profiles
+            if row["target"] not in ("EdgeWindows153", "ChromeMacos154")
+        ]
         count = sum(
             len(templates[identifier][name] or [])
             for profile in original
@@ -111,7 +115,7 @@ class TemplateDeclarationTests(unittest.TestCase):
         for entry in reordered["templates"]:
             value = entry["values"]
             entry["values"] = dict(reversed(list(value.items())))
-            if value["http2_priority"] is not None:
+            if value.get("http2_priority") is not None:
                 entry["values"]["http2_priority"] = dict(
                     reversed(list(value["http2_priority"].items()))
                 )
