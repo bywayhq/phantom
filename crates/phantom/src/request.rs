@@ -10,8 +10,8 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::session::alt_svc::PinnedAlternative;
 use crate::{
-    Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeoutOverrides,
-    ResponseBody, ResponseInfo, RetryPolicy, Route,
+    Client, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy, RequestError,
+    RequestTimeoutOverrides, ResponseBody, ResponseInfo, RetryPolicy, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
     content_coding::{self, AdvertisedContentCodings, ContentDecodingPlan},
     redirect::{RedirectAction, RedirectState},
@@ -83,6 +83,7 @@ pub struct RequestBuilder {
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
+    redirect_policy: Option<RedirectPolicy>,
     attempt_budget: Option<crate::HttpAttemptBudget>,
     diagnostics: Option<crate::RequestDiagnostics>,
     content_decoding: ContentDecoding,
@@ -108,6 +109,7 @@ impl fmt::Debug for RequestBuilder {
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
             .field("retry_policy_override", &self.retry_policy.is_some())
+            .field("redirect_policy_override", &self.redirect_policy.is_some())
             .field("attempt_budget", &self.attempt_budget)
             .field("content_decoding", &self.content_decoding)
             .field("pinned_alternative", &self.alternative.is_some())
@@ -179,6 +181,7 @@ impl RequestBuilder {
             route: None,
             timeouts: None,
             retry_policy: None,
+            redirect_policy: None,
             attempt_budget: None,
             diagnostics: None,
             content_decoding: ContentDecoding::none(),
@@ -699,6 +702,20 @@ impl RequestBuilder {
         self
     }
 
+    /// Replaces the client's redirect policy for this request.
+    ///
+    /// Without this call the request uses
+    /// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy).
+    /// Use [`RedirectPolicy::none`] to return redirects to you, or
+    /// [`RedirectPolicy::limited`] to follow them up to a hop limit.
+    /// The override applies to every hop of this request. Other requests and
+    /// client clones keep their client policy. Redirects retain the shared
+    /// deadline, retry and attempt budgets, and credential-stripping rules.
+    pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
+        self.redirect_policy = Some(policy);
+        self
+    }
+
     /// Sets the response content-decoding policy for this request.
     ///
     /// The default is [`ContentDecoding::none`], which returns the wire body.
@@ -1104,6 +1121,7 @@ impl RequestBuilder {
             route,
             timeouts: _,
             retry_policy: _,
+            redirect_policy,
             attempt_budget,
             diagnostics: _,
             content_decoding: _,
@@ -1142,7 +1160,7 @@ impl RequestBuilder {
         {
             return Err(RequestError::forward_proxy_authorization_header());
         }
-        let policy = client.state.redirect_policy;
+        let policy = redirect_policy.unwrap_or(client.state.redirect_policy);
 
         if policy.max_hops().is_none() {
             let mut body = body;

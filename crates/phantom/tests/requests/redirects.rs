@@ -35,6 +35,7 @@ use hop_server::HopServer;
 use tls_support::{H2_ALPN, TestIdentity, client_builder};
 
 mod hop_server;
+mod request_policy;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;

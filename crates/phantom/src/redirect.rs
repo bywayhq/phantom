@@ -11,8 +11,9 @@ use crate::{RequestError, request::RequestBodySource};
 ///
 /// The default, equal to [`RedirectPolicy::none`], returns every redirect
 /// response to the caller. Set the policy for a whole client with
-/// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy);
-/// there is no per-request override.
+/// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy),
+/// or replace it for one request with
+/// [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
 ///
 /// A 301, 302, 303, 307, or 308 is followed to an `http://` or `https://`
 /// target; any other resolved `Location` scheme fails with

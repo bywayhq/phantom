@@ -193,6 +193,9 @@ Enable only the behavior you need:
 
 - **Redirects:** [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy)
   with [`RedirectPolicy::limited`](crate::RedirectPolicy::limited).
+  Override one request with
+  [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
+  Use `RedirectPolicy::none()` to inspect its redirect response yourself.
 - **Cookies:** enable the `cookies` feature and call `ClientBuilder::cookies()`.
   The jar is shared by requests and client clones.
 - **Extra retries:** [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
