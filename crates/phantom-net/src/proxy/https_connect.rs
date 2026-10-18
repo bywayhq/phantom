@@ -221,6 +221,16 @@ impl HttpsProxyConnector {
         self
     }
 
+    /// Releases idle connections from this connector's shared HTTP/2 proxy pool.
+    ///
+    /// Active tunnels and requests remain open; pending setup is not cancelled.
+    /// TLS session tickets are retained. HTTP/1 proxy sockets belong to callers.
+    pub fn close_idle_connections(&self) {
+        if let Some(pool) = &self.http2_pool {
+            pool.close_idle_connections();
+        }
+    }
+
     /// Returns the TCP socket options applied to proxy connections, if any.
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {

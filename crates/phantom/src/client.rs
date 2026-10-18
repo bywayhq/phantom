@@ -215,6 +215,22 @@ pub(crate) struct OriginConnectors<'a> {
 }
 
 impl ClientInner {
+    pub(crate) fn close_idle_proxy_connections(&self) {
+        for connector in [&self.https_proxy, &self.forward_https_proxy]
+            .into_iter()
+            .flatten()
+        {
+            connector.close_idle_connections();
+        }
+        #[cfg(feature = "websocket")]
+        if let Some(connector) = &self.websocket_https_proxy {
+            connector.close_idle_connections();
+        }
+        if let Some(Route::ConnectUdp(proxy)) = &self.route {
+            proxy.pool().close_idle_connections();
+        }
+    }
+
     pub(crate) fn selected_route(
         &self,
         request_route: Option<&Route>,

@@ -562,6 +562,34 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Releases idle origin and proxy connections retained by this client.
+    ///
+    /// Client clones share pools. Active requests, response bodies, WebSockets,
+    /// tunnels and pending setup remain open. TLS tickets, cookies, discovery
+    /// state and pool admission limits are retained. Later requests can open
+    /// new connections and resume TLS sessions with retained tickets.
+    ///
+    /// This visits retained route entries and the configured default route.
+    /// CONNECT-UDP route clones share an outer proxy pool, including when used
+    /// by different clients; its idle connections are included. Previously
+    /// evicted request routes cannot be visited. Concurrent activity can make
+    /// an idle connection ineligible during this call.
+    ///
+    /// Shutdown of the underlying drivers is asynchronous. An outer proxy
+    /// connection can become idle after its origin tunnel finishes shutting
+    /// down and may need a later call. Cancelling this future can leave some
+    /// pools unvisited; it does not cancel requests.
+    pub async fn close_idle_connections(&self) {
+        self.state.http1.close_idle_connections().await;
+        self.state.http1_or_2.close_idle_connections().await;
+        self.state.http2.close_idle_connections().await;
+        let proxy_pools = self.state.http3.close_idle_connections().await;
+        for pool in proxy_pools {
+            pool.close_idle_connections();
+        }
+        self.inner.close_idle_proxy_connections();
+    }
+
     /// Clears this client's retained TCP TLS and QUIC session tickets.
     ///
     /// This includes origin and TLS proxy caches, including caches whose pool

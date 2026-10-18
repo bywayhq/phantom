@@ -123,6 +123,35 @@ pub(crate) struct Http3Pool {
 }
 
 impl Http3Pool {
+    pub(super) async fn close_idle_connections(
+        &self,
+    ) -> Vec<phantom_net::proxy::ConnectUdpProxyPool> {
+        let mut retired = Vec::new();
+        let mut proxy_pools = Vec::new();
+        {
+            let state = self.state.lock().await;
+            for (key, entry) in &state.entries {
+                if let Route::ConnectUdp(proxy) = &key.route {
+                    proxy_pools.push(proxy.pool().clone());
+                }
+                let mut slots = entry.lock_slots();
+                let mut index = 0;
+                while index < slots.connections.len() {
+                    let connection = &slots.connections[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        if let Some(connection) = slots.connections.remove(index) {
+                            retired.push(connection);
+                        }
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+        }
+        drop(retired);
+        proxy_pools
+    }
+
     pub(super) fn new(
         capacity: NonZeroUsize,
         max_active: NonZeroUsize,

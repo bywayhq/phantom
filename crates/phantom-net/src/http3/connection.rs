@@ -174,6 +174,16 @@ impl Http3Connection {
             });
     }
 
+    /// Whether this handle owns the connection without another handle or stream lease.
+    ///
+    /// Pool owners must hold their checkout lock while testing this and removing
+    /// the handle. A separate setup check is required before retiring it.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn is_exclusively_owned(&self) -> bool {
+        Arc::strong_count(&self.inner) == 1
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         session: Arc<Session>,

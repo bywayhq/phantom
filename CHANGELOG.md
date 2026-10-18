@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `Client::close_idle_connections` to release idle origin and proxy
+  connections while retaining active work, TLS tickets and session state.
 - Rebuild the user documentation around docs.rs: a short README, an API
   overview, and four guides for getting started, browser profiles, requests
   and responses, and proxies.
