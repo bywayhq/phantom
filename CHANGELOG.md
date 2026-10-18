@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stop capture process groups before closing their control pipes to avoid
+  intermittent cleanup failures on macOS.
+
 - Add the optional `xml` feature and `response_xml` for bounded typed UTF-8
   response reads that preserve metadata. Reject DOCTYPE declarations,
   unsupported encodings, multiple roots and nesting beyond 128 levels.

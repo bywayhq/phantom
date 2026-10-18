@@ -466,7 +466,32 @@ class ProcessContainer:
         if self._process is not None and sys.platform == "win32":
             # Keep an unreleased bootstrap blocked until its handle is held.
             self._collect_windows_job(failures, deadline)
-        if self._gate is not None:
+        elif (
+            self._process is not None
+            and not self._group_stopped
+            and not self._group_lost
+        ):
+            try:
+                # Keep the control pipe open until the parent signals the
+                # owned group. EOF lets the custodian kill itself first;
+                # signalling its zombie-only group can fail on macOS.
+                if (
+                    self._process.returncode is not None
+                    or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL
+                ):
+                    self._group_lost = True
+                    raise OSError("capture group leader identity was released")
+                os.killpg(self._process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                self._group_stopped = True
+            except BaseException as error:
+                failures.append(("kill process group", error))
+                if self._group_lost:
+                    self._lost_failures.append(("process group identity lost", error))
+            else:
+                self._group_stopped = True
+
+        if self._gate is not None and (sys.platform == "win32" or self._group_stopped):
             try:
                 self._gate.close()
             except BaseException as error:
@@ -495,30 +520,6 @@ class ProcessContainer:
                         )
                 else:
                     self._native_handles.remove(handle)
-        elif (
-            self._process is not None
-            and not self._group_stopped
-            and not self._group_lost
-        ):
-            try:
-                # The private custodian remains alive or unreaped until this
-                # group operation succeeds. Never reap after a failed signal.
-                if (
-                    self._process.returncode is not None
-                    or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL
-                ):
-                    self._group_lost = True
-                    raise OSError("capture group leader identity was released")
-                os.killpg(self._process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                self._group_stopped = True
-            except BaseException as error:
-                failures.append(("kill process group", error))
-                if self._group_lost:
-                    self._lost_failures.append(("process group identity lost", error))
-            else:
-                self._group_stopped = True
-
         for attribute in ("_launch_writer", "_launch_reader"):
             try:
                 self._close_launch_pipe(attribute)

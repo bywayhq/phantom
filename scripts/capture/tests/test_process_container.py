@@ -203,7 +203,29 @@ class ProcessContainerTests(unittest.TestCase):
             self.assertIs(raised.exception.container, container)
             self.assertFalse(container._group_stopped)
             self.assertIsNone(container._process.returncode)
+            self.assertIsNotNone(container._gate)
+            self.assertFalse(container._gate.closed)
             self.assertFalse(container.start())
+        finally:
+            container.close()
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX custodian shutdown")
+    def test_group_is_signalled_before_closing_its_control_pipe(self) -> None:
+        container = ProcessContainer([sys.executable, "-c", "pass"])
+        signal_group = os.killpg
+
+        def signal_with_live_gate(pid: int, signum: int) -> None:
+            self.assertIsNotNone(container._gate)
+            self.assertFalse(container._gate.closed)
+            self.assertIsNone(container._process.returncode)
+            signal_group(pid, signum)
+
+        try:
+            container.start()
+            container.wait(timeout=30)
+            with mock.patch.object(os, "killpg", side_effect=signal_with_live_gate):
+                container.close()
+            self.assertIsNone(container._gate)
         finally:
             container.close()
 
