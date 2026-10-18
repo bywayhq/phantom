@@ -284,6 +284,29 @@ fn per_ssl_verifier_override_cannot_acquire_pinned_publication_authority() -> Te
     Ok(())
 }
 
+#[test]
+fn concurrent_connections_do_not_share_pin_outcomes() -> TestResult<()> {
+    let client = pinned_client(SslVersion::TLS1_3)?;
+    let accepted = Peer::start(true)?;
+    let rejected = Peer::start(false)?;
+    let (good, bad) = thread::scope(|scope| {
+        let good = scope.spawn(|| request(&client, accepted.address, "foobar.com"));
+        let bad = scope.spawn(|| request(&client, rejected.address, "wrong.example"));
+        (good.join(), bad.join())
+    });
+    let good_peer = accepted.finish();
+    let bad_peer = rejected.finish();
+    match (good, bad, good_peer, bad_peer) {
+        (
+            Ok(Ok((true, SpkiPinVerification::Matched))),
+            Ok(Ok((false, SpkiPinVerification::CertificateInvalid))),
+            Ok(1),
+            Ok(0),
+        ) => Ok(()),
+        outcomes => Err(format!("concurrent pin outcomes: {outcomes:?}").into()),
+    }
+}
+
 #[cfg(not(feature = "fips"))]
 #[test]
 fn ech_rejection_authenticates_retry_configs_without_origin_pin_authority() -> TestResult<()> {
