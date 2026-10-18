@@ -22,6 +22,94 @@ use crate::{Route, authority::Endpoint};
 const WAIT: Duration = Duration::from_secs(5);
 const LIMIT: Duration = Duration::from_secs(115);
 
+#[tokio::test]
+async fn refresh_keeps_pending_weak_spares_until_their_terminal_report() -> TestResult {
+    let one = std::num::NonZeroUsize::MIN;
+    let pool = Http1Pool::new(one, one, one);
+    let endpoint = Endpoint::new("refresh.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &endpoint,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    let weak = Arc::downgrade(&entry.connections);
+    let (slower, _, finish) = gated();
+    entry.connections.adopt(slower);
+    pool.refresh_connections().await;
+    drop(entry);
+    assert!(weak.upgrade().is_some(), "refresh cancelled weak setup");
+    finish.send(None).map_err(|_| "weak setup cancelled")?;
+    timeout(WAIT, async {
+        while weak.upgrade().is_some() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn refresh_preserves_claimed_spares_registered_by_an_old_setup() -> TestResult {
+    let one = std::num::NonZeroUsize::MIN;
+    let pool = Http1Pool::new(one, one, one);
+    let endpoint = Endpoint::new("refresh.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &endpoint,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    let weak = Arc::downgrade(&entry.connections);
+    pool.refresh_connections().await;
+    // The old setup can deliver its backup after the pool has moved on.
+    let (slower, _, finish) = gated();
+    entry.connections.adopt(slower);
+    let Checkout::Spare(claim) = entry.connections.checkout(false) else {
+        return Err("late spare could not be claimed".into());
+    };
+    drop(entry);
+    let (connection, _peer) = connection().await?;
+    finish
+        .send(Some(connection))
+        .map_err(|_| "late setup cancelled")?;
+    let lease = timeout(WAIT, claim.wait())
+        .await?
+        .ok_or("claimed spare not delivered")?;
+    assert!(lease.connection.is_reusable());
+    drop(lease);
+    timeout(WAIT, async {
+        while weak.upgrade().is_some() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn dropping_a_refreshed_pool_still_cancels_abandoned_weak_setup() -> TestResult {
+    let one = std::num::NonZeroUsize::MIN;
+    let pool = Http1Pool::new(one, one, one);
+    let endpoint = Endpoint::new("refresh.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &endpoint,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    let (slower, _, mut finish) = gated();
+    entry.connections.adopt(slower);
+    pool.refresh_connections().await;
+    drop(entry);
+    drop(pool);
+    timeout(WAIT, finish.closed()).await?;
+    Ok(())
+}
+
 /// A slower connection whose setup ends with the outcome the test sends.
 fn gated() -> (
     SlowerConnection<Http1Connection>,

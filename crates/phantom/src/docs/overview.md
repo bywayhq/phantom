@@ -38,6 +38,10 @@ when the peer should select HTTP/1.1 or HTTP/2 through TLS negotiation.
 Built-in profile constructors leave request templates unset; see
 [Browser profiles](crate::guide::browser_profiles) to add browser request headers.
 
+Call [`Client::refresh_connections`](crate::Client::refresh_connections) to use
+fresh connections for later requests while active work finishes. Clones share
+the change. Tickets and session state stay available for the new connections.
+
 ## Guides
 
 | Read | To |

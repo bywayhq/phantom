@@ -22,6 +22,31 @@ use tokio::{
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 const WAIT: Duration = Duration::from_secs(5);
 
+#[tokio::test]
+async fn refresh_does_not_retain_a_completed_claimed_proxy_spare() -> TestResult {
+    timeout(WAIT, async {
+        let connections = connections(bound(2)?)?;
+        let (opening, mut peer, _) = opening(&connections).await?;
+        adopt(&connections, opening).await;
+        let Checkout::Proxy(claim) = connections.checkout(false, false) else {
+            return Err("quiet opening not claimed".into());
+        };
+        let registry = Arc::new(crate::session::retired_connections::RetiredConnections::default());
+        connections.begin_retirement(&registry);
+        let weak = Arc::downgrade(&connections);
+        drop(claim);
+        drop(connections);
+        assert!(
+            weak.upgrade().is_none(),
+            "completed claim retained the retired owner"
+        );
+        assert_eq!(peer.read(&mut [0]).await?, 0);
+        drop(registry);
+        Ok(())
+    })
+    .await?
+}
+
 fn route(port: u16, headers: &[HttpConnectHeader]) -> HttpConnectRoute<'_> {
     HttpConnectRoute {
         speculative_tls: false,

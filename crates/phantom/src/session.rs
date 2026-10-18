@@ -29,6 +29,7 @@ pub(crate) mod http2_pool;
 mod http3_connections;
 pub(crate) mod http3_pool;
 mod prune_timer;
+mod retired_connections;
 mod stream_count;
 mod tickets;
 
@@ -560,6 +561,41 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Replaces retained origin and proxy connections while active work finishes.
+    ///
+    /// After this returns, later pool lookups use fresh connections. Work that
+    /// already obtained a pool owner can finish setup, authentication, requests,
+    /// bodies, WebSockets and tunnels using it. Client clones share this change.
+    /// TLS tickets, cookies, discovery, learned protocol state and request
+    /// admission limits are retained.
+    ///
+    /// This visits retained routes and the default route. CONNECT-UDP pools
+    /// shared with other clients are refreshed too. Previously evicted entries
+    /// remain available only to their existing owners. Cancelling this future
+    /// can leave some pools unvisited; it does not cancel active work.
+    ///
+    /// Shutdown of old transport drivers is asynchronous. This operation does
+    /// not wait for active work to finish or report graceful drain completion.
+    pub async fn refresh_connections(&self) {
+        self.state.http1.refresh_connections().await;
+        self.state.http1_or_2.refresh_connections().await;
+        self.state.http2.refresh_connections().await;
+        let mut pools = self.state.http3.refresh_connections().await;
+        if let Some(default) = self.inner.default_connect_udp_pool()
+            && !pools.iter().any(|pool| pool.shares_scope(default))
+        {
+            pools.push(default.clone());
+        }
+        let mut visited: Vec<phantom_net::proxy::ConnectUdpProxyPool> = Vec::new();
+        for pool in pools {
+            if !visited.iter().any(|prior| prior.shares_scope(&pool)) {
+                pool.refresh_connections();
+                visited.push(pool);
+            }
+        }
+        self.inner.refresh_proxy_connections();
+    }
+
     /// Releases idle origin and proxy connections retained by this client.
     ///
     /// Client clones share pools. Active requests, response bodies, WebSockets,

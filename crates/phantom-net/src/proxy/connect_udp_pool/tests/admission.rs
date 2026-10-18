@@ -70,6 +70,34 @@ async fn active_and_pending_limits_release_after_cancel() -> TestResult {
 }
 
 #[tokio::test]
+async fn refresh_keeps_shared_admission_and_isolates_setup_publication() -> TestResult {
+    let pool = ConnectUdpProxyPool::with_limits(one(), one())?;
+    let key = key(0)?;
+    let old = setup(pool.acquire(key.clone()).await?)?;
+    let old_entry = Arc::clone(&old.lease.as_ref().ok_or("lease absent")?.entry);
+    pool.refresh_connections();
+    let fresh = pool.entry(key.clone())?;
+    assert!(!Arc::ptr_eq(&old_entry, &fresh));
+    let waiting_pool = pool.clone();
+    let waiting = tokio::spawn(async move { waiting_pool.acquire(key).await });
+    wait_until(|| pool.inner.state().pending.available_permits() == 0).await?;
+    assert!(
+        !waiting.is_finished(),
+        "refresh reset the shared admission bound"
+    );
+    drop(old);
+    let current = setup(waiting.await??)?;
+    assert!(Arc::ptr_eq(
+        &current.lease.as_ref().ok_or("lease absent")?.entry,
+        &fresh
+    ));
+    assert!(lock(&fresh.state).connecting.is_some());
+    drop(current);
+    assert!(lock(&fresh.state).connecting.is_none());
+    Ok(())
+}
+
+#[tokio::test]
 async fn setup_failure_wakes_its_waiters_with_the_original_category() -> TestResult {
     let pool = ConnectUdpProxyPool::new();
     let key = key(0)?;

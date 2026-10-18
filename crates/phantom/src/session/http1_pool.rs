@@ -73,11 +73,25 @@ pub(crate) struct Http1Pool {
     used_idle_timeout: Option<Duration>,
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
+    retired: Arc<super::retired_connections::RetiredConnections<EntryConnections>>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http1Pool {
+    pub(super) async fn refresh_connections(&self) {
+        let mut previous = Vec::new();
+        {
+            let mut state = self.state.lock().await;
+            for (_, entry) in &mut state.entries {
+                let fresh = Arc::new(entry.fresh());
+                entry.connections.begin_retirement(&self.retired);
+                previous.push(std::mem::replace(entry, fresh));
+            }
+        }
+        drop(previous);
+    }
+
     pub(super) async fn close_idle_connections(&self) {
         let mut retired_connections = Vec::new();
         let mut retired_spares = Vec::new();
@@ -123,6 +137,7 @@ impl Http1Pool {
             used_idle_timeout: None,
             prune_timer: None,
             state: Mutex::new(PoolState::default()),
+            retired: Arc::default(),
             #[cfg(feature = "https-records")]
             https_records: None,
         }
@@ -841,13 +856,30 @@ struct PoolEntry {
     tickets: Arc<super::tickets::TicketOwner>,
     connections: Arc<EntryConnections>,
     admission: Arc<Admission>,
-    connector: OnceLock<Http1TlsConnector>,
-    https_proxy: OnceLock<HttpsProxyConnector>,
+    connector: Arc<OnceLock<Http1TlsConnector>>,
+    https_proxy: Arc<OnceLock<HttpsProxyConnector>>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl PoolEntry {
+    fn fresh(&self) -> Self {
+        Self {
+            tickets: Arc::clone(&self.tickets),
+            connections: EntryConnections::new(
+                self.connections.max,
+                self.connections.used_idle_timeout,
+                self.connections.prune.clone(),
+                Arc::clone(&self.connections.family),
+            ),
+            admission: Arc::clone(&self.admission),
+            connector: Arc::clone(&self.connector),
+            https_proxy: Arc::clone(&self.https_proxy),
+            #[cfg(feature = "https-records")]
+            https_records: self.https_records.clone(),
+        }
+    }
+
     #[cfg(feature = "websocket")]
     fn origin_connector(
         &self,
@@ -878,8 +910,8 @@ impl PoolEntry {
             tickets: Arc::default(),
             connections,
             admission,
-            connector: OnceLock::new(),
-            https_proxy: OnceLock::new(),
+            connector: Arc::default(),
+            https_proxy: Arc::default(),
             #[cfg(feature = "https-records")]
             https_records: None,
         }
@@ -1281,6 +1313,7 @@ type Opened = (Http1Connection, Option<SlowerConnection<Http1Connection>>);
 /// extra connection per backup connection whose slower attempt is in
 /// flight, at most `max` extra, until they are used or expire idle.
 struct EntryConnections {
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
     max: NonZeroUsize,
     /// How long an idle connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
@@ -1368,6 +1401,7 @@ impl SpareReport {
     fn finished(mut self, connection: Option<SpareConnection>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_finished(self.id, connection);
+            entry.release_retired();
         }
     }
 }
@@ -1376,6 +1410,7 @@ impl Drop for SpareReport {
     fn drop(&mut self) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_finished(self.id, None);
+            entry.release_retired();
         }
     }
 }
@@ -1616,6 +1651,38 @@ impl Drop for ProxyClaim {
 }
 
 impl EntryConnections {
+    fn begin_retirement(
+        self: &Arc<Self>,
+        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+    ) {
+        let set = self.lock();
+        self.retirement.get_or_init(|| Arc::downgrade(registry));
+        if set.spares.iter().any(|spare| spare.ready.is_none()) {
+            registry.retain(self);
+        }
+    }
+
+    fn retain_pending(self: &Arc<Self>) {
+        let _set = self.lock();
+        if let Some(registry) = self.retirement.get().and_then(Weak::upgrade) {
+            registry.retain(self);
+        }
+    }
+
+    fn release_retired(self: &Arc<Self>) {
+        let removed = {
+            let set = self.lock();
+            if set.spares.iter().any(|spare| spare.ready.is_none()) {
+                return;
+            }
+            self.retirement
+                .get()
+                .and_then(Weak::upgrade)
+                .and_then(|registry| registry.take(self))
+        };
+        drop(removed);
+    }
+
     fn new(
         max: NonZeroUsize,
         used_idle_timeout: Option<Duration>,
@@ -1623,6 +1690,7 @@ impl EntryConnections {
         family: Arc<AddressFamilyMemory>,
     ) -> Arc<Self> {
         let connections = Arc::new(Self {
+            retirement: OnceLock::new(),
             max,
             used_idle_timeout,
             prune,
@@ -1717,6 +1785,7 @@ impl EntryConnections {
             entry: Some(Arc::downgrade(self)),
             id,
         };
+        self.retain_pending();
         // Spawned outside the lock: a runtime that is shutting down drops
         // the task at once, and its report takes the lock.
         let task = runtime.spawn(async move {

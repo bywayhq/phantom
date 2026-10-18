@@ -147,6 +147,31 @@ impl ConnectUdpProxyPool {
         drop(retired);
     }
 
+    /// Replaces retained sessions while existing setup and tunnels finish.
+    ///
+    /// Later acquisitions use fresh sessions. TLS caches, prepared outer
+    /// owners, family memory and admission limits are retained. This affects
+    /// all clones, including other clients sharing this pool. Driver shutdown
+    /// remains asynchronous.
+    pub fn refresh_connections(&self) {
+        let previous = {
+            let mut entries = lock(&self.inner.state().entries);
+            entries
+                .iter_mut()
+                .map(|entry| {
+                    let fresh = Arc::new(Entry {
+                        key: entry.key.clone(),
+                        family: entry.family.clone(),
+                        connectors: Arc::clone(&entry.connectors),
+                        state: Mutex::default(),
+                    });
+                    std::mem::replace(entry, fresh)
+                })
+                .collect::<Vec<_>>()
+        };
+        drop(previous);
+    }
+
     /// Retires retained sessions while allowing existing tunnels to finish.
     ///
     /// Active keys and their admission counts remain registered. Pending setup
@@ -157,8 +182,7 @@ impl ConnectUdpProxyPool {
             state.generation = state.generation.wrapping_add(1);
             state.session = None;
             state.authenticated = false;
-            state.http3_connector = None;
-            state.http2_connector = None;
+            *lock(&entry.connectors) = ConnectorState::default();
         }
     }
 
@@ -181,10 +205,9 @@ impl ConnectUdpProxyPool {
         }
         if entries.len() == MAX_CONNECT_UDP_POOL_KEYS {
             // A prepared owner, lease or setup keeps its key from eviction.
-            let Some(index) = entries
-                .iter()
-                .position(|entry| Arc::strong_count(entry) == 1)
-            else {
+            let Some(index) = entries.iter().position(|entry| {
+                Arc::strong_count(entry) == 1 && Arc::strong_count(&entry.connectors) == 1
+            }) else {
                 return Err(capacity());
             };
             entries.remove(index);
@@ -194,6 +217,7 @@ impl ConnectUdpProxyPool {
         let entry = Arc::new(Entry {
             key,
             family: AddressFamilyMemory::default(),
+            connectors: Arc::default(),
             state: Mutex::new(SessionState::default()),
         });
         entries.push(Arc::clone(&entry));
@@ -222,7 +246,7 @@ impl ConnectUdpProxyPool {
                 if let Some(session) = state
                     .session
                     .as_ref()
-                    .filter(|session| state.can_reuse(session))
+                    .filter(|session| lease.entry.can_reuse(session))
                 {
                     let session = session.clone();
                     let authenticated = state.authenticated;
@@ -397,6 +421,7 @@ struct Entry {
     key: PoolKey,
     // Physical proxy selection survives session retirement and pool clear.
     family: AddressFamilyMemory,
+    connectors: Arc<Mutex<ConnectorState>>,
     state: Mutex<SessionState>,
 }
 
@@ -405,9 +430,13 @@ struct SessionState {
     session: Option<OuterSession>,
     authenticated: bool,
     generation: u64,
+    connecting: Option<watch::Receiver<Option<SetupResult>>>,
+}
+
+#[derive(Default)]
+struct ConnectorState {
     http3_connector: Option<Arc<Http3Connector>>,
     http2_connector: Option<Arc<HttpsProxyConnector>>,
-    connecting: Option<watch::Receiver<Option<SetupResult>>>,
 }
 
 #[derive(Clone)]
@@ -416,11 +445,11 @@ pub(crate) enum OuterSession {
     Http3(Http3Connection),
 }
 
-impl SessionState {
+impl Entry {
     fn can_reuse(&self, session: &OuterSession) -> bool {
         match session {
             OuterSession::Http2(connection) => connection.can_wait_for_connect_udp(),
-            OuterSession::Http3(connection) => self
+            OuterSession::Http3(connection) => lock(&self.connectors)
                 .http3_connector
                 .as_ref()
                 .is_some_and(|connector| connector.can_reuse_now(connection)),
@@ -446,7 +475,7 @@ pub(crate) struct TunnelLease {
 
 impl TunnelLease {
     pub(crate) fn http3_connector(&self, base: &Http3Connector) -> Arc<Http3Connector> {
-        let mut state = lock(&self.entry.state);
+        let mut state = lock(&self.entry.connectors);
         Arc::clone(
             state
                 .http3_connector
@@ -455,7 +484,7 @@ impl TunnelLease {
     }
 
     pub(crate) fn http2_connector(&self, base: &HttpsProxyConnector) -> Arc<HttpsProxyConnector> {
-        let mut state = lock(&self.entry.state);
+        let mut state = lock(&self.entry.connectors);
         Arc::clone(
             state
                 .http2_connector

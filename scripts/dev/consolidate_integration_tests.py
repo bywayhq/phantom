@@ -75,6 +75,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "requests",
             [
                 "close_idle",
+                "refresh",
                 "dns_overrides",
                 "early_data_server",
                 "http2_connections",

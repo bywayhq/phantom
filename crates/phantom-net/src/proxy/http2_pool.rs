@@ -105,6 +105,26 @@ impl Default for Http2ProxyPool {
 }
 
 impl Http2ProxyPool {
+    /// Replaces retained proxy connections while existing owners finish.
+    ///
+    /// Later acquisitions use new connections. Pending setup, forwarding
+    /// handles and tunnels keep their previous route owner. Clones share this
+    /// operation. Driver shutdown remains asynchronous.
+    pub fn refresh_connections(&self) {
+        let mut previous = Vec::new();
+        {
+            let mut routes = self.lock();
+            for entry in &mut routes.entries {
+                let fresh = Arc::new(RouteConnections {
+                    family: entry.connections.family.clone(),
+                    ..RouteConnections::default()
+                });
+                previous.push(std::mem::replace(&mut entry.connections, fresh));
+            }
+        }
+        drop(previous);
+    }
+
     /// Releases retained connections with no request or tunnel owners.
     ///
     /// Clones share this operation. Pending setup and active streams keep

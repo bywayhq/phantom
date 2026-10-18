@@ -123,6 +123,24 @@ pub(crate) struct Http3Pool {
 }
 
 impl Http3Pool {
+    pub(super) async fn refresh_connections(&self) -> Vec<phantom_net::proxy::ConnectUdpProxyPool> {
+        let mut previous = Vec::new();
+        let mut proxy_pools = Vec::new();
+        {
+            let mut state = self.state.lock().await;
+            for (key, entry) in &mut state.entries {
+                if let Route::ConnectUdp(proxy) = &key.route {
+                    proxy_pools.push(proxy.pool().clone());
+                }
+                let fresh =
+                    Arc::new(entry.fresh(Http3Spread::new(self.max_connections, self.max_active)));
+                previous.push(std::mem::replace(entry, fresh));
+            }
+        }
+        drop(previous);
+        proxy_pools
+    }
+
     pub(super) async fn close_idle_connections(
         &self,
     ) -> Vec<phantom_net::proxy::ConnectUdpProxyPool> {
@@ -545,12 +563,12 @@ struct PoolEntry {
     /// is presented only on the origin and route that learned it. It never
     /// sends early data; it opens the connection that replaces one whose
     /// early data was rejected.
-    origin: OnceLock<Http3Connector>,
+    origin: Arc<OnceLock<Http3Connector>>,
     /// The origin connector's early-data twin, sharing its ticket cache, when
     /// the client enables HTTP/3 early data.
-    origin_early: OnceLock<Option<Http3Connector>>,
+    origin_early: Arc<OnceLock<Option<Http3Connector>>>,
     /// Dedicated HTTP/1.1 CONNECT-UDP outer cache, scoped to this origin and route.
-    tcp_proxy: OnceLock<HttpsProxyConnector>,
+    tcp_proxy: Arc<OnceLock<HttpsProxyConnector>>,
     rtt_history: Option<Arc<RttHistory>>,
     /// The client's HTTPS-record lookups, when it makes them.
     #[cfg(feature = "https-records")]
@@ -560,6 +578,23 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
+    fn fresh(&self, spread: Http3Spread) -> Self {
+        let mut entry = Self::new(
+            Arc::clone(&self.admission),
+            spread,
+            self.rtt_history.clone(),
+            #[cfg(feature = "https-records")]
+            self.https_records.clone(),
+            #[cfg(feature = "https-records")]
+            self.alt_svc_https_policy,
+        );
+        entry.tickets = Arc::clone(&self.tickets);
+        entry.origin = Arc::clone(&self.origin);
+        entry.origin_early = Arc::clone(&self.origin_early);
+        entry.tcp_proxy = Arc::clone(&self.tcp_proxy);
+        entry
+    }
+
     fn new(
         admission: Arc<Admission>,
         spread: Http3Spread,
@@ -578,9 +613,9 @@ impl PoolEntry {
             stream_ended: Arc::new(Notify::new()),
             turns: std::sync::Mutex::new(Vec::new()),
             admission,
-            origin: OnceLock::new(),
-            origin_early: OnceLock::new(),
-            tcp_proxy: OnceLock::new(),
+            origin: Arc::default(),
+            origin_early: Arc::default(),
+            tcp_proxy: Arc::default(),
             rtt_history,
             #[cfg(feature = "https-records")]
             https_records,

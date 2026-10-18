@@ -1,10 +1,13 @@
 //! Actual outer cache ownership before a pooled TLS handshake.
 
-use std::{fmt, sync::Arc};
+use std::{
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use super::{
-    Acquisition, ConnectUdpError, ConnectUdpErrorKind, ConnectUdpProxyPool, Entry, Http3Connector,
-    HttpsProxyConnector, PoolKey, PoolState, SetupLease, TunnelLease, lock,
+    Acquisition, ConnectUdpError, ConnectUdpErrorKind, ConnectUdpProxyPool, ConnectorState, Entry,
+    Http3Connector, HttpsProxyConnector, PoolKey, PoolState, SetupLease, TunnelLease, lock,
 };
 
 /// Pins one actual shared proxy connector before its first TLS use.
@@ -15,7 +18,8 @@ use super::{
 /// Clearing the pool before setup selects this connector makes it stale.
 /// Existing selected setup and active tunnels retain their original ownership.
 pub struct PreparedConnectUdpOuter {
-    entry: Arc<Entry>,
+    key: PoolKey,
+    connectors: Arc<Mutex<ConnectorState>>,
     pool: Arc<dyn PoolState>,
     connector: Connector,
 }
@@ -48,17 +52,21 @@ impl PreparedConnectUdpOuter {
         pool: &ConnectUdpProxyPool,
         key: &PoolKey,
     ) -> Result<(), ConnectUdpError> {
-        if !Arc::ptr_eq(&self.pool, &pool.inner) || self.entry.key != *key {
+        if !Arc::ptr_eq(&self.pool, &pool.inner) || self.key != *key {
             return Err(invalid_prepared());
         }
-        self.validate_entry(&self.entry)
+        self.validate_cache()
     }
 
     fn validate_entry(&self, entry: &Arc<Entry>) -> Result<(), ConnectUdpError> {
-        if !Arc::ptr_eq(&self.entry, entry) {
+        if self.key != entry.key || !Arc::ptr_eq(&self.connectors, &entry.connectors) {
             return Err(invalid_prepared());
         }
-        let state = lock(&entry.state);
+        self.validate_cache()
+    }
+
+    fn validate_cache(&self) -> Result<(), ConnectUdpError> {
+        let state = lock(&self.connectors);
         let current = match &self.connector {
             Connector::Http2(connector) => state
                 .http2_connector
@@ -84,7 +92,7 @@ impl ConnectUdpProxyPool {
     ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
         let entry = self.entry(key)?;
         let connector = {
-            let mut state = lock(&entry.state);
+            let mut state = lock(&entry.connectors);
             Arc::clone(
                 state
                     .http2_connector
@@ -92,7 +100,8 @@ impl ConnectUdpProxyPool {
             )
         };
         Ok(PreparedConnectUdpOuter {
-            entry,
+            key: entry.key.clone(),
+            connectors: Arc::clone(&entry.connectors),
             pool: Arc::clone(&self.inner),
             connector: Connector::Http2(connector),
         })
@@ -105,7 +114,7 @@ impl ConnectUdpProxyPool {
     ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
         let entry = self.entry(key)?;
         let connector = {
-            let mut state = lock(&entry.state);
+            let mut state = lock(&entry.connectors);
             Arc::clone(
                 state
                     .http3_connector
@@ -113,7 +122,8 @@ impl ConnectUdpProxyPool {
             )
         };
         Ok(PreparedConnectUdpOuter {
-            entry,
+            key: entry.key.clone(),
+            connectors: Arc::clone(&entry.connectors),
             pool: Arc::clone(&self.inner),
             connector: Connector::Http3(connector),
         })
@@ -126,8 +136,10 @@ impl ConnectUdpProxyPool {
     ) -> Result<Acquisition, ConnectUdpError> {
         prepared.validate(self, &key)?;
         let permit = self.admit().await?;
+        let entry = self.entry(key)?;
+        prepared.validate_entry(&entry)?;
         let lease = TunnelLease {
-            entry: Arc::clone(&prepared.entry),
+            entry,
             generation: 0,
             _permit: permit,
             _pool: Arc::clone(&self.inner),

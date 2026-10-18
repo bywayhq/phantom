@@ -215,6 +215,28 @@ pub(crate) struct OriginConnectors<'a> {
 }
 
 impl ClientInner {
+    pub(crate) fn refresh_proxy_connections(&self) {
+        for connector in [&self.https_proxy, &self.forward_https_proxy]
+            .into_iter()
+            .flatten()
+        {
+            connector.refresh_connections();
+        }
+        #[cfg(feature = "websocket")]
+        if let Some(connector) = &self.websocket_https_proxy {
+            connector.refresh_connections();
+        }
+    }
+
+    pub(crate) fn default_connect_udp_pool(
+        &self,
+    ) -> Option<&phantom_net::proxy::ConnectUdpProxyPool> {
+        match &self.route {
+            Some(Route::ConnectUdp(proxy)) => Some(proxy.pool()),
+            _ => None,
+        }
+    }
+
     pub(crate) fn close_idle_proxy_connections(&self) {
         for connector in [&self.https_proxy, &self.forward_https_proxy]
             .into_iter()

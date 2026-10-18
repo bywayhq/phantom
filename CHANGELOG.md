@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `Client::refresh_connections` to select fresh origin and proxy
+  connections while existing setup and streams finish. Retain TLS tickets,
+  cookies, discovery and admission limits.
 - Add opt-in capped exponential backoff and full jitter for connection-setup
   and status retries. Delays keep the existing deadlines and retry budgets.
   **Breaking:** `StatusRetry::honor_retry_after` now sets a minimum wait

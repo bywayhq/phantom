@@ -952,6 +952,34 @@ async fn close_idle_preserves_pooled_http2_websocket_and_following_request() -> 
     Ok(())
 }
 
+#[tokio::test]
+async fn refresh_preserves_pooled_websocket_and_moves_following_requests() -> TestResult<()> {
+    let capture = Capture::parse(FIREFOX_ACCEPT)?;
+    for negotiated in [false, true] {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let caller = bounded(async {
+            let settings = firefox::v157_websocket();
+            let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
+            let authority = server.address.to_string();
+            pooled_get_at(&client, &authority, negotiated).await?;
+            let socket = connect_like(&client, &authority, &capture.connect()?, &settings).await?;
+            assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
+            client.refresh_connections().await;
+            pooled_get_at(&client, &authority, negotiated).await?;
+            exchange(socket).await?;
+            let connections = server.connections()?;
+            assert_eq!(connections.len(), 2);
+            assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
+            assert_eq!(methods(&connections[1]), ["GET"]);
+            Ok(())
+        })
+        .await;
+        server.finish(caller).await?;
+    }
+    Ok(())
+}
+
 async fn assert_reuses_session(
     capture: &Capture,
     http2: Http2Settings,

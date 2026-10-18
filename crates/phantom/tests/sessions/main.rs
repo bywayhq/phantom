@@ -17,6 +17,7 @@ mod http3_connections;
 mod negotiated;
 mod negotiated_parallel;
 mod peer_completion;
+mod refresh;
 mod runtimes;
 mod session;
 mod session_http1;

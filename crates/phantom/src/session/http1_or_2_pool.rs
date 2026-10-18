@@ -2,7 +2,10 @@ use std::{
     collections::VecDeque,
     num::NonZeroUsize,
     pin::pin,
-    sync::{Arc, MutexGuard, OnceLock, PoisonError, Weak},
+    sync::{
+        Arc, MutexGuard, OnceLock, PoisonError, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -89,12 +92,27 @@ pub(crate) struct Http1Or2Pool {
     /// connections on one.
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
+    retired: Arc<super::retired_connections::RetiredConnections<EntryConnections>>,
     http2_keys: Arc<Http2Keys>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http1Or2Pool {
+    pub(super) async fn refresh_connections(&self) {
+        let mut previous = Vec::new();
+        {
+            let mut state = self.state.lock().await;
+            for (_, entry) in &mut state.entries {
+                let fresh =
+                    Arc::new(entry.fresh(self.max_http2_connections, self.max_http2_active));
+                entry.connections.begin_retirement(&self.retired);
+                previous.push(std::mem::replace(entry, fresh));
+            }
+        }
+        drop(previous);
+    }
+
     pub(super) async fn close_idle_connections(&self) {
         let mut retired_http1 = Vec::new();
         let mut retired_http2 = Vec::new();
@@ -157,6 +175,7 @@ impl Http1Or2Pool {
             http1_used_idle_timeout: None,
             prune_timer: None,
             state: Mutex::new(PoolState::default()),
+            retired: Arc::default(),
             http2_keys: Arc::new(Http2Keys::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
@@ -1180,14 +1199,40 @@ struct PoolEntry {
     selection_admission: Arc<Admission>,
     http1_admission: Arc<Admission>,
     http2_admission: Arc<Admission>,
-    connector: OnceLock<Http1Or2TlsConnector>,
-    https_proxy: OnceLock<HttpsProxyConnector>,
+    connector: Arc<OnceLock<Http1Or2TlsConnector>>,
+    https_proxy: Arc<OnceLock<HttpsProxyConnector>>,
     setup_wait_limit: Option<Duration>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl PoolEntry {
+    fn fresh(&self, maximum: NonZeroUsize, active: NonZeroUsize) -> Self {
+        let old = &self.connections;
+        let mut connections =
+            EntryConnections::new(old.max_http1, Arc::clone(&old.http2_keys), old.key.clone())
+                .with_http2_spread(Http2Spread::new(maximum, active));
+        connections.http1_used_idle_timeout = old.http1_used_idle_timeout;
+        connections.prune.clone_from(&old.prune);
+        connections.family = Arc::clone(&old.family);
+        connections.lock().selected_http2 = Arc::clone(&old.lock().selected_http2);
+        let mut entry = Self::new(
+            Arc::clone(&self.selection_admission),
+            Arc::clone(&self.http1_admission),
+            Arc::clone(&self.http2_admission),
+            connections,
+        );
+        entry.tickets = Arc::clone(&self.tickets);
+        entry.connector = Arc::clone(&self.connector);
+        entry.https_proxy = Arc::clone(&self.https_proxy);
+        entry.setup_wait_limit = self.setup_wait_limit;
+        #[cfg(feature = "https-records")]
+        {
+            entry.https_records.clone_from(&self.https_records);
+        }
+        entry
+    }
+
     #[cfg(feature = "websocket")]
     fn origin_connector(
         &self,
@@ -1230,8 +1275,8 @@ impl PoolEntry {
             selection_admission,
             http1_admission,
             http2_admission,
-            connector: OnceLock::new(),
-            https_proxy: OnceLock::new(),
+            connector: Arc::default(),
+            https_proxy: Arc::default(),
             setup_wait_limit: None,
             #[cfg(feature = "https-records")]
             https_records: None,
@@ -2000,6 +2045,7 @@ fn connect_phase(
 /// extra connection per backup connection whose slower attempt is in
 /// flight, at most `max_http1` extra, until they are used or expire idle.
 struct EntryConnections {
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
     max_http1: NonZeroUsize,
     /// How long an idle H1 connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
@@ -2043,7 +2089,7 @@ struct ConnectionState {
     /// (`net/http/http_stream_factory_job.cc:1304-1306`,
     /// `net/http/http_stream_pool_attempt_manager.cc:823-825`;
     /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1023`, `:3987`).
-    selected_http2: bool,
+    selected_http2: Arc<AtomicBool>,
 }
 
 impl ConnectionState {
@@ -2125,7 +2171,7 @@ impl ConnectionState {
         connection: Http2Connection,
         setup_done: &Arc<Notify>,
     ) -> (Option<Http2Connection>, Vec<IdleConnection>) {
-        self.selected_http2 = true;
+        self.selected_http2.store(true, Ordering::Relaxed);
         if self.current_http2().is_some() {
             debug!(
                 outcome = "redundant",
@@ -2162,7 +2208,7 @@ impl ConnectionState {
     /// A key whose protocol is unknown waits only when every slot is taken
     /// (see [`PoolEntry::acquire_selected`]).
     fn awaits_setup(&self) -> bool {
-        self.selected_http2 && self.connecting > 0
+        self.selected_http2.load(Ordering::Relaxed) && self.connecting > 0
     }
 }
 
@@ -2220,6 +2266,10 @@ struct Spare {
 }
 
 impl Spare {
+    fn background_pending(&self) -> bool {
+        !self.claimed && self.ready.is_none()
+    }
+
     fn is_claimed(&self) -> bool {
         self.claimed || self.claim.as_ref().is_some_and(|claim| !claim.is_closed())
     }
@@ -2239,6 +2289,7 @@ impl SpareReport {
     fn finished(mut self, connection: Option<SpareConnection>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_completed(self.id, connection);
+            entry.release_retired();
         }
     }
 }
@@ -2247,6 +2298,7 @@ impl Drop for SpareReport {
     fn drop(&mut self) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_completed(self.id, None);
+            entry.release_retired();
         }
     }
 }
@@ -2488,6 +2540,38 @@ impl Drop for ProxyClaim {
 }
 
 impl EntryConnections {
+    fn begin_retirement(
+        self: &Arc<Self>,
+        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+    ) {
+        let state = self.lock();
+        self.retirement.get_or_init(|| Arc::downgrade(registry));
+        if state.spares.iter().any(Spare::background_pending) {
+            registry.retain(self);
+        }
+    }
+
+    fn retain_pending(self: &Arc<Self>) {
+        let _state = self.lock();
+        if let Some(registry) = self.retirement.get().and_then(Weak::upgrade) {
+            registry.retain(self);
+        }
+    }
+
+    fn release_retired(self: &Arc<Self>) {
+        let removed = {
+            let state = self.lock();
+            if state.spares.iter().any(Spare::background_pending) {
+                return;
+            }
+            self.retirement
+                .get()
+                .and_then(Weak::upgrade)
+                .and_then(|registry| registry.take(self))
+        };
+        drop(removed);
+    }
+
     #[cfg(feature = "websocket")]
     fn begin_http2_opening(&self) {
         let mut state = self.lock();
@@ -2507,10 +2591,11 @@ impl EntryConnections {
             dedicated: Vec::new(),
             spares: Vec::new(),
             next_spare: 0,
-            selected_http2: http2_keys.contains(&key),
+            selected_http2: Arc::new(AtomicBool::new(http2_keys.contains(&key))),
         };
         Self {
             max_http1,
+            retirement: OnceLock::new(),
             http1_used_idle_timeout: None,
             prune: None,
             family: Arc::default(),
@@ -2648,6 +2733,7 @@ impl EntryConnections {
         id: u64,
         slower: SlowerConnection<SpareConnection>,
     ) {
+        self.retain_pending();
         let report = SpareReport {
             entry: Some(Arc::downgrade(self)),
             id,

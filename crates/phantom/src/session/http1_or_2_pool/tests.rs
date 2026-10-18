@@ -24,6 +24,27 @@ mod websocket_retention;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+#[tokio::test]
+async fn refresh_keeps_http2_knowledge_learned_by_an_old_setup() -> TestResult {
+    let one = NonZeroUsize::MIN;
+    let pool = Http1Or2Pool::new(one, one, one, one, one, one);
+    let key = key("refresh.test")?;
+    let old = pool.entry(key.clone()).await;
+    pool.refresh_connections().await;
+    let fresh = pool.entry(key).await;
+    fresh.connections.lock().connecting = 1;
+    assert!(!fresh.connections.lock().awaits_setup());
+    old.connections
+        .lock()
+        .selected_http2
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        fresh.connections.lock().awaits_setup(),
+        "refresh forgot late protocol selection"
+    );
+    Ok(())
+}
+
 fn bound(value: usize) -> Result<NonZeroUsize, Box<dyn std::error::Error>> {
     NonZeroUsize::new(value).ok_or_else(|| "zero bound".into())
 }

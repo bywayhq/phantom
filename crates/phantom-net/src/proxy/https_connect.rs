@@ -231,6 +231,16 @@ impl HttpsProxyConnector {
         }
     }
 
+    /// Replaces retained HTTP/2 proxy connections without cancelling owners.
+    ///
+    /// Connector configuration and TLS tickets are retained. Dedicated HTTP/1
+    /// connections already belong to their individual caller.
+    pub fn refresh_connections(&self) {
+        if let Some(pool) = &self.http2_pool {
+            pool.refresh_connections();
+        }
+    }
+
     /// Returns the TCP socket options applied to proxy connections, if any.
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {

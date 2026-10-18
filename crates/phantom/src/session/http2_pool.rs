@@ -96,11 +96,30 @@ pub(crate) struct Http2Pool {
     /// one.
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
+    retired: Arc<super::retired_connections::RetiredConnections<PoolEntry>>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http2Pool {
+    pub(super) async fn refresh_connections(&self) {
+        let mut previous = Vec::new();
+        {
+            let mut state = self.state.lock().await;
+            for (_, entry) in &mut state.entries {
+                let fresh =
+                    Arc::new(entry.fresh(Http2Spread::new(self.max_connections, self.max_active)));
+                if let Some(timer) = &self.prune_timer {
+                    let pruned: Arc<dyn PrunedEntry> = fresh.clone();
+                    timer.register(Arc::downgrade(&pruned));
+                }
+                entry.begin_retirement(&self.retired);
+                previous.push(std::mem::replace(entry, fresh));
+            }
+        }
+        drop(previous);
+    }
+
     pub(super) async fn close_idle_connections(&self) {
         let mut retired_connections = Vec::new();
         let mut retired_spares = Vec::new();
@@ -146,6 +165,7 @@ impl Http2Pool {
             http1_used_idle_timeout: None,
             prune_timer: None,
             state: Mutex::new(PoolState::default()),
+            retired: Arc::default(),
             #[cfg(feature = "https-records")]
             https_records: None,
         }
@@ -573,6 +593,7 @@ impl PoolKey {
 }
 
 struct PoolEntry {
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
     tickets: Arc<super::tickets::TicketOwner>,
     /// The key's connections, oldest first. The lock is never held across an
     /// await; a setup in flight is counted in it instead.
@@ -582,8 +603,8 @@ struct PoolEntry {
     setup_done: Arc<Notify>,
     admission: Arc<Admission>,
     family: Arc<AddressFamilyMemory>,
-    connector: OnceLock<Http2TlsConnector>,
-    https_proxy: OnceLock<HttpsProxyConnector>,
+    connector: Arc<OnceLock<Http2TlsConnector>>,
+    https_proxy: Arc<OnceLock<HttpsProxyConnector>>,
     /// The client's prune timer, when the profile closes idle connections on
     /// one.
     prune: Option<Arc<PruneTimer>>,
@@ -593,8 +614,56 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
+    fn fresh(&self, spread: Http2Spread) -> Self {
+        let mut entry = Self::new(Arc::clone(&self.admission), spread);
+        entry.tickets = Arc::clone(&self.tickets);
+        entry.family = Arc::clone(&self.family);
+        entry.connector = Arc::clone(&self.connector);
+        entry.https_proxy = Arc::clone(&self.https_proxy);
+        entry.prune.clone_from(&self.prune);
+        entry.http1_used_idle_timeout = self.http1_used_idle_timeout;
+        #[cfg(feature = "https-records")]
+        {
+            entry.https_records.clone_from(&self.https_records);
+        }
+        entry
+    }
+
+    fn begin_retirement(
+        self: &Arc<Self>,
+        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+    ) {
+        let state = self.lock();
+        self.retirement.get_or_init(|| Arc::downgrade(registry));
+        if state.spares.iter().any(|spare| spare.ready.is_none()) {
+            registry.retain(self);
+        }
+    }
+
+    fn retain_pending(self: &Arc<Self>) {
+        let _state = self.lock();
+        if let Some(registry) = self.retirement.get().and_then(Weak::upgrade) {
+            registry.retain(self);
+        }
+    }
+
+    fn release_retired(self: &Arc<Self>) {
+        let removed = {
+            let state = self.lock();
+            if state.spares.iter().any(|spare| spare.ready.is_none()) {
+                return;
+            }
+            self.retirement
+                .get()
+                .and_then(Weak::upgrade)
+                .and_then(|registry| registry.take(self))
+        };
+        drop(removed);
+    }
+
     fn new(admission: Arc<Admission>, spread: Http2Spread) -> Self {
         Self {
+            retirement: OnceLock::new(),
             tickets: Arc::default(),
             connections: std::sync::Mutex::new(Connections {
                 slots: Vec::new(),
@@ -608,8 +677,8 @@ impl PoolEntry {
             setup_done: Arc::new(Notify::new()),
             admission,
             family: Arc::default(),
-            connector: OnceLock::new(),
-            https_proxy: OnceLock::new(),
+            connector: Arc::default(),
+            https_proxy: Arc::default(),
             prune: None,
             http1_used_idle_timeout: None,
             #[cfg(feature = "https-records")]
@@ -902,6 +971,7 @@ impl PoolEntry {
             entry: Some(Arc::downgrade(self)),
             id,
         };
+        self.retain_pending();
         let task = runtime.spawn(async move {
             report.finish(slower.finish().await);
         });
@@ -1184,6 +1254,7 @@ impl PoolEntry {
         id: u64,
         slower: SlowerConnection<Http2Connection>,
     ) {
+        self.retain_pending();
         let report = SpareReport {
             entry: Some(Arc::downgrade(self)),
             id,
@@ -1524,6 +1595,7 @@ impl ProxySpareReport {
     fn finish(mut self, opening: Option<QuietOpening>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.proxy_spare_finished(self.id, opening);
+            entry.release_retired();
         }
     }
 }
@@ -1532,6 +1604,7 @@ impl Drop for ProxySpareReport {
     fn drop(&mut self) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.proxy_spare_finished(self.id, None);
+            entry.release_retired();
         }
     }
 }
@@ -1694,6 +1767,7 @@ impl SpareReport {
     fn finish(mut self, connection: Option<Http2Connection>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_finished(self.id, connection);
+            entry.release_retired();
         }
     }
 }
@@ -1702,6 +1776,7 @@ impl Drop for SpareReport {
     fn drop(&mut self) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_finished(self.id, None);
+            entry.release_retired();
         }
     }
 }
@@ -1917,6 +1992,39 @@ mod tests {
 
     use super::{Http2Pool, PoolEntry, PoolKey, SetupReservation};
     use crate::{Route, authority::Endpoint};
+
+    #[tokio::test]
+    async fn refresh_isolates_stale_setup_and_keeps_aggregate_admission()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let one = NonZeroUsize::MIN;
+        let pool = Http2Pool::new(one, one, one);
+        let endpoint = Endpoint::new("refresh.test:443".parse()?, 443)?;
+        let key = PoolKey::new(
+            &endpoint,
+            &Route::Direct,
+            super::Http2ConnectionMode::TlsOrigin,
+        );
+        let old = pool.entry(key.clone()).await;
+        let permit = old.admit().await?;
+        let old_setup = reserve(&old);
+        pool.refresh_connections().await;
+        let fresh = pool.entry(key).await;
+        let fresh_setup = reserve(&fresh);
+        drop(old_setup);
+        assert!(
+            fresh.lock().connecting,
+            "stale cancellation cleared fresh setup"
+        );
+        let mut admitting = std::pin::pin!(fresh.admit());
+        assert!(
+            poll_once(admitting.as_mut()).is_none(),
+            "refresh reset admission"
+        );
+        drop(permit);
+        let _permit = admitting.await?;
+        drop(fresh_setup);
+        Ok(())
+    }
 
     fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
         match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
