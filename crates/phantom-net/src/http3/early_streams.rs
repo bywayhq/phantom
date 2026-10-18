@@ -576,7 +576,9 @@ impl HandshakeWait {
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         const LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
         loop {
-            if self.connection.handshake_data().is_some() {
+            if self.connection.handshake_data().is_some()
+                || self.connection.close_reason().is_some()
+            {
                 self.sleep = None;
                 return Poll::Ready(());
             }
