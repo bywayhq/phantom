@@ -33,6 +33,10 @@ class ClientResultTests(unittest.TestCase):
     def test_valid_samples_preserve_null_first_byte_and_constructor_semantics(self):
         validate_result(self.raw, self.config)
         self.raw["samples"][0]["first_byte_ns"] = None
+        with self.assertRaisesRegex(ValueError, "nonempty streams"):
+            validate_result(self.raw, self.config)
+        self.config["consume"] = "collect"
+        self.raw["config"] = dict(self.config)
         validate_result(self.raw, self.config)
         self.config["protocol"] = "construct"
         self.raw["config"] = dict(self.config)

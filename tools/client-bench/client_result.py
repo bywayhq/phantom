@@ -77,3 +77,13 @@ def validate_result(raw, config):
             raise ValueError(
                 "collected bodies cannot report a first data-frame timestamp"
             )
+        if (
+            config.get("consume", "stream") == "stream"
+            and config.get("protocol") != "construct"
+            and sample["error"] is None
+            and sample["bytes"] > 0
+            and first is None
+        ):
+            raise ValueError(
+                "successful nonempty streams need a first data-frame timestamp"
+            )
