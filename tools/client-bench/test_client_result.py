@@ -4,13 +4,14 @@ import copy
 import unittest
 
 from client_result import validate_result
+from workload_config import effective_config
 
 
 class ClientResultTests(unittest.TestCase):
     def setUp(self):
         self.config = {"requests": 1, "bytes": 2, "protocol": "h2"}
         self.raw = {
-            "config": dict(self.config),
+            "config": effective_config(self.config),
             "elapsed_ns": 10,
             "heap_instrumented": False,
             "observer_storage_bytes": 0,
@@ -36,12 +37,45 @@ class ClientResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nonempty streams"):
             validate_result(self.raw, self.config)
         self.config["consume"] = "collect"
-        self.raw["config"] = dict(self.config)
+        self.raw["config"] = effective_config(self.config)
         validate_result(self.raw, self.config)
         self.config["protocol"] = "construct"
-        self.raw["config"] = dict(self.config)
+        self.raw["config"] = effective_config(self.config)
         self.raw["samples"][0].update(bytes=0, head_ns=0, build_ns=2)
         validate_result(self.raw, self.config)
+
+    def test_unobservable_head_needs_a_reason_and_stays_null(self):
+        self.raw["samples"][0]["head_ns"] = None
+        with self.assertRaises(ValueError):
+            validate_result(self.raw, self.config)
+        self.raw["unavailable_timings"] = {
+            "head_ns": "This public API returns after the first body chunk."
+        }
+        validate_result(self.raw, self.config)
+        for declaration in ({"head_ns": ""}, {"complete_ns": "unknown"}, []):
+            self.raw["unavailable_timings"] = declaration
+            with self.assertRaises(ValueError):
+                validate_result(self.raw, self.config)
+        self.raw["unavailable_timings"] = {"head_ns": "Unavailable."}
+        self.raw["samples"][0]["head_ns"] = 1
+        with self.assertRaises(ValueError):
+            validate_result(self.raw, self.config)
+
+    def test_omitted_defaults_and_out_of_phase_samples_are_rejected(self):
+        for change in ({"cold": True}, {"workers": 16}, {"consume": "collect"}):
+            raw = copy.deepcopy(self.raw)
+            raw["config"].update(change)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_result(raw, self.config)
+        raw = copy.deepcopy(self.raw)
+        del raw["config"]["cold"]
+        with self.assertRaises(ValueError):
+            validate_result(raw, self.config)
+        for started in (8, 11):
+            raw = copy.deepcopy(self.raw)
+            raw["samples"][0].update(started_ns=started, application_wait_ns=started)
+            with self.subTest(started=started), self.assertRaises(ValueError):
+                validate_result(raw, self.config)
 
     def test_negative_nonfinite_and_boolean_numeric_results_are_rejected(self):
         for value in (-1, 0, float("nan"), float("inf"), True):

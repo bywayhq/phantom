@@ -92,6 +92,10 @@ Use the same sample fields and timestamp boundaries as `src/client.rs`.
 Client-specific limits and effective settings must accompany each adapter.
 Results with invalid numeric fields, changed configuration, duplicate operation
 IDs or incorrect successful byte counts fail before measurement summaries.
+If the public API cannot expose response-head arrival, set every `head_ns` to
+`null` and include `unavailable_timings: {"head_ns": "reason"}` in the result.
+The summary retains that reason and leaves head statistics unavailable. Never
+substitute a first-body or fully buffered response timestamp for a missing head.
 
 Timing runs need both the peer's existing `--build-receipt` and the adapter's
 `--client-build-receipt`. The latter includes `native_optimization_verified`,

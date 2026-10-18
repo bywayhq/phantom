@@ -1,5 +1,7 @@
 """Check the public-client result contract before computing measurements."""
 
+from workload_config import effective_config
+
 
 def unsigned(value):
     return type(value) is int and 0 <= value <= 2**64 - 1
@@ -13,12 +15,26 @@ def validate_result(raw, config):
         or not unsigned(raw.get("observer_storage_bytes"))
     ):
         raise ValueError("invalid client elapsed time or instrumentation fields")
+    unavailable = raw.get("unavailable_timings", {})
+    if not isinstance(unavailable, dict) or any(
+        key != "head_ns"
+        or not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason) > 512
+        for key, reason in unavailable.items()
+    ):
+        raise ValueError("unavailable head timing needs an explicit short reason")
+    expected = effective_config(config)
     effective = raw.get("config")
-    if not isinstance(effective, dict) or any(
-        key not in effective
-        or type(effective[key]) is not type(value)
-        or effective[key] != value
-        for key, value in config.items()
+    if (
+        not isinstance(effective, dict)
+        or set(effective) != set(expected)
+        or any(
+            key not in effective
+            or type(effective[key]) is not type(value)
+            or effective[key] != value
+            for key, value in expected.items()
+        )
     ):
         raise ValueError("client result configuration differs from requested work")
     samples = raw.get("samples")
@@ -35,7 +51,6 @@ def validate_result(raw, config):
                 "started_ns",
                 "application_wait_ns",
                 "build_ns",
-                "head_ns",
                 "complete_ns",
                 "bytes",
             )
@@ -46,6 +61,14 @@ def validate_result(raw, config):
         if sample["id"] >= requests or sample["id"] in ids:
             raise ValueError("client sample IDs must cover each operation once")
         ids.add(sample["id"])
+        head = sample.get("head_ns")
+        if "head_ns" not in sample:
+            raise ValueError("client sample must declare head timing")
+        if head is None:
+            if "head_ns" not in unavailable:
+                raise ValueError("unavailable head timing needs an explicit reason")
+        elif not unsigned(head) or "head_ns" in unavailable:
+            raise ValueError("head timing must agree with declared availability")
         first = sample.get("first_byte_ns")
         if "first_byte_ns" not in sample or (first is not None and not unsigned(first)):
             raise ValueError(
@@ -58,12 +81,9 @@ def validate_result(raw, config):
         if (
             sample["application_wait_ns"]
             != max(0, sample["started_ns"] - sample["scheduled_ns"])
-            or sample["complete_ns"] < max(sample["build_ns"], sample["head_ns"])
-            or sample["complete_ns"] > raw["elapsed_ns"]
-            or (
-                first is not None
-                and not sample["head_ns"] <= first <= sample["complete_ns"]
-            )
+            or sample["complete_ns"] < max(sample["build_ns"], head or 0)
+            or sample["started_ns"] + sample["complete_ns"] > raw["elapsed_ns"]
+            or (first is not None and not (head or 0) <= first <= sample["complete_ns"])
         ):
             raise ValueError("client sample timing boundaries are inconsistent")
         expected_bytes = (

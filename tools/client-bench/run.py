@@ -17,6 +17,7 @@ from pathlib import Path
 import psutil
 from client_command import load_client, verified_client_build
 from client_result import validate_result
+from workload_config import effective_config
 
 
 def save(path, value):
@@ -115,6 +116,7 @@ def summarize(raw, measurements):
         "expected_observations_beyond_p99": len(good) * 0.01,
         "heap_instrumented": raw["heap_instrumented"],
         "observer_storage_bytes": raw["observer_storage_bytes"],
+        "unavailable_timings": raw.get("unavailable_timings", {}),
         "completed_requests_s": len(good) / seconds,
         "completed_mib_s": sum(sample["bytes"] for sample in good) / seconds / 2**20,
         "client_cpu_s": cpu,
@@ -161,6 +163,7 @@ def accepted_recovery(raw, config, phase):
 
 
 def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None):
+    config = effective_config(config)
     folder.mkdir()
     save(folder / "config.json", config)
     handles = []
