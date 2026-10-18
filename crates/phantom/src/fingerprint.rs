@@ -4,6 +4,7 @@ use phantom_profile::ClientProfile;
 use std::{error::Error, fmt};
 
 mod client_hints;
+mod compact;
 mod cookie;
 mod dns_cache;
 mod export;
@@ -20,6 +21,7 @@ mod tls;
 mod udp;
 mod websocket;
 
+pub use compact::{ImportedProfile, import_akamai_profile};
 pub use registry::{ProfileRegistry, ProfileRegistryError, ProfileRegistryErrorKind};
 
 /// Recovery category for a custom-profile document error.
@@ -28,6 +30,8 @@ pub use registry::{ProfileRegistry, ProfileRegistryError, ProfileRegistryErrorKi
 pub enum FingerprintImportErrorKind {
     /// Input does not contain one valid JSON document.
     MalformedJson,
+    /// Input does not contain one well-formed compact description.
+    MalformedDescription,
     /// Input exceeds a declared import resource bound.
     TooLarge,
     /// A required field is absent.

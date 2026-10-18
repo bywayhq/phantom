@@ -133,6 +133,14 @@ only the relevant settings through methods such as
 want to assemble the configuration yourself. Changed protocol settings describe
 your custom client; they no longer reproduce the unchanged built-in recipe.
 
+## Import custom settings
+
+Enable `fingerprint-import` to use `phantom::fingerprint`. You can edit complete
+profiles as JSON or name them in a `ProfileRegistry`. For an Akamai HTTP/2 string,
+use `import_akamai_profile` with an explicit base profile. The result lists fields
+taken from the string and fields retained from your base. Compact descriptions
+omit settings and do not establish an exact browser match.
+
 Read [Making requests and handling responses](crate::guide::requests_and_responses)
 for bodies, decoding, and errors, or [Using proxies](crate::guide::proxies) for
 proxy routes. WebSocket openings and proxy CONNECT requests use their own

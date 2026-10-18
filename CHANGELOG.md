@@ -4,6 +4,8 @@
 
 - Add `RequestBuilder::redirect_policy` to override redirect following or hop
   limits for one request while retaining the client's policy for other requests.
+- Import supported Akamai HTTP/2 descriptions with an explicit base profile
+  and a report of observed and supplemented fields.
 - Add `Client::refresh_connections` to select fresh origin and proxy
   connections while existing setup and streams finish. Retain TLS tickets,
   cookies, discovery and admission limits.

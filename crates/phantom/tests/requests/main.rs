@@ -25,6 +25,8 @@ mod direct_http;
 mod doh;
 mod error_context;
 mod expect_continue;
+#[cfg(feature = "fingerprint-import")]
+mod fingerprint_import;
 mod h3_received_order;
 mod ping_failure_replay;
 mod plaintext_templates;

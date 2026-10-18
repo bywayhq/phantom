@@ -49,6 +49,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "doh",
                 "error_context",
                 "expect_continue",
+                "fingerprint_import",
                 "h3_received_order",
                 "ping_failure_replay",
                 "plaintext_templates",
