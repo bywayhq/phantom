@@ -56,9 +56,13 @@ async fn nested_origin_and_secure_proxy_have_independent_pins() -> TestResult<()
                 };
                 let proxy = async {
                     if proxy_http2 {
-                        tunnel_proxy::http2_connect(proxy, proxy_acceptor, origin_address).await
+                        tunnel_proxy::http2_connect(proxy, proxy_acceptor, origin_address)
+                            .await
+                            .map(|tunnel| tunnel.map(|_| ()))
                     } else {
-                        tunnel_proxy::https1_connect(proxy, proxy_acceptor, origin_address).await
+                        tunnel_proxy::https1_connect(proxy, proxy_acceptor, origin_address)
+                            .await
+                            .map(|tunnel| tunnel.map(|_| ()))
                     }
                 };
                 let caller = async {
