@@ -60,7 +60,8 @@ async fn portable_tickets_require_the_same_canonical_origin_and_proxy_pins() -> 
             ] {
                 let error = incompatible
                     .import_session_tickets(&snapshot, &key, &[])
-                    .expect_err("incompatible pin policy imported a ticket");
+                    .err()
+                    .ok_or("incompatible pin policy imported a ticket")?;
                 assert_eq!(error.kind(), SessionTicketErrorKind::Policy);
             }
             canonical.import_session_tickets(&snapshot, &key, &[])?;
