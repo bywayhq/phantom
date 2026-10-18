@@ -69,6 +69,9 @@ func parseConfig(data []byte) (config, error) {
 }
 
 func (c config) validate() error {
+	if c.Route == "connect" && c.Protocol == "h1" && c.Consume != "collect" {
+		return errors.New("httpcloak HTTP/1.1 CONNECT requires the buffered collect API")
+	}
 	if c.Protocol != "h1" && c.Protocol != "h2" && c.Protocol != "h3" {
 		return errors.New("httpcloak requires exact h1, h2 or h3")
 	}
@@ -91,6 +94,10 @@ func (c config) validate() error {
 		return errors.New("invalid or unbounded httpcloak benchmark configuration")
 	}
 	return nil
+}
+
+func (c config) buffered() bool {
+	return c.Redirects != 0 || (c.Route == "connect" && c.Protocol == "h1")
 }
 
 type ready struct {

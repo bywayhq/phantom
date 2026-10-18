@@ -46,7 +46,9 @@ profiles, unsupported routes and Phantom diagnostics fail before warmup. An
 uncompressed peer response requires no decompression work.
 
 Redirect workloads use the buffered `Do` API because `DoStream` does not
-follow redirects. They report no head or first-byte timing. Connection reuse
+follow redirects. HTTP/1.1 CONNECT also requires this buffered API and
+`consume: "collect"`; the streaming proxy path does not honor exact HTTP/1.1.
+Buffered workloads report no head or first-byte timing. Connection reuse
 for this buffered path must be measured separately.
 
 For other workloads, head timing ends when `DoStream` returns. First-byte timing ends on the first

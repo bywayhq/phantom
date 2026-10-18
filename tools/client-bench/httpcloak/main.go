@@ -129,7 +129,7 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 	if c.Method == "POST" {
 		req.Body = bytes.NewReader(bytes.Repeat([]byte{'U'}, c.UploadBytes))
 	}
-	if c.Redirects != 0 {
+	if c.buffered() {
 		response, requestErr := selected.Do(ctx, req)
 		if response != nil {
 			defer func() { err = errors.Join(err, response.Close()) }()
@@ -267,12 +267,12 @@ func run(c config, r ready, output string) error {
 			"connect_timeout_ms": nil, "connect_timeout_note": "library defaults, bounded by the total context deadline",
 			"pool_limits": "library defaults", "runtime_gomaxprocs": c.Workers,
 			"h1_streaming_reuse": false,
-			"streaming_api":      c.Redirects == 0,
+			"streaming_api":      !c.buffered(),
 			"go_version":         runtime.Version(),
 		},
 	}
-	if c.Redirects != 0 {
-		result["unavailable_timings"] = map[string]string{"head_ns": "The buffered redirect API returns after body delivery."}
+	if c.buffered() {
+		result["unavailable_timings"] = map[string]string{"head_ns": "The selected buffered API returns after body delivery."}
 	}
 	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {

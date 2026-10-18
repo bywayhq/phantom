@@ -74,6 +74,8 @@ peers reject `Proxy-Authorization`. Counters distinguish accepted tunnels from
 407 challenges, including warmup. These runs cover Basic authentication;
 NTLM, Negotiate, HTTPS proxy transport and authenticated SOCKS are outside this
 workload. Libraries can differ in preemptive or challenge-driven behavior.
+httpcloak requires `consume: "collect"` for HTTP/1.1 CONNECT, with head timing
+unavailable because its buffered API is required for that protocol.
 
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The

@@ -127,6 +127,14 @@ func TestProxyRoutingChecksEndpointAndCredentialSelection(t *testing.T) {
 			t.Fatalf("invalid proxy accepted: %s", address)
 		}
 	}
+	c.Protocol = "h1"
+	if c.validate() == nil {
+		t.Fatal("unsupported streaming HTTP/1.1 CONNECT was accepted")
+	}
+	c.Consume = "collect"
+	if err := c.validate(); err != nil || !c.buffered() {
+		t.Fatalf("buffered HTTP/1.1 CONNECT not selected: %v", err)
+	}
 	c.Protocol = "h3"
 	if c.validate() == nil {
 		t.Fatal("TCP proxy accepted for exact HTTP/3")
