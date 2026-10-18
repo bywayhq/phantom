@@ -102,8 +102,10 @@ impl Fixture {
             .with_client_context(TicketClientContext {
                 origin_authentication: ServerAuthentication::WebPki,
                 origin_roots: std::slice::from_ref(&root),
+                origin_pins: None,
                 proxy_authentication: ServerAuthentication::WebPki,
                 proxy_roots: &[],
+                proxy_pins: None,
                 default_certificate: None,
                 certificate_origins: &[],
                 source_binding: &source,

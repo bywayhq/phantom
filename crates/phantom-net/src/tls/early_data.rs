@@ -108,7 +108,10 @@ enum Answer {
 #[derive(Clone, Debug)]
 pub(crate) enum EarlyDataFailure {
     /// The handshake failed, after a rejection or without one.
-    Handshake(Arc<io::Error>),
+    Handshake {
+        error: Arc<io::Error>,
+        pin_verification: btls::ssl::SpkiPinVerification,
+    },
     /// The server rejected the early data and then selected another ALPN
     /// protocol. The server processed no request on the connection.
     AlpnChanged {
@@ -122,9 +125,13 @@ impl EarlyDataFailure {
     /// failure, or `None` for an ALPN change.
     pub(crate) fn tls_error(&self) -> Option<super::TlsError> {
         match self {
-            Self::Handshake(error) => Some(super::TlsError::after_early_data(SharedError(
-                Arc::clone(error),
-            ))),
+            Self::Handshake {
+                error,
+                pin_verification,
+            } => Some(
+                super::TlsError::after_early_data(SharedError(Arc::clone(error)))
+                    .with_pin_verification(*pin_verification),
+            ),
             Self::AlpnChanged { .. } => None,
         }
     }
@@ -483,7 +490,10 @@ where
         }
         let kind = error.kind();
         let error = Arc::new(error);
-        let failure = EarlyDataFailure::Handshake(Arc::clone(&error));
+        let failure = EarlyDataFailure::Handshake {
+            error: Arc::clone(&error),
+            pin_verification: self.inner.ssl().spki_pin_verification(),
+        };
         self.fail_with(io::Error::new(kind, SharedError(error)), Some(failure))
     }
 

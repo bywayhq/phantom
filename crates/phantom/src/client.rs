@@ -2,7 +2,7 @@ use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use http::Method;
 use phantom_net::{
-    ClientCertificate, ServerAuthentication, SourceBinding,
+    ClientCertificate, ServerAuthentication, ServerSpkiPins, SourceBinding,
     host_resolver::{AddressResolver, HostResolver},
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
@@ -114,6 +114,8 @@ pub(crate) struct ClientInner {
         Result<Arc<crate::session::PreparedTicketPolicy>, crate::session::PreparationError>,
     pub(crate) base_url: Option<crate::base_url::BaseUrl>,
     pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
+    pub(crate) server_spki_pins: bool,
+    pub(crate) proxy_server_spki_pins: bool,
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
@@ -212,6 +214,30 @@ pub(crate) struct OriginConnectors<'a> {
 }
 
 impl ClientInner {
+    pub(crate) fn ensure_pinned_route(
+        &self,
+        scheme: &str,
+        route: &Route,
+    ) -> Result<(), crate::RequestError> {
+        if self.server_spki_pins && !matches!(scheme, "https" | "wss") {
+            return Err(crate::RequestError::server_pin_policy(
+                "server SPKI pins require a TLS origin",
+            ));
+        }
+        if self.proxy_server_spki_pins
+            && match route {
+                Route::HttpProxy(proxy) => !proxy.uses_tls(),
+                Route::Socks4(_) | Route::Socks5(_) => true,
+                Route::Direct | Route::ConnectUdp(_) => false,
+            }
+        {
+            return Err(crate::RequestError::server_pin_policy(
+                "proxy SPKI pins require a TLS proxy",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn refresh_proxy_connections(&self) {
         for connector in [&self.https_proxy, &self.forward_https_proxy]
             .into_iter()
@@ -459,8 +485,10 @@ impl Client {
             profile,
             additional_roots: Vec::new(),
             server_authentication: ServerAuthentication::default(),
+            server_spki_pins: None,
             proxy_additional_roots: Vec::new(),
             proxy_server_authentication: ServerAuthentication::default(),
+            proxy_server_spki_pins: None,
             route: None,
             environment_proxies: None,
             options: ClientOptions::default(),
@@ -764,8 +792,10 @@ pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
     server_authentication: ServerAuthentication,
+    server_spki_pins: Option<ServerSpkiPins>,
     proxy_additional_roots: Vec<Box<[u8]>>,
     proxy_server_authentication: ServerAuthentication,
+    proxy_server_spki_pins: Option<ServerSpkiPins>,
     route: Option<Route>,
     environment_proxies: Option<crate::EnvironmentProxies>,
     options: ClientOptions,
@@ -820,6 +850,8 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("additional_root_count", &self.additional_roots.len())
             .field("server_authentication", &self.server_authentication)
+            .field("server_spki_pins", &self.server_spki_pins)
+            .field("proxy_server_spki_pins", &self.proxy_server_spki_pins)
             .field(
                 "proxy_additional_root_count",
                 &self.proxy_additional_roots.len(),
@@ -908,6 +940,32 @@ impl ClientBuilder {
     /// when disabled authentication is combined with additional roots.
     pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.server_authentication = policy;
+        self
+    }
+
+    /// Restricts every origin TLS connection to these leaf public keys.
+    ///
+    /// Pins supplement normal certificate and hostname verification. They apply
+    /// to redirects, WebSockets and HTTP/3 alternatives too. The client rejects
+    /// cleartext origin requests while this policy is configured. Separately
+    /// built clients keep separate pin policies and connection pools.
+    ///
+    /// [`Self::build`] rejects pins with disabled server authentication.
+    pub fn server_spki_pins(mut self, pins: ServerSpkiPins) -> Self {
+        self.server_spki_pins = Some(pins);
+        self
+    }
+
+    /// Restricts secure proxy TLS connections to these leaf public keys.
+    ///
+    /// This policy covers HTTPS proxies and CONNECT-UDP outer connections.
+    /// Origin TLS uses [`Self::server_spki_pins`]. Direct routes remain usable;
+    /// selecting a plaintext HTTP or SOCKS proxy fails before network I/O.
+    /// Normal proxy certificate and hostname verification remain required.
+    ///
+    /// [`Self::build`] rejects pins with disabled proxy authentication.
+    pub fn proxy_server_spki_pins(mut self, pins: ServerSpkiPins) -> Self {
+        self.proxy_server_spki_pins = Some(pins);
         self
     }
 
@@ -2018,6 +2076,17 @@ impl ClientBuilder {
             ));
         }
 
+        if authentication_disabled && self.server_spki_pins.is_some() {
+            return Err(BuildError::invalid_policy(
+                "server SPKI pins require certificate and hostname verification",
+            ));
+        }
+        if proxy_authentication_disabled && self.proxy_server_spki_pins.is_some() {
+            return Err(BuildError::invalid_policy(
+                "proxy SPKI pins require certificate and hostname verification",
+            ));
+        }
+
         // One draw for the client, before any connector is built, so that
         // all of its connectors share it.
         let ticket_plan = crate::session::BindingPlan::capture(&self.profile);
@@ -2028,8 +2097,10 @@ impl ClientBuilder {
                 prepared.with_client_context(crate::session::TicketClientContext {
                     origin_authentication: self.server_authentication,
                     origin_roots: &self.additional_roots,
+                    origin_pins: self.server_spki_pins.as_ref(),
                     proxy_authentication: self.proxy_server_authentication,
                     proxy_roots: &self.proxy_additional_roots,
+                    proxy_pins: self.proxy_server_spki_pins.as_ref(),
                     default_certificate: self.client_certificate.as_ref(),
                     certificate_origins: &certificate_origins,
                     source_binding: &self.source_binding,
@@ -2052,6 +2123,8 @@ impl ClientBuilder {
                         self.profile.tls(),
                         self.server_authentication,
                     )
+                } else if let Some(pins) = &self.server_spki_pins {
+                    Http1TlsConnector::new_with_spki_pins(self.profile.tls(), roots(), pins)
                 } else {
                     Http1TlsConnector::new_with_additional_roots(self.profile.tls(), roots())
                 }
@@ -2069,6 +2142,13 @@ impl ClientBuilder {
                         self.profile.tls(),
                         settings,
                         self.server_authentication,
+                    )
+                } else if let Some(pins) = &self.server_spki_pins {
+                    Http2TlsConnector::new_with_spki_pins(
+                        self.profile.tls(),
+                        settings,
+                        roots(),
+                        pins,
                     )
                 } else {
                     Http2TlsConnector::new_with_additional_roots(
@@ -2099,6 +2179,15 @@ impl ClientBuilder {
                         settings.http3(),
                         settings.request(),
                         self.server_authentication,
+                    )
+                } else if let Some(pins) = &self.server_spki_pins {
+                    Http3Connector::new_with_spki_pins(
+                        settings.tls(),
+                        settings.quic_transport(),
+                        settings.http3(),
+                        settings.request(),
+                        roots(),
+                        pins,
                     )
                 } else {
                     Http3Connector::new_with_additional_roots(
@@ -2134,13 +2223,26 @@ impl ClientBuilder {
             .http3()
             .filter(|_| !proxy_authentication_disabled)
             .map(|settings| {
-                Http3Connector::new_with_additional_roots(
-                    settings.tls(),
-                    &connect_udp_proxy_quic(settings.quic_transport()),
-                    settings.http3(),
-                    settings.request(),
-                    self.proxy_additional_roots.iter().map(AsRef::as_ref),
-                )
+                let proxy_roots = || self.proxy_additional_roots.iter().map(AsRef::as_ref);
+                let quic = connect_udp_proxy_quic(settings.quic_transport());
+                if let Some(pins) = &self.proxy_server_spki_pins {
+                    Http3Connector::new_with_spki_pins(
+                        settings.tls(),
+                        &quic,
+                        settings.http3(),
+                        settings.request(),
+                        proxy_roots(),
+                        pins,
+                    )
+                } else {
+                    Http3Connector::new_with_additional_roots(
+                        settings.tls(),
+                        &quic,
+                        settings.http3(),
+                        settings.request(),
+                        proxy_roots(),
+                    )
+                }
                 .map(|connector| with_udp(connector, self.profile.udp()))
                 .map(|connector| self.with_qlog(connector))
                 .map(|connector| self.bind_http3(connector))
@@ -2174,13 +2276,20 @@ impl ClientBuilder {
                 .as_ref()
                 .is_some_and(crate::EnvironmentProxies::uses_tls_proxy)
             || !self.proxy_additional_roots.is_empty()
-            || proxy_authentication_disabled;
+            || proxy_authentication_disabled
+            || self.proxy_server_spki_pins.is_some();
         let https_proxy = (supports_http1 || secure_proxy_requested)
             .then(|| {
                 if proxy_authentication_disabled {
                     HttpsProxyConnector::new_with_server_authentication(
                         self.profile.tls(),
                         self.proxy_server_authentication,
+                    )
+                } else if let Some(pins) = &self.proxy_server_spki_pins {
+                    HttpsProxyConnector::new_with_spki_pins(
+                        self.profile.tls(),
+                        self.proxy_additional_roots.iter().map(AsRef::as_ref),
+                        pins,
                     )
                 } else {
                     HttpsProxyConnector::new_with_additional_roots(
@@ -2232,6 +2341,8 @@ impl ClientBuilder {
                         &tls,
                         self.server_authentication,
                     )
+                } else if let Some(pins) = &self.server_spki_pins {
+                    Http1TlsConnector::new_with_spki_pins(&tls, roots(), pins)
                 } else {
                     Http1TlsConnector::new_with_additional_roots(&tls, roots())
                 }
@@ -2266,6 +2377,8 @@ impl ClientBuilder {
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
             ticket_preparation,
+            server_spki_pins: self.server_spki_pins.is_some(),
+            proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),
             base_url: self.base_url,
             header_hooks: self.header_hooks,
             http1,

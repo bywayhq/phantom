@@ -361,7 +361,9 @@ impl Http3Connection {
             EarlyDataOutcome::Accepted | EarlyDataOutcome::Rejected => Ok(()),
             EarlyDataOutcome::Invalid(invalid) => Err(invalid.error()),
             EarlyDataOutcome::Failed => Err(match self.inner.quinn.close_reason() {
-                Some(reason) => super::connection_error(reason),
+                Some(reason) => {
+                    super::pinned_connection_error(reason, early_data.pin_failure_capture())
+                }
                 None => Http3Error::without_source(
                     Http3ErrorKind::Connection,
                     "HTTP/3 connection closed before its early data was answered",

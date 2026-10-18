@@ -83,6 +83,24 @@ pub struct HttpsProxyConnector {
 }
 
 impl HttpsProxyConnector {
+    /// Builds secure-proxy TLS with bundled roots, additional roots and pins.
+    ///
+    /// Pins restrict the proxy leaf after chain and hostname verification.
+    /// They do not apply to origin TLS inside a tunnel.
+    ///
+    /// # Errors
+    /// Returns the configuration and trust-store errors from [`Self::new`].
+    pub fn new_with_spki_pins<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: &crate::ServerSpkiPins,
+    ) -> Result<Self, HttpConnectError> {
+        require_http1_alpn(settings)?;
+        TlsConnector::new_with_spki_pins(settings, roots, pins)
+            .map(|tls| Self::from_tls(tls, settings))
+            .map_err(HttpConnectError::ProxyTls)
+    }
+
     pub(super) fn digest_settings(&self) -> &ConnectionSettingsId {
         &self.connection_settings
     }

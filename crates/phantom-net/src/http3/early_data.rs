@@ -68,6 +68,7 @@ impl InvalidHandshake {
 pub(super) struct EarlyData {
     outcome: watch::Receiver<Option<EarlyDataOutcome>>,
     mapping: Arc<MappingPublication>,
+    pin_failure: Option<phantom_quic_btls::SpkiPinFailureCapture>,
 }
 
 /// Publishes a connection's early-data answer to its [`EarlyData`].
@@ -90,8 +91,24 @@ impl EarlyData {
                 #[cfg(test)]
                 hold: None,
             },
-            Self { outcome, mapping },
+            Self {
+                outcome,
+                mapping,
+                pin_failure: None,
+            },
         )
+    }
+
+    pub(super) fn with_pin_failure_capture(
+        mut self,
+        capture: Option<phantom_quic_btls::SpkiPinFailureCapture>,
+    ) -> Self {
+        self.pin_failure = capture;
+        self
+    }
+
+    pub(super) fn pin_failure_capture(&self) -> Option<&phantom_quic_btls::SpkiPinFailureCapture> {
+        self.pin_failure.as_ref()
     }
 
     /// Returns a receiver of the published answer, `None` until it settles.

@@ -13,6 +13,8 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketErrorKind {
+    /// The selected origin or proxy has no TLS leg required by the pin policy.
+    ServerPinPolicy,
     /// Imported session tickets could not be installed before TLS use.
     SessionTickets,
     /// The WebSocket URI is syntactically invalid.
@@ -159,6 +161,7 @@ impl WebSocketError {
             RequestErrorKind::AttemptBudgetExhausted => WebSocketErrorKind::AttemptBudgetExhausted,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
             RequestErrorKind::SessionTickets => WebSocketErrorKind::SessionTickets,
+            RequestErrorKind::ServerPinPolicy => WebSocketErrorKind::ServerPinPolicy,
             RequestErrorKind::Http1 => WebSocketErrorKind::Http1,
             RequestErrorKind::Http2 => WebSocketErrorKind::Http2,
             RequestErrorKind::Http3 => WebSocketErrorKind::Http3,

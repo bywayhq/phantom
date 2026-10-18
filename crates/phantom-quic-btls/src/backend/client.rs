@@ -39,6 +39,7 @@ use crate::resumption::{
 };
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
+use crate::{SpkiPinFailure, SpkiPinFailureCapture};
 
 const H3_PROTOCOL: &[u8] = b"h3";
 
@@ -96,6 +97,7 @@ pub struct QuicClientConfig {
     early_data: bool,
     application_state: Option<ApplicationState>,
     ech: Option<EchOffer>,
+    pin_failure: Option<SpkiPinFailureCapture>,
     verify_peer: bool,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
@@ -123,6 +125,7 @@ impl QuicClientConfig {
             early_data: false,
             application_state: None,
             ech: None,
+            pin_failure: None,
             verify_peer: true,
             #[cfg(test)]
             derivation_failure: None,
@@ -152,6 +155,7 @@ impl QuicClientConfig {
             offer_tickets: true,
             application_state: None,
             ech: None,
+            pin_failure: None,
             verify_peer: true,
             #[cfg(test)]
             derivation_failure: None,
@@ -301,6 +305,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: None,
             ech: None,
+            pin_failure: None,
             verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
@@ -324,6 +329,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: self.application_state.clone(),
             ech: self.ech.clone(),
+            pin_failure: self.pin_failure.clone(),
             verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
@@ -377,6 +383,23 @@ impl QuicClientConfig {
         self.early_data
     }
 
+    /// Returns whether the immutable TLS context restricts server leaf keys.
+    #[must_use]
+    pub fn has_spki_pins(&self) -> bool {
+        self.context.spki_pins().is_some()
+    }
+
+    /// Returns a clone that records typed pin failures in this attempt's capture.
+    ///
+    /// Allocate a fresh capture for every connection. Configuration clones used
+    /// within that attempt retain it, including early-data setup.
+    #[must_use]
+    pub fn with_spki_pin_failure_capture(&self, capture: &SpkiPinFailureCapture) -> Self {
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        config.pin_failure = Some(capture.clone());
+        config
+    }
+
     fn clone_with_sessions(&self, sessions: Option<SessionCache>) -> Self {
         Self {
             context: self.context.clone(),
@@ -387,6 +410,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: self.application_state.clone(),
             ech: self.ech.clone(),
+            pin_failure: self.pin_failure.clone(),
             verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
@@ -786,12 +810,18 @@ impl crypto::ClientConfig for QuicClientConfig {
             }
             map_start_error(server_name, error)
         })?;
-        backend
-            .start_handshake()
-            .map_err(|error| map_start_error(server_name, error))?;
+        backend.start_handshake().map_err(|error| {
+            if let ClientSessionError::PinVerification(failure) = &error
+                && let Some(capture) = &self.pin_failure
+            {
+                capture.record(*failure);
+            }
+            map_start_error(server_name, error)
+        })?;
 
         let mut state = SessionState::new(version, backend);
         state.ech = self.ech.clone();
+        state.pin_failure = self.pin_failure.clone();
         state.remembered_transport_parameters = remembered.filter(|_| early_data);
         state.ticket_sink = capture.clone().map(|sessions| TicketSink {
             sessions,
@@ -1227,6 +1257,7 @@ struct SessionState {
     remembered_transport_parameters: Option<Box<[u8]>>,
     /// Receives the result of this connection's Encrypted Client Hello offer.
     ech: Option<EchOffer>,
+    pin_failure: Option<SpkiPinFailureCapture>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -1256,6 +1287,7 @@ impl SessionState {
             version_switched: false,
             remembered_transport_parameters: None,
             ech: None,
+            pin_failure: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -1468,6 +1500,11 @@ impl crypto::Session for QuicSession {
                 offer.record(EchOutcome::Rejected {
                     retry_configs: retry_configs.as_deref().map(Box::from),
                 });
+            }
+            if let ClientSessionError::PinVerification(failure) = &error
+                && let Some(capture) = &state.pin_failure
+            {
+                capture.record(*failure);
             }
             return Err(map_session_error(&state.backend, error));
         }
@@ -1791,6 +1828,12 @@ fn map_start_error(server_name: &str, error: ClientSessionError) -> ConnectError
         },
         ClientSessionError::UnexpectedProtocolVersion { .. } => {
             "TLS negotiated unsupported version"
+        }
+        ClientSessionError::PinVerification(SpkiPinFailure::Mismatch) => {
+            "TLS server SPKI pin mismatch"
+        }
+        ClientSessionError::PinVerification(SpkiPinFailure::Backend) => {
+            "TLS server SPKI verification failed"
         }
         ClientSessionError::PeerVerificationFailed => "TLS peer verification failed",
         ClientSessionError::AlpnNotNegotiated => "TLS did not negotiate h3",

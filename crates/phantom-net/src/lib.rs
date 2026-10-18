@@ -102,7 +102,8 @@ pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, EchFailure,
-    ServerAuthentication, TlsError, TlsErrorKind, bundled_server_root_identity, draw_per_client,
+    InvalidServerSpkiPins, ServerAuthentication, ServerSpkiPins, TlsError, TlsErrorKind,
+    bundled_server_root_identity, draw_per_client,
 };
 
 #[cfg(all(test, debug_assertions))]

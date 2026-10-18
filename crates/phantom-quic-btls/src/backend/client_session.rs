@@ -53,6 +53,7 @@ pub(super) enum ClientSessionError {
         actual: i32,
     },
     PeerVerificationFailed,
+    PinVerification(crate::SpkiPinFailure),
     AlpnNotNegotiated,
     PeerApplicationSettingsBeforeHandshake,
     ResumptionAttempted,
@@ -644,6 +645,19 @@ impl ClientSession {
                 return Err(ClientSessionError::EchRejected {
                     retry_configs: self.ech_retry_configs(),
                 });
+            }
+            // SAFETY: SSL remains live; this reads only its per-connection outcome.
+            let pins = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) }.spki_pin_verification();
+            let failure = match pins {
+                btls::ssl::SpkiPinVerification::Mismatch => Some(crate::SpkiPinFailure::Mismatch),
+                btls::ssl::SpkiPinVerification::BackendFailure => {
+                    Some(crate::SpkiPinFailure::Backend)
+                }
+                _ => None,
+            };
+            if let Some(failure) = failure {
+                drain_error_queue();
+                return Err(ClientSessionError::PinVerification(failure));
             }
             return Err(self.operation_failure("TLS handshake", Some(ssl_error)));
         }

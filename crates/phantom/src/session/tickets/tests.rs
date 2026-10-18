@@ -34,8 +34,10 @@ fn prepared_owner_for(
         .with_client_context(binding::TicketClientContext {
             origin_authentication: phantom_net::ServerAuthentication::WebPki,
             origin_roots: &[],
+            origin_pins: None,
             proxy_authentication: phantom_net::ServerAuthentication::WebPki,
             proxy_roots: &[],
+            proxy_pins: None,
             default_certificate: None,
             certificate_origins: &[],
             source_binding: &source,

@@ -292,7 +292,9 @@ fn tls_build_error_kind(kind: TlsErrorKind) -> BuildErrorKind {
         TlsErrorKind::InvalidConfiguration => BuildErrorKind::InvalidProfile,
         TlsErrorKind::BackendConfiguration
         | TlsErrorKind::UnsupportedSetting
-        | TlsErrorKind::Handshake => BuildErrorKind::ProtocolConfiguration,
+        | TlsErrorKind::Handshake
+        | TlsErrorKind::SpkiPinMismatch
+        | TlsErrorKind::SpkiPinVerification => BuildErrorKind::ProtocolConfiguration,
         _ => BuildErrorKind::ProtocolConfiguration,
     }
 }
@@ -339,6 +341,8 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestErrorKind {
+    /// The selected origin or proxy has no TLS leg required by the pin policy.
+    ServerPinPolicy,
     /// Imported session tickets could not be installed before TLS use.
     /// The request is not sent, and pending custody remains available for retry.
     SessionTickets,
@@ -791,6 +795,10 @@ impl RequestError {
             RequestErrorKind::ProtocolUnavailable,
             "client profile must configure both HTTP/1.1 and HTTP/2 negotiation",
         )
+    }
+
+    pub(crate) fn server_pin_policy(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::ServerPinPolicy, message)
     }
 
     pub(crate) fn unsupported_route(protocol: HttpProtocol) -> Self {

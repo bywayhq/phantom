@@ -505,6 +505,16 @@ impl WebSocketRequestBuilder {
         let route = self
             .request
             .selected_route(&self.client, self.route.as_ref());
+        self.client
+            .inner
+            .ensure_pinned_route(
+                match self.request.transport {
+                    WebSocketTransport::Plaintext => "ws",
+                    WebSocketTransport::Tls => "wss",
+                },
+                &route,
+            )
+            .map_err(WebSocketError::request)?;
         if let Some(route) = route
             .with_profile_connect(self.client.inner.proxy_connect.as_deref(), |name| {
                 opening_field_value(&self.headers, name)

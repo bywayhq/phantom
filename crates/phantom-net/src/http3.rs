@@ -400,6 +400,14 @@ async fn connect(
     path_mtu: Option<u16>,
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
+    // The capture belongs to this attempt, not its shared TLS context or pool.
+    let pin_failure = crypto
+        .has_spki_pins()
+        .then(phantom_quic_btls::SpkiPinFailureCapture::default);
+    let crypto = match &pin_failure {
+        Some(capture) => Arc::new(crypto.with_spki_pin_failure_capture(capture)),
+        None => crypto,
+    };
     let sends_early_data = crypto.sends_early_data();
     // A connection whose early data is rejected starts HTTP/3 again from
     // the same profile once its handshake completes.
@@ -450,10 +458,20 @@ async fn connect(
                     debug!("QUIC connection sending early data before its handshake completes");
                     (connection, Some(accepted))
                 }
-                Err(connecting) => (connecting.await.map_err(connection_error)?, None),
+                Err(connecting) => (
+                    connecting
+                        .await
+                        .map_err(|error| pinned_connection_error(error, pin_failure.as_ref()))?,
+                    None,
+                ),
             }
         } else {
-            (connecting.await.map_err(connection_error)?, None)
+            (
+                connecting
+                    .await
+                    .map_err(|error| pinned_connection_error(error, pin_failure.as_ref()))?,
+                None,
+            )
         };
         Ok::<_, Http3Error>(connected)
     }
@@ -511,7 +529,10 @@ async fn connect(
     // The early session opens request streams only while they are 0-RTT
     // streams or once the server accepted the early data; see
     // `early_streams`.
-    let early_channel = zero_rtt.as_ref().map(|_| EarlyData::channel());
+    let early_channel = zero_rtt.as_ref().map(|_| {
+        let (answer, early) = EarlyData::channel();
+        (answer, early.with_pin_failure_capture(pin_failure.clone()))
+    });
     let (gate, transport) = match (zero_rtt, &early_channel) {
         (Some(accepted), Some((_, early_data))) => {
             let (gate, answer) = tokio::sync::watch::channel(None);
@@ -589,6 +610,14 @@ async fn connect(
                             connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
                         }
                     }
+                }
+                if pin_failure
+                    .as_ref()
+                    .and_then(phantom_quic_btls::SpkiPinFailureCapture::failure)
+                    .is_some()
+                    && let Some(reason) = connection.close_reason()
+                {
+                    return Err(pinned_connection_error(reason, pin_failure.as_ref()));
                 }
                 return Err(error);
             }
@@ -1203,6 +1232,20 @@ fn endpoint_error(error: impl std::error::Error + Send + Sync + 'static) -> Http
         "failed to initialize UDP/QUIC endpoint",
         error,
     )
+}
+
+fn pinned_connection_error(
+    error: quinn::ConnectionError,
+    capture: Option<&phantom_quic_btls::SpkiPinFailureCapture>,
+) -> Http3Error {
+    match capture.and_then(phantom_quic_btls::SpkiPinFailureCapture::failure) {
+        Some(failure) => Http3Error::with_source(
+            Http3ErrorKind::Handshake,
+            "QUIC server SPKI verification failed",
+            crate::TlsError::quic_pin_failure(failure, error),
+        ),
+        None => connection_error(error),
+    }
 }
 
 fn connection_error(error: quinn::ConnectionError) -> Http3Error {

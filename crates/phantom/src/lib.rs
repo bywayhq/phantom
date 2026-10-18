@@ -13,8 +13,6 @@ pub use http::Response;
 pub use http::StatusCode;
 /// HTTP URI returned by [`ResponseInfo::effective_uri`].
 pub use http::Uri;
-/// Policy for authenticating a TLS server certificate.
-pub use phantom_net::ServerAuthentication;
 /// Caller-supplied host name resolution for [`ClientBuilder::dns_resolver`].
 pub use phantom_net::host_resolver::{
     AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver, DnsConfigurationToken,
@@ -37,6 +35,8 @@ pub use phantom_net::{
 };
 pub use phantom_net::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
 pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
+/// Policy for authenticating a TLS server certificate.
+pub use phantom_net::{InvalidServerSpkiPins, ServerAuthentication, ServerSpkiPins};
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
 

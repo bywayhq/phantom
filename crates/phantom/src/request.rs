@@ -1174,6 +1174,9 @@ impl RequestBuilder {
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         retries.set_attempt_budget(attempt_budget);
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
+        client
+            .inner
+            .ensure_pinned_route(request.uri.scheme_str().unwrap_or_default(), route)?;
         ensure_request_supported(selection, route, &request)?;
         if request.alternative.is_none() {
             ensure_http2_fallback_supported(&client, selection, route, retry_policy)?;
@@ -1277,6 +1280,10 @@ impl RequestBuilder {
                 &filled_slots,
             )
             .map_err(|error| error.with_origin(resolved.origin()))?;
+            client
+                .inner
+                .ensure_pinned_route(resolved.uri.scheme_str().unwrap_or(""), route)
+                .map_err(|error| error.with_origin(resolved.origin()))?;
             ensure_request_supported(selection, route, &resolved)
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             if resolved.alternative.is_none() {

@@ -109,6 +109,7 @@ fn quic_connector_accepts_ech_from_https_records() -> TestResult<()> {
         &settings,
         crate::tls::ServerAuthentication::WebPki,
         [],
+        None,
         |_| {},
     )?;
     Ok(())

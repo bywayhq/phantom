@@ -23,8 +23,10 @@ fn prepared(profile: &ClientProfile, roots: &[Box<[u8]>]) -> TestResult<TicketOw
         .with_client_context(super::super::binding::TicketClientContext {
             origin_authentication: phantom_net::ServerAuthentication::WebPki,
             origin_roots: roots,
+            origin_pins: None,
             proxy_authentication: phantom_net::ServerAuthentication::WebPki,
             proxy_roots: &[],
+            proxy_pins: None,
             default_certificate: None,
             certificate_origins: &[],
             source_binding: &source,

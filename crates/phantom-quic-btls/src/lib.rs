@@ -69,6 +69,8 @@ mod initial;
 mod key_log;
 mod key_schedule;
 mod packet;
+mod pinning;
+pub use pinning::{SpkiPinFailure, SpkiPinFailureCapture};
 mod quinn;
 mod reset;
 mod resumption;

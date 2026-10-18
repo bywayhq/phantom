@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use phantom_net::{ClientCertificate, ServerAuthentication, SourceBinding};
+use phantom_net::{ClientCertificate, ServerAuthentication, ServerSpkiPins, SourceBinding};
 use phantom_profile::{ClientProfile, QuicTransportParameterKind};
 use zeroize::Zeroizing;
 
@@ -13,8 +13,10 @@ use super::{PreparationError, PreparedTicketPolicy, encoding::Encoder, quic, rou
 pub(crate) struct TicketClientContext<'a> {
     pub(crate) origin_authentication: ServerAuthentication,
     pub(crate) origin_roots: &'a [Box<[u8]>],
+    pub(crate) origin_pins: Option<&'a ServerSpkiPins>,
     pub(crate) proxy_authentication: ServerAuthentication,
     pub(crate) proxy_roots: &'a [Box<[u8]>],
+    pub(crate) proxy_pins: Option<&'a ServerSpkiPins>,
     pub(crate) default_certificate: Option<&'a ClientCertificate>,
     /// Already canonicalized with the builder's last mapping winning.
     pub(crate) certificate_origins: &'a [(Endpoint, ClientCertificate)],
@@ -77,10 +79,11 @@ impl fmt::Debug for PreparedCacheDescriptor {
 fn trust(
     authentication: ServerAuthentication,
     roots: &[Box<[u8]>],
+    pins: Option<&ServerSpkiPins>,
 ) -> Result<Zeroizing<Vec<u8>>, PreparationError> {
     let mut encoder = Encoder::new();
     encoder.bytes(b"phantom-ticket-server-trust")?;
-    encoder.u16(1)?;
+    encoder.u16(2)?;
     match authentication {
         ServerAuthentication::WebPki => {
             encoder.u8(0)?;
@@ -98,6 +101,9 @@ fn trust(
         _ => return Err(PreparationError::Unsupported("ServerAuthentication")),
     }
     encoder.list(roots, |e, der| e.bytes(der))?;
+    encoder.option(pins, |e, pins| {
+        e.list(pins.sha256_digests(), |e, hash| e.bytes(hash))
+    })?;
     Ok(Zeroizing::new(encoder.finish()))
 }
 
@@ -113,15 +119,17 @@ impl ClientContext {
         let TicketClientContext {
             origin_authentication,
             origin_roots,
+            origin_pins,
             proxy_authentication,
             proxy_roots,
+            proxy_pins,
             default_certificate,
             certificate_origins,
             source_binding,
             http3_early_data,
         } = input;
-        let origin_trust = trust(origin_authentication, origin_roots)?;
-        let proxy_trust = trust(proxy_authentication, proxy_roots)?;
+        let origin_trust = trust(origin_authentication, origin_roots, origin_pins)?;
+        let proxy_trust = trust(proxy_authentication, proxy_roots, proxy_pins)?;
         let default_certificate = certificate(default_certificate)?;
         // Bound every retained mapping, but include only the selected one in a cache descriptor.
         let mut mapping_bound = Encoder::new();
@@ -391,8 +399,10 @@ mod tests {
                 .with_client_context(TicketClientContext {
                     origin_authentication: ServerAuthentication::WebPki,
                     origin_roots: &[],
+                    origin_pins: None,
                     proxy_authentication: ServerAuthentication::WebPki,
                     proxy_roots: &[],
+                    proxy_pins: None,
                     default_certificate: None,
                     certificate_origins: &[],
                     source_binding: &source,
@@ -469,8 +479,10 @@ mod tests {
             .with_client_context(TicketClientContext {
                 origin_authentication: ServerAuthentication::WebPki,
                 origin_roots: &[],
+                origin_pins: None,
                 proxy_authentication: ServerAuthentication::WebPki,
                 proxy_roots: &[],
+                proxy_pins: None,
                 default_certificate: None,
                 certificate_origins: &[],
                 source_binding: &source,

@@ -36,6 +36,7 @@ use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
+pub use self::server_pins::{InvalidServerSpkiPins, ServerSpkiPins};
 pub(crate) use self::session_cache::{
     FrozenTlsSessionCache, MixedSessionOwner, MixedSessionStoreExport, MixedSessionStoreHeader,
     PreparedMixedSessionReplacement, PreparedTlsSessionReplacement, RetiredMixedSessionStores,
@@ -53,6 +54,7 @@ mod configuration;
 mod early_data;
 #[cfg(feature = "keylog")]
 pub(crate) mod key_log;
+mod server_pins;
 mod session_cache;
 
 fn bundled_server_roots<'a>() -> impl ExactSizeIterator<Item = &'a [u8]> {
@@ -257,6 +259,20 @@ impl TlsConnector {
         )
     }
 
+    pub(crate) fn new_with_spki_pins<'a>(
+        settings: &TlsSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: &ServerSpkiPins,
+    ) -> Result<Self, TlsError> {
+        Self::build_with_roots_and_sessions(
+            settings,
+            ServerAuthentication::WebPki,
+            bundled_server_roots().chain(roots),
+            ClientSessions::Scoped,
+            Some(pins),
+        )
+    }
+
     /// Builds a connector with an explicit server-authentication policy.
     pub(crate) fn new_with_server_authentication(
         settings: &TlsSettings,
@@ -279,6 +295,7 @@ impl TlsConnector {
         settings: &TlsSettings,
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: Option<&ServerSpkiPins>,
         mut prepare_sessions: impl FnMut(&mut SslContextBuilder),
     ) -> Result<Self, TlsError> {
         Self::build_with_roots_and_sessions(
@@ -288,6 +305,7 @@ impl TlsConnector {
                 .filter(|_| server_authentication.verifies())
                 .chain(roots),
             ClientSessions::External(&mut prepare_sessions),
+            pins,
         )
     }
 
@@ -429,6 +447,7 @@ impl TlsConnector {
             server_authentication,
             roots,
             ClientSessions::Scoped,
+            None,
         )
     }
 
@@ -437,6 +456,7 @@ impl TlsConnector {
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
         sessions: ClientSessions<'_>,
+        pins: Option<&ServerSpkiPins>,
     ) -> Result<Self, TlsError> {
         let span = debug_span!(
             "tls.connector.build",
@@ -466,7 +486,7 @@ impl TlsConnector {
             error_kind = field::Empty,
         );
         let _entered = span.enter();
-        let result = Self::build_connector(settings, server_authentication, roots, sessions);
+        let result = Self::build_connector(settings, server_authentication, roots, sessions, pins);
         record_tls_result(&span, &result);
         result
     }
@@ -476,6 +496,7 @@ impl TlsConnector {
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
         sessions: ClientSessions<'_>,
+        pins: Option<&ServerSpkiPins>,
     ) -> Result<Self, TlsError> {
         settings
             .validate()
@@ -502,6 +523,15 @@ impl TlsConnector {
             SslVerifyMode::NONE
         });
         configuration::apply(&mut builder, settings)?;
+        if let Some(pins) = pins {
+            if !server_authentication.verifies() {
+                return Err(TlsError::configuration(
+                    "server_spki_pins",
+                    "server pins require certificate and hostname verification",
+                ));
+            }
+            pins.install(&mut builder)?;
+        }
 
         let context_trust_anchors = match &settings.requested_trust_anchor_ids {
             None | Some(TrustAnchorIds::PerConnection(_)) => None,
@@ -840,7 +870,8 @@ impl TlsConnector {
                         .map(Box::from);
                     return Err(TlsError::ech_rejected(error, retry_configs));
                 }
-                return Err(TlsError::handshake(error));
+                return Err(TlsError::handshake(error)
+                    .with_pin_verification(stream.ssl().spki_pin_verification()));
             }
             let ech_accepted = stream.ssl().ech_accepted();
             span.record("ech_accepted", ech_accepted);
@@ -1195,6 +1226,10 @@ pub enum TlsErrorKind {
     UnsupportedSetting,
     /// The TLS handshake failed.
     Handshake,
+    /// A normally verified server leaf did not match any configured SPKI pin.
+    SpkiPinMismatch,
+    /// The backend could not complete the configured SPKI restriction.
+    SpkiPinVerification,
 }
 
 impl TlsErrorKind {
@@ -1205,6 +1240,8 @@ impl TlsErrorKind {
             Self::TrustStore => "trust_store",
             Self::UnsupportedSetting => "unsupported_setting",
             Self::Handshake => "handshake",
+            Self::SpkiPinMismatch => "spki_pin_mismatch",
+            Self::SpkiPinVerification => "spki_pin_verification",
         }
     }
 }
@@ -1391,6 +1428,41 @@ impl TlsError {
             message.into(),
             Some(Box::new(source)),
         )
+    }
+
+    pub(crate) fn quic_pin_failure(
+        failure: phantom_quic_btls::SpkiPinFailure,
+        source: impl StdError + Send + Sync + 'static,
+    ) -> Self {
+        use phantom_quic_btls::SpkiPinFailure;
+        let kind = match failure {
+            SpkiPinFailure::Mismatch => TlsErrorKind::SpkiPinMismatch,
+            _ => TlsErrorKind::SpkiPinVerification,
+        };
+        Self::new(
+            kind,
+            None,
+            failure.to_string().into(),
+            Some(Box::new(source)),
+        )
+    }
+
+    pub(crate) fn with_pin_verification(
+        mut self,
+        verification: btls::ssl::SpkiPinVerification,
+    ) -> Self {
+        match verification {
+            btls::ssl::SpkiPinVerification::Mismatch => {
+                self.kind = TlsErrorKind::SpkiPinMismatch;
+                self.message = "server certificate does not match its SPKI pins".into();
+            }
+            btls::ssl::SpkiPinVerification::BackendFailure => {
+                self.kind = TlsErrorKind::SpkiPinVerification;
+                self.message = "server SPKI verification could not complete".into();
+            }
+            _ => {}
+        }
+        self
     }
 
     fn handshake(source: btls::ssl::Error) -> Self {

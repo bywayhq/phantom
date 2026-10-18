@@ -77,6 +77,25 @@ pub struct Http2TlsConnector {
 }
 
 impl Http2TlsConnector {
+    /// Builds a connector with bundled roots, additional roots and leaf pins.
+    ///
+    /// Pins supplement certificate-chain and hostname verification. They apply
+    /// to every TLS origin opened by this connector, including proxy tunnels.
+    ///
+    /// # Errors
+    /// Returns the configuration and trust-store errors from [`Self::new`].
+    pub fn new_with_spki_pins<'a>(
+        settings: &TlsSettings,
+        http2: &Http2Settings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: &crate::ServerSpkiPins,
+    ) -> Result<Self, Http2TlsError> {
+        require_h2_alpn(settings)?;
+        validate_http2(http2)?;
+        let tls = TlsConnector::new_with_spki_pins(settings, roots, pins)?;
+        Ok(Self::from_parts(tls, http2.clone(), None, None, None, None))
+    }
+
     /// Opens a quiet complete SOCKS tunnel and its already-started backup.
     ///
     /// Adopt the backup before the winner starts origin TLS. Only Backup

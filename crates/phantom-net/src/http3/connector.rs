@@ -108,6 +108,7 @@ impl Http3Connector {
             request_settings,
             ServerAuthentication::WebPki,
             std::iter::empty(),
+            None,
         )
     }
 
@@ -134,6 +135,7 @@ impl Http3Connector {
             request_settings,
             ServerAuthentication::WebPki,
             roots,
+            None,
         )
     }
 
@@ -160,6 +162,33 @@ impl Http3Connector {
             request_settings,
             server_authentication,
             std::iter::empty(),
+            None,
+        )
+    }
+
+    /// Builds QUIC TLS with bundled roots, additional roots and leaf pins.
+    ///
+    /// Pins supplement certificate-chain and hostname verification for every
+    /// peer opened by this connector. Context policy is immutable.
+    ///
+    /// # Errors
+    /// Returns the configuration and trust-store errors from [`Self::new`].
+    pub fn new_with_spki_pins<'a>(
+        tls: &TlsSettings,
+        quic: &QuicTransportSettings,
+        settings: &Http3Settings,
+        request_settings: &Http3RequestSettings,
+        roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: &crate::ServerSpkiPins,
+    ) -> Result<Self, Http3ConnectorError> {
+        Self::build(
+            tls,
+            quic,
+            settings,
+            request_settings,
+            ServerAuthentication::WebPki,
+            roots,
+            Some(pins),
         )
     }
 
@@ -170,6 +199,7 @@ impl Http3Connector {
         request_settings: &Http3RequestSettings,
         server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
+        pins: Option<&crate::ServerSpkiPins>,
     ) -> Result<Self, Http3ConnectorError> {
         settings
             .validate()
@@ -186,6 +216,7 @@ impl Http3Connector {
             tls,
             server_authentication,
             roots,
+            pins,
             |builder| {
                 if let Err(error) = QuicClientConfig::enable_session_resumption(builder) {
                     resumption_error = Some(error);
@@ -2121,7 +2152,9 @@ impl Http3ConnectorError {
             TlsErrorKind::BackendConfiguration | TlsErrorKind::UnsupportedSetting => {
                 Http3ConnectorErrorKind::ProtocolConfiguration
             }
-            TlsErrorKind::Handshake => Http3ConnectorErrorKind::Handshake,
+            TlsErrorKind::Handshake
+            | TlsErrorKind::SpkiPinMismatch
+            | TlsErrorKind::SpkiPinVerification => Http3ConnectorErrorKind::Handshake,
         };
         Self::with_source(kind, "failed to configure HTTP/3 TLS", source)
     }
