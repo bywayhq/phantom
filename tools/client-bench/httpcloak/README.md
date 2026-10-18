@@ -29,6 +29,10 @@ At most `concurrency` application goroutines issue requests at once.
 - Replay: caller-enabled retries and redirect following disabled.
 - Pools and connect timeout: library defaults, within the total deadline.
 
+The HTTP/1.1 streaming API opens a connection for each request and closes it
+with the response. This applies to both consumption modes here. `cold: false`
+reuses the Session, but does not establish warm HTTP/1.1 connection reuse.
+
 `template: false` selects TLS-only mode and disables automatic client hints.
 `template: true` keeps navigation headers. Cookies, conditional caching and
 high-entropy client hints are disabled in both modes. Compression, other

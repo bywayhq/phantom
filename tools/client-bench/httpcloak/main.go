@@ -241,7 +241,8 @@ func run(c config, r ready, output string) error {
 			"proxy": "none", "application_timeout_ms": 15000,
 			"connect_timeout_ms": nil, "connect_timeout_note": "library defaults, bounded by the total context deadline",
 			"pool_limits": "library defaults", "runtime_gomaxprocs": c.Workers,
-			"go_version": runtime.Version(),
+			"h1_streaming_reuse": false,
+			"go_version":         runtime.Version(),
 		},
 	}
 	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
