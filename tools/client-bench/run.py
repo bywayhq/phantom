@@ -148,6 +148,7 @@ def accepted(summary, config, phase):
         summary["failures"] == 0
         and phase["requests"] == expected
         and phase["failures"] == 0
+        and phase.get("uploaded_bytes", 0) == expected * config.get("upload_bytes", 0)
         and (
             phase["proxy_connections"] == 0
             if config.get("route", "direct") == "direct"

@@ -29,6 +29,7 @@ def configuration(supplied):
         "requests": (1, 1_000_000),
         "warmup": (0, 100_000),
         "bytes": (0, 16 * 1024 * 1024),
+        "upload_bytes": (0, 16 * 1024 * 1024),
         "origins": (1, 128),
         "chunk_bytes": (1, 65536),
         "server_delay_ms": (0, 1000),
@@ -47,6 +48,10 @@ def configuration(supplied):
         raise ValueError("adapter supports only h1, h2 and h3 requests")
     if config["consume"] not in ("stream", "collect"):
         raise ValueError("adapter supports stream or collect consumption")
+    if config["method"] not in ("GET", "POST") or (
+        config["method"] == "GET" and config["upload_bytes"] != 0
+    ):
+        raise ValueError("uploads require a POST request workload")
     required = {
         "profile": "chrome",
         "route": "direct",
@@ -147,8 +152,14 @@ async def execute(config, urls, shared, create, expected_protocol, record):
             record["build_ns"] = time.perf_counter_ns() - start
         # The application deadline includes body consumption and validation.
         async with asyncio.timeout(15):
-            response = await selected.get(
+            response = await selected.request(
+                config["method"],
                 urls[record["id"] % len(urls)],
+                **(
+                    {"data": b"U" * config["upload_bytes"]}
+                    if config["method"] == "POST"
+                    else {}
+                ),
                 stream=config["consume"] == "stream",
                 accept_encoding=None,
             )

@@ -9,7 +9,7 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -21,6 +21,7 @@ use tokio::{
 use tokio_rustls::TlsAcceptor;
 
 mod delay;
+mod upload;
 
 #[derive(Default, Serialize)]
 struct Stats {
@@ -28,6 +29,7 @@ struct Stats {
     requests: AtomicUsize,
     proxy_connections: AtomicUsize,
     failures: AtomicUsize,
+    uploaded_bytes: AtomicU64,
     completed_h1_boundary_closes: AtomicUsize,
     completed_h2_boundary_closes: AtomicUsize,
     completed_h3_no_error_closes: AtomicUsize,
@@ -107,6 +109,7 @@ struct Body {
     delay: Duration,
     chunk_delay: Duration,
     gzip: bool,
+    upload: upload::Upload,
 }
 
 impl Body {
@@ -123,6 +126,7 @@ impl Body {
             delay: Duration::from_millis(config.server_delay_ms),
             chunk_delay: Duration::from_millis(config.chunk_delay_ms),
             gzip: config.gzip,
+            upload: upload::Upload::new(config),
         })
     }
 
@@ -199,9 +203,10 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
             }
             Err(error) => return Err(error),
         };
-        if !head.starts_with("GET ") {
-            return Err("benchmark peer accepts only GET".into());
-        }
+        body.upload.http1(&head, &mut stream).await?;
+        stats
+            .uploaded_bytes
+            .fetch_add(body.upload.length() as u64, Ordering::Relaxed);
         body.before_head().await;
         let encoding = if body.gzip {
             "content-encoding: gzip\r\n"
@@ -241,12 +246,25 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                 break;
             }
         };
-        if request.method() != http::Method::GET {
-            return Err("benchmark peer accepts only GET".into());
-        }
+        body.upload
+            .head(request.method(), request.headers(), false)?;
+        let mut incoming = request.into_body();
         received += 1;
         let (body, stats) = (body.clone(), stats.clone());
         responses.spawn(async move {
+            let mut observed = 0;
+            while let Some(data) = incoming.data().await {
+                let data = data?;
+                body.upload.chunk(&mut observed, &data)?;
+                incoming.flow_control().release_capacity(data.len())?;
+            }
+            if incoming.trailers().await?.is_some() {
+                return Err("benchmark upload must have no trailers".into());
+            }
+            body.upload.finish(observed)?;
+            stats
+                .uploaded_bytes
+                .fetch_add(observed as u64, Ordering::Relaxed);
             body.before_head().await;
             let mut send = respond.send_response(body.head()?, body.bytes.is_empty())?;
             let mut offset = 0;
@@ -419,19 +437,23 @@ async fn quic_listener(
                     let completed = completed.clone();
                     responses.spawn(async move {
                         let (request, mut stream) = resolver.resolve_request().await?;
-                        if request.method() != http::Method::GET {
-                            return Err("benchmark peer accepts only GET".into());
-                        }
+                        body.upload.head(request.method(), request.headers(), false)?;
                         // Reach request FIN before dropping its receive half.
                         // Quinn otherwise sends STOP_SENDING from that drop.
-                        while let Some(data) = stream.recv_data().await? {
-                            if data.has_remaining() {
-                                return Err("benchmark GET must have no body".into());
+                        let mut observed = 0;
+                        while let Some(mut data) = stream.recv_data().await? {
+                            while data.has_remaining() {
+                                let chunk = data.chunk();
+                                body.upload.chunk(&mut observed, chunk)?;
+                                let length = chunk.len();
+                                data.advance(length);
                             }
                         }
                         if stream.recv_trailers().await?.is_some() {
-                            return Err("benchmark GET must have no trailers".into());
+                            return Err("benchmark upload must have no trailers".into());
                         }
+                        body.upload.finish(observed)?;
+                        stats.uploaded_bytes.fetch_add(observed as u64, Ordering::Relaxed);
                         body.before_head().await;
                         stream.send_response(body.head()?).await?;
                         for offset in (0..body.bytes.len()).step_by(body.chunk_bytes) {

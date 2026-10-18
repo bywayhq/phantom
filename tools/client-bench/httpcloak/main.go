@@ -121,7 +121,11 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), start.Add(15*time.Second))
 	defer cancel()
-	response, err := selected.GetStream(ctx, r.URLs[record.ID%len(r.URLs)])
+	req := &client.Request{Method: c.Method, URL: r.URLs[record.ID%len(r.URLs)]}
+	if c.Method == "POST" {
+		req.Body = bytes.NewReader(bytes.Repeat([]byte{'U'}, c.UploadBytes))
+	}
+	response, err := selected.DoStream(ctx, req)
 	if err != nil {
 		return err
 	}

@@ -120,6 +120,17 @@ class AcceptanceTests(unittest.TestCase):
             )
         )
 
+    def test_upload_totals_include_warmup_and_must_match_every_attempt(self):
+        config = {"protocol": "h2", "requests": 10, "warmup": 2, "upload_bytes": 65536}
+        phase = {"requests": 12, "failures": 0, "proxy_connections": 0}
+        for observed in (None, 0, 11 * 65536, 13 * 65536):
+            with self.subTest(observed=observed):
+                if observed is not None:
+                    phase["uploaded_bytes"] = observed
+                self.assertFalse(accepted({"failures": 0}, config, phase))
+        phase["uploaded_bytes"] = 12 * 65536
+        self.assertTrue(accepted({"failures": 0}, config, phase))
+
     def test_proxy_route_must_actually_open_a_proxy_connection(self):
         phase = {"requests": 12, "failures": 0, "proxy_connections": 0}
         config = {"protocol": "h2", "requests": 10, "warmup": 2, "route": "connect"}

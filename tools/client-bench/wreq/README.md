@@ -10,7 +10,8 @@ Keep the resolved lockfile, compiler identity, source revision, complete build
 command and native build settings with the binary. Diagnostic builds do not
 qualify as optimized timing builds.
 
-The adapter supports direct HTTPS GETs over exact HTTP/1.1 or HTTP/2.
+The adapter supports direct HTTPS GETs and bounded in-memory POST uploads over
+exact HTTP/1.1 or HTTP/2.
 HTTP/3 and unsupported routes or workload settings fail before warmup.
 Cold and shared clients, stream and collect consumption, multiple loopback
 origins, and planned arrivals use the existing controller contract.
@@ -37,8 +38,8 @@ Observation storage records vector capacities for sample records and group
 headers. It excludes allocator slack and task storage. The measured process
 also includes the runtime, TLS backend, pools and observation overhead.
 This is not a browser-fingerprint equivalence claim. Recipe versions differ
-between adapters. Uploads, redirects, authentication and cancellation workloads
-remain open.
+between adapters. Streaming uploads, redirects, authentication and cancellation
+workloads remain open.
 
 ## Next
 

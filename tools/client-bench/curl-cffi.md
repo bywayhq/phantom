@@ -7,8 +7,8 @@ Pin the installed Python sources, native modules, runtime libraries and
 dependency lock in that descriptor too. An interpreter hash alone does not
 identify a Python environment.
 
-The first adapter supports direct HTTPS GET requests to the controlled IPv4
-loopback peers. It covers exact HTTP/1.1, HTTP/2 and HTTP/3, cold or shared
+The adapter supports HTTPS GETs and bounded in-memory POST uploads to the
+controlled IPv4 loopback peers. It covers exact HTTP/1.1, HTTP/2 and HTTP/3, cold or shared
 clients, streaming or collection, multiple origins, and planned arrivals.
 Set `workers: 1` explicitly. This adapter uses one Python event loop.
 `peer_workers` can hold the independent server's worker count fixed.
@@ -16,7 +16,7 @@ Set `workers: 1` explicitly. This adapter uses one Python event loop.
 Use the same workload parameters for each library. Start with a short
 diagnostic matrix before collecting timing data. Unsupported routes, profiles,
 compression, templates and Phantom diagnostics fail before warmup.
-Uploads, redirects, proxy authentication and cancellation need separate
+Streaming uploads, redirects, proxy authentication and cancellation need separate
 workloads and are not covered by this adapter yet.
 
 ## Settings and measurement boundaries

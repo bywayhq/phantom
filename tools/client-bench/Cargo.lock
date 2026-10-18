@@ -934,6 +934,7 @@ dependencies = [
  "dhat",
  "flate2",
  "http",
+ "httparse",
  "http-body-util",
  "phantom-h3",
  "phantom-h3-quinn",

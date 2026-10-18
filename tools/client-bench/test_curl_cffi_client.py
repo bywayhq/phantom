@@ -22,6 +22,9 @@ class ConfigurationTests(unittest.TestCase):
             {"requests": True},
             {"concurrency": 0},
             {"peer_workers": True},
+            {"upload_bytes": 1},
+            {"method": "POST", "upload_bytes": 16 * 1024 * 1024 + 1},
+            {"method": "PATCH"},
         ):
             with self.subTest(setting=setting), self.assertRaises(ValueError):
                 adapter.configuration({"workers": 1} | setting)
@@ -63,7 +66,8 @@ class Session:
         self.response = response
         self.closed = False
 
-    async def get(self, url, **kwargs):
+    async def request(self, method, url, **kwargs):
+        self.method, self.arguments = method, kwargs
         return self.response
 
     async def close(self):
@@ -71,6 +75,19 @@ class Session:
 
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_post_upload_passes_the_exact_payload_to_the_public_request_api(self):
+        config = adapter.configuration(
+            {"workers": 1, "method": "POST", "upload_bytes": 65536, "bytes": 2}
+        )
+        session = Session(Response())
+        record = adapter.sample(0)
+        await adapter.execute(
+            config, ["https://127.0.0.1:1234/"], session, lambda: session, 3, record
+        )
+        self.assertIsNone(record["error"])
+        self.assertEqual(session.method, "POST")
+        self.assertEqual(session.arguments["data"], b"U" * 65536)
+
     async def test_stream_and_collect_keep_real_completion_and_missing_head(self):
         for consume in ("stream", "collect"):
             config = adapter.configuration(

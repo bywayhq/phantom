@@ -93,10 +93,13 @@ async fn request(
     tokio::time::timeout_at(
         tokio::time::Instant::from_std(start + Duration::from_secs(15)),
         async {
-            let response = selected
-                .get(ready.urls[record.id % ready.urls.len()].as_str())
-                .send()
-                .await?;
+            let url = ready.urls[record.id % ready.urls.len()].as_str();
+            let request = if config.method == "POST" {
+                selected.post(url).body(vec![b'U'; config.upload_bytes])
+            } else {
+                selected.get(url)
+            };
+            let response = request.send().await?;
             record.head_ns = Some(nanos(start.elapsed()));
             let expected = if config.protocol == "h1" {
                 http::Version::HTTP_11

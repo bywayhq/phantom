@@ -15,6 +15,8 @@ pub(crate) struct Config {
     pub requests: usize,
     pub warmup: usize,
     pub bytes: usize,
+    pub method: String,
+    pub upload_bytes: usize,
     pub consume: String,
     pub cold: bool,
     pub origins: usize,
@@ -53,6 +55,9 @@ impl Config {
             || self.warmup > 100_000
             || !(1..=128).contains(&self.origins)
             || self.bytes > 16 * 1024 * 1024
+            || !["GET", "POST"].contains(&self.method.as_str())
+            || self.upload_bytes > 16 * 1024 * 1024
+            || (self.method == "GET" && self.upload_bytes != 0)
             || !(1..=65536).contains(&self.chunk_bytes)
             || !(1..=16).contains(&self.workers)
             || self.peer_workers.is_some_and(|n| !(1..=16).contains(&n))
@@ -107,6 +112,8 @@ mod tests {
             requests: 8,
             warmup: 2,
             bytes: 32768,
+            method: "GET".into(),
+            upload_bytes: 0,
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -142,6 +149,8 @@ mod tests {
             |c| c.workers = 0,
             |c| c.peer_workers = Some(0),
             |c| c.bytes = 16 * 1024 * 1024 + 1,
+            |c| c.upload_bytes = 1,
+            |c| c.method = "PATCH".into(),
         ];
         for change in unsupported {
             let mut config = config();
@@ -159,6 +168,8 @@ mod tests {
             config.consume = "collect".into();
             config.origins = 3;
             config.arrival_interval_us = 1000;
+            config.method = "POST".into();
+            config.upload_bytes = 65536;
             config.validate()?;
         }
         Ok(())

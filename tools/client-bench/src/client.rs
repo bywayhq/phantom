@@ -87,7 +87,14 @@ async fn request(
     } else {
         shared
     };
-    let mut request = selected.get(protocol(config), &ready.urls[sample.id % ready.urls.len()])?;
+    let url = &ready.urls[sample.id % ready.urls.len()];
+    let mut request = if config.method == "POST" {
+        selected
+            .request(protocol(config), http::Method::POST, url)?
+            .body(vec![b'U'; config.upload_bytes])
+    } else {
+        selected.get(protocol(config), url)?
+    };
     if config.gzip {
         request = request
             .header(RequestHeader::new("accept-encoding", "gzip"))

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add bounded POST uploads and verified peer upload totals to comparison workloads.
 - Keep capture lifecycle tests responsive to process-startup failures on Windows.
 - Add a pinned wreq adapter for controlled benchmark HTTP/1.1 and HTTP/2 GETs.
 - Add a pinned httpcloak adapter for controlled benchmark HTTPS GETs.

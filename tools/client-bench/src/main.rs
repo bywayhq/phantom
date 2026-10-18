@@ -27,6 +27,8 @@ struct Config {
     requests: usize,
     warmup: usize,
     bytes: usize,
+    method: String,
+    upload_bytes: usize,
     consume: String,
     cold: bool,
     origins: usize,
@@ -55,6 +57,8 @@ impl Default for Config {
             requests: 2000,
             warmup: 100,
             bytes: 1024,
+            method: "GET".into(),
+            upload_bytes: 0,
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -85,6 +89,8 @@ impl Config {
             || self.warmup > 100_000
             || !(1..=128).contains(&self.origins)
             || self.bytes > 16 * 1024 * 1024
+            || !["GET", "POST"].contains(&self.method.as_str())
+            || self.upload_bytes > 16 * 1024 * 1024
             || !(1..=65536).contains(&self.chunk_bytes)
             || !(1..=16).contains(&self.workers)
             || self
@@ -97,6 +103,12 @@ impl Config {
             || self.diagnostic_events > 4096
         {
             return Err("invalid or unbounded benchmark configuration".into());
+        }
+        if (self.method == "GET" || self.protocol == "construct") && self.upload_bytes != 0 {
+            return Err("uploads require a POST request workload".into());
+        }
+        if self.protocol == "construct" && self.method != "GET" {
+            return Err("construction runs cannot issue POST requests".into());
         }
         if self.protocol == "h3" && self.route != "direct" {
             return Err("TCP proxies do not support exact HTTP/3".into());
@@ -200,6 +212,25 @@ mod tests {
         config.peer_workers = Some(0);
         assert!(config.validate().is_err());
         config.peer_workers = Some(17);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn upload_work_is_explicit_and_bounded() {
+        let mut config = Config {
+            method: "POST".into(),
+            ..Config::default()
+        };
+        assert!(config.validate().is_ok());
+        config.upload_bytes = 16 * 1024 * 1024;
+        assert!(config.validate().is_ok());
+        config.upload_bytes += 1;
+        assert!(config.validate().is_err());
+        config.upload_bytes = 1;
+        config.method = "GET".into();
+        assert!(config.validate().is_err());
+        config.method = "POST".into();
+        config.protocol = "construct".into();
         assert!(config.validate().is_err());
     }
 }

@@ -49,6 +49,15 @@ small difference. Short cold runs have few observations beyond p99.
 
 ## Use another client executable
 
+Set `method: "POST"` and `upload_bytes` to send an in-memory upload, up to
+16 MiB per request. The default remains a body-free GET. Each operation
+allocates its payload inside its measured interval. The peer verifies the
+method, full length and every `U` byte before replying. HTTP/1.1 uses a known
+content length; chunked uploads and trailers are outside this workload.
+`peer_phase.uploaded_bytes` includes warmup and must equal the configured
+payload across every request. It counts application payload, not transport
+overhead. Response streaming and collection remain independent of uploads.
+
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The
 comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents

@@ -18,6 +18,7 @@ flate2 = "=1.1.10"
 h3 = { package = "phantom-h3", path = "../../vendor/h3/h3", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 h3-quinn = { package = "phantom-h3-quinn", path = "../../vendor/h3/h3-quinn" }
 http = "=1.5.0"
+httparse = "=1.10.1"
 http-body-util = "=0.1.5"
 http2 = { package = "phantom-http2", path = "../../vendor/http2" }
 phantom = { package = "phantom-http", path = "../../crates/phantom" }

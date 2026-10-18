@@ -20,6 +20,8 @@ type config struct {
 	Requests           int    `json:"requests"`
 	Warmup             int    `json:"warmup"`
 	Bytes              int    `json:"bytes"`
+	Method             string `json:"method"`
+	UploadBytes        int    `json:"upload_bytes"`
 	Consume            string `json:"consume"`
 	Cold               bool   `json:"cold"`
 	Origins            int    `json:"origins"`
@@ -76,6 +78,8 @@ func (c config) validate() error {
 		c.Concurrency < 1 || c.Concurrency > 256 || c.Requests < 1 || c.Requests > 1_000_000 ||
 		c.Warmup < 0 || c.Warmup > 100_000 || c.Origins < 1 || c.Origins > 128 ||
 		c.Bytes < 0 || c.Bytes > 16*1024*1024 || c.ChunkBytes < 1 || c.ChunkBytes > 65536 ||
+		(c.Method != "GET" && c.Method != "POST") || c.UploadBytes < 0 || c.UploadBytes > 16*1024*1024 ||
+		(c.Method == "GET" && c.UploadBytes != 0) ||
 		c.Workers < 1 || c.Workers > 16 ||
 		(c.PeerWorkers != nil && (*c.PeerWorkers < 1 || *c.PeerWorkers > 16)) ||
 		c.ServerDelayMS > 1000 || c.ChunkDelayMS > 1000 || c.ArrivalIntervalUS > 1_000_000 {

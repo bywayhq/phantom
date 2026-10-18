@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -14,6 +15,44 @@ import (
 	"testing"
 	"time"
 )
+
+func TestPublicSessionUploadsTheCompletePayloadBeforeReadingTheResponse(t *testing.T) {
+	for _, protocol := range []string{"h1", "h2"} {
+		for _, size := range []int{0, 65536} {
+			observed := make(chan []byte, 1)
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				data, err := io.ReadAll(io.LimitReader(r.Body, 65537))
+				if err != nil || r.Method != "POST" || !bytes.Equal(data, bytes.Repeat([]byte{'U'}, size)) {
+					t.Errorf("unexpected upload: method=%s size=%d error=%v", r.Method, len(data), err)
+				}
+				observed <- data
+				if _, err := io.WriteString(w, "ZZZ"); err != nil {
+					t.Error(err)
+				}
+			}))
+			server.EnableHTTP2 = protocol == "h2"
+			server.StartTLS()
+			c := validConfig()
+			c.Protocol, c.Method, c.UploadBytes, c.Bytes = protocol, "POST", size, 3
+			r := ready{URLs: []string{server.URL}, RootDER: server.Certificate().Raw}
+			shared, err := newClient(c, r)
+			if err != nil {
+				server.Close()
+				t.Fatal(err)
+			}
+			record := sample{}
+			execute(c, r, shared, &record)
+			shared.Close()
+			server.Close()
+			if record.Error != nil {
+				t.Fatal(*record.Error)
+			}
+			if len(<-observed) != size {
+				t.Fatal("upload not observed")
+			}
+		}
+	}
+}
 
 func TestCollectionAndStreamingVerifyContentAndLength(t *testing.T) {
 	for _, mode := range []string{"collect", "stream"} {

@@ -9,6 +9,8 @@ DEFAULTS = {
     "requests": 2000,
     "warmup": 100,
     "bytes": 1024,
+    "method": "GET",
+    "upload_bytes": 0,
     "consume": "stream",
     "cold": False,
     "origins": 1,

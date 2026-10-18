@@ -18,7 +18,8 @@ Supply the binary in a pinned descriptor to the
 Retain source, module files, `go version`, `go env`, `go version -m BINARY`,
 the build command and binary hash. Do not use race or debug builds for timings.
 
-The adapter supports direct HTTPS GETs over exact HTTP/1.1, HTTP/2 or HTTP/3.
+The adapter supports direct HTTPS GETs and bounded in-memory POST uploads over
+exact HTTP/1.1, HTTP/2 or HTTP/3.
 Cold and shared clients, streaming and collection, multiple loopback origins,
 and planned arrivals use the controller's existing workload contract.
 `workers` sets `GOMAXPROCS`, not a fixed number of operating-system threads.
@@ -56,7 +57,7 @@ Process memory includes the Go runtime, transports, pools and observation work.
 
 Recipe versions, headers, scheduler behavior and default pool limits differ
 between libraries. Functional acceptance does not establish equivalent
-fingerprints, performance or connection limits. Uploads, redirects, proxy
+fingerprints, performance or connection limits. Streaming uploads, redirects, proxy
 authentication and cancellation need additional workloads.
 
 ## Next
