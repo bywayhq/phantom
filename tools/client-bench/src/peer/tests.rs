@@ -384,7 +384,10 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
         driver.abort();
         assert!(driver.await.is_err_and(|error| error.is_cancelled()));
         let result = tokio::time::timeout(Duration::from_secs(5), peer).await??;
-        assert_eq!(result.is_ok(), reason == http2::Reason::CANCEL);
+        assert!(
+            result.is_ok(),
+            "CANCEL disrupted the connection: {result:?}"
+        );
         assert_eq!(
             stats.cancelled_streams.load(Ordering::Relaxed),
             usize::from(reason == http2::Reason::CANCEL)
