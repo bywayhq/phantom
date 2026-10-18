@@ -54,10 +54,12 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
             let (learned, learning_complete) = tokio::sync::oneshot::channel();
             let peer = async {
                 let incoming = endpoint.accept().await.ok_or("first endpoint closed")?;
+                eprintln!("pinned QUIC ({during_start}): learning peer accepted");
                 let connection = incoming.await?;
                 let learning_transport = connection.clone();
                 let mut http3: h3::server::Connection<_, bytes::Bytes> =
                     h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+                eprintln!("pinned QUIC ({during_start}): learning H3 ready");
                 tokio::select! {
                     biased;
                     complete = learning_complete => complete?,
@@ -69,12 +71,17 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 learning_transport.close(0_u32.into(), b"ticket learned");
                 drop(http3);
                 let incoming = endpoint.accept().await.ok_or("second endpoint closed")?;
+                eprintln!("pinned QUIC ({during_start}): changed peer accepted");
                 assert!(incoming.await.is_err(), "changed leaf passed the old pin");
+                eprintln!("pinned QUIC ({during_start}): changed peer rejected");
                 TestResult::Ok(())
             };
             let caller = async {
+                eprintln!("pinned QUIC ({during_start}): connecting to learn");
                 let learning = early_data::connect(&connector, address).await?;
+                eprintln!("pinned QUIC ({during_start}): learning connected");
                 early_data::wait_for_ticket(&connector).await?;
+                eprintln!("pinned QUIC ({during_start}): ticket received");
                 // A new server configuration rejects the old ticket. Its new
                 // leaf is trusted normally but is outside the immutable pins.
                 endpoint.set_server_config(Some(early_data::server_config(&changed, false)?));
@@ -82,6 +89,7 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 drop(learning);
                 assert!(connector.has_ticket_for(TEST_SERVER_NAME));
                 let connected = early_data::connect(&connector, address).await;
+                eprintln!("pinned QUIC ({during_start}): changed connect returned");
                 let error = match connected {
                     Err(error) => error,
                     Ok(connection) => {
