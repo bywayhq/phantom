@@ -423,6 +423,7 @@ impl Peer {
                         Err(error) => return Err(error.into()),
                     }
                 };
+                socket.set_nonblocking(false)?;
                 socket.set_read_timeout(Some(Duration::from_secs(3)))?;
                 socket.set_write_timeout(Some(Duration::from_secs(3)))?;
                 received += match context.accept(socket) {

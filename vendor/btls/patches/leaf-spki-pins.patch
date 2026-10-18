@@ -366,7 +366,7 @@ diff --git a/src/ssl/pinning/tests.rs b/src/ssl/pinning/tests.rs
 new file mode 100644
 --- /dev/null
 +++ b/src/ssl/pinning/tests.rs
-@@ -0,0 +1,474 @@
+@@ -0,0 +1,475 @@
 +use std::{
 +    error::Error,
 +    io::{Read, Write},
@@ -792,6 +792,7 @@ new file mode 100644
 +                        Err(error) => return Err(error.into()),
 +                    }
 +                };
++                socket.set_nonblocking(false)?;
 +                socket.set_read_timeout(Some(Duration::from_secs(3)))?;
 +                socket.set_write_timeout(Some(Duration::from_secs(3)))?;
 +                received += match context.accept(socket) {
