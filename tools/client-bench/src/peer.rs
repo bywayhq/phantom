@@ -350,9 +350,15 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                     while offset < chunk_end {
                         let wanted = chunk_end - offset;
                         send.reserve_capacity(wanted);
-                        let capacity = std::future::poll_fn(|cx| send.poll_capacity(cx))
-                            .await
-                            .ok_or("H2 stream closed")??;
+                        let capacity = match std::future::poll_fn(|cx| send.poll_capacity(cx)).await
+                        {
+                            Some(capacity) => capacity?,
+                            None => {
+                                // Capacity closes on a reset. Retain its typed reason.
+                                let reason = std::future::poll_fn(|cx| send.poll_reset(cx)).await?;
+                                return Err(http2::Error::from(reason).into());
+                            }
+                        };
                         let length = wanted.min(capacity);
                         if length == 0 {
                             continue;
