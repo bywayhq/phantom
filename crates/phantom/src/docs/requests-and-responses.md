@@ -198,6 +198,10 @@ Enable only the behavior you need:
 - **Extra retries:** [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
   Read [`RetryPolicy`](crate::RetryPolicy) before retrying operations with side effects;
   some protocol-driven replays can occur even without an extra retry policy.
+  Configure capped exponential delays and full jitter on `RetryPolicy` for
+  connection-setup retries, or on [`StatusRetry`](crate::StatusRetry) for
+  status retries. An honored `Retry-After` sets a minimum wait. Delays remain
+  inside the total deadline and existing retry budgets.
 - **Proxy routes:** follow [Using proxies](crate::guide::proxies).
 
 ## Inspect a request timeline

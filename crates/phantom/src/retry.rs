@@ -8,7 +8,10 @@ use crate::{
     timeout::{TimeoutBudget, TimeoutPhase},
 };
 
+mod delay;
 mod retry_after;
+
+use delay::RetryDelay;
 
 /// Choose which connection failures and response statuses to retry.
 ///
@@ -96,6 +99,8 @@ mod retry_after;
 /// use phantom::RetryPolicy;
 ///
 /// let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::from_millis(200))
+///     .with_exponential_backoff(Duration::from_secs(2))
+///     .with_full_jitter(true)
 ///     .with_reused_connection_replay(true);
 /// assert_eq!(policy.max_connection_failures(), Some(NonZeroUsize::MIN));
 /// assert!(policy.reused_connection_replay());
@@ -105,7 +110,7 @@ mod retry_after;
 pub struct RetryPolicy {
     maximum_retries: Option<usize>,
     maximum_connection_failures: Option<NonZeroUsize>,
-    delay: Duration,
+    delay: RetryDelay,
     reused_connection_replay: bool,
     unprocessed_replays: Option<NonZeroUsize>,
     status_retry: Option<StatusRetry>,
@@ -120,7 +125,7 @@ impl RetryPolicy {
         Self {
             maximum_retries: None,
             maximum_connection_failures: None,
-            delay: Duration::ZERO,
+            delay: RetryDelay::fixed(Duration::ZERO),
             reused_connection_replay: false,
             unprocessed_replays: None,
             status_retry: None,
@@ -139,7 +144,7 @@ impl RetryPolicy {
         Self {
             maximum_retries: None,
             maximum_connection_failures: Some(maximum),
-            delay,
+            delay: RetryDelay::fixed(delay),
             reused_connection_replay: false,
             unprocessed_replays: None,
             status_retry: None,
@@ -339,10 +344,45 @@ impl RetryPolicy {
         self.maximum_connection_failures
     }
 
-    /// Returns the delay before each connection retry.
+    /// Doubles the connection-setup delay after each completed setup retry.
+    ///
+    /// The first retry uses the delay passed to [`Self::connection_failures`].
+    /// Later retries double it up to `maximum_delay`. The counter spans redirects.
+    /// This changes scheduling only; it does not enable a retry class.
+    /// `maximum_delay` must be at least the initial delay and fit the runtime clock.
+    /// Invalid settings fail policy validation when building or sending a request.
+    #[must_use]
+    pub const fn with_exponential_backoff(mut self, maximum_delay: Duration) -> Self {
+        self.delay.maximum = Some(maximum_delay);
+        self
+    }
+
+    /// Randomizes each connection-setup delay between zero and its current bound.
+    ///
+    /// With exponential backoff, the bound doubles up to its cap. Otherwise it is
+    /// the fixed delay. Other retry and automatic replay classes are unaffected.
+    #[must_use]
+    pub const fn with_full_jitter(mut self, enabled: bool) -> Self {
+        self.delay.full_jitter = enabled;
+        self
+    }
+
+    /// Returns the initial connection-setup retry delay.
     #[must_use]
     pub const fn delay(self) -> Duration {
-        self.delay
+        self.delay.initial
+    }
+
+    /// Returns the exponential connection-setup delay cap, when configured.
+    #[must_use]
+    pub const fn backoff_limit(self) -> Option<Duration> {
+        self.delay.maximum
+    }
+
+    /// Returns whether connection-setup delays use full jitter.
+    #[must_use]
+    pub const fn full_jitter(self) -> bool {
+        self.delay.full_jitter
     }
 
     /// Returns whether reused-connection replay is enabled.
@@ -371,15 +411,19 @@ impl RetryPolicy {
         self.http2_fallback
     }
 
-    pub(crate) fn validate(self) -> bool {
+    pub(crate) fn validate(self) -> Result<(), &'static str> {
         let now = std::time::Instant::now();
-        (self.maximum_connection_failures.is_none() || now.checked_add(self.delay).is_some())
-            && self.status_retry.is_none_or(|status_retry| {
-                now.checked_add(status_retry.delay).is_some()
-                    && status_retry
-                        .retry_after_limit
-                        .is_none_or(|limit| now.checked_add(limit).is_some())
-            })
+        self.delay.validate(now)?;
+        if let Some(status_retry) = self.status_retry {
+            status_retry.delay.validate(now)?;
+            if status_retry
+                .retry_after_limit
+                .is_some_and(|limit| now.checked_add(limit).is_none())
+            {
+                return Err("Retry-After limit exceeds the runtime clock range");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -403,9 +447,9 @@ const RETRYABLE_STATUSES: [StatusCode; 7] = [
 /// Opt-in caller policy that repeats requests after retryable statuses.
 ///
 /// Attach it with [`RetryPolicy::with_status_retry`]. Only `408`, `425`,
-/// `429`, `500`, `502`, `503`, and `504` may be listed. Every retry waits for
-/// the constant delay unless [`honor_retry_after`](Self::honor_retry_after)
-/// is set and the response carries a valid `Retry-After` field.
+/// `429`, `500`, `502`, `503`, and `504` may be listed. Delays are constant by
+/// default. Add [`Self::with_exponential_backoff`] and [`Self::with_full_jitter`]
+/// to spread retries over time. An honored `Retry-After` is a minimum wait.
 ///
 /// # Examples
 ///
@@ -421,6 +465,8 @@ const RETRYABLE_STATUSES: [StatusCode; 7] = [
 ///     NonZeroUsize::MIN.saturating_add(1),
 ///     Duration::from_millis(250),
 /// )?
+/// .with_exponential_backoff(Duration::from_secs(2))
+/// .with_full_jitter(true)
 /// .honor_retry_after(Duration::from_secs(5));
 /// let policy = RetryPolicy::none().with_status_retry(status_retry);
 /// assert!(policy.status_retry().is_some());
@@ -434,7 +480,7 @@ const RETRYABLE_STATUSES: [StatusCode; 7] = [
 pub struct StatusRetry {
     statuses: u8,
     maximum: NonZeroUsize,
-    delay: Duration,
+    delay: RetryDelay,
     retry_after_limit: Option<Duration>,
 }
 
@@ -469,19 +515,20 @@ impl StatusRetry {
         Ok(Self {
             statuses: bits,
             maximum,
-            delay,
+            delay: RetryDelay::fixed(delay),
             retry_after_limit: None,
         })
     }
 
-    /// Uses a valid `Retry-After` field (RFC 9110, section 10.2.3) instead of
-    /// the constant delay, up to `maximum_delay`.
+    /// Waits at least a valid `Retry-After` delay (RFC 9110, section 10.2.3),
+    /// accepting server delays up to `maximum_delay`.
     ///
     /// Accepts seconds (`delta-seconds`) or a date in IMF-fixdate `HTTP-date`
     /// format. A date becomes a delay against the system clock. A requested
     /// delay above `maximum_delay` returns the response without waiting or
     /// retrying. A missing, repeated, obsolete-format, or malformed field
-    /// falls back to the constant delay.
+    /// falls back to the configured delay. A shorter server delay never reduces
+    /// the configured wait, including when jitter is enabled.
     #[must_use]
     pub const fn honor_retry_after(self, maximum_delay: Duration) -> Self {
         Self {
@@ -502,10 +549,43 @@ impl StatusRetry {
         self.maximum
     }
 
-    /// Returns the constant delay before each status retry.
+    /// Doubles the delay after each completed status retry, up to `maximum_delay`.
+    ///
+    /// The first retry uses the delay passed to [`Self::new`]. The counter spans
+    /// redirects. `maximum_delay` must be at least that initial delay and fit
+    /// the runtime clock. Invalid settings fail policy validation when building
+    /// or sending a request. An honored `Retry-After` may exceed this backoff cap.
+    #[must_use]
+    pub const fn with_exponential_backoff(mut self, maximum_delay: Duration) -> Self {
+        self.delay.maximum = Some(maximum_delay);
+        self
+    }
+
+    /// Randomizes each status-retry delay between zero and its current bound.
+    ///
+    /// An honored `Retry-After` remains a minimum wait after randomization.
+    #[must_use]
+    pub const fn with_full_jitter(mut self, enabled: bool) -> Self {
+        self.delay.full_jitter = enabled;
+        self
+    }
+
+    /// Returns the initial status-retry delay.
     #[must_use]
     pub const fn delay(self) -> Duration {
-        self.delay
+        self.delay.initial
+    }
+
+    /// Returns the exponential status-retry delay cap, when configured.
+    #[must_use]
+    pub const fn backoff_limit(self) -> Option<Duration> {
+        self.delay.maximum
+    }
+
+    /// Returns whether status-retry delays use full jitter.
+    #[must_use]
+    pub const fn full_jitter(self) -> bool {
+        self.delay.full_jitter
     }
 
     /// Returns the largest honored `Retry-After` delay, when enabled.
@@ -515,18 +595,27 @@ impl StatusRetry {
     }
 
     /// Returns the delay before retrying `status`, or `None` to return it.
-    fn delay_for(self, status: StatusCode, headers: &HeaderMap) -> Option<Duration> {
+    fn delay_for(
+        self,
+        status: StatusCode,
+        headers: &HeaderMap,
+        completed_retries: usize,
+    ) -> Option<Duration> {
         if !self.retries(status) {
             return None;
         }
-        let Some(limit) = self.retry_after_limit else {
-            return Some(self.delay);
-        };
-        match retry_after::requested_delay(headers, std::time::SystemTime::now()) {
-            Some(requested) if requested > limit => None,
-            Some(requested) => Some(requested),
-            None => Some(self.delay),
+        let requested = self.retry_after_limit.and_then(|limit| {
+            retry_after::requested_delay(headers, std::time::SystemTime::now())
+                .map(|requested| (requested, limit))
+        });
+        if requested.is_some_and(|(requested, limit)| requested > limit) {
+            return None;
         }
+        Some(
+            self.delay
+                .sample(completed_retries)
+                .max(requested.map_or(Duration::ZERO, |(requested, _)| requested)),
+        )
     }
 }
 
@@ -700,7 +789,7 @@ impl ConnectionSetupRetryState {
         if !self.caller_retry_available() || self.status_retries >= status_retry.maximum.get() {
             return None;
         }
-        status_retry.delay_for(status, headers)
+        status_retry.delay_for(status, headers, self.status_retries)
     }
 
     /// Counts one status retry against its class and shared budgets.
@@ -793,7 +882,9 @@ impl ConnectionSetupRetryState {
             reason = "connection_setup",
             "waiting to retry request connection setup"
         );
-        timeout_budget.delay(self.policy.delay, protocol).await?;
+        timeout_budget
+            .delay(self.policy.delay.sample(self.performed), protocol)
+            .await?;
         self.record_caller_retry();
         self.performed += 1;
         self.request_span.record(

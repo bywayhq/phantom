@@ -1380,6 +1380,7 @@ dependencies = [
  "bytes",
  "cookie",
  "cookie_store",
+ "fastrand",
  "flate2",
  "futures-core",
  "futures-util",

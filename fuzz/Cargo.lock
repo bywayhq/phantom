@@ -1107,6 +1107,7 @@ dependencies = [
  "bytes",
  "cookie",
  "cookie_store",
+ "fastrand",
  "flate2",
  "http",
  "http-body",

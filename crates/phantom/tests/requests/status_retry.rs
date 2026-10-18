@@ -37,6 +37,7 @@ use tls_support::{
 use tracing_support::OutcomeSubscriber;
 
 mod attempt_budget;
+mod backoff;
 mod ownership;
 mod shared_cap_ownership;
 

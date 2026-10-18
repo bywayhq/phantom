@@ -789,7 +789,8 @@ impl RequestBuilder {
     /// that activates an invalid template value fails before that hop's I/O:
     ///
     /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
-    ///   timeout or retry delay exceeds the runtime clock range;
+    ///   timeout or retry delay exceeds the runtime clock range, or a retry
+    ///   backoff cap is below its initial delay;
     /// - [`InvalidHeader`](crate::RequestErrorKind::InvalidHeader) for a
     ///   caller `Host` field, a caller `Alt-Used` field while Alt-Svc learning
     ///   is enabled, a `Proxy-Authorization` field on an `http://` request
@@ -993,8 +994,8 @@ impl RequestBuilder {
                 .resolve(self.client.state.request_timeouts),
         )?;
 
-        if !retry_policy.validate() {
-            return Err(RequestError::invalid_retry_delay());
+        if let Err(message) = retry_policy.validate() {
+            return Err(RequestError::invalid_retry_policy(message));
         }
 
         if !self.trailers.is_empty() && self.body.has_trailers() {
