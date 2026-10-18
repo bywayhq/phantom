@@ -51,15 +51,22 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 (Ipv4Addr::LOCALHOST, 0).into(),
             )?;
             let address = endpoint.local_addr()?;
+            let (learned, learning_complete) = tokio::sync::oneshot::channel();
             let peer = async {
                 let incoming = endpoint.accept().await.ok_or("first endpoint closed")?;
                 let connection = incoming.await?;
+                let learning_transport = connection.clone();
                 let mut http3: h3::server::Connection<_, bytes::Bytes> =
                     h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
-                assert!(
-                    !matches!(http3.accept().await, Ok(Some(_))),
-                    "learning sent an origin request"
-                );
+                tokio::select! {
+                    complete = learning_complete => complete?,
+                    request = http3.accept() => {
+                        request?;
+                        return Err("learning ended or sent an origin request".into());
+                    }
+                }
+                learning_transport.close(0_u32.into(), b"ticket learned");
+                drop(http3);
                 let incoming = endpoint.accept().await.ok_or("second endpoint closed")?;
                 assert!(incoming.await.is_err(), "changed leaf passed the old pin");
                 TestResult::Ok(())
@@ -71,6 +78,7 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 // A new server configuration rejects the old ticket. Its new
                 // leaf is trusted normally but is outside the immutable pins.
                 endpoint.set_server_config(Some(early_data::server_config(&changed, false)?));
+                learned.send(()).map_err(|_| "learning peer stopped")?;
                 assert!(connector.has_ticket_for(TEST_SERVER_NAME));
                 let connected = early_data::connect(&connector, address).await;
                 let error = match connected {
@@ -99,10 +107,9 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 );
                 TestResult::Ok(())
             };
-            let (caller, peer) = tokio::join!(caller, peer);
+            let result = tokio::try_join!(caller, peer);
             endpoint.close(0_u32.into(), b"test complete");
-            caller?;
-            peer
+            result.map(|_| ())
         })
         .await??;
     }
