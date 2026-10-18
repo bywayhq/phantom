@@ -1,4 +1,5 @@
 mod admission;
+mod close_idle;
 mod family;
 mod http2;
 mod http3;

@@ -99,7 +99,7 @@ async fn plaintext_direct_preserves_order_and_upgraded_bytes() -> TestResult<()>
 }
 
 #[tokio::test]
-async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {
+async fn ordered_handshake_and_bounded_message_lifecycle_survives_close_idle() -> TestResult<()> {
     let mut server = None;
     let caller = bounded(async {
         let identity = TestIdentity::generate()?;
@@ -152,6 +152,8 @@ async fn ordered_handshake_and_bounded_message_lifecycle() -> TestResult<()> {
             .headers(headers)
             .connect()
             .await?;
+
+        client.close_idle_connections().await;
 
         assert_eq!(socket.selected_protocol(), Some("unique-protocol-secret"));
         assert!(!format!("{socket:?}").contains("unique-protocol-secret"));

@@ -95,6 +95,48 @@ pub(crate) struct Http1Or2Pool {
 }
 
 impl Http1Or2Pool {
+    pub(super) async fn close_idle_connections(&self) {
+        let mut retired_http1 = Vec::new();
+        let mut retired_http2 = Vec::new();
+        let mut retired_spares = Vec::new();
+        {
+            let state = self.state.lock().await;
+            for (_, entry) in &state.entries {
+                let mut connections = entry.connections.lock();
+                let mut index = 0;
+                while index < connections.http1_idle.len() {
+                    let connection = &connections.http1_idle[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        retired_http1.push(connections.http1_idle.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+                let mut index = 0;
+                while index < connections.http2.len() {
+                    let connection = &connections.http2[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        retired_http2.push(connections.http2.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+                let mut index = 0;
+                while index < connections.spares.len() {
+                    let spare = &connections.spares[index];
+                    if spare.ready.is_some() && spare.task.is_none() && !spare.is_claimed() {
+                        retired_spares.push(connections.spares.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+        }
+        drop(retired_http1);
+        drop(retired_http2);
+        drop(retired_spares);
+    }
+
     pub(super) fn new(
         http1_capacity: NonZeroUsize,
         max_http1_active: NonZeroUsize,

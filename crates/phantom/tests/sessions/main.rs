@@ -9,6 +9,7 @@
 #[path = "../support.rs"]
 mod support;
 
+mod close_idle;
 mod dns_overrides;
 mod early_data_server;
 mod http2_connections;

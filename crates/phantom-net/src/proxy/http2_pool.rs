@@ -105,6 +105,31 @@ impl Default for Http2ProxyPool {
 }
 
 impl Http2ProxyPool {
+    /// Releases retained connections with no request or tunnel owners.
+    ///
+    /// Clones share this operation. Pending setup and active streams keep
+    /// working. Route configuration and session-ticket caches are retained.
+    /// Physical driver shutdown completes asynchronously.
+    pub fn close_idle_connections(&self) {
+        let mut retired = Vec::new();
+        {
+            let routes = self.lock();
+            for route in &routes.entries {
+                let mut state = route.connections.lock();
+                let mut index = 0;
+                while index < state.slots.len() {
+                    let connection = &state.slots[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        retired.push(state.slots.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+        }
+        drop(retired);
+    }
+
     /// Creates an empty pool that keeps one connection per route and runtime.
     #[must_use]
     pub fn new() -> Self {

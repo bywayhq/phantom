@@ -78,6 +78,38 @@ pub(crate) struct Http1Pool {
 }
 
 impl Http1Pool {
+    pub(super) async fn close_idle_connections(&self) {
+        let mut retired_connections = Vec::new();
+        let mut retired_spares = Vec::new();
+        {
+            let state = self.state.lock().await;
+            for (_, entry) in &state.entries {
+                let mut set = entry.connections.lock();
+                let mut index = 0;
+                while index < set.idle.len() {
+                    let connection = &set.idle[index].connection;
+                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
+                        retired_connections.push(set.idle.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+                let mut index = 0;
+                while index < set.spares.len() {
+                    let spare = &set.spares[index];
+                    if spare.ready.is_some() && spare.task.is_none() && !spare.is_claimed() {
+                        retired_spares.push(set.spares.remove(index));
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+        }
+        // Opening destructors may report back to these entries.
+        drop(retired_connections);
+        drop(retired_spares);
+    }
+
     pub(super) fn new(
         capacity: NonZeroUsize,
         max_active: NonZeroUsize,

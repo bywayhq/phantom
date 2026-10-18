@@ -74,6 +74,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "name resolution, connection reuse, pooling, and negotiation across "
             "requests",
             [
+                "close_idle",
                 "dns_overrides",
                 "early_data_server",
                 "http2_connections",

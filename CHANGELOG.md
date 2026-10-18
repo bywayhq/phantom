@@ -12,6 +12,9 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
   and available peer certificate chains in opt-in request diagnostics. Separate
   origin and proxy TLS, with explicit pending and unavailable states.
 
+- Add `Client::close_idle_connections` to release idle origin and proxy
+  connections while retaining active work, TLS tickets and session state.
+
 - Add opt-in, bounded request timelines for admissions, pool and setup waits,
   TCP/TLS/QUIC setup, response headers and streamed body completion. Retained
   handles remain readable after send errors, cancellation and body abandonment.
