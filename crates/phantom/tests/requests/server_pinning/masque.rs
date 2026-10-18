@@ -12,7 +12,9 @@ async fn connect_udp_outer_pin_rejection_precedes_connect() -> TestResult<()> {
     timeout(DEADLINE, async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
-        let client = builder(&identity)
+        let client = Client::builder(
+            ClientProfile::new(tls_settings()).with_http3(masque_client_settings()),
+        )
             .add_proxy_root_certificate_der(identity.root_der.clone())
             .proxy_server_spki_pins(ServerSpkiPins::new(vec![[0; 32]])?)
             .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
@@ -72,8 +74,9 @@ async fn connect_udp_enforces_separate_matching_origin_and_proxy_pins() -> TestR
             assert_eq!(response.status(), 200);
             response.into_body().collect_with_limit(0).await?;
             assert_eq!(proxy.requests().len(), 1);
+            let cleanup = proxy.finish().await;
             drop(client);
-            TestResult::Ok(())
+            cleanup
         };
         let (caller, peer) = tokio::join!(caller, peer);
         endpoint.close(0_u32.into(), b"test complete");
