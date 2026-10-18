@@ -435,7 +435,7 @@ impl Peer {
                         }
                         let mut byte = [0];
                         match stream.read(&mut byte) {
-                            Ok(length) => Ok(length),
+                            Ok(length) => Ok::<usize, Box<dyn Error + Send + Sync>>(length),
                             Err(_) if !accepts_application_data => Ok(0),
                             Err(error) => Err(error.into()),
                         }
