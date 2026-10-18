@@ -6,6 +6,59 @@ use tokio::{net::TcpListener, time::timeout};
 use super::*;
 
 #[tokio::test]
+async fn redirect_destinations_cannot_bypass_origin_pins() -> TestResult<()> {
+    use crate::support::{
+        tls::{H1_ALPN, accept_tls, read_head},
+        tunnel_proxy::finish_with_cleanup,
+    };
+    use tokio::io::AsyncWriteExt;
+
+    for cleartext in [false, true] {
+        timeout(DEADLINE, async {
+            let first = TestIdentity::generate()?;
+            let changed = TestIdentity::generate()?;
+            let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_address = origin.local_addr()?;
+            let target = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let target_address = target.local_addr()?;
+            let first_acceptor = first.acceptor(H1_ALPN)?;
+            let target_acceptor = changed.acceptor(H1_ALPN)?;
+            let client = builder(&first).add_root_certificate_der(changed.root_der.clone())
+                .server_spki_pins(pins(&first)?)
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
+            let origin = async {
+                let mut socket = accept_tls(origin, first_acceptor).await?;
+                read_head(&mut socket).await?;
+                let scheme = if cleartext { "http" } else { "https" };
+                socket.write_all(format!("HTTP/1.1 302 Found\r\nLocation: {scheme}://{target_address}/\r\nContent-Length: 0\r\n\r\n").as_bytes()).await?;
+                TestResult::Ok(())
+            };
+            let target = async {
+                if cleartext {
+                    assert!(timeout(Duration::from_millis(100), target.accept()).await.is_err());
+                } else {
+                    assert!(accept_tls(target, target_acceptor).await.is_err(), "redirect reached a leaf outside the pin set");
+                }
+                TestResult::Ok(())
+            };
+            let caller = async {
+                let error = client.get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                    .send().await.err().ok_or("redirect bypassed pin policy")?;
+                if cleartext {
+                    assert_eq!(error.kind(), RequestErrorKind::ServerPinPolicy);
+                } else {
+                    assert_eq!(tls_error(&error)?, TlsErrorKind::SpkiPinMismatch);
+                }
+                TestResult::Ok(())
+            };
+            let (caller, origin, target) = tokio::join!(caller, origin, target);
+            finish_with_cleanup(finish_with_cleanup(caller, origin), target)
+        }).await??;
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn cleartext_origin_is_rejected_before_io_with_or_without_redirects() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

@@ -60,7 +60,7 @@ async fn pins_survive_pool_reuse_and_refresh_with_resumption() -> TestResult<()>
             let caller = async {
                 for index in 0..3 {
                     if index == 2 {
-                        client.refresh_connections();
+                        client.refresh_connections().await;
                     }
                     let clone = client.clone();
                     let url = format!("https://{address}/");

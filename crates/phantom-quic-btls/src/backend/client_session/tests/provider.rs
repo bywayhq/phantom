@@ -27,6 +27,29 @@ fn client_transport_parameters() -> TransportParameters {
     )
 }
 
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn disabled_authentication_cannot_bypass_a_context_pin_restriction() {
+    let mut context = test_ok(
+        btls::ssl::SslContextBuilder::new(btls::ssl::SslMethod::tls()),
+        "pin context",
+    );
+    let pins = test_ok(btls::ssl::SpkiPins::new(vec![[0; 32]]), "pins");
+    test_ok(context.set_spki_pins(pins), "install pins");
+    let config =
+        Arc::new(QuicClientConfig::new(context.build()).danger_disable_server_authentication());
+    let result = crypto::ClientConfig::start_session(
+        config,
+        0x0000_0001,
+        SERVER_NAME,
+        &client_transport_parameters(),
+    );
+    assert!(matches!(
+        result,
+        Err(ConnectError::CryptoProvider("peer verification disabled"))
+    ));
+}
+
 #[test]
 fn a_live_provider_with_disabled_verification_does_not_report_endpoint_shutdown() {
     let context = client_context(false);

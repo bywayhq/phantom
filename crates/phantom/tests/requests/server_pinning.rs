@@ -10,6 +10,7 @@ use crate::support::{
     tls::{TestIdentity, TestResult, tls_settings},
 };
 
+mod proxy;
 mod quic;
 mod routes;
 mod tcp;

@@ -236,6 +236,9 @@ impl ClientSession {
         if !context.has_x509_support() {
             return Err(ClientSessionError::X509ContextRequired);
         }
+        if !verify_peer && context.spki_pins().is_some() {
+            return Err(ClientSessionError::PeerVerificationDisabled);
+        }
 
         ffi::init();
         let mut ssl = context
