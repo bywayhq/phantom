@@ -354,6 +354,17 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
         );
         reset.send_reset(reason);
         drop(cancelled);
+        if reason != http2::Reason::CANCEL {
+            driver.abort();
+            assert!(driver.await.is_err_and(|error| error.is_cancelled()));
+            assert!(
+                tokio::time::timeout(Duration::from_secs(5), peer)
+                    .await??
+                    .is_err()
+            );
+            assert_eq!(stats.cancelled_streams.load(Ordering::Relaxed), 0);
+            continue;
+        }
         let mut sibling = sibling.await?.into_body();
         let mut received = 0;
         while let Some(data) = sibling.data().await {
@@ -375,5 +386,21 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
             assert_eq!(stats.cancelled_while_multiplexed.load(Ordering::Relaxed), 1);
         }
     }
+    Ok(())
+}
+
+#[test]
+fn cancellation_targets_accept_both_http_uri_forms() -> Result<()> {
+    let body = Body::new(&Config {
+        cancel_after_bytes: 1024,
+        ..Config::default()
+    })?;
+    for target in ["/?cancel=1", "https://localhost/?cancel=1"] {
+        assert!(body.for_target(target)?.cancel);
+    }
+    for target in ["/", "https://localhost/"] {
+        assert!(!body.for_target(target)?.cancel);
+    }
+    assert!(body.for_target("https://localhost/?cancel=0").is_err());
     Ok(())
 }

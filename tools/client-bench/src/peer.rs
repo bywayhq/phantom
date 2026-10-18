@@ -178,9 +178,10 @@ impl Body {
     fn for_target(&self, target: &str) -> Result<Self> {
         if self.cancellation_enabled {
             let mut body = self.clone();
-            body.cancel = match target {
-                "/" => false,
-                "/?cancel=1" => true,
+            let uri: http::Uri = target.parse()?;
+            body.cancel = match uri.path_and_query().map(|value| value.as_str()) {
+                Some("/") => false,
+                Some("/?cancel=1") => true,
                 _ => return Err("unexpected cancellation request target".into()),
             };
             return Ok(body);
