@@ -35,6 +35,7 @@ mod query_authorization;
 mod redirects;
 mod request_connections;
 mod request_conveniences;
+mod request_hooks;
 mod request_templates;
 mod request_timeline;
 mod response_conveniences;

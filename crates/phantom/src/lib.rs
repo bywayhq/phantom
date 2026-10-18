@@ -59,6 +59,9 @@ pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use request_body::{
     MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,
 };
+pub use request_hook::{
+    RequestErrorHookContext, RequestHookContext, RequestHooks, ResponseHookContext,
+};
 pub use request_slots::{RequestSlotError, RequestSlotErrorKind, RequestSlots};
 #[cfg(feature = "json")]
 pub use response::response_json;
@@ -122,6 +125,7 @@ mod link;
 mod redirect;
 mod request;
 mod request_body;
+mod request_hook;
 mod request_slots;
 mod response;
 mod retry;

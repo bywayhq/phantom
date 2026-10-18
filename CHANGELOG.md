@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add client and per-request hooks for logical request start, final response
+  heads and terminal send errors. Callbacks borrow metadata without consuming
+  bodies or changing retries, redirects or header order.
+
 - Add optional bounded redirect history with resolved URLs, method changes and
   response statuses. Debug output omits URLs, and later hops are counted.
 - Add `RequestBuilder::redirect_policy` to override redirect following or hop

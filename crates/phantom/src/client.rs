@@ -116,6 +116,7 @@ pub(crate) struct ClientInner {
     pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
     pub(crate) server_spki_pins: bool,
     pub(crate) proxy_server_spki_pins: bool,
+    pub(crate) request_hooks: Option<crate::request_hook::SharedRequestHooks>,
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
@@ -482,6 +483,7 @@ impl Client {
         ClientBuilder {
             base_url: None,
             header_hooks: Vec::new(),
+            request_hooks: None,
             profile,
             additional_roots: Vec::new(),
             server_authentication: ServerAuthentication::default(),
@@ -789,6 +791,7 @@ impl Client {
 pub struct ClientBuilder {
     base_url: Option<crate::base_url::BaseUrl>,
     header_hooks: Vec<crate::header_hook::HeaderHook>,
+    request_hooks: Option<crate::request_hook::SharedRequestHooks>,
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
     server_authentication: ServerAuthentication,
@@ -832,6 +835,7 @@ impl fmt::Debug for ClientBuilder {
         debug
             .field("base_url", &self.base_url.is_some())
             .field("header_hook_count", &self.header_hooks.len())
+            .field("request_hooks", &self.request_hooks.is_some())
             .field("http2_configured", &self.profile.http2().is_some())
             .field(
                 "negotiated_http1_or_2_configured",
@@ -915,6 +919,16 @@ impl ClientBuilder {
     {
         self.header_hooks
             .push(crate::header_hook::HeaderHook::new(hook));
+        self
+    }
+
+    /// Sets callbacks for logical HTTP requests and their final heads or errors.
+    ///
+    /// Replaces previously configured request hooks. Clones share the callback
+    /// object. Client callbacks run before per-request callbacks. See
+    /// [`crate::RequestHooks`] for ordering, cancellation and body semantics.
+    pub fn request_hooks(mut self, hooks: impl crate::RequestHooks + 'static) -> Self {
+        self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new(hooks));
         self
     }
 
@@ -2391,6 +2405,7 @@ impl ClientBuilder {
             proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),
             base_url: self.base_url,
             header_hooks: self.header_hooks,
+            request_hooks: self.request_hooks,
             http1,
             http1_or_2,
             http2,

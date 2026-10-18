@@ -209,6 +209,30 @@ Enable only the behavior you need:
   inside the total deadline and existing retry budgets.
 - **Proxy routes:** follow [Using proxies](crate::guide::proxies).
 
+## Observe requests and response heads
+
+Implement [`RequestHooks`](crate::RequestHooks) and pass it to
+[`ClientBuilder::request_hooks`](crate::ClientBuilder::request_hooks) or
+[`RequestBuilder::request_hooks`](crate::RequestBuilder::request_hooks).
+Client callbacks run first, then request callbacks.
+
+```
+use phantom::{RequestHooks, ResponseHookContext};
+
+struct LogStatus;
+impl RequestHooks for LogStatus {
+    fn on_response(&self, response: &ResponseHookContext<'_>) {
+        println!("{}", response.status());
+    }
+}
+```
+
+Each logical request gets one start callback and a final response-head or
+send-error callback. Redirects and retries do not repeat them. Callbacks borrow
+metadata and leave bodies with you. Later body errors and cancelled sends have
+no terminal callback; use the timeline below to observe those outcomes.
+Use [`header_hook`](crate::RequestBuilder::header_hook) to change caller headers.
+
 ## Inspect a request timeline
 
 Call [`RequestBuilder::diagnostics`](crate::RequestBuilder::diagnostics) before

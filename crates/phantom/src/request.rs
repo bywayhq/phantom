@@ -78,6 +78,7 @@ pub struct RequestBuilder {
     prepared_content_type: Option<Box<str>>,
     filled_slots: Vec<Box<str>>,
     header_hooks: Vec<crate::header_hook::HeaderHook>,
+    request_hooks: Option<crate::request_hook::SharedRequestHooks>,
     client_header_hooks: bool,
     protected_hook_headers: &'static [&'static str],
     route: Option<Route>,
@@ -102,6 +103,7 @@ impl fmt::Debug for RequestBuilder {
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
             .field("header_hook_count", &self.header_hooks.len())
+            .field("request_hooks", &self.request_hooks.is_some())
             .field("client_header_hooks", &self.client_header_hooks)
             .field("template", &self.request.template.is_some())
             .field("trailer_count", &self.trailers.len())
@@ -178,6 +180,7 @@ impl RequestBuilder {
             prepared_content_type: None,
             filled_slots: Vec::new(),
             header_hooks: Vec::new(),
+            request_hooks: None,
             client_header_hooks: true,
             protected_hook_headers: &[],
             route: None,
@@ -296,6 +299,15 @@ impl RequestBuilder {
         Ok(self)
     }
 
+    /// Sets callbacks for this logical request, after the client's callbacks.
+    ///
+    /// Replaces previously configured request hooks on this builder. See
+    /// [`crate::RequestHooks`] for ordering, cancellation and body semantics.
+    pub fn request_hooks(mut self, hooks: impl crate::RequestHooks + 'static) -> Self {
+        self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new(hooks));
+        self
+    }
+
     /// Adds a header hook after this client's hooks and earlier request hooks.
     ///
     /// See [`crate::HeaderHookContext`] for timing, ordering, and redirect rules.
@@ -312,7 +324,7 @@ impl RequestBuilder {
         self
     }
 
-    /// Skips client hooks and clears request hooks for this request.
+    /// Skips client header hooks and clears this request's header hooks.
     ///
     /// Hooks added after this call still run.
     pub fn without_header_hooks(mut self) -> Self {
@@ -894,6 +906,12 @@ impl RequestBuilder {
     /// # }
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
+        let hooks = crate::request_hook::ActiveRequestHooks::start(
+            &self.method,
+            &self.request.uri,
+            self.client.inner.request_hooks.as_ref(),
+            self.request_hooks.as_ref(),
+        );
         let origin = self.request.origin();
         let route = self.selected_route();
         let span = debug_span!(
@@ -934,6 +952,9 @@ impl RequestBuilder {
             && let Some(phase) = error.timeout_phase()
         {
             span.record("timeout_phase", phase.trace_name());
+        }
+        if let Some(hooks) = hooks {
+            hooks.finish(&result);
         }
         outcome.finish(match &result {
             Ok(_) => "ok",
@@ -1147,6 +1168,7 @@ impl RequestBuilder {
             prepared_content_type: _,
             filled_slots: _,
             header_hooks: _,
+            request_hooks: _,
             client_header_hooks: _,
             protected_hook_headers: _,
             route,
