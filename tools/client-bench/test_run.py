@@ -166,6 +166,8 @@ class AcceptanceTests(unittest.TestCase):
             "failures": 0,
             "proxy_connections": 3,
             "proxy_authenticated_connections": 2,
+            "proxy_tunnels": 2,
+            "connections": 2,
             "proxy_auth_challenges": 1,
         }
         self.assertTrue(accepted({"failures": 0}, config, phase))
@@ -173,6 +175,8 @@ class AcceptanceTests(unittest.TestCase):
             {"proxy_authenticated_connections": 0},
             {"proxy_connections": 4},
             {"proxy_auth_challenges": 0},
+            {"connections": 3},
+            {"proxy_tunnels": 3},
         ):
             self.assertFalse(accepted({"failures": 0}, config, phase | change))
         self.assertFalse(
@@ -183,7 +187,7 @@ class AcceptanceTests(unittest.TestCase):
         phase = {"requests": 12, "failures": 0, "proxy_connections": 0}
         config = {"protocol": "h2", "requests": 10, "warmup": 2, "route": "connect"}
         self.assertFalse(accepted({"failures": 0}, config, phase))
-        phase["proxy_connections"] = 1
+        phase.update(proxy_connections=1, connections=1, proxy_tunnels=1)
         self.assertTrue(accepted({"failures": 0}, config, phase))
         config["route"] = "direct"
         self.assertFalse(accepted({"failures": 0}, config, phase))

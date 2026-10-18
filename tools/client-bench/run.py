@@ -153,6 +153,8 @@ def accepted(summary, config, phase):
         and phase.get("redirect_responses", 0) == logical * config.get("redirects", 0)
         and (
             phase.get("proxy_authenticated_connections", 0) > 0
+            and phase["proxy_authenticated_connections"]
+            == phase.get("proxy_tunnels", 0)
             and phase["proxy_connections"]
             == phase["proxy_authenticated_connections"]
             + phase.get("proxy_auth_challenges", 0)
@@ -160,9 +162,11 @@ def accepted(summary, config, phase):
             else phase.get("proxy_authenticated_connections", 0) == 0
         )
         and (
-            phase["proxy_connections"] == 0
+            phase["proxy_connections"] == 0 and phase.get("proxy_tunnels", 0) == 0
             if config.get("route", "direct") == "direct"
             else phase["proxy_connections"] > 0
+            and phase.get("proxy_tunnels", 0) > 0
+            and phase["connections"] == phase["proxy_tunnels"]
         )
     )
 

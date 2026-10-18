@@ -98,12 +98,13 @@ async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
     if !targets.contains(&target) {
         return Err("proxy target is not a benchmark origin".into());
     }
+    let mut origin = TcpStream::connect(target).await?;
+    stats.proxy_tunnels.fetch_add(1, Ordering::Relaxed);
     if authenticated {
         stats
             .proxy_authenticated_connections
             .fetch_add(1, Ordering::Relaxed);
     }
-    let mut origin = TcpStream::connect(target).await?;
     origin.set_nodelay(true)?;
     if socks {
         stream

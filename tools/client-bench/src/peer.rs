@@ -29,6 +29,7 @@ struct Stats {
     connections: AtomicUsize,
     requests: AtomicUsize,
     proxy_connections: AtomicUsize,
+    proxy_tunnels: AtomicUsize,
     proxy_authenticated_connections: AtomicUsize,
     proxy_auth_challenges: AtomicUsize,
     failures: AtomicUsize,

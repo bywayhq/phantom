@@ -69,7 +69,7 @@ response-head timing as unavailable.
 `route: "connect"` uses the controlled HTTP CONNECT proxy for HTTP/1.1 or
 HTTP/2. Set `proxy_auth: true` to require synthetic Basic credentials. The
 peer challenges missing or incorrect credentials with 407 and opens no origin
-connection for them. Each accepted tunnel has verified credentials. Origin
+connection for them. Every origin connection must match a verified tunnel. Origin
 peers reject `Proxy-Authorization`. Counters distinguish accepted tunnels from
 407 challenges, including warmup. These runs cover Basic authentication;
 NTLM, Negotiate, HTTPS proxy transport and authenticated SOCKS are outside this
