@@ -2,6 +2,7 @@ import contextlib
 import ctypes
 import json
 import os
+import select
 import signal
 import subprocess
 import sys
@@ -259,7 +260,11 @@ class ProcessContainerTests(unittest.TestCase):
                 self.assertFalse(container._gate.closed)
                 os.fstat(reader)
                 release.touch()
-                self.assertEqual(container.wait(timeout=30), 0)
+                with self.assertRaises(process_container.ProcessCleanupError):
+                    container.poll()
+                readable, _, _ = select.select([reader], [], [], 30)
+                self.assertEqual(readable, [reader])
+                self.assertEqual(os.read(reader, 5), b"X\x00\x00\x00\x00")
             finally:
                 container.close()
             self.assertIsNone(container._status_reader)
