@@ -22,7 +22,8 @@ from scripts.capture.tests.test_android_device_lifecycle import (
 )
 
 WAIT_SECONDS = 25
-READY_SECONDS = 10
+# Child process startup has its own bound; the loop must still respond in two seconds.
+READY_SECONDS = WAIT_SECONDS
 PROGRESS_SECONDS = 2
 COMMAND_CHILD = """
 import json
@@ -209,6 +210,8 @@ class ProgressMonitor:
         except BaseException as failure:
             self.failure = failure
         finally:
+            # Wake the caller on startup failure as well as successful observation.
+            self.loop.call_soon_threadsafe(self.observed.set)
             try:
                 self.command.allow_completion()
             except BaseException as failure:
