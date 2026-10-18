@@ -639,7 +639,10 @@ class ProcessContainerTests(unittest.TestCase):
             handles.append(handle)
             return handle
 
-        with tempfile.TemporaryDirectory() as directory:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.ExitStack() as cleanup,
+        ):
             marker = Path(directory) / "started"
             container = ProcessContainer(
                 [
@@ -653,6 +656,20 @@ class ProcessContainerTests(unittest.TestCase):
             try:
                 container.start()
                 wait_for_file(marker)
+                # The injected collection failure deliberately loses a member.
+                # Keep independent handles until every original process exits.
+                original_members = []
+                for pid in process_container._windows_process_ids(
+                    container.job, time.monotonic() + 30
+                ):
+                    process = OwnedWindowsProcess(pid)
+                    try:
+                        self.assertTrue(process.in_job(container.job))
+                    except BaseException:
+                        process.kernel.CloseHandle(process.handle)
+                        raise
+                    original_members.append(process)
+                    cleanup.callback(process.close)
                 with (
                     mock.patch.object(
                         process_container,
@@ -702,6 +719,8 @@ class ProcessContainerTests(unittest.TestCase):
                 else:
                     with self.assertRaises(process_container.ProcessCleanupError):
                         container.close()
+            for process in original_members:
+                self.assertTrue(process.ended(), "original job member did not exit")
 
     @unittest.skipUnless(sys.platform == "win32", "Windows job boundary")
     def test_runner_death_before_assignment_exits_blocked_bootstrap(self) -> None:
