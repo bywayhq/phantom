@@ -4,6 +4,7 @@
 
 - Keep capture lifecycle tests responsive to process-startup failures on Windows.
 - Add a pinned wreq adapter for controlled benchmark HTTP/1.1 and HTTP/2 GETs.
+- Add a pinned httpcloak adapter for controlled benchmark HTTPS GETs.
 - Add a pinned curl_cffi adapter for controlled benchmark GET workloads.
 - Read benchmark HTTP/3 GET requests through their end before replying.
 - Record completed benchmark QUIC transport `NO_ERROR` closes separately.

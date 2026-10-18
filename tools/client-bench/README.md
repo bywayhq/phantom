@@ -244,4 +244,5 @@ in the other cases.
 
 - [Run the curl_cffi adapter](curl-cffi.md).
 - [Run the wreq adapter](wreq/README.md).
+- [Run the httpcloak adapter](httpcloak/README.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
