@@ -526,11 +526,12 @@ class ProcessContainer:
             except BaseException as error:
                 failures.append(("close launch status pipe", error))
 
-        for attribute in ("_status_writer", "_status_reader"):
-            try:
-                self._close_status_pipe(attribute)
-            except BaseException as error:
-                failures.append(("close completion pipe", error))
+        if sys.platform == "win32" or self._group_stopped or self._process is None:
+            for attribute in ("_status_writer", "_status_reader"):
+                try:
+                    self._close_status_pipe(attribute)
+                except BaseException as error:
+                    failures.append(("close completion pipe", error))
 
         if self._process is not None and (
             sys.platform == "win32" or self._group_stopped

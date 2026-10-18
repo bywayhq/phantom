@@ -229,6 +229,41 @@ class ProcessContainerTests(unittest.TestCase):
         finally:
             container.close()
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX completion pipe ownership")
+    def test_denied_signal_keeps_a_running_tools_completion_pipe_open(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            ready = Path(directory) / "ready"
+            release = Path(directory) / "release"
+            container = ProcessContainer(
+                [
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys,time; "
+                    "Path(sys.argv[1]).write_text('ready'); "
+                    "release=Path(sys.argv[2]); "
+                    "exec('while not release.exists(): time.sleep(0.01)')",
+                    str(ready),
+                    str(release),
+                ]
+            )
+            try:
+                container.start()
+                wait_for_file(ready)
+                reader = container._status_reader
+                with (
+                    mock.patch.object(os, "killpg", side_effect=PermissionError),
+                    self.assertRaises(process_container.ProcessCleanupError),
+                ):
+                    container.close()
+                self.assertIs(container._status_reader, reader)
+                self.assertFalse(container._gate.closed)
+                os.fstat(reader)
+                release.touch()
+                self.assertEqual(container.wait(timeout=30), 0)
+            finally:
+                container.close()
+            self.assertIsNone(container._status_reader)
+
     @unittest.skipUnless(sys.platform == "win32", "Windows native handle identity")
     def test_invalid_job_handle_is_reported_without_retrying_its_number(self) -> None:
         process = mock.Mock()
