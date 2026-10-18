@@ -10,10 +10,12 @@ use crate::support::{
     tls::{TestIdentity, TestResult, tls_settings},
 };
 
+mod masque;
 mod proxy;
 mod quic;
 mod routes;
 mod tcp;
+mod tickets;
 
 const DEADLINE: Duration = Duration::from_secs(10);
 
