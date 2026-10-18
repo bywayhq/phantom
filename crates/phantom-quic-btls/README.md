@@ -38,5 +38,3 @@ private.
 
 - [Phantom README](https://github.com/bywayhq/phantom/blob/main/README.md):
   use HTTP/3 through the client.
-- [HTTP/3 internals](https://github.com/bywayhq/phantom/blob/main/docs/internals/http3.md):
-  work on the QUIC transport.

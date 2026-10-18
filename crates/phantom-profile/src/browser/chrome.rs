@@ -16,8 +16,7 @@
 //! `phantom-pixel7` Android 17 x86_64 emulator on the Windows 11 capture host.
 //! A Magisk module sets the emulator's build properties to those of a Pixel 7
 //! on build `CP3A.260905.009`: model, build fingerprint, and security patch
-//! level. `docs/explanation/validation.md`, under "Chrome for Android 154
-//! recipes", describes the emulator.
+//! level.
 //!
 //! Where a layer equals the desktop Chrome recipe on every compared field, the
 //! function here returns the [`chrome`](crate::browser::chrome) recipe, and

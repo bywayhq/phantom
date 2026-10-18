@@ -32,6 +32,9 @@ pub(crate) mod template;
 
 /// Set a request's headers, body and options before you send it.
 ///
+/// See [Requests and responses](crate::guide::requests_and_responses) for
+/// uploads, bounded body reads, and error handling.
+///
 /// [`Client::get`] and [`Client::request`] build exact-protocol requests;
 /// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
 /// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are

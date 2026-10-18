@@ -1,8 +1,7 @@
 //! Sends two HTTP/2 GETs to one URL through a client with a cookie jar, so
 //! the second request carries the cookies the first response set.
 //!
-//! This mirrors "Keep cookies between requests" in
-//! `docs/guides/cookies.md`. It needs the `cookies` feature:
+//! This example needs the `cookies` feature:
 //!
 //! ```console
 //! cargo run -p phantom-http --example cookies --features cookies -- https://example.com/

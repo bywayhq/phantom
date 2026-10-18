@@ -82,4 +82,3 @@ An arm64 run does not establish Intel or physical Mac results.
 ## Next
 
 - [Capture tools](README.md): other peers and fixture formats.
-- [Validation](../../docs/explanation/validation.md): retained browser evidence.

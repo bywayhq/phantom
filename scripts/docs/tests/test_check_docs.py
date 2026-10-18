@@ -322,6 +322,25 @@ class CommandLineTests(RepoTestCase):
         )
         self.assertEqual(self.run_main(), (0, ""))
 
+    def test_checks_crate_guides_by_default(self) -> None:
+        self.write(
+            "crates/client/src/docs/requests.md",
+            "# Requests\n\nUse [Client](crate::Client) or [missing](gone.md).\n",
+        )
+        status, output = self.run_main()
+        self.assertEqual(status, 1)
+        self.assertIn(
+            "crates/client/src/docs/requests.md:3: link: gone.md does not exist",
+            output,
+        )
+
+    def test_crate_overview_needs_no_page_boilerplate(self) -> None:
+        self.write(
+            "crates/client/src/docs/overview.md",
+            "Send a request with [Client](crate::Client).\n\n## Example\n\nText.\n",
+        )
+        self.assertEqual(self.run_main(), (0, ""))
+
 
 if __name__ == "__main__":
     unittest.main()

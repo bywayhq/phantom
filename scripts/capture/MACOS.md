@@ -58,4 +58,3 @@ Keep the installed Chrome build separate from existing recipe versions.
 ## Next
 
 - [Capture tools](README.md): other scenarios and fixture formats.
-- [Validation](../../docs/explanation/validation.md): retained wire evidence.

@@ -1,8 +1,6 @@
-//! Sends one HTTP/2 GET with Chrome 154's TLS handshake, HTTP/2 settings, and
-//! client hints, then prints the status, the response metadata, and the body
-//! length.
-//!
-//! This is the program from `docs/getting-started.md`. It needs no feature:
+//! Sends one HTTP/2 request with Chrome 154's Windows connection settings,
+//! then reads at most 1 MiB and prints the status and body length.
+//! No optional features are needed:
 //!
 //! ```console
 //! cargo run -p phantom-http --example first-request -- https://example.com/
@@ -13,10 +11,7 @@
 
 use std::env;
 
-use phantom::{
-    Client, HttpProtocol, RequestHeader, ResponseInfo,
-    profile::{ClientProfile, browser::chrome},
-};
+use phantom::{Client, HttpProtocol, profile::browser::chrome};
 
 const DEFAULT_URL: &str = "https://example.com/";
 
@@ -27,23 +22,10 @@ const BODY_LIMIT: usize = 1 << 20;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = env::args().nth(1).unwrap_or_else(|| DEFAULT_URL.to_owned());
 
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_client_hints(chrome::v154_windows_client_hints());
-    let client = Client::builder(profile).build()?;
+    let client = Client::builder(chrome::v154_windows()).build()?;
 
-    let response = client
-        .get(HttpProtocol::Http2, &url)?
-        .header(RequestHeader::new("accept", "*/*"))
-        .send()
-        .await?;
+    let response = client.get(HttpProtocol::Http2, &url)?.send().await?;
     println!("status: {}", response.status());
-
-    if let Some(info) = response.extensions().get::<ResponseInfo>() {
-        println!("protocol: {:?}", info.protocol());
-        println!("effective URI: {}", info.effective_uri());
-        println!("redirects followed: {}", info.redirects_followed());
-    }
 
     let body = response.into_body().collect_with_limit(BODY_LIMIT).await?;
     println!("body: {} bytes", body.len());

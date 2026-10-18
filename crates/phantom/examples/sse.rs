@@ -1,8 +1,7 @@
 //! Reads a server-sent event stream the way a browser's `EventSource` does,
 //! reconnecting with `Last-Event-ID` after a disconnect, and prints each event.
 //!
-//! This mirrors "Reconnect with Last-Event-ID" in `docs/guides/sse.md`. It
-//! needs the `sse` feature and a server that sends `text/event-stream`:
+//! This example needs the `sse` feature and a server that sends `text/event-stream`:
 //!
 //! ```console
 //! cargo run -p phantom-http --example sse --features sse -- https://example.com/events h2

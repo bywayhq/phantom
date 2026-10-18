@@ -4,7 +4,6 @@
 //! Each submodule keeps every foreign call in its own block with the
 //! invariants it relies on, and passes only safe types across its API:
 //! borrowed sockets, interface names, plain values, and `io::Result`s.
-//! `docs/explanation/design.md#unsafe-code` audits every block.
 
 pub(crate) mod interface;
 #[cfg(windows)]

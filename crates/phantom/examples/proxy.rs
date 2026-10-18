@@ -1,7 +1,6 @@
-//! Sends one HTTP/2 GET through an HTTP or SOCKS5 proxy.
+//! Sends one HTTPS GET through an HTTP or SOCKS5 proxy and reads its response.
 //!
-//! This mirrors "Routes and proxies" in `docs/guides/routes-and-proxies.md`.
-//! It needs no feature:
+//! See the proxy guide at `phantom::guide::proxies`. No feature is needed:
 //!
 //! ```console
 //! cargo run -p phantom-http --example proxy -- socks5h://127.0.0.1:1080 https://example.com/
@@ -9,15 +8,15 @@
 //!
 //! The first argument is the proxy URI; without it, the example reads
 //! `PHANTOM_EXAMPLE_PROXY`. A `socks5://` or `socks5h://` URI selects a SOCKS5
-//! proxy; any other URI is parsed as an HTTP proxy, which tunnels the request
-//! with CONNECT. Phantom never reads the system proxy settings, and a failed
-//! proxy fails the request instead of connecting directly.
+//! proxy; any other URI is parsed as an HTTP proxy, which tunnels HTTPS
+//! requests with CONNECT. Use a proxy URL without credentials. This example does not
+//! enable environment proxy routing; a failed proxy fails the request instead
+//! of connecting directly.
 
 use std::{env, process};
 
 use phantom::{
-    Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, Route, Socks5Proxy,
-    profile::{ClientProfile, browser::chrome},
+    Client, ContentDecoding, HttpProxy, Route, Socks5Proxy, profile::browser::chrome, response_text,
 };
 
 const PROXY_VARIABLE: &str = "PHANTOM_EXAMPLE_PROXY";
@@ -40,17 +39,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Route::http_proxy(HttpProxy::new(&proxy)?)
     };
 
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_client_hints(chrome::v154_windows_client_hints());
+    let profile =
+        chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
     let client = Client::builder(profile).route(route).build()?;
-    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
 
     let response = client
-        .get(HttpProtocol::Http2, &url)?
-        .template(&navigation)
+        .get_negotiated(&url)?
+        .content_decoding(ContentDecoding::advertised(1 << 20))
         .send()
         .await?;
-    println!("{}", response.status());
+    let response = response_text(response, 1 << 20).await?;
+    println!("{}\n{}", response.status(), response.body());
     Ok(())
 }
