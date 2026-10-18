@@ -66,8 +66,9 @@ Recipe versions, headers, scheduler behavior and default pool limits differ
 between libraries. Functional acceptance does not establish equivalent
 fingerprints, performance or connection limits. Redirects cover same-origin
 GETs in collection mode. CONNECT covers HTTP/1.1 and HTTP/2 with optional
-Basic authentication. Streaming uploads and cancellation need additional
-workloads.
+Basic authentication. Streaming uploads need additional workloads. The
+shared HTTP/2 cancellation workload checks public response-body closure
+and completion of sibling streams.
 
 ## Next
 

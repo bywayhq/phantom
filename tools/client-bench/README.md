@@ -275,14 +275,6 @@ trials separately and refuses allocation-profiler timings.
 An operation is a client build in construction cases and a completed request
 in the other cases.
 
-## Next
-
-- [Run the curl_cffi adapter](curl-cffi.md).
-- [Run the wreq adapter](wreq/README.md).
-- [Run the httpcloak adapter](httpcloak/README.md).
-- [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
-
-
 ## Body cancellation
 
 Use `cancellation.json` for a correctness comparison on HTTP/2. Each client
@@ -304,3 +296,15 @@ one delivered chunk. Reaching the full body before cancelling fails.
 This workload covers body abandonment through each public response API.
 Setup and upload cancellation, HTTP/1.1 and HTTP/3 need separate workloads.
 Cancellation runs are diagnostic checks, not a speed comparison.
+
+The pinned curl_cffi adapter calls public `Response.aclose()`. In 0.16.3,
+that method waits for the transfer task instead of resetting the stream.
+The peer therefore rejects its cancellation trials when every body finishes.
+Those results describe draining, not successful transport cancellation.
+
+## Next
+
+- [Run the curl_cffi adapter](curl-cffi.md).
+- [Run the wreq adapter](wreq/README.md).
+- [Run the httpcloak adapter](httpcloak/README.md).
+- [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
