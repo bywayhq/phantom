@@ -169,6 +169,14 @@ This also applies to CONNECT-UDP. Origin certificates keep their own trust
 checks inside the tunnel. Unsupported route/protocol combinations fail
 before network I/O; Phantom does not switch to a direct route.
 
+To restrict secure proxy keys, set
+[`proxy_server_spki_pins`](crate::ClientBuilder::proxy_server_spki_pins).
+These pins cover the outer HTTPS or CONNECT-UDP connection and supplement
+normal proxy verification. Origin keys use
+[`server_spki_pins`](crate::ClientBuilder::server_spki_pins) independently.
+With proxy pins configured, selecting a plaintext HTTP or SOCKS proxy fails.
+Direct routes remain usable.
+
 Continue with [Requests and responses](crate::guide::requests_and_responses)
 for response handling and request policies, or
 [Browser profiles](crate::guide::browser_profiles) for profile and header choices.

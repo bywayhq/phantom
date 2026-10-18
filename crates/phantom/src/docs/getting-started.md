@@ -102,6 +102,19 @@ available for reuse. If you stop early or exceed a body limit, dropping the body
 cancels the remaining read; cleanup and connection reuse depend on the protocol.
 You do not need a separate close call for the client.
 
+## Restrict server public keys
+
+Use [`ClientBuilder::server_spki_pins`](crate::ClientBuilder::server_spki_pins)
+with [`ServerSpkiPins`](crate::ServerSpkiPins) when you need to accept only
+specific server keys. Supply SHA-256 digests of each accepted leaf
+certificate's DER SubjectPublicKeyInfo. Include both keys during rotation.
+Certificate-chain and hostname verification still apply.
+
+The policy covers every origin reached by this client, including redirects
+and WebSockets. Cleartext origin requests fail. Build a separate client to
+change the policy; pooled connections and imported tickets cannot acquire
+a different policy.
+
 Continue with [Making requests and handling responses](crate::guide::requests_and_responses)
 for headers, uploads, JSON, streaming, and timeouts, or
 [Using proxies](crate::guide::proxies) to change the route.
