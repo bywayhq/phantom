@@ -34,7 +34,7 @@ def load_client(path, sha):
     if not executable.is_absolute() or not executable.is_file():
         raise ValueError("client executable must be an existing absolute file")
     artifacts = descriptor["artifacts"]
-    if not isinstance(artifacts, list) or not 1 <= len(artifacts) <= 256:
+    if not isinstance(artifacts, list) or not 1 <= len(artifacts) <= 1024:
         raise ValueError("client artifacts must be a bounded nonempty list")
     hashes = {}
     for artifact in artifacts:

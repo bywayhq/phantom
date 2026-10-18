@@ -73,6 +73,7 @@ module locks and adapter source. The controller checks the listed files and
 command files, then retains their hashes and the complete descriptor. It
 cannot discover every dynamically loaded dependency. Use an isolated pinned
 environment. The example above needs those additional artifact entries.
+Descriptors accept up to 1,024 artifact files, including runtime sources.
 
 The command is an argument array, executed directly without a shell. It must
 run the measured client in that process; do not use a shell or child-process

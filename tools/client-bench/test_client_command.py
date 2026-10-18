@@ -75,6 +75,13 @@ class ClientCommandTests(unittest.TestCase):
             self.assertFalse(verified_client_build(client, receipt))
             self.assertFalse(verified_client_build(client, None))
 
+    def test_oversized_artifact_lists_fail_before_reading_files(self):
+        with TemporaryDirectory() as directory:
+            path, descriptor = self.descriptor(Path(directory))
+            descriptor["artifacts"] = [None] * 1025
+            with self.assertRaisesRegex(ValueError, "bounded nonempty"):
+                self.load(path, descriptor)
+
 
 if __name__ == "__main__":
     unittest.main()
