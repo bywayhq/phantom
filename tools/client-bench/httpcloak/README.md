@@ -9,6 +9,10 @@ cd tools/client-bench/httpcloak
 GOTOOLCHAIN=local go build -mod=readonly -trimpath -o /absolute/path/httpcloak-bench .
 ```
 
+CI checks this adapter on Linux, macOS and Windows with Go 1.26.5 and
+`CGO_ENABLED=0`. These checks cover construction, TLS trust, headers and
+HTTP/1.1 and HTTP/2 exchanges. Controlled peer runs cover HTTP/3 separately.
+
 Supply the binary in a pinned descriptor to the
 [comparison controller](../README.md#use-another-client-executable).
 Retain source, module files, `go version`, `go env`, `go version -m BINARY`,
