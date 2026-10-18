@@ -38,7 +38,8 @@ fn is_reconnectable(error: &RequestError) -> bool {
         | RequestErrorKind::Http1
         | RequestErrorKind::Http2
         | RequestErrorKind::Http3 => true,
-        RequestErrorKind::InvalidUri
+        RequestErrorKind::ServerPinPolicy
+        | RequestErrorKind::InvalidUri
         | RequestErrorKind::UnsupportedScheme
         | RequestErrorKind::InvalidAuthority
         | RequestErrorKind::InvalidHeader

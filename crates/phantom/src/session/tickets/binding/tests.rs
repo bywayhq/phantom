@@ -36,6 +36,41 @@ fn client_context<'a>(source: &'a phantom_net::SourceBinding) -> super::TicketCl
     }
 }
 
+#[test]
+fn ticket_policy_binds_distinct_origin_and_proxy_pins_canonically() -> TestResult {
+    use super::descriptor::{TicketCacheLeg, TicketCacheProtocol};
+    use phantom_net::ServerSpkiPins;
+
+    let profile = chrome::v154_windows();
+    let source = phantom_net::SourceBinding::new();
+    let endpoint = cache_endpoint("origin.example", 443)?;
+    let pins = ServerSpkiPins::new(vec![[1; 32], [2; 32]])?;
+    let reordered = ServerSpkiPins::new(vec![[2; 32], [1; 32], [1; 32]])?;
+    let changed = ServerSpkiPins::new(vec![[3; 32]])?;
+    let descriptor = |origin_pins, proxy_pins| -> Result<_, PreparationError> {
+        let mut input = client_context(&source);
+        input.origin_pins = origin_pins;
+        input.proxy_pins = proxy_pins;
+        BindingPlan::capture(&profile)?
+            .complete(&profile)?
+            .with_client_context(input)?
+            .prepare_cache_descriptor(
+                &endpoint,
+                "origin.example",
+                TicketCacheLeg::Origin,
+                TicketCacheProtocol::Http1,
+                &crate::Route::Direct,
+            )
+    };
+    let baseline = descriptor(Some(&pins), None)?;
+    assert!(baseline.policy == descriptor(Some(&reordered), None)?.policy);
+    assert!(baseline.policy != descriptor(None, None)?.policy);
+    assert!(baseline.policy != descriptor(Some(&changed), None)?.policy);
+    assert!(baseline.policy != descriptor(None, Some(&pins))?.policy);
+    assert!(baseline.policy != descriptor(Some(&pins), Some(&changed))?.policy);
+    Ok(())
+}
+
 fn route_bytes(route_value: &crate::Route) -> Result<Vec<u8>, PreparationError> {
     let mut e = Encoder::new();
     super::route::encode(&mut e, route_value)?;

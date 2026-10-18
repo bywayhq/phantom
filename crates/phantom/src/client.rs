@@ -951,6 +951,16 @@ impl ClientBuilder {
     /// built clients keep separate pin policies and connection pools.
     ///
     /// [`Self::build`] rejects pins with disabled server authentication.
+    ///
+    /// ```
+    /// use phantom::{Client, ServerSpkiPins, profile::browser::chrome};
+    ///
+    /// # fn build(pins: ServerSpkiPins) -> Result<Client, phantom::BuildError> {
+    /// Client::builder(chrome::v154_windows())
+    ///     .server_spki_pins(pins)
+    ///     .build()
+    /// # }
+    /// ```
     pub fn server_spki_pins(mut self, pins: ServerSpkiPins) -> Self {
         self.server_spki_pins = Some(pins);
         self

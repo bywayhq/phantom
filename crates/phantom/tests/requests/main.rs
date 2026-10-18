@@ -39,6 +39,7 @@ mod request_templates;
 mod request_timeline;
 mod response_conveniences;
 mod send_futures;
+mod server_pinning;
 mod source_binding;
 mod stale_connection_replay;
 mod status_retry;

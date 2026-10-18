@@ -62,6 +62,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "request_connections",
                 "response_conveniences",
                 "send_futures",
+                "server_pinning",
                 "source_binding",
                 "stale_connection_replay",
                 "status_retry",

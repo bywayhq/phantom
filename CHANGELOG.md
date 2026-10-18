@@ -8,10 +8,9 @@
   limits for one request while retaining the client's policy for other requests.
 - Import supported Akamai HTTP/2 descriptions with an explicit base profile
   and a report of observed and supplemented fields.
-- Add built-in leaf SPKI restrictions to the TLS backend. Keep native chain
-  and hostname verification, isolate rejection state by connection, and require
-  authenticated source sessions before pinned resumption. Client configuration
-  for these restrictions is not yet exposed.
+- Add `ClientBuilder::server_spki_pins` and `proxy_server_spki_pins` to
+  restrict verified TLS leaf keys. Keep certificate and hostname checks, reject
+  selected cleartext legs, and isolate sessions by origin and proxy pin policy.
 - Add `Client::refresh_connections` to select fresh origin and proxy
   connections while existing setup and streams finish. Retain TLS tickets,
   cookies, discovery and admission limits.
