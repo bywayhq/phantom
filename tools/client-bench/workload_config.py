@@ -25,6 +25,7 @@ DEFAULTS = {
     "peer_workers": None,
     "speculative_tls": False,
     "proxy_delay_ms": 0,
+    "proxy_auth": False,
     "diagnostic_events": 0,
     "diagnostic_snapshot": True,
 }

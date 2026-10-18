@@ -17,7 +17,7 @@ func TestUnsupportedWorkFailsBeforeWarmup(t *testing.T) {
 	for name, change := range map[string]func(*config){
 		"protocol":           func(c *config) { c.Protocol = "construct" },
 		"profile":            func(c *config) { c.Profile = "firefox" },
-		"proxy":              func(c *config) { c.Route = "connect" },
+		"proxy":              func(c *config) { c.Route = "socks5" },
 		"gzip":               func(c *config) { c.Gzip = true },
 		"speculative":        func(c *config) { c.SpeculativeTLS = true },
 		"diagnostics":        func(c *config) { c.DiagnosticEvents = 1 },
@@ -107,5 +107,32 @@ func TestPeerMustMatchSecureLoopbackWorkload(t *testing.T) {
 	}
 	if r.validate(2) == nil {
 		t.Fatal("wrong origin count accepted")
+	}
+}
+
+func TestProxyRoutingChecksEndpointAndCredentialSelection(t *testing.T) {
+	c := validConfig()
+	c.Route, c.ProxyAuth = "connect", true
+	if err := c.validate(); err != nil {
+		t.Fatal(err)
+	}
+	r := ready{Proxy: "127.0.0.1:1234"}
+	actual, err := r.proxyURL(c)
+	if err != nil || actual != "http://bench:bench@127.0.0.1:1234" {
+		t.Fatalf("unexpected proxy: %q %v", actual, err)
+	}
+	for _, address := range []string{"example.com:443", "127.0.0.1:0", "user@127.0.0.1:1234", "127.0.0.1:1234/"} {
+		r.Proxy = address
+		if _, err := r.proxyURL(c); err == nil {
+			t.Fatalf("invalid proxy accepted: %s", address)
+		}
+	}
+	c.Protocol = "h3"
+	if c.validate() == nil {
+		t.Fatal("TCP proxy accepted for exact HTTP/3")
+	}
+	c.Protocol, c.Route = "h2", "direct"
+	if c.validate() == nil {
+		t.Fatal("proxy authentication accepted without proxy routing")
 	}
 }

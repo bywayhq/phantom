@@ -10,7 +10,9 @@ class ConfigurationTests(unittest.TestCase):
     def test_unsupported_work_is_rejected_instead_of_changed(self):
         for setting in (
             {"protocol": "construct"},
-            {"route": "connect"},
+            {"route": "socks5"},
+            {"route": "connect", "protocol": "h3"},
+            {"proxy_auth": True},
             {"profile": "firefox"},
             {"workers": 2},
             {"gzip": True},
@@ -31,6 +33,24 @@ class ConfigurationTests(unittest.TestCase):
         ):
             with self.subTest(setting=setting), self.assertRaises(ValueError):
                 adapter.configuration({"workers": 1} | setting)
+
+    def test_proxy_identity_is_local_and_credentials_are_explicit(self):
+        config = adapter.configuration(
+            {"workers": 1, "route": "connect", "proxy_auth": True}
+        )
+        self.assertEqual(
+            adapter.proxy_url(config, {"proxy": "127.0.0.1:1234"}),
+            "http://bench:bench@127.0.0.1:1234",
+        )
+        for address in (
+            "example.com:443",
+            "127.0.0.1:0",
+            "user@127.0.0.1:1234",
+            "127.0.0.1:1234/",
+            "127.0.0.1:1234?bypass=1",
+        ):
+            with self.subTest(address=address), self.assertRaises(ValueError):
+                adapter.proxy_url(config, {"proxy": address})
 
     def test_peer_must_match_the_local_secure_workload(self):
         for url in (

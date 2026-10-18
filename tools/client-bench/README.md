@@ -66,6 +66,15 @@ chain within the application deadline. Cross-origin redirects are outside this
 workload. The httpcloak adapter uses its buffered redirect API and reports
 response-head timing as unavailable.
 
+`route: "connect"` uses the controlled HTTP CONNECT proxy for HTTP/1.1 or
+HTTP/2. Set `proxy_auth: true` to require synthetic Basic credentials. The
+peer challenges missing or incorrect credentials with 407 and opens no origin
+connection for them. Each accepted tunnel has verified credentials. Origin
+peers reject `Proxy-Authorization`. Counters distinguish accepted tunnels from
+407 challenges, including warmup. These runs cover Basic authentication;
+NTLM, Negotiate, HTTPS proxy transport and authenticated SOCKS are outside this
+workload. Libraries can differ in preemptive or challenge-driven behavior.
+
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The
 comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents

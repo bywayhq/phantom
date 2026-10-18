@@ -25,6 +25,9 @@ impl Upload {
     }
 
     pub(super) fn head(&self, method: &Method, headers: &HeaderMap, http1: bool) -> Result<()> {
+        if headers.contains_key(header::PROXY_AUTHORIZATION) {
+            return Err("proxy credentials reached the origin".into());
+        }
         if method != self.method || headers.contains_key(header::TRANSFER_ENCODING) {
             return Err("unexpected upload method or transfer encoding".into());
         }

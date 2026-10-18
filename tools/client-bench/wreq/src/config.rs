@@ -31,6 +31,7 @@ pub(crate) struct Config {
     pub peer_workers: Option<usize>,
     pub speculative_tls: bool,
     pub proxy_delay_ms: u64,
+    pub proxy_auth: bool,
     pub diagnostic_events: usize,
     pub diagnostic_snapshot: bool,
 }
@@ -41,14 +42,18 @@ impl Config {
             return Err("wreq adapter supports exact HTTP/1.1 and HTTP/2 only".into());
         }
         if self.profile != "chrome"
-            || self.route != "direct"
+            || !["direct", "connect"].contains(&self.route.as_str())
+            || (self.proxy_auth && self.route != "connect")
             || self.gzip
             || self.template
             || self.speculative_tls
             || self.proxy_delay_ms != 0
             || self.diagnostic_events != 0
         {
-            return Err("wreq adapter requires Chrome, direct routing and no optional work".into());
+            return Err(
+                "wreq adapter requires Chrome, direct or CONNECT routing and no optional work"
+                    .into(),
+            );
         }
         if !["stream", "collect"].contains(&self.consume.as_str())
             || !(1..=256).contains(&self.concurrency)
@@ -78,6 +83,8 @@ impl Config {
 pub(crate) struct Ready {
     pub urls: Vec<String>,
     pub root_der: Vec<u8>,
+    #[serde(default)]
+    pub proxy: String,
 }
 
 impl Ready {
@@ -131,6 +138,7 @@ mod tests {
             peer_workers: Some(2),
             speculative_tls: false,
             proxy_delay_ms: 0,
+            proxy_auth: false,
             diagnostic_events: 0,
             diagnostic_snapshot: true,
         }
@@ -142,7 +150,7 @@ mod tests {
             |c| c.protocol = "h3".into(),
             |c| c.protocol = "construct".into(),
             |c| c.profile = "firefox".into(),
-            |c| c.route = "connect".into(),
+            |c| c.route = "socks5".into(),
             |c| c.gzip = true,
             |c| c.template = true,
             |c| c.speculative_tls = true,
@@ -205,12 +213,14 @@ mod tests {
             let ready = Ready {
                 urls: vec![url.into()],
                 root_der: vec![1],
+                proxy: String::new(),
             };
             assert!(ready.validate(1).is_err(), "{url}");
         }
         let ready = Ready {
             urls: vec!["https://127.0.0.1:1234/".into()],
             root_der: vec![1],
+            proxy: String::new(),
         };
         assert!(ready.validate(1).is_ok());
         assert!(ready.validate(2).is_err());

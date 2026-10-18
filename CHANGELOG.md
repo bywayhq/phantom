@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add authenticated CONNECT proxy workloads to all four comparison clients.
+
 - Add bounded GET redirect chains and per-hop counts to comparison workloads.
 - Add bounded POST uploads and verified peer upload totals to comparison workloads.
 - Keep capture lifecycle tests responsive to process-startup failures on Windows.

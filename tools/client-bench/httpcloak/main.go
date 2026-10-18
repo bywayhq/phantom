@@ -39,12 +39,16 @@ func newClient(c config, r ready) (*client.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	proxyURL, err := r.proxyURL(c)
+	if err != nil {
+		return nil, err
+	}
 	roots := x509.NewCertPool()
 	roots.AddCert(certificate)
 	opts := []client.SessionOption{
 		client.WithTLSConfig(&tls.Config{RootCAs: roots}),
 		client.WithSessionTimeout(15 * time.Second), client.WithRedirects(c.Redirects != 0, c.Redirects), client.WithoutRetry(),
-		client.WithSessionProxy(""), client.WithSessionPreferIPv4(), client.WithDisableECH(),
+		client.WithSessionProxy(proxyURL), client.WithSessionPreferIPv4(), client.WithDisableECH(),
 		client.WithLocalAddress("127.0.0.1"), client.WithoutCookieJar(),
 		client.WithoutConditionalCache(), client.WithoutHighEntropyClientHints(),
 	}
@@ -259,7 +263,7 @@ func run(c config, r ready, output string) error {
 			"library": "httpcloak=1.7.3", "recipe": "chrome-150-windows",
 			"automatic_headers": c.Template, "retry": false, "redirects": c.Redirects,
 			"cookies": false, "conditional_cache": false, "high_entropy_client_hints": false,
-			"proxy": "none", "application_timeout_ms": 15000,
+			"route": c.Route, "proxy_auth": c.ProxyAuth, "application_timeout_ms": 15000,
 			"connect_timeout_ms": nil, "connect_timeout_note": "library defaults, bounded by the total context deadline",
 			"pool_limits": "library defaults", "runtime_gomaxprocs": c.Workers,
 			"h1_streaming_reuse": false,

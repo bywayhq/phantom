@@ -29,7 +29,7 @@ At most `concurrency` application goroutines issue requests at once.
 
 - Recipe: httpcloak's `chrome-150-windows` through its public session API.
 - Trust: only the peer root, with certificate and hostname checks.
-- Routing: IPv4 loopback source and destination, with proxies disabled.
+- Routing: IPv4 loopback, direct or HTTP CONNECT with optional Basic auth.
 - Deadline: 15 seconds from request start through body consumption.
 - Replay: retries disabled; up to three redirects when configured.
 - Pools and connect timeout: library defaults, within the total deadline.
@@ -42,7 +42,7 @@ reuses the Session, but does not establish warm HTTP/1.1 connection reuse.
 `template: false` selects TLS-only mode and disables automatic client hints.
 `template: true` keeps navigation headers. Cookies, conditional caching and
 high-entropy client hints are disabled in both modes. Compression, other
-profiles, proxy routes and Phantom diagnostics fail before warmup. An
+profiles, unsupported routes and Phantom diagnostics fail before warmup. An
 uncompressed peer response requires no decompression work.
 
 Redirect workloads use the buffered `Do` API because `DoStream` does not
@@ -63,8 +63,9 @@ Process memory includes the Go runtime, transports, pools and observation work.
 Recipe versions, headers, scheduler behavior and default pool limits differ
 between libraries. Functional acceptance does not establish equivalent
 fingerprints, performance or connection limits. Redirects cover same-origin
-GETs in collection mode. Streaming uploads, proxy authentication and
-cancellation need additional workloads.
+GETs in collection mode. CONNECT covers HTTP/1.1 and HTTP/2 with optional
+Basic authentication. Streaming uploads and cancellation need additional
+workloads.
 
 ## Next
 

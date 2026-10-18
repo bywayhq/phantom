@@ -17,8 +17,8 @@ Use the same workload parameters for each library. Start with a short
 diagnostic matrix before collecting timing data. Unsupported routes, profiles,
 compression, templates and Phantom diagnostics fail before warmup.
 Redirects cover up to three same-origin GET hops in collection mode.
-Streaming uploads, proxy authentication and cancellation need separate
-workloads and are not covered by this adapter yet.
+CONNECT covers HTTP/1.1 and HTTP/2 with optional Basic authentication.
+Streaming uploads and cancellation need separate workloads.
 
 ## Settings and measurement boundaries
 
@@ -27,7 +27,8 @@ workloads and are not covered by this adapter yet.
 - Protocol: an explicit version, checked again on every response.
 - Limits: 5-second connect, 15-second native transfer and application deadlines.
 - Replay: application retries disabled; up to three configured redirects.
-- Proxy: disabled explicitly, including environment proxy settings.
+- Proxy: direct or controlled HTTP CONNECT with optional Basic auth.
+  Environment proxy settings and bypass lists are disabled.
 - Handles: `max_clients` equals configured concurrency. Connection pools keep
   library defaults, so equivalent per-origin pool limits are not established.
 

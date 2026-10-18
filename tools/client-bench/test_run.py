@@ -151,6 +151,34 @@ class AcceptanceTests(unittest.TestCase):
                     accepted({"failures": 0}, config, phase | {field: wrong})
                 )
 
+    def test_authenticated_proxy_requires_verified_tunnels_and_accounts_for_challenges(
+        self,
+    ):
+        config = {
+            "protocol": "h2",
+            "requests": 10,
+            "warmup": 2,
+            "route": "connect",
+            "proxy_auth": True,
+        }
+        phase = {
+            "requests": 12,
+            "failures": 0,
+            "proxy_connections": 3,
+            "proxy_authenticated_connections": 2,
+            "proxy_auth_challenges": 1,
+        }
+        self.assertTrue(accepted({"failures": 0}, config, phase))
+        for change in (
+            {"proxy_authenticated_connections": 0},
+            {"proxy_connections": 4},
+            {"proxy_auth_challenges": 0},
+        ):
+            self.assertFalse(accepted({"failures": 0}, config, phase | change))
+        self.assertFalse(
+            accepted({"failures": 0}, config | {"proxy_auth": False}, phase)
+        )
+
     def test_proxy_route_must_actually_open_a_proxy_connection(self):
         phase = {"requests": 12, "failures": 0, "proxy_connections": 0}
         config = {"protocol": "h2", "requests": 10, "warmup": 2, "route": "connect"}

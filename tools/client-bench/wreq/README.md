@@ -10,7 +10,7 @@ Keep the resolved lockfile, compiler identity, source revision, complete build
 command and native build settings with the binary. Diagnostic builds do not
 qualify as optimized timing builds.
 
-The adapter supports direct HTTPS GETs and bounded in-memory POST uploads over
+The adapter supports HTTPS GETs and bounded in-memory POST uploads over
 exact HTTP/1.1 or HTTP/2.
 HTTP/3 and unsupported routes or workload settings fail before warmup.
 Cold and shared clients, stream and collect consumption, multiple loopback
@@ -21,7 +21,7 @@ Worker count selects Tokio runtime workers. Peer workers remain independent.
 
 - Recipe: wreq-util's Chrome149 for Windows, with automatic headers disabled.
 - Trust: only the peer's supplied root, with hostname and certificate checks.
-- Routing: IPv4 loopback source and destination, with proxies disabled.
+- Routing: IPv4 loopback, direct or HTTP CONNECT with optional Basic auth.
 - Limits: 5-second connect and 15-second application deadline through body EOF.
 - Replay: protocol-NACK retries disabled; up to three configured redirects.
 - Pools: library defaults. Equivalent per-origin limits are not established.
@@ -39,7 +39,8 @@ headers. It excludes allocator slack and task storage. The measured process
 also includes the runtime, TLS backend, pools and observation overhead.
 This is not a browser-fingerprint equivalence claim. Recipe versions differ
 between adapters. Redirects cover same-origin GETs in collection mode.
-Streaming uploads, authentication and cancellation workloads remain open.
+CONNECT covers optional Basic authentication. Streaming uploads and
+cancellation workloads remain open.
 
 ## Next
 

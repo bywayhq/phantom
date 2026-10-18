@@ -71,6 +71,20 @@ fn client(config: &Config, ready: &Ready) -> Result<Client> {
         .local_address(IpAddr::V4(Ipv4Addr::LOCALHOST))
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(15));
+    let builder = if config.route == "connect" {
+        let address: std::net::SocketAddr = ready.proxy.parse()?;
+        if address.ip() != IpAddr::V4(Ipv4Addr::LOCALHOST) || address.port() == 0 {
+            return Err("proxy must use IPv4 loopback and a bound port".into());
+        }
+        let proxy = wreq::Proxy::all(format!("http://{address}"))?;
+        builder.proxy(if config.proxy_auth {
+            proxy.basic_auth("bench", "bench")
+        } else {
+            proxy
+        })
+    } else {
+        builder
+    };
     Ok(if config.protocol == "h1" {
         builder.http1_only()
     } else {
@@ -238,7 +252,8 @@ async fn run(config: Config, ready: Ready, output: &Path) -> Result<()> {
         "adapter_settings": {
             "library": "wreq=0.16.1", "recipes": "wreq-util=0.2.0 Chrome149 Windows",
             "automatic_headers": false, "retry": "never", "redirects": config.redirects,
-            "environment_proxy": false, "connect_timeout_ms": 5000,
+            "environment_proxy": false, "route": config.route, "proxy_auth": config.proxy_auth,
+            "connect_timeout_ms": 5000,
             "application_timeout_ms": 15000, "pool_limits": "library defaults",
             "runtime_workers": config.workers,
         },

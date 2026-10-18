@@ -43,6 +43,7 @@ struct Config {
     peer_workers: Option<usize>,
     speculative_tls: bool,
     proxy_delay_ms: u64,
+    proxy_auth: bool,
     diagnostic_events: usize,
     diagnostic_snapshot: bool,
 }
@@ -74,6 +75,7 @@ impl Default for Config {
             peer_workers: None,
             speculative_tls: false,
             proxy_delay_ms: 0,
+            proxy_auth: false,
             diagnostic_events: 0,
             diagnostic_snapshot: true,
         }
@@ -117,6 +119,9 @@ impl Config {
         }
         if self.protocol == "construct" && self.method != "GET" {
             return Err("construction runs cannot issue POST requests".into());
+        }
+        if self.proxy_auth && (self.route != "connect" || self.protocol == "construct") {
+            return Err("proxy authentication requires the CONNECT route".into());
         }
         if self.protocol == "h3" && self.route != "direct" {
             return Err("TCP proxies do not support exact HTTP/3".into());

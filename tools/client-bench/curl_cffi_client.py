@@ -1,4 +1,4 @@
-"""Pinned curl_cffi public-API adapter for direct shared-peer workloads."""
+"""Pinned curl_cffi public-API adapter for controlled shared-peer workloads."""
 
 import asyncio
 import json
@@ -57,9 +57,14 @@ def configuration(supplied):
         config["method"] != "GET" or config["consume"] != "collect"
     ):
         raise ValueError("redirect workloads require collected GET requests")
+    if (
+        config["route"] not in ("direct", "connect")
+        or (config["protocol"] == "h3" and config["route"] != "direct")
+        or (config["proxy_auth"] and config["route"] != "connect")
+    ):
+        raise ValueError("adapter requires direct or TCP CONNECT routing")
     required = {
         "profile": "chrome",
-        "route": "direct",
         "workers": 1,
         "gzip": False,
         "template": False,
@@ -91,7 +96,28 @@ def peer_urls(ready, count):
     return urls
 
 
-def session_factory(config, certificate):
+def proxy_url(config, ready):
+    if config["route"] != "connect":
+        return ""
+    address = ready.get("proxy")
+    if not isinstance(address, str):
+        raise ValueError("missing proxy address")
+    parsed = urlsplit("http://" + address)
+    if (
+        parsed.hostname != "127.0.0.1"
+        or parsed.port is None
+        or not 1 <= parsed.port <= 65535
+        or parsed.username is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("proxy must use IPv4 loopback and a bound port")
+    auth = "bench:bench@" if config["proxy_auth"] else ""
+    return "http://" + auth + address
+
+
+def session_factory(config, certificate, proxy=""):
     import curl_cffi
     from curl_cffi import CurlHttpVersion, CurlOpt
     from curl_cffi.requests import AsyncSession
@@ -120,8 +146,8 @@ def session_factory(config, certificate):
             curl_options={
                 CurlOpt.CONNECTTIMEOUT_MS: 5000,
                 CurlOpt.TIMEOUT_MS: 15000,
-                CurlOpt.PROXY: "",
-                CurlOpt.NOPROXY: "*",
+                CurlOpt.PROXY: proxy,
+                CurlOpt.NOPROXY: "" if proxy else "*",
             },
         )
 
@@ -263,7 +289,9 @@ async def run(supplied, ready, output):
         certificate.write_text(
             ssl.DER_cert_to_PEM_cert(bytes(ready["root_der"])), encoding="ascii"
         )
-        create, protocol = session_factory(config, certificate)
+        create, protocol = session_factory(
+            config, certificate, proxy_url(config, ready)
+        )
         shared = create()
         try:
             warmup = [sample(index) for index in range(config["warmup"])]
@@ -302,6 +330,8 @@ async def run(supplied, ready, output):
                     "retry": 0,
                     "redirects": config["redirects"],
                     "environment_proxy": False,
+                    "route": config["route"],
+                    "proxy_auth": config["proxy_auth"],
                     "stream_buffer": "library-default unbounded queue",
                     "pool_limits": "library defaults; max_clients caps easy handles",
                 },

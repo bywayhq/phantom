@@ -5,7 +5,7 @@ use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use serde::Serialize;
 use std::{
     io::Write,
-    net::{Ipv4Addr, SocketAddr},
+    net::Ipv4Addr,
     path::Path,
     sync::{
         Arc,
@@ -14,13 +14,14 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
-    net::{TcpListener, TcpStream},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
+    net::TcpListener,
     task::JoinSet,
 };
 use tokio_rustls::TlsAcceptor;
 
 mod delay;
+mod proxy;
 mod upload;
 
 #[derive(Default, Serialize)]
@@ -28,6 +29,8 @@ struct Stats {
     connections: AtomicUsize,
     requests: AtomicUsize,
     proxy_connections: AtomicUsize,
+    proxy_authenticated_connections: AtomicUsize,
+    proxy_auth_challenges: AtomicUsize,
     failures: AtomicUsize,
     uploaded_bytes: AtomicU64,
     redirect_responses: AtomicUsize,
@@ -543,72 +546,6 @@ async fn quic_listener(
     Ok(())
 }
 
-async fn proxy(
-    socket: TcpStream,
-    targets: Arc<Vec<SocketAddr>>,
-    socks: bool,
-    delay_ms: u64,
-) -> Result<()> {
-    if delay_ms == 0 {
-        return proxy_stream(socket, targets, socks).await;
-    }
-    let (stream, relay) = tokio::io::duplex(64 * 1024);
-    tokio::try_join!(proxy_stream(stream, targets, socks), async {
-        delay::relay(socket, relay, Duration::from_millis(delay_ms)).await?;
-        Result::Ok(())
-    },)?;
-    Ok(())
-}
-
-async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
-    socket: S,
-    targets: Arc<Vec<SocketAddr>>,
-    socks: bool,
-) -> Result<()> {
-    let mut stream = BufReader::new(socket);
-    let target: SocketAddr = if socks {
-        let mut greeting = [0; 2];
-        stream.read_exact(&mut greeting).await?;
-        if greeting != [5, 1] || stream.read_u8().await? != 0 {
-            return Err("expected unauthenticated SOCKS5".into());
-        }
-        stream.get_mut().write_all(&[5, 0]).await?;
-        let mut request = [0; 4];
-        stream.read_exact(&mut request).await?;
-        if request != [5, 1, 0, 1] {
-            return Err("expected IPv4 SOCKS5 CONNECT".into());
-        }
-        let mut ip = [0; 4];
-        stream.read_exact(&mut ip).await?;
-        SocketAddr::from((ip, stream.read_u16().await?))
-    } else {
-        let head = read_head(&mut stream).await?.ok_or("missing CONNECT")?;
-        let mut words = head.split_whitespace();
-        if words.next() != Some("CONNECT") {
-            return Err("expected CONNECT".into());
-        }
-        words.next().ok_or("missing target")?.parse()?
-    };
-    if !targets.contains(&target) {
-        return Err("proxy target is not a benchmark origin".into());
-    }
-    let mut origin = TcpStream::connect(target).await?;
-    origin.set_nodelay(true)?;
-    if socks {
-        stream
-            .get_mut()
-            .write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0])
-            .await?;
-    } else {
-        stream
-            .get_mut()
-            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-            .await?;
-    }
-    tokio::io::copy_bidirectional(&mut stream, &mut origin).await?;
-    Ok(())
-}
-
 pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> Result<()> {
     let identity =
         rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])?;
@@ -677,7 +614,10 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
             let socks = config.route == "socks5";
             let delay_ms = config.proxy_delay_ms;
             connections.spawn(async move {
-                record(proxy(socket, targets, socks, delay_ms).await, &stats);
+                record(
+                    proxy::serve(socket, targets, socks, delay_ms, config.proxy_auth, &stats).await,
+                    &stats,
+                );
             });
             while let Some(result) = connections.try_join_next() {
                 result?;

@@ -36,6 +36,7 @@ type config struct {
 	PeerWorkers        *int   `json:"peer_workers"`
 	SpeculativeTLS     bool   `json:"speculative_tls"`
 	ProxyDelayMS       uint64 `json:"proxy_delay_ms"`
+	ProxyAuth          bool   `json:"proxy_auth"`
 	DiagnosticEvents   int    `json:"diagnostic_events"`
 	DiagnosticSnapshot bool   `json:"diagnostic_snapshot"`
 }
@@ -71,9 +72,10 @@ func (c config) validate() error {
 	if c.Protocol != "h1" && c.Protocol != "h2" && c.Protocol != "h3" {
 		return errors.New("httpcloak requires exact h1, h2 or h3")
 	}
-	if c.Profile != "chrome" || c.Route != "direct" || c.Gzip ||
+	if c.Profile != "chrome" || (c.Route != "direct" && c.Route != "connect") ||
+		(c.ProxyAuth && c.Route != "connect") || (c.Protocol == "h3" && c.Route != "direct") || c.Gzip ||
 		c.SpeculativeTLS || c.ProxyDelayMS != 0 || c.DiagnosticEvents != 0 {
-		return errors.New("httpcloak requires Chrome, direct routing and no optional work")
+		return errors.New("httpcloak requires Chrome, direct or TCP CONNECT routing and no optional work")
 	}
 	if (c.Consume != "stream" && c.Consume != "collect") ||
 		c.Concurrency < 1 || c.Concurrency > 256 || c.Requests < 1 || c.Requests > 1_000_000 ||
@@ -94,6 +96,7 @@ func (c config) validate() error {
 type ready struct {
 	URLs    []string `json:"urls"`
 	RootDER []byte   `json:"root_der"`
+	Proxy   string   `json:"proxy"`
 }
 
 func (r ready) validate(origins int) error {
@@ -112,6 +115,24 @@ func (r ready) validate(origins int) error {
 		}
 	}
 	return nil
+}
+
+func (r ready) proxyURL(c config) (string, error) {
+	if c.Route != "connect" {
+		return "", nil
+	}
+	u, err := url.Parse("http://" + r.Proxy)
+	if err != nil {
+		return "", err
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil || port < 1 || port > 65535 || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return "", errors.New("proxy must use IPv4 loopback and a bound port")
+	}
+	if c.ProxyAuth {
+		u.User = url.UserPassword("bench", "bench")
+	}
+	return u.String(), nil
 }
 
 func readJSON(path string, target any) error {
