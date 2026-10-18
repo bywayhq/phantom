@@ -96,7 +96,7 @@ async fn request(
     } else {
         shared
     };
-    let cancel = config.cancel_after_bytes != 0 && sample.id % 2 == 0;
+    let cancel = config.cancel_after_bytes != 0 && sample.id.is_multiple_of(2);
     let mut url = ready.urls[sample.id % ready.urls.len()].clone();
     if cancel {
         url.push_str("?cancel=1");

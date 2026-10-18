@@ -88,7 +88,7 @@ impl Config {
                 || self.warmup != 1
                 || self.concurrency != 2
                 || self.requests < 2
-                || self.requests % 2 != 0
+                || !self.requests.is_multiple_of(2)
                 || self.cancel_after_bytes >= self.bytes
                 || self.chunk_delay_ms == 0
                 || self.arrival_interval_us != 0)

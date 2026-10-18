@@ -116,7 +116,7 @@ async fn request(
     tokio::time::timeout_at(
         tokio::time::Instant::from_std(start + Duration::from_secs(15)),
         async {
-            let cancel = config.cancel_after_bytes != 0 && record.id % 2 == 0;
+            let cancel = config.cancel_after_bytes != 0 && record.id.is_multiple_of(2);
             let mut url = ready.urls[record.id % ready.urls.len()].clone();
             if cancel {
                 url.push_str("?cancel=1");
