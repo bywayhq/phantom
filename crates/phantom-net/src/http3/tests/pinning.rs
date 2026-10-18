@@ -59,9 +59,10 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
                 let mut http3: h3::server::Connection<_, bytes::Bytes> =
                     h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
                 tokio::select! {
+                    biased;
                     complete = learning_complete => complete?,
                     request = http3.accept() => {
-                        request?;
+                        request.map_err(|error| format!("learning ended before the ticket signal: {error}"))?;
                         return Err("learning ended or sent an origin request".into());
                     }
                 }
@@ -74,11 +75,11 @@ async fn pin_rejection_after_early_data_is_typed_during_and_after_session_start(
             let caller = async {
                 let learning = early_data::connect(&connector, address).await?;
                 early_data::wait_for_ticket(&connector).await?;
-                drop(learning);
                 // A new server configuration rejects the old ticket. Its new
                 // leaf is trusted normally but is outside the immutable pins.
                 endpoint.set_server_config(Some(early_data::server_config(&changed, false)?));
                 learned.send(()).map_err(|_| "learning peer stopped")?;
+                drop(learning);
                 assert!(connector.has_ticket_for(TEST_SERVER_NAME));
                 let connected = early_data::connect(&connector, address).await;
                 let error = match connected {
