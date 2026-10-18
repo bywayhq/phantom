@@ -173,7 +173,10 @@ async fn active_tcp(protocol: HttpProtocol, negotiated: bool) -> TestResult<()> 
             }
             Ok(())
         }));
-        let client = tls::test_client(&identity, protocol == HttpProtocol::Http2 || negotiated)?;
+        // Both requests must stay admitted while the first body is held.
+        let client = tls::client_builder(&identity, protocol == HttpProtocol::Http2 || negotiated)
+            .max_concurrent_http1_requests_per_origin(std::num::NonZeroUsize::new(2).ok_or("zero bound")?)
+            .build()?;
         let request = || {
             if negotiated {
                 client.get_negotiated(&url)
