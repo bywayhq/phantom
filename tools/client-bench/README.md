@@ -51,8 +51,8 @@ small difference. Short cold runs have few observations beyond p99.
 
 `--binary` owns the independent peer. By default it also runs Phantom.
 Pass `--client PATH` to run another adapter against that same peer. The
-comparison set is Phantom, wreq, curl_cffi and httpcloak. The wreq and
-httpcloak adapters remain separate work; this option alone does not establish
+comparison set is Phantom, wreq, curl_cffi and httpcloak. The httpcloak adapter
+remains separate work; this option alone does not establish
 parity.
 
 The descriptor has exactly four fields:
@@ -243,4 +243,5 @@ in the other cases.
 ## Next
 
 - [Run the curl_cffi adapter](curl-cffi.md).
+- [Run the wreq adapter](wreq/README.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).

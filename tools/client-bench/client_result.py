@@ -61,11 +61,15 @@ def validate_result(raw, config):
         if sample["id"] >= requests or sample["id"] in ids:
             raise ValueError("client sample IDs must cover each operation once")
         ids.add(sample["id"])
+        if "error" not in sample or (
+            sample["error"] is not None and not isinstance(sample["error"], str)
+        ):
+            raise ValueError("client sample error must be null or a string")
         head = sample.get("head_ns")
         if "head_ns" not in sample:
             raise ValueError("client sample must declare head timing")
         if head is None:
-            if "head_ns" not in unavailable:
+            if "head_ns" not in unavailable and sample["error"] is None:
                 raise ValueError("unavailable head timing needs an explicit reason")
         elif not unsigned(head) or "head_ns" in unavailable:
             raise ValueError("head timing must agree with declared availability")
@@ -74,10 +78,6 @@ def validate_result(raw, config):
             raise ValueError(
                 "first body byte timing must be null or an unsigned integer"
             )
-        if "error" not in sample or (
-            sample["error"] is not None and not isinstance(sample["error"], str)
-        ):
-            raise ValueError("client sample error must be null or a string")
         if (
             sample["application_wait_ns"]
             != max(0, sample["started_ns"] - sample["scheduled_ns"])

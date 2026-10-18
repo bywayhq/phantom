@@ -4,6 +4,7 @@ import copy
 import unittest
 
 from client_result import validate_result
+from run import accepted
 from workload_config import effective_config
 
 
@@ -59,6 +60,31 @@ class ClientResultTests(unittest.TestCase):
         self.raw["unavailable_timings"] = {"head_ns": "Unavailable."}
         self.raw["samples"][0]["head_ns"] = 1
         with self.assertRaises(ValueError):
+            validate_result(self.raw, self.config)
+
+    def test_failed_before_head_samples_are_retained_but_not_accepted(self):
+        self.config.update(requests=2, warmup=0)
+        self.raw["config"] = effective_config(self.config)
+        failed = copy.deepcopy(self.raw["samples"][0])
+        failed.update(
+            id=1, head_ns=None, first_byte_ns=None, bytes=0, error="connect failed"
+        )
+        self.raw["samples"].append(failed)
+        validate_result(self.raw, self.config)
+        self.assertFalse(
+            accepted(
+                {"failures": 1},
+                self.config,
+                {"requests": 1, "failures": 0, "proxy_connections": 0},
+            )
+        )
+        for error in (None, False, 1, {}):
+            failed["error"] = error
+            with self.subTest(error=error), self.assertRaises(ValueError):
+                validate_result(self.raw, self.config)
+        failed["error"] = "connect failed"
+        del failed["head_ns"]
+        with self.assertRaisesRegex(ValueError, "declare head"):
             validate_result(self.raw, self.config)
 
     def test_omitted_defaults_and_out_of_phase_samples_are_rejected(self):

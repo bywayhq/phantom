@@ -1,0 +1,29 @@
+[package]
+name = "phantom-wreq-bench"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+
+[workspace]
+
+[dependencies]
+futures-util = { version = "=0.3.33", default-features = false }
+http = "=1.5.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+url = "=2.5.8"
+wreq = { version = "=0.16.1", default-features = false, features = ["tokio-rt", "stream"] }
+wreq-util = { version = "=0.2.0", default-features = false, features = ["emulation"] }
+
+[profile.release]
+debug = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
