@@ -15,12 +15,12 @@ async fn connect_udp_outer_pin_rejection_precedes_connect() -> TestResult<()> {
         let client = Client::builder(
             ClientProfile::new(tls_settings()).with_http3(masque_client_settings()),
         )
-            .add_proxy_root_certificate_der(identity.root_der.clone())
-            .proxy_server_spki_pins(ServerSpkiPins::new(vec![[0; 32]])?)
-            .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
-                "https://{address}/.well-known/masque/udp/{{target_host}}/{{target_port}}/"
-            ))?))
-            .build()?;
+        .add_proxy_root_certificate_der(identity.root_der.clone())
+        .proxy_server_spki_pins(ServerSpkiPins::new(vec![[0; 32]])?)
+        .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
+            "https://{address}/.well-known/masque/udp/{{target_host}}/{{target_port}}/"
+        ))?))
+        .build()?;
         let peer = async {
             let incoming = endpoint.accept().await.ok_or("proxy endpoint closed")?;
             assert!(incoming.await.is_err(), "wrong outer pin completed TLS");
@@ -59,11 +59,20 @@ async fn connect_udp_enforces_separate_matching_origin_and_proxy_pins() -> TestR
         .proxy_server_spki_pins(pins(&proxy_identity)?)
         .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
         .build()?;
+        let (body_read, received) = tokio::sync::oneshot::channel();
         let peer = async {
             let (_, mut stream, mut connection) = h3_support::accept_request(&endpoint).await?;
             stream.send_response(http::Response::new(())).await?;
             stream.finish().await?;
-            let _ = connection.accept().await;
+            tokio::select! {
+                complete = received => complete?,
+                unexpected = connection.accept() => {
+                    unexpected?;
+                    return Err("origin ended before response body completion".into());
+                }
+            }
+            // Closing the tunnel first would strand the inner peer's close.
+            endpoint.close(0_u32.into(), b"response read");
             TestResult::Ok(())
         };
         let caller = async {
@@ -74,6 +83,9 @@ async fn connect_udp_enforces_separate_matching_origin_and_proxy_pins() -> TestR
             assert_eq!(response.status(), 200);
             response.into_body().collect_with_limit(0).await?;
             assert_eq!(proxy.requests().len(), 1);
+            body_read
+                .send(())
+                .map_err(|_| "origin stopped before body read")?;
             let cleanup = proxy.finish().await;
             drop(client);
             cleanup
