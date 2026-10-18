@@ -55,6 +55,37 @@ The controller measures the adapter process directly. Keep native compiler
 flags and dependency provenance before attesting that a wheel is optimized.
 A package version or wheel hash alone does not establish those flags.
 
+## Windows interpreter selection
+
+Windows virtual environments can start a redirector that launches a second
+Python process. The controller samples its directly launched process. Measuring
+the redirector would omit the client's CPU and memory.
+
+Launch the base interpreter directly with `-I` and a pinned bootstrap script.
+Pass the adapter path and the isolated environment's `Lib/site-packages` as
+the bootstrap's first two arguments. The controller appends the run arguments.
+This example also records the executing PID beside the trial result:
+
+```python
+import json
+import os
+from pathlib import Path
+import runpy
+import sys
+
+adapter, packages = sys.argv[1:3]
+with Path(sys.argv[-1]).with_name("adapter-runtime.json").open("x") as stream:
+    json.dump({"pid": os.getpid(), "executable": sys.executable}, stream)
+sys.path[:0] = [str(Path(adapter).parent), packages]
+sys.argv = [adapter, *sys.argv[3:]]
+runpy.run_path(adapter, run_name="__main__")
+```
+
+Pin the bootstrap, adapter, base interpreter and package files in the
+descriptor. Check that the recorded PID matches the controller's client PID
+in `process.json` before using process counters. Keep these receipts with
+the results. A passing payload check alone does not verify process attribution.
+
 ## Next
 
 - [Interpret measurements](README.md#interpret-the-measurements).
