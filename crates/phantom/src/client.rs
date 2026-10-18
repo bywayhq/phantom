@@ -10,12 +10,10 @@ use phantom_net::{
     http3::Http3Connector,
     proxy::{Http2ProxyPool, HttpsProxyConnector, ProxyCredentialCache},
 };
-#[cfg(feature = "cookies")]
-use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
 use phantom_profile::{
-    ClientHintSettings, ClientProfile, DnsCacheSettings, Http2ProxyConnections,
+    ClientHintSettings, ClientProfile, CookiePlacement, DnsCacheSettings, Http2ProxyConnections,
     ProxyConnectTemplate, TcpSettings, UdpSettings,
 };
 use phantom_profile::{QuicTransportParameterKind, QuicTransportSettings};
@@ -159,8 +157,7 @@ pub(crate) struct ClientInner {
     /// The limit after which the profile stops reusing an HTTP/2 connection
     /// that reads nothing, also enforced on a timer between requests.
     pub(crate) http2_idle_timer: Option<Duration>,
-    /// Profile position of the jar's `Cookie` field.
-    #[cfg(feature = "cookies")]
+    /// Profile position of caller and jar `Cookie` fields.
     pub(crate) cookie_placement: CookiePlacement,
     route: Option<Route>,
     environment_proxies: Option<crate::EnvironmentProxies>,
@@ -2310,7 +2307,6 @@ impl ClientBuilder {
                 .profile
                 .http2()
                 .and_then(|http2| http2.idle_timeout.closed_on_timer()),
-            #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
             environment_proxies: self.environment_proxies,
