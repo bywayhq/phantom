@@ -177,6 +177,7 @@ async fn request(
 async fn execute(config: &Config, ready: &Ready, shared: &Client, record: &mut Sample) {
     let start = Instant::now();
     if let Err(error) = request(config, ready, shared, record).await {
+        record.cancelled = false;
         record.complete_ns = nanos(start.elapsed());
         record.error = Some(format!("{error:?}"));
     }

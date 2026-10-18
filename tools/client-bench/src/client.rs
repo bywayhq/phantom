@@ -200,6 +200,7 @@ fn sample(id: usize, scheduled_ns: u64, started_ns: u64) -> Sample {
 async fn execute(config: &Config, ready: &Ready, shared: &Client, mut sample: Sample) -> Sample {
     let start = Instant::now();
     if let Err(error) = request(config, ready, shared, &mut sample).await {
+        sample.cancelled = false;
         sample.complete_ns = nanos(start.elapsed());
         let mut details = format!("{error:?}");
         let mut cause = error.source();

@@ -181,6 +181,7 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 func execute(c config, r ready, shared *client.Session, record *sample) {
 	start := time.Now()
 	if err := request(c, r, shared, record, start); err != nil {
+		record.Cancelled = false
 		record.CompleteNS = time.Since(start).Nanoseconds()
 		message := err.Error()
 		record.Error = &message

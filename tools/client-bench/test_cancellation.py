@@ -4,6 +4,7 @@ import copy
 import unittest
 
 from client_result import validate_result
+from curl_cffi_client import cleanup_error
 from workload_config import effective_config, validate_cancellation
 
 
@@ -43,6 +44,13 @@ class CancellationTests(unittest.TestCase):
 
     def test_valid_cancellation_has_a_prefix_and_a_complete_sibling(self):
         validate_cancellation(self.config)
+        validate_result(self.raw, self.config)
+
+    def test_failed_cleanup_is_retained_as_failure(self):
+        record = self.raw["samples"][0]
+        cleanup_error(record, "response cleanup", OSError("close failed"))
+        self.assertFalse(record["cancelled"])
+        self.assertIn("close failed", record["error"])
         validate_result(self.raw, self.config)
 
     def test_invalid_phase_and_unsupported_protocol_fail_explicitly(self):

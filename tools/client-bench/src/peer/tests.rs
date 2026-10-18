@@ -363,7 +363,8 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
             assert!(driver.await.is_err_and(|error| error.is_cancelled()));
             let error = tokio::time::timeout(Duration::from_secs(5), peer)
                 .await??
-                .expect_err("INTERNAL_ERROR must fail the peer");
+                .err()
+                .ok_or("INTERNAL_ERROR must fail the peer")?;
             assert_eq!(
                 error
                     .downcast_ref::<http2::Error>()

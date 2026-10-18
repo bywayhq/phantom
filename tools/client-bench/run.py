@@ -196,7 +196,13 @@ def accepted(summary, config, phase):
 def accepted_recovery(raw, config, phase):
     # DHAT currently stops at "save", so it includes the idle interval.
     # Never attribute that allocation count to measured requests alone.
-    return not raw["heap_instrumented"] and accepted({"failures": 0}, config, phase)
+    outcomes = {
+        "failures": 0,
+        "cancelled": sum(
+            sample.get("cancelled", False) for sample in raw.get("samples", [])
+        ),
+    }
+    return not raw["heap_instrumented"] and accepted(outcomes, config, phase)
 
 
 def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None):

@@ -184,6 +184,7 @@ def cleanup_error(record, stage, error):
     detail = f"{stage}: {type(error).__name__}: {error}"
     previous = record["error"]
     record["error"] = f"{previous}; {detail}" if previous else detail
+    record["cancelled"] = False
 
 
 async def execute(config, urls, shared, create, expected_protocol, record):
@@ -235,6 +236,7 @@ async def execute(config, urls, shared, create, expected_protocol, record):
             if not record["cancelled"] and record["bytes"] != config["bytes"]:
                 raise ValueError("incorrect response length")
     except Exception as error:
+        record["cancelled"] = False
         record["error"] = f"{type(error).__name__}: {error}"
     finally:
         record["complete_ns"] = time.perf_counter_ns() - start
