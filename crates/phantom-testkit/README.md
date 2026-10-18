@@ -9,16 +9,14 @@ Select a recorded run and request, then compare the received head. The limits
 bound the fixture document, request head, line lengths, and header count.
 
 ```rust
+use phantom_testkit::fixtures::CHROME_154_WINDOWS_HTTP1_ACCEPT;
 use phantom_testkit::http1::{
     CaptureLimits, RequestHeadCapture,
     expectation::{AdjustableHeader, RequestExpectation},
 };
 
 fn check_request(received: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let fixture = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/fixtures/http1/chrome-154-windows-h1-accept.txt",
-    ));
+    let fixture = CHROME_154_WINDOWS_HTTP1_ACCEPT;
     let limits = CaptureLimits::new(32 * 1024, 8 * 1024, 128);
     let mut expected = RequestExpectation::from_retained(
         fixture, 0, 0, 64 * 1024, limits,
@@ -44,6 +42,26 @@ headless User-Agent values, trim whitespace, or reorder headers.
 
 Mismatch errors identify a request-line byte, header-name byte, header-value
 byte, or header count. Error formatting omits request bytes.
+
+## Inspect navigation headers
+
+The installed crate includes the Chrome 154.0.8037.97 Windows navigation
+summary. Read its first and follow-up field lists without copying repository
+files into your project:
+
+```rust
+use phantom_testkit::fixtures::CHROME_154_WINDOWS_NAVIGATION;
+
+let first_order = CHROME_154_WINDOWS_NAVIGATION.lines()
+    .find_map(|line| line.strip_prefix("run_0_first_field_order="))
+    .ok_or("navigation field order is missing")?;
+assert!(first_order.starts_with("Host,Connection,sec-ch-ua,"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+This summary records HTTP/1.1 field names and client hints. It is not a raw
+request head. See [navigation provenance](https://github.com/bywayhq/phantom/blob/main/crates/phantom-testkit/fixtures/client-hints/README.md)
+for the exact platform, launch mode, source path and hash.
 
 ## Capture a head from a stream
 

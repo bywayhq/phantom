@@ -15,6 +15,10 @@
   with protocol-specific field spelling. This works without the `cookies` feature.
   Migrate: set `CookiePlacement::before_fields` for a custom position; caller
   cookie positions in the input list no longer determine their wire position.
+- Include the Chrome 154 Windows navigation capture in `phantom-testkit`.
+  Expose navigation and existing HTTP/1 browser captures through
+  `phantom_testkit::fixtures`, usable without a repository checkout.
+
 - Add `Client::close_idle_connections` to release idle origin and proxy
   connections while retaining active work, TLS tickets and session state.
 - Rebuild the user documentation around docs.rs: a short README, an API

@@ -7,6 +7,9 @@
 /// A scripted loopback DNS responder that records queries.
 pub mod dns;
 
+/// Retained browser captures included in the published crate.
+pub mod fixtures;
+
 /// Sizes of async functions' futures, for tests that bound a call's stack use.
 pub mod future_size;
 
