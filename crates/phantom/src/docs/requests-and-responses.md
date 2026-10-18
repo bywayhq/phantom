@@ -196,6 +196,8 @@ Enable only the behavior you need:
   Override one request with
   [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
   Use `RedirectPolicy::none()` to inspect its redirect response yourself.
+  Enable [`RequestBuilder::redirect_history`](crate::RequestBuilder::redirect_history)
+  to keep a bounded list of hops in the final response's extensions.
 - **Cookies:** enable the `cookies` feature and call `ClientBuilder::cookies()`.
   The jar is shared by requests and client clones.
 - **Extra retries:** [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).

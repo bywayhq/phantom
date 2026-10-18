@@ -34,6 +34,7 @@ use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use hop_server::HopServer;
 use tls_support::{H2_ALPN, TestIdentity, client_builder};
 
+mod history;
 mod hop_server;
 mod request_policy;
 
@@ -394,11 +395,27 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
                 Method::POST,
                 &format!("https://{address}/start"),
             )?
+            .redirect_history(NonZeroUsize::MIN)
             .body(Bytes::from_static(b"payload"))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         assert_response_info(&response, &format!("https://{address}/final"))?;
+        let history = response
+            .extensions()
+            .get::<phantom::RedirectHistory>()
+            .ok_or("HTTP/3 history absent")?;
+        assert_eq!(history.entries().len(), 1);
+        assert_eq!(history.omitted_hops(), 0);
+        let hop = &history.entries()[0];
+        assert_eq!(
+            hop.from_uri().to_string(),
+            format!("https://{address}/start")
+        );
+        assert_eq!(hop.to_uri().to_string(), format!("https://{address}/final"));
+        assert_eq!(hop.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(hop.method(), Method::POST);
+        assert_eq!(hop.next_method(), Method::POST);
         response.into_body().collect().await?;
         client_done
             .send(())
@@ -668,10 +685,25 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
             )?
             .template(&template)
             .header(RequestHeader::new("cOoKiE", "manual=kept").sensitive())
+            .redirect_history(NonZeroUsize::new(3).ok_or("three is nonzero")?)
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
 
+        let history = response
+            .extensions()
+            .get::<phantom::RedirectHistory>()
+            .ok_or("cross-origin history absent")?;
+        assert_eq!(history.entries().len(), 3);
+        assert_eq!(history.omitted_hops(), 0);
+        assert_eq!(
+            history.entries()[1].to_uri().to_string(),
+            format!("http://{second_address}/cross")
+        );
+        assert_eq!(
+            history.entries()[2].to_uri().to_string(),
+            format!("http://{first_address}/back")
+        );
         for (path, credentials) in [
             ("/first", true),
             ("/same", true),

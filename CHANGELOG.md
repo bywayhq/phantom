@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add optional bounded redirect history with resolved URLs, method changes and
+  response statuses. Debug output omits URLs, and later hops are counted.
 - Add `RequestBuilder::redirect_policy` to override redirect following or hop
   limits for one request while retaining the client's policy for other requests.
 - Import supported Akamai HTTP/2 descriptions with an explicit base profile

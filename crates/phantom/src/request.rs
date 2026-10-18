@@ -84,6 +84,7 @@ pub struct RequestBuilder {
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
     redirect_policy: Option<RedirectPolicy>,
+    redirect_history: Option<std::num::NonZeroUsize>,
     attempt_budget: Option<crate::HttpAttemptBudget>,
     diagnostics: Option<crate::RequestDiagnostics>,
     content_decoding: ContentDecoding,
@@ -110,6 +111,7 @@ impl fmt::Debug for RequestBuilder {
             .field("timeout_override", &self.timeouts.is_some())
             .field("retry_policy_override", &self.retry_policy.is_some())
             .field("redirect_policy_override", &self.redirect_policy.is_some())
+            .field("redirect_history_limit", &self.redirect_history)
             .field("attempt_budget", &self.attempt_budget)
             .field("content_decoding", &self.content_decoding)
             .field("pinned_alternative", &self.alternative.is_some())
@@ -182,6 +184,7 @@ impl RequestBuilder {
             timeouts: None,
             retry_policy: None,
             redirect_policy: None,
+            redirect_history: None,
             attempt_budget: None,
             diagnostics: None,
             content_decoding: ContentDecoding::none(),
@@ -716,6 +719,34 @@ impl RequestBuilder {
         self
     }
 
+    /// Retains the first `maximum_entries` followed redirects for this request.
+    ///
+    /// Retrieve [`crate::RedirectHistory`] from the final response's extensions.
+    /// Later hops are counted without retaining their URLs. History is disabled
+    /// by default and does not enable following, change its limit, or record
+    /// retries. Requests returning errors have no response history.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// use std::num::NonZeroUsize;
+    /// use phantom::{RedirectHistory, RedirectPolicy};
+    /// let response = client.get_negotiated("https://example.com/")?
+    ///     .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+    ///     .redirect_history(NonZeroUsize::MIN)
+    ///     .send().await?;
+    /// if let Some(history) = response.extensions().get::<RedirectHistory>() {
+    ///     for hop in history.entries() {
+    ///         println!("{} -> {}", hop.from_uri(), hop.to_uri());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn redirect_history(mut self, maximum_entries: std::num::NonZeroUsize) -> Self {
+        self.redirect_history = Some(maximum_entries);
+        self
+    }
+
     /// Sets the response content-decoding policy for this request.
     ///
     /// The default is [`ContentDecoding::none`], which returns the wire body.
@@ -1122,6 +1153,7 @@ impl RequestBuilder {
             timeouts: _,
             retry_policy: _,
             redirect_policy,
+            redirect_history,
             attempt_budget,
             diagnostics: _,
             content_decoding: _,
@@ -1161,6 +1193,7 @@ impl RequestBuilder {
             return Err(RequestError::forward_proxy_authorization_header());
         }
         let policy = redirect_policy.unwrap_or(client.state.redirect_policy);
+        let mut history = redirect_history.map(crate::RedirectHistory::new);
 
         if policy.max_hops().is_none() {
             let mut body = body;
@@ -1206,6 +1239,9 @@ impl RequestBuilder {
                 decoded_content_codings,
             ));
             response.body_mut().finish_diagnostics_if_empty();
+            if let Some(history) = history {
+                response.extensions_mut().insert(history);
+            }
             return Ok(response);
         }
 
@@ -1296,6 +1332,11 @@ impl RequestBuilder {
             )
             .await?;
             let mut response = outcome.response;
+            let history_source = history
+                .as_ref()
+                .filter(|history| !history.is_full())
+                .map(|_| (resolved.uri.clone(), redirect.method().clone()));
+            let redirect_status = response.status();
             match redirect
                 .follow(&response)
                 .map_err(|error| error.with_origin(resolved.origin()))?
@@ -1320,6 +1361,10 @@ impl RequestBuilder {
                         decoded_content_codings,
                     ));
                     response.body_mut().finish_diagnostics_if_empty();
+                    if let Some(mut history) = history {
+                        history.finish(redirect.followed());
+                        response.extensions_mut().insert(history);
+                    }
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {
@@ -1342,6 +1387,17 @@ impl RequestBuilder {
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
                         .map_err(|error| error.with_origin(resolved.origin()))?;
+                    if let (Some(history), Some((from, method))) =
+                        (history.as_mut(), history_source)
+                    {
+                        history.push(crate::RedirectHop::new(
+                            from,
+                            resolved.uri.clone(),
+                            method,
+                            redirect.method().clone(),
+                            redirect_status,
+                        ));
+                    }
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
                     resolved.managed_headers = managed_headers;

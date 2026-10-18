@@ -7,6 +7,9 @@ use url::Url;
 
 use crate::{RequestError, request::RequestBodySource};
 
+mod history;
+pub use history::{RedirectHistory, RedirectHop};
+
 /// Client policy for following HTTP redirects.
 ///
 /// The default, equal to [`RedirectPolicy::none`], returns every redirect
