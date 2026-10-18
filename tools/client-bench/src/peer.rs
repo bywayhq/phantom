@@ -1,5 +1,5 @@
 use crate::{Config, Ready, Result, read_control, signal, write_json};
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use flate2::{Compression, write::GzEncoder};
 use rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 use serde::Serialize;
@@ -331,6 +331,16 @@ async fn quic_listener(
                         let (request, mut stream) = resolver.resolve_request().await?;
                         if request.method() != http::Method::GET {
                             return Err("benchmark peer accepts only GET".into());
+                        }
+                        // Reach request FIN before dropping its receive half.
+                        // Quinn otherwise sends STOP_SENDING from that drop.
+                        while let Some(data) = stream.recv_data().await? {
+                            if data.has_remaining() {
+                                return Err("benchmark GET must have no body".into());
+                            }
+                        }
+                        if stream.recv_trailers().await?.is_some() {
+                            return Err("benchmark GET must have no trailers".into());
                         }
                         body.before_head().await;
                         stream.send_response(body.head()?).await?;

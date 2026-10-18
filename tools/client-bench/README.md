@@ -241,4 +241,5 @@ in the other cases.
 
 ## Next
 
+- [Run the curl_cffi adapter](curl-cffi.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
