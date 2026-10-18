@@ -96,7 +96,7 @@ pub(crate) struct Http2Pool {
     /// one.
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
-    retired: Arc<super::retired_connections::RetiredConnections<PoolEntry>>,
+    retired: Arc<super::retired_connections::RetiredConnections>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
@@ -593,7 +593,7 @@ impl PoolKey {
 }
 
 struct PoolEntry {
-    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections>>,
     tickets: Arc<super::tickets::TicketOwner>,
     /// The key's connections, oldest first. The lock is never held across an
     /// await; a setup in flight is counted in it instead.
@@ -631,7 +631,7 @@ impl PoolEntry {
 
     fn begin_retirement(
         self: &Arc<Self>,
-        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+        registry: &Arc<super::retired_connections::RetiredConnections>,
     ) {
         let state = self.lock();
         self.retirement.get_or_init(|| Arc::downgrade(registry));

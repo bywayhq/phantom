@@ -92,7 +92,7 @@ pub(crate) struct Http1Or2Pool {
     /// connections on one.
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
-    retired: Arc<super::retired_connections::RetiredConnections<EntryConnections>>,
+    retired: Arc<super::retired_connections::RetiredConnections>,
     http2_keys: Arc<Http2Keys>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -2045,7 +2045,7 @@ fn connect_phase(
 /// extra connection per backup connection whose slower attempt is in
 /// flight, at most `max_http1` extra, until they are used or expire idle.
 struct EntryConnections {
-    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections>>,
     max_http1: NonZeroUsize,
     /// How long an idle H1 connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
@@ -2542,7 +2542,7 @@ impl Drop for ProxyClaim {
 impl EntryConnections {
     fn begin_retirement(
         self: &Arc<Self>,
-        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+        registry: &Arc<super::retired_connections::RetiredConnections>,
     ) {
         let state = self.lock();
         self.retirement.get_or_init(|| Arc::downgrade(registry));

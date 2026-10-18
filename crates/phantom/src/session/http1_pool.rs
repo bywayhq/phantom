@@ -73,7 +73,7 @@ pub(crate) struct Http1Pool {
     used_idle_timeout: Option<Duration>,
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
-    retired: Arc<super::retired_connections::RetiredConnections<EntryConnections>>,
+    retired: Arc<super::retired_connections::RetiredConnections>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
@@ -1313,7 +1313,7 @@ type Opened = (Http1Connection, Option<SlowerConnection<Http1Connection>>);
 /// extra connection per backup connection whose slower attempt is in
 /// flight, at most `max` extra, until they are used or expire idle.
 struct EntryConnections {
-    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections<Self>>>,
+    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections>>,
     max: NonZeroUsize,
     /// How long an idle connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
@@ -1653,7 +1653,7 @@ impl Drop for ProxyClaim {
 impl EntryConnections {
     fn begin_retirement(
         self: &Arc<Self>,
-        registry: &Arc<super::retired_connections::RetiredConnections<Self>>,
+        registry: &Arc<super::retired_connections::RetiredConnections>,
     ) {
         let set = self.lock();
         self.retirement.get_or_init(|| Arc::downgrade(registry));
