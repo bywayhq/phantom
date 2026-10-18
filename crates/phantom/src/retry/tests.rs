@@ -9,6 +9,8 @@ use super::{
 };
 use crate::{HttpProtocol, RequestError, RequestErrorKind, RequestTimeouts, TimeoutPhase};
 
+mod backoff;
+
 fn refused_connection() -> RequestError {
     RequestError::http1_connection_setup(Http1TlsError::Connect(std::io::Error::from(
         std::io::ErrorKind::ConnectionRefused,
@@ -91,7 +93,10 @@ async fn zero_cap_denies_setup_without_waiting_or_charging() -> Result<(), Reque
 #[test]
 fn cap_does_not_enable_classes_or_change_retirement_flags() {
     assert_eq!(RetryPolicy::none().max_retries(), None);
-    let none = RetryPolicy::none().with_max_retries(Some(5));
+    let none = RetryPolicy::none()
+        .with_exponential_backoff(Duration::from_secs(1))
+        .with_full_jitter(true)
+        .with_max_retries(Some(5));
     let retries = ConnectionSetupRetryState::new(none, Span::none());
     assert!(retries.caller_retry_available());
     assert!(!retries.replays_reused_connections());
@@ -301,19 +306,22 @@ fn status_retry_delay_uses_retry_after_only_within_its_limit() -> Result<(), Sta
     );
     let unavailable = StatusCode::SERVICE_UNAVAILABLE;
 
-    let constant = status_retry.delay_for(unavailable, &delayed);
+    let constant = status_retry.delay_for(unavailable, &delayed, 0);
     assert_eq!(constant, Some(Duration::from_millis(5)));
     let honoring = status_retry.honor_retry_after(Duration::from_secs(10));
     assert_eq!(
-        honoring.delay_for(unavailable, &delayed),
+        honoring.delay_for(unavailable, &delayed, 0),
         Some(Duration::from_secs(2))
     );
-    assert_eq!(honoring.delay_for(unavailable, &distant), None);
+    assert_eq!(honoring.delay_for(unavailable, &distant, 0), None);
     assert_eq!(
-        honoring.delay_for(unavailable, &obsolete),
+        honoring.delay_for(unavailable, &obsolete, 0),
         Some(Duration::from_millis(5))
     );
-    assert_eq!(honoring.delay_for(StatusCode::BAD_GATEWAY, &delayed), None);
+    assert_eq!(
+        honoring.delay_for(StatusCode::BAD_GATEWAY, &delayed, 0),
+        None
+    );
     Ok(())
 }
 
@@ -352,15 +360,26 @@ fn status_retry_delay_must_fit_the_runtime_clock() -> Result<(), StatusRetryErro
         RetryPolicy::none()
             .with_status_retry(status_retry)
             .validate()
+            .is_ok()
     );
     let huge = StatusRetry::new(
         &[StatusCode::SERVICE_UNAVAILABLE],
         NonZeroUsize::MIN,
         Duration::MAX,
     )?;
-    assert!(!RetryPolicy::none().with_status_retry(huge).validate());
+    assert!(
+        RetryPolicy::none()
+            .with_status_retry(huge)
+            .validate()
+            .is_err()
+    );
     let huge_limit = status_retry.honor_retry_after(Duration::MAX);
-    assert!(!RetryPolicy::none().with_status_retry(huge_limit).validate());
+    assert!(
+        RetryPolicy::none()
+            .with_status_retry(huge_limit)
+            .validate()
+            .is_err()
+    );
     Ok(())
 }
 

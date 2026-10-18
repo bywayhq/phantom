@@ -48,10 +48,14 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 }
 ```
 
-Phantom tries up to `maximum` more times and waits `delay` before each try.
+Phantom tries up to `maximum` more times. By default, each try waits `delay`.
 Nothing from the request has been sent yet, so this is safe for every
 method and body. A TLS error, or a proxy that refuses the request, isn't
 retried.
+
+Chain `with_exponential_backoff(cap)` to double successive delays up to a cap.
+Add `with_full_jitter(true)` to choose each wait between zero and that bound.
+These settings change connection-setup waits only.
 
 `ResponseInfo::retries_performed` tells you how many of these retries ran.
 
@@ -96,8 +100,8 @@ any method, on another connection and without delay.
 
 ## Retry when the server returns a retryable status
 
-Repeat a request after a status such as 503 or 429, and wait as long as
-`Retry-After` asks.
+Repeat a request after a status such as 503 or 429, while respecting
+`Retry-After`.
 
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
@@ -122,9 +126,10 @@ delay. It accepts only 408, 425, 429, 500, 502, 503 and 504.
 Only GET, HEAD, OPTIONS, TRACE, PUT and DELETE are retried. When the
 retries run out, Phantom returns the last response.
 
-`honor_retry_after(maximum)` waits as long as the server's `Retry-After`
-asks, up to `maximum`. If the server asks for longer, Phantom returns the
-response at once.
+`StatusRetry` also supports `with_exponential_backoff(cap)` and
+`with_full_jitter(true)`. Their counter spans redirects independently of setup.
+`honor_retry_after(maximum)` makes the server's delay a minimum wait.
+If it exceeds `maximum`, Phantom returns the response at once.
 
 ## Cap retries across the whole request
 

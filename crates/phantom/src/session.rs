@@ -257,10 +257,8 @@ impl ClientOptions {
                 "request timeout exceeds the runtime clock range",
             ));
         }
-        if !self.retry_policy.validate() {
-            return Err(BuildError::invalid_policy(
-                "retry delay or Retry-After limit exceeds the runtime clock range",
-            ));
+        if let Err(message) = self.retry_policy.validate() {
+            return Err(BuildError::invalid_policy(message));
         }
         if self.max_http3_connections_per_origin.get() > HTTP3_CONNECTIONS_PER_ORIGIN_CEILING {
             return Err(BuildError::invalid_policy(

@@ -842,11 +842,16 @@ impl RequestError {
         )
     }
 
+    #[cfg(feature = "websocket")]
     pub(crate) fn invalid_retry_delay() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidTimeout,
             "retry delay or Retry-After limit exceeds the runtime clock range",
         )
+    }
+
+    pub(crate) fn invalid_retry_policy(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::InvalidTimeout, message)
     }
 
     pub(crate) fn timeout(phase: TimeoutPhase, protocol: Option<HttpProtocol>) -> Self {

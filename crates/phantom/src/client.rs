@@ -1877,6 +1877,7 @@ impl ClientBuilder {
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
     ///   delay or setup limit exceeds the runtime clock range;
+    ///   a retry backoff cap is below its initial delay;
     ///   an active or pending request bound exceeds
     ///   [`tokio::sync::Semaphore::MAX_PERMITS`]; `max_http3_connections_per_origin` or
     ///   `max_http2_proxy_connections_per_route` is above its ceiling; disabled

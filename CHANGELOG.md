@@ -8,6 +8,12 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+- Add opt-in capped exponential backoff and full jitter for connection-setup
+  and status retries. Delays keep the existing deadlines and retry budgets.
+  **Breaking:** an honored `Retry-After` now sets a minimum wait instead of
+  shortening the configured retry delay. Migrate: use an initial delay of
+  zero to follow only the honored server delay.
+
 - Add opt-in, bounded request timelines for admissions, pool and setup waits,
   TCP/TLS/QUIC setup, response headers and streamed body completion. Retained
   handles remain readable after send errors, cancellation and body abandonment.
