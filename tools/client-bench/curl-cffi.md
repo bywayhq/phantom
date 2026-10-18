@@ -41,6 +41,9 @@ Collection has no first-delivery timestamp. Completion includes EOF and
 payload verification. Cold samples include client construction, with cleanup
 outside request completion but inside phase elapsed time and CPU.
 Cleanup failures mark the operation failed and retain any request error too.
+The peer records QUIC transport `NO_ERROR` closes separately after all response
+tasks on that connection finish successfully. A close before any completed
+response or an interrupted response still fails the trial.
 
 The result records effective settings and Python version. Observation storage
 is the sum of unique shallow object sizes before measurement. It excludes

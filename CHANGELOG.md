@@ -4,6 +4,7 @@
 
 - Add a pinned curl_cffi adapter for controlled benchmark GET workloads.
 - Read benchmark HTTP/3 GET requests through their end before replying.
+- Record completed benchmark QUIC transport `NO_ERROR` closes separately.
 - Add client and per-request hooks for logical request start, final response
   heads and terminal send errors. Callbacks borrow metadata without consuming
   bodies or changing retries, redirects or header order.

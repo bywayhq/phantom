@@ -30,11 +30,26 @@ struct Stats {
     failures: AtomicUsize,
     completed_h1_boundary_closes: AtomicUsize,
     completed_h3_no_error_closes: AtomicUsize,
+    completed_h3_transport_no_error_closes: AtomicUsize,
     completed_h3_idle_timeouts: AtomicUsize,
     #[serde(skip)]
     phase_complete: AtomicBool,
     #[serde(skip)]
     expected_requests: usize,
+}
+
+fn quic_transport_no_error(error: &h3::error::ConnectionError) -> bool {
+    // RFC 9000 section 20.1: transport NO_ERROR is distinct from H3_NO_ERROR.
+    let h3::error::ConnectionError::Remote(h3::quic::ConnectionErrorIncoming::Undefined(reason)) =
+        error
+    else {
+        return false;
+    };
+    matches!(
+        reason.downcast_ref::<quinn::ConnectionError>(),
+        Some(quinn::ConnectionError::ConnectionClosed(close))
+            if close.error_code == quinn::TransportErrorCode::NO_ERROR
+    )
 }
 
 impl Stats {
@@ -323,6 +338,21 @@ async fn quic_listener(
                             eprintln!("completed H3 connection closed: {error}");
                             break;
                         }
+                        Err(error) if quic_transport_no_error(&error) => {
+                            while let Some(result) = responses.join_next().await {
+                                result??;
+                            }
+                            if completed.load(Ordering::Relaxed) == 0 {
+                                return Err(error.into());
+                            }
+                            stats
+                                .completed_h3_transport_no_error_closes
+                                .fetch_add(1, Ordering::Relaxed);
+                            eprintln!(
+                                "completed H3 connection closed with QUIC transport NO_ERROR: {error}"
+                            );
+                            break;
+                        }
                         Err(error) => return Err(error.into()),
                     };
                     let (body, stats) = (body.clone(), stats.clone());
@@ -557,6 +587,44 @@ mod tests {
         task::{Context, Poll},
     };
     use tokio::io::ReadBuf;
+
+    #[test]
+    fn transport_no_error_requires_the_remote_transport_close_code() {
+        use h3::{error::ConnectionError, quic::ConnectionErrorIncoming};
+
+        let reason = |error_code| {
+            quinn::ConnectionError::ConnectionClosed(quinn::ConnectionClose {
+                error_code,
+                frame_type: None,
+                reason: Bytes::new(),
+            })
+        };
+        let remote =
+            |reason| ConnectionError::Remote(ConnectionErrorIncoming::Undefined(Arc::new(reason)));
+        assert!(quic_transport_no_error(&remote(reason(
+            quinn::TransportErrorCode::NO_ERROR
+        ))));
+        assert!(!quic_transport_no_error(&remote(reason(
+            quinn::TransportErrorCode::INTERNAL_ERROR
+        ))));
+        assert!(!quic_transport_no_error(&remote(
+            quinn::ConnectionError::Reset
+        )));
+        assert!(!quic_transport_no_error(&remote(
+            quinn::ConnectionError::TimedOut
+        )));
+        assert!(!quic_transport_no_error(&ConnectionError::Timeout));
+        assert!(!quic_transport_no_error(&ConnectionError::Local {
+            error: h3::error::internal_error::InternalConnectionError::new(
+                h3::error::Code::H3_SETTINGS_ERROR,
+                "invalid settings".into(),
+            )
+            .into(),
+        }));
+        assert!(!quic_transport_no_error(&ConnectionError::Remote(
+            ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
+        )));
+    }
 
     #[test]
     fn only_a_typed_idle_timeout_after_all_requests_is_completed_retirement() {
