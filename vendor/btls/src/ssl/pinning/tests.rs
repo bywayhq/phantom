@@ -326,7 +326,9 @@ fn ech_rejection_authenticates_retry_configs_without_origin_pin_authority() -> T
         let mut keys = SslEchKeys::builder()?;
         keys.add_key(true, config, HpkeKey::dhkem_p256_sha256(key)?)?;
         let keys = keys.build();
+        let leaf = ech_leaf()?;
         let peer = Peer::start_many(!rejected, 1, |context| {
+            context.set_certificate(&leaf)?;
             context.set_ech_keys(&keys)?;
             Ok(())
         })?;
@@ -357,10 +359,15 @@ fn ech_rejection_authenticates_retry_configs_without_origin_pin_authority() -> T
                     stream.read_exact(&mut [0])?;
                 }
                 Err(HandshakeError::Failure(stream)) if rejected => {
+                    assert_eq!(stream.ssl().verify_result(), Ok(()));
                     assert_eq!(
                         stream.ssl().spki_pin_verification(),
                         SpkiPinVerification::EchRejected
                     );
+                    assert!(stream.error().ssl_error().is_some_and(|errors| errors
+                        .errors()
+                        .iter()
+                        .any(|error| error.library_code() == 16 && error.reason_code() == 319)));
                     assert!(stream.ssl().get_ech_retry_configs().is_some());
                     assert_eq!(stream.ssl().get_ech_name_override(), Some(&b"ech.com"[..]));
                     assert!(!stream.ssl().authenticate_scoped_session_publication());
@@ -381,6 +388,31 @@ fn ech_rejection_authenticates_retry_configs_without_origin_pin_authority() -> T
         }
     }
     Ok(())
+}
+
+// The ordinary fixture covers foobar.com only. ECH rejection authenticates
+// ech.com instead, so sign a leaf for both with the retained test CA/key.
+fn ech_leaf() -> TestResult<X509> {
+    use crate::{hash::MessageDigest, pkey::PKey, x509::extension::SubjectAlternativeName};
+    let original = X509::from_pem(include_bytes!("../../../test/cert.pem"))?;
+    let root = X509::from_pem(include_bytes!("../../../test/root-ca.pem"))?;
+    let root_key = PKey::private_key_from_pem(include_bytes!("../../../test/root-ca.key"))?;
+    let mut leaf = X509::builder()?;
+    leaf.set_version(2)?;
+    leaf.set_serial_number(original.serial_number())?;
+    leaf.set_subject_name(original.subject_name())?;
+    leaf.set_issuer_name(root.subject_name())?;
+    let public_key = original.public_key()?;
+    leaf.set_pubkey(&public_key)?;
+    leaf.set_not_before(original.not_before())?;
+    leaf.set_not_after(original.not_after())?;
+    let names = SubjectAlternativeName::new()
+        .dns("foobar.com")
+        .dns("ech.com")
+        .build(&leaf.x509v3_context(Some(&root), None))?;
+    leaf.append_extension(&names)?;
+    leaf.sign(&root_key, MessageDigest::sha256())?;
+    Ok(leaf.build())
 }
 
 struct Peer {
