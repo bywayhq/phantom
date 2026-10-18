@@ -39,9 +39,13 @@ class ConfigurationTests(unittest.TestCase):
             {"workers": 1, "route": "connect", "proxy_auth": True}
         )
         self.assertEqual(
-            adapter.proxy_url(config, {"proxy": "127.0.0.1:1234"}),
-            "http://bench:bench@127.0.0.1:1234",
+            adapter.proxy_url(
+                config, {"proxy": "127.0.0.1:1234", "proxy_password": "a" * 64}
+            ),
+            "http://bench:" + "a" * 64 + "@127.0.0.1:1234",
         )
+        with self.assertRaises(ValueError):
+            adapter.proxy_url(config, {"proxy": "127.0.0.1:1234"})
         for address in (
             "example.com:443",
             "127.0.0.1:0",

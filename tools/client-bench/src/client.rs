@@ -55,7 +55,10 @@ fn client(config: &Config, ready: &Ready) -> Result<Client> {
             let proxy = HttpProxy::new(&format!("http://{}", ready.proxy))?
                 .with_speculative_tls(config.speculative_tls);
             if config.proxy_auth {
-                proxy.with_basic_auth("bench", "bench")?
+                if ready.proxy_password.is_empty() {
+                    return Err("missing per-run proxy credential".into());
+                }
+                proxy.with_basic_auth("bench", &ready.proxy_password)?
             } else {
                 proxy
             }

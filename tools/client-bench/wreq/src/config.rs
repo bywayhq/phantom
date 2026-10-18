@@ -85,6 +85,8 @@ pub(crate) struct Ready {
     pub root_der: Vec<u8>,
     #[serde(default)]
     pub proxy: String,
+    #[serde(default)]
+    pub proxy_password: String,
 }
 
 impl Ready {
@@ -214,6 +216,7 @@ mod tests {
                 urls: vec![url.into()],
                 root_der: vec![1],
                 proxy: String::new(),
+                proxy_password: String::new(),
             };
             assert!(ready.validate(1).is_err(), "{url}");
         }
@@ -221,6 +224,7 @@ mod tests {
             urls: vec!["https://127.0.0.1:1234/".into()],
             root_der: vec![1],
             proxy: String::new(),
+            proxy_password: String::new(),
         };
         assert!(ready.validate(1).is_ok());
         assert!(ready.validate(2).is_err());

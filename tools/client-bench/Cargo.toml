@@ -12,6 +12,7 @@ publish = false
 heap = ["dep:dhat"]
 
 [dependencies]
+base64 = "=0.22.1"
 bytes = "=1.12.1"
 dhat = { version = "=0.3.3", optional = true }
 flate2 = "=1.1.10"

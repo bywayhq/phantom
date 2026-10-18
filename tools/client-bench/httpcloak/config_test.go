@@ -117,8 +117,12 @@ func TestProxyRoutingChecksEndpointAndCredentialSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := ready{Proxy: "127.0.0.1:1234"}
+	if _, err := r.proxyURL(c); err == nil {
+		t.Fatal("missing per-run credential was accepted")
+	}
+	r.ProxyPassword = "per-run-control"
 	actual, err := r.proxyURL(c)
-	if err != nil || actual != "http://bench:bench@127.0.0.1:1234" {
+	if err != nil || actual != "http://bench:per-run-control@127.0.0.1:1234" {
 		t.Fatalf("unexpected proxy: %q %v", actual, err)
 	}
 	for _, address := range []string{"example.com:443", "127.0.0.1:0", "user@127.0.0.1:1234", "127.0.0.1:1234/"} {

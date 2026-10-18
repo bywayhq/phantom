@@ -67,7 +67,8 @@ workload. The httpcloak adapter uses its buffered redirect API and reports
 response-head timing as unavailable.
 
 `route: "connect"` uses the controlled HTTP CONNECT proxy for HTTP/1.1 or
-HTTP/2. Set `proxy_auth: true` to require synthetic Basic credentials. The
+HTTP/2. Set `proxy_auth: true` to require random per-run Basic credentials.
+The peer supplies the password in its local readiness file. The
 peer challenges missing or incorrect credentials with 407 and opens no origin
 connection for them. Every origin connection must match a verified tunnel. Origin
 peers reject `Proxy-Authorization`. Counters distinguish accepted tunnels from

@@ -150,6 +150,8 @@ struct Ready {
     urls: Vec<String>,
     root_der: Vec<u8>,
     proxy: String,
+    #[serde(default)]
+    proxy_password: String,
 }
 
 fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {

@@ -113,7 +113,16 @@ def proxy_url(config, ready):
         or parsed.fragment
     ):
         raise ValueError("proxy must use IPv4 loopback and a bound port")
-    auth = "bench:bench@" if config["proxy_auth"] else ""
+    auth = ""
+    if config["proxy_auth"]:
+        password = ready.get("proxy_password")
+        if (
+            not isinstance(password, str)
+            or len(password) != 64
+            or any(c not in "0123456789abcdef" for c in password)
+        ):
+            raise ValueError("missing or invalid per-run proxy credential")
+        auth = "bench:" + password + "@"
     return "http://" + auth + address
 
 

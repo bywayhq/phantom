@@ -101,9 +101,10 @@ func (c config) buffered() bool {
 }
 
 type ready struct {
-	URLs    []string `json:"urls"`
-	RootDER []byte   `json:"root_der"`
-	Proxy   string   `json:"proxy"`
+	URLs          []string `json:"urls"`
+	RootDER       []byte   `json:"root_der"`
+	Proxy         string   `json:"proxy"`
+	ProxyPassword string   `json:"proxy_password"`
 }
 
 func (r ready) validate(origins int) error {
@@ -137,7 +138,10 @@ func (r ready) proxyURL(c config) (string, error) {
 		return "", errors.New("proxy must use IPv4 loopback and a bound port")
 	}
 	if c.ProxyAuth {
-		u.User = url.UserPassword("bench", "bench")
+		if r.ProxyPassword == "" {
+			return "", errors.New("missing per-run proxy credential")
+		}
+		u.User = url.UserPassword("bench", r.ProxyPassword)
 	}
 	return u.String(), nil
 }

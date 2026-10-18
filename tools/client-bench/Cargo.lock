@@ -930,6 +930,7 @@ dependencies = [
 name = "phantom-client-bench"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "dhat",
  "flate2",

@@ -602,6 +602,14 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
     let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let proxy_address = proxy_listener.local_addr()?;
     let proxy_stats = stats.clone();
+    let proxy_password = if config.proxy_auth {
+        proxy::password()?
+    } else {
+        String::new()
+    };
+    let proxy_credential = config
+        .proxy_auth
+        .then(|| proxy::credential(&proxy_password));
     listeners.spawn(async move {
         let targets = Arc::new(addresses);
         let mut connections = JoinSet::new();
@@ -614,9 +622,18 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
             let (targets, stats) = (targets.clone(), proxy_stats.clone());
             let socks = config.route == "socks5";
             let delay_ms = config.proxy_delay_ms;
+            let credential = proxy_credential.clone();
             connections.spawn(async move {
                 record(
-                    proxy::serve(socket, targets, socks, delay_ms, config.proxy_auth, &stats).await,
+                    proxy::serve(
+                        socket,
+                        targets,
+                        socks,
+                        delay_ms,
+                        credential.as_deref(),
+                        &stats,
+                    )
+                    .await,
                     &stats,
                 );
             });
@@ -633,6 +650,7 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
             urls,
             root_der: cert,
             proxy: proxy_address.to_string(),
+            proxy_password,
         },
     )?;
     signal("ready")?;

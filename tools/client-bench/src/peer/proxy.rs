@@ -1,4 +1,5 @@
 use super::{Result, Stats, delay, read_head};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::{
     net::SocketAddr,
     sync::{Arc, atomic::Ordering},
@@ -9,7 +10,20 @@ use tokio::{
     net::TcpStream,
 };
 
-fn connect_target(head: &str, authenticated: bool) -> Result<Option<SocketAddr>> {
+pub(super) fn password() -> Result<String> {
+    let mut bytes = [0; 32];
+    rustls::crypto::ring::default_provider()
+        .secure_random
+        .fill(&mut bytes)
+        .map_err(|_| "proxy credential generation failed")?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+pub(super) fn credential(password: &str) -> String {
+    STANDARD.encode(format!("bench:{password}"))
+}
+
+fn connect_target(head: &str, expected: Option<&str>) -> Result<Option<SocketAddr>> {
     let mut fields = [httparse::EMPTY_HEADER; 128];
     let mut request = httparse::Request::new(&mut fields);
     if !request.parse(head.as_bytes())?.is_complete() || request.method != Some("CONNECT") {
@@ -24,12 +38,12 @@ fn connect_target(head: &str, authenticated: bool) -> Result<Option<SocketAddr>>
     if credentials.next().is_some() {
         return Err("duplicate proxy credentials".into());
     }
-    if authenticated {
+    if let Some(expected) = expected {
         let valid = credential
             .and_then(|field| std::str::from_utf8(field.value).ok())
             .and_then(|value| value.split_once(' '))
             .is_some_and(|(scheme, value)| {
-                scheme.eq_ignore_ascii_case("basic") && value == "YmVuY2g6YmVuY2g="
+                scheme.eq_ignore_ascii_case("basic") && value == expected
             });
         if !valid {
             return Ok(None);
@@ -45,15 +59,15 @@ pub(super) async fn serve(
     targets: Arc<Vec<SocketAddr>>,
     socks: bool,
     delay_ms: u64,
-    authenticated: bool,
+    credential: Option<&str>,
     stats: &Stats,
 ) -> Result<()> {
     if delay_ms == 0 {
-        return proxy_stream(socket, targets, socks, authenticated, stats).await;
+        return proxy_stream(socket, targets, socks, credential, stats).await;
     }
     let (stream, relay) = tokio::io::duplex(64 * 1024);
     tokio::try_join!(
-        proxy_stream(stream, targets, socks, authenticated, stats),
+        proxy_stream(stream, targets, socks, credential, stats),
         async {
             delay::relay(socket, relay, Duration::from_millis(delay_ms)).await?;
             Result::Ok(())
@@ -66,7 +80,7 @@ async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
     socket: S,
     targets: Arc<Vec<SocketAddr>>,
     socks: bool,
-    authenticated: bool,
+    credential: Option<&str>,
     stats: &Stats,
 ) -> Result<()> {
     let mut stream = BufReader::new(socket);
@@ -87,7 +101,7 @@ async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
         SocketAddr::from((ip, stream.read_u16().await?))
     } else {
         let head = read_head(&mut stream).await?.ok_or("missing CONNECT")?;
-        let Some(target) = connect_target(&head, authenticated)? else {
+        let Some(target) = connect_target(&head, credential)? else {
             stats.proxy_auth_challenges.fetch_add(1, Ordering::Relaxed);
             stream.get_mut().write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"benchmark\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await?;
             stream.get_mut().flush().await?;
@@ -100,7 +114,7 @@ async fn proxy_stream<S: AsyncRead + AsyncWrite + Unpin>(
     }
     let mut origin = TcpStream::connect(target).await?;
     stats.proxy_tunnels.fetch_add(1, Ordering::Relaxed);
-    if authenticated {
+    if credential.is_some() {
         stats
             .proxy_authenticated_connections
             .fetch_add(1, Ordering::Relaxed);
@@ -128,25 +142,27 @@ mod tests {
     #[test]
     fn connect_authentication_distinguishes_challenges_from_malformed_requests() -> Result<()> {
         let target = "127.0.0.1:1234".parse()?;
+        let expected = credential(&password()?);
+        assert_ne!(expected, credential(&password()?));
         for credentials in ["", "Proxy-Authorization: Basic wrong\r\n"] {
             assert!(
                 connect_target(
                     &format!("CONNECT {target} HTTP/1.1\r\n{credentials}\r\n"),
-                    true
+                    Some(&expected)
                 )?
                 .is_none()
             );
         }
-        let valid = format!(
-            "CONNECT {target} HTTP/1.1\r\nProxy-Authorization: Basic YmVuY2g6YmVuY2g=\r\n\r\n"
-        );
-        assert_eq!(connect_target(&valid, true)?, Some(target));
-        assert!(connect_target(&valid, false).is_err());
-        assert!(connect_target("GET / HTTP/1.1\r\n\r\n", true).is_err());
+        let valid =
+            format!("CONNECT {target} HTTP/1.1\r\nProxy-Authorization: Basic {expected}\r\n\r\n");
+        assert_eq!(connect_target(&valid, Some(&expected))?, Some(target));
+        assert!(connect_target(&valid, Some(&credential(&password()?)))?.is_none());
+        assert!(connect_target(&valid, None).is_err());
+        assert!(connect_target("GET / HTTP/1.1\r\n\r\n", Some(&expected)).is_err());
         assert!(
             connect_target(
                 &valid.replace("\r\n\r\n", "\r\nProxy-Authorization: Basic other\r\n\r\n"),
-                true
+                Some(&expected)
             )
             .is_err()
         );
@@ -157,6 +173,7 @@ mod tests {
         use tokio::{io::AsyncReadExt, net::TcpListener};
         let origin = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?;
         let target = origin.local_addr()?;
+        let expected = credential(&password()?);
         for credentials in ["", "Proxy-Authorization: Basic wrong\r\n"] {
             let (mut caller, peer) = tokio::io::duplex(4096);
             let stats = Stats::default();
@@ -174,7 +191,7 @@ mod tests {
                     assert!(response.contains("Proxy-Authenticate: Basic"));
                     Result::Ok(())
                 },
-                proxy_stream(peer, targets, false, true, &stats)
+                proxy_stream(peer, targets, false, Some(&expected), &stats)
             );
             caller_result?;
             result?;

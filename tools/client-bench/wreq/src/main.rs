@@ -78,7 +78,10 @@ fn client(config: &Config, ready: &Ready) -> Result<Client> {
         }
         let proxy = wreq::Proxy::all(format!("http://{address}"))?;
         builder.proxy(if config.proxy_auth {
-            proxy.basic_auth("bench", "bench")
+            if ready.proxy_password.is_empty() {
+                return Err("missing per-run proxy credential".into());
+            }
+            proxy.basic_auth("bench", &ready.proxy_password)
         } else {
             proxy
         })
