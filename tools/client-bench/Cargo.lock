@@ -990,6 +990,7 @@ version = "0.1.0"
 dependencies = [
  "brotli",
  "bytes",
+ "fastrand",
  "flate2",
  "http",
  "http-body",
