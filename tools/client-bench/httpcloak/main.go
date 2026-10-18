@@ -31,6 +31,7 @@ type sample struct {
 	FirstByteNS       *int64  `json:"first_byte_ns"`
 	CompleteNS        int64   `json:"complete_ns"`
 	Bytes             int     `json:"bytes"`
+	Cancelled         bool    `json:"cancelled"`
 	Error             *string `json:"error"`
 }
 
@@ -90,6 +91,16 @@ func consumeBody(body io.Reader, c config, record *sample, start time.Time) erro
 					return errors.New("incorrect response content or length")
 				}
 			}
+			if c.CancelAfterBytes != 0 && record.ID%2 == 0 && record.Bytes >= c.CancelAfterBytes {
+				if err != nil && !errors.Is(err, io.EOF) {
+					return err
+				}
+				if record.Bytes >= c.Bytes {
+					return errors.New("body finished before cancellation")
+				}
+				record.Cancelled = true
+				return nil
+			}
 			if errors.Is(err, io.EOF) {
 				break
 			}
@@ -125,7 +136,11 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 	}
 	ctx, cancel := context.WithDeadline(context.Background(), start.Add(15*time.Second))
 	defer cancel()
-	req := &client.Request{Method: c.Method, URL: r.URLs[record.ID%len(r.URLs)]}
+	target := r.URLs[record.ID%len(r.URLs)]
+	if c.CancelAfterBytes != 0 && record.ID%2 == 0 {
+		target += "?cancel=1"
+	}
+	req := &client.Request{Method: c.Method, URL: target}
 	if c.Method == "POST" {
 		req.Body = bytes.NewReader(bytes.Repeat([]byte{'U'}, c.UploadBytes))
 	}
@@ -200,7 +215,9 @@ func run(c config, r ready, output string) error {
 		warmup.Go(func() {
 			for id := worker; id < c.Warmup; id += c.Concurrency {
 				record := sample{ID: id}
-				execute(c, r, shared, &record)
+				warmConfig := c
+				warmConfig.CancelAfterBytes = 0
+				execute(warmConfig, r, shared, &record)
 				if record.Error != nil {
 					failures <- fmt.Errorf("warmup failed: %s", *record.Error)
 					return

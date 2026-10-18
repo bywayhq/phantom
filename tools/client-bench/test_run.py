@@ -192,6 +192,33 @@ class AcceptanceTests(unittest.TestCase):
         config["route"] = "direct"
         self.assertFalse(accepted({"failures": 0}, config, phase))
 
+    def test_cancellation_requires_real_resets_and_one_surviving_connection(self):
+        config = {
+            "protocol": "h2",
+            "requests": 8,
+            "warmup": 1,
+            "cancel_after_bytes": 1024,
+        }
+        summary = {"failures": 0, "cancelled": 4}
+        phase = {
+            "requests": 5,
+            "cancelled_streams": 4,
+            "cancelled_while_multiplexed": 1,
+            "connections": 1,
+            "failures": 0,
+            "proxy_connections": 0,
+        }
+        self.assertTrue(accepted(summary, config, phase))
+        for change in (
+            {"requests": 9},
+            {"cancelled_streams": 0},
+            {"cancelled_while_multiplexed": 0},
+            {"connections": 2},
+            {"failures": 1},
+        ):
+            self.assertFalse(accepted(summary, config, phase | change))
+        self.assertFalse(accepted(summary | {"cancelled": 0}, config, phase))
+
     def test_small_tail_uses_observed_maximum_without_interpolation(self):
         self.assertEqual(quantile([10, 20, 30, 40], 0.99), 40)
         self.assertIsNone(quantile([], 0.99))

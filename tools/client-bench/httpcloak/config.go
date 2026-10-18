@@ -23,6 +23,7 @@ type config struct {
 	Method             string `json:"method"`
 	UploadBytes        int    `json:"upload_bytes"`
 	Redirects          int    `json:"redirects"`
+	CancelAfterBytes   int    `json:"cancel_after_bytes"`
 	Consume            string `json:"consume"`
 	Cold               bool   `json:"cold"`
 	Origins            int    `json:"origins"`
@@ -69,6 +70,13 @@ func parseConfig(data []byte) (config, error) {
 }
 
 func (c config) validate() error {
+	if c.CancelAfterBytes < 0 || (c.CancelAfterBytes != 0 &&
+		(c.Protocol != "h2" || c.Route != "direct" || c.Consume != "stream" || c.Cold ||
+			c.Origins != 1 || c.Method != "GET" || c.Gzip || c.Redirects != 0 || c.Warmup != 1 ||
+			c.Concurrency != 2 || c.Requests < 2 || c.Requests%2 != 0 || c.CancelAfterBytes >= c.Bytes ||
+			c.ChunkDelayMS == 0 || c.ArrivalIntervalUS != 0)) {
+		return errors.New("body cancellation requires warm direct H2 streams, one origin and two workers")
+	}
 	if c.Route == "connect" && c.Protocol == "h1" && c.Consume != "collect" {
 		return errors.New("httpcloak HTTP/1.1 CONNECT requires the buffered collect API")
 	}

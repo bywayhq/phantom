@@ -28,6 +28,7 @@ struct Sample {
     first_byte_ns: Option<u64>,
     complete_ns: u64,
     bytes: usize,
+    cancelled: bool,
     error: Option<String>,
 }
 
@@ -46,6 +47,7 @@ fn sample(id: usize) -> Sample {
         first_byte_ns: None,
         complete_ns: 0,
         bytes: 0,
+        cancelled: false,
         error: None,
     }
 }
@@ -114,11 +116,15 @@ async fn request(
     tokio::time::timeout_at(
         tokio::time::Instant::from_std(start + Duration::from_secs(15)),
         async {
-            let url = ready.urls[record.id % ready.urls.len()].as_str();
+            let cancel = config.cancel_after_bytes != 0 && record.id % 2 == 0;
+            let mut url = ready.urls[record.id % ready.urls.len()].clone();
+            if cancel {
+                url.push_str("?cancel=1");
+            }
             let request = if config.method == "POST" {
-                selected.post(url).body(vec![b'U'; config.upload_bytes])
+                selected.post(&url).body(vec![b'U'; config.upload_bytes])
             } else {
-                selected.get(url)
+                selected.get(&url)
             };
             let response = request.send().await?;
             record.head_ns = Some(nanos(start.elapsed()));
@@ -146,6 +152,14 @@ async fn request(
                     record.bytes += data.len();
                     if !data.iter().all(|byte| *byte == b'Z') {
                         return Err("incorrect response content".into());
+                    }
+                    if cancel && record.bytes >= config.cancel_after_bytes {
+                        if record.bytes >= config.bytes {
+                            return Err("body finished before cancellation".into());
+                        }
+                        record.cancelled = true;
+                        record.complete_ns = nanos(start.elapsed());
+                        return Ok(());
                     }
                 }
             }
@@ -189,6 +203,8 @@ async fn run(config: Config, ready: Ready, output: &Path) -> Result<()> {
     let mut warmup = JoinSet::new();
     for worker in 0..config.concurrency {
         let (config, ready, shared) = (config.clone(), ready.clone(), shared.clone());
+        let mut config = (*config).clone();
+        config.cancel_after_bytes = 0;
         warmup.spawn(async move {
             for id in (worker..config.warmup).step_by(config.concurrency) {
                 let mut record = sample(id);

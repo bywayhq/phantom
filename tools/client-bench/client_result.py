@@ -1,6 +1,6 @@
 """Check the public-client result contract before computing measurements."""
 
-from workload_config import effective_config
+from workload_config import effective_config, validate_cancellation
 
 
 def unsigned(value):
@@ -25,6 +25,7 @@ def validate_result(raw, config):
     ):
         raise ValueError("unavailable head timing needs an explicit short reason")
     expected = effective_config(config)
+    validate_cancellation(expected)
     effective = raw.get("config")
     if (
         not isinstance(effective, dict)
@@ -86,10 +87,29 @@ def validate_result(raw, config):
             or (first is not None and not (head or 0) <= first <= sample["complete_ns"])
         ):
             raise ValueError("client sample timing boundaries are inconsistent")
+        cancelled = sample.get("cancelled", False)
+        should_cancel = bool(expected["cancel_after_bytes"] and sample["id"] % 2 == 0)
+        if type(cancelled) is not bool or (cancelled and sample["error"] is not None):
+            raise ValueError("cancellation must be a distinct outcome")
+        if sample["error"] is None and cancelled != should_cancel:
+            raise ValueError("wrong cancellation selection")
+        if (
+            cancelled
+            and not expected["cancel_after_bytes"]
+            <= sample["bytes"]
+            < expected["bytes"]
+        ):
+            raise ValueError(
+                "cancelled stream must stop after its prefix and before completion"
+            )
         expected_bytes = (
             0 if config.get("protocol") == "construct" else config.get("bytes", 1024)
         )
-        if sample["error"] is None and sample["bytes"] != expected_bytes:
+        if (
+            sample["error"] is None
+            and not cancelled
+            and sample["bytes"] != expected_bytes
+        ):
             raise ValueError(
                 "successful client sample has the wrong response byte count"
             )

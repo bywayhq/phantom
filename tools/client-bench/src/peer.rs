@@ -28,6 +28,10 @@ mod upload;
 struct Stats {
     connections: AtomicUsize,
     requests: AtomicUsize,
+    cancelled_streams: AtomicUsize,
+    cancelled_while_multiplexed: AtomicUsize,
+    #[serde(skip)]
+    settlement: tokio::sync::Notify,
     proxy_connections: AtomicUsize,
     proxy_tunnels: AtomicUsize,
     proxy_authenticated_connections: AtomicUsize,
@@ -118,6 +122,8 @@ struct Body {
     upload: upload::Upload,
     redirects: usize,
     redirect_location: Option<String>,
+    cancellation_enabled: bool,
+    cancel: bool,
 }
 
 impl Body {
@@ -137,6 +143,8 @@ impl Body {
             upload: upload::Upload::new(config),
             redirects: config.redirects,
             redirect_location: None,
+            cancellation_enabled: config.cancel_after_bytes != 0,
+            cancel: false,
         })
     }
 
@@ -168,6 +176,15 @@ impl Body {
     }
 
     fn for_target(&self, target: &str) -> Result<Self> {
+        if self.cancellation_enabled {
+            let mut body = self.clone();
+            body.cancel = match target {
+                "/" => false,
+                "/?cancel=1" => true,
+                _ => return Err("unexpected cancellation request target".into()),
+            };
+            return Ok(body);
+        }
         let target: http::Uri = target.parse()?;
         let mut response = self.clone();
         if self.redirects != 0 {
@@ -288,6 +305,7 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
     let mut connection = http2::server::handshake(stream).await?;
     let mut responses = JoinSet::new();
     let (mut received, mut completed) = (0, 0);
+    let active_full = Arc::new(AtomicUsize::new(0));
     let mut close_error = None;
     while let Some(request) = connection.accept().await {
         let (request, mut respond) = match request {
@@ -303,48 +321,76 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         let mut incoming = request.into_body();
         received += 1;
         let (body, stats) = (response_body, stats.clone());
+        let active_full = active_full.clone();
+        if !body.cancel {
+            active_full.fetch_add(1, Ordering::Relaxed);
+        }
         responses.spawn(async move {
-            let mut observed = 0;
-            while let Some(data) = incoming.data().await {
-                let data = data?;
-                body.upload.chunk(&mut observed, &data)?;
-                incoming.flow_control().release_capacity(data.len())?;
-            }
-            if incoming.trailers().await?.is_some() {
-                return Err("benchmark upload must have no trailers".into());
-            }
-            body.upload.finish(observed)?;
-            stats
-                .uploaded_bytes
-                .fetch_add(observed as u64, Ordering::Relaxed);
-            body.before_head().await;
-            let mut send = respond.send_response(body.head()?, body.bytes.is_empty())?;
-            let mut offset = 0;
-            while offset < body.bytes.len() {
-                body.before_chunk().await;
-                let chunk_end = (offset + body.chunk_bytes).min(body.bytes.len());
-                while offset < chunk_end {
-                    let wanted = chunk_end - offset;
-                    send.reserve_capacity(wanted);
-                    let capacity = std::future::poll_fn(|cx| send.poll_capacity(cx))
-                        .await
-                        .ok_or("H2 stream closed")??;
-                    let length = wanted.min(capacity);
-                    if length == 0 {
-                        continue;
-                    }
-                    send.send_data(
-                        body.bytes.slice(offset..offset + length),
-                        offset + length == body.bytes.len(),
-                    )?;
-                    offset += length;
+            let result: Result<()> = async {
+                let mut observed = 0;
+                while let Some(data) = incoming.data().await {
+                    let data = data?;
+                    body.upload.chunk(&mut observed, &data)?;
+                    incoming.flow_control().release_capacity(data.len())?;
                 }
+                if incoming.trailers().await?.is_some() {
+                    return Err("benchmark upload must have no trailers".into());
+                }
+                body.upload.finish(observed)?;
+                stats
+                    .uploaded_bytes
+                    .fetch_add(observed as u64, Ordering::Relaxed);
+                body.before_head().await;
+                let mut send = respond.send_response(body.head()?, body.bytes.is_empty())?;
+                let mut offset = 0;
+                while offset < body.bytes.len() {
+                    body.before_chunk().await;
+                    let chunk_end = (offset + body.chunk_bytes).min(body.bytes.len());
+                    while offset < chunk_end {
+                        let wanted = chunk_end - offset;
+                        send.reserve_capacity(wanted);
+                        let capacity = std::future::poll_fn(|cx| send.poll_capacity(cx))
+                            .await
+                            .ok_or("H2 stream closed")??;
+                        let length = wanted.min(capacity);
+                        if length == 0 {
+                            continue;
+                        }
+                        send.send_data(
+                            body.bytes.slice(offset..offset + length),
+                            offset + length == body.bytes.len(),
+                        )?;
+                        offset += length;
+                    }
+                }
+                stats.requests.fetch_add(1, Ordering::Relaxed);
+                if body.redirect_location.is_some() {
+                    stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+                }
+                Ok(())
             }
-            stats.requests.fetch_add(1, Ordering::Relaxed);
-            if body.redirect_location.is_some() {
-                stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+            .await;
+            let result = if body.cancel
+                && result.as_ref().err().is_some_and(|error| {
+                    error
+                        .downcast_ref::<http2::Error>()
+                        .is_some_and(|error| error.reason() == Some(http2::Reason::CANCEL))
+                }) {
+                stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
+                if active_full.load(Ordering::Relaxed) > 0 {
+                    stats
+                        .cancelled_while_multiplexed
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+                Ok(())
+            } else {
+                result
+            };
+            if !body.cancel {
+                active_full.fetch_sub(1, Ordering::Relaxed);
             }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            stats.settlement.notify_one();
+            result
         });
         while let Some(result) = responses.try_join_next() {
             result??;
@@ -657,6 +703,28 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
     loop {
         match read_control()?.as_str() {
             "snapshot" => {
+                if config.cancel_after_bytes != 0 {
+                    // Await actual response/reset outcomes, not an arbitrary grace sleep.
+                    let settled = tokio::time::timeout(Duration::from_secs(5), async {
+                        loop {
+                            let notified = stats.settlement.notified();
+                            if stats.requests.load(Ordering::Relaxed)
+                                + stats.cancelled_streams.load(Ordering::Relaxed)
+                                == stats.expected_requests
+                            {
+                                break;
+                            }
+                            notified.await;
+                        }
+                    })
+                    .await;
+                    if settled.is_err() {
+                        stats.failures.fetch_add(1, Ordering::Relaxed);
+                        eprintln!(
+                            "cancellation outcomes did not settle before the snapshot deadline"
+                        );
+                    }
+                }
                 write_json(&output.with_file_name("peer-phase.json"), &*stats)?;
                 stats.phase_complete.store(true, Ordering::Release);
                 signal("snapshotted")?;

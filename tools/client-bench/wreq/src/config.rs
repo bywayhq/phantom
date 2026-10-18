@@ -18,6 +18,7 @@ pub(crate) struct Config {
     pub method: String,
     pub upload_bytes: usize,
     pub redirects: usize,
+    pub cancel_after_bytes: usize,
     pub consume: String,
     pub cold: bool,
     pub origins: usize,
@@ -75,6 +76,28 @@ impl Config {
         {
             return Err("invalid or unbounded wreq benchmark configuration".into());
         }
+        if self.cancel_after_bytes != 0
+            && (self.protocol != "h2"
+                || self.route != "direct"
+                || self.consume != "stream"
+                || self.cold
+                || self.origins != 1
+                || self.method != "GET"
+                || self.gzip
+                || self.redirects != 0
+                || self.warmup != 1
+                || self.concurrency != 2
+                || self.requests < 2
+                || self.requests % 2 != 0
+                || self.cancel_after_bytes >= self.bytes
+                || self.chunk_delay_ms == 0
+                || self.arrival_interval_us != 0)
+        {
+            return Err(
+                "body cancellation requires warm direct H2 streams, one origin and two workers"
+                    .into(),
+            );
+        }
         Ok(())
     }
 }
@@ -127,6 +150,7 @@ mod tests {
             method: "GET".into(),
             upload_bytes: 0,
             redirects: 0,
+            cancel_after_bytes: 0,
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -228,5 +252,35 @@ mod tests {
         };
         assert!(ready.validate(1).is_ok());
         assert!(ready.validate(2).is_err());
+    }
+    #[test]
+    fn body_cancel_requires_a_partial_stream_and_a_live_sibling() {
+        let mut config = Config {
+            protocol: "h2".into(),
+            route: "direct".into(),
+            consume: "stream".into(),
+            cold: false,
+            origins: 1,
+            method: "GET".into(),
+            gzip: false,
+            redirects: 0,
+            warmup: 1,
+            concurrency: 2,
+            requests: 2,
+            bytes: 65536,
+            cancel_after_bytes: 1024,
+            chunk_delay_ms: 1,
+            arrival_interval_us: 0,
+            ..config()
+        };
+        assert!(config.validate().is_ok());
+        config.cancel_after_bytes = config.bytes;
+        assert!(config.validate().is_err());
+        config.cancel_after_bytes = 1024;
+        config.cold = true;
+        assert!(config.validate().is_err());
+        config.cold = false;
+        config.protocol = "h1".into();
+        assert!(config.validate().is_err());
     }
 }

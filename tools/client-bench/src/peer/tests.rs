@@ -312,3 +312,68 @@ async fn partial_next_head_still_fails_after_a_complete_response() -> Result<()>
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
+    for reason in [http2::Reason::CANCEL, http2::Reason::INTERNAL_ERROR] {
+        let (client, server) = tokio::io::duplex(65536);
+        let config = Config {
+            bytes: 65536,
+            chunk_bytes: 1024,
+            chunk_delay_ms: 1,
+            cancel_after_bytes: 1024,
+            ..Config::default()
+        };
+        let stats = Arc::new(Stats::default());
+        let peer = tokio::spawn(http2(
+            ResetAtEof(server),
+            Arc::new(Body::new(&config)?),
+            stats.clone(),
+        ));
+        let (mut sender, connection) = http2::client::handshake(client).await?;
+        let driver = tokio::spawn(connection);
+        let (cancelled, mut reset) = sender.send_request(
+            http::Request::builder()
+                .uri("https://localhost/?cancel=1")
+                .body(())?,
+            true,
+        )?;
+        let (sibling, _) = sender.send_request(
+            http::Request::builder()
+                .uri("https://localhost/")
+                .body(())?,
+            true,
+        )?;
+        let mut cancelled = cancelled.await?.into_body();
+        assert!(
+            !cancelled
+                .data()
+                .await
+                .ok_or("missing cancellation prefix")??
+                .is_empty()
+        );
+        reset.send_reset(reason);
+        drop(cancelled);
+        let mut sibling = sibling.await?.into_body();
+        let mut received = 0;
+        while let Some(data) = sibling.data().await {
+            let data = data?;
+            received += data.len();
+            sibling.flow_control().release_capacity(data.len())?;
+        }
+        assert_eq!(received, config.bytes);
+        driver.abort();
+        assert!(driver.await.is_err_and(|error| error.is_cancelled()));
+        let result = tokio::time::timeout(Duration::from_secs(5), peer).await??;
+        assert_eq!(result.is_ok(), reason == http2::Reason::CANCEL);
+        assert_eq!(
+            stats.cancelled_streams.load(Ordering::Relaxed),
+            usize::from(reason == http2::Reason::CANCEL)
+        );
+        assert_eq!(stats.requests.load(Ordering::Relaxed), 1);
+        if reason == http2::Reason::CANCEL {
+            assert_eq!(stats.cancelled_while_multiplexed.load(Ordering::Relaxed), 1);
+        }
+    }
+    Ok(())
+}

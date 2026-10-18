@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from workload_config import DEFAULTS
+from workload_config import DEFAULTS, validate_cancellation
 
 VERSION = "0.16.3"
 HEAD_UNAVAILABLE = (
@@ -21,6 +21,7 @@ def configuration(supplied):
     if not isinstance(supplied, dict) or supplied.keys() - DEFAULTS.keys():
         raise ValueError("unknown benchmark configuration fields")
     config = DEFAULTS | supplied
+    validate_cancellation(config)
     for key, default in DEFAULTS.items():
         if key != "peer_workers" and type(config[key]) is not type(default):
             raise ValueError(f"invalid configuration type: {key}")
@@ -174,6 +175,7 @@ def sample(identifier):
         "first_byte_ns": None,
         "complete_ns": 0,
         "bytes": 0,
+        "cancelled": False,
         "error": None,
     }
 
@@ -187,6 +189,7 @@ def cleanup_error(record, stage, error):
 async def execute(config, urls, shared, create, expected_protocol, record):
     start = time.perf_counter_ns()
     selected, response, owned = shared, None, None
+    cancel = config["cancel_after_bytes"] != 0 and record["id"] % 2 == 0
     try:
         if config["cold"]:
             owned = selected = create()
@@ -195,7 +198,7 @@ async def execute(config, urls, shared, create, expected_protocol, record):
         async with asyncio.timeout(15):
             response = await selected.request(
                 config["method"],
-                urls[record["id"] % len(urls)],
+                urls[record["id"] % len(urls)] + ("?cancel=1" if cancel else ""),
                 **(
                     {"data": b"U" * config["upload_bytes"]}
                     if config["method"] == "POST"
@@ -224,7 +227,12 @@ async def execute(config, urls, shared, create, expected_protocol, record):
                     record["bytes"] += len(chunk)
                     if chunk.count(b"Z") != len(chunk):
                         raise ValueError("incorrect response content")
-            if record["bytes"] != config["bytes"]:
+                    if cancel and record["bytes"] >= config["cancel_after_bytes"]:
+                        if record["bytes"] >= config["bytes"]:
+                            raise ValueError("body finished before cancellation")
+                        record["cancelled"] = True
+                        break
+            if not record["cancelled"] and record["bytes"] != config["bytes"]:
                 raise ValueError("incorrect response length")
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
@@ -304,7 +312,14 @@ async def run(supplied, ready, output):
         shared = create()
         try:
             warmup = [sample(index) for index in range(config["warmup"])]
-            await run_workers(config, urls, shared, create, protocol, warmup)
+            await run_workers(
+                config | {"cancel_after_bytes": 0},
+                urls,
+                shared,
+                create,
+                protocol,
+                warmup,
+            )
             for record in warmup:
                 if record["error"] is not None:
                     raise ValueError(f"warmup failed: {record['error']}")

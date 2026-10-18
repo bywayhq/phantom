@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Compare explicit HTTP/2 body cancellation while sibling streams complete.
+  Require peer-observed CANCEL resets on one shared connection.
+
 - Add authenticated CONNECT proxy workloads to all four comparison clients.
 
 - Add bounded GET redirect chains and per-hop counts to comparison workloads.

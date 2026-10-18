@@ -81,7 +81,12 @@ def quantile(values, q):
 
 
 def summarize(raw, measurements):
-    good = [sample for sample in raw["samples"] if sample["error"] is None]
+    good = [
+        sample
+        for sample in raw["samples"]
+        if sample["error"] is None and not sample.get("cancelled", False)
+    ]
+    cancelled = [sample for sample in raw["samples"] if sample.get("cancelled", False)]
     failed = [sample for sample in raw["samples"] if sample["error"] is not None]
     seconds = raw["elapsed_ns"] / 1e9
     cpu = sum(
@@ -111,6 +116,11 @@ def summarize(raw, measurements):
     }
     return {
         "successes": len(good),
+        "cancelled": len(cancelled),
+        "cancellation_end_ns": {
+            "p50": quantile([sample["complete_ns"] for sample in cancelled], 0.5),
+            "p99": quantile([sample["complete_ns"] for sample in cancelled], 0.99),
+        },
         "failures": len(failed),
         "elapsed_s": seconds,
         "expected_observations_beyond_p99": len(good) * 0.01,
@@ -144,9 +154,21 @@ def accepted(summary, config, phase):
         if config.get("protocol") == "construct"
         else config.get("requests", 2000) + config.get("warmup", 100)
     )
-    expected = logical * (config.get("redirects", 0) + 1)
+    cancellations = (
+        config.get("requests", 2000) // 2 if config.get("cancel_after_bytes", 0) else 0
+    )
+    expected = logical * (config.get("redirects", 0) + 1) - cancellations
     return (
         summary["failures"] == 0
+        and summary.get("cancelled", 0) == cancellations
+        and phase.get("cancelled_streams", 0) == cancellations
+        and (
+            not cancellations
+            or (
+                phase["connections"] == 1
+                and phase.get("cancelled_while_multiplexed", 0) > 0
+            )
+        )
         and phase["requests"] == expected
         and phase["failures"] == 0
         and phase.get("uploaded_bytes", 0) == expected * config.get("upload_bytes", 0)

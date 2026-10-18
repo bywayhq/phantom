@@ -281,3 +281,26 @@ in the other cases.
 - [Run the wreq adapter](wreq/README.md).
 - [Run the httpcloak adapter](httpcloak/README.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
+
+
+## Body cancellation
+
+Use `cancellation.json` for a correctness comparison on HTTP/2. Each client
+warms one connection, then closes even-numbered response bodies after the
+configured byte prefix. Odd-numbered requests consume their full bodies.
+The peer must observe typed HTTP/2 `CANCEL` resets, at least one reset while
+a full response is active, and every sibling response on the same connection.
+Other reset codes, partial sibling bodies and replacement connections fail.
+The peer waits for response/reset events before its snapshot, with a five
+second deadline. It records an incomplete settlement as a failure.
+
+Cancellation has its own `cancelled` outcome and `cancellation_end_ns` summary.
+`complete_ns` on these records ends at the caller's cancellation boundary.
+It does not claim body completion or peer acknowledgement. Cancelled bytes
+and operation times are excluded from completed-transfer throughput and
+response latency summaries. A cancellation threshold can be exceeded by
+one delivered chunk. Reaching the full body before cancelling fails.
+
+This workload covers body abandonment through each public response API.
+Setup and upload cancellation, HTTP/1.1 and HTTP/3 need separate workloads.
+Cancellation runs are diagnostic checks, not a speed comparison.

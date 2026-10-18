@@ -25,6 +25,7 @@ struct Sample {
     first_byte_ns: Option<u64>,
     complete_ns: u64,
     bytes: usize,
+    cancelled: bool,
     error: Option<String>,
 }
 
@@ -95,13 +96,17 @@ async fn request(
     } else {
         shared
     };
-    let url = &ready.urls[sample.id % ready.urls.len()];
+    let cancel = config.cancel_after_bytes != 0 && sample.id % 2 == 0;
+    let mut url = ready.urls[sample.id % ready.urls.len()].clone();
+    if cancel {
+        url.push_str("?cancel=1");
+    }
     let mut request = if config.method == "POST" {
         selected
-            .request(protocol(config), http::Method::POST, url)?
+            .request(protocol(config), http::Method::POST, &url)?
             .body(vec![b'U'; config.upload_bytes])
     } else {
-        selected.get(protocol(config), url)?
+        selected.get(protocol(config), &url)?
     };
     if config.gzip {
         request = request
@@ -144,6 +149,14 @@ async fn request(
                 if !data.iter().all(|byte| *byte == b'Z') {
                     return Err("incorrect response content".into());
                 }
+                if cancel && sample.bytes >= config.cancel_after_bytes {
+                    if sample.bytes >= config.bytes {
+                        return Err("body finished before cancellation".into());
+                    }
+                    sample.cancelled = true;
+                    sample.complete_ns = nanos(start.elapsed());
+                    return Ok(());
+                }
             }
         }
     }
@@ -179,6 +192,7 @@ fn sample(id: usize, scheduled_ns: u64, started_ns: u64) -> Sample {
         first_byte_ns: None,
         complete_ns: 0,
         bytes: 0,
+        cancelled: false,
         error: None,
     }
 }
@@ -210,7 +224,8 @@ pub(crate) async fn run(config: Config, ready: Ready, output: &Path) -> Result<(
     } else {
         let mut warmup = JoinSet::new();
         for worker in 0..config.concurrency {
-            let (config, ready, shared) = (config.clone(), ready.clone(), shared.clone());
+            let (mut config, ready, shared) = (config.clone(), ready.clone(), shared.clone());
+            config.cancel_after_bytes = 0;
             warmup.spawn(async move {
                 for id in (worker..config.warmup).step_by(config.concurrency) {
                     let result = execute(&config, &ready, &shared, sample(id, 0, 0)).await;

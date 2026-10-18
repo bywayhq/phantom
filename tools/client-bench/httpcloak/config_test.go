@@ -148,3 +148,24 @@ func TestProxyRoutingChecksEndpointAndCredentialSelection(t *testing.T) {
 		t.Fatal("proxy authentication accepted without proxy routing")
 	}
 }
+
+func TestCancellationRequiresPartialBodyAndLiveSibling(t *testing.T) {
+	c := validConfig()
+	c.Warmup = 1
+	c.CancelAfterBytes = 1024
+	if err := c.validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(*config){
+		func(c *config) { c.Protocol = "h1" },
+		func(c *config) { c.CancelAfterBytes = c.Bytes },
+		func(c *config) { c.Warmup = 0 },
+		func(c *config) { c.Cold = true },
+	} {
+		invalid := c
+		change(&invalid)
+		if err := invalid.validate(); err == nil {
+			t.Fatal("unsupported cancellation accepted")
+		}
+	}
+}
