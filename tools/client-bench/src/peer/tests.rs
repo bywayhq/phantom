@@ -330,7 +330,8 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
             Arc::new(Body::new(&config)?),
             stats.clone(),
         ));
-        let (mut sender, connection) = http2::client::handshake(client).await?;
+        let (mut sender, mut connection) = http2::client::handshake(client).await?;
+        let mut ping = connection.ping_pong().ok_or("missing H2 ping handle")?;
         let driver = tokio::spawn(connection);
         let (cancelled, mut reset) = sender.send_request(
             http::Request::builder()
@@ -355,12 +356,19 @@ async fn h2_body_cancel_preserves_the_sibling_stream() -> Result<()> {
         reset.send_reset(reason);
         drop(cancelled);
         if reason != http2::Reason::CANCEL {
+            // Flush the queued reset before stopping the connection driver.
+            tokio::time::timeout(Duration::from_secs(5), ping.ping(http2::Ping::opaque()))
+                .await??;
             driver.abort();
             assert!(driver.await.is_err_and(|error| error.is_cancelled()));
-            assert!(
-                tokio::time::timeout(Duration::from_secs(5), peer)
-                    .await??
-                    .is_err()
+            let error = tokio::time::timeout(Duration::from_secs(5), peer)
+                .await??
+                .expect_err("INTERNAL_ERROR must fail the peer");
+            assert_eq!(
+                error
+                    .downcast_ref::<http2::Error>()
+                    .and_then(http2::Error::reason),
+                Some(reason)
             );
             assert_eq!(stats.cancelled_streams.load(Ordering::Relaxed), 0);
             continue;
