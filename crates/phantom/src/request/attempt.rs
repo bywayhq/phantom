@@ -980,27 +980,66 @@ fn inject_cookie(
     protocol: HttpProtocol,
     headers: &mut Vec<RequestHeader>,
 ) {
+    let name = match protocol {
+        HttpProtocol::Http1 => "Cookie",
+        HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
+    };
+    if place_caller_cookies(&client.inner.cookie_placement, name, headers) {
+        return;
+    }
+
     #[cfg(feature = "cookies")]
-    if let Some(jar) = client.state.cookies.as_deref() {
-        let caller_supplied = headers
-            .iter()
-            .any(|header| header.name().eq_ignore_ascii_case("cookie"));
-        if !caller_supplied && let Some(value) = jar.request_value_for_url(&request.url) {
-            let name = match protocol {
-                HttpProtocol::Http1 => "Cookie",
-                HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
-            };
-            let index = client
-                .inner
-                .cookie_placement
-                .insertion_index(headers.iter().map(RequestHeader::name))
-                .unwrap_or(headers.len());
-            headers.insert(index, RequestHeader::new(name, value).sensitive());
-        }
+    if let Some(jar) = client.state.cookies.as_deref()
+        && let Some(value) = jar.request_value_for_url(&request.url)
+    {
+        let index = client
+            .inner
+            .cookie_placement
+            .insertion_index(headers.iter().map(RequestHeader::name))
+            .unwrap_or(headers.len());
+        headers.insert(index, RequestHeader::new(name, value).sensitive());
     }
 
     #[cfg(not(feature = "cookies"))]
-    let _ = (client, request, protocol, headers);
+    let _ = request;
+}
+
+fn place_caller_cookies(
+    placement: &phantom_profile::CookiePlacement,
+    name: &str,
+    headers: &mut Vec<RequestHeader>,
+) -> bool {
+    if !headers
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case("cookie"))
+    {
+        return false;
+    }
+    let mut cookies = Vec::new();
+    let mut index = 0;
+    while index < headers.len() {
+        if !headers[index].name().eq_ignore_ascii_case("cookie") {
+            index += 1;
+            continue;
+        }
+        let header = headers.remove(index);
+        let header = if header.name() == name {
+            header
+        } else {
+            let renamed = RequestHeader::new(name, header.value());
+            if header.is_sensitive() {
+                renamed.sensitive()
+            } else {
+                renamed
+            }
+        };
+        cookies.push(header);
+    }
+    let index = placement
+        .insertion_index(headers.iter().map(RequestHeader::name))
+        .unwrap_or(headers.len());
+    headers.splice(index..index, cookies);
+    true
 }
 
 pub(super) struct DispatchOutcome {
@@ -1421,6 +1460,78 @@ mod tests {
         retry::ConnectionSetupRetryState,
         timeout::TimeoutBudget,
     };
+
+    #[test]
+    fn caller_cookies_keep_values_order_and_sensitivity_at_the_profile_position() {
+        use phantom_net::request::RequestHeader;
+        use phantom_profile::CookiePlacement;
+
+        for name in ["Cookie", "cookie"] {
+            let mut headers = vec![
+                RequestHeader::new("coOKie", "first=1; opaque=two").sensitive(),
+                RequestHeader::new("accept", "*/*"),
+                RequestHeader::new("priority", "u=4"),
+                RequestHeader::new("COOKIE", "last=3"),
+                RequestHeader::new("x-after", "kept"),
+            ];
+            assert!(super::place_caller_cookies(
+                &CookiePlacement::before_fields(["PRIORITY"]),
+                name,
+                &mut headers,
+            ));
+            assert_eq!(
+                headers.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+                ["accept", name, name, "priority", "x-after"]
+            );
+            assert_eq!(headers[1].value(), b"first=1; opaque=two");
+            assert!(headers[1].is_sensitive());
+            assert_eq!(headers[2].value(), b"last=3");
+            assert!(!headers[2].is_sensitive());
+        }
+    }
+
+    #[test]
+    fn caller_cookies_go_last_without_a_matching_placement_field() {
+        use phantom_net::request::RequestHeader;
+        use phantom_profile::CookiePlacement;
+
+        for placement in [
+            CookiePlacement::last(),
+            CookiePlacement::before_fields(["cookie", "absent"]),
+        ] {
+            let mut headers = vec![
+                RequestHeader::new("cookie", "first=1"),
+                RequestHeader::new("x-kept", "value"),
+                RequestHeader::new("cookie", "last=2"),
+            ];
+            assert!(super::place_caller_cookies(
+                &placement,
+                "cookie",
+                &mut headers
+            ));
+            assert_eq!(
+                headers.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+                ["x-kept", "cookie", "cookie"]
+            );
+            assert_eq!(headers[1].value(), b"first=1");
+            assert_eq!(headers[2].value(), b"last=2");
+        }
+    }
+
+    #[test]
+    fn cookie_placement_leaves_a_cookieless_list_untouched() {
+        use phantom_net::request::RequestHeader;
+        use phantom_profile::CookiePlacement;
+
+        let mut headers = vec![RequestHeader::new("x-kept", "value").sensitive()];
+        let original = headers.clone();
+        assert!(!super::place_caller_cookies(
+            &CookiePlacement::last(),
+            "cookie",
+            &mut headers,
+        ));
+        assert!(headers == original);
+    }
 
     fn status_policy() -> Result<RetryPolicy, crate::StatusRetryError> {
         Ok(RetryPolicy::none()

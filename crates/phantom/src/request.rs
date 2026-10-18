@@ -223,7 +223,11 @@ impl RequestBuilder {
         Ok(self)
     }
 
-    /// Appends a request header, keeping its spelling and position.
+    /// Appends a request header to the ordered caller fields.
+    ///
+    /// Fields keep their spelling and position unless a request template places
+    /// them. Caller cookies follow the profile's [`phantom_profile::CookiePlacement`]:
+    /// their names become `Cookie` on HTTP/1.1 and `cookie` on HTTP/2 and HTTP/3.
     ///
     /// A new builder has no caller headers. The URI supplies `Host`.
     /// If you add a `Host` header, [`Self::send`] returns
@@ -351,10 +355,11 @@ impl RequestBuilder {
     /// template entry's position and spelling. It keeps your value. A literal
     /// entry without a matching caller header sends the template's value.
     /// Other caller headers follow the template.
-    /// Templates carry no `Cookie` entry: the cookie jar's field is then
-    /// inserted among the headers by the profile's
-    /// [`CookiePlacement`](crate::profile::CookiePlacement), last by default,
-    /// unless the caller supplies a `Cookie` field. Profile client hints then
+    /// Templates carry no `Cookie` entry: caller cookie fields, or the jar's
+    /// field when none are supplied, follow the profile's
+    /// [`CookiePlacement`](crate::profile::CookiePlacement), last by default.
+    /// Caller values and duplicate order are preserved. Names become `Cookie`
+    /// on HTTP/1.1 and `cookie` on HTTP/2 and HTTP/3. Profile client hints then
     /// fill the template's client-hint slots. On HTTP/2, the template's
     /// [`http2_priority`](crate::profile::RequestTemplate::http2_priority)
     /// replaces the connection's HEADERS priority for this request's stream.

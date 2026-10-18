@@ -10,6 +10,11 @@
   **Breaking:** `StatusRetry::honor_retry_after` now sets a minimum wait
   instead of shortening the configured retry delay. Migrate: pass an initial
   delay of zero to `StatusRetry::new` to follow only the honored server delay.
+- **Breaking:** apply profile `CookiePlacement` to caller-supplied cookies as
+  well as cookie-jar fields. Keep caller values, duplicate order and sensitivity,
+  with protocol-specific field spelling. This works without the `cookies` feature.
+  Migrate: set `CookiePlacement::before_fields` for a custom position; caller
+  cookie positions in the input list no longer determine their wire position.
 - Add `Client::close_idle_connections` to release idle origin and proxy
   connections while retaining active work, TLS tickets and session state.
 - Rebuild the user documentation around docs.rs: a short README, an API

@@ -16,8 +16,8 @@ use http::{Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, ClientBuilder, HttpProtocol, PreparedRequestTemplate, RedirectPolicy, RequestErrorKind,
-    ResponseInfo,
-    profile::{ClientProfile, RequestField, RequestTemplate},
+    RequestHeader, ResponseInfo,
+    profile::{ClientProfile, CookiePlacement, RequestField, RequestTemplate},
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -622,11 +622,10 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
 /// to the first origin, as the caller's own do: Fetch's HTTP-redirect fetch
 /// removes `Authorization` there whoever set it.
 #[tokio::test]
-async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
+async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestResult<()> {
     let mut first = None;
     let mut second = None;
     let primary = bounded(async {
-        let identity = TestIdentity::generate()?;
         let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let first_address = first_listener.local_addr()?;
         let second_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -656,7 +655,9 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
             restarts_for_connection_accept_ch: false,
         })?;
 
-        let session = client_builder(&identity, false)
+        let profile = ClientProfile::new(tls_support::tls_settings())
+            .with_cookie_placement(CookiePlacement::before_fields(["X-Kept"]));
+        let session = Client::builder(profile)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::new(3).ok_or("zero")?))
             .build()?;
         let response = session
@@ -665,6 +666,7 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
                 &format!("http://{first_address}/first"),
             )?
             .template(&template)
+            .header(RequestHeader::new("cOoKiE", "manual=kept").sensitive())
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -687,6 +689,14 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
                 credentials,
                 "{path}"
             );
+            assert_eq!(contains_header(&head, b"cookie"), credentials, "{path}");
+            if credentials {
+                let text = std::str::from_utf8(&head)?;
+                assert!(
+                    text.contains("\r\nCookie: manual=kept\r\nX-Kept: yes\r\n"),
+                    "{path}"
+                );
+            }
             assert!(contains_header(&head, b"x-kept"), "{path}");
         }
         Ok(())

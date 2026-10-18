@@ -1,11 +1,14 @@
-//! Position of the automatic `Cookie` request field.
+//! Position of HTTP request cookie fields.
 
-/// Where a client inserts the `Cookie` field computed from its cookie jar.
+/// Where a client places caller-supplied or cookie-jar `Cookie` fields.
 ///
 /// The field goes immediately before the first request field whose name
 /// equals one of the listed names, compared ASCII case-insensitively, or last
 /// when no listed field is present. The default lists no names, so the field
-/// always goes last. A caller-supplied `Cookie` field is never moved.
+/// always goes last. Multiple caller fields stay together in their original
+/// order and suppress the cookie jar's field. Their value bytes and sensitivity
+/// marks stay unchanged. Names become `Cookie` on HTTP/1.1 and `cookie` on
+/// HTTP/2 and HTTP/3, including builds without the `cookies` feature.
 ///
 /// The placement applies to HTTP requests, including event-source requests.
 /// It does not affect WebSocket opening requests: those take the jar's value

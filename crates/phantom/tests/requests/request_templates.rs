@@ -46,6 +46,7 @@ use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
 use wire::{Priority, RecordingIo, headers_priority};
 
+mod caller_cookie;
 mod default_profile;
 mod fixture;
 mod owner_contract;
@@ -610,10 +611,11 @@ fn serve_http3(
     let (address, endpoint) = server_endpoint(identity)?;
     let server = tokio::spawn(async move {
         let (request, mut stream, _connection) = accept_request(&endpoint).await?;
-        // The decoder appends fields in wire order and names are distinct,
-        // so map iteration keeps that order.
         let fields = request
-            .headers()
+            .extensions()
+            .get::<h3::ext::OrderedHeaders>()
+            .ok_or("HTTP/3 request has no ordered fields")?
+            .as_slice()
             .iter()
             .map(|(name, value)| {
                 (
