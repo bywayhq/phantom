@@ -24,7 +24,7 @@ impl Upload {
     }
 
     pub(super) fn head(&self, method: &Method, headers: &HeaderMap, http1: bool) -> Result<()> {
-        if method != &self.method || headers.contains_key(header::TRANSFER_ENCODING) {
+        if method != self.method || headers.contains_key(header::TRANSFER_ENCODING) {
             return Err("unexpected upload method or transfer encoding".into());
         }
         let mut lengths = headers.get_all(header::CONTENT_LENGTH).iter();
