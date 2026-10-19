@@ -30,7 +30,7 @@ inventory uses the Windows name.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,374 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-http` | 1,378 | Application client, ordered requests, responses, state, custom profile import |
 | `phantom-net` | 1,647 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 1,041 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 291 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
