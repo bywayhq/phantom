@@ -27,7 +27,7 @@ cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
 danger-disable-verification = ["phantom-net/danger-disable-verification"]
 diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
 fingerprint-import = ["dep:serde", "dep:serde_json"]
-full = ["charset", "cookies", "fingerprint-import", "https-records", "json", "serde", "session-snapshot", "sse", "websocket-deflate"]
+full = ["charset", "cookies", "fingerprint-import", "https-records", "json", "serde", "session-snapshot", "sse", "websocket-deflate", "xml"]
 https-records = ["phantom-net/https-records", "dep:base64"]
 json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
@@ -35,6 +35,7 @@ session-snapshot = []
 sse = ["dep:futures-core", "tokio/time"]
 websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 websocket-deflate = ["websocket", "dep:tungstenite", "tungstenite/deflate"]
+xml = ["dep:quick-xml", "dep:serde"]
 
 [dependencies]
 base64 = { version = "=0.22.1", optional = true }
@@ -56,6 +57,7 @@ phantom-net = { version = "=0.2.0", path = "../phantom-net" }
 phantom-profile = { version = "=0.2.0", path = "../phantom-profile" }
 pin-project-lite = "=0.2.17"
 psl = { version = "=2.1.241", optional = true }
+quick-xml = { version = "=0.42.0", optional = true, default-features = false, features = ["serialize"] }
 serde = { workspace = true, optional = true }
 serde_json = { version = "1.0.151", optional = true }
 sfv.workspace = true

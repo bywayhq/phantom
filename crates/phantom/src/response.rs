@@ -9,6 +9,10 @@ use crate::{ContentCoding, HttpProtocol, RequestError, ResponseBody};
 mod charset;
 #[cfg(feature = "charset")]
 pub use charset::response_text_with_charset;
+#[cfg(feature = "xml")]
+mod xml;
+#[cfg(feature = "xml")]
+pub use xml::response_xml;
 
 /// Returns an error for a 4xx or 5xx response without reading its body.
 ///
@@ -199,6 +203,9 @@ pub enum ResponseReadErrorKind {
     /// The collected JSON could not be deserialized.
     #[cfg(feature = "json")]
     Json,
+    /// The XML is unsupported, malformed, or could not be deserialized.
+    #[cfg(feature = "xml")]
+    Xml,
 }
 
 /// A response read failure with the original status, headers and metadata.
@@ -206,7 +213,7 @@ pub enum ResponseReadErrorKind {
 /// The body has been dropped. [`Self::response`] and [`Self::into_response`]
 /// expose the unchanged response parts with a unit body. Formatting includes
 /// only status and failure category. [`StdError::source`] returns the original
-/// body, UTF-8 or JSON error for detailed inspection. Charset failures expose
+/// body, UTF-8, JSON or XML error for detailed inspection. Charset failures expose
 /// their category through [`Self::kind`] without retaining supplied text.
 pub struct ResponseReadError {
     response: Box<Response<()>>,
@@ -220,6 +227,8 @@ enum ResponseReadCause {
     Charset(charset::TextError),
     #[cfg(feature = "json")]
     Json(serde_json::Error),
+    #[cfg(feature = "xml")]
+    Xml(xml::XmlError),
 }
 
 impl ResponseReadError {
@@ -233,6 +242,8 @@ impl ResponseReadError {
             ResponseReadCause::Charset(error) => error.kind(),
             #[cfg(feature = "json")]
             ResponseReadCause::Json(_) => ResponseReadErrorKind::Json,
+            #[cfg(feature = "xml")]
+            ResponseReadCause::Xml(_) => ResponseReadErrorKind::Xml,
         }
     }
 
@@ -288,6 +299,8 @@ impl fmt::Display for ResponseReadError {
             ResponseReadErrorKind::TextLimit => "response text exceeds its resource limit",
             #[cfg(feature = "json")]
             ResponseReadErrorKind::Json => "response body could not be read as JSON",
+            #[cfg(feature = "xml")]
+            ResponseReadErrorKind::Xml => "response body could not be read as XML",
         };
         write!(formatter, "{message} (HTTP {})", self.response.status())
     }
@@ -302,6 +315,8 @@ impl StdError for ResponseReadError {
             ResponseReadCause::Charset(_) => None,
             #[cfg(feature = "json")]
             ResponseReadCause::Json(error) => Some(error),
+            #[cfg(feature = "xml")]
+            ResponseReadCause::Xml(error) => Some(error),
         }
     }
 }

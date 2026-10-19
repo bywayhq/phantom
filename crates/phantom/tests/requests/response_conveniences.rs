@@ -26,6 +26,8 @@ use crate::support::tls::{TestResult, read_head, tls_settings};
 #[cfg(feature = "charset")]
 mod charset;
 mod peer_contract;
+#[cfg(feature = "xml")]
+mod xml;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const PRIVATE: &str = "https://example.test/private?token=sensitive";

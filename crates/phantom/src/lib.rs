@@ -78,6 +78,8 @@ pub use request_slots::{RequestSlotError, RequestSlotErrorKind, RequestSlots};
 pub use response::response_json;
 #[cfg(feature = "charset")]
 pub use response::response_text_with_charset;
+#[cfg(feature = "xml")]
+pub use response::response_xml;
 pub use response::{
     ResponseInfo, ResponseReadError, ResponseReadErrorKind, StatusError, error_for_status,
     response_bytes, response_text,

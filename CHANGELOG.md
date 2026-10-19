@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add the optional `xml` feature and `response_xml` for bounded typed UTF-8
+  response reads that preserve metadata. Reject DOCTYPE declarations,
+  unsupported encodings, multiple roots and nesting beyond 128 levels.
+
 - Add a controlled HTTP/2 upload cancellation comparison. Check remote stream
   cancellation after received headers, zero request DATA, and a healthy request
   on the same connection.

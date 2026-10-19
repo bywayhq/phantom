@@ -175,6 +175,12 @@ The byte limit bounds the JSON input, not allocations made by deserialization.
 Body, UTF-8, and JSON failures return a [`ResponseReadError`](crate::ResponseReadError)
 with the original response metadata. Read errors can occur after headers arrive.
 
+Enable `xml` and use [`response_xml`](crate::response_xml) for typed UTF-8 XML.
+It accepts one document, rejects DOCTYPE declarations, and limits nesting to
+128 levels. The XML declaration must name UTF-8 if it names an encoding.
+The input cap does not bound deserializer allocations. Parsing is synchronous
+after the bounded body read; cancellation cannot interrupt that parsing.
+
 Content decoding is off by default. To read a compressed response, advertise its
 codings with `Accept-Encoding` and enable
 [`ContentDecoding::advertised`](crate::ContentDecoding::advertised). Collection
