@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add bounded streaming multipart uploads with ordered fields, duplicate names,
+  async readers and explicit filenames and boundaries. Reader data is pulled
+  in 8 KiB chunks; incomplete uploads remain one-shot and cancellable.
+
 - Add bounded custom redirect policies with resolved URL and method context.
   Callbacks can follow, stop with the redirect response, or reject a hop.
   **Breaking:** `RedirectPolicy` is now `Clone` rather than `Copy` and no longer

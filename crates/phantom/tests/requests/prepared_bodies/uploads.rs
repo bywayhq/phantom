@@ -31,6 +31,7 @@ use crate::support::{
 };
 
 mod lifecycle_contract;
+mod streaming;
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 type Server = ConnectionPeer<TestResult<Observed>>;
@@ -96,6 +97,29 @@ pub(super) async fn read_upload<T: AsyncRead + Unpin>(
     assert!(length <= 4096, "test body limit");
     let mut body = vec![0; length];
     stream.read_exact(&mut body).await?;
+    if fields
+        .iter()
+        .any(|(name, value)| name.eq_ignore_ascii_case("transfer-encoding") && value == b"chunked")
+    {
+        loop {
+            let mut line = Vec::new();
+            while !line.ends_with(b"\r\n") {
+                assert!(line.len() < 32, "chunk size line limit");
+                line.push(stream.read_u8().await?);
+            }
+            let length = usize::from_str_radix(std::str::from_utf8(&line[..line.len() - 2])?, 16)?;
+            assert!(length <= 4096 - body.len(), "test body limit");
+            let start = body.len();
+            body.resize(start + length, 0);
+            stream.read_exact(&mut body[start..]).await?;
+            let mut separator = [0; 2];
+            stream.read_exact(&mut separator).await?;
+            assert_eq!(&separator, b"\r\n");
+            if length == 0 {
+                break;
+            }
+        }
+    }
     Ok(Observed {
         method: head.method().to_vec(),
         fields,

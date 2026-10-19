@@ -5,6 +5,9 @@ use bytes::Bytes;
 const MAX_MULTIPART_PARTS: usize = 1024;
 const MAX_METADATA_BYTES: usize = 4096;
 
+mod streaming;
+pub use streaming::{MultipartStreamError, StreamingMultipartBody, StreamingMultipartPart};
+
 /// Prepare replayable request bytes and their exact content type.
 ///
 /// Every constructor requires an encoded byte limit. The limit includes
@@ -155,11 +158,7 @@ impl PreparedRequestBody {
     where
         I: IntoIterator<Item = MultipartPart<'a>>,
     {
-        if boundary.is_empty() || boundary.len() > 70 || !boundary.bytes().all(is_boundary_byte) {
-            return Err(PreparedBodyError::new(
-                PreparedBodyErrorKind::InvalidBoundary,
-            ));
-        }
+        let content_type = multipart_content_type(boundary)?;
         let delimiter = format!("--{boundary}");
         let mut output = BodyBuffer::new(maximum_bytes);
         for (index, part) in parts.into_iter().enumerate() {
@@ -180,20 +179,7 @@ impl PreparedRequestBody {
             }
             // RFC 7578 sections 4.1-4.4 and 5.2:
             // https://www.rfc-editor.org/rfc/rfc7578.html#section-4.1
-            output.append(delimiter.as_bytes())?;
-            output.append(b"\r\nContent-Disposition: form-data; name=\"")?;
-            write_parameter(&mut output, part.name.as_bytes(), true)?;
-            output.append(b"\"")?;
-            if let Some(filename) = part.filename {
-                output.append(b"; filename=\"")?;
-                write_parameter(&mut output, filename.as_bytes(), false)?;
-                output.append(b"\"")?;
-            }
-            if let Some(content_type) = part.content_type {
-                output.append(b"\r\nContent-Type: ")?;
-                output.append(content_type.as_bytes())?;
-            }
-            output.append(b"\r\n\r\n")?;
+            write_multipart_header(&mut output, &delimiter, &part)?;
             if part.normalize_text {
                 write_text(&mut output, part.data)?;
             } else {
@@ -203,14 +189,9 @@ impl PreparedRequestBody {
         }
         output.append(delimiter.as_bytes())?;
         output.append(b"--\r\n")?;
-        let content_type = if boundary.bytes().all(is_token_byte) {
-            format!("multipart/form-data; boundary={boundary}")
-        } else {
-            format!("multipart/form-data; boundary=\"{boundary}\"")
-        };
         Ok(Self {
             bytes: output.bytes.into(),
-            content_type: content_type.into(),
+            content_type,
         })
     }
 
@@ -504,6 +485,40 @@ fn validate_parameter(value: &str, kind: PreparedBodyErrorKind) -> Result<(), Pr
         return Err(PreparedBodyError::new(kind));
     }
     Ok(())
+}
+
+fn multipart_content_type(boundary: &str) -> Result<Box<str>, PreparedBodyError> {
+    if boundary.is_empty() || boundary.len() > 70 || !boundary.bytes().all(is_boundary_byte) {
+        return Err(PreparedBodyError::new(
+            PreparedBodyErrorKind::InvalidBoundary,
+        ));
+    }
+    Ok(if boundary.bytes().all(is_token_byte) {
+        format!("multipart/form-data; boundary={boundary}").into()
+    } else {
+        format!("multipart/form-data; boundary=\"{boundary}\"").into()
+    })
+}
+
+fn write_multipart_header(
+    output: &mut BodyBuffer,
+    delimiter: &str,
+    part: &MultipartPart<'_>,
+) -> Result<(), PreparedBodyError> {
+    output.append(delimiter.as_bytes())?;
+    output.append(b"\r\nContent-Disposition: form-data; name=\"")?;
+    write_parameter(output, part.name.as_bytes(), true)?;
+    output.append(b"\"")?;
+    if let Some(filename) = part.filename {
+        output.append(b"; filename=\"")?;
+        write_parameter(output, filename.as_bytes(), false)?;
+        output.append(b"\"")?;
+    }
+    if let Some(content_type) = part.content_type {
+        output.append(b"\r\nContent-Type: ")?;
+        output.append(content_type.as_bytes())?;
+    }
+    output.append(b"\r\n\r\n")
 }
 
 fn is_boundary_byte(byte: u8) -> bool {

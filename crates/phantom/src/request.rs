@@ -495,6 +495,32 @@ impl RequestBuilder {
         self
     }
 
+    /// Streams multipart fields and files with ordered content-type placement.
+    ///
+    /// Uses the same caller-slot or matching-header rules as [`Self::prepared_body`].
+    /// The body is one-shot. A required resend fails before starting another attempt.
+    ///
+    /// ```no_run
+    /// # async fn upload(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// use phantom::{HttpProtocol, Method, RequestHeader, StreamingMultipartBody, StreamingMultipartPart};
+    ///
+    /// let file = tokio::fs::File::open("upload.bin").await?;
+    /// let field = StreamingMultipartPart::reader("file", file)?.with_filename("upload.bin")?;
+    /// let body = StreamingMultipartBody::new("caller-boundary", [field], 16 * 1024 * 1024)?;
+    /// let response = client.request(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
+    ///     .header(RequestHeader::new("content-type", body.content_type()))
+    ///     .multipart_body(body).send().await?;
+    /// # drop(response);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn multipart_body(mut self, body: crate::StreamingMultipartBody) -> Self {
+        self.prepared_content_type = Some(body.content_type().into());
+        self.body = RequestBodySource::Streaming(Some(RequestBody::streaming(body)));
+        self.body_declares_alt_used_trailer = false;
+        self
+    }
+
     /// Sets one pull-driven request body consumed by at most one wire attempt.
     ///
     /// Data frames are streamed with transport backpressure and are never

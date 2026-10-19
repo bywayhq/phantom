@@ -57,8 +57,11 @@ prepares a JSON upload in the same way. The value must implement
 position; a prepared body does not insert it at an arbitrary position.
 
 For existing bytes, use [`RequestBuilder::body`](crate::RequestBuilder::body) and
-set their content type yourself. For multipart uploads or large streaming bodies,
-see [`PreparedRequestBody`](crate::PreparedRequestBody) and
+set their content type yourself. To upload files without collecting them, use
+[`StreamingMultipartBody`](crate::StreamingMultipartBody) and
+[`RequestBuilder::multipart_body`](crate::RequestBuilder::multipart_body).
+Supply a boundary and an encoded-byte limit. The body streams readers in order
+and cannot be resent. For other streaming bodies, use
 [`RequestBuilder::streaming_body`](crate::RequestBuilder::streaming_body).
 
 ## Check the status

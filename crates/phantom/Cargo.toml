@@ -55,7 +55,7 @@ psl = { version = "=2.1.238", optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { version = "1.0.151", optional = true }
 sfv.workspace = true
-tokio = { version = "1.53.1", features = ["rt", "sync", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "rt", "sync", "time"] }
 tokio-tungstenite = { workspace = true, optional = true }
 tungstenite = { workspace = true, optional = true }
 tracing = "0.1.41"

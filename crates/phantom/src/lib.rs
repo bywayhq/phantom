@@ -59,7 +59,8 @@ pub use redirect::{
 };
 pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use request_body::{
-    MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,
+    MultipartPart, MultipartStreamError, PreparedBodyError, PreparedBodyErrorKind,
+    PreparedRequestBody, StreamingMultipartBody, StreamingMultipartPart,
 };
 pub use request_hook::{
     RequestErrorHookContext, RequestHookContext, RequestHooks, ResponseHookContext,
