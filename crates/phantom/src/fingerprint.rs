@@ -1,11 +1,11 @@
 //! Inspect, edit and name custom profiles without assigning catalog evidence.
 //!
 //! Enable `fingerprint-import` to edit complete settings with
-//! [`describe_profile`] and [`import_profile_json`]. Compact observations need
-//! an explicit base for the fields they omit. Use [`import_ja3_profile`],
-//! [`import_ja4_profile`], [`import_client_hello_profile`],
-//! [`import_quic_transport_profile`] or [`import_akamai_profile`], then inspect
-//! [`ImportedProfile::supplemented_fields`] before using the result.
+//! [`describe_profile`](crate::fingerprint::describe_profile) and [`import_profile_json`](crate::fingerprint::import_profile_json). Compact observations need
+//! an explicit base for the fields they omit. Use [`import_ja3_profile`](crate::fingerprint::import_ja3_profile),
+//! [`import_ja4_profile`](crate::fingerprint::import_ja4_profile), [`import_client_hello_profile`](crate::fingerprint::import_client_hello_profile),
+//! [`import_quic_transport_profile`](crate::fingerprint::import_quic_transport_profile) or [`import_akamai_profile`](crate::fingerprint::import_akamai_profile), then inspect
+//! [`ImportedProfile::supplemented_fields`](crate::fingerprint::ImportedProfile::supplemented_fields) before using the result.
 //!
 //! JA3 and JA4 hashes cannot recover settings. Raw fingerprints only constrain
 //! their documented fields. A successful import creates custom settings; it
