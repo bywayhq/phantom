@@ -411,11 +411,20 @@ impl ClientOptions {
             http3_early_data,
             #[cfg(feature = "https-records")]
             https_record_resolver,
+            #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+            https_record_checkpoint_namespace,
             #[cfg(feature = "cookies")]
             cookie_jar,
         } = self;
         #[cfg(feature = "https-records")]
         formatter.field("alt_svc_https_policy", alt_svc_https_policy);
+        #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+        formatter.field(
+            "https_record_checkpoint_namespace",
+            &https_record_checkpoint_namespace
+                .as_ref()
+                .map(|_| "[configured]"),
+        );
         formatter
             .field("redirect_policy", redirect_policy)
             .field("retry_policy", retry_policy)

@@ -64,10 +64,20 @@ fn client_builder_sets_every_client_option() {
         .alt_svc_https_policy(crate::AltSvcHttpsPolicy::Destination {
             lookup_timeout: Duration::from_millis(250),
         });
+    #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+    let builder = builder.https_record_checkpoint_namespace("private/checkpoint-policy");
     #[cfg(feature = "cookies")]
     let builder = builder.cookies();
     let debug = format!("{builder:?}");
     assert!(debug.contains("http3_early_data: Some(false)"), "{debug}");
+    #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+    {
+        assert!(
+            debug.contains("https_record_checkpoint_namespace: Some(\"[configured]\")"),
+            "{debug}"
+        );
+        assert!(!debug.contains("private/checkpoint-policy"), "{debug}");
+    }
 
     let defaults = ClientOptions::default();
     let ClientOptions {
@@ -92,6 +102,8 @@ fn client_builder_sets_every_client_option() {
         http3_early_data,
         #[cfg(feature = "https-records")]
         https_record_resolver,
+        #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+        https_record_checkpoint_namespace,
         #[cfg(feature = "https-records")]
         alt_svc_https_policy,
         #[cfg(feature = "cookies")]
@@ -157,6 +169,11 @@ fn client_builder_sets_every_client_option() {
     assert_ne!(http3_early_data, defaults.http3_early_data);
     #[cfg(feature = "https-records")]
     assert!(https_record_resolver.is_some() && defaults.https_record_resolver.is_none());
+    #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+    assert_eq!(
+        https_record_checkpoint_namespace.as_deref(),
+        Some("private/checkpoint-policy")
+    );
     #[cfg(feature = "https-records")]
     assert_ne!(alt_svc_https_policy, defaults.alt_svc_https_policy);
     #[cfg(feature = "cookies")]
