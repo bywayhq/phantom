@@ -58,7 +58,7 @@ async fn http3_upload_counts_and_download_caps_use_body_bytes() -> TestResult<()
         )
         .add_root_certificate_der(identity.root_der.clone())
         .build()?;
-        let control = TransferControl::new(TransferLimits::new().upload_bytes(4).download_bytes(3));
+        let control = TransferControl::new(TransferLimits::new().upload_bytes(4).download_bytes(0));
         let response = client
             .request(
                 HttpProtocol::Http3,
