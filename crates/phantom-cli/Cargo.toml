@@ -1,0 +1,28 @@
+[package]
+name = "phantom-cli"
+description = "Command-line HTTP requests with explicit browser profiles"
+readme = "README.md"
+keywords = ["http", "browser", "tls", "cli"]
+categories = ["command-line-utilities", "web-programming::http-client"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "phantom"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "=4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
+http = "1.4.0"
+http-body = "1.1.0"
+http-body-util = "0.1.3"
+phantom = { package = "phantom-http", version = "=0.2.0", path = "../phantom", features = ["fingerprint-import"] }
+phantom-profile = { version = "=0.2.0", path = "../phantom-profile" }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["fs", "io-std", "io-util", "macros", "rt", "signal", "time"] }
+
+[lints]
+workspace = true
