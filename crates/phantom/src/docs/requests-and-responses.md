@@ -6,12 +6,17 @@ for the examples below. Keep it for later requests so they can share connections
 Cloning a client shares its connections and shutdown. Use
 [`Client::fork`](crate::Client::fork) for independent pools with the same settings.
 Select live cookies, DNS, client hints or discovery caches with
-[`SessionSharing`](crate::SessionSharing). Unselected state starts empty.
+[`SessionSharing`](crate::SessionSharing). Unselected state, TLS tickets and
+learned proxy authentication start empty. Shared caches reflect later changes
+and clearing in both directions; a fork does not enable disabled features.
 
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and
 appends them to the URL's query. Repeated names keep their order.
+[`ClientBuilder::base_url`](crate::ClientBuilder::base_url) enables relative URLs:
+`https://example.com/api/` plus `users` gives `/api/users`; `/users` starts at the
+origin root. Absolute URLs override the base, so it is not an origin restriction.
 
 ```no_run
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
@@ -29,7 +34,8 @@ println!("{}: {} bytes", response.status(), response.body().len());
 # }
 ```
 
-Without a request template, headers keep the order in which you add them.
+Without a request template, ordinary headers keep the order you add them.
+Caller cookies follow the profile's per-protocol cookie placement.
 Supply application headers here;
 use [Browser profiles](crate::guide::browser_profiles) for browser templates and
 client hints. Phantom derives `Host` from the URL, so do not add it yourself.
@@ -112,7 +118,7 @@ println!("{}", response.body());
 Enable `json` in your dependency to read a typed response:
 
 ```toml
-phantom = { package = "phantom-http", version = "0.1", features = ["json"] }
+phantom = { package = "phantom-http", version = "0.2", features = ["json"] }
 ```
 
 For an endpoint that accepts and returns a JSON array of strings:
@@ -227,6 +233,13 @@ Enable only the behavior you need:
   connection-setup retries, or on [`StatusRetry`](crate::StatusRetry) for
   status retries. An honored `Retry-After` sets a minimum wait. Delays remain
   inside the total deadline and existing retry budgets.
+- **Shared attempt allowance:** attach the same
+  [`HttpAttemptBudget`](crate::HttpAttemptBudget) to requests with
+  [`attempt_budget`](crate::RequestBuilder::attempt_budget). Initial attempts,
+  redirects and internal resends spend it atomically. Exhaustion returns
+  [`AttemptBudgetExhausted`](crate::RequestErrorKind::AttemptBudgetExhausted)
+  before another send. An admitted attempt can fail before sending bytes and
+  is not refunded. DNS, TLS and proxy setup keep their separate limits.
 - **Proxy routes:** follow [Using proxies](crate::guide::proxies).
 
 ## Observe requests and response heads

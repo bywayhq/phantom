@@ -42,6 +42,7 @@ A profile's platform names the configuration it represents. Check the
 constructor's API documentation for the included layers and any limitations:
 
 - [Chrome on Windows](crate::profile::browser::chrome::v154_windows)
+- [Chrome on macOS](crate::profile::browser::chrome::v154_macos)
 - [Chrome on Android](crate::profile::browser::chrome::v154_android)
 - [Firefox on Windows](crate::profile::browser::firefox::v157_windows)
 
@@ -116,7 +117,9 @@ caller values also produce a request error. See
 
 Supply ordinary header values with [header](crate::RequestBuilder::header).
 When a caller header matches a template entry, it keeps the template's position
-and spelling but uses your value. Other caller headers follow the template.
+and spelling but uses your value. Other caller headers follow the template,
+except `Cookie`: caller cookies follow the profile's per-protocol
+[CookiePlacement](crate::profile::CookiePlacement), as jar cookies do.
 Use this for values such as `Accept-Language` rather than rebuilding the entire
 template. Keep identity headers consistent with the selected profile; Phantom
 does not compare `User-Agent` and client-hint values for consistency.
@@ -135,9 +138,14 @@ your custom client; they no longer reproduce the unchanged built-in recipe.
 
 ## Import custom settings
 
-Enable `fingerprint-import` to use `phantom::fingerprint`. You can edit complete
-profiles as JSON or name them in a `ProfileRegistry`. For partial observations,
-supply a complete base profile for the settings the input leaves out:
+Enable `fingerprint-import` to use [`fingerprint`](crate::fingerprint).
+[`describe_profile`](crate::fingerprint::describe_profile) returns editable JSON;
+[`export_profile_json`](crate::fingerprint::export_profile_json) returns its bytes.
+Edit them and call [`import_profile_json`](crate::fingerprint::import_profile_json)
+to restore supported settings and ordering. A
+[`ProfileRegistry`](crate::fingerprint::ProfileRegistry) assigns your own names.
+Exports include literal header values, so keep documents containing credentials
+private. For partial observations, supply a complete base for missing settings:
 
 | Input | Import function |
 | --- | --- |

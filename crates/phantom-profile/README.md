@@ -5,14 +5,19 @@ change TLS, HTTP, QUIC, socket, WebSocket, and proxy CONNECT settings in one
 profile.
 
 Recipes are grouped under `browser::{chrome, edge, brave, opera, firefox}`.
-Use an explicit Windows or Android factory, such as `chrome::v154_windows()`.
-Factories compose the available connection layers and leave request headers
-without a template. You can set one with `ClientProfile::with_request_template`.
+Use a platform factory, such as `chrome::v154_windows()` or
+`chrome::v154_macos()`. Factories compose available connection layers and leave
+request headers without a template. Set one with
+`ClientProfile::with_request_template`.
+
+Windows factories include TCP, TLS, HTTP/1.1, HTTP/2, HTTP/3, WebSocket, proxy
+CONNECT, and cookie-placement settings. Client hints apply to Chromium browsers;
+Firefox sends none. macOS and Android factories cover fewer layers. Each
+constructor documents its included settings and generic defaults.
 
 Component functions keep custom layering available. `*_tcp_tls` supplies TLS
 for HTTP/1.1 and HTTP/2. `*_quic_tls` supplies TLS for QUIC and HTTP/3.
-Android factories include only the layers with recipes. Opera has TLS and
-client hints. Firefox has TLS only. There are no composed macOS factories.
+The `catalog` module lists exact browser builds, platforms, and layer coverage.
 
 Brave's version labels use the Chromium major. `v154_windows` describes
 Brave 1.96.59, and `v153_android` describes Brave 1.95.104.

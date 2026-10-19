@@ -27,7 +27,9 @@ finishing retired stores. Treat exported records and their keys as secrets.
 The records retain the receiving connection's QUIC version, remembered server
 parameters, application state and RTT. Parameter parsing does not validate
 HTTP/3 application state. The consumer must check that state before import.
-The application's `Client` snapshot API still supports direct TCP only.
+Applications can use `Client::export_session_tickets` and
+`Client::import_session_tickets` for TCP TLS and QUIC. Import checks the complete
+snapshot against the receiving client's profile, trust, peer, and route.
 
 The public API intentionally uses `btls` context types, `quinn-proto` config
 types and crypto traits, and `phantom-profile` settings. With `keylog`,

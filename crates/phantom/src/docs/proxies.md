@@ -121,6 +121,12 @@ the constructor rejects credentials in the URL. SOCKS5 does not encrypt its
 username/password exchange. [`Socks4Proxy`](crate::Socks4Proxy) also supports
 local DNS or SOCKS4a proxy DNS, but carries only TCP and cannot target IPv6.
 
+For explicit local DNS, use [`ClientBuilder::dns_resolver`](crate::ClientBuilder::dns_resolver)
+or [`resolve`](crate::ClientBuilder::resolve) overrides. With `https-records`,
+[`DnsOverTls`](crate::dns::DnsOverTls) and [`DnsOverHttps`](crate::dns::DnsOverHttps)
+provide encrypted resolvers with explicit bootstrap addresses and endpoint trust.
+A local resolver does not replace destination lookups delegated to a proxy.
+
 ## Opt in to environment settings
 
 Phantom connects directly by default and does not read operating-system

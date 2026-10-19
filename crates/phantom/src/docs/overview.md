@@ -47,6 +47,14 @@ Built-in profile constructors leave request templates unset; see
 Call [`Client::refresh_connections`](crate::Client::refresh_connections) to use
 fresh connections for later requests while active work finishes. Clones share
 the change. Tickets and session state stay available for the new connections.
+[`close_idle_connections`](crate::Client::close_idle_connections) releases idle
+connections while active work continues.
+
+For caller-owned persistence, export and import
+[cookies](crate::Client::export_cookies), [Alt-Svc](crate::Client::export_alt_svc),
+or encrypted [TLS tickets](crate::Client::export_session_tickets). These are
+separate snapshots; they do not restore a client's full configuration.
+Cookie APIs require `cookies`; ticket snapshots and their keys must stay private.
 
 ## Guides
 
@@ -84,7 +92,7 @@ uses to the `phantom` dependency in `Cargo.toml`.
 | `websocket` | WebSocket connections |
 | `websocket-deflate` | WebSocket compression; includes `websocket` |
 | `serde` | Cookie snapshot serialization, when `cookies` is also enabled |
-| `fingerprint-import` | Importing and exporting custom profiles as JSON |
+| `fingerprint-import` | Editable JSON profiles and partial TLS, QUIC and HTTP/2 imports |
 | `full` | All features above |
 | `diagnostics` | TLS key logs and QUIC qlog files; excluded from `full` |
 | `danger-disable-verification` | Disabling certificate verification for tests; excluded from `full` |

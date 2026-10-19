@@ -1,7 +1,7 @@
 # phantom-net
 
 Build Phantom connections over HTTP/1.1, HTTP/2, or HTTP/3. You can use its
-protocol transports with TLS profiles, HTTP proxies, SOCKS5, and CONNECT-UDP.
+protocol transports with TLS profiles, HTTP proxies, SOCKS4/5, and CONNECT-UDP.
 
 This internal crate supplies the transports used by `phantom-http`. Use the
 client crate for origin connection pools, redirects, cookies, and retries.
@@ -29,8 +29,10 @@ It validates every destination before swapping any store. Prepare accompanying
 client registry changes first, then apply them after replacement succeeds.
 Release registry locks before finishing the returned retirement handle.
 
-These lower-level operations do not extend the `Client` snapshot API, which
-still supports direct TCP only.
+For application code, use `Client::export_session_tickets` and
+`Client::import_session_tickets`. They support TCP TLS and QUIC with matching
+profile, trust, peer, and route settings. Custom TCP connectors cannot transfer
+tickets because callbacks have no persistent route identity.
 
 ## Next
 
