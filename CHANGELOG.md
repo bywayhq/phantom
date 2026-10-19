@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Retain capture failure causes through shared interruption handling. Move
+  macOS capture provenance checks into tested scripts, with failure phases
+  and command receipts preserved in the report. Capture acceptance is unchanged.
+
 - Generate browser profile constructors from the catalog's component selections.
   New versions no longer need Python target tables or handwritten composition.
   Keep specific evidence limits and expand omitted unavailable-layer records.
