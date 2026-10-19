@@ -309,7 +309,6 @@ impl Http2Pool {
             }
             let response_timeout =
                 timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
-            let sent_headers = headers.clone();
             let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::SendResponseHead,
                 Some(HttpProtocol::Http2.version()),
@@ -323,7 +322,7 @@ impl Http2Pool {
                                 method.clone(),
                                 authority,
                                 target.clone(),
-                                sent_headers.clone(),
+                                headers.clone(),
                                 body.take(),
                                 trailers.clone(),
                                 priority,
@@ -337,7 +336,7 @@ impl Http2Pool {
                                     method.clone(),
                                     authority,
                                     target.clone(),
-                                    sent_headers.clone(),
+                                    headers.clone(),
                                     body.take(),
                                     trailers.clone(),
                                     priority,
@@ -358,7 +357,7 @@ impl Http2Pool {
                             // permit admits next sees this stream ended.
                             ResponseBody::http2_with_guard(body, (lease.stream, permit)),
                         ),
-                        sent_headers,
+                        headers,
                     )));
                 }
                 Ok(Err(error)) => {

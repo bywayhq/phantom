@@ -8,6 +8,9 @@
 - Add authenticated CONNECT proxy workloads to all four comparison clients.
 
 - Add bounded GET redirect chains and per-hop counts to comparison workloads.
+- Avoid an extra copy of HTTP/2 request headers while preserving replay and
+  response metadata.
+
 - Add bounded POST uploads and verified peer upload totals to comparison workloads.
 - Keep capture lifecycle tests responsive to process-startup failures on Windows.
 - Add a pinned wreq adapter for controlled benchmark HTTP/1.1 and HTTP/2 GETs.
