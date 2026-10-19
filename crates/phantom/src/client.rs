@@ -692,6 +692,52 @@ impl Client {
         RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
+    /// Imports one complete HTTP/1.1 request into the ordinary request builder.
+    ///
+    /// Supply an absolute HTTP(S) destination. Its path and query must match
+    /// the message's origin-form target exactly. Its canonical authority must
+    /// match the single `Host` field, including an explicitly written port.
+    /// A client base URL does not resolve or replace this destination.
+    ///
+    /// This parses and reserializes a request; it does not replay wire bytes.
+    /// Ordinary fields retain spelling, duplicate order and value bytes after
+    /// surrounding whitespace is removed. `Host` is regenerated from the URL.
+    /// Templates, cookie placement, hooks, routes and replay policies still
+    /// apply, and all imported fields are marked sensitive for debugging.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// let request = b"GET /items?tag=a HTTP/1.1\r\nHost: example.com\r\nAccept: application/json\r\n\r\n";
+    /// let response = client
+    ///     .request_from_http1("https://example.com/items?tag=a", request, 8192)?
+    ///     .send()
+    ///     .await?;
+    /// println!("{}", response.status());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::RawRequestError`] before I/O for invalid input or
+    /// builder configuration. `maximum_bytes` bounds the entire supplied
+    /// message before copying. The head and destination each have a 32 KiB
+    /// limit; the head contains at most 100 fields, including `Host`.
+    ///
+    /// Only CRLF-framed HTTP/1.1 origin-form requests are accepted. A body
+    /// requires one canonical `Content-Length` matching all remaining bytes.
+    /// Duplicate lengths, transfer coding, trailers, upgrades, CONNECT,
+    /// asterisk targets and proxy authorization are rejected. Configure proxy
+    /// credentials through [`Route`]. No partial or pipelined message is accepted.
+    pub fn request_from_http1(
+        &self,
+        absolute_uri: &str,
+        raw: &[u8],
+        maximum_bytes: usize,
+    ) -> Result<RequestBuilder, crate::RawRequestError> {
+        crate::raw_request::import(self, absolute_uri, raw, maximum_bytes)
+    }
+
     /// Starts a GET that selects HTTP/2, HTTP/1.1 or a learned HTTP/3 alternative.
     ///
     /// You can use direct, SOCKS5 and HTTP proxy routes. For HTTPS origins,

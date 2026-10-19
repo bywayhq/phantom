@@ -59,6 +59,12 @@ Supply application headers here;
 use [Browser profiles](crate::guide::browser_profiles) for browser templates and
 client hints. Phantom derives `Host` from the URL, so do not add it yourself.
 
+To reuse a saved HTTP/1.1 request, call
+[`Client::request_from_http1`](crate::Client::request_from_http1) with its absolute
+destination and a byte limit. It checks the target, `Host` and body framing,
+then returns the same request builder. Templates and cookie placement still
+apply; this imports a request rather than replaying its original wire bytes.
+
 ## Custom connections
 
 Use [`ClientBuilder::tcp_connector`](crate::ClientBuilder::tcp_connector) when

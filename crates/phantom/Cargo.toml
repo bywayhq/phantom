@@ -48,6 +48,7 @@ flate2.workspace = true
 fastrand = "=2.5.0"
 http = "1.4.0"
 http-body = "1.1.0"
+httparse = "1.10.1"
 futures-core = { version = "=0.3.34", optional = true, default-features = false }
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["sink", "std"] }
 parking_lot = { version = "=0.12.5", optional = true }
@@ -104,6 +105,10 @@ path = "tests/http3/main.rs"
 [[test]]
 name = "streams"
 path = "tests/streams/main.rs"
+
+[[test]]
+name = "raw_request"
+path = "tests/raw_request.rs"
 
 [[example]]
 name = "autobahn-client"

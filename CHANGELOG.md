@@ -37,6 +37,11 @@
   package candidates with dependency notices and isolated installation checks
   on both Node.js versions.
 
+- Import bounded, complete HTTP/1.1 requests with `Client::request_from_http1`.
+  Match an explicit destination, retain supported field ordering and use the
+  normal request builder. Ambiguous framing and proxy credentials are rejected;
+  imports parse and reserialize requests rather than replaying wire bytes.
+
 - Share live TLS tickets with `SessionSharing::tickets(true)` across independent
   connection pools. Single-use tickets are consumed once, and bounded stores
   survive either client being dropped. Portable transfers reject ambiguous

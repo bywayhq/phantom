@@ -61,6 +61,7 @@ pub use error::{
 };
 pub use header_hook::{HeaderHookContext, HeaderHookError};
 pub use link::{Link, LinkParameter, LinkParseError, LinkParseErrorKind, parse_link_headers};
+pub use raw_request::{RawRequestError, RawRequestErrorKind};
 pub use redirect::{
     RedirectAttempt, RedirectDecision, RedirectHistory, RedirectHop, RedirectPolicy,
 };
@@ -138,6 +139,7 @@ mod environment_proxy;
 mod error;
 mod header_hook;
 mod link;
+mod raw_request;
 mod redirect;
 mod request;
 mod request_body;

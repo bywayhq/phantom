@@ -1581,6 +1581,7 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "httparse",
  "parking_lot",
  "phantom-btls",
  "phantom-h3",
