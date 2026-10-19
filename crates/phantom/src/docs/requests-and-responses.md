@@ -29,6 +29,16 @@ Supply application headers here;
 use [Browser profiles](crate::guide::browser_profiles) for browser templates and
 client hints. Phantom derives `Host` from the URL, so do not add it yourself.
 
+## Custom connections
+
+Use [`ClientBuilder::tcp_connector`](crate::ClientBuilder::tcp_connector) when
+an application opens its own streams. On Unix,
+[`TcpConnector::unix_socket`](crate::TcpConnector) connects through a socket
+path. Keep an ordinary HTTP or HTTPS request URL: its authority and TLS server
+name remain unchanged. The connector owns DNS and socket configuration.
+Custom connectors support direct HTTP/1.1, HTTP/2 and TLS protocol negotiation.
+Proxy routes, HTTP/3 and discovery options cannot use these streams.
+
 ## Send a body
 
 Use [`Client::request`](crate::Client::request) to select a method other than GET.

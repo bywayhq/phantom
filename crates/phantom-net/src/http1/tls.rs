@@ -70,6 +70,7 @@ pub struct Http1TlsConnector {
     tcp: Option<TcpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
+    tcp_connector: Option<crate::TcpConnector>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -88,7 +89,7 @@ impl Http1TlsConnector {
     ) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         let tls = TlsConnector::new_with_spki_pins(settings, roots, pins)?;
-        Ok(Self::from_parts(tls, None, None, None, None))
+        Ok(Self::from_parts(tls, None, None, None, None, None))
     }
 
     /// Opens a quiet SOCKS origin and returns its already-started backup.
@@ -113,6 +114,12 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         origin
             .validate(true, false)
             .map_err(Http1TlsError::Connect)?;
@@ -221,6 +228,12 @@ impl Http1TlsConnector {
         origin: OriginRoute<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        if self.tcp_connector.is_some() {
+            return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         origin
             .validate(true, false)
             .map_err(Http1TlsError::Connect)?;
@@ -332,6 +345,12 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         let binding = ProxyBinding::forward(transport)?;
         let slower_binding = ProxyBinding::forward(transport)?;
         let ProxyTransport::Tls {
@@ -368,6 +387,12 @@ impl Http1TlsConnector {
         proxy: crate::route::Endpoint<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        if self.tcp_connector.is_some() {
+            return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         let span = connection_span(&Http1Route::Forward(ProxyTransport::Tcp(proxy)));
         let mut slower = None;
         let connection = self
@@ -411,6 +436,12 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         let opened =
             http1_opening::open_connect(route, origin_server_name, self.dialer(), family).await?;
         let slower = opened
@@ -537,6 +568,7 @@ impl Http1TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -564,6 +596,7 @@ impl Http1TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -592,6 +625,7 @@ impl Http1TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -609,6 +643,7 @@ impl Http1TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -625,6 +660,7 @@ impl Http1TlsConnector {
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
+            tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -663,6 +699,7 @@ impl Http1TlsConnector {
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
+            tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         })
     }
@@ -674,6 +711,7 @@ impl Http1TlsConnector {
         tcp: Option<TcpSettings>,
         source: Option<SourceBinding>,
         host_resolver: Option<HostResolver>,
+        tcp_connector: Option<crate::TcpConnector>,
         proxy_credentials: Option<ProxyCredentialCache>,
     ) -> Self {
         Self {
@@ -681,6 +719,7 @@ impl Http1TlsConnector {
             tcp,
             source,
             host_resolver,
+            tcp_connector,
             proxy_credentials,
         }
     }
@@ -749,6 +788,16 @@ impl Http1TlsConnector {
     #[must_use]
     pub fn with_client_certificate(mut self, certificate: &ClientCertificate) -> Self {
         self.tls = self.tls.with_client_certificate(certificate);
+        self
+    }
+
+    /// Uses caller-opened streams for direct origin connections.
+    ///
+    /// See [`crate::TcpConnector`] for supported routes, identity and socket
+    /// ownership. Connection futures retain their caller's cancellation scope.
+    #[must_use]
+    pub fn with_tcp_connector(mut self, connector: crate::TcpConnector) -> Self {
+        self.tcp_connector = Some(connector);
         self
     }
 
@@ -932,7 +981,37 @@ impl Http1TlsConnector {
         let span = upgrade_span(&route);
         let outcome = OperationOutcome::new(&span);
         let result = async {
+            let route = self.prepare_route(route).await?;
+
             match route {
+                Http1Route::Origin(OriginRoute::Plaintext {
+                    tcp: TcpRoute::Connected(stream),
+                    family: None,
+                }) => Ok((
+                    super::upgrade_opening::OpeningStream::Connected(
+                        crate::connection_leg::ConnectionLeg::Connected(stream),
+                    ),
+                    None,
+                )),
+                Http1Route::Origin(OriginRoute::Tls {
+                    tcp: TcpRoute::Connected(stream),
+                    server_name,
+                    setup: DirectTlsSetup::Default,
+                }) => {
+                    let stream = self
+                        .tls
+                        .connect_offering_early_data(
+                            server_name,
+                            crate::connection_leg::ConnectionLeg::Connected(stream),
+                        )
+                        .await?;
+                    require_http1_selected(&stream)?;
+                    Ok((
+                        super::upgrade_opening::OpeningStream::ProxyTls(stream),
+                        None,
+                    ))
+                }
+
                 Http1Route::Origin(OriginRoute::Plaintext {
                     tcp: TcpRoute::Direct(endpoint),
                     family,
@@ -1076,6 +1155,7 @@ impl Http1TlsConnector {
                     }
                     _ => return Err(invalid_route("Upgrade target does not match its route")),
                 };
+                let route = self.prepare_route(route).await?;
                 match route {
                     Http1Route::Forward(ProxyTransport::Tcp(endpoint)) => {
                         let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
@@ -1129,7 +1209,7 @@ impl Http1TlsConnector {
                                 self.proxy_credentials.as_ref(),
                             )
                             .await?;
-                            let stream = if direct {
+                            let stream = if direct || self.tcp_connector.is_some() {
                                 self.tls
                                     .connect_offering_early_data(server_name, stream)
                                     .await?
@@ -1146,6 +1226,31 @@ impl Http1TlsConnector {
         .await
     }
 
+    async fn prepare_route<'a>(
+        &self,
+        route: Http1Route<'a>,
+    ) -> Result<Http1Route<'a>, Http1TlsError> {
+        let route = if let Some(connector) = &self.tcp_connector {
+            connector
+                .check_socket_policy(self.source.as_ref(), self.host_resolver.as_ref())
+                .map_err(|error| Http1TlsError::from_direct(DirectConnectError::Connect(error)))?;
+            match route {
+                Http1Route::Origin(origin) => Http1Route::Origin(
+                    connector
+                        .prepare(origin)
+                        .await
+                        .map_err(Http1TlsError::Connect)?,
+                ),
+                Http1Route::Forward(_) => {
+                    return Err(Http1TlsError::Connect(crate::tcp_connector::unsupported()));
+                }
+            }
+        } else {
+            route
+        };
+        Ok(route)
+    }
+
     /// Opens the transport and finishes protocol setup within the caller's span.
     async fn open_connection(
         &self,
@@ -1154,6 +1259,7 @@ impl Http1TlsConnector {
         slower: &mut Option<SlowerAttempt>,
         #[cfg(feature = "https-records")] selected_ech: &mut Option<crate::direct::SelectedEch>,
     ) -> Result<Http1Connection, Http1TlsError> {
+        let route = self.prepare_route(route).await?;
         match route {
             Http1Route::Forward(ProxyTransport::Tcp(endpoint)) => {
                 let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
@@ -1261,7 +1367,7 @@ impl Http1TlsConnector {
                         self.proxy_credentials.as_ref(),
                     )
                     .await?;
-                    let stream = if direct && offer_early_data {
+                    let stream = if (direct || self.tcp_connector.is_some()) && offer_early_data {
                         self.tls
                             .connect_offering_early_data(server_name, stream)
                             .await?

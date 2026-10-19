@@ -259,6 +259,7 @@ pub struct Http1Or2TlsConnector {
     tcp: Option<TcpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
+    tcp_connector: Option<crate::TcpConnector>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -284,6 +285,12 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         origin
             .validate(false, true)
             .map_err(|e| Http1Or2TlsError::from_direct(DirectConnectError::Connect(e)))?;
@@ -367,6 +374,12 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         origin
             .validate(false, true)
             .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
@@ -471,6 +484,12 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                crate::tcp_connector::unsupported(),
+            )));
+        }
+
         translate_settings(&self.http2).map_err(Http2TlsError::from)?;
         let opened =
             http1_opening::open_connect(route, origin_server_name, self.dialer(), family).await?;
@@ -532,6 +551,7 @@ impl Http1Or2TlsConnector {
             tcp: None,
             source: None,
             host_resolver: None,
+            tcp_connector: None,
             proxy_credentials: None,
         })
     }
@@ -554,6 +574,7 @@ impl Http1Or2TlsConnector {
             tcp: None,
             source: None,
             host_resolver: None,
+            tcp_connector: None,
             proxy_credentials: None,
         })
     }
@@ -578,6 +599,7 @@ impl Http1Or2TlsConnector {
             tcp: connector.tcp_settings().copied(),
             source: connector.source_binding().cloned(),
             host_resolver: connector.host_resolver().cloned(),
+            tcp_connector: connector.tcp_connector.clone(),
             proxy_credentials: connector.proxy_credential_cache().cloned(),
         })
     }
@@ -620,6 +642,7 @@ impl Http1Or2TlsConnector {
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
+            tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -639,6 +662,7 @@ impl Http1Or2TlsConnector {
             self.tcp,
             self.source.clone(),
             self.host_resolver.clone(),
+            self.tcp_connector.clone(),
             self.proxy_credentials.clone(),
         )
     }
@@ -667,6 +691,7 @@ impl Http1Or2TlsConnector {
             self.tcp,
             self.source.clone(),
             self.host_resolver.clone(),
+            self.tcp_connector.clone(),
             self.proxy_credentials.clone(),
         )
         .with_alpn_protocols(protocols)
@@ -681,6 +706,7 @@ impl Http1Or2TlsConnector {
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
+            tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -753,6 +779,16 @@ impl Http1Or2TlsConnector {
     #[must_use]
     pub fn with_client_certificate(mut self, certificate: &ClientCertificate) -> Self {
         self.tls = self.tls.with_client_certificate(certificate);
+        self
+    }
+
+    /// Uses caller-opened streams for direct origin connections.
+    ///
+    /// See [`crate::TcpConnector`] for supported routes, identity and socket
+    /// ownership. Connection futures retain their caller's cancellation scope.
+    #[must_use]
+    pub fn with_tcp_connector(mut self, connector: crate::TcpConnector) -> Self {
+        self.tcp_connector = Some(connector);
         self
     }
 
@@ -830,6 +866,19 @@ impl Http1Or2TlsConnector {
                 route.validate(false, true).map_err(|error| {
                     Http1Or2TlsError::from_direct(DirectConnectError::Connect(error))
                 })?;
+                let route = match &self.tcp_connector {
+                    Some(connector) => {
+                        connector
+                            .check_socket_policy(self.source.as_ref(), self.host_resolver.as_ref())
+                            .map_err(|error| {
+                                Http1Or2TlsError::from_direct(DirectConnectError::Connect(error))
+                            })?;
+                        connector.prepare(route).await.map_err(|error| {
+                            Http1Or2TlsError::from_direct(DirectConnectError::Connect(error))
+                        })?
+                    }
+                    None => route,
+                };
                 let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
                 let OriginRoute::Tls {
                     tcp,
@@ -913,7 +962,7 @@ impl Http1Or2TlsConnector {
                             self.proxy_credentials.as_ref(),
                         )
                         .await?;
-                        let stream = if direct {
+                        let stream = if direct || self.tcp_connector.is_some() {
                             self.tls
                                 .connect_offering_early_data(server_name, stream)
                                 .await?

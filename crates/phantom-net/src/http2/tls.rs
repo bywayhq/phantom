@@ -73,6 +73,7 @@ pub struct Http2TlsConnector {
     tcp: Option<TcpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
+    pub(crate) tcp_connector: Option<crate::TcpConnector>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -93,7 +94,15 @@ impl Http2TlsConnector {
         require_h2_alpn(settings)?;
         validate_http2(http2)?;
         let tls = TlsConnector::new_with_spki_pins(settings, roots, pins)?;
-        Ok(Self::from_parts(tls, http2.clone(), None, None, None, None))
+        Ok(Self::from_parts(
+            tls,
+            http2.clone(),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ))
     }
 
     /// Opens a quiet complete SOCKS tunnel and its already-started backup.
@@ -117,6 +126,10 @@ impl Http2TlsConnector {
         ),
         Http2TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
+        }
+
         origin
             .validate(false, true)
             .map_err(Http2TlsError::Connect)?;
@@ -209,6 +222,10 @@ impl Http2TlsConnector {
         origin: OriginRoute<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        if self.tcp_connector.is_some() {
+            return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
+        }
+
         origin
             .validate(false, true)
             .map_err(Http2TlsError::Connect)?;
@@ -296,6 +313,10 @@ impl Http2TlsConnector {
         ),
         Http2TlsError,
     > {
+        if self.tcp_connector.is_some() {
+            return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
+        }
+
         translate_settings(&self.http2)?;
         let opened =
             http1_opening::open_connect(route, origin_server_name, self.dialer(), family).await?;
@@ -400,6 +421,7 @@ impl Http2TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -430,6 +452,7 @@ impl Http2TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -461,6 +484,7 @@ impl Http2TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -481,6 +505,7 @@ impl Http2TlsConnector {
                 tcp: None,
                 source: None,
                 host_resolver: None,
+                tcp_connector: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -498,6 +523,7 @@ impl Http2TlsConnector {
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
+            tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -550,6 +576,7 @@ impl Http2TlsConnector {
         tcp: Option<TcpSettings>,
         source: Option<SourceBinding>,
         host_resolver: Option<HostResolver>,
+        tcp_connector: Option<crate::TcpConnector>,
         proxy_credentials: Option<ProxyCredentialCache>,
     ) -> Self {
         Self {
@@ -558,6 +585,7 @@ impl Http2TlsConnector {
             tcp,
             source,
             host_resolver,
+            tcp_connector,
             proxy_credentials,
         }
     }
@@ -597,6 +625,16 @@ impl Http2TlsConnector {
     #[must_use]
     pub fn with_client_certificate(mut self, certificate: &ClientCertificate) -> Self {
         self.tls = self.tls.with_client_certificate(certificate);
+        self
+    }
+
+    /// Uses caller-opened streams for direct origin connections.
+    ///
+    /// See [`crate::TcpConnector`] for supported routes, identity and socket
+    /// ownership. Connection futures retain their caller's cancellation scope.
+    #[must_use]
+    pub fn with_tcp_connector(mut self, connector: crate::TcpConnector) -> Self {
+        self.tcp_connector = Some(connector);
         self
     }
 
@@ -687,6 +725,9 @@ impl Http2TlsConnector {
         &self,
         route: Http2Route<'_>,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        if self.tcp_connector.is_some() && matches!(&route, Http2Route::Forward { .. }) {
+            return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
+        }
         match route {
             Http2Route::Origin(origin @ OriginRoute::Plaintext { .. }) => {
                 let span = debug_span!(
@@ -763,6 +804,9 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
+        if self.tcp_connector.is_some() && matches!(&route, Http2Route::Forward { .. }) {
+            return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
+        }
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         let plaintext = matches!(&route, Http2Route::Origin(OriginRoute::Plaintext { .. }));
@@ -925,6 +969,12 @@ impl Http2TlsConnector {
         client: Http2Builder,
         extended_connect: bool,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        if self.tcp_connector.is_some() {
+            return self
+                .connect_origin(origin, client, true, extended_connect)
+                .await
+                .map(|connection| (connection, None));
+        }
         let OriginRoute::Tls {
             tcp,
             server_name,
@@ -1066,8 +1116,20 @@ impl Http2TlsConnector {
         origin
             .validate(true, false)
             .map_err(Http2TlsError::Connect)?;
+        let origin = match &self.tcp_connector {
+            Some(connector) => {
+                connector
+                    .check_socket_policy(self.source.as_ref(), self.host_resolver.as_ref())
+                    .map_err(Http2TlsError::Connect)?;
+                connector
+                    .prepare(origin)
+                    .await
+                    .map_err(Http2TlsError::Connect)?
+            }
+            None => origin,
+        };
         let OriginRoute::Plaintext {
-            tcp: tcp @ TcpRoute::Direct(_),
+            tcp: tcp @ (TcpRoute::Direct(_) | TcpRoute::Connected(_)),
             family: None,
         } = origin
         else {
@@ -1094,6 +1156,18 @@ impl Http2TlsConnector {
         early_data: bool,
         extended_connect: bool,
     ) -> Result<Http2Connection, Http2TlsError> {
+        let origin = match &self.tcp_connector {
+            Some(connector) => {
+                connector
+                    .check_socket_policy(self.source.as_ref(), self.host_resolver.as_ref())
+                    .map_err(Http2TlsError::Connect)?;
+                connector
+                    .prepare(origin)
+                    .await
+                    .map_err(Http2TlsError::Connect)?
+            }
+            None => origin,
+        };
         origin
             .validate(false, false)
             .map_err(Http2TlsError::Connect)?;
@@ -1111,7 +1185,7 @@ impl Http2TlsConnector {
                 let stream =
                     connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref())
                         .await?;
-                let stream = if early_data && direct {
+                let stream = if early_data && (direct || self.tcp_connector.is_some()) {
                     self.tls
                         .connect_offering_early_data(server_name, stream)
                         .await?

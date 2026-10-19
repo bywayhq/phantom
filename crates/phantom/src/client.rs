@@ -114,6 +114,7 @@ pub struct Client {
 pub(crate) struct ClientInner {
     pub(crate) ticket_preparation:
         Result<Arc<crate::session::PreparedTicketPolicy>, crate::session::PreparationError>,
+    pub(crate) custom_tcp_connector: bool,
     pub(crate) base_url: Option<crate::base_url::BaseUrl>,
     pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
     pub(crate) server_spki_pins: bool,
@@ -222,6 +223,9 @@ impl ClientInner {
         scheme: &str,
         route: &Route,
     ) -> Result<(), crate::RequestError> {
+        if self.custom_tcp_connector && !matches!(route, Route::Direct) {
+            return Err(crate::RequestError::unsupported_custom_connector_route());
+        }
         if self.server_spki_pins && !matches!(scheme, "https" | "wss") {
             return Err(crate::RequestError::server_pin_policy(
                 "server SPKI pins require a TLS origin",
@@ -413,6 +417,10 @@ impl ClientInner {
 
     /// Gives every connector that resolves host names the same resolver.
     fn bind_host_resolver(&mut self, resolver: HostResolver) {
+        if self.custom_tcp_connector {
+            self.host_resolver = Some(resolver);
+            return;
+        }
         let bind = |connector: Http1TlsConnector| connector.with_host_resolver(resolver.clone());
         self.http1 = self.http1.take().map(bind);
         self.http1_or_2 = self
@@ -484,6 +492,7 @@ impl Client {
     pub fn builder(profile: ClientProfile) -> ClientBuilder {
         ClientBuilder {
             base_url: None,
+            tcp_connector: None,
             header_hooks: Vec::new(),
             request_hooks: None,
             profile,
@@ -791,6 +800,7 @@ impl Client {
 /// ```
 #[must_use = "client builders do nothing until build is called"]
 pub struct ClientBuilder {
+    tcp_connector: Option<crate::TcpConnector>,
     base_url: Option<crate::base_url::BaseUrl>,
     header_hooks: Vec<crate::header_hook::HeaderHook>,
     request_hooks: Option<crate::request_hook::SharedRequestHooks>,
@@ -836,6 +846,7 @@ impl fmt::Debug for ClientBuilder {
         let mut debug = formatter.debug_struct("ClientBuilder");
         debug
             .field("base_url", &self.base_url.is_some())
+            .field("tcp_connector", &self.tcp_connector)
             .field("header_hook_count", &self.header_hooks.len())
             .field("request_hooks", &self.request_hooks.is_some())
             .field("http2_configured", &self.profile.http2().is_some())
@@ -2024,6 +2035,34 @@ impl ClientBuilder {
     /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
     ///   when the profile enables no HTTP protocol Phantom implements.
     pub fn build(mut self) -> Result<Client, BuildError> {
+        if self.tcp_connector.is_some() {
+            if self.binds_sources()
+                || self.address_resolver.is_some()
+                || !self.host_overrides.is_empty()
+            {
+                return Err(BuildError::invalid_policy(
+                    "custom TCP connectors own address resolution and source binding",
+                ));
+            }
+            if self.environment_proxies.is_some()
+                || self
+                    .route
+                    .as_ref()
+                    .is_some_and(|route| !matches!(route, Route::Direct))
+                || self.options.max_alt_svc_origins.is_some()
+            {
+                return Err(BuildError::invalid_policy(
+                    "custom TCP connectors do not support proxies or HTTP/3 discovery",
+                ));
+            }
+            #[cfg(feature = "https-records")]
+            if self.options.https_record_resolver.is_some() {
+                return Err(BuildError::invalid_policy(
+                    "custom TCP connectors do not support HTTPS-record discovery",
+                ));
+            }
+        }
+
         if self.http2_proxy_connections_per_route.get()
             > phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
         {
@@ -2057,8 +2096,10 @@ impl ClientBuilder {
             .map_err(BuildError::invalid_tls_profile)?;
         if let Some(tcp) = self.profile.tcp() {
             tcp.validate().map_err(BuildError::invalid_tcp_profile)?;
-            phantom_net::tcp::check_host_support(tcp)
-                .map_err(BuildError::unsupported_tcp_profile)?;
+            if self.tcp_connector.is_none() {
+                phantom_net::tcp::check_host_support(tcp)
+                    .map_err(BuildError::unsupported_tcp_profile)?;
+            }
         }
         if let Some(http1) = self.profile.http1() {
             http1
@@ -2118,7 +2159,14 @@ impl ClientBuilder {
         let ticket_plan = crate::session::BindingPlan::capture(&self.profile);
         phantom_net::draw_per_client(&mut self.profile).map_err(BuildError::per_client_draw)?;
         let ticket_preparation = ticket_plan
-            .and_then(|plan| plan.complete(&self.profile))
+            .and_then(|plan| {
+                if self.tcp_connector.is_some() {
+                    return Err(crate::session::PreparationError::Unsupported(
+                        "custom TCP connector identity",
+                    ));
+                }
+                plan.complete(&self.profile)
+            })
             .and_then(|prepared| {
                 prepared.with_client_context(crate::session::TicketClientContext {
                     origin_authentication: self.server_authentication,
@@ -2197,6 +2245,7 @@ impl ClientBuilder {
         let http3 = self
             .profile
             .http3()
+            .filter(|_| self.tcp_connector.is_none())
             .map(|settings| {
                 let connector = if authentication_disabled {
                     Http3Connector::new_with_server_authentication(
@@ -2402,6 +2451,7 @@ impl ClientBuilder {
 
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
+            custom_tcp_connector: self.tcp_connector.is_some(),
             ticket_preparation,
             server_spki_pins: self.server_spki_pins.is_some(),
             proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),
@@ -2478,6 +2528,31 @@ impl ClientBuilder {
 }
 
 impl ClientBuilder {
+    /// Opens direct TCP-protocol connections using caller-supplied streams.
+    ///
+    /// The connector owns DNS and socket configuration. URL authority, TLS
+    /// verification, HTTP ordering, pooling and request deadlines stay with
+    /// Phantom. Clones share pools; independently built clients do not.
+    /// HTTP/3, proxies, source binding, host overrides and discovery options
+    /// cannot be combined with this setting. Profile TCP options are unused.
+    /// Dropping a pending request drops its connection future. Ticket snapshots
+    /// are unavailable because callbacks have no persistent route identity.
+    /// In-memory TLS resumption remains available.
+    ///
+    /// ```no_run
+    /// use phantom::{Client, ConnectedStream, TcpConnector, profile::browser::chrome};
+    /// let connector = TcpConnector::from_fn(|target| async move {
+    ///     tokio::net::TcpStream::connect((target.host.as_str(), target.port))
+    ///         .await.map(ConnectedStream::new)
+    /// });
+    /// let client = Client::builder(chrome::v154_windows()).tcp_connector(connector).build()?;
+    /// # Ok::<(), phantom::BuildError>(())
+    /// ```
+    pub fn tcp_connector(mut self, connector: crate::TcpConnector) -> Self {
+        self.tcp_connector = Some(connector);
+        self
+    }
+
     /// Whether the caller asked for a source address or interface.
     fn binds_sources(&self) -> bool {
         self.source_binding != SourceBinding::new()
@@ -2486,6 +2561,10 @@ impl ClientBuilder {
     /// Applies the source binding and client certificate, when set, to an
     /// HTTP/1.1 origin connector.
     fn bind_http1(&self, mut connector: Http1TlsConnector) -> Http1TlsConnector {
+        if let Some(custom) = &self.tcp_connector {
+            connector = connector.with_tcp_connector(custom.clone());
+        }
+
         if self.binds_sources() {
             connector = connector.with_source_binding(self.source_binding.clone());
         }
@@ -2498,6 +2577,10 @@ impl ClientBuilder {
     /// Applies the source binding and client certificate, when set, to an
     /// HTTP/2 origin connector.
     fn bind_http2(&self, mut connector: Http2TlsConnector) -> Http2TlsConnector {
+        if let Some(custom) = &self.tcp_connector {
+            connector = connector.with_tcp_connector(custom.clone());
+        }
+
         if self.binds_sources() {
             connector = connector.with_source_binding(self.source_binding.clone());
         }

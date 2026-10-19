@@ -74,6 +74,8 @@ mod source_binding;
 #[allow(unsafe_code, reason = "private Windows system DNS FFI boundary")]
 mod system_dns_ffi;
 pub mod tcp;
+mod tcp_connector;
+pub use tcp_connector::{ConnectTarget, TcpConnector};
 pub(crate) mod tls;
 mod transfer;
 mod udp;

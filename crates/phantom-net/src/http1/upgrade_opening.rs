@@ -20,6 +20,7 @@ pub struct Http1UpgradeOpening {
 
 pub(super) enum OpeningStream {
     Plaintext(ProfileTcpStream),
+    Connected(crate::connection_leg::ConnectionLeg),
     Tls(TlsStream<ProfileTcpStream>),
     ProxyTls(TlsStream<crate::connection_leg::ConnectionLeg>),
 }
@@ -68,6 +69,9 @@ impl Http1UpgradeOpening {
         } = self;
         let result = async move {
             match stream {
+                OpeningStream::Connected(stream) => {
+                    super::tls::send_plaintext_tunnel_upgrade(stream, prepared).await
+                }
                 OpeningStream::Plaintext(stream) => {
                     super::tls::send_plaintext_tunnel_upgrade(stream, prepared).await
                 }

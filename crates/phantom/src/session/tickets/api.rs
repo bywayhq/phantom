@@ -243,10 +243,17 @@ impl Client {
     /// retained in cold custody, and records that expire during preparation,
     /// return an expiry error.
     /// A busy native policy returns an error without consuming source tickets.
+    /// Custom TCP connectors return [`SessionTicketErrorKind::Unsupported`]
+    /// because their callbacks have no persistent route identity.
     pub fn export_session_tickets(
         &self,
         key: &[u8; 32],
     ) -> Result<SessionTicketSnapshot, SessionTicketError> {
+        if self.inner.custom_tcp_connector {
+            return Err(SessionTicketError::without_source(
+                SessionTicketErrorKind::Unsupported,
+            ));
+        }
         self.state
             .tickets
             .export(key)
@@ -275,12 +282,18 @@ impl Client {
     /// Rejects malformed, incompatible or expired snapshots, unsupported
     /// settings and empty credentialed owners. Failure preserves live and pending
     /// tickets. Native policy contention can be retried by the caller.
+    /// Custom TCP connectors return [`SessionTicketErrorKind::Unsupported`].
     pub fn import_session_tickets(
         &self,
         snapshot: &SessionTicketSnapshot,
         key: &[u8; 32],
         receiving_routes: &[crate::Route],
     ) -> Result<(), SessionTicketError> {
+        if self.inner.custom_tcp_connector {
+            return Err(SessionTicketError::without_source(
+                SessionTicketErrorKind::Unsupported,
+            ));
+        }
         let context = SslConnector::builder(SslMethod::tls())
             .map_err(SessionTicketError::with_source)?
             .build()

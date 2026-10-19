@@ -18,6 +18,7 @@ mod content_coding;
 mod cookie_crumbs;
 #[cfg(feature = "cookies")]
 mod cookies;
+mod custom_connector;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
 mod direct_http;

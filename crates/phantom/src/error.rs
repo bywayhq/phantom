@@ -837,6 +837,13 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn unsupported_custom_connector_route() -> Self {
+        Self::without_source(
+            RequestErrorKind::UnsupportedRoute,
+            "custom TCP connectors require a direct origin route",
+        )
+    }
+
     pub(crate) fn unsupported_negotiated_route() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedRoute,

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add caller-supplied direct TCP stream connectors and Unix-domain sockets.
+  Requests retain URL authority, TLS verification, pool isolation and deadlines.
+  Custom connectors own DNS and socket options; incompatible proxy, discovery
+  and source-binding policies are rejected.
+
 ## 0.2.0 - 2026-10-19
 
 - Refresh cookie public-suffix data and compatible Rust dependency locks.

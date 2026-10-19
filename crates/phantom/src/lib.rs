@@ -25,9 +25,11 @@ pub use phantom_net::proxy::{
 pub use phantom_net::request::RequestHeader;
 /// One declared request-trailer name retaining exact spelling and position.
 pub use phantom_net::request::RequestTrailerName;
+pub use phantom_net::route::ConnectedStream;
 /// A TLS client certificate for [`ClientBuilder::client_certificate`] and
 /// [`ClientBuilder::client_certificate_for`].
 pub use phantom_net::{ClientCertificate, ClientCertificateError, ClientCertificateErrorKind};
+pub use phantom_net::{ConnectTarget, TcpConnector};
 pub use phantom_net::{
     ConnectionEndpointScope, RequestConnection, RequestDiagnostics, RequestTimeline,
     RequestTimelineOutcome, RequestTiming, RequestTimingOutcome, RequestTimingPhase,
