@@ -8,8 +8,8 @@
 
 use crate::browser::chrome;
 use crate::{
-    ClientHintSettings, ClientProfile, Http2Settings, Http3ClientSettings, Http3RequestSettings,
-    Http3Settings, QuicTransportSettings, RequestTemplate, TlsSettings,
+    ClientHintSettings, Http2Settings, Http3RequestSettings, Http3Settings, QuicTransportSettings,
+    RequestTemplate, TlsSettings,
 };
 
 /// Returns the captured Edge 153 TCP ClientHello settings.
@@ -88,24 +88,6 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(None)
-}
-
-/// Returns the available Windows layers for Edge 153.0.4234.48.
-///
-/// TCP and UDP socket settings, DNS caching, HTTP/1.1 pool policy, WebSocket
-/// connection policy, proxy CONNECT, and cookie placement are not supplied.
-/// Their generic defaults remain. Choose a request template separately.
-#[must_use]
-pub fn v153_windows() -> ClientProfile {
-    ClientProfile::new(v153_tcp_tls())
-        .with_http2(v153_http2())
-        .with_http3(Http3ClientSettings::new(
-            v153_quic_tls(),
-            v153_quic(),
-            v153_http3(),
-            v153_http3_request(),
-        ))
-        .with_client_hints(v153_windows_client_hints())
 }
 
 #[cfg(test)]

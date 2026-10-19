@@ -29,6 +29,7 @@ OUTPUT_NAMES = (
     "WEBSOCKET_COMPONENT_OUTPUT",
     "REQUEST_TEMPLATE_OUTPUT",
     "COMPOSITION_OUTPUT",
+    "CONSTRUCTOR_OUTPUT",
 )
 
 
@@ -56,6 +57,7 @@ def components():
 class CompositionDeclarationTests(unittest.TestCase):
     def setUp(self):
         self.document = declarations.read_document(cli.RECORDS)
+        self.document["profiles"] = cli.validate(self.document)
         self.components = components()
 
     def reject(self, document):

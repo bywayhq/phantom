@@ -36,7 +36,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -44,7 +44,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -52,7 +52,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -60,7 +60,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -68,7 +68,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -91,7 +91,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."],
+                limitations: &["The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -109,7 +109,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -132,7 +132,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -155,7 +155,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -178,7 +178,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -196,7 +196,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -219,7 +219,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -227,7 +227,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -235,7 +235,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::BRAVEANDROID153,
@@ -272,7 +272,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -290,7 +290,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -308,7 +308,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -326,7 +326,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -344,7 +344,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -367,7 +367,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -385,7 +385,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -408,7 +408,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -431,7 +431,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -454,7 +454,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -472,7 +472,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -495,7 +495,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -518,7 +518,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["CONNECT request headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -541,7 +541,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/2 cookie placement"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::BRAVEWINDOWS154,
@@ -578,7 +578,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -604,7 +604,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -612,7 +612,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -620,7 +620,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -638,7 +638,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -656,7 +656,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -674,7 +674,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -692,7 +692,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -710,7 +710,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -728,7 +728,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -746,7 +746,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -754,7 +754,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -762,7 +762,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::CHROMEANDROID154,
@@ -1041,7 +1041,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -1059,7 +1059,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -1077,7 +1077,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -1095,7 +1095,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed cache reuse"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -1113,7 +1113,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed connection admission"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -1131,7 +1131,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -1149,7 +1149,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -1167,7 +1167,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -1185,7 +1185,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -1203,7 +1203,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -1221,7 +1221,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -1239,7 +1239,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -1257,7 +1257,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["CONNECT request headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -1275,7 +1275,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/2 cookie placement"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::CHROMEWINDOWS154,
@@ -1555,7 +1555,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -1563,7 +1563,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -1571,7 +1571,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -1579,7 +1579,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -1587,7 +1587,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -1610,7 +1610,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -1628,7 +1628,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -1651,7 +1651,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -1674,7 +1674,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -1697,7 +1697,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -1715,7 +1715,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -1751,7 +1751,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -1759,7 +1759,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::EDGEANDROID153,
@@ -1796,7 +1796,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -1819,7 +1819,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -1842,7 +1842,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -1865,7 +1865,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed cache reuse"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -1888,7 +1888,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed connection admission"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -1906,7 +1906,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -1924,7 +1924,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -1947,7 +1947,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -1970,7 +1970,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -1993,7 +1993,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2011,7 +2011,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -2034,7 +2034,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2057,7 +2057,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["CONNECT request headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -2080,7 +2080,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/2 cookie placement"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::EDGEWINDOWS154,
@@ -2117,7 +2117,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -2143,7 +2143,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -2151,7 +2151,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -2159,7 +2159,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -2167,7 +2167,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2175,7 +2175,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -2183,7 +2183,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -2191,7 +2191,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -2199,7 +2199,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2220,7 +2220,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2228,7 +2228,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -2236,7 +2236,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::FIREFOXANDROID156,
@@ -2271,7 +2271,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -2289,7 +2289,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -2297,7 +2297,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -2315,7 +2315,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed cache reuse"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -2333,7 +2333,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed connection admission"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -2346,7 +2346,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2364,7 +2364,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -2382,7 +2382,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -2395,7 +2395,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -2408,7 +2408,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2439,7 +2439,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2457,7 +2457,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["CONNECT request headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -2475,7 +2475,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/2 cookie placement"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::FIREFOXWINDOWS157,
@@ -2514,7 +2514,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -2522,7 +2522,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -2530,7 +2530,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -2538,7 +2538,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -2546,7 +2546,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -2554,7 +2554,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2562,7 +2562,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -2570,7 +2570,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -2578,7 +2578,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -2586,7 +2586,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2604,7 +2604,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -2612,7 +2612,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2620,7 +2620,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -2628,7 +2628,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::OPERAANDROID102,
@@ -2663,7 +2663,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -2686,7 +2686,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -2709,7 +2709,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed socket calls"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -2732,7 +2732,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed cache reuse"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -2755,7 +2755,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["observed connection admission"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -2778,7 +2778,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2796,7 +2796,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "supported groups", "extension presence"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -2819,7 +2819,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameters"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -2842,7 +2842,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -2865,7 +2865,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2883,7 +2883,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -2906,7 +2906,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["opening headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2929,7 +2929,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["CONNECT request headers"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -2952,7 +2952,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/2 cookie placement"],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::OPERAWINDOWS136,

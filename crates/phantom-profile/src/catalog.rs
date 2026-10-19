@@ -17,6 +17,7 @@ use std::fmt;
 
 use crate::{ClientProfile, RequestTemplate};
 
+pub(crate) mod browser_profiles;
 pub(crate) mod client_hints_components;
 mod connection_profile_definitions;
 mod connection_profile_values;

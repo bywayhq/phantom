@@ -56,7 +56,7 @@
 //! cookie-placement recipe, for the reasons given in [`crate::browser::opera`] and
 //! [`crate::browser::chrome`].
 
-use crate::{ClientProfile, Http3ClientSettings};
+pub use crate::catalog::browser_profiles::opera::*;
 
 mod android;
 
@@ -167,43 +167,6 @@ pub fn v136_windows_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v136_windows_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(None)
-}
-
-/// Returns the Windows connection profile for Opera 136.
-///
-/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
-/// proxy CONNECT fields, and cookie placement. UDP socket settings and
-/// client hints are included.
-/// No request template is selected. Choose one for your request kind.
-#[must_use]
-pub fn v136_windows() -> ClientProfile {
-    ClientProfile::new(v136_tcp_tls())
-        .with_tcp(chrome::v154_tcp())
-        .with_udp(chrome::v154_udp())
-        .with_dns_cache(chrome::v154_dns_cache())
-        .with_http1(chrome::v154_http1())
-        .with_http2(chrome::v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            v136_quic_tls(),
-            chrome::v154_quic(),
-            chrome::v154_http3(),
-            chrome::v154_http3_request(),
-        ))
-        .with_client_hints(v136_windows_client_hints())
-        .with_websocket(chrome::v154_websocket())
-        .with_proxy_connect(chrome::v154_proxy_connect())
-        .with_cookie_placement(chrome::v154_cookie_placement())
-}
-
-/// Returns the captured Android layers for Opera 102.
-///
-/// Supplies TCP TLS and client hints only.
-/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
-/// and cookie-placement recipes are absent. Their generic defaults remain.
-/// No request template is selected. These captures came from emulators.
-#[must_use]
-pub fn v102_android() -> ClientProfile {
-    ClientProfile::new(v102_android_tcp_tls()).with_client_hints(v102_android_client_hints())
 }
 
 #[cfg(test)]

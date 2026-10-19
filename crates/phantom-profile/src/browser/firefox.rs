@@ -17,7 +17,7 @@
 //! request template, HTTP/1.1 connection, address-cache, proxy CONNECT, or
 //! cookie-placement recipe: none of those layers was captured on Android.
 
-use crate::{ClientProfile, Http3ClientSettings};
+pub use crate::catalog::browser_profiles::firefox::*;
 
 mod android;
 
@@ -987,41 +987,6 @@ fn fetch_template(user_agent: &str, cache: FetchCache) -> RequestTemplate {
         // Firefox sends no client hints and ignores ACCEPT_CH.
         restarts_for_connection_accept_ch: false,
     }
-}
-
-/// Returns the Windows connection profile for Firefox 157.
-///
-/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
-/// proxy CONNECT fields, and cookie placement.
-/// Firefox sends no client hints, and no UDP socket recipe is supplied.
-/// No request template is selected. Choose one for your request kind.
-#[must_use]
-pub fn v157_windows() -> ClientProfile {
-    ClientProfile::new(v157_tcp_tls())
-        .with_tcp(v157_tcp())
-        .with_dns_cache(v157_dns_cache())
-        .with_http1(v157_http1())
-        .with_http2(v157_http2())
-        .with_http3(Http3ClientSettings::new(
-            v157_quic_tls(),
-            v157_quic(),
-            v157_http3(),
-            v157_http3_request(),
-        ))
-        .with_websocket(v157_websocket())
-        .with_proxy_connect(v157_proxy_connect())
-        .with_cookie_placement(v157_cookie_placement())
-}
-
-/// Returns the Firefox 156 Android profile.
-///
-/// Supplies captured TCP TLS and TCP socket settings from Firefox source.
-/// UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
-/// and cookie-placement recipes are absent. Their generic defaults remain.
-/// No request template is selected. These captures came from emulators.
-#[must_use]
-pub fn v156_android() -> ClientProfile {
-    ClientProfile::new(v156_android_tcp_tls()).with_tcp(v156_android_tcp())
 }
 
 #[cfg(test)]

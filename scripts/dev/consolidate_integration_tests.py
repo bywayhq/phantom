@@ -174,6 +174,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "catalog",
                 "client_hints_components",
                 "compositions",
+                "constructors",
                 "cookie_components",
                 "dns_components",
                 "historical",

@@ -54,14 +54,14 @@
 //! connection policy, address caching, proxy CONNECT and cookie placement
 //! remain unavailable.
 
-use crate::{ClientProfile, Http3ClientSettings};
+pub use crate::catalog::browser_profiles::edge::*;
 
 mod android;
 mod historical;
 
 pub use historical::{
     v153_http2, v153_http3, v153_http3_request, v153_quic, v153_quic_tls, v153_tcp_tls,
-    v153_windows, v153_windows_client_hints, v153_windows_fetch_no_store_template,
+    v153_windows_client_hints, v153_windows_fetch_no_store_template,
     v153_windows_navigation_template,
 };
 
@@ -183,52 +183,6 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(None)
-}
-
-/// Returns the Windows connection profile for Edge 154.
-///
-/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
-/// proxy CONNECT fields, and cookie placement. UDP socket settings and
-/// client hints are included.
-/// No request template is selected. Choose one for your request kind.
-#[must_use]
-pub fn v154_windows() -> ClientProfile {
-    ClientProfile::new(v154_tcp_tls())
-        .with_tcp(chrome::v154_tcp())
-        .with_udp(chrome::v154_udp())
-        .with_dns_cache(chrome::v154_dns_cache())
-        .with_http1(chrome::v154_http1())
-        .with_http2(chrome::v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            v154_quic_tls(),
-            chrome::v154_quic(),
-            chrome::v154_http3(),
-            chrome::v154_http3_request(),
-        ))
-        .with_client_hints(v154_windows_client_hints())
-        .with_websocket(chrome::v154_websocket())
-        .with_proxy_connect(chrome::v154_proxy_connect())
-        .with_cookie_placement(chrome::v154_cookie_placement())
-}
-
-/// Returns the captured Android layers for Edge 153.
-///
-/// Supplies TCP TLS, HTTP/2, HTTP/3, client hints, and WebSocket openings.
-/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
-/// and cookie-placement recipes are absent. Their generic defaults remain.
-/// No request template is selected. These captures came from emulators.
-#[must_use]
-pub fn v153_android() -> ClientProfile {
-    ClientProfile::new(v153_android_tcp_tls())
-        .with_http2(v153_android_http2())
-        .with_http3(Http3ClientSettings::new(
-            v153_android_quic_tls(),
-            v153_android_quic(),
-            v153_android_http3(),
-            v153_android_http3_request(),
-        ))
-        .with_client_hints(v153_android_client_hints())
-        .with_websocket(v153_android_websocket())
 }
 
 #[cfg(test)]

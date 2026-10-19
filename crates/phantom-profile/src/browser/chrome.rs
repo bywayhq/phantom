@@ -28,7 +28,7 @@
 //! the emulator terminates the device's TCP connections. HTTP/1.1 connection,
 //! address-cache, proxy CONNECT, and cookie-placement recipes remain absent.
 
-use crate::{ClientProfile, Http3ClientSettings};
+pub use crate::catalog::browser_profiles::chrome::*;
 
 mod android;
 
@@ -1053,81 +1053,6 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 #[must_use]
 pub fn v154_quic() -> QuicTransportSettings {
     crate::catalog::quic_components::chromium_154_quic()
-}
-
-/// Returns the Windows connection profile for Chrome 154.
-///
-/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
-/// proxy CONNECT fields, and cookie placement. UDP socket settings and
-/// client hints are included.
-/// No request template is selected. Choose one for your request kind.
-#[must_use]
-pub fn v154_windows() -> ClientProfile {
-    ClientProfile::new(v154_tcp_tls())
-        .with_tcp(v154_tcp())
-        .with_udp(v154_udp())
-        .with_dns_cache(v154_dns_cache())
-        .with_http1(v154_http1())
-        .with_http2(v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            v154_quic_tls(),
-            v154_quic(),
-            v154_http3(),
-            v154_http3_request(),
-        ))
-        .with_client_hints(v154_windows_client_hints())
-        .with_websocket(v154_websocket())
-        .with_proxy_connect(v154_proxy_connect())
-        .with_cookie_placement(v154_cookie_placement())
-}
-
-/// Returns the Chrome 154.0.8037.95 profile for macOS 15.5 arm64.
-///
-/// Uses the macOS TCP policy and client hints. TLS, HTTP/1.1, HTTP/2,
-/// HTTP/3, WebSocket, proxy CONNECT and cookie settings reuse Chromium 154
-/// components. The catalog records each layer's observations and limits;
-/// this is not a completely captured macOS profile.
-///
-/// UDP socket and address-cache recipes are absent. Generic defaults apply.
-/// No request template is selected. macOS templates require your `User-Agent`.
-#[must_use]
-pub fn v154_macos() -> ClientProfile {
-    ClientProfile::new(v154_tcp_tls())
-        .with_tcp(v154_macos_tcp())
-        .with_http1(v154_http1())
-        .with_http2(v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            v154_quic_tls(),
-            v154_quic(),
-            v154_http3(),
-            v154_http3_request(),
-        ))
-        .with_client_hints(v154_macos_client_hints())
-        .with_websocket(v154_websocket())
-        .with_proxy_connect(v154_proxy_connect())
-        .with_cookie_placement(v154_cookie_placement())
-}
-
-/// Returns the Chrome 154 Android profile.
-///
-/// Supplies source-derived TCP socket settings, captured TCP TLS, HTTP/2,
-/// HTTP/3, client hints, and WebSocket settings.
-/// UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
-/// and cookie-placement recipes are absent. Their generic defaults remain.
-/// No request template is selected. These captures came from emulators.
-#[must_use]
-pub fn v154_android() -> ClientProfile {
-    ClientProfile::new(v154_android_tcp_tls())
-        .with_tcp(v154_android_tcp())
-        .with_http2(v154_android_http2())
-        .with_http3(Http3ClientSettings::new(
-            v154_android_quic_tls(),
-            v154_android_quic(),
-            v154_android_http3(),
-            v154_android_http3_request(),
-        ))
-        .with_client_hints(v154_android_client_hints())
-        .with_websocket(v154_android_websocket())
 }
 
 #[cfg(test)]

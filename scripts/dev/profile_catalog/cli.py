@@ -6,7 +6,7 @@ import sys
 from .components import generate_components, validate_components
 from .composition import generate_compositions, validate_composition_bindings
 from .declarations import REPO, DeclarationError, read_document
-from .registry import generate, validate
+from .registry import generate, generate_constructors, validate
 from .request_template import (
     generate_templates,
     validate_template_bindings,
@@ -106,6 +106,8 @@ REQUEST_TEMPLATE_OUTPUT = (
 COMPOSITION_OUTPUT = (
     REPO / "crates/phantom-profile/src/catalog/connection_profile_definitions.rs"
 )
+
+CONSTRUCTOR_OUTPUT = REPO / "crates/phantom-profile/src/catalog/browser_profiles.rs"
 
 
 def load(path=RECORDS, repo=REPO):
@@ -246,6 +248,7 @@ def main():
             ),
             (REQUEST_TEMPLATE_OUTPUT, generate_templates(templates)),
             (COMPOSITION_OUTPUT, generate_compositions(profiles)),
+            (CONSTRUCTOR_OUTPUT, generate_constructors(profiles)),
         )
         for output, generated in outputs:
             if arguments.check:

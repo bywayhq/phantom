@@ -337,7 +337,7 @@ class ConnectionComponentTests(unittest.TestCase):
             for name in vars(generator)
             if name == "OUTPUT" or name.endswith("_OUTPUT")
         )
-        self.assertEqual(len(names), 15)
+        self.assertEqual(len(names), 16)
         invalid = copy.deepcopy(self.dns)
         invalid["components"][0]["values"]["address_failure_policy"] = {
             "kind": "Record",

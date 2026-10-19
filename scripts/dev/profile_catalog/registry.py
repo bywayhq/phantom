@@ -1,4 +1,4 @@
-"""Exact catalog metadata, evidence and current compiled targets."""
+"""Catalog identity, evidence and generated browser entry points."""
 
 import re
 from pathlib import Path
@@ -41,87 +41,15 @@ LAYERS = (
 )
 
 
-WINDOWS = set(LAYERS)
+BROWSERS = ("Chrome", "Edge", "Brave", "Firefox", "Opera")
+PLATFORMS = ("Windows", "Macos", "Linux", "Android")
 
 
-ANDROID = {
-    "TcpTls",
-    "Http2",
-    "QuicTls",
-    "QuicTransport",
-    "Http3",
-    "Http3Request",
-    "ClientHints",
-    "WebSocket",
-}
-
-
-TARGET_CONTRACTS = {
-    "ChromeWindows154": ("Chrome", "Windows", WINDOWS),
-    "ChromeMacos154": ("Chrome", "Macos", WINDOWS - {"Udp", "Dns"}),
-    "ChromeAndroid154": ("Chrome", "Android", ANDROID | {"Tcp"}),
-    "EdgeWindows154": ("Edge", "Windows", WINDOWS),
-    "EdgeWindows153": (
-        "Edge",
-        "Windows",
-        {
-            "TcpTls",
-            "Http2",
-            "QuicTls",
-            "QuicTransport",
-            "Http3",
-            "Http3Request",
-            "ClientHints",
-        },
-    ),
-    "EdgeAndroid153": ("Edge", "Android", ANDROID),
-    "BraveWindows154": ("Brave", "Windows", WINDOWS),
-    "BraveAndroid153": ("Brave", "Android", ANDROID),
-    "FirefoxWindows157": ("Firefox", "Windows", WINDOWS - {"Udp", "ClientHints"}),
-    "FirefoxAndroid156": ("Firefox", "Android", {"TcpTls", "Tcp"}),
-    "OperaWindows136": ("Opera", "Windows", WINDOWS),
-    "OperaAndroid102": ("Opera", "Android", {"TcpTls", "ClientHints"}),
-}
-
-
-TARGET_METADATA = {
-    "ChromeWindows154": ("154.0.8037.97", "windows-11-26200", None, "Desktop", 1),
-    "ChromeMacos154": ("154.0.8037.95", "macos-15.5-arm64", "arm64", "Desktop", 1),
-    "ChromeAndroid154": (
-        "154.0.8037.57",
-        "android-17-pixel7-emulator",
-        "x86_64",
-        "Emulator",
-        1,
-    ),
-    "EdgeWindows154": ("154.0.4258.48", "windows-11-26200", None, "Desktop", 1),
-    "EdgeWindows153": ("153.0.4234.48", "windows-11-26200", None, "Desktop", 1),
-    "EdgeAndroid153": (
-        "153.0.4234.49",
-        "android-17-pixel7-emulator",
-        "arm64",
-        "Emulator",
-        1,
-    ),
-    "BraveWindows154": ("154.1.96.59", "windows-11-26200", None, "Desktop", 1),
-    "BraveAndroid153": (
-        "153.1.95.104",
-        "android-17-pixel7-emulator",
-        None,
-        "Emulator",
-        1,
-    ),
-    "FirefoxWindows157": ("157.0", "windows-11-26200", None, "Desktop", 1),
-    "FirefoxAndroid156": ("156.0.1", "android-35-emulator", None, "Emulator", 1),
-    "OperaWindows136": ("136.0.6008.52", "windows-11-26200", None, "Desktop", 1),
-    "OperaAndroid102": (
-        "102.1.5206.90382",
-        "android-17-pixel7-emulator",
-        None,
-        "Emulator",
-        1,
-    ),
-}
+def constructor(entry):
+    """Derive the public name from a structurally checked catalog identity."""
+    metadata = entry["metadata"]
+    major = metadata["build"].split(".", 1)[0]
+    return f"v{major}_{metadata['platform'].lower()}"
 
 
 def capture_build(path):
@@ -156,20 +84,21 @@ def validate(document, repo=REPO):
         raise DeclarationError("profile count is outside declaration limits")
 
     ids = set()
+    targets = set()
+    validated = []
     for entry in profiles:
         keys(
             entry,
             ("id", "target", "metadata", "layers", "templates", "composition"),
             "profile",
         )
+        entry = dict(entry)
         identifier = text(entry["id"], "profile id")
         if not re.fullmatch(r"[a-z0-9][a-z0-9./-]{0,191}", identifier):
             raise DeclarationError("invalid profile identifier")
         if identifier in ids:
             raise DeclarationError(f"duplicate profile identifier: {identifier}")
         ids.add(identifier)
-        target = choice(entry["target"], TARGET_CONTRACTS, identifier)
-        browser, platform, configured = TARGET_CONTRACTS[target]
         templates = entry["templates"]
         if not isinstance(templates, dict) or not set(templates) <= set(REQUEST_KINDS):
             raise DeclarationError(
@@ -192,9 +121,17 @@ def validate(document, repo=REPO):
             ),
             identifier,
         )
-        if metadata["browser"] != browser or metadata["platform"] != platform:
+        browser = choice(metadata["browser"], BROWSERS, "browser")
+        platform = choice(metadata["platform"], PLATFORMS, "platform")
+        build = text(metadata["build"], "browser build")
+        if not re.fullmatch(r"[1-9][0-9]{0,5}(?:\.[0-9]+)+", build):
+            raise DeclarationError(f"{identifier}: invalid browser build")
+        target = text(entry["target"], "recipe target")
+        if target != browser + platform + build.split(".", 1)[0]:
             raise DeclarationError(f"{identifier}: incompatible recipe target")
-        text(metadata["build"], "browser build")
+        if target in targets:
+            raise DeclarationError(f"{identifier}: duplicate recipe target")
+        targets.add(target)
         text(metadata["platform_release"], "platform release")
         if metadata["architecture"] is not None:
             choice(metadata["architecture"], ("x86_64", "arm64"), "architecture")
@@ -208,34 +145,27 @@ def validate(document, repo=REPO):
         revision = metadata["revision"]
         if type(revision) is not int or not 1 <= revision <= 0xFFFFFFFF:
             raise DeclarationError(f"{identifier}: invalid recipe revision")
-        metadata_target = tuple(
-            metadata[key]
-            for key in (
-                "build",
-                "platform_release",
-                "architecture",
-                "environment",
-                "revision",
-            )
-        )
-        if metadata_target != TARGET_METADATA[target]:
-            raise DeclarationError(
-                f"{identifier}: unsupported recipe target or revision"
-            )
         suffix = f"/{metadata['build']}/{metadata['platform_release']}/r{revision}"
         if identifier != browser.lower() + suffix:
             raise DeclarationError(f"{identifier}: identifier disagrees with metadata")
 
         layers = entry["layers"]
-        if not isinstance(layers, list) or len(layers) != len(LAYERS):
-            raise DeclarationError(f"{identifier}: every layer needs an explicit state")
+        if not isinstance(layers, list) or len(layers) > len(LAYERS):
+            raise DeclarationError(f"{identifier}: invalid evidence layers")
+        expanded = []
         seen = set()
         for layer in layers:
-            keys(
-                layer,
-                ("layer", "support", "references", "verified_fields", "limitations"),
-                identifier,
-            )
+            if not isinstance(layer, dict):
+                raise DeclarationError(f"{identifier}: invalid layer evidence")
+            optional = {"references", "verified_fields", "limitations"}
+            keys(layer, {"layer", "support"} | (optional & layer.keys()), identifier)
+            layer = {
+                "references": [],
+                "verified_fields": [],
+                "limitations": [],
+                **layer,
+            }
+            expanded.append(layer)
             name = choice(layer["layer"], LAYERS, "layer")
             if name in seen:
                 raise DeclarationError(f"{identifier}: duplicate layer {name}")
@@ -245,10 +175,6 @@ def validate(document, repo=REPO):
                 ("Configured", "IntentionallyAbsent", "Unavailable"),
                 name,
             )
-            if (support == "Configured") != (name in configured):
-                raise DeclarationError(
-                    f"{identifier}: support disagrees with {target} for {name}"
-                )
             if support == "IntentionallyAbsent" and not (
                 browser == "Firefox" and name == "ClientHints"
             ):
@@ -320,8 +246,21 @@ def validate(document, repo=REPO):
                 raise DeclarationError(
                     "unconfigured layer cannot claim verified settings"
                 )
+        # An omitted evidence row cannot establish support for a component.
+        entry["layers"] = expanded + [
+            {
+                "layer": name,
+                "support": "Unavailable",
+                "references": [],
+                "verified_fields": [],
+                "limitations": [],
+            }
+            for name in LAYERS
+            if name not in seen
+        ]
         validate_composition(entry)
-    return sorted(profiles, key=lambda entry: entry["id"])
+        validated.append(entry)
+    return sorted(validated, key=lambda entry: entry["id"])
 
 
 def generate(profiles):
@@ -408,3 +347,35 @@ def generate(profiles):
         )
     lines.extend(["];"])
     return "\n".join(lines) + "\n"
+
+
+def generate_constructors(profiles):
+    """Expose catalog compositions through the existing browser modules."""
+    lines = [
+        "// Generated by scripts/dev/generate_profiles.py; edit catalog/profiles.json.",
+        "",
+    ]
+    for browser in BROWSERS:
+        lines.extend([f"pub(crate) mod {browser.lower()} {{"])
+        for entry in sorted(profiles, key=lambda item: item["target"]):
+            metadata = entry["metadata"]
+            if metadata["browser"] != browser:
+                continue
+            lines.extend(
+                [
+                    f"    /// Returns the {browser} {metadata['build']} profile for {metadata['platform_release']}.",
+                    "    ///",
+                    "    /// Choose a request template separately. See the",
+                    f"    /// [catalog evidence](crate::catalog::profile) for `{entry['id']}`",
+                    "    /// for supplied layers, reused settings and capture limits.",
+                    "    #[must_use]",
+                    f"    pub fn {constructor(entry)}() -> crate::ClientProfile {{",
+                    f"        crate::catalog::connection_profile_definitions::{entry['target'].upper()}.instantiate()",
+                    "    }",
+                    "",
+                ]
+            )
+        if lines[-1] == "":
+            lines.pop()
+        lines.extend(["}", ""])
+    return "\n".join(lines)

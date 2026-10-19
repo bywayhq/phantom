@@ -33,45 +33,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "Tcp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Dns",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http1",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -94,9 +55,7 @@
               "build": "154.0.8037.58"
             }
           ],
-          "verified_fields": [],
           "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
             "The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."
           ]
         },
@@ -119,9 +78,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -146,9 +102,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -173,9 +126,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -197,10 +147,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -221,9 +167,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -248,27 +191,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
       ],
@@ -326,9 +248,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -345,10 +264,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -365,10 +280,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -385,10 +296,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -405,10 +312,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -433,9 +336,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -457,9 +357,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -484,9 +381,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -511,9 +405,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -535,10 +426,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -559,9 +446,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -586,9 +470,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -613,9 +494,6 @@
           ],
           "verified_fields": [
             "CONNECT request headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -640,9 +518,6 @@
           ],
           "verified_fields": [
             "HTTP/2 cookie placement"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
       ],
@@ -700,9 +575,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -720,37 +592,9 @@
               "build": "154.0.8037.57"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "TCP settings come from browser source; Android socket options were not captured.",
             "Address-selection limits are described by the recipe rustdoc."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Dns",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http1",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -770,9 +614,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -794,9 +635,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -816,9 +654,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -838,9 +673,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -857,10 +689,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -881,9 +709,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -903,27 +728,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
       ],
@@ -976,7 +780,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer.",
             "The macOS TCP TLS observation covers sequential resumption, not a standalone fresh ClientHello capture."
@@ -997,7 +800,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Source-derived macOS policy: only the keepalive idle time is set. No macOS socket-hook capture verifies these settings; kernel TCP behavior is not emulated."
           ]
@@ -1005,8 +807,6 @@
         {
           "layer": "Udp",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No macOS recipe is selected for this layer; generic client defaults apply."
           ]
@@ -1014,8 +814,6 @@
         {
           "layer": "Dns",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No macOS recipe is selected for this layer; generic client defaults apply."
           ]
@@ -1035,7 +833,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1055,7 +852,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1075,7 +871,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1095,7 +890,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1115,7 +909,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1135,7 +928,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1178,7 +970,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
@@ -1193,7 +984,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
           ]
@@ -1208,7 +998,6 @@
               "build": "154.0.8037.95"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
           ]
@@ -1269,9 +1058,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1291,9 +1077,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1313,9 +1096,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1335,9 +1115,6 @@
           ],
           "verified_fields": [
             "observed cache reuse"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1357,9 +1134,6 @@
           ],
           "verified_fields": [
             "observed connection admission"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1379,9 +1153,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1403,9 +1174,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1425,9 +1193,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1447,9 +1212,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1466,10 +1228,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1490,9 +1248,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1512,9 +1267,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1534,9 +1286,6 @@
           ],
           "verified_fields": [
             "CONNECT request headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -1556,9 +1305,6 @@
           ],
           "verified_fields": [
             "HTTP/2 cookie placement"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
       ],
@@ -1634,8 +1380,6 @@
         {
           "layer": "Tcp",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1643,8 +1387,6 @@
         {
           "layer": "Udp",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1652,8 +1394,6 @@
         {
           "layer": "Dns",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1661,8 +1401,6 @@
         {
           "layer": "Http1",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1834,8 +1572,6 @@
         {
           "layer": "WebSocket",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1843,8 +1579,6 @@
         {
           "layer": "ProxyConnect",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1852,8 +1586,6 @@
         {
           "layer": "CookiePlacement",
           "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
           "limitations": [
             "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
           ]
@@ -1913,45 +1645,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "Tcp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Dns",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http1",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -1976,9 +1669,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2000,9 +1690,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2027,9 +1714,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2054,9 +1738,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2078,10 +1759,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2102,9 +1779,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2140,24 +1814,6 @@
             "Three emulator runs of each opening scenario; no physical-device observation.",
             "Retry, cookie, subprotocol, compression and connection-selection policies reuse pinned Chromium source, not an observed Edge override or refused-stream capture.",
             "HTTP/3 WebSockets and Android data-pipe sizing are outside this recipe."
-          ]
-        },
-        {
-          "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
       ],
@@ -2215,9 +1871,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2242,9 +1895,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2269,9 +1919,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2296,9 +1943,6 @@
           ],
           "verified_fields": [
             "observed cache reuse"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2323,9 +1967,6 @@
           ],
           "verified_fields": [
             "observed connection admission"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2343,9 +1984,7 @@
               "build": "154.0.8037.58"
             }
           ],
-          "verified_fields": [],
           "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
             "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
@@ -2368,9 +2007,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2395,9 +2031,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2422,9 +2055,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2446,10 +2076,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2470,9 +2096,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2497,9 +2120,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2524,9 +2144,6 @@
           ],
           "verified_fields": [
             "CONNECT request headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2551,9 +2168,6 @@
           ],
           "verified_fields": [
             "HTTP/2 cookie placement"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
       ],
@@ -2611,9 +2225,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2631,82 +2242,9 @@
               "build": "156.0.1"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "TCP settings come from browser source; Android socket options were not captured.",
             "Address-selection limits are described by the recipe rustdoc."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Dns",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http1",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http2",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "QuicTls",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "QuicTransport",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http3",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http3Request",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -2719,36 +2257,8 @@
               "build": "156.0.1"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "No client hints are configured; this is intentional browser behavior, not missing hint values."
-          ]
-        },
-        {
-          "layer": "WebSocket",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
       ],
@@ -2803,9 +2313,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2825,18 +2332,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -2856,9 +2351,6 @@
           ],
           "verified_fields": [
             "observed cache reuse"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2878,9 +2370,6 @@
           ],
           "verified_fields": [
             "observed connection admission"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2893,9 +2382,7 @@
               "build": "157.0"
             }
           ],
-          "verified_fields": [],
           "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
             "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
@@ -2918,9 +2405,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2940,9 +2424,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -2955,9 +2436,7 @@
               "build": "157.0"
             }
           ],
-          "verified_fields": [],
           "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
             "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
@@ -2971,9 +2450,7 @@
               "build": "157.0"
             }
           ],
-          "verified_fields": [],
           "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
             "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
@@ -2987,7 +2464,6 @@
               "build": "157.0"
             }
           ],
-          "verified_fields": [],
           "limitations": [
             "No client hints are configured; this is intentional browser behavior, not missing hint values."
           ]
@@ -3009,9 +2485,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3031,9 +2504,6 @@
           ],
           "verified_fields": [
             "CONNECT request headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3053,9 +2523,6 @@
           ],
           "verified_fields": [
             "HTTP/2 cookie placement"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
       ],
@@ -3115,90 +2582,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "Tcp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Udp",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Dns",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http1",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http2",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "QuicTls",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "QuicTransport",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http3",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "Http3Request",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         },
         {
@@ -3219,36 +2602,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
-          ]
-        },
-        {
-          "layer": "WebSocket",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
-          ]
-        },
-        {
-          "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
-          "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
       ],
@@ -3303,9 +2656,6 @@
             "supported groups",
             "signature schemes",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3330,9 +2680,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3357,9 +2704,6 @@
           ],
           "verified_fields": [
             "observed socket calls"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3384,9 +2728,6 @@
           ],
           "verified_fields": [
             "observed cache reuse"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3411,9 +2752,6 @@
           ],
           "verified_fields": [
             "observed connection admission"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3438,9 +2776,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3462,9 +2797,6 @@
             "cipher suites",
             "supported groups",
             "extension presence"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3489,9 +2821,6 @@
           ],
           "verified_fields": [
             "transport parameters"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3516,9 +2845,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3540,10 +2866,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3564,9 +2886,6 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3591,9 +2910,6 @@
           ],
           "verified_fields": [
             "opening headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3618,9 +2934,6 @@
           ],
           "verified_fields": [
             "CONNECT request headers"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         },
         {
@@ -3645,9 +2958,6 @@
           ],
           "verified_fields": [
             "HTTP/2 cookie placement"
-          ],
-          "limitations": [
-            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
       ],

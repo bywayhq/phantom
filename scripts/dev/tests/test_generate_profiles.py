@@ -14,6 +14,7 @@ REPO = Path(__file__).resolve().parents[3]
 class CatalogDeclarationTests(unittest.TestCase):
     def setUp(self):
         self.document = json.loads(generator.RECORDS.read_text(encoding="utf-8"))
+        self.document["profiles"] = generator.validate(self.document)
 
     def reject(self, document):
         with self.assertRaises(generator.DeclarationError):
@@ -106,27 +107,68 @@ class CatalogDeclarationTests(unittest.TestCase):
         document["profiles"][0]["metadata"]["revision"] = True
         self.reject(document)
 
-    def test_a_known_target_cannot_be_relabelled_as_another_build_or_target(self):
+    def test_new_version_needs_no_python_target_or_metadata_registration(self):
+        entry = copy.deepcopy(self.document["profiles"][0])
+        entry["metadata"].update(build="999.0.1", revision=2)
+        metadata = entry["metadata"]
+        entry["target"] = metadata["browser"] + metadata["platform"] + "999"
+        entry["id"] = (
+            f"{metadata['browser'].lower()}/{metadata['build']}/"
+            f"{metadata['platform_release']}/r2"
+        )
+        # Reusing older components does not relabel their retained observations.
+        self.document["profiles"].append(entry)
+        profiles = generator.validate(self.document)
+        output = registry.generate_constructors(profiles)
+        self.assertIn("pub fn v999_android()", output)
+        self.assertIn(entry["target"].upper() + ".instantiate()", output)
+        self.assertIn(entry["id"], generator.generate(profiles))
+        added = next(p for p in profiles if p["id"] == entry["id"])
+        self.assertEqual(added["metadata"]["revision"], 2)
+
+    def test_targets_require_matching_identity_and_unique_public_names(self):
         for field, value in (
             ("build", "999.0"),
-            ("platform_release", "android-99"),
-            ("architecture", "arm64"),
-            ("revision", 2),
+            ("browser", "Chrome"),
+            ("platform", "Windows"),
         ):
+            document = copy.deepcopy(self.document)
+            document["profiles"][0]["metadata"][field] = value
             with self.subTest(field=field):
-                document = copy.deepcopy(self.document)
-                entry = next(
-                    profile
-                    for profile in document["profiles"]
-                    if profile["target"] == "BraveAndroid153"
-                )
-                entry["metadata"][field] = value
-                metadata = entry["metadata"]
-                entry["id"] = (
-                    f"brave/{metadata['build']}/{metadata['platform_release']}"
-                    f"/r{metadata['revision']}"
-                )
                 self.reject(document)
+        for field, value in (
+            ("browser", "Other"),
+            ("platform", "Other"),
+            ("build", "999;exit"),
+            ("build", "01.2"),
+        ):
+            document = copy.deepcopy(self.document)
+            document["profiles"][0]["metadata"][field] = value
+            with self.subTest(field=field, value=value):
+                self.reject(document)
+        document = copy.deepcopy(self.document)
+        duplicate = copy.deepcopy(document["profiles"][0])
+        duplicate["metadata"]["revision"] = 2
+        duplicate["id"] = duplicate["id"][:-1] + "2"
+        document["profiles"].append(duplicate)
+        self.reject(document)
+
+    def test_compact_evidence_expands_absence_without_inventing_support(self):
+        document = json.loads(generator.RECORDS.read_text(encoding="utf-8"))
+        before = copy.deepcopy(document)
+        profiles = generator.validate(document)
+        self.assertEqual(document, before)
+        self.assertTrue(
+            any(len(p["layers"]) < len(registry.LAYERS) for p in document["profiles"])
+        )
+        for profile in profiles:
+            self.assertEqual(len(profile["layers"]), len(registry.LAYERS))
+            for layer in profile["layers"]:
+                if layer["support"] == "Unavailable":
+                    self.assertEqual(layer["references"], [])
+        entry = document["profiles"][0]
+        entry["layers"] = []
+        self.reject(document)
 
     def test_missing_escaping_or_mislabelled_capture_evidence_is_rejected(self):
         for location in (
@@ -231,7 +273,6 @@ class CatalogDeclarationTests(unittest.TestCase):
                 self.assertIsNone(old["composition"][layer["layer"]])
         for field, value in (
             ("build", "153.0.4234.49"),
-            ("architecture", "x86_64"),
             ("revision", 2),
         ):
             document = copy.deepcopy(self.document)

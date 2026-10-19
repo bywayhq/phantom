@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Generate browser profile constructors from the catalog's component selections.
+  New versions no longer need Python target tables or handwritten composition.
+  Keep specific evidence limits and expand omitted unavailable-layer records.
+
 - Import raw JA3, raw JA4 and supported captured TCP ClientHello fields using
   explicit base settings. Check the imported projection against a fresh
   in-memory ClientHello and report which settings remain supplemented.
