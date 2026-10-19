@@ -73,7 +73,8 @@ fn wrong_key_corruption_version_and_truncation_reject_without_mutation() -> Test
     assert_eq!(
         client
             .restore_session(&snapshot, &[24; 32], &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::Authentication
     );
@@ -90,7 +91,8 @@ fn wrong_key_corruption_version_and_truncation_reject_without_mutation() -> Test
         assert_eq!(
             client
                 .restore_session(&SessionSnapshot::from_bytes(&bytes)?, KEY, &[])
-                .unwrap_err()
+                .err()
+                .ok_or("expected session checkpoint rejection")?
                 .kind(),
             kind
         );
@@ -98,13 +100,15 @@ fn wrong_key_corruption_version_and_truncation_reject_without_mutation() -> Test
     assert_eq!(
         client
             .restore_session(&SessionSnapshot::from_bytes(&[])?, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::InvalidSnapshot
     );
     assert_eq!(
         SessionSnapshot::from_bytes(&vec![0; MAX_BYTES + 1])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::TooLarge
     );
@@ -144,7 +148,8 @@ fn empty_ticket_checkpoint_still_binds_profile_trust_route_and_client_certificat
         assert_eq!(
             recipient
                 .restore_session(&snapshot, KEY, &[])
-                .unwrap_err()
+                .err()
+                .ok_or("expected session checkpoint rejection")?
                 .kind(),
             SessionSnapshotErrorKind::Incompatible
         );
@@ -164,7 +169,8 @@ fn disabled_discovery_and_smaller_capacity_reject_without_trimming() -> TestResu
     assert_eq!(
         small
             .restore_session(&snapshot, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::Capacity
     );
@@ -173,7 +179,8 @@ fn disabled_discovery_and_smaller_capacity_reject_without_trimming() -> TestResu
     assert_eq!(
         disabled
             .restore_session(&snapshot, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::Disabled
     );
@@ -188,7 +195,8 @@ fn empty_enabled_discovery_remains_distinct_from_absence() -> TestResult {
     assert_eq!(
         disabled
             .restore_session(&snapshot, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::Disabled
     );
@@ -214,7 +222,8 @@ fn authenticated_oversized_section_count_is_rejected_before_allocation() -> Test
     assert_eq!(
         client
             .restore_session(&snapshot, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::TooLarge
     );
@@ -232,7 +241,8 @@ fn cookie_section_is_rejected_when_cookie_support_is_not_compiled() -> TestResul
     assert_eq!(
         client
             .restore_session(&snapshot, KEY, &[])
-            .unwrap_err()
+            .err()
+            .ok_or("expected session checkpoint rejection")?
             .kind(),
         SessionSnapshotErrorKind::Disabled
     );
@@ -244,7 +254,11 @@ fn default_route_credentials_are_explicitly_unsupported() -> TestResult {
     let proxy = HttpProxy::new("http://127.0.0.1:8080")?.with_basic_auth("user", "password")?;
     let client = builder(1).route(Route::http_proxy(proxy)).build()?;
     assert_eq!(
-        client.export_session(KEY).unwrap_err().kind(),
+        client
+            .export_session(KEY)
+            .err()
+            .ok_or("expected session checkpoint rejection")?
+            .kind(),
         SessionSnapshotErrorKind::Unsupported
     );
     Ok(())
@@ -331,7 +345,8 @@ mod cookies {
         assert_eq!(
             recipient
                 .restore_session(&snapshot, KEY, &[])
-                .unwrap_err()
+                .err()
+                .ok_or("expected session checkpoint rejection")?
                 .kind(),
             SessionSnapshotErrorKind::Capacity
         );
@@ -340,7 +355,8 @@ mod cookies {
             builder(1)
                 .build()?
                 .restore_session(&snapshot, KEY, &[])
-                .unwrap_err()
+                .err()
+                .ok_or("expected session checkpoint rejection")?
                 .kind(),
             SessionSnapshotErrorKind::Disabled
         );
@@ -402,7 +418,10 @@ mod cookies {
             .ok_or("disabled")?
             .set_cookie("https://example.com/", "existing=retained")?;
         let before = recipient.export_cookies();
-        let error = recipient.restore_session(&malformed, KEY, &[]).unwrap_err();
+        let error = recipient
+            .restore_session(&malformed, KEY, &[])
+            .err()
+            .ok_or("expected session checkpoint rejection")?;
         assert_eq!(error.kind(), SessionSnapshotErrorKind::Tickets);
         assert!(StdError::source(&error).is_some());
         assert_eq!(recipient.export_cookies(), before);
