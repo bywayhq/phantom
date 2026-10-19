@@ -21,6 +21,10 @@
   macOS capture provenance checks into tested scripts, with failure phases
   and command receipts preserved in the report. Capture acceptance is unchanged.
 
+- Add the `phantom` CLI for requests, streaming files, explicit profile and
+  proxy selection, measured diagnostics and editable profile JSON. Check clean
+  CLI installation alongside the library release archives.
+
 - Generate browser profile constructors from the catalog's component selections.
   New versions no longer need Python target tables or handwritten composition.
   Keep specific evidence limits and expand omitted unavailable-layer records.

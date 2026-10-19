@@ -5,3 +5,4 @@ crates/phantom-testkit/Cargo.toml
 crates/phantom-quic-btls/Cargo.toml
 crates/phantom-net/Cargo.toml
 crates/phantom/Cargo.toml
+crates/phantom-cli/Cargo.toml

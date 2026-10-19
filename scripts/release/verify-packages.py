@@ -263,6 +263,30 @@ def verify(args):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         module.check(binary, destination / "protocol-results")
+
+        # Install the CLI from the same archives, without checkout path overrides.
+        install = destination / "cli-install"
+        run(
+            [
+                *cargo,
+                "install",
+                "phantom-cli",
+                "--version",
+                "=" + versions["phantom-cli"],
+                "--registry",
+                "phantom-staging",
+                "--debug",
+                "--root",
+                str(install),
+                "--target-dir",
+                str(consumer / "target"),
+            ],
+            consumer,
+            logs / "cli-install.log",
+        )
+        executable = install / "bin" / ("phantom.exe" if os.name == "nt" else "phantom")
+        run([str(executable), "--version"], consumer, logs / "cli-version.log")
+        run([str(executable), "profiles", "list"], consumer, logs / "cli-profiles.log")
         print(f"Verified {len(records)} archives; evidence: {destination}", flush=True)
     finally:
         server.shutdown()

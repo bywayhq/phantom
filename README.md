@@ -49,6 +49,7 @@ so it can reuse connections and session state.
 - [Browser profiles and request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
 - [Requests and responses](https://docs.rs/phantom-http/latest/phantom/guide/requests_and_responses/index.html)
 - [Proxies](https://docs.rs/phantom-http/latest/phantom/guide/proxies/index.html)
+- [Command-line requests and profile tools](crates/phantom-cli/README.md)
 - [API reference](https://docs.rs/phantom-http/latest/phantom/) and
   [runnable examples](crates/phantom/examples/README.md)
 

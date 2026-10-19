@@ -133,7 +133,7 @@ class ReleaseChecks(unittest.TestCase):
         plan = publish.plan()
         names = {entry[0] for entry in plan}
         self.assertEqual(plan[0][0], "phantom-btls")
-        self.assertEqual(plan[-1][0], "phantom-http")
+        self.assertEqual(plan[-1][0], "phantom-cli")
         self.assertEqual(
             names,
             {
@@ -144,6 +144,7 @@ class ReleaseChecks(unittest.TestCase):
                 "phantom-quic-btls",
                 "phantom-net",
                 "phantom-http",
+                "phantom-cli",
             },
         )
         seen = set()
