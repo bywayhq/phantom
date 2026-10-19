@@ -7,6 +7,10 @@
   then select an exact digest and profile name. Rollback selects an older
   installed digest without changing existing clients.
 
+- Prepare native CLI archive candidates with dependency notices, source hashes
+  and extracted-install request checks. Uploads require passing installation
+  checks on each target.
+
 - Add optional charset-aware response text reads with separate input and UTF-8
   output limits. Invalid labels and malformed text return typed errors while
   preserving response metadata. Existing text reads remain strict UTF-8.
