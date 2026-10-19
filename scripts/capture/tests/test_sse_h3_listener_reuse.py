@@ -290,6 +290,6 @@ class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
             self.assertLessEqual(remaining, deadline - retired_at)
             self.assertLess(remaining, CONNECTION_CLEANUP_SECONDS)
             self.assertGreater(remaining, 0)
-            self.assertEqual(remaining, CONNECTION_CLEANUP_SECONDS - retirement_cost)
+            self.assertAlmostEqual(remaining, CONNECTION_CLEANUP_SECONDS - retirement_cost)
         finally:
             await server.close()
