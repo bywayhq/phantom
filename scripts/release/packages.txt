@@ -1,7 +1,7 @@
 vendor/btls/Cargo.toml
 vendor/tokio-btls/Cargo.toml
-crates/phantom-testkit/Cargo.toml
 crates/phantom-profile/Cargo.toml
+crates/phantom-testkit/Cargo.toml
 crates/phantom-quic-btls/Cargo.toml
 crates/phantom-net/Cargo.toml
 crates/phantom/Cargo.toml
