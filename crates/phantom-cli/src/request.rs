@@ -60,6 +60,8 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
             );
         }
         profile
+    } else if arguments.get_one::<String>("bundle").is_some() {
+        profiles::bundle::select(arguments).await?
     } else {
         let file = arguments
             .get_one::<PathBuf>("profile-file")

@@ -29,9 +29,27 @@ pub(super) fn command() -> Command {
                         .value_parser(value_parser!(std::path::PathBuf))
                         .help("Complete custom-profile JSON file"),
                 )
+                .arg(
+                    Arg::new("bundle")
+                        .long("bundle")
+                        .requires_all(["bundle-store", "bundle-profile"])
+                        .help("Exact installed bundle SHA-256"),
+                )
+                .arg(
+                    Arg::new("bundle-store")
+                        .long("bundle-store")
+                        .requires("bundle")
+                        .value_parser(value_parser!(std::path::PathBuf)),
+                )
+                .arg(
+                    Arg::new("bundle-profile")
+                        .long("bundle-profile")
+                        .requires("bundle")
+                        .help("Exact profile name in the pinned bundle"),
+                )
                 .group(
                     ArgGroup::new("identity")
-                        .args(["profile", "profile-file"])
+                        .args(["profile", "profile-file", "bundle"])
                         .required(true),
                 )
                 .arg(
@@ -102,6 +120,32 @@ pub(super) fn command() -> Command {
                 .about("Inspect compiled or local custom profiles")
                 .subcommand_required(true)
                 .arg_required_else_help(true)
+                .subcommand(
+                    Command::new("bundle")
+                        .about("Inspect or install offline profile bundles")
+                        .subcommand_required(true)
+                        .subcommand(
+                            Command::new("inspect").arg(
+                                Arg::new("file")
+                                    .required(true)
+                                    .value_parser(value_parser!(std::path::PathBuf)),
+                            ),
+                        )
+                        .subcommand(
+                            Command::new("install")
+                                .arg(
+                                    Arg::new("file")
+                                        .required(true)
+                                        .value_parser(value_parser!(std::path::PathBuf)),
+                                )
+                                .arg(
+                                    Arg::new("store")
+                                        .long("store")
+                                        .required(true)
+                                        .value_parser(value_parser!(std::path::PathBuf)),
+                                ),
+                        ),
+                )
                 .subcommand(Command::new("list").about("List exact compiled profile identifiers"))
                 .subcommand(
                     Command::new("describe")

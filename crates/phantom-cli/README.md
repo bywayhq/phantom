@@ -15,7 +15,7 @@ requires Phantom's [native build tools](../phantom/src/docs/getting-started.md#i
 
 ## Requests
 
-Choose exactly one `--profile ID` or `--profile-file FILE`. Built-in identifiers
+Choose `--profile ID`, `--profile-file FILE`, or a pinned bundle entry. Built-in identifiers
 are exact: no latest-version alias or platform substitution occurs. Choose
 `--protocol h1`, `h2`, `h3`, or `negotiated`. Negotiation uses the library's
 HTTP/2 and HTTP/1.1 policy. The CLI does not enable HTTP/3 fallback or retries.
@@ -68,8 +68,38 @@ Input is limited to 16 MiB. Neither operation creates browser evidence or saves
 an installed profile registry. Profile documents include configured literal
 header values, so inspect them before sharing.
 
-The catalog ships with the binary. Independent bundle updates, downloads,
-installation and rollback are separate work; there is no `profiles update` command.
+## Offline bundles
+
+A bundle groups complete custom-profile documents with exact names. Inspect
+publisher references before installing a file into your own existing directory:
+
+```console
+phantom profiles bundle inspect browsers.json
+phantom profiles bundle install browsers.json --store ./profiles
+phantom request https://example.com/ --bundle <sha256> --bundle-profile custom/chrome --bundle-store ./profiles --protocol h2
+```
+
+Install prints the bundle's lowercase SHA-256. Use that exact digest, not its
+publisher label or revision, to pin requests. Installing another revision keeps
+older files. To roll back, select an older digest. Requests use only the selected
+file and name; there is no catalog fallback or network lookup. `--context` is
+unavailable for bundle entries: each document contains its chosen template.
+
+The JSON envelope uses `format: "phantom.profile-bundle"`, `version: 1`, an `id`,
+a positive integer `revision`, and `profiles`. Each profile has `name`, `document`
+(the complete exported custom-profile object), and `provenance`. References are
+objects with `source` and `revision` strings; an empty provenance list is allowed.
+Publisher references are retained, not verified or fetched. A digest identifies
+bytes, not a trusted publisher. Bundles may contain literal header secrets.
+
+Bundles are limited to 16 MiB and 64 entries. Installation validates every entry
+before exclusive file creation. Reinstalling identical bytes succeeds; conflicting
+or incomplete files are never overwritten. Ordinary write errors attempt removal
+and report cleanup failures. Installation is not crash-atomic: interruption can
+leave an incomplete digest file, and concurrent readers can see a partial write.
+Requests verify the digest before use. Remove an incomplete file deliberately
+before retrying. Keep the store under your control, without untrusted writers.
+There is no `profiles update` command or automatic version selection.
 
 ## Diagnostics
 

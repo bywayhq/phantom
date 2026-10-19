@@ -134,14 +134,7 @@ impl ProfileRegistry {
     }
 
     fn check_name(&self, name: &str) -> Result<(), ProfileRegistryError> {
-        let valid = name.len() <= 128
-            && name
-                .as_bytes()
-                .first()
-                .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
-            && name
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._/-".contains(&b));
+        let valid = valid_name(name);
         if !valid {
             return Err(ProfileRegistryError::name(
                 ProfileRegistryErrorKind::InvalidName,
@@ -154,4 +147,16 @@ impl ProfileRegistry {
         }
         Ok(())
     }
+}
+
+// Registry and bundle labels have the same syntax; neither becomes a path.
+pub(super) fn valid_name(name: &str) -> bool {
+    name.len() <= 128
+        && name
+            .as_bytes()
+            .first()
+            .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._/-".contains(&b))
 }

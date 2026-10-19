@@ -166,6 +166,29 @@ in memory. Resumption, destination type and protocol-specific ALPN can change
 later handshakes. Imports create custom settings without a browser identity.
 They do not establish an exact browser match.
 
+## Load an offline bundle
+
+[`ProfileBundle`](crate::fingerprint::ProfileBundle) validates a versioned JSON
+bundle before exposing its exact-name registry. Enable `fingerprint-import`,
+then load bytes from your own storage:
+
+```rust,no_run
+use phantom::{Client, fingerprint::ProfileBundle};
+# fn example(bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+let bundle = ProfileBundle::from_json(bytes)?;
+let settings = bundle.profiles().get("custom/chrome").ok_or("profile absent")?;
+let client = Client::builder(settings.clone()).build()?;
+# drop(client);
+# Ok(())
+# }
+```
+
+Pin `bundle.sha256()` to identify its exact bytes, including whitespace.
+A revision label and publisher references do not authenticate a publisher or
+establish browser fidelity. Entries contain one selected request template.
+Loading a different bundle never changes an existing client. The CLI can install
+bundle files and select older digests for offline rollback.
+
 Read [Making requests and handling responses](crate::guide::requests_and_responses)
 for bodies, decoding, and errors, or [Using proxies](crate::guide::proxies) for
 proxy routes. WebSocket openings and proxy CONNECT requests use their own

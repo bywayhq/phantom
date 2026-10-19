@@ -1,5 +1,7 @@
 //! Exercise the installed command boundary against controlled loopback peers.
 
+mod bundles;
+
 use std::{
     error::Error,
     fs,

@@ -14,6 +14,7 @@
 use phantom_profile::ClientProfile;
 use std::{error::Error, fmt};
 
+mod bundle;
 mod client_hints;
 mod compact;
 mod cookie;
@@ -35,6 +36,7 @@ mod tls_import;
 mod udp;
 mod websocket;
 
+pub use bundle::{ProfileBundle, ProfileProvenance};
 pub use compact::{ImportedProfile, import_akamai_profile};
 pub use ja4::{Ja4RawFormat, import_ja4_profile};
 pub use quic_import::import_quic_transport_profile;
@@ -114,8 +116,14 @@ impl fmt::Debug for FingerprintImportError {
 impl fmt::Display for FingerprintImportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            FingerprintImportErrorKind::LossyDescription => write!(f, "fingerprint omits required settings; supply raw observations with an explicit base or complete phantom.custom-profile JSON at {}", self.field),
-            FingerprintImportErrorKind::MalformedJson => f.write_str("expected one complete phantom.custom-profile JSON document; JA3/JA4 fingerprints cannot reconstruct settings"),
+            FingerprintImportErrorKind::LossyDescription => write!(
+                f,
+                "fingerprint omits required settings; supply raw observations with an explicit base or complete phantom.custom-profile JSON at {}",
+                self.field
+            ),
+            FingerprintImportErrorKind::MalformedJson => f.write_str(
+                "expected one complete JSON document in the selected profile or bundle format",
+            ),
             _ => write!(f, "custom-profile import {:?} at {}", self.kind, self.field),
         }
     }
@@ -215,6 +223,10 @@ pub fn export_profile_json(
 /// their typed source. Supplied header values are absent from diagnostics.
 pub fn import_profile_json(input: &[u8]) -> Result<ClientProfile> {
     let document = json::parse(input)?;
+    import_document(&document)
+}
+
+fn import_document(document: &json::Value) -> Result<ClientProfile> {
     let format = document.member("format", "format")?.text("format")?;
     if matches!(format, "ja3" | "ja3n" | "ja4" | "ja4_r" | "ja4_ro") {
         return Err(FingerprintImportError::new(

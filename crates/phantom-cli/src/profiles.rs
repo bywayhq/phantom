@@ -1,3 +1,5 @@
+pub(super) mod bundle;
+
 use std::path::{Path, PathBuf};
 
 use clap::ArgMatches;
@@ -51,6 +53,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
         .subcommand()
         .ok_or_else(|| CliError::invalid("missing profile operation"))?;
     match operation {
+        "bundle" => bundle::run(arguments).await,
         "list" => {
             let mut stdout = tokio::io::stdout();
             for definition in catalog::profiles() {

@@ -28,6 +28,7 @@ pub(super) enum Value {
 struct Budget {
     nodes: usize,
     failure: Option<Kind>,
+    maximum_depth: usize,
 }
 struct Seed<'a> {
     budget: &'a mut Budget,
@@ -46,7 +47,10 @@ impl<'de> DeserializeSeed<'de> for Seed<'_> {
         self,
         deserializer: D,
     ) -> std::result::Result<Value, D::Error> {
-        if !self.permitted || self.depth > MAX_DEPTH || self.budget.nodes >= MAX_NODES {
+        if !self.permitted
+            || self.depth > self.budget.maximum_depth
+            || self.budget.nodes >= MAX_NODES
+        {
             return Err(self.budget.fail(Kind::TooLarge));
         }
         self.budget.nodes += 1;
@@ -143,10 +147,22 @@ impl<'de> Visitor<'de> for KeySeed<'_> {
     }
 }
 pub(super) fn parse(input: &[u8]) -> Result<Value> {
+    parse_depth(input, MAX_DEPTH)
+}
+
+pub(super) fn parse_bundle(input: &[u8]) -> Result<Value> {
+    // document sits inside profiles[index], three levels below the envelope.
+    parse_depth(input, MAX_DEPTH + 3)
+}
+
+fn parse_depth(input: &[u8], maximum_depth: usize) -> Result<Value> {
     if input.len() > MAX_BYTES {
         return Err(ImportError::new(Kind::TooLarge, "document"));
     }
-    let mut budget = Budget::default();
+    let mut budget = Budget {
+        maximum_depth,
+        ..Budget::default()
+    };
     let mut d = serde_json::Deserializer::from_slice(input);
     let value = Seed {
         budget: &mut budget,
@@ -160,6 +176,29 @@ pub(super) fn parse(input: &[u8]) -> Result<Value> {
     Ok(value)
 }
 impl Value {
+    pub(super) fn profile_depth(&self) -> Result<()> {
+        fn check(value: &Value, depth: usize) -> Result<()> {
+            if depth > MAX_DEPTH {
+                return Err(ImportError::new(Kind::TooLarge, "document"));
+            }
+            match value {
+                Value::Array(values) => {
+                    for value in values {
+                        check(value, depth + 1)?;
+                    }
+                }
+                Value::Object(values) => {
+                    for (_, value) in values {
+                        check(value, depth + 1)?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+        check(self, 0)
+    }
+
     pub(super) fn record(&self, keys: &[&str], field: &str) -> Result<()> {
         let Self::Object(values) = self else {
             return Err(ImportError::new(Kind::InvalidValue, field));
