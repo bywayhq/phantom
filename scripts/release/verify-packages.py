@@ -78,6 +78,49 @@ def index_record(manifest, checksum, local_names):
     }
 
 
+def install_registry_config(base, manifest, versions):
+    # cargo install resolves the downloaded root manifest rather than its index
+    # dependency records. Redirect only its staged direct dependencies; ordinary
+    # external dependencies must continue to come from crates.io.
+    dependencies = index_record(manifest, "", versions)["deps"]
+    staged = {
+        dependency.get("package") or dependency["name"]
+        for dependency in dependencies
+        if dependency["kind"] != "dev" and dependency["registry"] is None
+    }
+    return (
+        "[registries.phantom-staging]\nindex = "
+        + json.dumps("sparse+" + base + "/")
+        + "\n\n[patch.crates-io]\n"
+        + "".join(
+            f"{json.dumps(name)} = {{ version = {json.dumps('=' + versions[name])}, "
+            'registry = "phantom-staging" }\n'
+            for name in sorted(staged)
+        )
+    )
+
+
+def installed_package_sources(log, base, versions):
+    selected = {}
+    for line in log.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("{"):
+            continue
+        record = json.loads(line)
+        if record.get("reason") != "compiler-artifact":
+            continue
+        identity = record["package_id"]
+        name = identity.rsplit("#", 1)[-1].split("@", 1)[0]
+        if name not in versions:
+            continue
+        expected = f"sparse+{base}/#{name}@{versions[name]}"
+        if identity != expected:
+            raise ValueError(f"installed package bypassed staging archive: {identity}")
+        selected[name] = identity
+    if not {"phantom-cli", "phantom-http"} <= selected.keys():
+        raise ValueError("CLI install omitted staged root or client source receipts")
+    return selected
+
+
 class RegistryHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *_args):
         pass
@@ -266,6 +309,16 @@ def verify(args):
 
         # Install the CLI from the same archives, without checkout path overrides.
         install = destination / "cli-install"
+        cli_manifest = next(
+            manifest
+            for manifest, _ in records
+            if manifest["package"]["name"] == "phantom-cli"
+        )
+        install_config = destination / "cli-registry.toml"
+        install_config.write_text(
+            install_registry_config(base, cli_manifest, versions), encoding="utf-8"
+        )
+        install_log = logs / "cli-install.log"
         run(
             [
                 *cargo,
@@ -277,7 +330,8 @@ def verify(args):
                 "phantom-staging",
                 # cargo install ignores the current directory's configuration.
                 "--config",
-                str(config / "config.toml"),
+                str(install_config),
+                "--message-format=json-render-diagnostics",
                 "--debug",
                 "--root",
                 str(install),
@@ -285,7 +339,12 @@ def verify(args):
                 os.environ.get("CARGO_TARGET_DIR", str(consumer / "target")),
             ],
             consumer,
-            logs / "cli-install.log",
+            install_log,
+        )
+        (logs / "cli-packages.json").write_text(
+            json.dumps(installed_package_sources(install_log, base, versions), indent=2)
+            + "\n",
+            encoding="utf-8",
         )
         executable = install / "bin" / ("phantom.exe" if os.name == "nt" else "phantom")
         run([str(executable), "--version"], consumer, logs / "cli-version.log")

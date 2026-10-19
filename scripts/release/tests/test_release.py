@@ -86,6 +86,93 @@ class ReleaseChecks(unittest.TestCase):
         self.assertEqual(record["features2"], manifest["features"])
         self.assertEqual(record["links"], "native")
 
+    def test_install_root_redirects_staged_dependencies_without_replacing_crates_io(
+        self,
+    ):
+        manifest = {
+            "package": {"name": "phantom-cli", "version": "0.2.0"},
+            "dependencies": {
+                "phantom": {
+                    "package": "phantom-http",
+                    "version": "=0.2.0",
+                    "features": ["fingerprint-import"],
+                },
+                "phantom-profile": "=0.2.0",
+                "tokio": "1",
+            },
+            "dev-dependencies": {"phantom-testkit": "=0.2.0"},
+        }
+        versions = dict.fromkeys(
+            ("phantom-cli", "phantom-http", "phantom-profile", "phantom-testkit"),
+            "0.2.0",
+        )
+        settings = tomllib.loads(
+            verify.install_registry_config("http://127.0.0.1:321", manifest, versions)
+        )
+        self.assertEqual(
+            settings["registries"]["phantom-staging"]["index"],
+            "sparse+http://127.0.0.1:321/",
+        )
+        self.assertEqual(
+            settings["patch"]["crates-io"],
+            {
+                name: {"version": "=0.2.0", "registry": "phantom-staging"}
+                for name in ("phantom-http", "phantom-profile")
+            },
+        )
+        self.assertNotIn("source", settings)
+        self.assertNotIn(
+            "path",
+            verify.install_registry_config("http://127.0.0.1:321", manifest, versions),
+        )
+
+    def test_cli_artifacts_must_identify_the_staged_client_and_root(self):
+        base = "http://127.0.0.1:321"
+        versions = {"phantom-cli": "0.2.0", "phantom-http": "0.2.0"}
+        selected = {
+            name: f"sparse+{base}/#{name}@{version}"
+            for name, version in versions.items()
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "cli-install.log"
+            records = [
+                {"reason": "compiler-artifact", "package_id": identity}
+                for identity in selected.values()
+            ]
+            records.append(
+                {
+                    "reason": "compiler-artifact",
+                    "package_id": "registry+https://github.com/rust-lang/crates.io-index#tokio@1.0.0",
+                }
+            )
+
+            def write():
+                log.write_text(
+                    "Installing staged CLI\n" + "\n".join(map(json.dumps, records)),
+                    encoding="utf-8",
+                )
+
+            write()
+            self.assertEqual(
+                verify.installed_package_sources(log, base, versions), selected
+            )
+            for wrong in (
+                "registry+https://github.com/rust-lang/crates.io-index#phantom-http@0.2.0",
+                f"sparse+{base}/#phantom-http@0.1.0",
+                "path+file:///checkout#phantom-http@0.2.0",
+            ):
+                records[1]["package_id"] = wrong
+                write()
+                with (
+                    self.subTest(identity=wrong),
+                    self.assertRaisesRegex(ValueError, "bypassed staging"),
+                ):
+                    verify.installed_package_sources(log, base, versions)
+            records.pop(1)
+            write()
+            with self.assertRaisesRegex(ValueError, "omitted staged"):
+                verify.installed_package_sources(log, base, versions)
+
     def test_index_rejects_a_dependency_that_still_uses_git_or_path(self):
         for source in ["git", "path"]:
             with self.subTest(source=source), self.assertRaises(ValueError):
