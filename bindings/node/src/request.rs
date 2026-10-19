@@ -1,0 +1,281 @@
+//! Owned request inputs and bounded uploads.
+
+use std::{
+    io,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+    time::{Duration, Instant},
+};
+
+use bytes::Bytes;
+use http_body::{Body, Frame, SizeHint};
+use napi::Result;
+use phantom::{
+    HttpAttemptBudget, HttpProtocol, Method, PreparedRequestTemplate, RequestBuilder, RequestHeader,
+};
+use phantom_profile::catalog::RequestTemplateKind;
+use tokio::io::{AsyncRead, ReadBuf};
+
+use crate::{
+    client::ClientState,
+    error::{failure, request},
+    ffi::RequestOptions,
+    response::{Exchange, Pending},
+};
+
+pub(crate) const MAXIMUM_INPUT_BYTES: usize = 16 * 1024 * 1024;
+pub(crate) const MAXIMUM_HEADER_BYTES: usize = 64 * 1024;
+
+pub(crate) struct Prepared {
+    builder: RequestBuilder,
+    file: Option<(String, u64)>,
+    exchange: Arc<Exchange>,
+    _pending: Pending,
+}
+
+impl Prepared {
+    pub(crate) fn new(
+        client: &Arc<ClientState>,
+        options: RequestOptions,
+        headers: Vec<RequestHeader>,
+        body: Option<Vec<u8>>,
+        started: Instant,
+        exchange: Arc<Exchange>,
+        budget: Option<HttpAttemptBudget>,
+    ) -> Result<Self> {
+        if client.is_closed() {
+            return Err(failure("ClientClosed", "client is closed"));
+        }
+        if options.url.len() > 64 * 1024 || options.method.len() > 64 {
+            return Err(failure(
+                "InputLimit",
+                "request target or method exceeds the binding limit",
+            ));
+        }
+        let protocol = match options.protocol.as_str() {
+            "http1" => HttpProtocol::Http1,
+            "http2" => HttpProtocol::Http2,
+            "http3" => HttpProtocol::Http3,
+            _ => {
+                return Err(failure(
+                    "InvalidProtocol",
+                    "choose http1, http2 or http3 explicitly",
+                ));
+            }
+        };
+        let method = Method::from_bytes(options.method.as_bytes())
+            .map_err(|_| failure("InvalidMethod", "invalid HTTP method"))?;
+        let mut builder = client
+            .core
+            .request(protocol, method, &options.url)
+            .map_err(request)?
+            .headers(headers);
+        if options.context != "raw" {
+            let kind = match options.context.as_str() {
+                "navigation" => RequestTemplateKind::Navigation,
+                "fetch" => RequestTemplateKind::Fetch,
+                "fetchNoStore" => RequestTemplateKind::FetchNoStore,
+                "fetchUpload" => RequestTemplateKind::FetchUpload,
+                _ => {
+                    return Err(failure(
+                        "InvalidContext",
+                        "choose raw, navigation, fetch, fetchNoStore or fetchUpload",
+                    ));
+                }
+            };
+            let template = client.profile.request_template(kind).map_err(|_| {
+                failure(
+                    "UnavailableContext",
+                    "this exact profile has no template for the requested context",
+                )
+            })?;
+            let prepared = PreparedRequestTemplate::new(template)
+                .map_err(|_| failure("InvalidProfile", "request template is invalid"))?;
+            builder = builder.template(&prepared);
+        }
+        if body.is_some() && options.file.is_some() {
+            return Err(failure(
+                "InvalidBody",
+                "choose byte or file upload, not both",
+            ));
+        }
+        if let Some(body) = body {
+            builder = builder.body(body);
+        }
+        let file = options
+            .file
+            .map(|file| (file.path, u64::from(file.maximum_bytes)));
+        if file
+            .as_ref()
+            .is_some_and(|(path, _)| path.is_empty() || path.len() > 4096)
+        {
+            return Err(failure(
+                "InputLimit",
+                "file path must contain 1..4096 UTF-8 bytes",
+            ));
+        }
+        if let Some(budget) = budget {
+            builder = builder.attempt_budget(budget);
+        }
+        let deadline = options
+            .timeout_ms
+            .map(|milliseconds| {
+                started
+                    .checked_add(Duration::from_millis(u64::from(milliseconds)))
+                    .ok_or_else(|| failure("InvalidTimeout", "deadline cannot be represented"))
+            })
+            .transpose()?;
+        let permit = Arc::clone(&client.admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("Capacity", "client has no free request slots"))?;
+        exchange.claim(permit, deadline)?;
+        let pending = Pending::new(Arc::clone(&exchange), Arc::clone(client));
+        client.register(&exchange)?;
+        Ok(Self {
+            builder,
+            file,
+            exchange,
+            _pending: pending,
+        })
+    }
+
+    pub(crate) async fn send(self) -> Result<(u32, Vec<(String, Vec<u8>)>, Arc<Exchange>)> {
+        let Self {
+            mut builder,
+            file,
+            exchange,
+            _pending,
+        } = self;
+        let send = async {
+            if let Some((path, maximum)) = file {
+                let file = tokio::fs::File::open(path)
+                    .await
+                    .map_err(|_| failure("FileIo", "could not open upload file"))?;
+                let metadata = file
+                    .metadata()
+                    .await
+                    .map_err(|_| failure("FileIo", "could not inspect upload file"))?;
+                if !metadata.is_file() || metadata.len() > maximum {
+                    return Err(failure(
+                        "InputLimit",
+                        "upload must be a regular file within maximumBytes",
+                    ));
+                }
+                builder = builder.streaming_body(FileBody {
+                    file,
+                    remaining: metadata.len(),
+                });
+            }
+            let response = builder.send().await.map_err(request)?;
+            let status = u32::from(response.status().as_u16());
+            let headers = response
+                .extensions()
+                .get::<phantom::OrderedResponseHeaders>()
+                .ok_or_else(|| failure("Internal", "response header order is unavailable"))?
+                .iter()
+                .map(|header| (header.name().to_owned(), header.value().to_vec()))
+                .collect();
+            exchange.attach(response.into_body())?;
+            Ok((status, headers, Arc::clone(&exchange)))
+        };
+        tokio::select! {
+            biased;
+            error = exchange.interrupted() => Err(error),
+            result = send => result,
+        }
+    }
+}
+
+struct FileBody {
+    file: tokio::fs::File,
+    remaining: u64,
+}
+
+impl Body for FileBody {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<std::result::Result<Frame<Bytes>, io::Error>>> {
+        if self.remaining == 0 {
+            return Poll::Ready(None);
+        }
+        let maximum = self.remaining.min(64 * 1024) as usize;
+        let mut bytes = vec![0; maximum];
+        let mut read = ReadBuf::new(&mut bytes);
+        match Pin::new(&mut self.file).poll_read(context, &mut read) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(error)) => Poll::Ready(Some(Err(error))),
+            Poll::Ready(Ok(())) => {
+                let count = read.filled().len();
+                if count == 0 {
+                    return Poll::Ready(Some(Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "upload file shrank",
+                    ))));
+                }
+                self.remaining -= count as u64;
+                bytes.truncate(count);
+                Poll::Ready(Some(Ok(Frame::data(bytes.into()))))
+            }
+        }
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        SizeHint::with_exact(self.remaining)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http_body_util::BodyExt;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
+
+    struct TestFile(std::path::PathBuf);
+
+    impl TestFile {
+        fn create(contents: &[u8]) -> io::Result<Self> {
+            let path = std::env::temp_dir().join(format!(
+                "phantom-node-{}-{}.bin",
+                std::process::id(),
+                NEXT_FILE.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::write(&path, contents)?;
+            Ok(Self(path))
+        }
+    }
+
+    impl Drop for TestFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    #[tokio::test]
+    async fn file_growth_does_not_exceed_the_admitted_metadata_length() -> io::Result<()> {
+        let path = TestFile::create(b"original")?;
+        let file = tokio::fs::File::open(&path.0).await?;
+        let remaining = file.metadata().await?.len();
+        std::fs::write(&path.0, b"original-more")?;
+        let body = FileBody { file, remaining };
+        assert_eq!(body.collect().await?.to_bytes(), "original");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn file_shrinkage_is_an_explicit_upload_error() -> io::Result<()> {
+        let path = TestFile::create(b"original")?;
+        let file = tokio::fs::File::open(&path.0).await?;
+        let remaining = file.metadata().await?.len();
+        std::fs::write(&path.0, b"short")?;
+        let result = FileBody { file, remaining }.collect().await;
+        assert!(matches!(result, Err(error) if error.kind() == io::ErrorKind::UnexpectedEof));
+        Ok(())
+    }
+}
