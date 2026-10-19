@@ -13,6 +13,7 @@ AUDITED_MODULES = (
     ("crates/phantom-net/src/lib.rs", "linux_dns_ffi"),
     ("crates/phantom-net/src/lib.rs", "macos_dns_ffi"),
     ("bindings/go/native/src/lib.rs", "ffi"),
+    ("bindings/node/src/lib.rs", "ffi"),
 )
 BASH = shutil.which("bash")
 if BASH is not None and "system32" in BASH.lower():
@@ -66,6 +67,7 @@ class CiCheckTests(unittest.TestCase):
         )
         self.write("Cargo.toml", '[workspace.lints.rust]\nunsafe_code = "forbid"\n')
         self.write("bindings/go/native/src/lib.rs", "#[allow(unsafe_code)]\nmod ffi;\n")
+        self.write("bindings/node/src/lib.rs", "#[allow(unsafe_code)]\nmod ffi;\n")
         subprocess.run(["git", "-C", str(self.root), "init", "-q"], check=True)
         subprocess.run(
             ["git", "-c", "core.autocrlf=false", "-C", str(self.root), "add", "."],
