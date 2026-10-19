@@ -995,6 +995,7 @@ impl RequestBuilder {
         mut self,
         request_span: &Span,
     ) -> Result<Response<ResponseBody>, RequestError> {
+        let activity = self.client.state.lifecycle.enter()?;
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         let http2_fallback = retry_policy.http2_fallback() && retry_policy.max_retries() != Some(0);
         let initial_fallback = http2_fallback && self.alternative.is_none();
@@ -1292,6 +1293,7 @@ impl RequestBuilder {
                 decoded_content_codings,
             ));
             response.body_mut().finish_diagnostics_if_empty();
+            response.body_mut().retain_activity(activity);
             if let Some(history) = history {
                 response.extensions_mut().insert(history);
             }
@@ -1418,6 +1420,7 @@ impl RequestBuilder {
                         decoded_content_codings,
                     ));
                     response.body_mut().finish_diagnostics_if_empty();
+                    response.body_mut().retain_activity(activity);
                     if let Some(mut history) = history {
                         history.finish(redirect.followed());
                         response.extensions_mut().insert(history);

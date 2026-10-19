@@ -28,6 +28,7 @@ mod http2_connections;
 pub(crate) mod http2_pool;
 mod http3_connections;
 pub(crate) mod http3_pool;
+pub(crate) mod lifecycle;
 mod prune_timer;
 mod retired_connections;
 mod stream_count;
@@ -197,6 +198,7 @@ pub(crate) type PooledHttp2Session = (
 );
 
 pub(crate) struct ClientState {
+    pub(crate) lifecycle: Arc<lifecycle::Lifecycle>,
     tickets: Arc<tickets::TicketOwner>,
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
@@ -537,6 +539,7 @@ impl ClientOptions {
         http3.set_alt_svc_https_policy(self.alt_svc_https_policy);
         http3.set_rtt_history(rtt_history.clone());
         Arc::new(ClientState {
+            lifecycle: Arc::default(),
             tickets,
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
@@ -561,6 +564,35 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Stops accepting work and waits for existing operations to finish.
+    ///
+    /// The first poll closes admission for this client and all its clones.
+    /// Requests and WebSocket openings already in progress can finish, including
+    /// their redirects and eligible replays. Later operations fail with
+    /// [`crate::RequestErrorKind::ClientClosed`]. WebSocket openings report
+    /// the corresponding `WebSocketErrorKind::ClientClosed` category.
+    ///
+    /// Read response bodies through EOF or drop them, including response bodies
+    /// returned by a rejected WebSocket opening. Receive the end of established
+    /// WebSockets or drop them. Shutdown waits for these owners, then releases
+    /// retained origin and proxy connections. Driver cleanup is asynchronous;
+    /// this does not join transport tasks or wait for peer acknowledgements.
+    ///
+    /// Cancelling this future leaves admission closed. A later call can finish
+    /// waiting and connection cleanup. Use an external timeout to bound the wait;
+    /// cancelling shutdown does not abort active work. Client state such as TLS
+    /// tickets and cookies remains available for export.
+    pub async fn shutdown(&self) {
+        self.state.lifecycle.shutdown().await;
+        self.refresh_connections().await;
+    }
+
+    /// Returns whether shutdown has closed admission for this client and clones.
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.state.lifecycle.is_closed()
+    }
+
     /// Replaces retained origin and proxy connections while active work finishes.
     ///
     /// After this returns, later pool lookups use fresh connections. Work that

@@ -84,6 +84,8 @@ pub struct ResponseBody {
     held_trailers: Option<HeaderMap>,
     origin: Option<RequestOrigin>,
     proxy_authentication: Option<(DigestResponseAuthentication, HttpProtocol)>,
+    // Release shutdown admission after synchronous transport teardown on Drop.
+    activity: Option<crate::session::lifecycle::Activity>,
 }
 
 /// Opt-in content decoding applied above the wire body.
@@ -100,6 +102,10 @@ enum ResponseBodyInner {
 }
 
 impl ResponseBody {
+    pub(crate) fn retain_activity(&mut self, activity: crate::session::lifecycle::Activity) {
+        self.activity = Some(activity);
+    }
+
     /// Collects the body, accepting up to `maximum_bytes` of data.
     ///
     /// Trailers are consumed and discarded. If the data exceeds
@@ -175,6 +181,7 @@ impl ResponseBody {
 
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
+            activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
                 Some(http::Version::HTTP_11),
@@ -198,6 +205,7 @@ impl ResponseBody {
 
     pub(crate) fn http2(body: Http2Body) -> Self {
         Self {
+            activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
                 Some(http::Version::HTTP_2),
@@ -221,6 +229,7 @@ impl ResponseBody {
 
     pub(crate) fn http3(body: Http3Body) -> Self {
         Self {
+            activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
                 Some(http::Version::HTTP_3),
@@ -535,6 +544,9 @@ impl ResponseBody {
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
         let this = self;
         let frame = this.poll_frame_inner(context);
+        if matches!(frame, Poll::Ready(None | Some(Err(_)))) {
+            this.activity.take();
+        }
         if !this.diagnostics.is_retained() {
             return frame;
         }

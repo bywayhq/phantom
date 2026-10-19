@@ -61,6 +61,8 @@ pub struct WebSocket {
     #[cfg(feature = "websocket-deflate")]
     deflate: DeflateState,
     pending_incoming: Option<WebSocketMessage>,
+    // Release shutdown admission after synchronous transport teardown on Drop.
+    activity: Option<crate::session::lifecycle::Activity>,
 }
 
 /// What one established connection compresses, and how.
@@ -89,6 +91,10 @@ impl fmt::Debug for WebSocket {
 }
 
 impl WebSocket {
+    pub(super) fn retain_activity(&mut self, activity: crate::session::lifecycle::Activity) {
+        self.activity = Some(activity);
+    }
+
     pub(super) async fn new_http1(
         stream: Http1Upgrade,
         handshake: Response<()>,
@@ -165,6 +171,7 @@ impl WebSocket {
     ) -> Self {
         let socket = WebSocketStream::from_raw_socket(stream, Role::Client, Some(config)).await;
         Self {
+            activity: None,
             socket: Some(socket),
             handshake,
             selected_protocol,
@@ -449,10 +456,12 @@ impl Stream for WebSocket {
             }
             Poll::Ready(Some(Err(error))) => {
                 this.socket = None;
+                this.activity.take();
                 Poll::Ready(Some(Err(WebSocketError::engine(error))))
             }
             Poll::Ready(None) => {
                 this.socket = None;
+                this.activity.take();
                 Poll::Ready(None)
             }
             Poll::Pending => Poll::Pending,
@@ -479,6 +488,7 @@ fn poll_pending_incoming(
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(error)) => {
                         socket.socket = None;
+                        socket.activity.take();
                         socket.pending_incoming = None;
                         return Poll::Ready(Some(Err(error)));
                     }
@@ -491,6 +501,7 @@ fn poll_pending_incoming(
         }
         Poll::Ready(Err(error)) => {
             socket.socket = None;
+            socket.activity.take();
             socket.pending_incoming = None;
             Poll::Ready(Some(Err(WebSocketError::engine(error))))
         }
@@ -551,6 +562,7 @@ impl Sink<WebSocketMessage> for WebSocket {
         };
         if matches!(result, Poll::Ready(Err(_))) {
             this.socket = None;
+            this.activity.take();
             this.pending_incoming = None;
         }
         result

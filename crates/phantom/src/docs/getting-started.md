@@ -102,6 +102,10 @@ available for reuse. If you stop early or exceed a body limit, dropping the body
 cancels the remaining read; cleanup and connection reuse depend on the protocol.
 You do not need a separate close call for the client.
 
+To stop accepting work and wait for active operations, use
+[`Client::shutdown`](crate::Client::shutdown). Read response bodies through EOF
+or drop them, and finish or drop WebSockets. Client clones share shutdown state.
+
 ## Restrict server public keys
 
 Use [`ClientBuilder::server_spki_pins`](crate::ClientBuilder::server_spki_pins)

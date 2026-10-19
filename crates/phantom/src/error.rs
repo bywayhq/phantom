@@ -387,6 +387,8 @@ pub enum RequestErrorKind {
     RuntimeUnavailable,
     /// The connection or stream pool has no space for another waiting request.
     Capacity,
+    /// This client has stopped accepting work during shutdown.
+    ClientClosed,
     /// The caller-supplied shared origin HTTP attempt allowance is exhausted.
     AttemptBudgetExhausted,
     /// A configured timeout cannot be represented by the runtime clock.
@@ -485,6 +487,13 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn client_closed() -> Self {
+        Self::without_source(
+            RequestErrorKind::ClientClosed,
+            "client has stopped accepting work",
+        )
+    }
+
     pub(crate) fn attempt_budget_exhausted(
         protocol: Option<HttpProtocol>,
         source: crate::HttpAttemptBudgetExhausted,

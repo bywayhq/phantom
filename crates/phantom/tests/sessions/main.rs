@@ -30,5 +30,6 @@ mod session_http2_retention;
 mod session_http3;
 mod session_tcp_early_data;
 mod session_tls_resumption;
+mod shutdown;
 #[cfg(feature = "websocket")]
 mod websocket_resumption;

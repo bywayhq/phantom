@@ -56,6 +56,8 @@ pub enum WebSocketErrorKind {
     InvalidHandshake,
     /// A frame, message, or write buffer exceeded its configured bound.
     Capacity,
+    /// This client has stopped accepting work during shutdown.
+    ClientClosed,
     /// A shared HTTP attempt allowance prevented replay of the TLS connection.
     AttemptBudgetExhausted,
     /// A WebSocket framing rule was violated.
@@ -158,6 +160,7 @@ impl WebSocketError {
             RequestErrorKind::Proxy => WebSocketErrorKind::Proxy,
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
             RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
+            RequestErrorKind::ClientClosed => WebSocketErrorKind::ClientClosed,
             RequestErrorKind::AttemptBudgetExhausted => WebSocketErrorKind::AttemptBudgetExhausted,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
             RequestErrorKind::SessionTickets => WebSocketErrorKind::SessionTickets,
@@ -188,6 +191,12 @@ impl WebSocketError {
             response: Some(Box::new(response)),
             timeout_phase: None,
             retryable_setup: false,
+        }
+    }
+
+    pub(super) fn retain_activity(&mut self, activity: crate::session::lifecycle::Activity) {
+        if let Some(response) = self.response.as_mut() {
+            response.body_mut().retain_activity(activity);
         }
     }
 

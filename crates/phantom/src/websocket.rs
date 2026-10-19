@@ -401,7 +401,19 @@ impl WebSocketRequestBuilder {
             error_kind = field::Empty,
         );
         let outcome = OperationOutcome::new(&span);
-        let result = self.connect_with_retries(&span).await;
+        let result = match self.client.state.lifecycle.enter() {
+            Err(error) => Err(WebSocketError::request(error)),
+            Ok(activity) => match self.connect_with_retries(&span).await {
+                Ok(mut socket) => {
+                    socket.retain_activity(activity);
+                    Ok(socket)
+                }
+                Err(mut error) => {
+                    error.retain_activity(activity);
+                    Err(error)
+                }
+            },
+        };
         match &result {
             Ok(_) => outcome.finish("ok", None),
             Err(error) => outcome.finish("error", Some(error.kind())),

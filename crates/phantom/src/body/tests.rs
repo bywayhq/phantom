@@ -60,6 +60,7 @@ async fn stacked_header_work_yields_then_observes_the_total_deadline()
     decoder.push(Bytes::from(encoded));
     decoder.end_input();
     let mut body = ResponseBody {
+        activity: None,
         diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
             crate::RequestTimingPhase::ResponseBody,
             None,
@@ -251,6 +252,7 @@ fn gzip_body_at_work_quota(
     }
 
     let mut body = ResponseBody {
+        activity: None,
         diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
             crate::RequestTimingPhase::ResponseBody,
             None,

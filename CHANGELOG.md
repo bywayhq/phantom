@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add terminal client shutdown that rejects new requests and WebSocket openings,
+  waits for existing caller-owned work, and releases retained connections.
+  Client clones share shutdown state.
+
 - Add bounded streaming multipart uploads with ordered fields, duplicate names,
   async readers and explicit filenames and boundaries. Reader data is pulled
   in 8 KiB chunks; incomplete uploads remain one-shot and cancellable.
