@@ -45,6 +45,11 @@ allow = [
     # zlib-rs, the flate2 backend.
     "Zlib",
 ]
+exceptions = [
+    # PyO3's build configuration uses target-lexicon. Its LICENSE contains
+    # Apache-2.0 plus the LLVM exception for compiled object redistribution.
+    { crate = "target-lexicon@0.13.5", allow = ["Apache-2.0 WITH LLVM-exception"] },
+]
 
 # Every dependency comes from crates.io or a path under vendor/.
 [sources]
