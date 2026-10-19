@@ -6,6 +6,14 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
+AUDITED_MODULES = (
+    ("crates/phantom-quic-btls/src/lib.rs", "backend"),
+    ("crates/phantom-net/src/lib.rs", "socket_ffi"),
+    ("crates/phantom-net/src/lib.rs", "system_dns_ffi"),
+    ("crates/phantom-net/src/lib.rs", "linux_dns_ffi"),
+    ("crates/phantom-net/src/lib.rs", "macos_dns_ffi"),
+    ("bindings/go/native/src/lib.rs", "ffi"),
+)
 BASH = shutil.which("bash")
 if BASH is not None and "system32" in BASH.lower():
     BASH = None
@@ -57,6 +65,7 @@ class CiCheckTests(unittest.TestCase):
             "#[allow(unsafe_code)]\nmod macos_dns_ffi;\n",
         )
         self.write("Cargo.toml", '[workspace.lints.rust]\nunsafe_code = "forbid"\n')
+        self.write("bindings/go/native/src/lib.rs", "#[allow(unsafe_code)]\nmod ffi;\n")
         subprocess.run(["git", "-C", str(self.root), "init", "-q"], check=True)
         subprocess.run(
             ["git", "-c", "core.autocrlf=false", "-C", str(self.root), "add", "."],
@@ -99,15 +108,8 @@ class CiCheckTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_unsafe_checks_reject_missing_audited_allowances(self) -> None:
-        for package, module in (
-            ("phantom-quic-btls", "backend"),
-            ("phantom-net", "socket_ffi"),
-            ("phantom-net", "system_dns_ffi"),
-            ("phantom-net", "linux_dns_ffi"),
-            ("phantom-net", "macos_dns_ffi"),
-        ):
-            with self.subTest(module=module):
-                path = f"crates/{package}/src/lib.rs"
+        for path, module in AUDITED_MODULES:
+            with self.subTest(path=path, module=module):
                 original = (self.root / path).read_text(encoding="utf-8")
                 self.write(
                     path,
@@ -125,15 +127,8 @@ class CiCheckTests(unittest.TestCase):
                 )
 
     def test_unsafe_checks_reject_renamed_audited_modules(self) -> None:
-        for package, module in (
-            ("phantom-quic-btls", "backend"),
-            ("phantom-net", "socket_ffi"),
-            ("phantom-net", "system_dns_ffi"),
-            ("phantom-net", "linux_dns_ffi"),
-            ("phantom-net", "macos_dns_ffi"),
-        ):
-            with self.subTest(module=module):
-                path = f"crates/{package}/src/lib.rs"
+        for path, module in AUDITED_MODULES:
+            with self.subTest(path=path, module=module):
                 original = (self.root / path).read_text(encoding="utf-8")
                 self.write(path, original.replace(f"mod {module};", "mod other_ffi;"))
                 result = self.run_check("check-unsafe-boundaries.sh", "unused", 1)
@@ -145,15 +140,8 @@ class CiCheckTests(unittest.TestCase):
                 self.assertNotIn("unsafe_code allowance(s)", result.stderr)
 
     def test_unsafe_checks_reject_allowances_moved_onto_other_modules(self) -> None:
-        for package, module in (
-            ("phantom-quic-btls", "backend"),
-            ("phantom-net", "socket_ffi"),
-            ("phantom-net", "system_dns_ffi"),
-            ("phantom-net", "linux_dns_ffi"),
-            ("phantom-net", "macos_dns_ffi"),
-        ):
-            with self.subTest(module=module):
-                path = f"crates/{package}/src/lib.rs"
+        for path, module in AUDITED_MODULES:
+            with self.subTest(path=path, module=module):
                 original = (self.root / path).read_text(encoding="utf-8")
                 self.write(
                     path,
