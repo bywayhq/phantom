@@ -62,6 +62,7 @@ pub(super) fn command() -> Command {
                     Arg::new("context")
                         .long("context")
                         .requires("profile")
+                        .conflicts_with_all(["profile-file", "bundle"])
                         .value_parser(["navigation", "fetch"])
                         .help("Select this catalog request template; omitted means no template"),
                 )

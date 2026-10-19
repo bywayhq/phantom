@@ -168,9 +168,14 @@ fn invalid_bundles_conflicts_and_selection_errors_preserve_installed_content() -
     let context = pinned("http://127.0.0.1:1/", &store, &digest)
         .args(["--context", "navigation"])
         .output()?;
-    assert_eq!(context.status.code(), Some(2));
+    assert_eq!(
+        context.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&context.stderr)
+    );
     let missing = pinned_profile("http://127.0.0.1:1/", &store, &digest, "missing").output()?;
-    assert_eq!(missing.status.code(), Some(1));
+    assert_eq!(missing.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&missing.stderr).contains("exact bundle profile name"));
     assert_eq!(fs::read(&destination)?, bytes);
     let different = bundle(2, "different")?;
