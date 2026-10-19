@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Extend controlled client comparisons with HTTP/1.1 and HTTP/3 body
+  cancellation checks, including incomplete responses and healthy concurrent
+  requests. Retain unsupported cases and failed cancellation outcomes.
+
 - Breaking: include opted-in HTTPS-record and ECH discovery in encrypted
   session checkpoints, preserving record order and expiry. Checkpoints now use
   format version 2. Migrate: create new checkpoints and set
