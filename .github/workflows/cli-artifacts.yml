@@ -60,6 +60,10 @@ jobs:
         run: |
           choco install nasm --version=2.16.3 --yes --no-progress
           if ($LASTEXITCODE -ne 0) { throw "NASM installation failed" }
+          $nasmDirectory = (Get-Item -LiteralPath 'HKCU:\Software\nasm').GetValue('')
+          if (-not (Test-Path -LiteralPath (Join-Path $nasmDirectory 'nasm.exe'))) { throw "NASM executable is missing" }
+          $env:PATH = "$nasmDirectory;$env:PATH"
+          $nasmDirectory >> $env:GITHUB_PATH
           nasm -v
           if ($LASTEXITCODE -ne 0) { throw "NASM is unavailable" }
 
