@@ -86,6 +86,57 @@ async fn second_connection_to_one_origin_and_route_resumes() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn attached_quic_ticket_store_shares_later_tickets_and_clearing() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let server = spawn_server(endpoint);
+    let base = trusting_connector(&identity)?;
+    let source = base.with_isolated_session_cache();
+    let source_control = source
+        .session_ticket_cache()
+        .ok_or("source cache missing")?;
+    let owner = source_control.upgrade().ok_or("source owner missing")?;
+    let recipient = base
+        .with_isolated_session_cache()
+        .with_session_ticket_cache(&owner)?;
+    let recipient_control = recipient
+        .session_ticket_cache()
+        .ok_or("recipient cache missing")?;
+    assert!(!source.has_ticket_for(TEST_SERVER_NAME));
+    assert!(!recipient.has_ticket_for(TEST_SERVER_NAME));
+
+    let result = async {
+        let first = connect(&source, address).await?;
+        assert!(!first.session_resumed());
+        wait_for_ticket(&source).await?;
+        // Attachment precedes learning: the recipient must use the live store.
+        assert!(recipient.has_ticket_for(TEST_SERVER_NAME));
+        let second = connect(&recipient, address).await?;
+        assert!(second.session_resumed());
+        wait_for_ticket(&recipient).await?;
+
+        assert!(source_control.clear() > 0);
+        assert!(!source.has_ticket_for(TEST_SERVER_NAME));
+        assert!(!recipient.has_ticket_for(TEST_SERVER_NAME));
+        let third = connect(&source, address).await?;
+        assert!(!third.session_resumed());
+        wait_for_ticket(&source).await?;
+        assert!(recipient.has_ticket_for(TEST_SERVER_NAME));
+
+        assert!(recipient_control.clear() > 0);
+        assert!(!source.has_ticket_for(TEST_SERVER_NAME));
+        assert!(!recipient.has_ticket_for(TEST_SERVER_NAME));
+        let fourth = connect(&recipient, address).await?;
+        assert!(!fourth.session_resumed());
+        drop((first, second, third, fourth));
+        Ok(())
+    }
+    .await;
+    server.abort();
+    result
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn a_ticket_learned_on_one_route_is_not_presented_on_another() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, endpoint) = server_endpoint(&identity)?;
