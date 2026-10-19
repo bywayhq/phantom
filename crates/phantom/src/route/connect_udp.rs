@@ -377,6 +377,12 @@ impl ConnectUdpProxy {
         self.pool = self.pool.fresh();
     }
 
+    pub(crate) fn fresh(&self) -> Self {
+        let mut proxy = self.clone();
+        proxy.reset_pool();
+        proxy
+    }
+
     pub(crate) fn pool(&self) -> &phantom_net::proxy::ConnectUdpProxyPool {
         &self.pool
     }

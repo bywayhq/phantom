@@ -31,9 +31,11 @@ pub(crate) mod http3_pool;
 pub(crate) mod lifecycle;
 mod prune_timer;
 mod retired_connections;
+mod sharing;
 mod stream_count;
 mod tickets;
 
+pub use sharing::SessionSharing;
 pub use tickets::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
 
 pub(crate) use tickets::binding::encoding::Encoder as TicketBindingEncoder;
@@ -121,6 +123,7 @@ fn current_runtime() -> Option<tokio::runtime::Id> {
         .map(|runtime| runtime.id())
 }
 
+#[derive(Clone)]
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
@@ -153,7 +156,7 @@ pub(crate) struct ClientOptions {
     #[cfg(feature = "https-records")]
     pub(crate) https_record_resolver: Option<phantom_net::dns::HttpsRecordResolver>,
     #[cfg(feature = "cookies")]
-    pub(crate) cookie_jar: Option<CookieJar>,
+    pub(crate) cookie_jar: Option<Arc<CookieJar>>,
 }
 
 impl Default for ClientOptions {
@@ -198,6 +201,7 @@ pub(crate) type PooledHttp2Session = (
 );
 
 pub(crate) struct ClientState {
+    options: ClientOptions,
     pub(crate) lifecycle: Arc<lifecycle::Lifecycle>,
     tickets: Arc<tickets::TicketOwner>,
     pub(crate) redirect_policy: RedirectPolicy,
@@ -207,12 +211,12 @@ pub(crate) struct ClientState {
     pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: http3_pool::Http3Pool,
-    alt_svc: Option<alt_svc::AltSvcStore>,
+    alt_svc: Option<Arc<alt_svc::AltSvcStore>>,
     alt_svc_policy: AltSvcPolicy,
     pub(crate) rtt_history: Option<Arc<alt_svc::rtt_history::RttHistory>>,
     #[cfg(feature = "https-records")]
     https_records: Option<alt_svc::HttpsRecordDiscovery>,
-    client_hints: Option<client_hints::ClientHintStore>,
+    client_hints: Option<Arc<client_hints::ClientHintStore>>,
     #[cfg(feature = "cookies")]
     pub(crate) cookies: Option<Arc<CookieJar>>,
 }
@@ -350,7 +354,7 @@ impl ClientOptions {
     /// [`Self::validate_transport`] have accepted these options for it and
     /// [`Self::apply_http3_early_data`] has applied them to it.
     pub(crate) fn into_client(self, inner: Arc<ClientInner>) -> Client {
-        let state = self.build(&inner);
+        let state = Arc::new(self.build(&inner));
         Client { inner, state }
     }
 
@@ -463,7 +467,8 @@ impl ClientOptions {
             });
     }
 
-    fn build(self, inner: &ClientInner) -> Arc<ClientState> {
+    fn build(self, inner: &ClientInner) -> ClientState {
+        let options = self.clone();
         #[cfg(feature = "https-records")]
         let https_records = self
             .https_record_resolver
@@ -538,7 +543,8 @@ impl ClientOptions {
         #[cfg(feature = "https-records")]
         http3.set_alt_svc_https_policy(self.alt_svc_https_policy);
         http3.set_rtt_history(rtt_history.clone());
-        Arc::new(ClientState {
+        ClientState {
+            options,
             lifecycle: Arc::default(),
             tickets,
             redirect_policy: self.redirect_policy,
@@ -548,18 +554,21 @@ impl ClientOptions {
             http1_or_2,
             http2,
             http3,
-            alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
+            alt_svc: self
+                .max_alt_svc_origins
+                .map(|capacity| Arc::new(alt_svc::AltSvcStore::new(capacity))),
             alt_svc_policy: self.alt_svc_policy,
             rtt_history,
             #[cfg(feature = "https-records")]
             https_records,
-            client_hints: inner
-                .client_hints
-                .is_some()
-                .then(|| client_hints::ClientHintStore::new(self.max_client_hint_origins)),
+            client_hints: inner.client_hints.is_some().then(|| {
+                Arc::new(client_hints::ClientHintStore::new(
+                    self.max_client_hint_origins,
+                ))
+            }),
             #[cfg(feature = "cookies")]
-            cookies: self.cookie_jar.map(Arc::new),
-        })
+            cookies: self.cookie_jar,
+        }
     }
 }
 
@@ -737,7 +746,7 @@ impl Client {
             endpoint,
             origin,
             settings,
-            self.state.client_hints.as_ref(),
+            self.state.client_hints.as_deref(),
         )
     }
 
@@ -1124,10 +1133,7 @@ impl Client {
     /// the direct-route entries and omits every proxy-route one.
     #[must_use]
     pub fn export_alt_svc(&self) -> Option<AltSvcSnapshot> {
-        self.state
-            .alt_svc
-            .as_ref()
-            .map(alt_svc::AltSvcStore::export)
+        self.state.alt_svc.as_ref().map(|store| store.export())
     }
 
     /// Imports alternatives from a previously exported or caller-built snapshot.
@@ -1225,11 +1231,7 @@ impl fmt::Debug for Client {
             .field("alt_svc_enabled", &self.state.alt_svc.is_some())
             .field(
                 "max_alt_svc_origins",
-                &self
-                    .state
-                    .alt_svc
-                    .as_ref()
-                    .map(alt_svc::AltSvcStore::capacity),
+                &self.state.alt_svc.as_ref().map(|store| store.capacity()),
             )
             .field("alt_svc_policy", &self.state.alt_svc_policy)
             .field("https_record_discovery_enabled", &{
@@ -1248,7 +1250,7 @@ impl fmt::Debug for Client {
                     .state
                     .client_hints
                     .as_ref()
-                    .map(client_hints::ClientHintStore::capacity),
+                    .map(|store| store.capacity()),
             )
             .finish_non_exhaustive()
     }

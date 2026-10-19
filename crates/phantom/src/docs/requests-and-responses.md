@@ -3,6 +3,11 @@
 Use the [`Client`](crate::Client) from [Getting started](crate::guide::getting_started)
 for the examples below. Keep it for later requests so they can share connections.
 
+Cloning a client shares its connections and shutdown. Use
+[`Client::fork`](crate::Client::fork) for independent pools with the same settings.
+Select live cookies, DNS, client hints or discovery caches with
+[`SessionSharing`](crate::SessionSharing). Unselected state starts empty.
+
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and

@@ -67,7 +67,8 @@ impl HttpProtocol {
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
 /// sessions, negotiated client-hint state, optional Alt-Svc state, and the
 /// address cache. Host overrides and the address resolver are settings.
-/// Clients you build separately keep their own mutable state. Settings are
+/// Clients you build separately keep their own mutable state. Use [`Self::fork`]
+/// for independent pools with explicitly selected shared state. Settings are
 /// fixed when [`ClientBuilder::build`] returns. For each request, you can
 /// override the route, timeouts and retry policy, or enable content decoding.
 ///
@@ -387,6 +388,46 @@ impl ClientInner {
             .collect();
     }
 
+    pub(crate) fn fork(&self, share_dns: bool) -> Self {
+        let mut inner = self.clone();
+        if let Some(resolver) = self.host_resolver.as_ref().filter(|_| !share_dns) {
+            let mut fresh = resolver.clone();
+            if let Some(cache) = resolver.cache() {
+                fresh = fresh.with_cache(*cache.settings());
+            }
+            inner.bind_host_resolver(fresh);
+        }
+        if let Some(Route::ConnectUdp(proxy)) = &self.route {
+            inner.route = Some(Route::ConnectUdp(proxy.fresh()));
+        }
+        inner.https_proxy = inner
+            .https_proxy
+            .take()
+            .map(|base| base.with_isolated_session_cache());
+        inner.connect_udp_proxy = inner.connect_udp_proxy.take().map(|base| {
+            Arc::new(ConnectUdpConnectors {
+                http3: base
+                    .http3
+                    .as_ref()
+                    .map(Http3Connector::with_isolated_session_cache),
+                tcp: base.tcp.as_ref().map(|connector| {
+                    connector
+                        .with_isolated_session_cache()
+                        .with_http2_proxy_pool(Http2ProxyPool::with_max_connections_per_route(
+                            inner.http2_proxy_connections_per_route,
+                        ))
+                }),
+            })
+        });
+        if inner.proxy_credentials.is_some() {
+            let cache = ProxyCredentialCache::new();
+            inner.bind_proxy_credentials(&cache);
+            inner.proxy_credentials = Some(cache);
+        }
+        inner.bind_http2_proxy_pools();
+        inner
+    }
+
     /// Gives the HTTPS proxy connectors new HTTP/2 connection pools: one for
     /// every purpose, or one per purpose, as the profile says.
     ///
@@ -455,6 +496,31 @@ impl ClientInner {
         {
             self.websocket_http1 = self.websocket_http1.take().map(bind);
         }
+        for origin in &mut self.certificate_origins {
+            origin.http1 = origin
+                .http1
+                .take()
+                .map(|connector| connector.with_host_resolver(resolver.clone()));
+            origin.http1_or_2 = origin
+                .http1_or_2
+                .take()
+                .map(|connector| connector.with_host_resolver(resolver.clone()));
+            origin.http2 = origin
+                .http2
+                .take()
+                .map(|connector| connector.with_host_resolver(resolver.clone()));
+            origin.http3 = origin
+                .http3
+                .take()
+                .map(|connector| Arc::new(connector.with_host_resolver(resolver.clone())));
+            #[cfg(feature = "websocket")]
+            {
+                origin.websocket_http1 = origin
+                    .websocket_http1
+                    .take()
+                    .map(|connector| connector.with_host_resolver(resolver.clone()));
+            }
+        }
         self.host_resolver = Some(resolver);
     }
 
@@ -479,6 +545,21 @@ impl ClientInner {
         #[cfg(feature = "websocket")]
         {
             self.websocket_http1 = self.websocket_http1.take().map(bind);
+        }
+        for origin in &mut self.certificate_origins {
+            origin.http1 = origin.http1.take().map(bind);
+            origin.http1_or_2 = origin
+                .http1_or_2
+                .take()
+                .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
+            origin.http2 = origin
+                .http2
+                .take()
+                .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
+            #[cfg(feature = "websocket")]
+            {
+                origin.websocket_http1 = origin.websocket_http1.take().map(bind);
+            }
         }
     }
 }
@@ -1986,7 +2067,7 @@ impl ClientBuilder {
     /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
     pub fn cookies(mut self) -> Self {
-        self.options.cookie_jar = Some(crate::CookieJar::default());
+        self.options.cookie_jar = Some(Arc::new(crate::CookieJar::default()));
         self
     }
 
@@ -1996,7 +2077,7 @@ impl ClientBuilder {
     /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
     pub fn cookie_jar(mut self, jar: crate::CookieJar) -> Self {
-        self.options.cookie_jar = Some(jar);
+        self.options.cookie_jar = Some(Arc::new(jar));
         self
     }
 

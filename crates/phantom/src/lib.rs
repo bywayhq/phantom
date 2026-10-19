@@ -89,7 +89,7 @@ pub use route::{
 pub use session::{
     AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
     AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
-    SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot,
+    SessionSharing, SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot,
 };
 #[cfg(feature = "cookies")]
 pub use session::{

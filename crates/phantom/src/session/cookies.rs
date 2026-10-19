@@ -76,6 +76,10 @@ pub struct CookieJar {
 }
 
 impl CookieJar {
+    pub(super) fn empty_with_same_limits(&self) -> Self {
+        Self::with_limits(self.limits)
+    }
+
     /// Creates an empty jar with caller-supplied bounds.
     ///
     /// [`CookieJar::default`] uses [`CookieLimits::default`].

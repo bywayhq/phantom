@@ -13,6 +13,10 @@
   and runtime-generated connection IDs. Fingerprint hashes remain insufficient
   to reconstruct a profile; imports do not assign browser identity.
 
+- Add `Client::fork` for independent connection pools and shutdown, with
+  explicitly shared cookies, DNS, client hints and discovery state. Forks keep
+  the source configuration and limits; unselected state starts empty.
+
 - Add caller-supplied direct TCP stream connectors and Unix-domain sockets.
   Requests retain URL authority, TLS verification, pool isolation and deadlines.
   Custom connectors own DNS and socket options; incompatible proxy, discovery
