@@ -22,11 +22,12 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [features]
 default = []
+charset = ["dep:encoding_rs"]
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
 danger-disable-verification = ["phantom-net/danger-disable-verification"]
 diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
 fingerprint-import = ["dep:serde", "dep:serde_json"]
-full = ["cookies", "fingerprint-import", "https-records", "json", "serde", "session-snapshot", "sse", "websocket-deflate"]
+full = ["charset", "cookies", "fingerprint-import", "https-records", "json", "serde", "session-snapshot", "sse", "websocket-deflate"]
 https-records = ["phantom-net/https-records", "dep:base64"]
 json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
@@ -42,6 +43,7 @@ brotli.workspace = true
 bytes.workspace = true
 cookie = { version = "=0.18.2", optional = true }
 cookie_store = { version = "=0.22.1", optional = true, default-features = false }
+encoding_rs = { version = "=0.8.42", optional = true }
 flate2.workspace = true
 fastrand = "=2.5.0"
 http = "1.4.0"

@@ -260,6 +260,7 @@ jobs:
       - name: Lint optional feature matrix
         run: |
           cargo clippy -p phantom-http --no-default-features --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features charset --all-targets --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features cookies --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features https-records --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features sse --locked -- -D warnings
@@ -523,6 +524,7 @@ jobs:
 
       - name: Check optional features
         run: |
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features charset --all-targets --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features https-records --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features sse --locked

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add optional charset-aware response text reads with separate input and UTF-8
+  output limits. Invalid labels and malformed text return typed errors while
+  preserving response metadata. Existing text reads remain strict UTF-8.
+
 - Prevent a Windows stack overflow in CLI proxy requests when all library
   features are enabled.
 

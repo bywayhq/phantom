@@ -89,6 +89,7 @@ uses to the `phantom` dependency in `Cargo.toml`.
 
 | Feature | Adds |
 | --- | --- |
+| `charset` | Bounded response text decoding for supported character encodings |
 | `cookies` | A client-owned cookie jar |
 | `https-records` | HTTPS DNS records, encrypted DNS resolvers, HTTP/3 discovery and Encrypted Client Hello |
 | `json` | Prepared JSON request bodies and bounded typed response reads |
