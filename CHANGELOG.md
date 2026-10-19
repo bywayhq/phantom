@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add encrypted, versioned session checkpoints behind `session-snapshot`.
+  Restore supported cookies, direct-route Alt-Svc entries and TLS tickets into
+  a fresh client. Configuration mismatches and insufficient capacity fail
+  without changing the receiving client. DNS, client hints and ECH are not saved.
+
 - Retain capture failure causes through shared interruption handling. Move
   macOS capture provenance checks into tested scripts, with failure phases
   and command receipts preserved in the report. Capture acceptance is unchanged.

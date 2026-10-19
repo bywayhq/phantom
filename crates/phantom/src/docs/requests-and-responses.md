@@ -10,6 +10,12 @@ Select live cookies, DNS, client hints or discovery caches with
 learned proxy authentication start empty. Shared caches reflect later changes
 and clearing in both directions; a fork does not enable disabled features.
 
+With `session-snapshot`, use [`Client::export_session`](crate::Client::export_session)
+to save supported cookies, direct-route Alt-Svc entries and TLS tickets together.
+Keep its secret key separately. [`Client::restore_session`](crate::Client::restore_session)
+returns a new client with independent pools and checks the receiving configuration.
+See the API for supported routes, size limits and state that is not saved.
+
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and
