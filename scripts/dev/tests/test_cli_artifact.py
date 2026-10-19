@@ -326,6 +326,23 @@ class CliArtifactTests(unittest.TestCase):
                 "x86_64-pc-windows-msvc", "host: x86_64-pc-windows-msvc"
             )
 
+    def test_prebuilt_tls_overrides_prevent_build_and_publication(self):
+        (self.root / "Cargo.lock").write_text("lock fixture")
+        output = self.root / "output"
+        with (
+            patch.dict(os.environ, {"BORING_BSSL_LIB_PATH": "unverified"}, clear=True),
+            patch.object(artifact, "ROOT", self.root),
+            patch.object(
+                artifact.Commands, "run", side_effect=[b"", b"revision"]
+            ) as run,
+            self.assertRaisesRegex(ValueError, "prebuilt native TLS overrides"),
+        ):
+            artifact.verify(
+                SimpleNamespace(output=output, target="x86_64-pc-windows-msvc")
+            )
+        self.assertEqual(run.call_count, 2)
+        self.assertFalse((output / "verified").exists())
+
     def test_only_completed_installation_with_unchanged_source_is_promoted(self):
         package = self.root / "package"
         package.mkdir()
@@ -383,6 +400,7 @@ class CliArtifactTests(unittest.TestCase):
 
                 output = self.root / outcome
                 with (
+                    patch.dict(os.environ, {}, clear=True),
                     patch.object(artifact, "ROOT", self.root),
                     patch.object(artifact.Commands, "run", side_effect=run),
                     patch.object(
