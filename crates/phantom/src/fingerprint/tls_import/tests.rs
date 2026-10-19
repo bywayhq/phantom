@@ -206,6 +206,7 @@ fn legacy_client_hello_keeps_the_base_minimum_version_as_a_supplement() {
     settings.certificate_compression.clear();
     settings.delegated_credential_schemes.clear();
     settings.tcp_early_data = false;
+    settings.alpn_protocols = vec![vec![b'x'; 200].into_boxed_slice()];
     settings.alps = None;
     settings
         .validate()
