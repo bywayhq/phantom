@@ -232,8 +232,12 @@ async fn a_client_keeps_owned_settings_when_a_new_revision_is_loaded() -> TestRe
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let profile = |value: &str| {
         let mut template = chrome::v154_windows_navigation_template();
-        template.http1_fields = vec![RequestField::literal("X-Identity", value)];
-        template.http2_fields = vec![RequestField::literal("x-identity", value)];
+        template
+            .http1_fields
+            .insert(0, RequestField::literal("X-Identity", value));
+        template
+            .http2_fields
+            .insert(0, RequestField::literal("x-identity", value));
         template.http3_fields = None;
         chrome::v154_windows().with_request_template(template)
     };

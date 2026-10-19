@@ -5,14 +5,20 @@ use serde_json::json;
 
 fn bundle(revision: u64, identity: &str) -> TestResult<Vec<u8>> {
     let mut template = chrome::v154_windows_navigation_template();
-    template.http1_fields = vec![
-        RequestField::literal("X-Identity", identity),
-        RequestField::literal("X-Last", "end"),
-    ];
-    template.http2_fields = vec![
-        RequestField::literal("x-identity", identity),
-        RequestField::literal("x-last", "end"),
-    ];
+    template.http1_fields.splice(
+        0..0,
+        [
+            RequestField::literal("X-Identity", identity),
+            RequestField::literal("X-Last", "end"),
+        ],
+    );
+    template.http2_fields.splice(
+        0..0,
+        [
+            RequestField::literal("x-identity", identity),
+            RequestField::literal("x-last", "end"),
+        ],
+    );
     template.http3_fields = None;
     let profile = chrome::v154_windows().with_request_template(template);
     Ok(serde_json::to_vec(
