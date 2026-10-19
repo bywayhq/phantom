@@ -22,6 +22,14 @@ TARGETS = {
     "x86_64-unknown-linux-gnu": ("Linux", {"x86_64"}),
     "aarch64-apple-darwin": ("Darwin", {"arm64", "aarch64"}),
 }
+ALLOC_STDLIB_LICENSE_SOURCE = (
+    "https://raw.githubusercontent.com/dropbox/rust-alloc-no-stdlib/"
+    "0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE"
+)
+ALLOC_STDLIB_LICENSE_SHA256 = (
+    "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae"
+)
+ALLOC_STDLIB_LICENSE_PATH = "scripts/release/notices/alloc-stdlib-0.3.0.LICENSE"
 
 
 def digest(path):
@@ -158,6 +166,17 @@ def package_notices(package, root):
             if files or parent == root:
                 break
             parent = parent.parent
+    if not files and (
+        package["name"],
+        package.get("version"),
+        package.get("license"),
+    ) == ("alloc-stdlib", "0.3.0", "BSD-3-Clause"):
+        # This published subcrate omits its repository-root license. Retain the
+        # exact upstream notice at its own .cargo_vcs_info.json revision offline.
+        pinned = root / ALLOC_STDLIB_LICENSE_PATH
+        if not pinned.is_file() or digest(pinned) != ALLOC_STDLIB_LICENSE_SHA256:
+            raise ValueError("missing or modified pinned alloc-stdlib license")
+        files = [pinned]
     if not files:
         raise ValueError(f"no retained license/notice text for {package['name']}")
     return sorted(set(files))
@@ -199,6 +218,11 @@ def copy_notices(metadata, package_ids, destination, root=ROOT):
                 "scope": "compiler input (includes build tools and procedural macros)",
             }
         )
+        if files == [root / ALLOC_STDLIB_LICENSE_PATH]:
+            inventory[-1]["supplementary_notice"] = {
+                "source": ALLOC_STDLIB_LICENSE_SOURCE,
+                "sha256": ALLOC_STDLIB_LICENSE_SHA256,
+            }
         if name == "phantom-btls-sys":
             native = Path(package["manifest_path"]).parent / "deps/boringssl"
             native_files = [

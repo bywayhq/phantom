@@ -125,6 +125,51 @@ class CliArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "absent from Cargo metadata"):
             artifact.copy_notices({"packages": []}, {"missing"}, self.root / "notices")
 
+    def test_alloc_stdlib_omission_has_exact_offline_license_and_provenance(self):
+        checkout = self.root / "checkout"
+        source = self.root / "registry/alloc-stdlib"
+        source.mkdir(parents=True)
+        package = {
+            "id": "alloc",
+            "name": "alloc-stdlib",
+            "version": "0.3.0",
+            "license": "BSD-3-Clause",
+            "manifest_path": str(source / "Cargo.toml"),
+        }
+        pinned = checkout / artifact.ALLOC_STDLIB_LICENSE_PATH
+        pinned.parent.mkdir(parents=True)
+        pinned.write_bytes(
+            (artifact.ROOT / artifact.ALLOC_STDLIB_LICENSE_PATH).read_bytes()
+        )
+        destination = self.root / "notices"
+        result = artifact.copy_notices(
+            {"packages": [package]}, {"alloc"}, destination, checkout
+        )
+        self.assertEqual(
+            result[0]["supplementary_notice"],
+            {
+                "source": artifact.ALLOC_STDLIB_LICENSE_SOURCE,
+                "sha256": artifact.ALLOC_STDLIB_LICENSE_SHA256,
+            },
+        )
+        self.assertEqual(
+            artifact.digest(destination / result[0]["notices"][0]["file"]),
+            artifact.ALLOC_STDLIB_LICENSE_SHA256,
+        )
+        for key, value in (
+            ("version", "0.3.1"),
+            ("license", "MIT"),
+            ("name", "another-crate"),
+        ):
+            with (
+                self.subTest(key=key),
+                self.assertRaisesRegex(ValueError, "no retained license"),
+            ):
+                artifact.package_notices({**package, key: value}, checkout)
+        pinned.write_text("modified upstream text")
+        with self.assertRaisesRegex(ValueError, "modified pinned"):
+            artifact.package_notices(package, checkout)
+
     def test_tar_and_zip_round_trip_preserve_binary_and_notices(self):
         folder = self.root / "phantom-test"
         folder.mkdir()

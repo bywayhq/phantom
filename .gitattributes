@@ -4,3 +4,4 @@ vendor/tungstenite/CHANGELOG.md -whitespace
 vendor/tungstenite/patches/*.patch -whitespace
 fixtures/** -text
 vendor/** -text
+scripts/release/notices/** -text
