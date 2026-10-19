@@ -1,5 +1,6 @@
 //! Exercise the installed command boundary against controlled loopback peers.
 
+#[path = "commands/bundles.rs"]
 mod bundles;
 
 use std::{
