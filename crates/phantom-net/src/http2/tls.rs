@@ -662,7 +662,12 @@ impl Http2TlsConnector {
 
     /// Opens an exact HTTP/2 origin or TLS forward-proxy connection.
     ///
-    /// Direct origin connections offer early data. Other origin routes use
+    /// A direct plaintext origin uses prior knowledge: it sends the HTTP/2
+    /// preface without HTTP/1.1 Upgrade or fallback. Send its requests with
+    /// [`Http2Connection::send_forward_request_body_with_trailers`] for
+    /// `:scheme=http`. Plaintext tunnels and slower attempts are unsupported.
+    ///
+    /// Direct TLS origin connections offer early data. Other TLS routes use
     /// an ordinary TLS handshake. ECH follows the direct setup policy's
     /// bounded lookup wait and retry after rejection.
     ///
@@ -674,8 +679,8 @@ impl Http2TlsConnector {
     /// # Errors
     ///
     /// Returns [`Http2TlsError`] for invalid routes or settings, connection
-    /// setup, TLS, ALPS, or HTTP/2 failures. Plaintext origins, plaintext
-    /// forwarding proxies fail before I/O. A connected slower direct attempt
+    /// setup, TLS, ALPS, or HTTP/2 failures. Plaintext forwarding proxies fail
+    /// before I/O. A connected slower direct attempt
     /// finishes TLS and HTTP/2 setup without sending a request. A still-pending
     /// attempt is closed when the first connection selects HTTP/2.
     pub async fn connect(
@@ -683,6 +688,24 @@ impl Http2TlsConnector {
         route: Http2Route<'_>,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
         match route {
+            Http2Route::Origin(origin @ OriginRoute::Plaintext { .. }) => {
+                let span = debug_span!(
+                    "http2.cleartext.connect",
+                    transport = "tcp",
+                    outcome = field::Empty
+                );
+                let outcome = OperationOutcome::new(&span);
+                let result = async {
+                    let client = translate_settings(&self.http2)?;
+                    self.connect_plaintext_origin(origin, client)
+                        .await
+                        .map(|connection| (connection, None))
+                }
+                .instrument(span)
+                .await;
+                outcome.finish(connection_outcome(&result));
+                result
+            }
             Http2Route::Origin(origin) => {
                 // End downstream Send proofs before the concrete TLS setup and
                 // its tracing wrapper become part of the caller's future.
@@ -721,7 +744,8 @@ impl Http2TlsConnector {
     /// Sends one request through an HTTP/2 origin or TLS forwarding route.
     ///
     /// Request, settings, and route validation finish before I/O. Origin
-    /// routes use an ordinary TLS handshake, including direct connections.
+    /// TLS origin routes use an ordinary handshake. A direct plaintext origin
+    /// uses prior knowledge with `:scheme=http`, without Upgrade or fallback.
     /// Forwarding uses the proxy connector's profile and `:scheme=http`.
     /// Credentials select its pool partition. Supply any authorization
     /// header explicitly in `headers`.
@@ -741,14 +765,16 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        let plaintext = matches!(&route, Http2Route::Origin(OriginRoute::Plaintext { .. }));
         self.trace_response_head(
             &trace_method,
             body_bytes,
+            plaintext,
             pin!(async {
                 let settings = match &route {
                     Http2Route::Origin(origin) => {
                         origin
-                            .validate(false, false)
+                            .validate(true, false)
                             .map_err(Http2TlsError::Connect)?;
                         &self.http2
                     }
@@ -758,7 +784,10 @@ impl Http2TlsConnector {
                 };
                 let mut prepared =
                     PreparedRequest::new(settings, method, authority, target, headers, body)?;
-                if matches!(&route, Http2Route::Forward { .. }) {
+                if matches!(
+                    &route,
+                    Http2Route::Forward { .. } | Http2Route::Origin(OriginRoute::Plaintext { .. })
+                ) {
                     let mut parts = prepared.request.uri().clone().into_parts();
                     parts.scheme = Some(http::uri::Scheme::HTTP);
                     *prepared.request.uri_mut() = http::Uri::from_parts(parts)
@@ -766,6 +795,10 @@ impl Http2TlsConnector {
                 }
                 debug!("HTTP/2 request prepared");
                 let connection = match route {
+                    Http2Route::Origin(origin @ OriginRoute::Plaintext { .. }) => {
+                        self.connect_plaintext_origin(origin, prepared.client)
+                            .await?
+                    }
                     Http2Route::Origin(origin) => {
                         self.connect_origin(origin, prepared.client, false, false)
                             .await?
@@ -1025,6 +1058,35 @@ impl Http2TlsConnector {
         })
     }
 
+    async fn connect_plaintext_origin(
+        &self,
+        origin: OriginRoute<'_>,
+        client: Http2Builder,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        origin
+            .validate(true, false)
+            .map_err(Http2TlsError::Connect)?;
+        let OriginRoute::Plaintext {
+            tcp: tcp @ TcpRoute::Direct(_),
+            family: None,
+        } = origin
+        else {
+            return Err(invalid_route(
+                "prior-knowledge HTTP/2 requires a direct plaintext route",
+            ));
+        };
+        let stream =
+            connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref()).await?;
+        if let Some(keepalive) = stream.tcp_keepalive() {
+            keepalive.http2_negotiated();
+        }
+        let metadata =
+            crate::connection_diagnostics::ConnectionMetadataSource::connection_metadata(&stream);
+        Ok(Http2Connection::connect_with_builder(stream, client)
+            .await?
+            .with_connection_metadata(metadata))
+    }
+
     async fn connect_origin(
         &self,
         origin: OriginRoute<'_>,
@@ -1155,20 +1217,32 @@ impl Http2TlsConnector {
         &self,
         method: &Method,
         body_bytes: usize,
+        plaintext: bool,
         operation: Pin<&mut F>,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
         F: Future<Output = Result<Response<Http2Body>, Http2TlsError>>,
     {
-        let span = debug_span!(
-            "http2.tls.response_head",
-            method = %method,
-            body_bytes,
-            transport = "tls",
-            negotiated_alpn = field::Empty,
-            status = field::Empty,
-            outcome = field::Empty,
-        );
+        let span = if plaintext {
+            debug_span!(
+                "http2.cleartext.response_head",
+                method = %method,
+                body_bytes,
+                transport = "tcp",
+                status = field::Empty,
+                outcome = field::Empty,
+            )
+        } else {
+            debug_span!(
+                "http2.tls.response_head",
+                method = %method,
+                body_bytes,
+                transport = "tls",
+                negotiated_alpn = field::Empty,
+                status = field::Empty,
+                outcome = field::Empty,
+            )
+        };
         let outcome_guard = OperationOutcome::new(&span);
         let result = operation.instrument(span.clone()).await;
         let outcome = match &result {

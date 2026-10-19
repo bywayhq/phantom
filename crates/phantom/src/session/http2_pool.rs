@@ -79,6 +79,8 @@ pub(super) async fn send_on(
 pub(crate) enum Http2ConnectionMode {
     /// TLS to the origin, directly or through a tunnel.
     TlsOrigin,
+    /// Direct plaintext HTTP/2 selected explicitly by the caller.
+    PlaintextOrigin,
     /// A connection to an HTTP/2 proxy that forwards `http://` requests
     /// with `:scheme` `http`.
     Forward,
@@ -268,6 +270,9 @@ impl Http2Pool {
         if mode == Http2ConnectionMode::Forward && !route.forwards_plaintext_over_http2() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http2));
         }
+        if mode == Http2ConnectionMode::PlaintextOrigin && !matches!(route, Route::Direct) {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+        }
         let key = PoolKey::new(endpoint, route, mode);
         let entry = self.entry(key).await;
         let permit = timeout_budget
@@ -329,7 +334,7 @@ impl Http2Pool {
                             )
                             .await
                         }
-                        Http2ConnectionMode::Forward => {
+                        Http2ConnectionMode::Forward | Http2ConnectionMode::PlaintextOrigin => {
                             lease
                                 .connection
                                 .send_forward_request_body_with_trailers(
@@ -1028,6 +1033,22 @@ impl PoolEntry {
         route: &Route,
         mode: Http2ConnectionMode,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), RequestError> {
+        if mode == Http2ConnectionMode::PlaintextOrigin {
+            if !matches!(route, Route::Direct) {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+            }
+            return super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
+                phantom_net::route::OriginRoute::Plaintext {
+                    tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                        host: endpoint.host(),
+                        port: endpoint.port(),
+                    }),
+                    family: None,
+                },
+            )))
+            .await
+            .map_err(RequestError::http2_connection_setup);
+        }
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());

@@ -40,7 +40,7 @@ fn origin_validation_distinguishes_retaining_connect_from_one_shot_operations() 
             };
             let route = Http2Route::Origin(origin);
             match operation {
-                0 if !plaintext => {
+                0 => {
                     let mut connect = pin!(connector.connect(route));
                     let mut context = std::task::Context::from_waker(std::task::Waker::noop());
                     assert!(matches!(
@@ -48,7 +48,21 @@ fn origin_validation_distinguishes_retaining_connect_from_one_shot_operations() 
                         std::task::Poll::Ready(Err(Http2TlsError::RuntimeUnavailable))
                     ));
                 }
-                0 => assert_invalid_route(connector.connect(route)),
+                1 if plaintext => {
+                    let mut send = pin!(connector.send(
+                        route,
+                        http::Method::GET,
+                        TEST_AUTHORITY,
+                        OriginForm::parse("/")?,
+                        Vec::new(),
+                        None,
+                    ));
+                    let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+                    assert!(matches!(
+                        send.as_mut().poll(&mut context),
+                        std::task::Poll::Ready(Err(Http2TlsError::RuntimeUnavailable))
+                    ));
+                }
                 1 => assert_invalid_route(connector.send(
                     route,
                     http::Method::GET,

@@ -50,6 +50,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "error_context",
                 "expect_continue",
                 "fingerprint_import",
+                "h2c",
                 "h3_received_order",
                 "ping_failure_replay",
                 "plaintext_templates",

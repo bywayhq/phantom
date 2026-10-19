@@ -27,6 +27,7 @@ mod error_context;
 mod expect_continue;
 #[cfg(feature = "fingerprint-import")]
 mod fingerprint_import;
+mod h2c;
 mod h3_received_order;
 mod ping_failure_replay;
 mod plaintext_templates;

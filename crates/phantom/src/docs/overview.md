@@ -35,6 +35,12 @@ native build prerequisites, follow [Getting started](crate::guide::getting_start
 Reuse the client to share connection pools and session state. The example
 selects HTTP/2 explicitly. Use [`Client::get_negotiated`](crate::Client::get_negotiated)
 when the peer should select HTTP/1.1 or HTTP/2 through TLS negotiation.
+
+For a direct server known to support cleartext HTTP/2, select
+[`HttpProtocol::Http2`](crate::HttpProtocol::Http2) with an `http://` URL.
+This sends the HTTP/2 preface immediately. It does not try HTTP/1.1 Upgrade
+or fall back to HTTP/1.1. Negotiated cleartext requests keep using HTTP/1.1.
+
 Built-in profile constructors leave request templates unset; see
 [Browser profiles](crate::guide::browser_profiles) to add browser request headers.
 

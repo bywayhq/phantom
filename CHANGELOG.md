@@ -9,6 +9,11 @@
 - Add explicit DNS-over-TLS address and HTTPS-record resolvers with verified
   endpoint identity, ordered bootstrap addresses, shared query limits and
   deadlines. Lookups reuse a TLS connection and support independent cancellation.
+- Support direct cleartext HTTP/2 with prior knowledge when you explicitly
+  select `HttpProtocol::Http2` for an `http://` URL. Connections reuse the
+  existing HTTP/2 pool, attempt budgets and cancellation. Negotiated requests
+  keep their browser behavior. HTTP/1.1 Upgrade and plaintext tunnels are
+  unsupported, and an incompatible peer never triggers protocol fallback.
 
 ## 0.2.0 - 2026-10-18
 

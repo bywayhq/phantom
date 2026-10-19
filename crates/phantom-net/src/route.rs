@@ -169,7 +169,7 @@ impl std::fmt::Debug for DirectTlsSetup<'_> {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum OriginRoute<'a> {
-    /// Plaintext HTTP/1.1, with optional family memory for a direct connection.
+    /// Plaintext HTTP, with optional family memory for HTTP/1.1.
     Plaintext {
         /// Byte-stream route to the origin.
         tcp: TcpRoute<'a>,
@@ -240,7 +240,8 @@ pub enum Http1Route<'a> {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Http2Route<'a> {
-    /// Reach an origin with TLS over a direct connection or a tunnel.
+    /// Reach an origin with TLS over a direct connection or a tunnel, or use
+    /// direct plaintext with HTTP/2 prior knowledge.
     Origin(OriginRoute<'a>),
     /// Use the supplied proxy connector's HTTP/2 connection and TLS policy.
     Forward {

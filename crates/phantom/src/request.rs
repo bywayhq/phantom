@@ -1776,6 +1776,11 @@ fn ensure_request_supported(
         // HTTP/2; see `send_once`. Exact HTTP/1.1 through that proxy is
         // refused rather than changed.
         Some("http") => match (selection, route) {
+            (ProtocolSelection::Exact(HttpProtocol::Http2), Route::Direct) => Ok(()),
+            (
+                ProtocolSelection::Exact(HttpProtocol::Http2),
+                Route::Socks4(_) | Route::Socks5(_) | Route::ConnectUdp(_),
+            ) => Err(RequestError::unsupported_route(HttpProtocol::Http2)),
             (ProtocolSelection::Exact(HttpProtocol::Http2) | ProtocolSelection::Http1Or2, _)
                 if route.forwards_plaintext_over_http2() =>
             {

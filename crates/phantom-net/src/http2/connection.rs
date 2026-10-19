@@ -268,8 +268,8 @@ impl Http2Connection {
         self.send_prepared_request(request, body, trailers).await
     }
 
-    /// Forwards one request for a plaintext `http://` origin on a connection
-    /// to an HTTP/2 proxy.
+    /// Sends one request for an `http://` origin using prior knowledge or an
+    /// HTTP/2 forwarding proxy.
     ///
     /// The request carries `:scheme` `http` and the origin's `authority` in
     /// `:authority`, in the connection's pseudo-header order, as a browser
