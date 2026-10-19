@@ -247,7 +247,9 @@ fn retained_chrome_client_hello_imports_without_inventing_browser_identity() {
         .unwrap_or_else(|| panic!("record"));
     let bytes = record
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let text = std::str::from_utf8(pair).unwrap_or_else(|error| panic!("hex: {error}"));
             u8::from_str_radix(text, 16).unwrap_or_else(|error| panic!("hex: {error}"))
