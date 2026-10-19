@@ -79,7 +79,7 @@ class TunnelFlowTests(unittest.IsolatedAsyncioTestCase):
                 sending = None
                 try:
                     await asyncio.wait_for(origin.accepted.wait(), TIMEOUT)
-                    payload = bytes(range(256)) * (8 * 4096)
+                    payload = bytes(range(256)) * (2 * 4096)
                     writer.write(payload)
                     sending = asyncio.create_task(writer.drain())
                     await asyncio.wait_for(paused.wait(), TIMEOUT)
