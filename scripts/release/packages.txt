@@ -1,15 +1,5 @@
-vendor/btls-sys/Cargo.toml
 vendor/btls/Cargo.toml
 vendor/tokio-btls/Cargo.toml
-vendor/quinn-proto/Cargo.toml
-vendor/quinn/Cargo.toml
-vendor/h3/h3/Cargo.toml
-vendor/h3/h3-datagram/Cargo.toml
-vendor/h3/h3-quinn/Cargo.toml
-vendor/http2/Cargo.toml
-vendor/wreq-proto/Cargo.toml
-vendor/tungstenite/Cargo.toml
-vendor/tokio-tungstenite/Cargo.toml
 crates/phantom-testkit/Cargo.toml
 crates/phantom-profile/Cargo.toml
 crates/phantom-quic-btls/Cargo.toml

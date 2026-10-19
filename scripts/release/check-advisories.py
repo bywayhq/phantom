@@ -11,19 +11,27 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def check(output):
-    output.mkdir(parents=True, exist_ok=True)
+def upstream_identities():
+    """Include unchanged forks as well as packages selected for publication."""
+    workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
     identities = {}
-    for manifest in (
-        (ROOT / "scripts/release/packages.txt").read_text(encoding="utf-8").splitlines()
-    ):
-        data = tomllib.loads((ROOT / manifest).read_text(encoding="utf-8"))
+    for dependency in workspace["workspace"]["dependencies"].values():
+        if not isinstance(dependency, dict) or "path" not in dependency:
+            continue
+        manifest = ROOT / dependency["path"] / "Cargo.toml"
+        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
         upstream = data["package"].get("metadata", {}).get("phantom")
         if upstream:
             identities[data["package"]["name"]] = (
                 upstream["upstream-package"],
                 upstream["upstream-version"],
             )
+    return identities
+
+
+def check(output):
+    output.mkdir(parents=True, exist_ok=True)
+    identities = upstream_identities()
     packages = set()
     for package in tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))[
         "package"

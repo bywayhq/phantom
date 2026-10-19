@@ -153,4 +153,4 @@ jobs:
         run: scripts/release/publish-crates.sh --publish
 
       - name: Verify registry-only installation
-        run: scripts/dev/with-cargo-lock.sh scripts/ci/check-downstream.sh registry 0.1.0
+        run: scripts/dev/with-cargo-lock.sh scripts/ci/check-downstream.sh registry 0.2.0

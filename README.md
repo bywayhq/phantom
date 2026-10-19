@@ -16,7 +16,7 @@ for setup details.
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", version = "0.1" }
+phantom = { package = "phantom-http", version = "0.2" }
 tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 ```
 

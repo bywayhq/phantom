@@ -232,7 +232,15 @@ def verify(args):
                 continue
             name = dependency.get("package", alias)
             old = 'path = "' + dependency["path"] + '"'
-            new = f'version = "={versions[name]}", registry = "phantom-staging"'
+            if name in versions:
+                new = f'version = "={versions[name]}", registry = "phantom-staging"'
+            else:
+                # Unchanged forks resolve from their existing registry release.
+                dependency_manifest = workload / dependency["path"] / "Cargo.toml"
+                version = tomllib.loads(
+                    dependency_manifest.read_text(encoding="utf-8")
+                )["package"]["version"]
+                new = f'version = "={version}"'
             workload_text = workload_text.replace(old, new)
         (smoke / "Cargo.toml").write_text(workload_text, encoding="utf-8")
         shutil.copytree(config, smoke / ".cargo")

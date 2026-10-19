@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import tomllib
+
 
 def load(name, filename):
     spec = importlib.util.spec_from_file_location(
@@ -21,6 +23,7 @@ def load(name, filename):
 
 verify = load("verify_packages", "verify-packages.py")
 publish = load("publish_packages", "publish.py")
+advisories = load("check_advisories", "check-advisories.py")
 
 
 class ReleaseChecks(unittest.TestCase):
@@ -124,15 +127,50 @@ class ReleaseChecks(unittest.TestCase):
             publish.ensure_owner("phantom-http")
         command.assert_not_called()
 
-    def test_native_package_is_first_and_dependency_cycle_is_absent(self):
+    def test_new_versions_follow_dependency_order_without_republishing_unchanged_forks(
+        self,
+    ):
         plan = publish.plan()
-        self.assertEqual(plan[0][0], "phantom-btls-sys")
+        names = {entry[0] for entry in plan}
+        self.assertEqual(plan[0][0], "phantom-btls")
         self.assertEqual(plan[-1][0], "phantom-http")
-        self.assertEqual(len({entry[0] for entry in plan}), 17)
-        import tomllib
+        self.assertEqual(
+            names,
+            {
+                "phantom-btls",
+                "phantom-tokio-btls",
+                "phantom-testkit",
+                "phantom-profile",
+                "phantom-quic-btls",
+                "phantom-net",
+                "phantom-http",
+            },
+        )
+        seen = set()
+        for name, _version, manifest in plan:
+            data = tomllib.loads((publish.ROOT / manifest).read_text())
+            tables = [data, *data.get("target", {}).values()]
+            for table in tables:
+                for kind in ("dependencies", "build-dependencies"):
+                    for alias, dependency in table.get(kind, {}).items():
+                        package = (
+                            dependency.get("package", alias)
+                            if isinstance(dependency, dict)
+                            else alias
+                        )
+                        if package in names:
+                            self.assertIn(package, seen)
+            seen.add(name)
 
         core = tomllib.loads((publish.ROOT / "vendor/h3/h3/Cargo.toml").read_text())
         self.assertNotIn("version", core["dev-dependencies"]["h3-datagram"])
+
+    def test_advisories_include_forks_outside_the_publication_plan(self):
+        identities = advisories.upstream_identities()
+        self.assertEqual(len(identities), 12)
+        self.assertEqual(identities["phantom-http2"][0], "http2")
+        self.assertEqual(identities["phantom-btls-sys"][0], "btls-sys")
+        self.assertEqual(identities["phantom-quinn-proto"][0], "quinn-proto")
 
     def test_resume_accepts_only_the_same_clean_commit_and_checksum(self):
         stream = io.BytesIO()

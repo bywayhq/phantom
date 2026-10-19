@@ -18,7 +18,10 @@ scripts/dev/with-cargo-lock.sh python3 scripts/release/check-advisories.py \
   --output target/release-advisories
 ```
 
-The package check creates all seventeen archives. It serves them from a
+The package check creates the seven archives in `packages.txt`: five workspace
+libraries and the changed `btls` and `tokio-btls` forks. Unchanged forks keep
+their exact published versions and resolve from crates.io. The check serves
+the new archives from a
 temporary loopback registry with no publishing endpoint. The downstream
 consumer fetches those archives, builds minimal and full features, and
 checks the resolved sources. It also runs the existing public-client peers
@@ -31,7 +34,7 @@ checksums, registry index, consumer lockfile, and protocol results.
 `--allow-dirty` is available for local preparation. Its archives are not
 the final release artifacts.
 
-The advisory check maps renamed forks back to their upstream names and
+The advisory check maps all renamed forks back to their upstream names and
 versions. It retains the complete audit report. A backport exception must
 name the exact upstream version and its retained patch. Review audit
 warnings and new native-library advisories as well as reported vulnerabilities.
@@ -71,6 +74,6 @@ must contain that exact commit in their checked registry archive. The script
 repairs missing team ownership before moving on. A version from a different
 commit stops the run; do not overwrite it or silently skip it.
 
-After a successful publish and install check, create the `v0.1.0` tag at the
+After a successful publish and install check, create the `v0.2.0` tag at the
 release commit and retain the workflow evidence. A failed partial release
 remains partial until every planned version and owner is verified.
