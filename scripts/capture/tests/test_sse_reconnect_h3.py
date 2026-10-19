@@ -3,6 +3,7 @@
 import asyncio
 import ssl
 import unittest
+from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from aioquic.asyncio import QuicConnectionProtocol
@@ -12,7 +13,11 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import ConnectionTerminated, ProtocolNegotiated, StreamReset
 
 from scripts.capture.sse_multiplexed import H3ReconnectServer
-from scripts.capture.sse_reconnect import CATALOG, ScenarioRun
+from scripts.capture.sse_reconnect import (
+    CATALOG,
+    CONNECTION_CLEANUP_SECONDS,
+    ScenarioRun,
+)
 from scripts.capture.tests import test_sse_reconnect_h2 as h2_tests
 from scripts.capture.tests.loopback_quic import connect_loopback
 
@@ -86,7 +91,9 @@ class H3EventSource(h2_tests.H2EventSource):
             raise AssertionError("client did not negotiate h3")
 
     async def close(self):
-        await asyncio.wait_for(self.connection.__aexit__(None, None, None), 2)
+        await asyncio.wait_for(
+            self.connection.__aexit__(None, None, None), CONNECTION_CLEANUP_SECONDS
+        )
 
     async def abort_response(self, stream):
         self.client._quic.stop_stream(stream, 0x10C)
@@ -116,6 +123,28 @@ class H3CaptureTests(h2_tests.H2CaptureTests):
 
 
 class H3CleanupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_client_close_collects_three_probe_timeouts_within_cleanup_budget(
+        self,
+    ):
+        server = H3ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        server.run = ScenarioRun(CATALOG[0], "bounded-client-close")
+        client = H3EventSource(server.url(server.run))
+        try:
+            await client.start(server)
+            # QUIC retains closing state for three probe timeouts. A valid
+            # 800 ms probe timer exceeds a two-second test-only close limit.
+            with patch.object(
+                client.client._quic._loss, "get_probe_timeout", return_value=0.8
+            ):
+                await client.close()
+            self.assertTrue(client.client._closed.is_set())
+            self.assertTrue(client.client._transport.is_closing())
+            self.assertIsNone(client.client._timer)
+            self.assertIsNone(client.client._transmit_task)
+        finally:
+            await server.close()
+
     async def test_failed_close_keeps_owner_until_udp_and_callbacks_retire(self):
         server = H3ReconnectServer()
         await server.start("127.0.0.1", 0)
