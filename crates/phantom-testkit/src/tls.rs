@@ -7,10 +7,9 @@ use tokio::{
     time::{Instant, timeout_at},
 };
 
-pub use client_hello::{ClientHelloDecodeError, ClientHelloSummary, is_grease};
 pub use ech::{EchOuterExtension, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list};
+pub use phantom_profile::client_hello::{ClientHelloDecodeError, ClientHelloSummary, is_grease};
 
-mod client_hello;
 mod ech;
 
 const RECORD_HEADER_LENGTH: usize = 5;
@@ -111,7 +110,7 @@ impl ClientHelloCapture {
     /// invalid vector lengths, duplicate extensions or server-name types, or
     /// trailing bytes. Unknown extension types remain in the summary.
     pub fn summary(&self) -> Result<ClientHelloSummary, ClientHelloDecodeError> {
-        ClientHelloSummary::decode(&self.handshake)
+        ClientHelloSummary::from_handshake_bytes(&self.handshake)
     }
 }
 

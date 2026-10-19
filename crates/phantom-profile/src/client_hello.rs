@@ -180,10 +180,6 @@ impl ClientHelloSummary {
         Ok(summary)
     }
 
-    pub(super) fn decode(handshake: &[u8]) -> Result<Self, ClientHelloDecodeError> {
-        Self::from_handshake_bytes(handshake)
-    }
-
     /// Returns the ClientHello legacy version without normalization.
     #[must_use]
     pub fn legacy_version(&self) -> u16 {
@@ -263,7 +259,7 @@ impl ClientHelloSummary {
 
     /// Returns the `encrypted_client_hello` extension body, when present.
     ///
-    /// [`super::EchOuterExtension::parse`] decodes the outer form.
+    /// The payload uses the TLS Encrypted ClientHello extension encoding.
     #[must_use]
     pub fn encrypted_client_hello(&self) -> Option<&[u8]> {
         self.encrypted_client_hello.as_deref()

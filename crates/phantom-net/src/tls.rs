@@ -49,6 +49,8 @@ use self::{
 };
 
 mod client_certificate;
+mod client_hello;
+pub use client_hello::preview_client_hello;
 mod compression;
 mod configuration;
 mod early_data;
@@ -688,6 +690,75 @@ impl TlsConnector {
         self.handshake(server_name, stream, None, true).await
     }
 
+    fn handshake_configuration(
+        &self,
+        server_name: &str,
+        ech_config_list: Option<&[u8]>,
+    ) -> Result<btls::ssl::ConnectConfiguration, TlsError> {
+        let mut configuration = self
+            .backend
+            .configure()
+            .map_err(|error| TlsError::backend("handshake configuration", error))?;
+        configuration.set_use_server_name_indication(true);
+        configuration.set_verify_hostname(self.server_authentication.verifies());
+        configuration.set_enable_ech_grease(self.ech_grease);
+        configuration::apply_ech_grease_payload_length(
+            &mut configuration,
+            self.ech_grease_payload_length,
+            server_name,
+        )?;
+        if !self.ech_grease_aeads.is_empty() {
+            let aead_ids = self
+                .ech_grease_aeads
+                .iter()
+                .map(|aead| aead.hpke_id())
+                .collect::<Vec<_>>();
+            configuration
+                .set_ech_grease_aeads(&aead_ids)
+                .map_err(|error| TlsError::backend("ech_grease_aeads", error))?;
+        }
+        if let Some(list) = ech_config_list {
+            configuration
+                .set_ech_config_list(list)
+                .map_err(TlsError::invalid_ech_config_list)?;
+        }
+        configuration
+            .set_alpn_protos(&self.alpn_wire)
+            .map_err(|error| TlsError::backend("alpn_protocols", error))?;
+        if let Some(ids) = &self.per_connection_trust_anchors {
+            configuration
+                .set_requested_trust_anchors(&encode_trust_anchor_ids(draw_trust_anchor_order(
+                    ids,
+                )?))
+                .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
+        }
+
+        if let Some(alps) = &self.alps {
+            configuration
+                .add_application_settings_with_payload(&alps.protocol, &alps.settings)
+                .map_err(|error| TlsError::backend("alps", error))?;
+            configuration.set_alps_use_new_codepoint(alps.use_new_codepoint);
+        }
+
+        if let Some(key_shares) = &self.tls13_key_shares {
+            let key_shares = key_shares
+                .iter()
+                .copied()
+                .map(configuration::key_share)
+                .collect::<Result<Vec<_>, _>>()?;
+            configuration
+                .set_client_key_shares(&key_shares)
+                .map_err(|error| TlsError::backend("key_shares", error))?;
+        }
+
+        if let Some(certificate) = &self.client_certificate {
+            certificate
+                .apply(&mut configuration)
+                .map_err(|error| TlsError::backend("client_certificate", error))?;
+        }
+        Ok(configuration)
+    }
+
     /// Offers early data when `offer_early_data` is set, the connector keeps
     /// early-data sessions, no ECH configuration is offered, and the cached
     /// session permits it.
@@ -727,67 +798,7 @@ impl TlsConnector {
             let mut attempted_reusable_session = None;
             let mut session_capture = None;
 
-            let mut configuration = self
-                .backend
-                .configure()
-                .map_err(|error| TlsError::backend("handshake configuration", error))?;
-            configuration.set_use_server_name_indication(true);
-            configuration.set_verify_hostname(self.server_authentication.verifies());
-            configuration.set_enable_ech_grease(self.ech_grease);
-            configuration::apply_ech_grease_payload_length(
-                &mut configuration,
-                self.ech_grease_payload_length,
-                server_name,
-            )?;
-            if !self.ech_grease_aeads.is_empty() {
-                let aead_ids = self
-                    .ech_grease_aeads
-                    .iter()
-                    .map(|aead| aead.hpke_id())
-                    .collect::<Vec<_>>();
-                configuration
-                    .set_ech_grease_aeads(&aead_ids)
-                    .map_err(|error| TlsError::backend("ech_grease_aeads", error))?;
-            }
-            if let Some(list) = ech_config_list {
-                configuration
-                    .set_ech_config_list(list)
-                    .map_err(TlsError::invalid_ech_config_list)?;
-            }
-            configuration
-                .set_alpn_protos(&self.alpn_wire)
-                .map_err(|error| TlsError::backend("alpn_protocols", error))?;
-            if let Some(ids) = &self.per_connection_trust_anchors {
-                configuration
-                    .set_requested_trust_anchors(&encode_trust_anchor_ids(draw_trust_anchor_order(
-                        ids,
-                    )?))
-                    .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
-            }
-
-            if let Some(alps) = &self.alps {
-                configuration
-                    .add_application_settings_with_payload(&alps.protocol, &alps.settings)
-                    .map_err(|error| TlsError::backend("alps", error))?;
-                configuration.set_alps_use_new_codepoint(alps.use_new_codepoint);
-            }
-
-            if let Some(key_shares) = &self.tls13_key_shares {
-                let key_shares = key_shares
-                    .iter()
-                    .copied()
-                    .map(configuration::key_share)
-                    .collect::<Result<Vec<_>, _>>()?;
-                configuration
-                    .set_client_key_shares(&key_shares)
-                    .map_err(|error| TlsError::backend("key_shares", error))?;
-            }
-
-            if let Some(certificate) = &self.client_certificate {
-                certificate
-                    .apply(&mut configuration)
-                    .map_err(|error| TlsError::backend("client_certificate", error))?;
-            }
+            let mut configuration = self.handshake_configuration(server_name, ech_config_list)?;
 
             let ssl = if let Some(cache) = &self.session_cache {
                 let capture = cache.begin_handshake(server_name);

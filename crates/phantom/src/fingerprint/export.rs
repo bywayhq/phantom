@@ -206,3 +206,11 @@ pub(super) fn describe(profile: &ClientProfile) -> Result<(Value, Vec<u8>)> {
     }
     Ok((document, output.0))
 }
+
+pub(super) fn tls_settings(settings: &phantom_profile::TlsSettings) -> Result<Value> {
+    settings.encode(&mut Encoder::default(), "tls")
+}
+
+pub(super) fn quic_settings(settings: &phantom_profile::QuicTransportSettings) -> Result<Value> {
+    settings.encode(&mut Encoder::default(), "http3.quic_transport")
+}

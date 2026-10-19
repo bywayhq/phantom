@@ -1,4 +1,15 @@
 //! Inspect, edit and name custom profiles without assigning catalog evidence.
+//!
+//! Enable `fingerprint-import` to edit complete settings with
+//! [`describe_profile`] and [`import_profile_json`]. Compact observations need
+//! an explicit base for the fields they omit. Use [`import_ja3_profile`],
+//! [`import_ja4_profile`], [`import_client_hello_profile`],
+//! [`import_quic_transport_profile`] or [`import_akamai_profile`], then inspect
+//! [`ImportedProfile::supplemented_fields`] before using the result.
+//!
+//! JA3 and JA4 hashes cannot recover settings. Raw fingerprints only constrain
+//! their documented fields. A successful import creates custom settings; it
+//! does not establish browser identity or fidelity on unobserved layers.
 
 use phantom_profile::ClientProfile;
 use std::{error::Error, fmt};
@@ -11,18 +22,24 @@ mod export;
 mod http1;
 mod http2;
 mod http3;
+mod ja4;
 mod json;
 mod proxy_connect;
 mod quic;
+mod quic_import;
 mod registry;
 mod request_template;
 mod tcp;
 mod tls;
+mod tls_import;
 mod udp;
 mod websocket;
 
 pub use compact::{ImportedProfile, import_akamai_profile};
+pub use ja4::{Ja4RawFormat, import_ja4_profile};
+pub use quic_import::import_quic_transport_profile;
 pub use registry::{ProfileRegistry, ProfileRegistryError, ProfileRegistryErrorKind};
+pub use tls_import::{import_client_hello_profile, import_ja3_profile};
 
 /// Recovery category for a custom-profile document error.
 ///
@@ -97,7 +114,7 @@ impl fmt::Debug for FingerprintImportError {
 impl fmt::Display for FingerprintImportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            FingerprintImportErrorKind::LossyDescription => write!(f, "compact fingerprints omit required settings; provide complete phantom.custom-profile JSON at {}", self.field),
+            FingerprintImportErrorKind::LossyDescription => write!(f, "fingerprint omits required settings; supply raw observations with an explicit base or complete phantom.custom-profile JSON at {}", self.field),
             FingerprintImportErrorKind::MalformedJson => f.write_str("expected one complete phantom.custom-profile JSON document; JA3/JA4 fingerprints cannot reconstruct settings"),
             _ => write!(f, "custom-profile import {:?} at {}", self.kind, self.field),
         }

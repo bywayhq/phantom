@@ -16,16 +16,33 @@ const OBSERVED_HTTP2: &[&str] = &[
 /// Custom settings and the fields supplied by each import input.
 ///
 /// The profile has no catalog identity or browser evidence. Field paths name
-/// complete layers or individual HTTP/2 settings. Inspect configured values
+/// complete layers or individual settings. Inspect configured values
 /// with [`super::describe_profile`]. Debug output omits those values.
 #[derive(Clone)]
 pub struct ImportedProfile {
     profile: ClientProfile,
-    observed: &'static [&'static str],
+    observed: Vec<&'static str>,
     supplemented: Vec<Box<str>>,
 }
 
 impl ImportedProfile {
+    pub(super) fn from_document(document: Value, observed: &[&'static str]) -> Result<Self> {
+        let layers = document["profile"]
+            .as_object()
+            .ok_or_else(|| error(Kind::InvalidValue, "profile"))?;
+        let mut supplemented = Vec::new();
+        for (layer, value) in layers {
+            collect_supplements(value, layer, observed, &mut supplemented);
+        }
+        let bytes = serde_json::to_vec(&document)
+            .map_err(|source| FingerprintImportError::native("document", source))?;
+        Ok(Self {
+            profile: super::import_profile_json(&bytes)?,
+            observed: observed.to_vec(),
+            supplemented,
+        })
+    }
+
     /// Returns the resulting custom settings.
     #[must_use]
     pub fn profile(&self) -> &ClientProfile {
@@ -147,9 +164,25 @@ pub fn import_akamai_profile(input: &str, base: &ClientProfile) -> Result<Import
         .map_err(|source| FingerprintImportError::native("document", source))?;
     Ok(ImportedProfile {
         profile: super::import_profile_json(&bytes)?,
-        observed: OBSERVED_HTTP2,
+        observed: OBSERVED_HTTP2.to_vec(),
         supplemented,
     })
+}
+
+fn collect_supplements(value: &Value, path: &str, observed: &[&str], fields: &mut Vec<Box<str>>) {
+    if observed.contains(&path) {
+        return;
+    }
+    let prefix = format!("{path}.");
+    if observed.iter().any(|field| field.starts_with(&prefix)) {
+        if let Some(object) = value.as_object() {
+            for (name, value) in object {
+                collect_supplements(value, &format!("{path}.{name}"), observed, fields);
+            }
+            return;
+        }
+    }
+    fields.push(path.into());
 }
 
 fn parse_settings(input: &str) -> Result<Vec<Value>> {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Import raw JA3, raw JA4 and supported captured TCP ClientHello fields using
+  explicit base settings. Check the imported projection against a fresh
+  in-memory ClientHello and report which settings remain supplemented.
+  Import supported ordered QUIC transport parameters with their integer widths
+  and runtime-generated connection IDs. Fingerprint hashes remain insufficient
+  to reconstruct a profile; imports do not assign browser identity.
+
 - Add caller-supplied direct TCP stream connectors and Unix-domain sockets.
   Requests retain URL authority, TLS verification, pool isolation and deadlines.
   Custom connectors own DNS and socket options; incompatible proxy, discovery

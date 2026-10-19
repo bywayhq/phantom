@@ -106,7 +106,7 @@ pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, EchFailure,
     InvalidServerSpkiPins, ServerAuthentication, ServerSpkiPins, TlsError, TlsErrorKind,
-    bundled_server_root_identity, draw_per_client,
+    bundled_server_root_identity, draw_per_client, preview_client_hello,
 };
 #[doc(hidden)]
 pub use transfer::TransferStream;

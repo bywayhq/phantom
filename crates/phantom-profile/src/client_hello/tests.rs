@@ -44,7 +44,7 @@ fn handshake(body: &[u8]) -> Vec<u8> {
 }
 
 fn decode_body(body: &[u8]) -> Result<ClientHelloSummary, ClientHelloDecodeError> {
-    ClientHelloSummary::decode(&handshake(body))
+    ClientHelloSummary::from_handshake_bytes(&handshake(body))
 }
 
 #[test]
@@ -351,7 +351,7 @@ fn rejects_bytes_after_declared_handshake_body() {
     message.push(0xaa);
 
     assert_eq!(
-        ClientHelloSummary::decode(&message),
+        ClientHelloSummary::from_handshake_bytes(&message),
         Err(ClientHelloDecodeError::TrailingHandshakeBytes { count: 1 })
     );
 }
