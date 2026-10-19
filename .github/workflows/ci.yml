@@ -135,8 +135,8 @@ jobs:
 
       - name: Lint Python tooling
         run: |
-          ruff check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release
-          ruff format --check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release
+          ruff check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python
+          ruff format --check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python
 
       - name: Test protocol tooling
         run: |
@@ -151,6 +151,9 @@ jobs:
 
       - name: Test
         run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
+
+      - name: Test installed Python wheel
+        run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_python_binding.py
 
       # nextest does not run doctests, and `cargo test --all-targets` skips them.
       - name: Test documentation examples
@@ -397,6 +400,11 @@ jobs:
           }
           $installation
 
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
@@ -407,6 +415,10 @@ jobs:
 
       - name: Test workspace
         run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
+
+      - name: Test installed Python wheel
+        shell: bash
+        run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_python_binding.py
 
       - name: Test native QUIC crypto release link
         run: cargo test --release -p phantom-quic-btls --lib --locked

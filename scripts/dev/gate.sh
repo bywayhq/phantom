@@ -403,6 +403,8 @@ chain_tests() {
   [[ $quick == true ]] && return
   run_step doctest test cargo test --doc -j "$jobs" --workspace --all-features --locked
   run_step fuzz-test test cargo test -j "$jobs" --manifest-path fuzz/Cargo.toml --locked
+  run_step python-binding test env CARGO_BUILD_JOBS="$jobs" \
+    "${python[@]}" python scripts/dev/check_python_binding.py
 }
 chain_lint() {
   run_step clippy lint "${clippy[@]}"
@@ -428,7 +430,7 @@ chain_linux() {
   run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
 }
 chain_python() {
-  local ruff=(uvx ruff@0.17.0) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release)
+  local ruff=(uvx ruff@0.17.0) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
@@ -454,7 +456,7 @@ if [[ $quick == true ]]; then
     launch chain_linux
   fi
 else
-  steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
+  steps+=(nextest doctest fuzz-test python-binding clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
     docs-check tool-pins unsafe-boundaries)
   if [[ $nightly_installed == true ]]; then

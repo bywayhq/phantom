@@ -568,6 +568,7 @@ def default_files(root: Path) -> list[str]:
         p.relative_to(root).as_posix() for p in (root / "docs").rglob("*.md")
     )
     for pattern in (
+        "bindings/*/README.md",
         "crates/*/README.md",
         "crates/*/examples/README.md",
         "crates/*/src/docs/**/*.md",

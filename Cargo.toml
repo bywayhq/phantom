@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "bindings/python",
     "crates/phantom",
     "crates/phantom-cli",
     "crates/phantom-net",

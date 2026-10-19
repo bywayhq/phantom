@@ -28,6 +28,10 @@
   proxy selection, measured diagnostics and editable profile JSON. Check clean
   CLI installation alongside the library release archives.
 
+- Add a native Python adapter with reusable sync and async clients, bounded
+  streaming, cookies, shared attempt budgets and cancellation. Build it from
+  source; prebuilt wheels and their installation matrix remain release work.
+
 - Generate browser profile constructors from the catalog's component selections.
   New versions no longer need Python target tables or handwritten composition.
   Keep specific evidence limits and expand omitted unavailable-layer records.
