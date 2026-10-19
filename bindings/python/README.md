@@ -23,8 +23,30 @@ Build locally with CPython 3.10 or newer, Rust 1.88 and Phantom's
 [native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
 From this directory, run `maturin develop` inside a virtual environment.
 Maturin 1.9.4 or newer selects extension linking for this build only.
-Ordinary Cargo checks retain Python linking. Prebuilt wheels and a supported
-installation matrix are separate release work.
+Ordinary Cargo checks retain Python linking.
+
+## Native wheel candidates
+
+The [wheel workflow](../../.github/workflows/python-wheels.yml) builds optimized
+candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each successful
+artifact includes its source revision, toolchain, wheel checksum, dependency
+notices, native linkage and tested runtime. It is uploaded only after a fresh,
+cache-free installation outside the checkout passes the Python loopback tests.
+Failures retain command logs without marking a wheel verified.
+
+Download a matching verified candidate and run `python -m pip install path/to/file.whl`.
+Keep the wheel's included licenses when redistributing it. Candidates are not
+published to PyPI. Linux uses a native `linux_x86_64` tag, without a manylinux
+compatibility claim. The receipt covers its recorded host and CPython version;
+older operating systems, libc versions and other Python runtimes are unverified.
+Windows needs the Microsoft x64 Visual C++ v14 runtime, at least as recent as
+the recorded MSVC build tools. OS/SDK runtime licenses are separate from the
+wheel's Rust and native dependency notices.
+
+To produce a candidate from a clean checkout, run the helper from the repository
+root through `scripts/dev/with-cargo-lock.sh` with `--release-candidate`,
+`--target` and a new `--output` directory. Without those options, the helper
+keeps the ordinary development build used by the gate.
 
 ## Requests and state
 
