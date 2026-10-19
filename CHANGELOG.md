@@ -25,7 +25,9 @@
 
 - Add a native Node.js and TypeScript adapter with reusable clients, ordered
   headers, bounded streaming and file uploads, cookies, shared attempt budgets
-  and cancellation. Source builds target Node.js 22 and 24.
+  and cancellation. Source builds target Node.js 22 and 24. Prepare native
+  package candidates with dependency notices and isolated installation checks
+  on both Node.js versions.
 
 - Share live TLS tickets with `SessionSharing::tickets(true)` across independent
   connection pools. Single-use tickets are consumed once, and bounded stores
