@@ -241,6 +241,7 @@ pub struct TransferStream {
 }
 impl TransferStream {
     /// Starts a stream without resetting shared counters or pacing.
+    #[must_use]
     pub fn new(control: TransferControl, direction: TransferDirection) -> Self {
         Self {
             control,
@@ -252,6 +253,7 @@ impl TransferStream {
         }
     }
     /// Bytes already pulled from the source but not yet delivered.
+    #[must_use]
     pub fn buffered_len(&self) -> usize {
         self.buffered.len()
     }
