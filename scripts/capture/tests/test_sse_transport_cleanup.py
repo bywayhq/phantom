@@ -244,6 +244,29 @@ class H2CleanupTests(unittest.IsolatedAsyncioTestCase):
         server.run = run
         loop = asyncio.get_running_loop()
         received, release = asyncio.Event(), threading.Event()
+        reading = asyncio.Event()
+        responses = []
+        original_spawn, original_handle = server.spawn, server.handle
+
+        def spawn(operation, run):
+            task = original_spawn(operation, run)
+            responses.append(task)
+            return task
+
+        async def handle(reader, writer, run):
+            original_read = reader.read
+
+            async def read(size):
+                reading.set()
+                try:
+                    return await original_read(size)
+                finally:
+                    reading.clear()
+
+            reader.read = read
+            return await original_handle(reader, writer, run)
+
+        server.spawn, server.handle = spawn, handle
         context = ssl.create_default_context(
             cadata=server.certificate.certificate_pem.decode()
         )
@@ -318,6 +341,13 @@ class H2CleanupTests(unittest.IsolatedAsyncioTestCase):
             else:
                 self.assertIsNone(run.terminated)
                 self.assertFalse(run.done.is_set())
+            # Receipt of END_STREAM can precede the server's final drain.
+            # Reset only after response writes finish and a read is pending.
+            self.assertEqual(len(responses), 1)
+            self.assertEqual(
+                await asyncio.wait_for(asyncio.gather(*responses), 2), [None]
+            )
+            await asyncio.wait_for(reading.wait(), 2)
             release.set()
             self.assertEqual(
                 await asyncio.wait_for(task, 2), b"204" if terminal else b"200"
