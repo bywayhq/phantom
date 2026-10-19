@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add bounded custom redirect policies with resolved URL and method context.
+  Callbacks can follow, stop with the redirect response, or reject a hop.
+  **Breaking:** `RedirectPolicy` is now `Clone` rather than `Copy` and no longer
+  implements equality. Migrate: clone shared policies explicitly and use
+  `max_hops()` to inspect their limit.
+
 - Compare explicit HTTP/2 body cancellation while sibling streams complete.
   Require peer-observed CANCEL resets on one shared connection.
 

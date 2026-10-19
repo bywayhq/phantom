@@ -97,7 +97,10 @@ fn client_builder_sets_every_client_option() {
         #[cfg(feature = "cookies")]
         cookie_jar,
     } = builder.options;
-    assert_ne!(redirect_policy, defaults.redirect_policy);
+    assert_ne!(
+        redirect_policy.max_hops(),
+        defaults.redirect_policy.max_hops()
+    );
     assert_ne!(retry_policy, defaults.retry_policy);
     assert_ne!(request_timeouts, defaults.request_timeouts);
     assert_ne!(

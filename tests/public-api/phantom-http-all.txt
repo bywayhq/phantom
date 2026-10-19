@@ -7,22 +7,36 @@ pub use phantom::Bytes
 pub use phantom::ClientCertificate
 pub use phantom::ClientCertificateError
 pub use phantom::ClientCertificateErrorKind
+pub use phantom::ConnectionEndpointScope
 pub use phantom::DigestAuthError
 pub use phantom::DigestPolicy
 pub use phantom::DnsConfigurationToken
+pub use phantom::HttpAttemptBudget
+pub use phantom::HttpAttemptBudgetExhausted
 pub use phantom::HttpConnectHeader
 pub use phantom::HttpDigestCredentials
 pub use phantom::InvalidAuthorization
 pub use phantom::InvalidAuthorizationKind
+pub use phantom::InvalidServerSpkiPins
 pub use phantom::Method
 pub use phantom::OrderedResponseHeaders
+pub use phantom::RequestConnection
+pub use phantom::RequestDiagnostics
 pub use phantom::RequestHeader
+pub use phantom::RequestTimeline
+pub use phantom::RequestTimelineOutcome
+pub use phantom::RequestTiming
+pub use phantom::RequestTimingOutcome
+pub use phantom::RequestTimingPhase
 pub use phantom::RequestTrailerName
 pub use phantom::Response
 pub use phantom::ResponseHeader
 pub use phantom::ServerAuthentication
+pub use phantom::ServerSpkiPins
 pub use phantom::StatusCode
 pub use phantom::Stream
+pub use phantom::TlsConnectionInfo
+pub use phantom::TlsConnectionState
 pub use phantom::Uri
 pub mod phantom::dns
 pub use phantom::dns::AliasRecord
@@ -90,11 +104,24 @@ pub phantom::fingerprint::FingerprintImportErrorKind::DuplicateField
 pub phantom::fingerprint::FingerprintImportErrorKind::InvalidSettings
 pub phantom::fingerprint::FingerprintImportErrorKind::InvalidValue
 pub phantom::fingerprint::FingerprintImportErrorKind::LossyDescription
+pub phantom::fingerprint::FingerprintImportErrorKind::MalformedDescription
 pub phantom::fingerprint::FingerprintImportErrorKind::MalformedJson
 pub phantom::fingerprint::FingerprintImportErrorKind::MissingField
 pub phantom::fingerprint::FingerprintImportErrorKind::TooLarge
 pub phantom::fingerprint::FingerprintImportErrorKind::UnsupportedFormat
 pub phantom::fingerprint::FingerprintImportErrorKind::UnsupportedSetting
+#[non_exhaustive] pub enum phantom::fingerprint::ProfileRegistryErrorKind
+pub phantom::fingerprint::ProfileRegistryErrorKind::DuplicateName
+pub phantom::fingerprint::ProfileRegistryErrorKind::InvalidName
+pub phantom::fingerprint::ProfileRegistryErrorKind::InvalidProfile
+pub struct phantom::fingerprint::FingerprintExportError(_)
+impl phantom::fingerprint::FingerprintExportError
+pub fn phantom::fingerprint::FingerprintExportError::field(&self) -> &str
+pub const fn phantom::fingerprint::FingerprintExportError::kind(&self) -> phantom::fingerprint::FingerprintImportErrorKind
+impl core::error::Error for phantom::fingerprint::FingerprintExportError
+pub fn phantom::fingerprint::FingerprintExportError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::fingerprint::FingerprintExportError
+pub fn phantom::fingerprint::FingerprintExportError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::fingerprint::FingerprintImportError
 impl phantom::fingerprint::FingerprintImportError
 pub fn phantom::fingerprint::FingerprintImportError::field(&self) -> &str
@@ -105,7 +132,40 @@ impl core::fmt::Debug for phantom::fingerprint::FingerprintImportError
 pub fn phantom::fingerprint::FingerprintImportError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::fingerprint::FingerprintImportError
 pub fn phantom::fingerprint::FingerprintImportError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::fingerprint::ImportedProfile
+impl phantom::fingerprint::ImportedProfile
+pub fn phantom::fingerprint::ImportedProfile::into_profile(self) -> phantom_profile::client::ClientProfile
+pub fn phantom::fingerprint::ImportedProfile::observed_fields(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &'static str>
+pub fn phantom::fingerprint::ImportedProfile::profile(&self) -> &phantom_profile::client::ClientProfile
+pub fn phantom::fingerprint::ImportedProfile::supplemented_fields(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &str>
+impl core::fmt::Debug for phantom::fingerprint::ImportedProfile
+pub fn phantom::fingerprint::ImportedProfile::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::fingerprint::ProfileRegistry
+impl phantom::fingerprint::ProfileRegistry
+pub fn phantom::fingerprint::ProfileRegistry::get(&self, &str) -> core::option::Option<&phantom_profile::client::ClientProfile>
+pub fn phantom::fingerprint::ProfileRegistry::import_json(&mut self, &str, &[u8]) -> core::result::Result<(), phantom::fingerprint::ProfileRegistryError>
+pub fn phantom::fingerprint::ProfileRegistry::insert(&mut self, &str, phantom_profile::client::ClientProfile) -> core::result::Result<(), phantom::fingerprint::ProfileRegistryError>
+pub fn phantom::fingerprint::ProfileRegistry::is_empty(&self) -> bool
+pub fn phantom::fingerprint::ProfileRegistry::len(&self) -> usize
+pub fn phantom::fingerprint::ProfileRegistry::names(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &str> + core::iter::traits::double_ended::DoubleEndedIterator + '_
+pub fn phantom::fingerprint::ProfileRegistry::new() -> Self
+pub fn phantom::fingerprint::ProfileRegistry::remove(&mut self, &str) -> core::option::Option<phantom_profile::client::ClientProfile>
+pub struct phantom::fingerprint::ProfileRegistryError
+impl phantom::fingerprint::ProfileRegistryError
+pub const fn phantom::fingerprint::ProfileRegistryError::kind(&self) -> phantom::fingerprint::ProfileRegistryErrorKind
+impl core::error::Error for phantom::fingerprint::ProfileRegistryError
+pub fn phantom::fingerprint::ProfileRegistryError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::fingerprint::ProfileRegistryError
+pub fn phantom::fingerprint::ProfileRegistryError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn phantom::fingerprint::describe_profile(&phantom_profile::client::ClientProfile) -> core::result::Result<serde_json::value::Value, phantom::fingerprint::FingerprintExportError>
+pub fn phantom::fingerprint::export_profile_json(&phantom_profile::client::ClientProfile) -> core::result::Result<alloc::vec::Vec<u8>, phantom::fingerprint::FingerprintExportError>
+pub fn phantom::fingerprint::import_akamai_profile(&str, &phantom_profile::client::ClientProfile) -> core::result::Result<phantom::fingerprint::ImportedProfile, phantom::fingerprint::FingerprintImportError>
 pub fn phantom::fingerprint::import_profile_json(&[u8]) -> core::result::Result<phantom_profile::client::ClientProfile, phantom::fingerprint::FingerprintImportError>
+pub mod phantom::guide
+pub mod phantom::guide::browser_profiles
+pub mod phantom::guide::getting_started
+pub mod phantom::guide::proxies
+pub mod phantom::guide::requests_and_responses
 pub mod phantom::profile
 pub use phantom::profile::AlpsSettings
 pub use phantom::profile::CertificateCompression
@@ -311,7 +371,12 @@ pub phantom::ProxyConfigErrorKind::InvalidUri
 pub phantom::ProxyConfigErrorKind::UnexpectedPath
 pub phantom::ProxyConfigErrorKind::UnsupportedScheme
 pub phantom::ProxyConfigErrorKind::UnsupportedTransport
+#[non_exhaustive] pub enum phantom::RedirectDecision
+pub phantom::RedirectDecision::Follow
+pub phantom::RedirectDecision::Reject
+pub phantom::RedirectDecision::Stop
 #[non_exhaustive] pub enum phantom::RequestErrorKind
+pub phantom::RequestErrorKind::AttemptBudgetExhausted
 pub phantom::RequestErrorKind::Capacity
 pub phantom::RequestErrorKind::Connect
 pub phantom::RequestErrorKind::ContentDecoding
@@ -332,6 +397,7 @@ pub phantom::RequestErrorKind::RequestTemplate
 pub phantom::RequestErrorKind::Resolve
 pub phantom::RequestErrorKind::ResponseBodyLimit
 pub phantom::RequestErrorKind::RuntimeUnavailable
+pub phantom::RequestErrorKind::ServerPinPolicy
 pub phantom::RequestErrorKind::SessionTickets
 pub phantom::RequestErrorKind::Timeout
 pub phantom::RequestErrorKind::Tls
@@ -427,6 +493,7 @@ pub phantom::TimeoutPhase::Total
 pub phantom::TimeoutPhase::WebSocketHandshake
 #[non_exhaustive] pub enum phantom::WebSocketErrorKind
 pub phantom::WebSocketErrorKind::AbnormalClosure
+pub phantom::WebSocketErrorKind::AttemptBudgetExhausted
 pub phantom::WebSocketErrorKind::Capacity
 pub phantom::WebSocketErrorKind::Closed
 pub phantom::WebSocketErrorKind::Connect
@@ -445,6 +512,7 @@ pub phantom::WebSocketErrorKind::ProtocolUnavailable
 pub phantom::WebSocketErrorKind::Proxy
 pub phantom::WebSocketErrorKind::Random
 pub phantom::WebSocketErrorKind::RuntimeUnavailable
+pub phantom::WebSocketErrorKind::ServerPinPolicy
 pub phantom::WebSocketErrorKind::SessionTickets
 pub phantom::WebSocketErrorKind::Timeout
 pub phantom::WebSocketErrorKind::Tls
@@ -566,12 +634,14 @@ pub fn phantom::Client::clear_alt_svc_racing_history(&self)
 pub fn phantom::Client::clear_client_hints(&self)
 pub fn phantom::Client::clear_dns_cache(&self)
 pub fn phantom::Client::clear_session_tickets(&self) -> core::result::Result<usize, phantom::SessionTicketError>
+pub async fn phantom::Client::close_idle_connections(&self)
 pub fn phantom::Client::cookie_jar(&self) -> core::option::Option<&phantom::CookieJar>
 pub fn phantom::Client::event_source(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::SseRequestBuilder, phantom::RequestError>
 pub fn phantom::Client::export_alt_svc(&self) -> core::option::Option<phantom::AltSvcSnapshot>
 pub fn phantom::Client::export_cookies(&self) -> core::option::Option<phantom::CookieSnapshot>
 pub fn phantom::Client::import_alt_svc(&self, &phantom::AltSvcSnapshot) -> core::result::Result<(), phantom::AltSvcSnapshotError>
 pub fn phantom::Client::import_cookies(&self, &phantom::CookieSnapshot) -> core::result::Result<(), phantom::CookieSnapshotError>
+pub async fn phantom::Client::refresh_connections(&self)
 pub fn phantom::Client::request_timeouts(&self) -> phantom::RequestTimeouts
 pub fn phantom::Client::retry_policy(&self) -> phantom::RetryPolicy
 impl phantom::Client
@@ -618,13 +688,16 @@ pub fn phantom::ClientBuilder::negotiated_setup_wait_limit(self, core::time::Dur
 pub fn phantom::ClientBuilder::no_dns_cache(self) -> Self
 pub fn phantom::ClientBuilder::preemptive_proxy_authentication(self, bool) -> Self
 pub fn phantom::ClientBuilder::proxy_server_authentication(self, phantom_net::tls::ServerAuthentication) -> Self
+pub fn phantom::ClientBuilder::proxy_server_spki_pins(self, phantom_net::tls::server_pins::ServerSpkiPins) -> Self
 pub fn phantom::ClientBuilder::qlog_dir(self, impl core::convert::Into<std::path::PathBuf>) -> Self
 pub fn phantom::ClientBuilder::redirect_policy(self, phantom::RedirectPolicy) -> Self
+pub fn phantom::ClientBuilder::request_hooks(self, impl phantom::RequestHooks + 'static) -> Self
 pub fn phantom::ClientBuilder::request_timeouts(self, phantom::RequestTimeouts) -> Self
 pub fn phantom::ClientBuilder::resolve(self, &str, impl core::iter::traits::collect::IntoIterator<Item = core::net::ip_addr::IpAddr>) -> Self
 pub fn phantom::ClientBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
 pub fn phantom::ClientBuilder::route(self, phantom::Route) -> Self
 pub fn phantom::ClientBuilder::server_authentication(self, phantom_net::tls::ServerAuthentication) -> Self
+pub fn phantom::ClientBuilder::server_spki_pins(self, phantom_net::tls::server_pins::ServerSpkiPins) -> Self
 impl core::fmt::Debug for phantom::ClientBuilder
 pub fn phantom::ClientBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ConnectUdpProxy
@@ -759,6 +832,7 @@ pub fn phantom::HttpProxy::with_basic_auth(self, impl core::convert::AsRef<str>,
 pub fn phantom::HttpProxy::with_digest_auth(self, &str, &str) -> core::result::Result<Self, phantom::ProxyConfigError>
 pub fn phantom::HttpProxy::with_digest_credentials(self, phantom_net::proxy::digest::HttpDigestCredentials) -> Self
 pub fn phantom::HttpProxy::with_http2_transport(self) -> core::result::Result<Self, phantom::ProxyConfigError>
+pub fn phantom::HttpProxy::with_speculative_tls(self, bool) -> Self
 impl core::cmp::Eq for phantom::HttpProxy
 impl core::cmp::PartialEq for phantom::HttpProxy
 pub fn phantom::HttpProxy::eq(&self, &Self) -> bool
@@ -855,18 +929,48 @@ impl core::error::Error for phantom::ProxyConfigError
 pub fn phantom::ProxyConfigError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom::ProxyConfigError
 pub fn phantom::ProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RedirectAttempt<'a>
+impl phantom::RedirectAttempt<'_>
+pub const fn phantom::RedirectAttempt<'_>::from_url(&self) -> &url::Url
+pub const fn phantom::RedirectAttempt<'_>::hop(&self) -> usize
+pub const fn phantom::RedirectAttempt<'_>::method(&self) -> &http::method::Method
+pub const fn phantom::RedirectAttempt<'_>::next_method(&self) -> &http::method::Method
+pub const fn phantom::RedirectAttempt<'_>::status(&self) -> http::status::StatusCode
+pub const fn phantom::RedirectAttempt<'_>::to_url(&self) -> &url::Url
+impl core::fmt::Debug for phantom::RedirectAttempt<'_>
+pub fn phantom::RedirectAttempt<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RedirectHistory
+impl phantom::RedirectHistory
+pub fn phantom::RedirectHistory::entries(&self) -> &[phantom::RedirectHop]
+pub const fn phantom::RedirectHistory::omitted_hops(&self) -> usize
+impl core::fmt::Debug for phantom::RedirectHistory
+pub fn phantom::RedirectHistory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RedirectHop
+impl phantom::RedirectHop
+pub fn phantom::RedirectHop::from_uri(&self) -> &http::uri::Uri
+pub fn phantom::RedirectHop::method(&self) -> &http::method::Method
+pub fn phantom::RedirectHop::next_method(&self) -> &http::method::Method
+pub const fn phantom::RedirectHop::status(&self) -> http::status::StatusCode
+pub fn phantom::RedirectHop::to_uri(&self) -> &http::uri::Uri
+impl core::fmt::Debug for phantom::RedirectHop
+pub fn phantom::RedirectHop::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RedirectPolicy
 impl phantom::RedirectPolicy
+pub fn phantom::RedirectPolicy::custom(core::num::nonzero::NonZeroUsize, impl core::ops::function::Fn(&phantom::RedirectAttempt<'_>) -> phantom::RedirectDecision + core::marker::Send + core::marker::Sync + 'static) -> Self
 pub const fn phantom::RedirectPolicy::limited(core::num::nonzero::NonZeroUsize) -> Self
-pub const fn phantom::RedirectPolicy::max_hops(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RedirectPolicy::max_hops(&self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::RedirectPolicy::none() -> Self
+impl core::fmt::Debug for phantom::RedirectPolicy
+pub fn phantom::RedirectPolicy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RequestBuilder
 impl phantom::RequestBuilder
 pub fn phantom::RequestBuilder::alt_svc_alternative(self, &str, u16) -> Self
+pub fn phantom::RequestBuilder::attempt_budget(self, phantom_net::attempt_budget::HttpAttemptBudget) -> Self
 pub fn phantom::RequestBuilder::body(self, impl core::convert::Into<bytes::bytes::Bytes>) -> Self
 pub fn phantom::RequestBuilder::buffered_streaming_body<B>(self, B, usize) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::buffered_streaming_body_with_trailers<B>(self, B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>, usize) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding) -> Self
+pub fn phantom::RequestBuilder::diagnostics(&mut self, core::num::nonzero::NonZeroUsize) -> phantom_net::request_diagnostics::RequestDiagnostics
 pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
 pub fn phantom::RequestBuilder::fill_slots<F>(self, F) -> core::result::Result<Self, phantom::RequestSlotError> where F: core::ops::function::FnOnce(&mut phantom::RequestSlots<'_>) -> core::result::Result<(), phantom::RequestSlotError>
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
@@ -874,6 +978,9 @@ pub fn phantom::RequestBuilder::header_hook<F>(self, F) -> Self where F: core::o
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
 pub fn phantom::RequestBuilder::prepared_body(self, phantom::PreparedRequestBody) -> Self
 pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
+pub fn phantom::RequestBuilder::redirect_history(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::RequestBuilder::redirect_policy(self, phantom::RedirectPolicy) -> Self
+pub fn phantom::RequestBuilder::request_hooks(self, impl phantom::RequestHooks + 'static) -> Self
 pub fn phantom::RequestBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
 pub fn phantom::RequestBuilder::route(self, phantom::Route) -> Self
 pub async fn phantom::RequestBuilder::send(self) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::RequestError>
@@ -899,6 +1006,18 @@ impl core::fmt::Debug for phantom::RequestError
 pub fn phantom::RequestError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::RequestError
 pub fn phantom::RequestError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestErrorHookContext<'a>
+impl phantom::RequestErrorHookContext<'_>
+pub fn phantom::RequestErrorHookContext<'_>::error(&self) -> &phantom::RequestError
+pub fn phantom::RequestErrorHookContext<'_>::request(&self) -> &phantom::RequestHookContext<'_>
+impl core::fmt::Debug for phantom::RequestErrorHookContext<'_>
+pub fn phantom::RequestErrorHookContext<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestHookContext<'a>
+impl phantom::RequestHookContext<'_>
+pub fn phantom::RequestHookContext<'_>::method(&self) -> &http::method::Method
+pub fn phantom::RequestHookContext<'_>::uri(&self) -> &http::uri::Uri
+impl core::fmt::Debug for phantom::RequestHookContext<'_>
+pub fn phantom::RequestHookContext<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RequestOrigin
 impl phantom::RequestOrigin
 pub fn phantom::RequestOrigin::host(&self) -> &str
@@ -952,12 +1071,23 @@ impl phantom::ResponseBody
 pub async fn phantom::ResponseBody::collect_with_limit(self, usize) -> core::result::Result<bytes::bytes::Bytes, phantom::RequestError>
 impl core::fmt::Debug for phantom::ResponseBody
 pub fn phantom::ResponseBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for phantom::ResponseBody
+pub fn phantom::ResponseBody::drop(&mut self)
 impl http_body::Body for phantom::ResponseBody
 pub type phantom::ResponseBody::Data = bytes::bytes::Bytes
 pub type phantom::ResponseBody::Error = phantom::RequestError
 pub fn phantom::ResponseBody::is_end_stream(&self) -> bool
 pub fn phantom::ResponseBody::poll_frame(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<core::result::Result<http_body::frame::Frame<Self::Data>, Self::Error>>>
 pub fn phantom::ResponseBody::size_hint(&self) -> http_body::size_hint::SizeHint
+pub struct phantom::ResponseHookContext<'a>
+impl phantom::ResponseHookContext<'_>
+pub fn phantom::ResponseHookContext<'_>::headers(&self) -> &http::header::map::HeaderMap
+pub fn phantom::ResponseHookContext<'_>::info(&self) -> core::option::Option<&phantom::ResponseInfo>
+pub fn phantom::ResponseHookContext<'_>::request(&self) -> &phantom::RequestHookContext<'_>
+pub fn phantom::ResponseHookContext<'_>::status(&self) -> http::status::StatusCode
+pub fn phantom::ResponseHookContext<'_>::version(&self) -> http::version::Version
+impl core::fmt::Debug for phantom::ResponseHookContext<'_>
+pub fn phantom::ResponseHookContext<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ResponseInfo
 impl phantom::ResponseInfo
 pub fn phantom::ResponseInfo::decoded_content_codings(&self) -> &[phantom::ContentCoding]
@@ -982,8 +1112,10 @@ impl core::fmt::Display for phantom::ResponseReadError
 pub fn phantom::ResponseReadError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RetryPolicy
 impl phantom::RetryPolicy
+pub const fn phantom::RetryPolicy::backoff_limit(self) -> core::option::Option<core::time::Duration>
 pub const fn phantom::RetryPolicy::connection_failures(core::num::nonzero::NonZeroUsize, core::time::Duration) -> Self
 pub const fn phantom::RetryPolicy::delay(self) -> core::time::Duration
+pub const fn phantom::RetryPolicy::full_jitter(self) -> bool
 pub const fn phantom::RetryPolicy::http2_fallback(self) -> bool
 pub const fn phantom::RetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::RetryPolicy::max_retries(self) -> core::option::Option<usize>
@@ -991,6 +1123,8 @@ pub const fn phantom::RetryPolicy::none() -> Self
 pub const fn phantom::RetryPolicy::reused_connection_replay(self) -> bool
 pub const fn phantom::RetryPolicy::status_retry(self) -> core::option::Option<phantom::StatusRetry>
 pub const fn phantom::RetryPolicy::unprocessed_replay(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RetryPolicy::with_exponential_backoff(self, core::time::Duration) -> Self
+pub const fn phantom::RetryPolicy::with_full_jitter(self, bool) -> Self
 pub const fn phantom::RetryPolicy::with_http2_fallback(self, bool) -> Self
 pub const fn phantom::RetryPolicy::with_max_retries(self, core::option::Option<usize>) -> Self
 pub const fn phantom::RetryPolicy::with_reused_connection_replay(self, bool) -> Self
@@ -1114,12 +1248,16 @@ impl core::fmt::Display for phantom::StatusError
 pub fn phantom::StatusError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::StatusRetry
 impl phantom::StatusRetry
+pub const fn phantom::StatusRetry::backoff_limit(self) -> core::option::Option<core::time::Duration>
 pub const fn phantom::StatusRetry::delay(self) -> core::time::Duration
+pub const fn phantom::StatusRetry::full_jitter(self) -> bool
 pub const fn phantom::StatusRetry::honor_retry_after(self, core::time::Duration) -> Self
 pub const fn phantom::StatusRetry::max_retries(self) -> core::num::nonzero::NonZeroUsize
 pub fn phantom::StatusRetry::new(&[http::status::StatusCode], core::num::nonzero::NonZeroUsize, core::time::Duration) -> core::result::Result<Self, phantom::StatusRetryError>
 pub fn phantom::StatusRetry::retries(self, http::status::StatusCode) -> bool
 pub const fn phantom::StatusRetry::retry_after_limit(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::StatusRetry::with_exponential_backoff(self, core::time::Duration) -> Self
+pub const fn phantom::StatusRetry::with_full_jitter(self, bool) -> Self
 pub struct phantom::StatusRetryError
 impl phantom::StatusRetryError
 pub const fn phantom::StatusRetryError::status(self) -> core::option::Option<http::status::StatusCode>
@@ -1192,6 +1330,14 @@ pub const fn phantom::WebSocketRetryPolicy::connection_failures(core::num::nonze
 pub const fn phantom::WebSocketRetryPolicy::delay(self) -> core::time::Duration
 pub const fn phantom::WebSocketRetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::WebSocketRetryPolicy::none() -> Self
+pub trait phantom::RequestHooks: core::marker::Send + core::marker::Sync
+pub fn phantom::RequestHooks::on_error(&self, &phantom::RequestErrorHookContext<'_>)
+pub fn phantom::RequestHooks::on_request(&self, &phantom::RequestHookContext<'_>)
+pub fn phantom::RequestHooks::on_response(&self, &phantom::ResponseHookContext<'_>)
+impl<T: phantom::RequestHooks + ?core::marker::Sized> phantom::RequestHooks for alloc::sync::Arc<T>
+pub fn alloc::sync::Arc<T>::on_error(&self, &phantom::RequestErrorHookContext<'_>)
+pub fn alloc::sync::Arc<T>::on_request(&self, &phantom::RequestHookContext<'_>)
+pub fn alloc::sync::Arc<T>::on_response(&self, &phantom::ResponseHookContext<'_>)
 pub fn phantom::error_for_status(http::response::Response<phantom::ResponseBody>) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::StatusError>
 pub fn phantom::parse_link_headers<'a>(impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, usize) -> core::result::Result<alloc::vec::Vec<phantom::Link>, phantom::LinkParseError>
 pub async fn phantom::response_bytes(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<bytes::bytes::Bytes>, phantom::ResponseReadError>

@@ -10,6 +10,8 @@ use crate::{RequestErrorKind, request::RequestBodySource};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+mod custom;
+
 fn redirect(status: StatusCode, location: &str) -> Result<Response<()>, http::Error> {
     Response::builder()
         .status(status)
@@ -39,7 +41,7 @@ fn state(method: Method) -> Result<RedirectState, Box<dyn Error>> {
 
 #[test]
 fn policy_is_disabled_by_default() {
-    assert_eq!(RedirectPolicy::default(), RedirectPolicy::none());
+    assert_eq!(RedirectPolicy::default().max_hops(), None);
     assert_eq!(RedirectPolicy::none().max_hops(), None);
 }
 

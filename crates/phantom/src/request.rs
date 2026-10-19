@@ -723,6 +723,7 @@ impl RequestBuilder {
     /// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy).
     /// Use [`RedirectPolicy::none`] to return redirects to you, or
     /// [`RedirectPolicy::limited`] to follow them up to a hop limit.
+    /// [`RedirectPolicy::custom`] adds a decision callback with the same limit.
     /// The override applies to every hop of this request. Other requests and
     /// client clones keep their client policy. Redirects retain the shared
     /// deadline, retry and attempt budgets, and credential-stripping rules.
@@ -1217,7 +1218,7 @@ impl RequestBuilder {
         {
             return Err(RequestError::forward_proxy_authorization_header());
         }
-        let policy = redirect_policy.unwrap_or(client.state.redirect_policy);
+        let policy = redirect_policy.unwrap_or_else(|| client.state.redirect_policy.clone());
         let mut history = redirect_history.map(crate::RedirectHistory::new);
 
         if policy.max_hops().is_none() {

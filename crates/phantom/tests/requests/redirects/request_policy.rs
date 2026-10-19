@@ -21,7 +21,12 @@ async fn request_redirect_policy_applies_to_exact_and_negotiated_http2() -> Test
                 client.request(HttpProtocol::Http2, Method::POST, &uri)?
             };
             let response = request
-                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .redirect_policy(RedirectPolicy::custom(NonZeroUsize::MIN, |attempt| {
+                    assert_eq!(attempt.status(), StatusCode::FOUND);
+                    assert_eq!(attempt.method(), Method::POST);
+                    assert_eq!(attempt.next_method(), Method::GET);
+                    phantom::RedirectDecision::Follow
+                }))
                 .body(Bytes::from_static(b"request-policy"))
                 .send()
                 .await?;

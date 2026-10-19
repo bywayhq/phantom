@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use http::{Method, StatusCode};
 use phantom_net::request::RequestHeader;
@@ -17,6 +17,7 @@ pub use history::{RedirectHistory, RedirectHop};
 /// [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy),
 /// or replace it for one request with
 /// [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
+/// Use [`RedirectPolicy::custom`] to decide which resolved URLs to follow.
 ///
 /// A 301, 302, 303, 307, or 308 is followed to an `http://` or `https://`
 /// target; any other resolved `Location` scheme fails with
@@ -53,16 +54,107 @@ pub use history::{RedirectHistory, RedirectHop};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default)]
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,
+    callback: Option<Arc<RedirectCallback>>,
+}
+
+type RedirectCallback = dyn Fn(&RedirectAttempt<'_>) -> RedirectDecision + Send + Sync;
+
+impl fmt::Debug for RedirectPolicy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RedirectPolicy")
+            .field("maximum", &self.maximum)
+            .field("custom", &self.callback.is_some())
+            .finish()
+    }
+}
+
+/// What to do with a proposed redirect hop.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum RedirectDecision {
+    /// Follow the hop using the existing replay and credential rules.
+    Follow,
+    /// Return this redirect response, including its unread body.
+    Stop,
+    /// Fail with [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect).
+    Reject,
+}
+
+/// A redirect target after resolving `Location` against the current URL.
+///
+/// The callback borrows this value before sending the next hop. URLs may contain
+/// credentials or sensitive paths and queries, so debug output omits them.
+/// This describes a URL, not DNS results or a connected IP address.
+#[derive(Clone, Copy)]
+pub struct RedirectAttempt<'a> {
+    from: &'a Url,
+    to: &'a Url,
+    status: StatusCode,
+    method: &'a Method,
+    next_method: &'a Method,
+    hop: usize,
+}
+
+impl RedirectAttempt<'_> {
+    /// Returns the URL that produced the redirect response.
+    #[must_use]
+    pub const fn from_url(&self) -> &Url {
+        self.from
+    }
+
+    /// Returns the resolved destination URL.
+    #[must_use]
+    pub const fn to_url(&self) -> &Url {
+        self.to
+    }
+
+    /// Returns the redirect response's status.
+    #[must_use]
+    pub const fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    /// Returns the method that produced the redirect response.
+    #[must_use]
+    pub const fn method(&self) -> &Method {
+        self.method
+    }
+
+    /// Returns the method that following the redirect would send.
+    #[must_use]
+    pub const fn next_method(&self) -> &Method {
+        self.next_method
+    }
+
+    /// Returns the proposed hop number, starting at one.
+    #[must_use]
+    pub const fn hop(&self) -> usize {
+        self.hop
+    }
+}
+
+impl fmt::Debug for RedirectAttempt<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RedirectAttempt")
+            .field("status", &self.status)
+            .field("method", &self.method)
+            .field("next_method", &self.next_method)
+            .field("hop", &self.hop)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RedirectPolicy {
     /// Leaves redirect responses visible to the caller.
     #[must_use]
     pub const fn none() -> Self {
-        Self { maximum: None }
+        Self {
+            maximum: None,
+            callback: None,
+        }
     }
 
     /// Follows at most `maximum` redirect responses per request.
@@ -73,12 +165,47 @@ impl RedirectPolicy {
     pub const fn limited(maximum: NonZeroUsize) -> Self {
         Self {
             maximum: Some(maximum),
+            callback: None,
+        }
+    }
+
+    /// Consults `callback` before each hop, following at most `maximum` hops.
+    ///
+    /// The callback runs synchronously after resolving and validating `Location`.
+    /// It can restrict destination URLs, stop with the original response, or
+    /// reject the hop. It cannot override the hop limit, replay rules, total
+    /// deadline or shared attempt budget. Keep callbacks short and nonblocking.
+    /// Cloned policies share the callback, which can run concurrently.
+    ///
+    /// DNS and connection setup happen later. This callback does not enforce
+    /// restrictions on resolved IP addresses.
+    ///
+    /// ```
+    /// use std::num::NonZeroUsize;
+    /// use phantom::{RedirectDecision, RedirectPolicy};
+    ///
+    /// let policy = RedirectPolicy::custom(NonZeroUsize::MIN, |attempt| {
+    ///     if attempt.from_url().origin() == attempt.to_url().origin() {
+    ///         RedirectDecision::Follow
+    ///     } else {
+    ///         RedirectDecision::Stop
+    ///     }
+    /// });
+    /// ```
+    #[must_use]
+    pub fn custom(
+        maximum: NonZeroUsize,
+        callback: impl Fn(&RedirectAttempt<'_>) -> RedirectDecision + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            maximum: Some(maximum),
+            callback: Some(Arc::new(callback)),
         }
     }
 
     /// Returns the configured redirect limit, or `None` when following is disabled.
     #[must_use]
-    pub const fn max_hops(self) -> Option<NonZeroUsize> {
+    pub const fn max_hops(&self) -> Option<NonZeroUsize> {
         self.maximum
     }
 }
@@ -192,6 +319,30 @@ impl RedirectState {
             .map_err(RequestError::invalid_redirect_url)?;
         if !matches!(next_url.scheme(), "http" | "https") {
             return Err(RequestError::redirect_scheme());
+        }
+
+        if let Some(callback) = &self.policy.callback {
+            let next_method = if changes_to_get(response.status(), &self.method) {
+                &Method::GET
+            } else {
+                &self.method
+            };
+            match callback(&RedirectAttempt {
+                from: &self.current_url,
+                to: &next_url,
+                status: response.status(),
+                method: &self.method,
+                next_method,
+                hop: self.followed + 1,
+            }) {
+                RedirectDecision::Follow => {}
+                RedirectDecision::Stop => return Ok(RedirectAction::Stop),
+                RedirectDecision::Reject => {
+                    return Err(RequestError::invalid_redirect_target(
+                        "redirect callback rejected the target",
+                    ));
+                }
+            }
         }
 
         if changes_to_get(response.status(), &self.method) {

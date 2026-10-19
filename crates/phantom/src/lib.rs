@@ -54,7 +54,9 @@ pub use error::{
 };
 pub use header_hook::{HeaderHookContext, HeaderHookError};
 pub use link::{Link, LinkParameter, LinkParseError, LinkParseErrorKind, parse_link_headers};
-pub use redirect::{RedirectHistory, RedirectHop, RedirectPolicy};
+pub use redirect::{
+    RedirectAttempt, RedirectDecision, RedirectHistory, RedirectHop, RedirectPolicy,
+};
 pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use request_body::{
     MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,

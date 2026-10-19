@@ -196,6 +196,8 @@ Enable only the behavior you need:
   Override one request with
   [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
   Use `RedirectPolicy::none()` to inspect its redirect response yourself.
+  [`RedirectPolicy::custom`](crate::RedirectPolicy::custom) lets you follow,
+  stop or reject each resolved URL while retaining a hop limit.
   Enable [`RequestBuilder::redirect_history`](crate::RequestBuilder::redirect_history)
   to keep a bounded list of hops in the final response's extensions.
 - **Cookies:** enable the `cookies` feature and call `ClientBuilder::cookies()`.
