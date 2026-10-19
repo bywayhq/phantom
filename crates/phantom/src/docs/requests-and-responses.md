@@ -240,6 +240,11 @@ Use [`header_hook`](crate::RequestBuilder::header_hook) to change caller headers
 
 ## Inspect a request timeline
 
+Use [`RequestBuilder::transfer_control`](crate::RequestBuilder::transfer_control)
+for shared body-byte caps, upload/download pacing and counters. Its counters
+separate reservations, encoded body data and decoded output. They include
+resends and exclude headers and transport overhead.
+
 Call [`RequestBuilder::diagnostics`](crate::RequestBuilder::diagnostics) before
 `send` to collect a bounded timeline. This API needs no optional feature.
 Keep its [`RequestDiagnostics`](crate::RequestDiagnostics) handle to inspect

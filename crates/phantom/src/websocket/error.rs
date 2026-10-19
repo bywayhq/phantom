@@ -152,6 +152,7 @@ impl WebSocketError {
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody
             | RequestErrorKind::ResponseBodyLimit
+            | RequestErrorKind::Transfer
             | RequestErrorKind::Redirect => WebSocketErrorKind::InvalidRequest,
             RequestErrorKind::ContentDecoding => WebSocketErrorKind::Protocol,
             RequestErrorKind::ProtocolUnavailable => WebSocketErrorKind::ProtocolUnavailable,

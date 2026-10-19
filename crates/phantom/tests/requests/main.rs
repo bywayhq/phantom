@@ -46,5 +46,6 @@ mod stale_connection_replay;
 mod status_retry;
 mod timeouts;
 mod tracing;
+mod transfer;
 mod trust_anchor_orders;
 mod unprocessed_replay;

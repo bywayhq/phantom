@@ -399,6 +399,8 @@ pub enum RequestErrorKind {
     RequestBody,
     /// A response body exceeded the caller's configured collection or decoding limit.
     ResponseBodyLimit,
+    /// A shared body-byte allowance or transfer pacing failed.
+    Transfer,
     /// A response content coding was unsupported, not advertised by the
     /// caller's `Accept-Encoding`, or malformed.
     ContentDecoding,
@@ -487,6 +489,15 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn transfer(protocol: HttpProtocol, error: crate::TransferError) -> Self {
+        Self::with_source(
+            RequestErrorKind::Transfer,
+            Some(protocol),
+            "body transfer control failed",
+            error,
+        )
+    }
+
     pub(crate) fn client_closed() -> Self {
         Self::without_source(
             RequestErrorKind::ClientClosed,
@@ -1302,6 +1313,8 @@ impl RequestError {
                 RequestErrorKind::AttemptBudgetExhausted,
                 "shared HTTP attempt budget exhausted",
             )
+        } else if error_chain_contains::<crate::TransferError>(&source) {
+            (RequestErrorKind::Transfer, "body transfer control failed")
         } else {
             (kind, message)
         };

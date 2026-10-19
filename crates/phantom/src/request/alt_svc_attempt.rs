@@ -942,7 +942,10 @@ async fn send_on_alternative(
                 return Err(error);
             }
         };
-        let response = dispatched.response;
+        let mut response = dispatched.response;
+        if let Some(control) = &request.transfer {
+            response.body_mut().apply_transfer(control.clone());
+        }
         let sent_headers = dispatched.sent_headers;
 
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
@@ -960,7 +963,7 @@ async fn send_on_alternative(
             client,
             request,
             route,
-            &response,
+            &mut response,
             &sent_headers,
             AttemptPath::Alternative,
         );

@@ -37,6 +37,12 @@ pub use phantom::StatusCode
 pub use phantom::Stream
 pub use phantom::TlsConnectionInfo
 pub use phantom::TlsConnectionState
+pub use phantom::TransferControl
+pub use phantom::TransferDirection
+pub use phantom::TransferError
+pub use phantom::TransferErrorKind
+pub use phantom::TransferLimits
+pub use phantom::TransferSnapshot
 pub use phantom::Uri
 pub mod phantom::dns
 pub use phantom::dns::AliasRecord
@@ -409,6 +415,7 @@ pub phantom::RequestErrorKind::ServerPinPolicy
 pub phantom::RequestErrorKind::SessionTickets
 pub phantom::RequestErrorKind::Timeout
 pub phantom::RequestErrorKind::Tls
+pub phantom::RequestErrorKind::Transfer
 pub phantom::RequestErrorKind::UnsupportedRoute
 pub phantom::RequestErrorKind::UnsupportedScheme
 #[non_exhaustive] pub enum phantom::RequestReplayObservation
@@ -1001,6 +1008,7 @@ pub fn phantom::RequestBuilder::streaming_body_with_trailers<B>(self, B, alloc::
 pub fn phantom::RequestBuilder::template(self, &phantom::PreparedRequestTemplate) -> Self
 pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeoutOverrides) -> Self
 pub fn phantom::RequestBuilder::trailers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::transfer_control(self, phantom_net::transfer::TransferControl) -> Self
 pub fn phantom::RequestBuilder::without_header_hooks(self) -> Self
 pub fn phantom::RequestBuilder::without_template(self) -> Self
 impl core::fmt::Debug for phantom::RequestBuilder

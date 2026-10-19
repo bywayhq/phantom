@@ -75,6 +75,7 @@ mod source_binding;
 mod system_dns_ffi;
 pub mod tcp;
 pub(crate) mod tls;
+mod transfer;
 mod udp;
 
 pub use attempt_budget::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
@@ -104,6 +105,12 @@ pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, EchFailure,
     InvalidServerSpkiPins, ServerAuthentication, ServerSpkiPins, TlsError, TlsErrorKind,
     bundled_server_root_identity, draw_per_client,
+};
+#[doc(hidden)]
+pub use transfer::TransferStream;
+pub use transfer::{
+    TransferControl, TransferDirection, TransferError, TransferErrorKind, TransferLimits,
+    TransferSnapshot,
 };
 
 #[cfg(all(test, debug_assertions))]

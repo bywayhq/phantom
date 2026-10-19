@@ -46,6 +46,8 @@ const MAXIMUM_DECODING_PUMPS: usize = 8;
 ///   [`ResponseBodyLimit`](crate::RequestErrorKind::ResponseBodyLimit) when
 ///   content decoding is enabled and the coded data is rejected or exceeds
 ///   its decoded-byte cap;
+/// - [`Transfer`](crate::RequestErrorKind::Transfer) when a shared encoded-byte
+///   cap or the transfer pacer fails;
 /// - [`Http1`](crate::RequestErrorKind::Http1),
 ///   [`Http2`](crate::RequestErrorKind::Http2), or
 ///   [`Http3`](crate::RequestErrorKind::Http3) when the transport fails;
@@ -84,6 +86,7 @@ pub struct ResponseBody {
     held_trailers: Option<HeaderMap>,
     origin: Option<RequestOrigin>,
     proxy_authentication: Option<(DigestResponseAuthentication, HttpProtocol)>,
+    transfer: Option<Box<phantom_net::TransferStream>>,
     // Release shutdown admission after synchronous transport teardown on Drop.
     activity: Option<crate::session::lifecycle::Activity>,
 }
@@ -102,6 +105,15 @@ enum ResponseBodyInner {
 }
 
 impl ResponseBody {
+    pub(crate) fn apply_transfer(&mut self, control: crate::TransferControl) {
+        if self.transfer.is_none() {
+            self.transfer = Some(Box::new(phantom_net::TransferStream::new(
+                control,
+                crate::TransferDirection::Download,
+            )));
+        }
+    }
+
     pub(crate) fn retain_activity(&mut self, activity: crate::session::lifecycle::Activity) {
         self.activity = Some(activity);
     }
@@ -181,6 +193,7 @@ impl ResponseBody {
 
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
+            transfer: None,
             activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
@@ -205,6 +218,7 @@ impl ResponseBody {
 
     pub(crate) fn http2(body: Http2Body) -> Self {
         Self {
+            transfer: None,
             activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
@@ -229,6 +243,7 @@ impl ResponseBody {
 
     pub(crate) fn http3(body: Http3Body) -> Self {
         Self {
+            transfer: None,
             activity: None,
             diagnostics: phantom_net::request_diagnostics::PhaseObservation::begin(
                 crate::RequestTimingPhase::ResponseBody,
@@ -275,6 +290,7 @@ impl ResponseBody {
     /// Drops the wire body so the selected protocol cancels an incomplete stream.
     fn close(&mut self) {
         self.inner.take();
+        self.transfer.take();
         self.timeouts.take();
         self.content.take();
         self.held_trailers.take();
@@ -417,6 +433,42 @@ impl ResponseBody {
         &mut self,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        let mut transfer = self.transfer.take();
+        let protocol = self.protocol();
+        let frame = match transfer.as_mut() {
+            Some(transfer) => transfer.poll_frame(
+                context,
+                |cx| self.poll_wire_frame_uncontrolled(cx),
+                |error| RequestError::transfer(protocol, error),
+            ),
+            None => self.poll_wire_frame_uncontrolled(context),
+        };
+        let controlled = transfer.is_some();
+        self.transfer = transfer;
+        if controlled && let Some(timeouts) = self.timeouts.as_mut() {
+            // A deliberate pacing wait does not consume the next network-idle
+            // interval. It must still respect the fixed total deadline.
+            let error = if matches!(frame, Poll::Ready(Some(Ok(_)))) {
+                timeouts.record_activity().err()
+            } else {
+                None
+            };
+            let error = error.or_else(|| match timeouts.poll_total_expired(context) {
+                Poll::Ready(error) => Some(error),
+                Poll::Pending => None,
+            });
+            if let Some(error) = error {
+                self.close();
+                return Poll::Ready(Some(Err(error)));
+            }
+        }
+        frame
+    }
+
+    fn poll_wire_frame_uncontrolled(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
         let result = match self.inner.as_mut() {
             Some(ResponseBodyInner::Http1(body)) => Pin::new(body)
                 .poll_frame(context)
@@ -544,6 +596,12 @@ impl ResponseBody {
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
         let this = self;
         let frame = this.poll_frame_inner(context);
+        if let Poll::Ready(Some(Ok(frame))) = &frame
+            && let Some(data) = frame.data_ref()
+            && let Some(transfer) = &this.transfer
+        {
+            transfer.record_decoded(data.len());
+        }
         if matches!(frame, Poll::Ready(None | Some(Err(_)))) {
             this.activity.take();
         }
@@ -614,6 +672,13 @@ impl ResponseBody {
     }
 
     fn end_stream(&self) -> bool {
+        if self
+            .transfer
+            .as_ref()
+            .is_some_and(|stream| stream.buffered_len() != 0)
+        {
+            return false;
+        }
         if self.content.is_some() || self.proxy_authentication.is_some() {
             return false;
         }
@@ -629,12 +694,21 @@ impl ResponseBody {
         if self.content.is_some() {
             return SizeHint::default();
         }
-        match &self.inner {
+        let mut hint = match &self.inner {
             Some(ResponseBodyInner::Http1(body)) => body.size_hint(),
             Some(ResponseBodyInner::Http2(body)) => body.size_hint(),
             Some(ResponseBodyInner::Http3(body)) => body.size_hint(),
             None => SizeHint::with_exact(0),
+        };
+        let buffered = self
+            .transfer
+            .as_ref()
+            .map_or(0, |stream| stream.buffered_len()) as u64;
+        if let Some(upper) = hint.upper() {
+            hint.set_upper(upper.saturating_add(buffered));
         }
+        hint.set_lower(hint.lower().saturating_add(buffered));
+        hint
     }
 }
 

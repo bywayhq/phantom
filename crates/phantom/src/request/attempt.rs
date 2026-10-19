@@ -342,7 +342,7 @@ async fn send_once_exact(
             client,
             request,
             route,
-            &response,
+            &mut response,
             &sent_headers,
             AttemptPath::Exact,
         );
@@ -488,7 +488,7 @@ pub(super) async fn send_once_origin(
                 retries,
             )
             .await;
-        let (response, protocol, sent_headers) = match sent {
+        let (mut response, protocol, sent_headers) = match sent {
             Ok(Dispatched::Sent(sent)) => sent,
             // The lists are built again with the connection's hints.
             Ok(Dispatched::Restart(restart)) => {
@@ -524,7 +524,7 @@ pub(super) async fn send_once_origin(
             client,
             request,
             route,
-            &response,
+            &mut response,
             &sent_headers,
             AttemptPath::Negotiated,
         );
@@ -900,6 +900,10 @@ pub(super) fn prepare_attempt<'a>(
 
 /// Arms an attempt's body to wait for `100 Continue` when the request asks.
 fn with_continue_wait(body: RequestBody, request: &ResolvedRequest) -> RequestBody {
+    let body = match &request.transfer {
+        Some(control) => body.with_transfer_control(control.clone()),
+        None => body,
+    };
     match request.expect_continue {
         Some(wait) => body.expect_continue(wait),
         None => body,
@@ -938,10 +942,13 @@ pub(super) fn observe_response(
     client: &Client,
     request: &ResolvedRequest,
     route: &Route,
-    response: &Response<ResponseBody>,
+    response: &mut Response<ResponseBody>,
     sent_headers: &[RequestHeader],
     path: AttemptPath,
 ) -> bool {
+    if let Some(control) = &request.transfer {
+        response.body_mut().apply_transfer(control.clone());
+    }
     store_cookies(client, request, response);
     if path.learns_alt_svc() {
         client.learn_alt_svc(&request.endpoint, route, response);

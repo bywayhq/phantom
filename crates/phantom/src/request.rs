@@ -122,6 +122,31 @@ impl fmt::Debug for RequestBuilder {
 }
 
 impl RequestBuilder {
+    /// Shares optional body-byte caps, pacing and counters across all attempts.
+    ///
+    /// Clone the control to share its allowance with other requests. Upload
+    /// counters include resends. Download caps count encoded body data before
+    /// content decoding. Use decoded-body limits separately. Header placement
+    /// and replay-safety rules are unchanged.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
+    /// use phantom::{HttpProtocol, TransferControl, TransferLimits};
+    ///
+    /// let control = TransferControl::new(TransferLimits::new().download_bytes(1 << 20));
+    /// let response = client.get(HttpProtocol::Http2, "https://example.com/")?
+    ///     .transfer_control(control.clone()).send().await?;
+    /// response.into_body().collect_with_limit(1 << 20).await?;
+    /// println!("{:?}", control.snapshot());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn transfer_control(mut self, control: crate::TransferControl) -> Self {
+        self.request.transfer = Some(control);
+        self
+    }
+
     pub(crate) fn new_client(
         client: Client,
         protocol: HttpProtocol,
@@ -1443,6 +1468,7 @@ impl RequestBuilder {
                         template = template.map(|template| template.without_credentials());
                     }
                     let expect_continue = resolved.expect_continue;
+                    let transfer = resolved.transfer.take();
                     let managed_headers = resolved.managed_headers;
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
@@ -1460,6 +1486,7 @@ impl RequestBuilder {
                     }
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
+                    resolved.transfer = transfer;
                     resolved.managed_headers = managed_headers;
                     resolved.alternative = alternative;
                 }
@@ -1841,6 +1868,7 @@ impl ProtocolSelection {
 
 #[derive(Debug)]
 struct ResolvedRequest {
+    transfer: Option<crate::TransferControl>,
     uri: Uri,
     url: url::Url,
     endpoint: Endpoint,
@@ -1910,6 +1938,7 @@ impl ResolvedRequest {
 
         Ok(Self {
             uri: uri.clone(),
+            transfer: None,
             url,
             endpoint,
             target,
@@ -1953,6 +1982,7 @@ impl ResolvedRequest {
 
         Ok(Self {
             uri,
+            transfer: None,
             url: wire_url,
             endpoint,
             target,

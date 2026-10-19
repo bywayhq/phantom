@@ -39,6 +39,11 @@ pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 pub use phantom_net::{InvalidServerSpkiPins, ServerAuthentication, ServerSpkiPins};
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
+#[doc(inline)]
+pub use phantom_net::{
+    TransferControl, TransferDirection, TransferError, TransferErrorKind, TransferLimits,
+    TransferSnapshot,
+};
 
 #[cfg(feature = "https-records")]
 pub use alt_svc_https_policy::AltSvcHttpsPolicy;

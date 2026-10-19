@@ -238,6 +238,7 @@ pub struct RequestBody {
     finished: bool,
     continue_wait: Option<Duration>,
     gate: Option<ContinueGate>,
+    transfer: Option<Box<crate::transfer::TransferStream>>,
 }
 
 impl RequestBody {
@@ -260,6 +261,7 @@ impl RequestBody {
             finished: false,
             continue_wait: None,
             gate: None,
+            transfer: None,
         }
     }
 
@@ -313,6 +315,21 @@ impl RequestBody {
             has_trailers: !self.trailer_names.is_empty(),
             continue_wait: self.continue_wait.filter(|_| self.exact_length != Some(0)),
         }
+    }
+
+    /// Applies a shared body transfer control without changing framing.
+    /// An already controlled body keeps its existing control and buffered data.
+    #[doc(hidden)]
+    pub fn with_transfer_control(mut self, control: crate::TransferControl) -> Self {
+        // Restored, unpolled attempts can already carry the same control. Keep
+        // that stream so no pending data or reservation can be discarded.
+        if self.transfer.is_none() {
+            self.transfer = Some(Box::new(crate::transfer::TransferStream::new(
+                control,
+                crate::TransferDirection::Upload,
+            )));
+        }
+        self
     }
 
     /// Arms the wait for `100 Continue` for this attempt, when the body
@@ -370,7 +387,17 @@ impl Body for RequestBody {
             }
             self.gate = None;
         }
-        match Pin::new(&mut self.inner).poll_frame(context) {
+        let mut transfer = self.transfer.take();
+        let frame = match transfer.as_mut() {
+            Some(transfer) => transfer.poll_frame(
+                context,
+                |cx| Pin::new(&mut self.inner).poll_frame(cx),
+                RequestBodyError::source,
+            ),
+            None => Pin::new(&mut self.inner).poll_frame(context),
+        };
+        self.transfer = transfer;
+        match frame {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Err(error))) => {
                 self.finished = true;
@@ -387,6 +414,9 @@ impl Body for RequestBody {
                         return Poll::Ready(Some(Err(RequestBodyError::length_mismatch())));
                     }
                     self.emitted = emitted;
+                    if let Some(transfer) = &self.transfer {
+                        transfer.record_upload(data.len());
+                    }
                     Poll::Ready(Some(Ok(Frame::data(data))))
                 }
                 Err(frame) => {
@@ -433,6 +463,10 @@ impl Body for RequestBody {
             || (self.trailer_names.is_empty()
                 && self.inner.is_end_stream()
                 && self
+                    .transfer
+                    .as_ref()
+                    .is_none_or(|transfer| transfer.buffered_len() == 0)
+                && self
                     .exact_length
                     .is_none_or(|expected| self.emitted == expected))
     }
@@ -440,7 +474,18 @@ impl Body for RequestBody {
     fn size_hint(&self) -> SizeHint {
         match self.exact_length {
             Some(expected) => SizeHint::with_exact(expected.saturating_sub(self.emitted)),
-            None => self.inner.size_hint(),
+            None => {
+                let mut hint = self.inner.size_hint();
+                let buffered =
+                    self.transfer
+                        .as_ref()
+                        .map_or(0, |transfer| transfer.buffered_len()) as u64;
+                if let Some(upper) = hint.upper() {
+                    hint.set_upper(upper.saturating_add(buffered));
+                }
+                hint.set_lower(hint.lower().saturating_add(buffered));
+                hint
+            }
         }
     }
 }

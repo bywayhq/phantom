@@ -3,6 +3,12 @@ pub use phantom_net::NssKeyLogReceiver
 pub use phantom_net::NssKeyLogSender
 pub use phantom_net::QuicSessionRecordMetadata
 pub use phantom_net::QuicSessionStoreHeader
+pub use phantom_net::RequestDiagnostics
+pub use phantom_net::RequestTimeline
+pub use phantom_net::RequestTimelineOutcome
+pub use phantom_net::RequestTiming
+pub use phantom_net::RequestTimingOutcome
+pub use phantom_net::RequestTimingPhase
 pub use phantom_net::nss_key_log_channel
 pub mod phantom_net::address_cache
 pub struct phantom_net::address_cache::AddressCache
@@ -382,6 +388,7 @@ pub async fn phantom_net::http1::Http1Connection::early_data_answered(&self)
 pub fn phantom_net::http1::Http1Connection::early_data_failure(&self) -> core::option::Option<phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1Connection::early_data_pending(&self) -> bool
 pub fn phantom_net::http1::Http1Connection::is_reusable(&self) -> bool
+pub fn phantom_net::http1::Http1Connection::register_early_data_attempt(&self, &phantom_net::HttpAttemptBudget)
 pub async fn phantom_net::http1::Http1Connection::send_forward_request(&self, http::method::Method, phantom_net::request::AbsoluteForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1Error>
 pub async fn phantom_net::http1::Http1Connection::send_forward_request_body(&self, http::method::Method, phantom_net::request::AbsoluteForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1Error>
 pub async fn phantom_net::http1::Http1Connection::send_forward_request_body_with_trailers(&self, http::method::Method, phantom_net::request::AbsoluteForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1Error>
@@ -423,6 +430,7 @@ pub fn phantom_net::http1::Http1TlsConnector::host_resolver(&self) -> core::opti
 pub fn phantom_net::http1::Http1TlsConnector::new(&phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
+pub fn phantom_net::http1::Http1TlsConnector::new_with_spki_pins<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &phantom_net::ServerSpkiPins) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_https_forward_retaining(&self, phantom_net::route::ProxyTransport<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_socks_retaining(&self, phantom_net::route::OriginRoute<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1SocksOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1SocksOpening>>), phantom_net::http1::Http1TlsError>
@@ -724,6 +732,7 @@ pub fn phantom_net::http2::Http2Connection::idle_time_left(&self) -> core::optio
 pub fn phantom_net::http2::Http2Connection::is_closed(&self) -> bool
 pub fn phantom_net::http2::Http2Connection::is_reusable(&self) -> bool
 pub fn phantom_net::http2::Http2Connection::peer_max_concurrent_streams(&self) -> core::option::Option<usize>
+pub fn phantom_net::http2::Http2Connection::register_early_data_attempt(&self, &phantom_net::HttpAttemptBudget)
 pub async fn phantom_net::http2::Http2Connection::send_extended_connect(&self, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2Error>
 pub async fn phantom_net::http2::Http2Connection::send_extended_connect_with_settings(&self, &phantom_profile::http2::Http2Settings, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2Error>
 pub async fn phantom_net::http2::Http2Connection::send_forward_request_body_with_trailers(&self, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_profile::http2::Http2Priority>) -> core::result::Result<http::response::Response<phantom_net::http2::Http2Body>, phantom_net::http2::Http2Error>
@@ -783,6 +792,7 @@ pub fn phantom_net::http2::Http2TlsConnector::host_resolver(&self) -> core::opti
 pub fn phantom_net::http2::Http2TlsConnector::new(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
+pub fn phantom_net::http2::Http2TlsConnector::new_with_spki_pins<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &phantom_net::ServerSpkiPins) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::open_extended_connect(&self, phantom_net::route::Http2Route<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http2::Http2ExtendedConnectOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2Connection>>), phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http2::Http2ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2ProxyOpening>>), phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::open_socks_retaining(&self, phantom_net::route::OriginRoute<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http2::Http2SocksOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2SocksOpening>>), phantom_net::http2::Http2TlsError>
@@ -908,6 +918,7 @@ pub fn phantom_net::http3::Http3Connector::host_resolver(&self) -> core::option:
 pub fn phantom_net::http3::Http3Connector::new(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
+pub fn phantom_net::http3::Http3Connector::new_with_spki_pins<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &phantom_net::ServerSpkiPins) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::prepare_connect_udp_outer(&self, &Self, &phantom_net::proxy::ConnectUdpProxyPool, &str, u16, &str, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::proxy::HttpBasicCredentials>) -> core::result::Result<phantom_net::proxy::PreparedConnectUdpOuter, phantom_net::http3::ConnectUdpError>
 pub fn phantom_net::http3::Http3Connector::register_mapping_confirmation(&self, &phantom_net::http3::Http3Connection, &phantom_net::http3::Http3MappingConfirmation) -> bool
 pub fn phantom_net::http3::Http3Connector::requests_wait_for_peer_settings(&self) -> bool
@@ -1058,6 +1069,7 @@ pub phantom_net::proxy::HttpConnectError::RequestHeadTooLarge::maximum: usize
 pub phantom_net::proxy::HttpConnectError::ResponseHeadTooLarge
 pub phantom_net::proxy::HttpConnectError::ResponseHeadTooLarge::maximum: usize
 pub phantom_net::proxy::HttpConnectError::RuntimeUnavailable
+pub phantom_net::proxy::HttpConnectError::SpeculativeTlsUnsupported
 pub phantom_net::proxy::HttpConnectError::TooManyHeaders
 pub phantom_net::proxy::HttpConnectError::TooManyHeaders::count: usize
 pub phantom_net::proxy::HttpConnectError::TooManyHeaders::maximum: usize
@@ -1149,10 +1161,12 @@ pub phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable
 pub struct phantom_net::proxy::ConnectUdpProxyPool
 impl phantom_net::proxy::ConnectUdpProxyPool
 pub fn phantom_net::proxy::ConnectUdpProxyPool::clear(&self)
+pub fn phantom_net::proxy::ConnectUdpProxyPool::close_idle_connections(&self)
 pub fn phantom_net::proxy::ConnectUdpProxyPool::fresh(&self) -> Self
 pub fn phantom_net::proxy::ConnectUdpProxyPool::max_active(&self) -> core::num::nonzero::NonZeroUsize
 pub fn phantom_net::proxy::ConnectUdpProxyPool::max_pending(&self) -> core::num::nonzero::NonZeroUsize
 pub fn phantom_net::proxy::ConnectUdpProxyPool::new() -> Self
+pub fn phantom_net::proxy::ConnectUdpProxyPool::refresh_connections(&self)
 pub fn phantom_net::proxy::ConnectUdpProxyPool::with_limits(core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize) -> core::result::Result<Self, phantom_net::http3::ConnectUdpError>
 impl core::default::Default for phantom_net::proxy::ConnectUdpProxyPool
 pub fn phantom_net::proxy::ConnectUdpProxyPool::default() -> Self
@@ -1177,8 +1191,10 @@ impl core::ops::drop::Drop for phantom_net::proxy::DigestResponseAuthentication
 pub fn phantom_net::proxy::DigestResponseAuthentication::drop(&mut self)
 pub struct phantom_net::proxy::Http2ProxyPool
 impl phantom_net::proxy::Http2ProxyPool
+pub fn phantom_net::proxy::Http2ProxyPool::close_idle_connections(&self)
 pub fn phantom_net::proxy::Http2ProxyPool::max_connections_per_route(&self) -> core::num::nonzero::NonZeroUsize
 pub fn phantom_net::proxy::Http2ProxyPool::new() -> Self
+pub fn phantom_net::proxy::Http2ProxyPool::refresh_connections(&self)
 pub fn phantom_net::proxy::Http2ProxyPool::with_max_connections_per_route(core::num::nonzero::NonZeroUsize) -> Self
 impl core::default::Default for phantom_net::proxy::Http2ProxyPool
 pub fn phantom_net::proxy::Http2ProxyPool::default() -> Self
@@ -1203,12 +1219,15 @@ pub fn phantom_net::proxy::HttpDigestCredentials::fmt(&self, &mut core::fmt::For
 pub struct phantom_net::proxy::HttpsProxyConnector
 impl phantom_net::proxy::HttpsProxyConnector
 pub fn phantom_net::proxy::HttpsProxyConnector::attach_key_log(&self, &phantom_quic_btls::key_log::NssKeyLogSender)
+pub fn phantom_net::proxy::HttpsProxyConnector::close_idle_connections(&self)
 pub fn phantom_net::proxy::HttpsProxyConnector::host_resolver(&self) -> core::option::Option<&phantom_net::host_resolver::HostResolver>
 pub fn phantom_net::proxy::HttpsProxyConnector::new(&phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_net::proxy::HttpConnectError>
 pub fn phantom_net::proxy::HttpsProxyConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::proxy::HttpConnectError>
 pub fn phantom_net::proxy::HttpsProxyConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::proxy::HttpConnectError>
+pub fn phantom_net::proxy::HttpsProxyConnector::new_with_spki_pins<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &phantom_net::ServerSpkiPins) -> core::result::Result<Self, phantom_net::proxy::HttpConnectError>
 pub fn phantom_net::proxy::HttpsProxyConnector::prepare_connect_udp_outer(&self, &phantom_net::proxy::ConnectUdpProxyPool, &str, u16, &str, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::proxy::HttpBasicCredentials>) -> core::result::Result<phantom_net::proxy::PreparedConnectUdpOuter, phantom_net::http3::ConnectUdpError>
 pub fn phantom_net::proxy::HttpsProxyConnector::protocol(&self) -> phantom_net::proxy::HttpsProxyProtocol
+pub fn phantom_net::proxy::HttpsProxyConnector::refresh_connections(&self)
 pub fn phantom_net::proxy::HttpsProxyConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
 pub fn phantom_net::proxy::HttpsProxyConnector::source_binding(&self) -> core::option::Option<&phantom_net::SourceBinding>
 pub fn phantom_net::proxy::HttpsProxyConnector::tcp_settings(&self) -> core::option::Option<&phantom_profile::tcp::TcpSettings>
@@ -1461,6 +1480,7 @@ pub phantom_net::route::HttpConnectRoute::authority: &'a str
 pub phantom_net::route::HttpConnectRoute::credentials: core::option::Option<phantom_net::proxy::HttpProxyAuthentication<'a>>
 pub phantom_net::route::HttpConnectRoute::headers: &'a [phantom_net::proxy::HttpConnectHeader]
 pub phantom_net::route::HttpConnectRoute::proxy: phantom_net::route::ProxyTransport<'a>
+pub phantom_net::route::HttpConnectRoute::speculative_tls: bool
 pub type phantom_net::route::EchLookup<'a> = core::pin::Pin<&'a mut (dyn core::future::future::Future<Output = core::option::Option<phantom_net::dns::EchConfigList>> + core::marker::Send + 'a)>
 pub mod phantom_net::tcp
 pub struct phantom_net::tcp::UnsupportedTcpSettings
@@ -1475,6 +1495,10 @@ pub phantom_net::ClientCertificateErrorKind::Certificate
 pub phantom_net::ClientCertificateErrorKind::KeyMismatch
 pub phantom_net::ClientCertificateErrorKind::PrivateKey
 pub phantom_net::ClientCertificateErrorKind::SignatureScheme
+#[non_exhaustive] pub enum phantom_net::ConnectionEndpointScope
+pub phantom_net::ConnectionEndpointScope::QuicEndpoint
+pub phantom_net::ConnectionEndpointScope::TcpSocket
+pub phantom_net::ConnectionEndpointScope::Unavailable
 #[non_exhaustive] pub enum phantom_net::EchFailure
 pub phantom_net::EchFailure::InvalidConfigList
 pub phantom_net::EchFailure::Rejected
@@ -1494,12 +1518,26 @@ pub phantom_net::SessionTicketStoreExport::Tcp(phantom_net::TcpSessionStoreExpor
 pub enum phantom_net::SessionTicketStoreHeader
 pub phantom_net::SessionTicketStoreHeader::Quic(phantom_quic_btls::resumption::transfer::metadata::QuicSessionStoreHeader)
 pub phantom_net::SessionTicketStoreHeader::Tcp(phantom_net::TcpSessionStoreHeader)
+#[non_exhaustive] pub enum phantom_net::TlsConnectionState
+pub phantom_net::TlsConnectionState::Established(alloc::sync::Arc<phantom_net::TlsConnectionInfo>)
+pub phantom_net::TlsConnectionState::NotUsed
+pub phantom_net::TlsConnectionState::Pending
+pub phantom_net::TlsConnectionState::Unavailable
 #[non_exhaustive] pub enum phantom_net::TlsErrorKind
 pub phantom_net::TlsErrorKind::BackendConfiguration
 pub phantom_net::TlsErrorKind::Handshake
 pub phantom_net::TlsErrorKind::InvalidConfiguration
+pub phantom_net::TlsErrorKind::SpkiPinMismatch
+pub phantom_net::TlsErrorKind::SpkiPinVerification
 pub phantom_net::TlsErrorKind::TrustStore
 pub phantom_net::TlsErrorKind::UnsupportedSetting
+pub enum phantom_net::TransferDirection
+pub phantom_net::TransferDirection::Download
+pub phantom_net::TransferDirection::Upload
+#[non_exhaustive] pub enum phantom_net::TransferErrorKind
+pub phantom_net::TransferErrorKind::ByteLimit
+pub phantom_net::TransferErrorKind::ClockRange
+pub phantom_net::TransferErrorKind::RuntimeUnavailable
 pub struct phantom_net::ClientCertificate
 impl phantom_net::ClientCertificate
 pub fn phantom_net::ClientCertificate::certificate_chain_sha256(&self) -> core::result::Result<[u8; 32], phantom_net::ClientCertificateError>
@@ -1520,12 +1558,25 @@ impl phantom_net::FrozenSessionTicketCache<'_>
 pub fn phantom_net::FrozenSessionTicketCache<'_>::drain(&mut self, phantom_net::SessionTicketGeneration) -> phantom_net::RetiredSessionTicketPublications
 impl core::fmt::Debug for phantom_net::FrozenSessionTicketCache<'_>
 pub fn phantom_net::FrozenSessionTicketCache<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::HttpAttemptBudget
+impl phantom_net::HttpAttemptBudget
+pub fn phantom_net::HttpAttemptBudget::new(usize) -> Self
+pub fn phantom_net::HttpAttemptBudget::remaining(&self) -> usize
+pub fn phantom_net::HttpAttemptBudget::try_admit(&self) -> core::result::Result<(), phantom_net::HttpAttemptBudgetExhausted>
+pub struct phantom_net::HttpAttemptBudgetExhausted
+impl core::error::Error for phantom_net::HttpAttemptBudgetExhausted
+impl core::fmt::Display for phantom_net::HttpAttemptBudgetExhausted
+pub fn phantom_net::HttpAttemptBudgetExhausted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::InvalidAuthorization
 impl phantom_net::InvalidAuthorization
 pub const fn phantom_net::InvalidAuthorization::kind(self) -> phantom_net::InvalidAuthorizationKind
 impl core::error::Error for phantom_net::InvalidAuthorization
 impl core::fmt::Display for phantom_net::InvalidAuthorization
 pub fn phantom_net::InvalidAuthorization::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::InvalidServerSpkiPins
+impl core::error::Error for phantom_net::InvalidServerSpkiPins
+impl core::fmt::Display for phantom_net::InvalidServerSpkiPins
+pub fn phantom_net::InvalidServerSpkiPins::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::InvalidSourceBinding
 impl phantom_net::InvalidSourceBinding
 pub const fn phantom_net::InvalidSourceBinding::field(&self) -> &'static str
@@ -1544,6 +1595,13 @@ pub fn phantom_net::PreparedSessionTicketReplacement<'_>::fmt(&self, &mut core::
 pub struct phantom_net::PreparedTcpSessionReplacement(_)
 impl core::fmt::Debug for phantom_net::PreparedTcpSessionReplacement
 pub fn phantom_net::PreparedTcpSessionReplacement::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::RequestConnection
+pub phantom_net::RequestConnection::endpoint_scope: phantom_net::ConnectionEndpointScope
+pub phantom_net::RequestConnection::local_address: core::option::Option<core::net::socket_addr::SocketAddr>
+pub phantom_net::RequestConnection::origin_tls: phantom_net::TlsConnectionState
+pub phantom_net::RequestConnection::peer_address: core::option::Option<core::net::socket_addr::SocketAddr>
+pub phantom_net::RequestConnection::proxy_tls: phantom_net::TlsConnectionState
+pub phantom_net::RequestConnection::reused: bool
 pub struct phantom_net::ResponseHeader
 impl phantom_net::ResponseHeader
 pub fn phantom_net::ResponseHeader::is_sensitive(&self) -> bool
@@ -1566,6 +1624,12 @@ impl phantom_net::RetiredTcpSessionReplacements
 pub fn phantom_net::RetiredTcpSessionReplacements::finish(self) -> usize
 impl core::fmt::Debug for phantom_net::RetiredTcpSessionReplacements
 pub fn phantom_net::RetiredTcpSessionReplacements::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::ServerSpkiPins(_)
+impl phantom_net::ServerSpkiPins
+pub fn phantom_net::ServerSpkiPins::new(alloc::vec::Vec<[u8; 32]>) -> core::result::Result<Self, phantom_net::InvalidServerSpkiPins>
+pub fn phantom_net::ServerSpkiPins::sha256_digests(&self) -> &[[u8; 32]]
+impl core::fmt::Debug for phantom_net::ServerSpkiPins
+pub fn phantom_net::ServerSpkiPins::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::SessionTicketCache
 impl phantom_net::SessionTicketCache
 pub fn phantom_net::SessionTicketCache::clear(&self) -> usize
@@ -1629,6 +1693,15 @@ pub fn phantom_net::TcpSessionStoreHeader::excluded_expired_count(self) -> usize
 pub fn phantom_net::TcpSessionStoreHeader::parse(&[u8]) -> core::result::Result<Self, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::TcpSessionStoreHeader::record_count(self) -> usize
 pub fn phantom_net::TcpSessionStoreHeader::to_bytes(self) -> [u8; 22]
+pub struct phantom_net::TlsConnectionInfo
+pub phantom_net::TlsConnectionInfo::alpn: core::option::Option<alloc::sync::Arc<[u8]>>
+pub phantom_net::TlsConnectionInfo::cipher_suite: core::option::Option<phantom_profile::tls::CipherSuite>
+pub phantom_net::TlsConnectionInfo::peer_certificates: core::option::Option<alloc::sync::Arc<[alloc::sync::Arc<[u8]>]>>
+pub phantom_net::TlsConnectionInfo::peer_verified: bool
+pub phantom_net::TlsConnectionInfo::session_resumed: bool
+pub phantom_net::TlsConnectionInfo::version: core::option::Option<phantom_profile::tls::TlsVersion>
+impl core::fmt::Debug for phantom_net::TlsConnectionInfo
+pub fn phantom_net::TlsConnectionInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::TlsError
 impl phantom_net::TlsError
 pub const fn phantom_net::TlsError::ech_failure(&self) -> core::option::Option<phantom_net::EchFailure>
@@ -1643,5 +1716,29 @@ impl core::error::Error for phantom_net::TlsError
 pub fn phantom_net::TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::TlsError
 pub fn phantom_net::TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::TransferControl(_)
+impl phantom_net::TransferControl
+pub fn phantom_net::TransferControl::new(phantom_net::TransferLimits) -> Self
+pub fn phantom_net::TransferControl::snapshot(&self) -> phantom_net::TransferSnapshot
+pub struct phantom_net::TransferError
+impl phantom_net::TransferError
+pub const fn phantom_net::TransferError::direction(self) -> phantom_net::TransferDirection
+pub const fn phantom_net::TransferError::kind(self) -> phantom_net::TransferErrorKind
+impl core::error::Error for phantom_net::TransferError
+impl core::fmt::Display for phantom_net::TransferError
+pub fn phantom_net::TransferError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::TransferLimits
+impl phantom_net::TransferLimits
+pub const fn phantom_net::TransferLimits::download_bytes(self, u64) -> Self
+pub const fn phantom_net::TransferLimits::download_rate(self, core::num::nonzero::NonZeroU64) -> Self
+pub const fn phantom_net::TransferLimits::new() -> Self
+pub const fn phantom_net::TransferLimits::upload_bytes(self, u64) -> Self
+pub const fn phantom_net::TransferLimits::upload_rate(self, core::num::nonzero::NonZeroU64) -> Self
+pub struct phantom_net::TransferSnapshot
+pub phantom_net::TransferSnapshot::download_decoded_bytes: u64
+pub phantom_net::TransferSnapshot::download_encoded_bytes: u64
+pub phantom_net::TransferSnapshot::download_reserved_bytes: u64
+pub phantom_net::TransferSnapshot::upload_body_bytes: u64
+pub phantom_net::TransferSnapshot::upload_reserved_bytes: u64
 pub fn phantom_net::bundled_server_root_identity() -> core::result::Result<[u8; 32], phantom_net::TlsError>
 pub fn phantom_net::draw_per_client(&mut phantom_profile::client::ClientProfile) -> core::io::error::Result<()>

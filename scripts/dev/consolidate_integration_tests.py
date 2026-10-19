@@ -69,6 +69,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "status_retry",
                 "timeouts",
                 "tracing",
+                "transfer",
                 "trust_anchor_orders",
                 "unprocessed_replay",
             ],

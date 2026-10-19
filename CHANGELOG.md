@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add opt-in shared upload and encoded-download caps and pacing, with separate
+  reservation, transferred-body and decoded-response counters across resends.
+
 - Add terminal client shutdown that rejects new requests and WebSocket openings,
   waits for existing caller-owned work, and releases retained connections.
   Client clones share shutdown state.
