@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[project]
+name = "phantom-http"
+version = "0.2.0"
+description = "HTTP requests with explicit browser profiles"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+
+[tool.maturin]
+python-source = "python"
+module-name = "phantom_http._native"
