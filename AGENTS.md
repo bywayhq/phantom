@@ -70,7 +70,10 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Unsafe code is forbidden. The exceptions are the private `backend` FFI
   module of `phantom-quic-btls` and the private `socket_ffi`, Windows-only
   `system_dns_ffi`, Linux-only `linux_dns_ffi` and macOS-only
-  `macos_dns_ffi` modules of `phantom-net`.
+  `macos_dns_ffi` modules of `phantom-net`, and the private `ffi` module of
+  `bindings/go/native`. The Go boundary borrows bounded caller buffers only
+  during a synchronous call, copies inputs before asynchronous work, retains
+  no Go pointers, and contains Rust unwinding at the C ABI.
   Each documents every unsafe block.
   `scripts/ci/check-unsafe-boundaries.sh`
   fails when unsafe code is allowed anywhere else. Adding unsafe code

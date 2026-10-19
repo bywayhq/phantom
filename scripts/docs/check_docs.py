@@ -570,6 +570,7 @@ def default_files(root: Path) -> list[str]:
     for pattern in (
         "bindings/*/README.md",
         "crates/*/README.md",
+        "bindings/*/README.md",
         "crates/*/examples/README.md",
         "crates/*/src/docs/**/*.md",
     ):

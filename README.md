@@ -45,6 +45,8 @@ so it can reuse connections and session state.
 
 ## Learn more
 
+- [Go adapter](bindings/go/README.md): build from source.
+
 - [Getting started](https://docs.rs/phantom-http/latest/phantom/guide/getting_started/index.html)
 - [Browser profiles and request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
 - [Requests and responses](https://docs.rs/phantom-http/latest/phantom/guide/requests_and_responses/index.html)

@@ -155,6 +155,14 @@ jobs:
       - name: Test installed Python wheel
         run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_python_binding.py
 
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+
+      - name: Test native Go adapter
+        run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_go_binding.py
+
       # nextest does not run doctests, and `cargo test --all-targets` skips them.
       - name: Test documentation examples
         run: cargo test --doc --workspace --all-features --locked
@@ -422,6 +430,15 @@ jobs:
 
       - name: Test native QUIC crypto release link
         run: cargo test --release -p phantom-quic-btls --lib --locked
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+
+      - name: Test native Go adapter
+        shell: bash
+        run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_go_binding.py
 
       - name: Install Windows capture Python
         if: runner.os == 'Windows'

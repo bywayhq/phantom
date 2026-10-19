@@ -32,6 +32,10 @@
   streaming, cookies, shared attempt budgets and cancellation. Build it from
   source; prebuilt wheels and their installation matrix remain release work.
 
+- Add a native Go adapter with reusable clients, bounded pull streaming,
+  cookies, shared attempt budgets and cancellation. Build it from source;
+  platform installation checks precede any binary distribution.
+
 - Generate browser profile constructors from the catalog's component selections.
   New versions no longer need Python target tables or handwritten composition.
   Keep specific evidence limits and expand omitted unavailable-layer records.

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "bindings/go/native",
     "bindings/python",
     "crates/phantom",
     "crates/phantom-cli",
