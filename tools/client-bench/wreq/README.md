@@ -39,8 +39,9 @@ headers. It excludes allocator slack and task storage. The measured process
 also includes the runtime, TLS backend, pools and observation overhead.
 This is not a browser-fingerprint equivalence claim. Recipe versions differ
 between adapters. Redirects cover same-origin GETs in collection mode.
-CONNECT covers optional Basic authentication. Streaming uploads remain open. The shared HTTP/2 cancellation workload
-checks early body drops and completion of sibling streams.
+CONNECT covers optional Basic authentication. Streaming uploads remain open.
+The shared HTTP/1.1 and HTTP/2 cancellation workload checks early body drops
+and completion of healthy requests. HTTP/3 remains unsupported.
 
 ## Next
 

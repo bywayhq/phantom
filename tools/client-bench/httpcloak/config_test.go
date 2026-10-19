@@ -156,8 +156,15 @@ func TestCancellationRequiresPartialBodyAndLiveSibling(t *testing.T) {
 	if err := c.validate(); err != nil {
 		t.Fatal(err)
 	}
+	for _, protocol := range []string{"h1", "h2", "h3"} {
+		valid := c
+		valid.Protocol = protocol
+		if err := valid.validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, change := range []func(*config){
-		func(c *config) { c.Protocol = "h1" },
+		func(c *config) { c.Protocol = "construct" },
 		func(c *config) { c.CancelAfterBytes = c.Bytes },
 		func(c *config) { c.Warmup = 0 },
 		func(c *config) { c.Cold = true },

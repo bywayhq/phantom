@@ -223,6 +223,62 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(quantile([10, 20, 30, 40], 0.99), 40)
         self.assertIsNone(quantile([], 0.99))
 
+    def test_h1_cancellation_requires_incomplete_connection_closes(self):
+        config = {
+            "protocol": "h1",
+            "requests": 2,
+            "warmup": 1,
+            "cancel_after_bytes": 1024,
+        }
+        summary = {"failures": 0, "cancelled": 1}
+        phase = {
+            "requests": 2,
+            "cancelled_streams": 1,
+            "cancelled_http1_connections": 1,
+            "connections": 2,
+            "failures": 0,
+            "proxy_connections": 0,
+        }
+        self.assertTrue(accepted(summary, config, phase))
+        for change in (
+            {"connections": 1},
+            {"cancelled_http1_connections": 0},
+            {"cancelled_streams": 0},
+            {"requests": 3},
+            {"failures": 1},
+        ):
+            with self.subTest(change=change):
+                self.assertFalse(accepted(summary, config, phase | change))
+
+    def test_h3_cancellation_requires_stream_resets_and_the_live_connection(self):
+        config = {
+            "protocol": "h3",
+            "requests": 2,
+            "warmup": 1,
+            "cancel_after_bytes": 1024,
+        }
+        summary = {"failures": 0, "cancelled": 1}
+        phase = {
+            "requests": 2,
+            "cancelled_streams": 1,
+            "cancelled_http3_streams": 1,
+            "cancelled_while_multiplexed": 1,
+            "connections": 1,
+            "failures": 0,
+            "proxy_connections": 0,
+        }
+        self.assertTrue(accepted(summary, config, phase))
+        for change in (
+            {"connections": 2},
+            {"cancelled_http3_streams": 0},
+            {"cancelled_while_multiplexed": 0},
+            {"cancelled_streams": 0},
+            {"requests": 3},
+            {"failures": 1},
+        ):
+            with self.subTest(change=change):
+                self.assertFalse(accepted(summary, config, phase | change))
+
     def test_idle_peer_failures_and_mixed_allocation_intervals_are_rejected(self):
         config = {"protocol": "h2", "requests": 10, "warmup": 2}
         phase = {"requests": 12, "failures": 0, "proxy_connections": 0}

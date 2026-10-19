@@ -43,8 +43,11 @@ class CancellationTests(unittest.TestCase):
         }
 
     def test_valid_cancellation_has_a_prefix_and_a_complete_sibling(self):
-        validate_cancellation(self.config)
-        validate_result(self.raw, self.config)
+        for protocol in ("h1", "h2", "h3"):
+            with self.subTest(protocol=protocol):
+                config = self.config | {"protocol": protocol}
+                validate_cancellation(config)
+                validate_result(self.raw | {"config": config}, config)
 
     def test_failed_cleanup_is_retained_as_failure(self):
         record = self.raw["samples"][0]
@@ -55,7 +58,7 @@ class CancellationTests(unittest.TestCase):
 
     def test_invalid_phase_and_unsupported_protocol_fail_explicitly(self):
         for change in (
-            {"protocol": "h3"},
+            {"protocol": "construct"},
             {"route": "connect"},
             {"warmup": 0},
             {"cold": True},

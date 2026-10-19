@@ -43,7 +43,7 @@ def validate_cancellation(config):
     if type(cutoff) is not int or cutoff < 0:
         raise ValueError("invalid cancellation byte threshold")
     if cutoff and (
-        config["protocol"] != "h2"
+        config["protocol"] not in ("h1", "h2", "h3")
         or config["route"] != "direct"
         or config["consume"] != "stream"
         or config["cold"]
@@ -60,5 +60,5 @@ def validate_cancellation(config):
         or config["arrival_interval_us"] != 0
     ):
         raise ValueError(
-            "body cancellation requires warm direct H2 streams, one origin and two workers"
+            "body cancellation requires warm direct H1/H2/H3 responses, one origin and two workers"
         )

@@ -17,6 +17,21 @@
   },
   "cases": [
     {
+      "name": "h1-cancel-body-prefix",
+      "protocol": "h1",
+      "cancel_after_bytes": 1024
+    },
+    {
+      "name": "h1-cancel-later-prefix",
+      "protocol": "h1",
+      "cancel_after_bytes": 16384
+    },
+    {
+      "name": "h1-cancel-control",
+      "protocol": "h1",
+      "cancel_after_bytes": 0
+    },
+    {
       "name": "h2-cancel-body-prefix",
       "cancel_after_bytes": 1024
     },
@@ -26,6 +41,21 @@
     },
     {
       "name": "h2-cancel-control",
+      "cancel_after_bytes": 0
+    },
+    {
+      "name": "h3-cancel-body-prefix",
+      "protocol": "h3",
+      "cancel_after_bytes": 1024
+    },
+    {
+      "name": "h3-cancel-later-prefix",
+      "protocol": "h3",
+      "cancel_after_bytes": 16384
+    },
+    {
+      "name": "h3-cancel-control",
+      "protocol": "h3",
       "cancel_after_bytes": 0
     }
   ]

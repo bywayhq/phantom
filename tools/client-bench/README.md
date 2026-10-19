@@ -277,12 +277,18 @@ in the other cases.
 
 ## Body cancellation
 
-Use `cancellation.json` for a correctness comparison on HTTP/2. Each client
-warms one connection, then closes even-numbered response bodies after the
-configured byte prefix. Odd-numbered requests consume their full bodies.
-The peer must observe typed HTTP/2 `CANCEL` resets, at least one reset while
-a full response is active, and every sibling response on the same connection.
-Other reset codes, partial sibling bodies and replacement connections fail.
+Use `cancellation.json` for a correctness comparison on HTTP/1.1, HTTP/2 and
+HTTP/3. Each client warms one connection, then closes even-numbered response
+bodies after the configured byte prefix. Odd-numbered requests consume their
+full bodies.
+On HTTP/2 and HTTP/3, the peer must observe typed `CANCEL` or
+`H3_REQUEST_CANCELLED` stream errors, at least one cancellation while a full
+response is active, and every sibling response on the same connection.
+Other error codes, partial sibling bodies and replacement connections fail.
+On HTTP/1.1, the peer must observe a disconnect before finishing each selected
+response. Healthy requests must complete on separate connections. Finishing
+the response before the disconnect fails, even if the application stopped
+reading.
 The peer waits for response/reset events before its snapshot, with a five
 second deadline. It records an incomplete settlement as a failure.
 
@@ -294,13 +300,15 @@ response latency summaries. A cancellation threshold can be exceeded by
 one delivered chunk. Reaching the full body before cancelling fails.
 
 This workload covers body abandonment through each public response API.
-Setup and upload cancellation, HTTP/1.1 and HTTP/3 need separate workloads.
+Setup and upload cancellation need separate workloads.
 Cancellation runs are diagnostic checks, not a speed comparison.
 
 The pinned curl_cffi adapter calls public `Response.aclose()`. In 0.16.3,
 that method waits for the transfer task instead of resetting the stream.
 The peer therefore rejects its cancellation trials when every body finishes.
 Those results describe draining, not successful transport cancellation.
+The pinned wreq adapter rejects HTTP/3 before warmup. Select its H1/H2 cases
+explicitly; a rejected protocol is not a passing cancellation control.
 
 ## Next
 

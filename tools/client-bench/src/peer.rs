@@ -20,6 +20,7 @@ use tokio::{
 };
 use tokio_rustls::TlsAcceptor;
 
+mod cancellation;
 mod delay;
 mod proxy;
 mod upload;
@@ -29,6 +30,8 @@ struct Stats {
     connections: AtomicUsize,
     requests: AtomicUsize,
     cancelled_streams: AtomicUsize,
+    cancelled_http1_connections: AtomicUsize,
+    cancelled_http3_streams: AtomicUsize,
     cancelled_while_multiplexed: AtomicUsize,
     #[serde(skip)]
     settlement: tokio::sync::Notify,
@@ -284,6 +287,15 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
                 .unwrap_or_default()
         );
         stream.get_mut().write_all(head.as_bytes()).await?;
+        if body.cancel {
+            cancellation::http1_body(stream, &body).await?;
+            stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
+            stats
+                .cancelled_http1_connections
+                .fetch_add(1, Ordering::Relaxed);
+            stats.settlement.notify_one();
+            return Ok(());
+        }
         for chunk in body.bytes.chunks(body.chunk_bytes) {
             body.before_chunk().await;
             stream.get_mut().write_all(chunk).await?;
@@ -294,6 +306,7 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
             stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
         }
         completed += 1;
+        stats.settlement.notify_one();
     }
     Ok(())
 }
@@ -479,6 +492,7 @@ async fn quic_listener(
                     h3::server::Connection::new(h3_quinn::Connection::new(quic.clone())).await?;
                 let mut responses = JoinSet::new();
                 let completed = Arc::new(AtomicUsize::new(0));
+                let active_full = Arc::new(AtomicUsize::new(0));
                 loop {
                     let resolver = match connection.accept().await {
                         Ok(Some(resolver)) => resolver,
@@ -543,43 +557,69 @@ async fn quic_listener(
                     };
                     let (body, stats) = (body.clone(), stats.clone());
                     let completed = completed.clone();
+                    let active_full = active_full.clone();
                     responses.spawn(async move {
                         let (request, mut stream) = resolver.resolve_request().await?;
                         let body = body.for_target(&request.uri().to_string())?;
-                        body.upload.head(request.method(), request.headers(), false)?;
-                        // Reach request FIN before dropping its receive half.
-                        // Quinn otherwise sends STOP_SENDING from that drop.
-                        let mut observed = 0;
-                        while let Some(mut data) = stream.recv_data().await? {
-                            while data.has_remaining() {
-                                let chunk = data.chunk();
-                                body.upload.chunk(&mut observed, chunk)?;
-                                let length = chunk.len();
-                                data.advance(length);
+                        if !body.cancel {
+                            active_full.fetch_add(1, Ordering::Relaxed);
+                        }
+                        let result: Result<()> = async {
+                            body.upload.head(request.method(), request.headers(), false)?;
+                            // Reach request FIN before dropping its receive half.
+                            // Quinn otherwise sends STOP_SENDING from that drop.
+                            let mut observed = 0;
+                            while let Some(mut data) = stream.recv_data().await? {
+                                while data.has_remaining() {
+                                    let chunk = data.chunk();
+                                    body.upload.chunk(&mut observed, chunk)?;
+                                    let length = chunk.len();
+                                    data.advance(length);
+                                }
                             }
+                            if stream.recv_trailers().await?.is_some() {
+                                return Err("benchmark upload must have no trailers".into());
+                            }
+                            body.upload.finish(observed)?;
+                            stats.uploaded_bytes.fetch_add(observed as u64, Ordering::Relaxed);
+                            body.before_head().await;
+                            stream.send_response(body.head()?).await?;
+                            for offset in (0..body.bytes.len()).step_by(body.chunk_bytes) {
+                                body.before_chunk().await;
+                                stream
+                                    .send_data(body.bytes.slice(
+                                        offset..(offset + body.chunk_bytes).min(body.bytes.len()),
+                                    ))
+                                    .await?;
+                            }
+                            stream.finish().await?;
+                            stats.requests.fetch_add(1, Ordering::Relaxed);
+                            if body.redirect_location.is_some() {
+                                stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
+                            }
+                            completed.fetch_add(1, Ordering::Relaxed);
+                            Ok(())
                         }
-                        if stream.recv_trailers().await?.is_some() {
-                            return Err("benchmark upload must have no trailers".into());
+                        .await;
+                        let result = if body.cancel
+                            && result.as_ref().err().is_some_and(|error| {
+                                cancellation::quic_stream_cancelled(error.as_ref())
+                            })
+                        {
+                            stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
+                            stats.cancelled_http3_streams.fetch_add(1, Ordering::Relaxed);
+                            if active_full.load(Ordering::Relaxed) > 0 {
+                                stats.cancelled_while_multiplexed.fetch_add(1, Ordering::Relaxed);
+                            }
+                            Ok(())
+                        } else {
+                            result
+                        };
+                        if !body.cancel {
+                            active_full.fetch_sub(1, Ordering::Relaxed);
                         }
-                        body.upload.finish(observed)?;
-                        stats.uploaded_bytes.fetch_add(observed as u64, Ordering::Relaxed);
-                        body.before_head().await;
-                        stream.send_response(body.head()?).await?;
-                        for offset in (0..body.bytes.len()).step_by(body.chunk_bytes) {
-                            body.before_chunk().await;
-                            stream
-                                .send_data(body.bytes.slice(
-                                    offset..(offset + body.chunk_bytes).min(body.bytes.len()),
-                                ))
-                                .await?;
-                        }
-                        stream.finish().await?;
-                        stats.requests.fetch_add(1, Ordering::Relaxed);
-                        if body.redirect_location.is_some() {
-                            stats.redirect_responses.fetch_add(1, Ordering::Relaxed);
-                        }
-                        completed.fetch_add(1, Ordering::Relaxed);
-                        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                        stats.settlement.notify_one();
+                        result
                     });
                     while let Some(result) = responses.try_join_next() {
                         result??;

@@ -67,8 +67,10 @@ between libraries. Functional acceptance does not establish equivalent
 fingerprints, performance or connection limits. Redirects cover same-origin
 GETs in collection mode. CONNECT covers HTTP/1.1 and HTTP/2 with optional
 Basic authentication. Streaming uploads need additional workloads. The
-shared HTTP/2 cancellation workload checks public response-body closure
-and completion of sibling streams.
+shared HTTP/1.1, HTTP/2 and HTTP/3 cancellation workload checks public
+response-body closure and completion of healthy requests. The peer must
+confirm cancellation for each protocol; returning from `Close` alone is not
+acceptance.
 
 ## Next
 

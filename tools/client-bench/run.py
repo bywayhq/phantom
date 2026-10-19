@@ -165,8 +165,20 @@ def accepted(summary, config, phase):
         and (
             not cancellations
             or (
-                phase["connections"] == 1
-                and phase.get("cancelled_while_multiplexed", 0) > 0
+                (
+                    config.get("protocol") == "h1"
+                    and phase["connections"] >= 2
+                    and phase.get("cancelled_http1_connections", 0) == cancellations
+                )
+                or (
+                    config.get("protocol") in ("h2", "h3")
+                    and phase["connections"] == 1
+                    and phase.get("cancelled_while_multiplexed", 0) > 0
+                    and (
+                        config.get("protocol") == "h2"
+                        or phase.get("cancelled_http3_streams", 0) == cancellations
+                    )
+                )
             )
         )
         and phase["requests"] == expected

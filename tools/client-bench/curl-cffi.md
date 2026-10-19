@@ -18,7 +18,9 @@ diagnostic matrix before collecting timing data. Unsupported routes, profiles,
 compression, templates and Phantom diagnostics fail before warmup.
 Redirects cover up to three same-origin GET hops in collection mode.
 CONNECT covers HTTP/1.1 and HTTP/2 with optional Basic authentication.
-Streaming uploads and cancellation need separate workloads.
+Streaming uploads need separate workloads. The shared cancellation workload
+retains the public `aclose()` outcome: it waits for the transfer task, so a
+drained response fails the peer's cancellation checks.
 
 ## Settings and measurement boundaries
 

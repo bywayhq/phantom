@@ -136,7 +136,7 @@ impl Config {
             return Err("construction runs are sequential".into());
         }
         if self.cancel_after_bytes != 0
-            && (self.protocol != "h2"
+            && (!["h1", "h2", "h3"].contains(&self.protocol.as_str())
                 || self.route != "direct"
                 || self.consume != "stream"
                 || self.cold
@@ -153,7 +153,7 @@ impl Config {
                 || self.arrival_interval_us != 0)
         {
             return Err(
-                "body cancellation requires warm direct H2 streams, one origin and two workers"
+                "body cancellation requires warm direct H1/H2/H3 responses, one origin and two workers"
                     .into(),
             );
         }
@@ -300,6 +300,10 @@ mod tests {
         assert!(config.validate().is_err());
         config.cold = false;
         config.protocol = "h1".into();
+        assert!(config.validate().is_ok());
+        config.protocol = "h3".into();
+        assert!(config.validate().is_ok());
+        config.protocol = "construct".into();
         assert!(config.validate().is_err());
     }
 }
