@@ -1120,6 +1120,7 @@ dependencies = [
 name = "phantom-testkit"
 version = "0.2.0"
 dependencies = [
+ "phantom-profile",
  "tokio",
 ]
 
