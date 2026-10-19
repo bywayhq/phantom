@@ -77,7 +77,11 @@ async fn multipart_reader_reaches_http1_and_http2_with_matching_type_and_no_leng
                 .iter()
                 .map(|(name, _)| name.as_str())
                 .collect();
-            assert!(names.windows(2).any(|pair| pair == ["content-type", "x-after"]));
+            assert!(
+                names
+                    .windows(2)
+                    .any(|pair| pair == ["content-type", "x-after"])
+            );
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         })
         .await??;
