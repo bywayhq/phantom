@@ -141,7 +141,8 @@ async fn corrupt_and_wrong_key_loads_preserve_typed_snapshot_errors_and_receiver
         let error = receiver
             .load_session(&store, name, key, deadline(), &[])
             .await
-            .unwrap_err();
+            .err()
+            .ok_or("expected session storage rejection")?;
         assert_eq!(error.kind(), SessionStorageErrorKind::Snapshot);
         assert_eq!(
             error
@@ -169,7 +170,8 @@ async fn invalid_names_and_expired_deadlines_never_call_the_store() -> TestResul
             client
                 .save_session(&store, &name, KEY, deadline())
                 .await
-                .unwrap_err()
+                .err()
+                .ok_or("expected session storage rejection")?
                 .kind(),
             SessionStorageErrorKind::InvalidName
         );
@@ -177,7 +179,8 @@ async fn invalid_names_and_expired_deadlines_never_call_the_store() -> TestResul
             client
                 .load_session(&store, &name, KEY, deadline(), &[])
                 .await
-                .unwrap_err()
+                .err()
+                .ok_or("expected session storage rejection")?
                 .kind(),
             SessionStorageErrorKind::InvalidName
         );
@@ -187,7 +190,8 @@ async fn invalid_names_and_expired_deadlines_never_call_the_store() -> TestResul
         client
             .save_session(&store, "valid", KEY, expired)
             .await
-            .unwrap_err()
+            .err()
+            .ok_or("expected session storage rejection")?
             .kind(),
         SessionStorageErrorKind::Deadline
     );
@@ -195,7 +199,8 @@ async fn invalid_names_and_expired_deadlines_never_call_the_store() -> TestResul
         client
             .load_session(&store, "valid", KEY, expired, &[])
             .await
-            .unwrap_err()
+            .err()
+            .ok_or("expected session storage rejection")?
             .kind(),
         SessionStorageErrorKind::Deadline
     );
@@ -220,7 +225,8 @@ async fn unsupported_checkpoint_configuration_fails_before_saving() -> TestResul
     let error = client
         .save_session(&store, "valid", KEY, deadline())
         .await
-        .unwrap_err();
+        .err()
+        .ok_or("expected session storage rejection")?;
     assert_eq!(error.kind(), SessionStorageErrorKind::Snapshot);
     assert_eq!(
         error
@@ -250,11 +256,13 @@ async fn backend_errors_do_not_fall_back_and_error_formatting_omits_backend_secr
     let saved = client
         .save_session(&FailedStore, "private-name", KEY, deadline())
         .await
-        .unwrap_err();
+        .err()
+        .ok_or("expected session storage rejection")?;
     let loaded = client
         .load_session(&FailedStore, "private-name", KEY, deadline(), &[])
         .await
-        .unwrap_err();
+        .err()
+        .ok_or("expected session storage rejection")?;
     for error in [saved, loaded] {
         assert_eq!(error.kind(), SessionStorageErrorKind::Backend);
         assert_eq!(
@@ -332,7 +340,8 @@ async fn deadline_drops_a_pending_backend_operation() -> TestResult {
             &[],
         )
         .await
-        .unwrap_err();
+        .err()
+        .ok_or("expected session storage rejection")?;
     assert_eq!(error.kind(), SessionStorageErrorKind::Deadline);
     assert_eq!(store.dropped.load(Ordering::SeqCst), 1);
     Ok(())
@@ -368,7 +377,8 @@ async fn a_backend_that_returns_after_blocking_past_the_deadline_cannot_report_s
             &[],
         )
         .await
-        .unwrap_err();
+        .err()
+        .ok_or("expected session storage rejection")?;
     assert_eq!(error.kind(), SessionStorageErrorKind::Deadline);
     Ok(())
 }
