@@ -8,7 +8,9 @@ version = "0.2.0"
 description = "HTTP requests with explicit browser profiles"
 requires-python = ">=3.10"
 license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 
 [tool.maturin]
 python-source = "python"
 module-name = "phantom_http._native"
+exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo"]
