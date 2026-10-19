@@ -19,7 +19,10 @@ fn parameter(id: u64, payload: &[u8], output: &mut Vec<u8>) {
 }
 
 fn block(base: &ClientProfile) -> Vec<u8> {
-    let settings = base.http3().expect("http3").quic_transport();
+    let settings = base
+        .http3()
+        .unwrap_or_else(|| panic!("http3"))
+        .quic_transport();
     let mut bytes = Vec::new();
     for (id, value_number) in [
         (4, settings.initial_max_data),
@@ -44,28 +47,37 @@ fn block(base: &ClientProfile) -> Vec<u8> {
 
 fn base() -> ClientProfile {
     let base = chrome::v154_windows();
-    let mut document = super::super::export::describe(&base).expect("describe").0;
+    let mut document = super::super::export::describe(&base)
+        .unwrap_or_else(|error| panic!("describe: {error}"))
+        .0;
     let settings = &mut document["profile"]["http3"]["quic_transport"];
     settings["min_ack_delay_us"] = serde_json::Value::Null;
     settings["reset_stream_at"] = false.into();
     let parameters = settings["wire_parameters"]
         .as_array_mut()
-        .expect("parameters");
+        .unwrap_or_else(|| panic!("parameters"));
     parameters.retain(|parameter| {
         !matches!(
             parameter["kind"]["kind"].as_str(),
             Some("MinAckDelay" | "ResetStreamAt")
         )
     });
-    super::super::import_profile_json(&serde_json::to_vec(&document).expect("encode"))
-        .expect("base")
+    super::super::import_profile_json(
+        &serde_json::to_vec(&document).unwrap_or_else(|error| panic!("encode: {error}")),
+    )
+    .unwrap_or_else(|error| panic!("base: {error}"))
 }
 
 #[test]
 fn imports_values_order_and_nonminimal_widths_without_captured_connection_ids() {
     let base = base();
-    let imported = import_quic_transport_profile(&block(&base), &base).expect("import");
-    let settings = imported.profile().http3().expect("http3").quic_transport();
+    let imported = import_quic_transport_profile(&block(&base), &base)
+        .unwrap_or_else(|error| panic!("import: {error}"));
+    let settings = imported
+        .profile()
+        .http3()
+        .unwrap_or_else(|| panic!("http3"))
+        .quic_transport();
     assert_eq!(settings.parameter_order, QuicTransportParameterOrder::Fixed);
     assert!(matches!(
         settings.wire_parameters[0].kind,
@@ -78,13 +90,17 @@ fn imports_values_order_and_nonminimal_widths_without_captured_connection_ids() 
         QuicVarIntWidth::Two
     );
     assert!(matches!(
-        settings.wire_parameters.last().expect("cid").kind,
+        settings
+            .wire_parameters
+            .last()
+            .unwrap_or_else(|| panic!("cid"))
+            .kind,
         Parameter::InitialSourceConnectionId { length: 8 }
     ));
     assert_eq!(
         settings.initial_max_data,
         base.http3()
-            .expect("http3")
+            .unwrap_or_else(|| panic!("http3"))
             .quic_transport()
             .initial_max_data
     );
@@ -121,14 +137,15 @@ fn rejects_truncation_duplicates_unknown_parameters_and_invalid_limits() {
     ] {
         assert_eq!(
             import_quic_transport_profile(&input, &base)
-                .expect_err("reject")
+                .err()
+                .unwrap_or_else(|| panic!("reject"))
                 .kind(),
             kind
         );
     }
     let mut remaining = &[0x40, 0x01][..];
     assert_eq!(
-        varint(&mut remaining).expect("nonminimal"),
+        varint(&mut remaining).unwrap_or_else(|error| panic!("nonminimal: {error}")),
         (1, QuicVarIntWidth::Two)
     );
     assert!(remaining.is_empty());

@@ -34,10 +34,12 @@ fn original_ja4_applies_order_while_sorted_ja4_retains_base_order() {
     let base = chrome::v154_windows();
     let mut desired = base.tls().clone();
     desired.cipher_suites.swap(0, 1);
-    let hello = preview(&desired, "import.invalid").expect("preview");
+    let hello =
+        preview(&desired, "import.invalid").unwrap_or_else(|error| panic!("preview: {error}"));
     for format in [Ja4RawFormat::Original, Ja4RawFormat::Sorted] {
         let input = raw(&hello, format);
-        let imported = import_ja4_profile(&input, format, &base).expect("import");
+        let imported = import_ja4_profile(&input, format, &base)
+            .unwrap_or_else(|error| panic!("import: {error}"));
         let expected = if format == Ja4RawFormat::Original {
             &desired.cipher_suites
         } else {
@@ -57,7 +59,8 @@ fn original_ja4_applies_order_while_sorted_ja4_retains_base_order() {
 #[test]
 fn hashes_transport_mismatches_and_missing_payload_information_fail_precisely() {
     let base = chrome::v154_windows();
-    let hello = preview(base.tls(), "import.invalid").expect("preview");
+    let hello =
+        preview(base.tls(), "import.invalid").unwrap_or_else(|error| panic!("preview: {error}"));
     let input = raw(&hello, Ja4RawFormat::Original);
     for (input, kind, field) in [
         (
@@ -86,23 +89,30 @@ fn hashes_transport_mismatches_and_missing_payload_information_fail_precisely() 
             "tls.cipher_suites",
         ),
     ] {
-        let error = import_ja4_profile(&input, Ja4RawFormat::Original, &base).expect_err("reject");
+        let error = import_ja4_profile(&input, Ja4RawFormat::Original, &base)
+            .err()
+            .unwrap_or_else(|| panic!("reject"));
         assert_eq!((error.kind(), error.field()), (kind, field));
     }
     assert_eq!(
         hex_list("000a,000a", "ja4.extensions")
-            .expect_err("duplicate")
+            .err()
+            .unwrap_or_else(|| panic!("duplicate"))
             .kind(),
         Kind::DuplicateField
     );
     assert_eq!(
         hex_list("0a0a", "ja4.extensions")
-            .expect_err("grease")
+            .err()
+            .unwrap_or_else(|| panic!("grease"))
             .kind(),
         Kind::InvalidValue
     );
     assert_eq!(
-        hex_list("a", "ja4.extensions").expect_err("width").kind(),
+        hex_list("a", "ja4.extensions")
+            .err()
+            .unwrap_or_else(|| panic!("width"))
+            .kind(),
         Kind::MalformedDescription
     );
 }
@@ -118,7 +128,10 @@ fn alpn_abbreviation_handles_binary_and_single_byte_identifiers() {
     ] {
         settings.alpn_protocols = vec![protocol.into_boxed_slice()];
         assert_eq!(
-            alpn_tag(&preview(&settings, "import.invalid").expect("preview")),
+            alpn_tag(
+                &preview(&settings, "import.invalid")
+                    .unwrap_or_else(|error| panic!("preview: {error}"))
+            ),
             expected
         );
     }

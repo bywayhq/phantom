@@ -167,13 +167,14 @@ fn collect_supplements(value: &Value, path: &str, observed: &[&str], fields: &mu
         return;
     }
     let prefix = format!("{path}.");
-    if observed.iter().any(|field| field.starts_with(&prefix)) {
-        if let Some(object) = value.as_object() {
-            for (name, value) in object {
-                collect_supplements(value, &format!("{path}.{name}"), observed, fields);
-            }
-            return;
+    if let Some(object) = value
+        .as_object()
+        .filter(|_| observed.iter().any(|field| field.starts_with(&prefix)))
+    {
+        for (name, value) in object {
+            collect_supplements(value, &format!("{path}.{name}"), observed, fields);
         }
+        return;
     }
     fields.push(path.into());
 }
