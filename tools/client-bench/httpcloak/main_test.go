@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -16,6 +18,20 @@ import (
 	"testing"
 	"time"
 )
+
+func TestUploadCancellationRetainsOtherFailureCauses(t *testing.T) {
+	for _, err := range []error{context.Canceled, fmt.Errorf("request failed: %w", context.Canceled)} {
+		if !uploadCancelled(err) {
+			t.Fatal("public cancellation wrapper was rejected")
+		}
+	}
+	for _, err := range []error{nil, context.DeadlineExceeded,
+		errors.Join(context.Canceled, errors.New("response close failed"))} {
+		if uploadCancelled(err) {
+			t.Fatal("another failure was hidden by cancellation")
+		}
+	}
+}
 
 func TestBufferedRedirectsFollowTheConfiguredHopsWithoutInventingHeadTiming(t *testing.T) {
 	for _, protocol := range []string{"h1", "h2"} {

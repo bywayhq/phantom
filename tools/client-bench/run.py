@@ -154,8 +154,15 @@ def accepted(summary, config, phase):
         if config.get("protocol") == "construct"
         else config.get("requests", 2000) + config.get("warmup", 100)
     )
+    upload_cancel = config.get("cancel_stage", "body") == "upload"
     cancellations = (
-        config.get("requests", 2000) // 2 if config.get("cancel_after_bytes", 0) else 0
+        1
+        if upload_cancel
+        else (
+            config.get("requests", 2000) // 2
+            if config.get("cancel_after_bytes", 0)
+            else 0
+        )
     )
     expected = logical * (config.get("redirects", 0) + 1) - cancellations
     return (
@@ -173,7 +180,9 @@ def accepted(summary, config, phase):
                 or (
                     config.get("protocol") in ("h2", "h3")
                     and phase["connections"] == 1
-                    and phase.get("cancelled_while_multiplexed", 0) > 0
+                    and (
+                        upload_cancel or phase.get("cancelled_while_multiplexed", 0) > 0
+                    )
                     and (
                         config.get("protocol") == "h2"
                         or phase.get("cancelled_http3_streams", 0) == cancellations
@@ -183,7 +192,15 @@ def accepted(summary, config, phase):
         )
         and phase["requests"] == expected
         and phase["failures"] == 0
-        and phase.get("uploaded_bytes", 0) == expected * config.get("upload_bytes", 0)
+        and phase.get("uploaded_bytes", 0)
+        == (0 if upload_cancel else expected * config.get("upload_bytes", 0))
+        and (
+            not upload_cancel
+            or (
+                phase.get("upload_headers", 0) == 1
+                and phase.get("cancelled_uploads", 0) == 1
+            )
+        )
         and phase.get("redirect_responses", 0) == logical * config.get("redirects", 0)
         and (
             phase.get("proxy_authenticated_connections", 0) > 0
@@ -266,7 +283,24 @@ def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None
         start = time.perf_counter()
         rows = [{"t_s": 0.0, **before}]
         command(client, "go")
+        upload_relayed = False
         while True:
+            if config["cancel_stage"] == "upload" and not upload_relayed:
+                try:
+                    event(peer_messages, "upload_headers", timeout=0)
+                except queue.Empty:
+                    pass
+                else:
+                    command(client, "cancel-upload")
+                    upload_relayed = True
+                    save(
+                        folder / "upload-cancellation.json",
+                        {
+                            "peer_event": "upload_headers",
+                            "client_command": "cancel-upload",
+                            "t_s": time.perf_counter() - start,
+                        },
+                    )
             try:
                 event(client_messages, "phase_end", timeout=0.01)
                 break
@@ -281,6 +315,8 @@ def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None
                 )
                 if rows[-1]["t_s"] > timeout:
                     raise TimeoutError("benchmark phase exceeded its bound") from None
+        if config["cancel_stage"] == "upload" and not upload_relayed:
+            raise RuntimeError("client ended before peer-confirmed upload cancellation")
         after = {
             "client": snapshot(client_ps),
             "peer": snapshot(peer_ps),

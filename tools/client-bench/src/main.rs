@@ -31,6 +31,7 @@ struct Config {
     upload_bytes: usize,
     redirects: usize,
     cancel_after_bytes: usize,
+    cancel_stage: String,
     consume: String,
     cold: bool,
     origins: usize,
@@ -64,6 +65,7 @@ impl Default for Config {
             upload_bytes: 0,
             redirects: 0,
             cancel_after_bytes: 0,
+            cancel_stage: "body".into(),
             consume: "stream".into(),
             cold: false,
             origins: 1,
@@ -134,6 +136,32 @@ impl Config {
         if self.protocol == "construct" && (self.concurrency != 1 || self.arrival_interval_us != 0)
         {
             return Err("construction runs are sequential".into());
+        }
+        if !["body", "upload"].contains(&self.cancel_stage.as_str()) {
+            return Err("unsupported cancellation stage".into());
+        }
+        if self.cancel_stage == "upload"
+            && (self.protocol != "h2"
+                || self.route != "direct"
+                || self.consume != "stream"
+                || self.cold
+                || self.origins != 1
+                || self.method != "POST"
+                || self.upload_bytes == 0
+                || self.gzip
+                || self.redirects != 0
+                || self.warmup != 1
+                || self.concurrency != 2
+                || self.requests != 2
+                || self.cancel_after_bytes != 0
+                || self.arrival_interval_us != 0
+                || self.diagnostic_events != 0
+                || self.template)
+        {
+            return Err(
+                "upload cancellation requires two warm direct H2 operations and a nonempty POST"
+                    .into(),
+            );
         }
         if self.cancel_after_bytes != 0
             && (!["h1", "h2", "h3"].contains(&self.protocol.as_str())
@@ -304,6 +332,30 @@ mod tests {
         config.protocol = "h3".into();
         assert!(config.validate().is_ok());
         config.protocol = "construct".into();
+        assert!(config.validate().is_err());
+    }
+    #[test]
+    fn upload_cancel_requires_one_post_and_one_get_on_warmed_h2() {
+        let mut config = Config {
+            cancel_stage: "upload".into(),
+            method: "POST".into(),
+            upload_bytes: 65536,
+            requests: 2,
+            warmup: 1,
+            concurrency: 2,
+            ..Config::default()
+        };
+        assert!(config.validate().is_ok());
+        config.requests = 4;
+        assert!(config.validate().is_err());
+        config.requests = 2;
+        config.cancel_after_bytes = 1;
+        assert!(config.validate().is_err());
+        config.cancel_after_bytes = 0;
+        config.upload_bytes = 0;
+        assert!(config.validate().is_err());
+        config.upload_bytes = 65536;
+        config.protocol = "h3".into();
         assert!(config.validate().is_err());
     }
 }

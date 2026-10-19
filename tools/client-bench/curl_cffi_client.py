@@ -190,6 +190,7 @@ def cleanup_error(record, stage, error):
 async def execute(config, urls, shared, create, expected_protocol, record):
     start = time.perf_counter_ns()
     selected, response, owned = shared, None, None
+    upload_cancel = config["cancel_stage"] == "upload" and record["id"] == 0
     cancel = config["cancel_after_bytes"] != 0 and record["id"] % 2 == 0
     try:
         if config["cold"]:
@@ -198,11 +199,15 @@ async def execute(config, urls, shared, create, expected_protocol, record):
         # The application deadline includes body consumption and validation.
         async with asyncio.timeout(15):
             response = await selected.request(
-                config["method"],
-                urls[record["id"] % len(urls)] + ("?cancel=1" if cancel else ""),
+                "GET"
+                if config["cancel_stage"] == "upload" and not upload_cancel
+                else config["method"],
+                urls[record["id"] % len(urls)]
+                + ("?cancel=1" if cancel or upload_cancel else ""),
                 **(
                     {"data": b"U" * config["upload_bytes"]}
                     if config["method"] == "POST"
+                    and (config["cancel_stage"] != "upload" or upload_cancel)
                     else {}
                 ),
                 stream=config["consume"] == "stream",
@@ -271,11 +276,36 @@ async def run_workers(config, urls, shared, create, protocol, records, start=Non
                 )
                 record["started_ns"] = now
                 record["application_wait_ns"] = max(0, now - record["scheduled_ns"])
-            await execute(config, urls, shared, create, protocol, record)
+            if config["cancel_stage"] == "upload" and identifier == 0:
+                await upload_cancellation(
+                    config, urls, shared, create, protocol, record
+                )
+            else:
+                await execute(config, urls, shared, create, protocol, record)
 
     async with asyncio.TaskGroup() as group:
         for index in range(config["concurrency"]):
             group.create_task(worker(index))
+
+
+async def upload_cancellation(config, urls, shared, create, protocol, record):
+    task = asyncio.create_task(execute(config, urls, shared, create, protocol, record))
+    try:
+        await control("cancel-upload")
+        if task.done():
+            await task
+            if record["error"] is None:
+                record["error"] = "upload finished before cancellation"
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            record["cancelled"] = record["error"] is None and record["bytes"] == 0
+    finally:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 def storage_size(records):
@@ -315,7 +345,13 @@ async def run(supplied, ready, output):
         try:
             warmup = [sample(index) for index in range(config["warmup"])]
             await run_workers(
-                config | {"cancel_after_bytes": 0},
+                config
+                | {"cancel_after_bytes": 0}
+                | (
+                    {"cancel_stage": "body", "method": "GET", "upload_bytes": 0}
+                    if config["cancel_stage"] == "upload"
+                    else {}
+                ),
                 urls,
                 shared,
                 create,

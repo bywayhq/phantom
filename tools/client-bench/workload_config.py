@@ -13,6 +13,7 @@ DEFAULTS = {
     "upload_bytes": 0,
     "redirects": 0,
     "cancel_after_bytes": 0,
+    "cancel_stage": "body",
     "consume": "stream",
     "cold": False,
     "origins": 1,
@@ -39,6 +40,30 @@ def effective_config(config):
 
 
 def validate_cancellation(config):
+    stage = config["cancel_stage"]
+    if stage not in ("body", "upload"):
+        raise ValueError("unsupported cancellation stage")
+    if stage == "upload" and (
+        config["protocol"] != "h2"
+        or config["route"] != "direct"
+        or config["consume"] != "stream"
+        or config["cold"]
+        or config["origins"] != 1
+        or config["method"] != "POST"
+        or not config["upload_bytes"]
+        or config["gzip"]
+        or config["redirects"] != 0
+        or config["warmup"] != 1
+        or config["concurrency"] != 2
+        or config["requests"] != 2
+        or config["cancel_after_bytes"] != 0
+        or config["arrival_interval_us"] != 0
+        or config["diagnostic_events"] != 0
+        or config["template"]
+    ):
+        raise ValueError(
+            "upload cancellation requires two warm direct H2 operations and a nonempty POST"
+        )
     cutoff = config["cancel_after_bytes"]
     if type(cutoff) is not int or cutoff < 0:
         raise ValueError("invalid cancellation byte threshold")

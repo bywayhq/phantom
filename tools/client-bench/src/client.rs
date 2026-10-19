@@ -21,7 +21,7 @@ struct Sample {
     started_ns: u64,
     application_wait_ns: u64,
     build_ns: u64,
-    head_ns: u64,
+    head_ns: Option<u64>,
     first_byte_ns: Option<u64>,
     complete_ns: u64,
     bytes: usize,
@@ -96,18 +96,20 @@ async fn request(
     } else {
         shared
     };
+    let upload_cancel = config.cancel_stage == "upload" && sample.id == 0;
     let cancel = config.cancel_after_bytes != 0 && sample.id.is_multiple_of(2);
     let mut url = ready.urls[sample.id % ready.urls.len()].clone();
-    if cancel {
+    if cancel || upload_cancel {
         url.push_str("?cancel=1");
     }
-    let mut request = if config.method == "POST" {
-        selected
-            .request(protocol(config), http::Method::POST, &url)?
-            .body(vec![b'U'; config.upload_bytes])
-    } else {
-        selected.get(protocol(config), &url)?
-    };
+    let mut request =
+        if config.method == "POST" && (config.cancel_stage != "upload" || upload_cancel) {
+            selected
+                .request(protocol(config), http::Method::POST, &url)?
+                .body(vec![b'U'; config.upload_bytes])
+        } else {
+            selected.get(protocol(config), &url)?
+        };
     if config.gzip {
         request = request
             .header(RequestHeader::new("accept-encoding", "gzip"))
@@ -118,8 +120,27 @@ async fn request(
     }
     let diagnostics = std::num::NonZeroUsize::new(config.diagnostic_events)
         .map(|capacity| request.diagnostics(capacity));
-    let response = request.send().await?;
-    sample.head_ns = nanos(start.elapsed());
+    let response = if upload_cancel {
+        sample.head_ns = None;
+        let mut command = tokio::task::spawn_blocking(|| control("cancel-upload"));
+        tokio::select! {
+            biased;
+            response = request.send() => {
+                command.await??;
+                response?;
+                return Err("upload finished before cancellation".into());
+            }
+            result = &mut command => {
+                result??;
+                sample.cancelled = true;
+                sample.complete_ns = nanos(start.elapsed());
+                return Ok(());
+            }
+        }
+    } else {
+        request.send().await?
+    };
+    sample.head_ns = Some(nanos(start.elapsed()));
     let info = response
         .extensions()
         .get::<ResponseInfo>()
@@ -188,7 +209,7 @@ fn sample(id: usize, scheduled_ns: u64, started_ns: u64) -> Sample {
         started_ns,
         application_wait_ns: started_ns.saturating_sub(scheduled_ns),
         build_ns: 0,
-        head_ns: 0,
+        head_ns: Some(0),
         first_byte_ns: None,
         complete_ns: 0,
         bytes: 0,
@@ -227,6 +248,11 @@ pub(crate) async fn run(config: Config, ready: Ready, output: &Path) -> Result<(
         for worker in 0..config.concurrency {
             let (mut config, ready, shared) = (config.clone(), ready.clone(), shared.clone());
             config.cancel_after_bytes = 0;
+            if config.cancel_stage == "upload" {
+                config.cancel_stage = "body".into();
+                config.method = "GET".into();
+                config.upload_bytes = 0;
+            }
             warmup.spawn(async move {
                 for id in (worker..config.warmup).step_by(config.concurrency) {
                     let result = execute(&config, &ready, &shared, sample(id, 0, 0)).await;

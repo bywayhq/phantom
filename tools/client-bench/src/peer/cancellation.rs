@@ -67,11 +67,22 @@ pub(super) fn quic_stream_cancelled(error: &(dyn Error + 'static)) -> bool {
     )
 }
 
+pub(super) fn http2_upload_cancel(error: &http2::Error) -> bool {
+    error.is_reset() && error.is_remote() && error.reason() == Some(http2::Reason::CANCEL)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Config;
     use std::time::Duration;
+
+    #[test]
+    fn local_cancel_is_not_a_remote_upload_reset() {
+        for reason in [http2::Reason::CANCEL, http2::Reason::INTERNAL_ERROR] {
+            assert!(!http2_upload_cancel(&http2::Error::from(reason)));
+        }
+    }
 
     #[tokio::test]
     async fn http1_cancel_requires_a_disconnect_before_the_full_body() -> Result<()> {

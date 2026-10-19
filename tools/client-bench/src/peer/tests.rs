@@ -416,3 +416,91 @@ fn cancellation_targets_accept_both_http_uri_forms() -> Result<()> {
     assert!(body.for_target("https://localhost/?cancel=0").is_err());
     Ok(())
 }
+#[tokio::test]
+async fn h2_zero_window_cancel_preserves_a_warmed_body_free_get() -> Result<()> {
+    for reason in [http2::Reason::CANCEL, http2::Reason::INTERNAL_ERROR] {
+        let (client, server) = tokio::io::duplex(65536);
+        let config = Config {
+            cancel_stage: "upload".into(),
+            method: "POST".into(),
+            upload_bytes: 65536,
+            bytes: 1024,
+            ..Config::default()
+        };
+        let stats = Arc::new(Stats::default());
+        let peer = tokio::spawn(http2(
+            ResetAtEof(server),
+            Arc::new(Body::new(&config)?),
+            stats.clone(),
+        ));
+        let (mut sender, mut connection) = http2::client::handshake(client).await?;
+        let mut ping = connection.ping_pong().ok_or("missing H2 ping handle")?;
+        let driver = tokio::spawn(connection);
+        let (warm, _) = sender.send_request(
+            http::Request::builder()
+                .uri("https://localhost/")
+                .body(())?,
+            true,
+        )?;
+        let mut warm = warm.await?.into_body();
+        while let Some(data) = warm.data().await {
+            let data = data?;
+            warm.flow_control().release_capacity(data.len())?;
+        }
+        let (_selected, mut upload) = sender.send_request(
+            http::Request::builder()
+                .method("POST")
+                .uri("https://localhost/?cancel=1")
+                .header("content-length", config.upload_bytes)
+                .body(())?,
+            false,
+        )?;
+        upload.reserve_capacity(config.upload_bytes);
+        assert_eq!(
+            upload.capacity(),
+            0,
+            "warmup must apply the zero-window SETTINGS"
+        );
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let notified = stats.settlement.notified();
+                if stats.upload_headers.load(Ordering::Acquire) == 1 {
+                    break;
+                }
+                notified.await;
+            }
+        })
+        .await?;
+        let (healthy, _) = sender.send_request(
+            http::Request::builder()
+                .uri("https://localhost/")
+                .body(())?,
+            true,
+        )?;
+        upload.send_reset(reason);
+        tokio::time::timeout(Duration::from_secs(5), ping.ping(http2::Ping::opaque())).await??;
+        if reason == http2::Reason::CANCEL {
+            let mut healthy = healthy.await?.into_body();
+            let mut bytes = 0;
+            while let Some(data) = healthy.data().await {
+                let data = data?;
+                bytes += data.len();
+                healthy.flow_control().release_capacity(data.len())?;
+            }
+            assert_eq!(bytes, config.bytes);
+        }
+        driver.abort();
+        assert!(driver.await.is_err_and(|error| error.is_cancelled()));
+        let result = tokio::time::timeout(Duration::from_secs(5), peer).await??;
+        if reason == http2::Reason::CANCEL {
+            result?;
+            assert_eq!(stats.cancelled_uploads.load(Ordering::Relaxed), 1);
+            assert_eq!(stats.requests.load(Ordering::Relaxed), 2);
+        } else {
+            assert!(result.is_err());
+            assert_eq!(stats.cancelled_uploads.load(Ordering::Relaxed), 0);
+        }
+        assert_eq!(stats.uploaded_bytes.load(Ordering::Relaxed), 0);
+    }
+    Ok(())
+}

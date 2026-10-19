@@ -7,7 +7,7 @@ import (
 )
 
 func validConfig() config {
-	return config{Name: "control", Protocol: "h2", Profile: "chrome", Route: "direct",
+	return config{CancelStage: "body", Name: "control", Protocol: "h2", Profile: "chrome", Route: "direct",
 		Concurrency: 2, Requests: 8, Warmup: 2, Bytes: 32768, Method: "GET", Consume: "stream",
 		Origins: 1, ChunkBytes: 1024, ChunkDelayMS: 1, Workers: 2, Template: true,
 		DiagnosticSnapshot: true}
@@ -173,6 +173,25 @@ func TestCancellationRequiresPartialBodyAndLiveSibling(t *testing.T) {
 		change(&invalid)
 		if err := invalid.validate(); err == nil {
 			t.Fatal("unsupported cancellation accepted")
+		}
+	}
+}
+
+func TestUploadCancellationRequiresExactlyTwoWarmedH2Operations(t *testing.T) {
+	c := validConfig()
+	c.CancelStage, c.Method, c.UploadBytes, c.Requests, c.Warmup, c.Template = "upload", "POST", 65536, 2, 1, false
+	if err := c.validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(*config){
+		func(c *config) { c.Requests = 4 }, func(c *config) { c.Protocol = "h3" },
+		func(c *config) { c.UploadBytes = 0 }, func(c *config) { c.CancelAfterBytes = 1 },
+		func(c *config) { c.Warmup = 0 }, func(c *config) { c.Template = true },
+	} {
+		bad := c
+		change(&bad)
+		if bad.validate() == nil {
+			t.Fatal("incompatible upload cancellation accepted")
 		}
 	}
 }

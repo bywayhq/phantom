@@ -70,7 +70,14 @@ def validate_result(raw, config):
         if "head_ns" not in sample:
             raise ValueError("client sample must declare head timing")
         if head is None:
-            if "head_ns" not in unavailable and sample["error"] is None:
+            if (
+                "head_ns" not in unavailable
+                and sample["error"] is None
+                and not (
+                    expected["cancel_stage"] == "upload"
+                    and sample.get("cancelled") is True
+                )
+            ):
                 raise ValueError("unavailable head timing needs an explicit reason")
         elif not unsigned(head) or "head_ns" in unavailable:
             raise ValueError("head timing must agree with declared availability")
@@ -88,13 +95,17 @@ def validate_result(raw, config):
         ):
             raise ValueError("client sample timing boundaries are inconsistent")
         cancelled = sample.get("cancelled", False)
-        should_cancel = bool(expected["cancel_after_bytes"] and sample["id"] % 2 == 0)
+        upload_cancel = expected["cancel_stage"] == "upload" and sample["id"] == 0
+        should_cancel = upload_cancel or bool(
+            expected["cancel_after_bytes"] and sample["id"] % 2 == 0
+        )
         if type(cancelled) is not bool or (cancelled and sample["error"] is not None):
             raise ValueError("cancellation must be a distinct outcome")
         if sample["error"] is None and cancelled != should_cancel:
             raise ValueError("wrong cancellation selection")
         if (
             cancelled
+            and not upload_cancel
             and not expected["cancel_after_bytes"]
             <= sample["bytes"]
             < expected["bytes"]
@@ -102,6 +113,12 @@ def validate_result(raw, config):
             raise ValueError(
                 "cancelled stream must stop after its prefix and before completion"
             )
+        if (
+            upload_cancel
+            and cancelled
+            and (sample["bytes"] != 0 or head is not None or first is not None)
+        ):
+            raise ValueError("cancelled upload must have no response head or body")
         expected_bytes = (
             0 if config.get("protocol") == "construct" else config.get("bytes", 1024)
         )

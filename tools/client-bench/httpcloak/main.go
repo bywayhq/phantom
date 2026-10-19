@@ -124,7 +124,7 @@ func allZ(data []byte) bool {
 	return true
 }
 
-func request(c config, r ready, shared *client.Session, record *sample, start time.Time) (err error) {
+func request(parent context.Context, c config, r ready, shared *client.Session, record *sample, start time.Time) (err error) {
 	selected := shared
 	if c.Cold {
 		selected, err = newClient(c, r)
@@ -134,14 +134,18 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 		record.BuildNS = time.Since(start).Nanoseconds()
 		defer selected.Close()
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), start.Add(15*time.Second))
+	ctx, cancel := context.WithDeadline(parent, start.Add(15*time.Second))
 	defer cancel()
 	target := r.URLs[record.ID%len(r.URLs)]
-	if c.CancelAfterBytes != 0 && record.ID%2 == 0 {
+	if (c.CancelAfterBytes != 0 && record.ID%2 == 0) || (c.CancelStage == "upload" && record.ID == 0) {
 		target += "?cancel=1"
 	}
-	req := &client.Request{Method: c.Method, URL: target}
-	if c.Method == "POST" {
+	method := c.Method
+	if c.CancelStage == "upload" && record.ID != 0 {
+		method = "GET"
+	}
+	req := &client.Request{Method: method, URL: target}
+	if method == "POST" {
 		req.Body = bytes.NewReader(bytes.Repeat([]byte{'U'}, c.UploadBytes))
 	}
 	if c.buffered() {
@@ -180,12 +184,56 @@ func request(c config, r ready, shared *client.Session, record *sample, start ti
 
 func execute(c config, r ready, shared *client.Session, record *sample) {
 	start := time.Now()
-	if err := request(c, r, shared, record, start); err != nil {
+	if err := request(context.Background(), c, r, shared, record, start); err != nil {
 		record.Cancelled = false
 		record.CompleteNS = time.Since(start).Nanoseconds()
 		message := err.Error()
 		record.Error = &message
 	}
+}
+
+func uploadCancellation(input *bufio.Reader, c config, r ready, shared *client.Session, record *sample) {
+	start := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- request(ctx, c, r, shared, record, start) }()
+	commandErr := control(input, "cancel-upload")
+	cancel()
+	requestErr := <-done
+	record.CompleteNS = time.Since(start).Nanoseconds()
+	if commandErr == nil && uploadCancelled(requestErr) && record.HeadNS == nil && record.Bytes == 0 {
+		record.Cancelled = true
+		return
+	}
+	err := errors.Join(commandErr, requestErr)
+	if err == nil {
+		err = errors.New("upload finished before cancellation")
+	}
+	message := err.Error()
+	record.Error = &message
+}
+
+func uploadCancelled(err error) bool {
+	if err == context.Canceled {
+		return true
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		causes := joined.Unwrap()
+		if len(causes) == 0 {
+			return false
+		}
+		for _, cause := range causes {
+			if !uploadCancelled(cause) {
+				return false
+			}
+		}
+		return true
+	}
+	if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+		return uploadCancelled(wrapped.Unwrap())
+	}
+	return false
 }
 
 func signal(event string) error {
@@ -218,6 +266,9 @@ func run(c config, r ready, output string) error {
 				record := sample{ID: id}
 				warmConfig := c
 				warmConfig.CancelAfterBytes = 0
+				if c.CancelStage == "upload" {
+					warmConfig.CancelStage, warmConfig.Method, warmConfig.UploadBytes = "body", "GET", 0
+				}
 				execute(warmConfig, r, shared, &record)
 				if record.Error != nil {
 					failures <- fmt.Errorf("warmup failed: %s", *record.Error)
@@ -262,7 +313,11 @@ func run(c config, r ready, output string) error {
 					record.ScheduledNS = planned.Nanoseconds()
 				}
 				record.ApplicationWaitNS = max(0, record.StartedNS-record.ScheduledNS)
-				execute(c, r, shared, record)
+				if c.CancelStage == "upload" && id == 0 {
+					uploadCancellation(input, c, r, shared, record)
+				} else {
+					execute(c, r, shared, record)
+				}
 			}
 		})
 	}

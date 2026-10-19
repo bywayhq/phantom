@@ -113,19 +113,42 @@ async fn request(
     } else {
         shared
     };
+    if config.cancel_stage == "upload" && record.id == 0 {
+        // Join the only cancellation-command reader even if send fails. The
+        // later save reader must never race a timed-out stdin worker.
+        let mut command = tokio::task::spawn_blocking(|| control("cancel-upload"));
+        let url = format!("{}?cancel=1", ready.urls[0]);
+        let request = selected.post(url).body(vec![b'U'; config.upload_bytes]);
+        tokio::select! {
+            biased;
+            response = request.send() => {
+                command.await??;
+                response?;
+                return Err("upload finished before cancellation".into());
+            }
+            result = &mut command => {
+                result??;
+                record.cancelled = true;
+                record.complete_ns = nanos(start.elapsed());
+                return Ok(());
+            }
+        }
+    }
     tokio::time::timeout_at(
         tokio::time::Instant::from_std(start + Duration::from_secs(15)),
         async {
+            let upload_cancel = config.cancel_stage == "upload" && record.id == 0;
             let cancel = config.cancel_after_bytes != 0 && record.id.is_multiple_of(2);
             let mut url = ready.urls[record.id % ready.urls.len()].clone();
-            if cancel {
+            if cancel || upload_cancel {
                 url.push_str("?cancel=1");
             }
-            let request = if config.method == "POST" {
-                selected.post(&url).body(vec![b'U'; config.upload_bytes])
-            } else {
-                selected.get(&url)
-            };
+            let request =
+                if config.method == "POST" && (config.cancel_stage != "upload" || upload_cancel) {
+                    selected.post(&url).body(vec![b'U'; config.upload_bytes])
+                } else {
+                    selected.get(&url)
+                };
             let response = request.send().await?;
             record.head_ns = Some(nanos(start.elapsed()));
             let expected = if config.protocol == "h1" {
@@ -206,6 +229,11 @@ async fn run(config: Config, ready: Ready, output: &Path) -> Result<()> {
         let (config, ready, shared) = (config.clone(), ready.clone(), shared.clone());
         let mut config = (*config).clone();
         config.cancel_after_bytes = 0;
+        if config.cancel_stage == "upload" {
+            config.cancel_stage = "body".into();
+            config.method = "GET".into();
+            config.upload_bytes = 0;
+        }
         warmup.spawn(async move {
             for id in (worker..config.warmup).step_by(config.concurrency) {
                 let mut record = sample(id);

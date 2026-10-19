@@ -32,6 +32,8 @@ struct Stats {
     cancelled_streams: AtomicUsize,
     cancelled_http1_connections: AtomicUsize,
     cancelled_http3_streams: AtomicUsize,
+    upload_headers: AtomicUsize,
+    cancelled_uploads: AtomicUsize,
     cancelled_while_multiplexed: AtomicUsize,
     #[serde(skip)]
     settlement: tokio::sync::Notify,
@@ -126,6 +128,7 @@ struct Body {
     redirects: usize,
     redirect_location: Option<String>,
     cancellation_enabled: bool,
+    upload_cancellation: bool,
     cancel: bool,
 }
 
@@ -146,7 +149,8 @@ impl Body {
             upload: upload::Upload::new(config),
             redirects: config.redirects,
             redirect_location: None,
-            cancellation_enabled: config.cancel_after_bytes != 0,
+            cancellation_enabled: config.cancel_after_bytes != 0 || config.cancel_stage == "upload",
+            upload_cancellation: config.cancel_stage == "upload",
             cancel: false,
         })
     }
@@ -187,6 +191,9 @@ impl Body {
                 Some("/?cancel=1") => true,
                 _ => return Err("unexpected cancellation request target".into()),
             };
+            if body.upload_cancellation && !body.cancel {
+                body.upload = upload::Upload::get();
+            }
             return Ok(body);
         }
         let target: http::Uri = target.parse()?;
@@ -316,7 +323,11 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
     body: Arc<Body>,
     stats: Arc<Stats>,
 ) -> Result<()> {
-    let mut connection = http2::server::handshake(stream).await?;
+    let mut builder = http2::server::Builder::new();
+    if body.upload_cancellation {
+        builder.initial_window_size(0);
+    }
+    let mut connection = builder.handshake(stream).await?;
     let mut responses = JoinSet::new();
     let (mut received, mut completed) = (0, 0);
     let active_full = Arc::new(AtomicUsize::new(0));
@@ -329,9 +340,28 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                 break;
             }
         };
-        body.upload
-            .head(request.method(), request.headers(), false)?;
         let response_body = body.for_target(&request.uri().to_string())?;
+        response_body
+            .upload
+            .head(request.method(), request.headers(), false)?;
+        if response_body.upload_cancellation && response_body.cancel {
+            if request
+                .headers()
+                .get(http::header::CONTENT_LENGTH)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.parse::<usize>().ok())
+                != Some(body.upload.length())
+                || request.body().is_end_stream()
+            {
+                return Err(
+                    "selected upload needs its nonzero configured content length and open body"
+                        .into(),
+                );
+            }
+            stats.upload_headers.fetch_add(1, Ordering::Release);
+            stats.settlement.notify_one();
+            signal("upload_headers")?;
+        }
         let mut incoming = request.into_body();
         received += 1;
         let (body, stats) = (response_body, stats.clone());
@@ -344,6 +374,9 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                 let mut observed = 0;
                 while let Some(data) = incoming.data().await {
                     let data = data?;
+                    if body.upload_cancellation && !data.is_empty() {
+                        return Err("request DATA arrived despite the zero stream window".into());
+                    }
                     body.upload.chunk(&mut observed, &data)?;
                     incoming.flow_control().release_capacity(data.len())?;
                 }
@@ -392,14 +425,19 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
             .await;
             let result = if body.cancel
                 && result.as_ref().err().is_some_and(|error| {
-                    error
-                        .downcast_ref::<http2::Error>()
-                        .is_some_and(|error| error.reason() == Some(http2::Reason::CANCEL))
+                    error.downcast_ref::<http2::Error>().is_some_and(|error| {
+                        error.reason() == Some(http2::Reason::CANCEL)
+                            && (!body.upload_cancellation
+                                || cancellation::http2_upload_cancel(error))
+                    })
                 }) {
                 if active_full.load(Ordering::Relaxed) > 0 {
                     stats
                         .cancelled_while_multiplexed
                         .fetch_add(1, Ordering::Relaxed);
+                }
+                if body.upload_cancellation {
+                    stats.cancelled_uploads.fetch_add(1, Ordering::Relaxed);
                 }
                 stats.cancelled_streams.fetch_add(1, Ordering::Release);
                 Ok(())
@@ -750,7 +788,7 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
     loop {
         match read_control()?.as_str() {
             "snapshot" => {
-                if config.cancel_after_bytes != 0 {
+                if config.cancel_after_bytes != 0 || config.cancel_stage == "upload" {
                     // Await actual response/reset outcomes, not an arbitrary grace sleep.
                     let settled = tokio::time::timeout(Duration::from_secs(5), async {
                         loop {

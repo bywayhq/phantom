@@ -1,0 +1,23 @@
+{
+  "repeats": 1,
+  "base": {
+    "protocol": "h2",
+    "profile": "chrome",
+    "route": "direct",
+    "requests": 2,
+    "warmup": 1,
+    "concurrency": 2,
+    "method": "POST",
+    "upload_bytes": 65536,
+    "cancel_stage": "upload",
+    "bytes": 1024,
+    "consume": "stream",
+    "workers": 1,
+    "peer_workers": 2
+  },
+  "cases": [
+    {
+      "name": "h2-zero-window-upload-cancel"
+    }
+  ]
+}

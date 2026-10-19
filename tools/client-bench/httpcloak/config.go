@@ -24,6 +24,7 @@ type config struct {
 	UploadBytes        int    `json:"upload_bytes"`
 	Redirects          int    `json:"redirects"`
 	CancelAfterBytes   int    `json:"cancel_after_bytes"`
+	CancelStage        string `json:"cancel_stage"`
 	Consume            string `json:"consume"`
 	Cold               bool   `json:"cold"`
 	Origins            int    `json:"origins"`
@@ -70,6 +71,16 @@ func parseConfig(data []byte) (config, error) {
 }
 
 func (c config) validate() error {
+	if c.CancelStage != "body" && c.CancelStage != "upload" {
+		return errors.New("unsupported cancellation stage")
+	}
+	if c.CancelStage == "upload" && (c.Protocol != "h2" || c.Route != "direct" ||
+		c.Consume != "stream" || c.Cold || c.Origins != 1 || c.Method != "POST" ||
+		c.UploadBytes == 0 || c.Gzip || c.Redirects != 0 || c.Warmup != 1 ||
+		c.Concurrency != 2 || c.Requests != 2 || c.CancelAfterBytes != 0 ||
+		c.ArrivalIntervalUS != 0 || c.DiagnosticEvents != 0 || c.Template) {
+		return errors.New("upload cancellation requires two warm direct H2 operations and a nonempty POST")
+	}
 	if c.CancelAfterBytes < 0 || (c.CancelAfterBytes != 0 &&
 		((c.Protocol != "h1" && c.Protocol != "h2" && c.Protocol != "h3") || c.Route != "direct" || c.Consume != "stream" || c.Cold ||
 			c.Origins != 1 || c.Method != "GET" || c.Gzip || c.Redirects != 0 || c.Warmup != 1 ||

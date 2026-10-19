@@ -300,7 +300,7 @@ response latency summaries. A cancellation threshold can be exceeded by
 one delivered chunk. Reaching the full body before cancelling fails.
 
 This workload covers body abandonment through each public response API.
-Setup and upload cancellation need separate workloads.
+Setup cancellation and streaming uploads need separate workloads.
 Cancellation runs are diagnostic checks, not a speed comparison.
 
 The pinned curl_cffi adapter calls public `Response.aclose()`. In 0.16.3,
@@ -309,6 +309,22 @@ The peer therefore rejects its cancellation trials when every body finishes.
 Those results describe draining, not successful transport cancellation.
 The pinned wreq adapter rejects HTTP/3 before warmup. Select its H1/H2 cases
 explicitly; a rejected protocol is not a passing cancellation control.
+
+### Upload cancellation
+
+Use `upload-cancellation.json` for one known-length POST and one body-free
+GET on a warmed HTTP/2 session. The peer advertises a zero request-stream
+window. A completed GET warmup ensures those settings arrive before the POST.
+The peer checks its configured content length and emits `upload_headers`.
+Only then does the controller send `cancel-upload` to the client. The receipt
+retains that event and command.
+
+Acceptance requires a typed `CANCEL`, zero request DATA, a completed healthy
+GET, and one connection. Cancellation before a response reports no response
+head or first-byte timing. Timeouts, reconnects, other reset codes and failed
+public cancellation remain failures. Each adapter cancels the pending public
+request operation without closing its shared client. This is a correctness
+control for bounded in-memory uploads, not a streaming-upload or timing claim.
 
 ## Next
 

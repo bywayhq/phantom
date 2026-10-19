@@ -20,6 +20,13 @@ impl Upload {
         }
     }
 
+    pub(super) fn get() -> Self {
+        Self {
+            method: Method::GET,
+            length: 0,
+        }
+    }
+
     pub(super) fn length(&self) -> usize {
         self.length
     }
