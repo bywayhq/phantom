@@ -428,7 +428,7 @@ chain_linux() {
   run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
 }
 chain_python() {
-  local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release)
+  local ruff=(uvx ruff@0.17.0) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
