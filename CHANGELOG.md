@@ -4,6 +4,8 @@
 
 - Refresh cookie public-suffix data and compatible Rust dependency locks.
   Keep Rust 1.88 as the minimum supported compiler.
+- Update the httpcloak comparison adapter's Go dependencies to address the
+  reported `golang.org/x/crypto` and `golang.org/x/net` advisories.
 
 ## 0.2.0 - 2026-10-18
 
