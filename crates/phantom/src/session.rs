@@ -163,6 +163,8 @@ pub(crate) struct ClientOptions {
     pub(crate) http3_early_data: Option<bool>,
     #[cfg(feature = "https-records")]
     pub(crate) https_record_resolver: Option<phantom_net::dns::HttpsRecordResolver>,
+    #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+    pub(crate) https_record_checkpoint_namespace: Option<Box<str>>,
     #[cfg(feature = "cookies")]
     pub(crate) cookie_jar: Option<Arc<CookieJar>>,
 }
@@ -195,6 +197,8 @@ impl Default for ClientOptions {
             http3_early_data: None,
             #[cfg(feature = "https-records")]
             https_record_resolver: None,
+            #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+            https_record_checkpoint_namespace: None,
             #[cfg(feature = "cookies")]
             cookie_jar: None,
         }
@@ -311,6 +315,18 @@ impl ClientOptions {
             return Err(BuildError::invalid_policy(
                 "HTTPS record discovery requires an Alt-Svc store",
             ));
+        }
+        #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+        if let Some(namespace) = &self.https_record_checkpoint_namespace {
+            if self.https_record_resolver.is_none()
+                || namespace.is_empty()
+                || namespace.len() > 256
+                || namespace.chars().any(char::is_control)
+            {
+                return Err(BuildError::invalid_policy(
+                    "HTTPS checkpoint namespace requires discovery and 1..=256 bytes without controls",
+                ));
+            }
         }
         if self
             .negotiated_setup_wait_limit

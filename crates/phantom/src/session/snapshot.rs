@@ -9,15 +9,16 @@ use crate::{Client, Route, SessionSharing, SessionTicketSnapshot};
 mod codec;
 mod envelope;
 
-const MAX_BYTES: usize = 32 * 1024 * 1024;
+pub(in crate::session) const MAX_BYTES: usize = 32 * 1024 * 1024;
 #[cfg(feature = "cookies")]
 const MAX_COOKIES: usize = 16_384;
 const MAX_ALTERNATIVES: usize = 32_768;
 
-/// An authenticated, encrypted version-1 session checkpoint.
+/// An authenticated, encrypted version-2 session checkpoint.
 ///
 /// Includes enabled cookies, direct-route Alt-Svc alternatives and TLS tickets.
-/// It contains no DNS cache, client hints, HTTPS-record/ECH cache, connections,
+/// Explicitly opted-in HTTPS discovery includes completed answers and ECH.
+/// It contains no address DNS cache, client hints, connections,
 /// hooks or serialized client configuration. Keep the key separate from the
 /// checkpoint. Its format is tied to this library and its TLS backend.
 /// Debug formatting omits its contents.
@@ -64,7 +65,7 @@ pub enum SessionSnapshotErrorKind {
     Incompatible,
     /// The receiving client has a disabled category present in the checkpoint.
     Disabled,
-    /// Receiving cookie or Alt-Svc capacity would discard live entries.
+    /// Receiving cookie, Alt-Svc or HTTPS-answer capacity would discard live entries.
     Capacity,
     /// Configuration has no supported checkpoint identity.
     Unsupported,
@@ -86,7 +87,7 @@ pub struct SessionSnapshotError {
 }
 
 impl SessionSnapshotError {
-    fn new(kind: SessionSnapshotErrorKind) -> Self {
+    pub(in crate::session) fn new(kind: SessionSnapshotErrorKind) -> Self {
         Self { kind, source: None }
     }
 
@@ -144,6 +145,8 @@ struct State {
     #[cfg(feature = "cookies")]
     cookies: Option<crate::CookieSnapshot>,
     alt_svc: Option<crate::AltSvcSnapshot>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::https_record_snapshot::HttpsRecordSnapshot>,
     tickets: SessionTicketSnapshot,
 }
 
@@ -167,23 +170,41 @@ impl Client {
     /// Exports supported state into an encrypted session checkpoint.
     ///
     /// Supply a secret random 32-byte key. Cookies, direct-route Alt-Svc and
-    /// tickets retain their existing order and expiry. Export does not consume
-    /// tickets. Categories are sampled separately, so concurrent changes are
-    /// not one atomic point in time. No network or storage I/O occurs.
+    /// tickets retain their existing order and expiry. Opted-in HTTPS discovery
+    /// includes whole completed answers, including ECH and negative SOA TTLs.
+    /// Export does not consume tickets. Categories are sampled separately, so
+    /// concurrent changes are not one atomic point in time. No network or
+    /// storage I/O occurs.
     ///
     /// # Errors
     /// Rejects more than 16,384 cookies, 32,768 Alt-Svc alternatives, 64 KiB
-    /// fields, or 32 MiB overall. Native tickets retain their 16 MiB,
-    /// 256-owner and 2,560-record bounds. Custom TCP connectors, environment
+    /// fields, or 32 MiB overall. HTTPS discovery permits 65,535 entries,
+    /// records per answer and bytes per encoded record. Native tickets retain
+    /// their 16 MiB, 256-owner and 2,560-record bounds. Custom TCP connectors, environment
     /// proxy routing, default routes with configured credentials, SOCKS4 default
     /// routes, and unsupported ticket policies return an error. No category is
-    /// silently omitted.
+    /// silently omitted. HTTPS discovery requires an explicit portable resolver
+    /// namespace. Paired native resolver configurations are unsupported.
     pub fn export_session(&self, key: &[u8; 32]) -> Result<SessionSnapshot, SessionSnapshotError> {
         let state = State {
             context: self.snapshot_context()?,
             #[cfg(feature = "cookies")]
             cookies: self.export_cookies(),
             alt_svc: self.export_alt_svc(),
+            #[cfg(feature = "https-records")]
+            https_records: self
+                .state
+                .https_records
+                .as_ref()
+                .map(|discovery| {
+                    discovery.export_checkpoint(
+                        self.state
+                            .options
+                            .https_record_checkpoint_namespace
+                            .as_deref(),
+                    )
+                })
+                .transpose()?,
             tickets: self.export_session_tickets(key).map_err(|error| {
                 SessionSnapshotError::source(SessionSnapshotErrorKind::Tickets, error)
             })?,
@@ -197,11 +218,16 @@ impl Client {
     /// route must match. Supply request-only ticket routes in `receiving_routes`,
     /// as for [`Self::import_session_tickets`]. Existing cookies and caches in
     /// this client are not copied or changed. Returned state is independent.
-    /// DNS, client hints, HTTPS-record/ECH state and racing history start empty.
+    /// Address DNS, client hints and racing history start empty. HTTPS discovery
+    /// must have the same enabled state and explicit portable resolver namespace.
     /// Hooks and custom resolver callback state remain caller owned, as with
     /// [`Self::fork`]. Configuration is supplied by this client, not deserialized.
     ///
-    /// Expired cookies and alternatives are discarded without extending expiry.
+    /// Expired cookies, alternatives and HTTPS answers are discarded without
+    /// extending expiry. HTTPS answers preserve response order and LRU order.
+    /// Their remaining lifetime is capped by both their absolute expiry and
+    /// original DNS TTL. Absolute expiry depends on the system wall clock.
+    /// Pending HTTPS lookups and operational-error backoff are not restored.
     /// Expired tickets follow native import's rejection rules. No live entry is
     /// silently dropped to fit smaller receiving limits. An error never exposes
     /// a partially restored client or changes this client or its clones.
@@ -223,6 +249,28 @@ impl Client {
             ));
         }
         let restored = self.fork(SessionSharing::none());
+        #[cfg(feature = "https-records")]
+        match (&state.https_records, &restored.state.https_records) {
+            (Some(snapshot), Some(discovery)) => discovery.restore_checkpoint(
+                snapshot,
+                restored
+                    .state
+                    .options
+                    .https_record_checkpoint_namespace
+                    .as_deref(),
+            )?,
+            (Some(_), None) => {
+                return Err(SessionSnapshotError::new(
+                    SessionSnapshotErrorKind::Disabled,
+                ));
+            }
+            (None, Some(_)) => {
+                return Err(SessionSnapshotError::new(
+                    SessionSnapshotErrorKind::Incompatible,
+                ));
+            }
+            (None, None) => {}
+        }
         #[cfg(feature = "cookies")]
         if let Some(cookies) = &state.cookies {
             let jar = restored

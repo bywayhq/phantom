@@ -12,6 +12,27 @@ use crate::{AltSvcSnapshot, AltSvcSnapshotEntry, ClientBuilder, HttpProxy, Serve
 type TestResult = Result<(), Box<dyn StdError>>;
 const KEY: &[u8; 32] = &[42; 32];
 
+#[cfg(feature = "https-records")]
+mod https_records;
+
+#[cfg(not(feature = "https-records"))]
+#[test]
+fn https_section_is_rejected_when_discovery_support_is_not_compiled() -> TestResult {
+    let source = builder(1).build()?;
+    let mut bytes = envelope::open(source.export_session(KEY)?.as_bytes(), KEY)?;
+    *bytes.last_mut().ok_or("absent section flag")? = 1;
+    let checkpoint = SessionSnapshot(envelope::seal(bytes, KEY)?);
+    assert_eq!(
+        source
+            .restore_session(&checkpoint, KEY, &[])
+            .err()
+            .ok_or("enabled HTTPS section accepted")?
+            .kind(),
+        SessionSnapshotErrorKind::Disabled
+    );
+    Ok(())
+}
+
 fn builder(capacity: usize) -> ClientBuilder {
     Client::builder(chrome::v154_windows())
         .alt_svc(NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::MIN))

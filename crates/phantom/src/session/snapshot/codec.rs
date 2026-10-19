@@ -10,6 +10,9 @@ use super::{
 
 const MAX_FIELD: usize = 64 * 1024;
 
+#[cfg(feature = "https-records")]
+mod https_records;
+
 pub(super) fn copy(
     bytes: &[u8],
     maximum: usize,
@@ -175,6 +178,10 @@ pub(super) fn encode(state: &State) -> Result<Zeroizing<Vec<u8>>, SessionSnapsho
         }
     }
     writer.field(state.tickets.as_bytes(), 16 * 1024 * 1024)?;
+    #[cfg(feature = "https-records")]
+    https_records::write(&mut writer, state.https_records.as_ref())?;
+    #[cfg(not(feature = "https-records"))]
+    writer.byte(0)?;
     Ok(writer.0)
 }
 
@@ -216,6 +223,15 @@ pub(super) fn decode(bytes: &[u8]) -> Result<State, SessionSnapshotError> {
     };
     let tickets = crate::SessionTicketSnapshot::from_bytes(reader.field(16 * 1024 * 1024)?)
         .map_err(|error| SessionSnapshotError::source(Kind::Tickets, error))?;
+    let has_https_records = reader.boolean()?;
+    #[cfg(feature = "https-records")]
+    let https_records = has_https_records
+        .then(|| https_records::read(&mut reader))
+        .transpose()?;
+    #[cfg(not(feature = "https-records"))]
+    if has_https_records {
+        return Err(SessionSnapshotError::new(Kind::Disabled));
+    }
     if !reader.0.is_empty() {
         return Err(SessionSnapshotError::new(Kind::InvalidSnapshot));
     }
@@ -224,6 +240,8 @@ pub(super) fn decode(bytes: &[u8]) -> Result<State, SessionSnapshotError> {
         #[cfg(feature = "cookies")]
         cookies,
         alt_svc,
+        #[cfg(feature = "https-records")]
+        https_records,
         tickets,
     })
 }

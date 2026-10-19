@@ -1301,6 +1301,8 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
 pub(super) mod https_policy;
 #[cfg(feature = "https-records")]
 mod https_records;
+#[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+pub(crate) use https_records::snapshot as https_record_snapshot;
 #[cfg(feature = "https-records")]
 pub(crate) use https_records::{Discovery, HttpsRecordDiscovery, PendingLookup};
 

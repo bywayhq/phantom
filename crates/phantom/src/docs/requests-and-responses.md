@@ -15,6 +15,10 @@ portable export limits while older connections remain active.
 
 With `session-snapshot`, use [`Client::export_session`](crate::Client::export_session)
 to save supported cookies, direct-route Alt-Svc entries and TLS tickets together.
+HTTPS discovery also saves completed answers and ECH when you set
+[`https_record_checkpoint_namespace`](crate::ClientBuilder::https_record_checkpoint_namespace).
+Use the same namespace only for equivalent resolver policies and network scopes.
+Paired native resolver configurations cannot be restored this way.
 Keep its secret key separately. [`Client::restore_session`](crate::Client::restore_session)
 returns a new client with independent pools and checks the receiving configuration.
 See the API for supported routes, size limits and state that is not saved.

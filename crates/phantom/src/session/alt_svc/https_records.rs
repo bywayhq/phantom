@@ -85,6 +85,8 @@ struct ReadyEntry {
     port: u16,
     summary: Arc<RecordSummary>,
     expires_at: Instant,
+    #[cfg(feature = "session-snapshot")]
+    wall_expiry: Option<std::time::SystemTime>,
 }
 
 type LookupResult = watch::Receiver<Option<Arc<RecordSummary>>>;
@@ -643,6 +645,13 @@ impl Cache {
                     port: pending.port,
                     summary: Arc::clone(&summary),
                     expires_at,
+                    #[cfg(feature = "session-snapshot")]
+                    wall_expiry: {
+                        let wall = std::time::SystemTime::now();
+                        expires_at
+                            .checked_duration_since(Instant::now())
+                            .and_then(|remaining| wall.checked_add(remaining))
+                    },
                 };
                 if state.ready.len() == self.capacity.get() {
                     state.ready.pop_front();
@@ -655,6 +664,9 @@ impl Cache {
         let _ = pending.publisher.send_replace(Some(summary));
     }
 }
+
+#[cfg(feature = "session-snapshot")]
+pub(crate) mod snapshot;
 
 impl LookupOwner {
     fn complete(mut self, summary: Arc<RecordSummary>, deadline: Option<Instant>) {

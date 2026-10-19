@@ -676,3 +676,6 @@ async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
 mod deadline_contract;
 mod owner_contract;
 mod parallel_contract;
+
+#[cfg(feature = "session-snapshot")]
+mod checkpoint;

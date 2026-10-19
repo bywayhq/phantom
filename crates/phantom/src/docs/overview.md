@@ -97,7 +97,7 @@ uses to the `phantom` dependency in `Cargo.toml`.
 | `websocket` | WebSocket connections |
 | `websocket-deflate` | WebSocket compression; includes `websocket` |
 | `serde` | Cookie snapshot serialization, when `cookies` is also enabled |
-| `session-snapshot` | Encrypted cookie, direct-route Alt-Svc and TLS ticket checkpoints |
+| `session-snapshot` | Encrypted state checkpoints and caller-owned async storage |
 | `fingerprint-import` | Editable JSON profiles and partial TLS, QUIC and HTTP/2 imports |
 | `full` | All features above |
 | `diagnostics` | TLS key logs and QUIC qlog files; excluded from `full` |

@@ -6,7 +6,7 @@ use super::{MAX_BYTES, SessionSnapshotError, SessionSnapshotErrorKind as Kind, c
 const MAGIC: &[u8; 8] = b"PHSES001";
 const HEADER: usize = 26;
 const TAG: usize = 16;
-const KEY_DOMAIN: &[u8] = b"phantom-client-session-checkpoint-v1";
+const KEY_DOMAIN: &[u8] = b"phantom-client-session-checkpoint-v2";
 
 pub(super) fn seal(
     mut plaintext: Zeroizing<Vec<u8>>,
@@ -17,7 +17,7 @@ pub(super) fn seal(
     }
     let mut writer = codec::Writer::new();
     writer.raw(MAGIC)?;
-    writer.raw(&1_u16.to_be_bytes())?;
+    writer.raw(&2_u16.to_be_bytes())?;
     let mut nonce = [0; 12];
     btls::rand::rand_bytes(&mut nonce)?;
     writer.raw(&nonce)?;
@@ -41,7 +41,7 @@ pub(super) fn open(
     if bytes.len() < HEADER + TAG || &bytes[..8] != MAGIC {
         return Err(SessionSnapshotError::new(Kind::InvalidSnapshot));
     }
-    if bytes[8..10] != [0, 1] {
+    if bytes[8..10] != [0, 2] {
         return Err(SessionSnapshotError::new(Kind::Incompatible));
     }
     let length = u32::from_be_bytes(

@@ -2075,6 +2075,24 @@ impl ClientBuilder {
         self
     }
 
+    /// Asserts a portable HTTPS resolver identity for encrypted checkpoints.
+    ///
+    /// Use the same namespace only when resolver policy, trust, bootstrap and
+    /// network scope allow the same completed HTTPS answers to be reused.
+    /// The caller makes this assertion; Phantom cannot inspect callback state.
+    /// Namespaces have 1..=256 UTF-8 bytes without control characters.
+    /// Discovery must be enabled. Invalid input fails at [`Self::build`].
+    ///
+    /// Checkpoints with discovery require this explicit opt-in, even for an
+    /// empty cache. Fixed and callback resolvers can opt in. Paired native
+    /// resolvers remain unsupported: their process-local configuration token
+    /// does not establish portable identity. This does not change DNS queries.
+    #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
+    pub fn https_record_checkpoint_namespace(mut self, namespace: impl Into<Box<str>>) -> Self {
+        self.options.https_record_checkpoint_namespace = Some(namespace.into());
+        self
+    }
+
     /// Enables a bounded in-memory cookie jar owned by the client.
     ///
     /// By default the client has no cookie jar. This jar uses the default
