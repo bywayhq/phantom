@@ -10,6 +10,9 @@ use crate::{HttpProtocol, RequestError, RequestErrorKind, ResponseBody, TimeoutP
 type BoxError = Box<dyn StdError + Send + Sync>;
 
 /// Stable category of WebSocket connection or framing failure.
+///
+/// Match variants instead of numeric casts; this enum has no stable numeric
+/// representation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketErrorKind {

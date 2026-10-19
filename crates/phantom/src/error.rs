@@ -338,6 +338,9 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
 }
 
 /// The kind of failure while sending a request or reading its response.
+///
+/// Match variants instead of numeric casts; this enum has no stable numeric
+/// representation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestErrorKind {

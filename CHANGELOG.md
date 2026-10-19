@@ -18,8 +18,14 @@
 - Add bounded custom redirect policies with resolved URL and method context.
   Callbacks can follow, stop with the redirect response, or reject a hop.
   **Breaking:** `RedirectPolicy` is now `Clone` rather than `Copy` and no longer
-  implements equality. Migrate: clone shared policies explicitly and use
-  `max_hops()` to inspect their limit.
+  implements equality, `UnwindSafe` or `RefUnwindSafe`. Migrate: clone shared
+  policies explicitly, use `max_hops()` to inspect their limit, and keep policies
+  outside closures that require unwind safety.
+
+- **Breaking:** new variants change the numeric casts of `RequestErrorKind`,
+  `WebSocketErrorKind` and `FingerprintImportErrorKind`. Migrate: match their
+  variants instead of storing numeric casts. These enums have no stable numeric
+  representation.
 
 - Compare explicit HTTP/2 body cancellation while sibling streams complete.
   Require peer-observed CANCEL resets on one shared connection.

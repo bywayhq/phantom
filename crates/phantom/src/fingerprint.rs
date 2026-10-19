@@ -25,6 +25,9 @@ pub use compact::{ImportedProfile, import_akamai_profile};
 pub use registry::{ProfileRegistry, ProfileRegistryError, ProfileRegistryErrorKind};
 
 /// Recovery category for a custom-profile document error.
+///
+/// Match variants instead of numeric casts; this enum has no stable numeric
+/// representation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum FingerprintImportErrorKind {

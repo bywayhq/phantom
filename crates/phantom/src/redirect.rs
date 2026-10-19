@@ -18,6 +18,8 @@ pub use history::{RedirectHistory, RedirectHop};
 /// or replace it for one request with
 /// [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
 /// Use [`RedirectPolicy::custom`] to decide which resolved URLs to follow.
+/// Cloning a policy shares its callback. Callbacks may carry state and are not
+/// required to be unwind safe.
 ///
 /// A 301, 302, 303, 307, or 308 is followed to an `http://` or `https://`
 /// target; any other resolved `Location` scheme fails with
