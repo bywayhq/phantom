@@ -289,10 +289,10 @@ async fn http1<S: AsyncRead + AsyncWrite + Unpin>(
         stream.get_mut().write_all(head.as_bytes()).await?;
         if body.cancel {
             cancellation::http1_body(stream, &body).await?;
-            stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
             stats
                 .cancelled_http1_connections
                 .fetch_add(1, Ordering::Relaxed);
+            stats.cancelled_streams.fetch_add(1, Ordering::Release);
             stats.settlement.notify_one();
             return Ok(());
         }
@@ -396,12 +396,12 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                         .downcast_ref::<http2::Error>()
                         .is_some_and(|error| error.reason() == Some(http2::Reason::CANCEL))
                 }) {
-                stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
                 if active_full.load(Ordering::Relaxed) > 0 {
                     stats
                         .cancelled_while_multiplexed
                         .fetch_add(1, Ordering::Relaxed);
                 }
+                stats.cancelled_streams.fetch_add(1, Ordering::Release);
                 Ok(())
             } else {
                 result
@@ -606,11 +606,11 @@ async fn quic_listener(
                                 cancellation::quic_stream_cancelled(error.as_ref())
                             })
                         {
-                            stats.cancelled_streams.fetch_add(1, Ordering::Relaxed);
                             stats.cancelled_http3_streams.fetch_add(1, Ordering::Relaxed);
                             if active_full.load(Ordering::Relaxed) > 0 {
                                 stats.cancelled_while_multiplexed.fetch_add(1, Ordering::Relaxed);
                             }
+                            stats.cancelled_streams.fetch_add(1, Ordering::Release);
                             Ok(())
                         } else {
                             result
@@ -755,8 +755,10 @@ pub(crate) async fn serve(config: Config, ready_path: &Path, output: &Path) -> R
                     let settled = tokio::time::timeout(Duration::from_secs(5), async {
                         loop {
                             let notified = stats.settlement.notified();
+                            // Cancellation publishes its protocol counters before
+                            // this acquire admits a complete snapshot.
                             if stats.requests.load(Ordering::Relaxed)
-                                + stats.cancelled_streams.load(Ordering::Relaxed)
+                                + stats.cancelled_streams.load(Ordering::Acquire)
                                 == stats.expected_requests
                             {
                                 break;
