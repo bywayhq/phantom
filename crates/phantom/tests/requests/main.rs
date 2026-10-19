@@ -34,6 +34,7 @@ mod ping_failure_replay;
 mod plaintext_templates;
 mod prepared_bodies;
 mod query_authorization;
+mod raw_request;
 mod redirects;
 mod request_connections;
 mod request_conveniences;

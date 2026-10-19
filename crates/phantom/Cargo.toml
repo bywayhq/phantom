@@ -106,10 +106,6 @@ path = "tests/http3/main.rs"
 name = "streams"
 path = "tests/streams/main.rs"
 
-[[test]]
-name = "raw_request"
-path = "tests/raw_request.rs"
-
 [[example]]
 name = "autobahn-client"
 path = "examples/autobahn_client.rs"
