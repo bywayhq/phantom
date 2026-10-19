@@ -82,6 +82,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             [
                 "close_idle",
                 "refresh",
+                "sharing",
                 "dns_overrides",
                 "early_data_server",
                 "http2_connections",
