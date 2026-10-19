@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add offline, versioned profile bundles with bounded validation and
+  publisher-supplied provenance. Inspect and install bundles with the CLI,
+  then select an exact digest and profile name. Rollback selects an older
+  installed digest without changing existing clients.
+
 - Add optional charset-aware response text reads with separate input and UTF-8
   output limits. Invalid labels and malformed text return typed errors while
   preserving response metadata. Existing text reads remain strict UTF-8.
