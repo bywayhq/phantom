@@ -328,6 +328,15 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         builder.initial_window_size(0);
     }
     let mut connection = builder.handshake(stream).await?;
+    let (mut upload_release, mut healthy_wait) = if body.upload_cancellation {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        (Some(sender), Some(receiver))
+    } else {
+        (None, None)
+    };
+    let upload_ready = body
+        .upload_cancellation
+        .then(|| Arc::new(AtomicUsize::new(0)));
     let mut responses = JoinSet::new();
     let (mut received, mut completed) = (0, 0);
     let active_full = Arc::new(AtomicUsize::new(0));
@@ -344,6 +353,18 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         response_body
             .upload
             .head(request.method(), request.headers(), false)?;
+        let (mut release, mut wait) = (None, None);
+        if response_body.upload_cancellation {
+            if received == 0 {
+                if response_body.cancel {
+                    return Err("upload cancellation must start with a GET warmup".into());
+                }
+            } else if response_body.cancel {
+                release = Some(upload_release.take().ok_or("duplicate selected upload")?);
+            } else {
+                wait = Some(healthy_wait.take().ok_or("duplicate healthy GET")?);
+            }
+        }
         if response_body.upload_cancellation && response_body.cancel {
             if request
                 .headers()
@@ -358,9 +379,6 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                         .into(),
                 );
             }
-            stats.upload_headers.fetch_add(1, Ordering::Release);
-            stats.settlement.notify_one();
-            signal("upload_headers")?;
         }
         let mut incoming = request.into_body();
         received += 1;
@@ -369,8 +387,16 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
         if !body.cancel {
             active_full.fetch_add(1, Ordering::Relaxed);
         }
+        let upload_ready = upload_ready.clone();
         responses.spawn(async move {
             let result: Result<()> = async {
+                if release.is_some() {
+                    cancellation::upload_ready(
+                        upload_ready.as_deref().ok_or("missing upload readiness")?,
+                        1,
+                        &stats,
+                    )?;
+                }
                 let mut observed = 0;
                 while let Some(data) = incoming.data().await {
                     let data = data?;
@@ -388,7 +414,20 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                     .uploaded_bytes
                     .fetch_add(observed as u64, Ordering::Relaxed);
                 body.before_head().await;
-                let mut send = respond.send_response(body.head()?, body.bytes.is_empty())?;
+                let hold_healthy = wait.is_some();
+                let mut send =
+                    respond.send_response(body.head()?, body.bytes.is_empty() && !hold_healthy)?;
+                if let Some(wait) = wait {
+                    cancellation::upload_ready(
+                        upload_ready.as_deref().ok_or("missing upload readiness")?,
+                        2,
+                        &stats,
+                    )?;
+                    tokio::time::timeout(Duration::from_secs(5), wait).await??;
+                    if body.bytes.is_empty() {
+                        send.send_data(Bytes::new(), true)?;
+                    }
+                }
                 let mut offset = 0;
                 while offset < body.bytes.len() {
                     body.before_chunk().await;
@@ -440,6 +479,11 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                     stats.cancelled_uploads.fetch_add(1, Ordering::Relaxed);
                 }
                 stats.cancelled_streams.fetch_add(1, Ordering::Release);
+                if let Some(release) = release.take() {
+                    release
+                        .send(())
+                        .map_err(|()| "healthy GET ended before upload cancellation")?;
+                }
                 Ok(())
             } else {
                 result

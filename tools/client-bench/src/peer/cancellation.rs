@@ -1,10 +1,20 @@
-use super::{Body, Result};
+use super::{Body, Result, Stats};
 use std::{
     error::Error,
     io,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader};
+
+pub(super) fn upload_ready(state: &AtomicUsize, event: usize, stats: &Stats) -> Result<()> {
+    // Exactly one POST and one healthy response head publish separate bits.
+    if state.fetch_or(event, Ordering::AcqRel) | event == 3 {
+        stats.upload_headers.fetch_add(1, Ordering::Release);
+        stats.settlement.notify_one();
+        crate::signal("upload_headers")?;
+    }
+    Ok(())
+}
 
 fn disconnect(error: &io::Error) -> bool {
     matches!(

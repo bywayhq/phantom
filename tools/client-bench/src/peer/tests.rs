@@ -461,6 +461,19 @@ async fn h2_zero_window_cancel_preserves_a_warmed_body_free_get() -> Result<()> 
             0,
             "warmup must apply the zero-window SETTINGS"
         );
+        let (healthy, _) = sender.send_request(
+            http::Request::builder()
+                .uri("https://localhost/")
+                .body(())?,
+            true,
+        )?;
+        let mut healthy = tokio::time::timeout(Duration::from_secs(5), healthy)
+            .await??
+            .into_body();
+        assert!(
+            !healthy.is_end_stream(),
+            "healthy response must stay open before cancellation"
+        );
         tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 let notified = stats.settlement.notified();
@@ -471,16 +484,14 @@ async fn h2_zero_window_cancel_preserves_a_warmed_body_free_get() -> Result<()> 
             }
         })
         .await?;
-        let (healthy, _) = sender.send_request(
-            http::Request::builder()
-                .uri("https://localhost/")
-                .body(())?,
-            true,
-        )?;
+        assert_eq!(
+            stats.requests.load(Ordering::Relaxed),
+            1,
+            "only the warmup may finish before cancellation"
+        );
         upload.send_reset(reason);
         tokio::time::timeout(Duration::from_secs(5), ping.ping(http2::Ping::opaque())).await??;
         if reason == http2::Reason::CANCEL {
-            let mut healthy = healthy.await?.into_body();
             let mut bytes = 0;
             while let Some(data) = healthy.data().await {
                 let data = data?;
@@ -495,6 +506,7 @@ async fn h2_zero_window_cancel_preserves_a_warmed_body_free_get() -> Result<()> 
         if reason == http2::Reason::CANCEL {
             result?;
             assert_eq!(stats.cancelled_uploads.load(Ordering::Relaxed), 1);
+            assert_eq!(stats.cancelled_while_multiplexed.load(Ordering::Relaxed), 1);
             assert_eq!(stats.requests.load(Ordering::Relaxed), 2);
         } else {
             assert!(result.is_err());

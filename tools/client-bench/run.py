@@ -180,9 +180,7 @@ def accepted(summary, config, phase):
                 or (
                     config.get("protocol") in ("h2", "h3")
                     and phase["connections"] == 1
-                    and (
-                        upload_cancel or phase.get("cancelled_while_multiplexed", 0) > 0
-                    )
+                    and phase.get("cancelled_while_multiplexed", 0) > 0
                     and (
                         config.get("protocol") == "h2"
                         or phase.get("cancelled_http3_streams", 0) == cancellations
@@ -199,6 +197,7 @@ def accepted(summary, config, phase):
             or (
                 phase.get("upload_headers", 0) == 1
                 and phase.get("cancelled_uploads", 0) == 1
+                and phase.get("cancelled_while_multiplexed", 0) == 1
             )
         )
         and phase.get("redirect_responses", 0) == logical * config.get("redirects", 0)

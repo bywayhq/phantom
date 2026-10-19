@@ -53,6 +53,7 @@ def phase():
         "requests": 2,
         "cancelled_streams": 1,
         "cancelled_uploads": 1,
+        "cancelled_while_multiplexed": 1,
         "upload_headers": 1,
         "uploaded_bytes": 0,
         "failures": 0,
@@ -111,6 +112,8 @@ class ContractTests(unittest.TestCase):
             {"cancelled_streams": 0},
             {"upload_headers": 0},
             {"cancelled_uploads": 0},
+            {"cancelled_while_multiplexed": 0},
+            {"cancelled_while_multiplexed": 2},
             {"uploaded_bytes": 1},
             {"failures": 1},
         ):
@@ -133,7 +136,7 @@ if role == "serve":
     signal("ready")
     signal("upload_headers")
     assert input() == "snapshot"
-    p = {"connections":1,"requests":2,"cancelled_streams":1,"cancelled_uploads":1,"upload_headers":1,"uploaded_bytes":0,"failures":0,"proxy_connections":0}
+    p = {"connections":1,"requests":2,"cancelled_streams":1,"cancelled_uploads":1,"cancelled_while_multiplexed":1,"upload_headers":1,"uploaded_bytes":0,"failures":0,"proxy_connections":0}
     result.with_name("peer-phase.json").write_text(json.dumps(p))
     signal("snapshotted")
     assert input() == "stop"

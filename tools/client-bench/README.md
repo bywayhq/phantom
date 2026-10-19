@@ -315,12 +315,14 @@ explicitly; a rejected protocol is not a passing cancellation control.
 Use `upload-cancellation.json` for one known-length POST and one body-free
 GET on a warmed HTTP/2 session. The peer advertises a zero request-stream
 window. A completed GET warmup ensures those settings arrive before the POST.
-The peer checks its configured content length and emits `upload_headers`.
-Only then does the controller send `cancel-upload` to the client. The receipt
-retains that event and command.
+The peer checks the POST's configured content length and sends the healthy
+GET's response head without ending its stream. Once both streams are open,
+it emits `upload_headers`. Only then does the controller send `cancel-upload`
+to the client. The healthy body waits for the POST's typed reset, with a
+five-second bound. The receipt retains the event and command.
 
 Acceptance requires a typed `CANCEL`, zero request DATA, a completed healthy
-GET, and one connection. Cancellation before a response reports no response
+GET overlapping the reset, and one connection. Cancellation before a response reports no response
 head or first-byte timing. Timeouts, reconnects, other reset codes and failed
 public cancellation remain failures. Each adapter cancels the pending public
 request operation without closing its shared client. This is a correctness
