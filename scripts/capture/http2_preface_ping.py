@@ -29,6 +29,7 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .browser_failures import CleanupFailures
 from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
 from .http2_session import (
@@ -266,7 +267,7 @@ async def serve(run: Run, context, reader, writer) -> None:
         await channel.write(connection.data_to_send())
 
 
-class PrefaceFailures(Exception):
+class PrefaceFailures(CleanupFailures):
     """Retain original failures and unfinished capture owners for retry."""
 
     def __init__(
@@ -275,14 +276,8 @@ class PrefaceFailures(Exception):
         cleanup: tuple[BaseException, ...],
         owner: PrefaceServer,
     ) -> None:
-        self.primary = primary
-        self.cleanup = cleanup
         self.owner = owner
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause: BaseException | None = None
-        self.interruption_context: BaseException | None = None
-        super().__init__("preface capture cleanup failed")
+        super().__init__(primary, cleanup, "preface capture cleanup failed")
 
 
 def _raise_preface_failures(
@@ -293,20 +288,7 @@ def _raise_preface_failures(
     cleanup = tuple(error for error in cleanup if error is not primary)
     if cleanup:
         failure = PrefaceFailures(primary, cleanup, owner)
-        interruption = next(
-            (
-                error
-                for error in (primary, *cleanup)
-                if isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-                )
-            ),
-            None,
-        )
-        if interruption is not None:
-            failure.interruption_cause = interruption.__cause__
-            failure.interruption_context = interruption.__context__
-            raise interruption from failure
+        failure.raise_interruption()
         if primary is not None:
             raise primary from failure
         raise failure from cleanup[0]

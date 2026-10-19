@@ -16,6 +16,7 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .browser_failures import CleanupFailures
 from .browser_launch import (
     BROWSERS,
     BrowserDriver,
@@ -108,7 +109,7 @@ def parse_navigation(head: bytes, requested: Sequence[str]) -> Navigation:
     return Navigation(tuple(names), tuple(hints))
 
 
-class HintFailures(Exception):
+class HintFailures(CleanupFailures):
     """Original caller and cleanup causes, with retained owners for retry."""
 
     def __init__(
@@ -117,14 +118,8 @@ class HintFailures(Exception):
         cleanup: tuple[BaseException, ...],
         server: HintServer,
     ) -> None:
-        self.primary = primary
-        self.cleanup = cleanup
         self.server = server
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause: BaseException | None = None
-        self.interruption_context: BaseException | None = None
-        super().__init__("client-hint capture cleanup failed")
+        super().__init__(primary, cleanup, "client-hint capture cleanup failed")
 
 
 def _raise_hint_failures(
@@ -135,20 +130,7 @@ def _raise_hint_failures(
     cleanup = tuple(error for error in cleanup if error is not primary)
     if cleanup:
         failure = HintFailures(primary, cleanup, server)
-        interruption = next(
-            (
-                error
-                for error in (primary, *cleanup)
-                if isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-                )
-            ),
-            None,
-        )
-        if interruption is not None:
-            failure.interruption_cause = interruption.__cause__
-            failure.interruption_context = interruption.__context__
-            raise interruption from failure
+        failure.raise_interruption()
         if primary is not None:
             raise primary from failure
         raise failure from cleanup[0]
