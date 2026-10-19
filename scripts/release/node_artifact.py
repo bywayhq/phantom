@@ -233,6 +233,25 @@ def runtime(node, major, target, commands):
     return node, cli, identity
 
 
+def npm_environment(consumer, node):
+    environment = os.environ.copy()
+    for key in (
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH",
+        "DYLD_FALLBACK_LIBRARY_PATH",
+    ):
+        environment.pop(key, None)
+    environment["PATH"] = str(node.parent) + os.pathsep + environment.get("PATH", "")
+    # npm rejects loading one path as both its user and global configuration.
+    for kind in ("user", "global"):
+        config = consumer / f"npm-{kind}.npmrc"
+        config.write_bytes(b"")
+        environment[f"NPM_CONFIG_{kind.upper()}CONFIG"] = str(config)
+    return environment
+
+
 def installed_checks(archive, runtimes, version, files, commands, tools):
     results = []
     with tempfile.TemporaryDirectory(prefix="phantom-node-package-") as temporary:
@@ -251,20 +270,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                     "private": True,
                 },
             )
-            environment = os.environ.copy()
-            for key in (
-                "NODE_OPTIONS",
-                "NODE_PATH",
-                "LD_LIBRARY_PATH",
-                "DYLD_LIBRARY_PATH",
-                "DYLD_FALLBACK_LIBRARY_PATH",
-            ):
-                environment.pop(key, None)
-            environment["PATH"] = (
-                str(node.parent) + os.pathsep + environment.get("PATH", "")
-            )
-            environment["NPM_CONFIG_USERCONFIG"] = os.devnull
-            environment["NPM_CONFIG_GLOBALCONFIG"] = os.devnull
+            environment = npm_environment(consumer, node)
             cache = consumer / "npm-cache"
             base = [str(node), str(cli)]
             commands.run(

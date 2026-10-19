@@ -247,6 +247,38 @@ class NodeArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "bundled npm"):
             artifact.runtime(node, 22, TARGET, commands)
 
+    def test_npm_uses_distinct_empty_configs_without_host_loader_overrides(self):
+        node = self.directory / "runtime/node.exe"
+        inherited = {
+            "PATH": "host-path",
+            "NODE_OPTIONS": "--require host-module",
+            "NODE_PATH": "host-modules",
+            "LD_LIBRARY_PATH": "host-libraries",
+            "DYLD_LIBRARY_PATH": "host-libraries",
+            "DYLD_FALLBACK_LIBRARY_PATH": "host-libraries",
+            "NPM_CONFIG_USERCONFIG": "host-user",
+            "NPM_CONFIG_GLOBALCONFIG": "host-global",
+        }
+        with patch.dict(os.environ, inherited, clear=True):
+            environment = artifact.npm_environment(self.directory, node)
+            self.assertEqual(os.environ, inherited)
+        user = Path(environment["NPM_CONFIG_USERCONFIG"])
+        global_config = Path(environment["NPM_CONFIG_GLOBALCONFIG"])
+        self.assertNotEqual(user.resolve(), global_config.resolve())
+        for config in (user, global_config):
+            self.assertTrue(config.is_file())
+            self.assertEqual(config.parent, self.directory)
+            self.assertEqual(config.read_bytes(), b"")
+        for key in inherited.keys() - {
+            "PATH",
+            "NPM_CONFIG_USERCONFIG",
+            "NPM_CONFIG_GLOBALCONFIG",
+        }:
+            self.assertNotIn(key, environment)
+        self.assertEqual(
+            environment["PATH"], str(node.parent) + os.pathsep + "host-path"
+        )
+
     def test_failed_installation_preserves_candidate_without_verified_artifact(self):
         binary = self.directory / "phantom_node.dll"
         binary.write_bytes(b"owned native bytes")
