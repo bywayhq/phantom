@@ -13,7 +13,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
-use tokio::time::{Instant, Sleep};
+use tokio::time::Instant;
 
 /// Optional body-byte caps and rates for a shared [`TransferControl`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -236,7 +236,8 @@ pub struct TransferStream {
     direction: TransferDirection,
     buffered: Bytes,
     admitted: usize,
-    sleep: Option<Pin<Box<Sleep>>>,
+    // Keep Tokio's timer internals out of nested request-future Send proofs.
+    sleep: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     failed: bool,
 }
 impl TransferStream {
