@@ -6,6 +6,10 @@
   New versions no longer need Python target tables or handwritten composition.
   Keep specific evidence limits and expand omitted unavailable-layer records.
 
+- Update installation examples and profile coverage descriptions. Link the
+  existing profile authoring, attempt budget, DNS and persistence APIs from
+  the public guides, and clarify caller cookie placement and fork sharing.
+
 - Import raw JA3, raw JA4 and supported captured TCP ClientHello fields using
   explicit base settings. Check the imported projection against a fresh
   in-memory ClientHello and report which settings remain supplemented.
