@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refresh cookie public-suffix data and compatible Rust dependency locks.
+  Keep Rust 1.88 as the minimum supported compiler.
+
 ## 0.2.0 - 2026-10-18
 
 - Add opt-in shared upload and encoded-download caps and pacing, with separate
