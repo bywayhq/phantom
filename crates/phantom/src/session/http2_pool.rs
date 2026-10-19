@@ -368,7 +368,7 @@ impl Http2Pool {
                 Ok(Err(error)) => {
                     // An unprocessed replay must use another connection, so
                     // one that refused a stream is retired when it is enabled.
-                    if invalidates_connection(&error)
+                    if invalidates_http2_connection(&error)
                         || (retries.replays_unprocessed_requests() && is_unprocessed_http2(&error))
                     {
                         entry.invalidate(&lease.token).await;
@@ -545,7 +545,7 @@ struct PoolState {
     families: AddressFamilies<PoolKey>,
 }
 
-fn invalidates_connection(error: &Http2Error) -> bool {
+pub(super) fn invalidates_http2_connection(error: &Http2Error) -> bool {
     match error {
         Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
         // The connection closed itself, as Chromium's SpdySession leaves the

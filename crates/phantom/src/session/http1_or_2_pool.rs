@@ -22,7 +22,7 @@ use phantom_net::{
         Http1Or2Connection, Http1Or2ProxyOpening, Http1Or2TlsConnector, Http1Or2TlsError,
     },
     http2::{
-        Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsError,
+        Http2Connection, Http2Error, Http2TlsError,
         validate_request_body_source_with_trailers as validate_http2_request_body_source_with_trailers,
     },
     proxy::HttpsProxyConnector,
@@ -50,7 +50,7 @@ use super::{
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
-    http2_pool::{is_graceful_goaway, send_on},
+    http2_pool::{invalidates_http2_connection, is_graceful_goaway, send_on},
     prune_timer::{PruneTimer, Pruned, PrunedEntry},
     stream_count::{OpenStream, StreamCount},
 };
@@ -3579,15 +3579,6 @@ fn prepare_headers(
     match client_hints {
         Some(context) => context.prepare(headers),
         None => Ok(headers),
-    }
-}
-
-fn invalidates_http2_connection(error: &Http2Error) -> bool {
-    match error {
-        Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
-        // The connection closed itself after an unanswered PING.
-        Http2Error::PingTimeout | Http2Error::ReusedConnectionClosed => true,
-        _ => false,
     }
 }
 
