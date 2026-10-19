@@ -133,7 +133,7 @@ fn destination_never_uses_a_base_url_or_retargets_input() -> TestResult {
         raw,
         RawRequestErrorKind::TargetMismatch,
     );
-    import(
+    let _ = import(
         &client,
         "https://example.com/a/%2e%2e/b?x=%2f",
         raw,
@@ -173,7 +173,7 @@ fn host_is_single_canonical_authority_with_explicit_port_preserved() -> TestResu
         ("https://bücher.example/", "xn--bcher-kva.example"),
     ] {
         let raw = format!("GET / HTTP/1.1\r\nHost: {host}\r\n\r\n");
-        import(&client, uri, raw.as_bytes(), raw.len())?;
+        let _ = import(&client, uri, raw.as_bytes(), raw.len())?;
     }
     for (uri, host) in [
         ("https://example.com/", "example.com:443"),
@@ -219,7 +219,7 @@ fn input_head_and_field_count_limits_have_exact_boundaries() -> TestResult {
             .kind(),
         RawRequestErrorKind::InputTooLarge
     );
-    import(&client, "https://example.com/", raw, raw.len())?;
+    let _ = import(&client, "https://example.com/", raw, raw.len())?;
     assert_eq!(
         import(&client, "invalid", &[0; 10], 0)
             .err()
@@ -231,7 +231,7 @@ fn input_head_and_field_count_limits_have_exact_boundaries() -> TestResult {
     let mut head = b"GET / HTTP/1.1\r\nHost: example.com\r\nX-Pad: ".to_vec();
     head.resize(MAXIMUM_HEAD_BYTES - 4, b'a');
     head.extend_from_slice(b"\r\n\r\n");
-    import(&client, "https://example.com/", &head, head.len())?;
+    let _ = import(&client, "https://example.com/", &head, head.len())?;
     head.insert(head.len() - 4, b'a');
     rejected(
         &client,
@@ -245,7 +245,7 @@ fn input_head_and_field_count_limits_have_exact_boundaries() -> TestResult {
         head.extend_from_slice(b"X: a\r\n");
     }
     head.extend_from_slice(b"\r\n");
-    import(&client, "https://example.com/", &head, head.len())?;
+    let _ = import(&client, "https://example.com/", &head, head.len())?;
     head.truncate(head.len() - 2);
     head.extend_from_slice(b"X: a\r\n\r\n");
     rejected(
@@ -265,7 +265,7 @@ fn binary_body_and_zero_length_are_complete_owned_messages() -> TestResult {
         b"POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n",
         b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
     ] {
-        import(&client, "https://example.com/", raw, raw.len())?;
+        let _ = import(&client, "https://example.com/", raw, raw.len())?;
     }
     Ok(())
 }
