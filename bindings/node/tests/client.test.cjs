@@ -297,6 +297,83 @@ test('Worker teardown cancels its native work without closing another environmen
   assert.equal((await (await client.request(url + '/healthy', request)).bytes(2)).toString(), 'ok');
 });
 
+test('a fresh Worker reloads after the last native environment terminates pending work', async () => {
+  const source = `
+    const assert = require('node:assert/strict');
+    const http = require('node:http');
+    const { once } = require('node:events');
+    const { Worker } = require('node:worker_threads');
+    const modulePath = process.argv[1];
+    const profile = process.argv[2];
+    const sockets = new Set();
+    const closures = [];
+    let sawSetup;
+    const setup = new Promise(resolve => { sawSetup = resolve; });
+    const server = http.createServer((req, res) => {
+      if (req.url === '/healthy') { res.end('ok'); return; }
+      closures.push(once(req.socket, 'close', {signal: AbortSignal.timeout(5000)}));
+      if (req.url === '/setup') sawSetup();
+      else { res.writeHead(200); res.flushHeaders(); }
+    });
+    server.on('connection', socket => {
+      sockets.add(socket); socket.on('close', () => sockets.delete(socket));
+    });
+    const workerSource = \`
+      const {parentPort, workerData} = require('node:worker_threads');
+      const {Client} = require(workerData.modulePath);
+      (async () => {
+        const client = new Client({profile: workerData.profile, route: 'direct'});
+        const options = {method: 'GET', protocol: 'http1', context: 'raw', timeoutMs: 10000};
+        if (workerData.pending) {
+          const setup = client.request(workerData.url + '/setup', options);
+          const body = await client.request(workerData.url + '/body', options);
+          const read = body.read();
+          parentPort.postMessage('pending');
+          await Promise.all([setup, read]);
+          throw new Error('unfinished requests unexpectedly completed');
+        }
+        const response = await client.request(workerData.url + '/healthy', options);
+        const value = (await response.bytes(2)).toString();
+        await client.close();
+        parentPort.postMessage(value);
+      })().catch(error => { console.error(error); process.exitCode = 1; });
+    \`;
+    (async () => {
+      const timer = setTimeout(() => { console.error('Worker reload control timed out'); process.exit(1); }, 15000);
+      timer.unref();
+      const workers = [];
+      try {
+        assert.equal(require.cache[require.resolve(modulePath)], undefined);
+        server.listen(0, '127.0.0.1'); await once(server, 'listening');
+        const url = 'http://127.0.0.1:' + server.address().port;
+        const first = new Worker(workerSource, {eval: true, workerData: {modulePath, profile, url, pending: true}});
+        workers.push(first);
+        assert.deepEqual(await once(first, 'message'), ['pending']);
+        await setup;
+        assert.equal(closures.length, 2);
+        await first.terminate();
+        await Promise.all(closures);
+        const second = new Worker(workerSource, {eval: true, workerData: {modulePath, profile, url, pending: false}});
+        workers.push(second);
+        const exited = once(second, 'exit');
+        assert.deepEqual(await once(second, 'message'), ['ok']);
+        assert.deepEqual(await exited, [0]);
+        assert.equal(require.cache[require.resolve(modulePath)], undefined);
+        assert.equal(Object.keys(require.cache).some(name => name.endsWith('phantom.node')), false);
+        console.log('worker-only reload ok');
+      } finally {
+        for (const worker of workers) await worker.terminate();
+        for (const socket of sockets) socket.destroy();
+        await new Promise(resolve => server.close(resolve));
+        clearTimeout(timer);
+      }
+    })().catch(error => { console.error(error); process.exitCode = 1; });
+  `;
+  const {stdout, stderr} = await promisify(execFile)(process.execPath, ['-e', source, path.resolve(__dirname, '..'), profile], {timeout: 20000});
+  assert.equal(stdout.trim(), 'worker-only reload ok');
+  assert.equal(stderr, '');
+});
+
 test('a live response retains its client across forced garbage collection', async () => {
   const source = `
     const assert = require('node:assert/strict');
