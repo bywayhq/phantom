@@ -1,0 +1,101 @@
+name: Go installation candidates
+
+on:
+  pull_request:
+    paths:
+      - bindings/go/**
+      - crates/**
+      - vendor/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - LICENSE-*
+      - scripts/release/go_artifact.py
+      - scripts/release/cli_artifact.py
+      - scripts/release/notices/**
+      - scripts/dev/tests/test_go_artifact.py
+      - scripts/dev/with-cargo-lock.sh
+      - .github/workflows/go-artifacts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-installation-candidates-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
+
+jobs:
+  archive:
+    name: Go (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+          - runner: macos-15
+            target: aarch64-apple-darwin
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Install NASM on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm --version=2.16.3 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "NASM installation failed" }
+          nasm -v
+          if ($LASTEXITCODE -ne 0) { throw "NASM verification failed" }
+
+      - name: Check installation helper
+        run: python -m unittest discover -s scripts/dev/tests -p test_go_artifact.py
+
+      - name: Build and verify extracted native Go archive
+        shell: bash
+        env:
+          ARTIFACT_TARGET: ${{ matrix.target }}
+        run: |
+          scripts/dev/with-cargo-lock.sh python scripts/release/go_artifact.py \
+            --target "$ARTIFACT_TARGET" --output target/go-artifact
+
+      - name: Upload verified Go archive and receipts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-go-${{ matrix.target }}
+          path: target/go-artifact/verified/
+          if-no-files-found: error
+
+      - name: Retain build and installation logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-go-logs-${{ matrix.target }}
+          path: target/go-artifact/logs/
+          if-no-files-found: ignore

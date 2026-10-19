@@ -65,10 +65,35 @@ On Windows amd64, set `PHANTOM_GO_LIBRARY` to the absolute path of
 Windows uses native DLL calls and does not require cgo. The DLL stays
 loaded for the process lifetime.
 
-Linux and macOS source uses cgo. Point `CGO_LDFLAGS` and your platform's
-dynamic loader at the built `libphantom_go` directory. Platform packaging
-and these Unix paths require their own verification; no binary release is
-provided here.
+Linux and macOS use cgo and require a C compiler. Point `CGO_LDFLAGS` and
+your platform's dynamic loader at the built `libphantom_go` directory.
+
+## Native installation candidates
+
+The [Go installation workflow](../../.github/workflows/go-artifacts.yml)
+prepares optimized candidates for Windows x64 MSVC, Linux x64 GNU and macOS
+arm64. Each archive pairs `module/` sources with `lib/`, licenses and a
+receipt. Keep that pair together. Add a local `replace` in your Go module
+to the extracted `module/` directory, as the archive's README describes.
+Windows uses `PHANTOM_GO_LIBRARY`; Unix uses the cgo and loader paths above.
+
+Each successful receipt records source, lockfile, native library and archive
+hashes, tools and native dependencies. Verification extracts outside the
+checkout, builds a separate consumer and runs all ten existing Go controls
+without skips. Only candidates passing those checks are uploaded. Failure
+logs remain available. There are no public module tags or registry releases.
+
+The receipt covers its recorded native host, not older OS/libc versions or
+other architectures. Windows requires the Microsoft x64 Visual C++ v14
+runtime, at least as recent as the recorded build tools. SDK/OS runtimes
+are not bundled. Keep all included notices when redistributing an archive.
+
+To prepare one locally from a clean checkout, run
+`scripts/release/go_artifact.py` through `scripts/dev/with-cargo-lock.sh`
+with `--target` and a new `--output` directory. This uses locked release
+dependencies; the ordinary development gate still uses its debug build.
+
+## Capacity and feature limits
 
 This first slice has fixed process-wide caps: 64 clients, budgets, response
 handles, and ordinary operations, plus 64 separately reserved shutdown
