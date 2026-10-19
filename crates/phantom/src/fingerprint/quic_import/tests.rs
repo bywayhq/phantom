@@ -44,9 +44,7 @@ fn block(base: &ClientProfile) -> Vec<u8> {
 
 fn base() -> ClientProfile {
     let base = chrome::v154_windows();
-    let mut document = super::super::export::describe(&base)
-        .expect("describe")
-        .0;
+    let mut document = super::super::export::describe(&base).expect("describe").0;
     let settings = &mut document["profile"]["http3"]["quic_transport"];
     settings["min_ack_delay_us"] = serde_json::Value::Null;
     settings["reset_stream_at"] = false.into();
