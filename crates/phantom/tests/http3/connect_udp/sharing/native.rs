@@ -1,6 +1,7 @@
 //! Concurrent origins retain independently owned tunnels on one outer session.
 
 use super::super::*;
+use phantom::SessionSharing;
 
 pub(super) async fn fetch(client: &Client, uri: &str, expected: &str) -> TestResult<()> {
     let response = client.get(HttpProtocol::Http3, uri)?.send().await?;
@@ -68,6 +69,42 @@ async fn shared_h3(challenge: bool) -> TestResult<()> {
                     .any(|(n, v)| n == "proxy-authorization" && v == b"Basic dXNlcjpwYXNz")
             }));
         }
+        let fork = client.fork(SessionSharing::none());
+        tokio::try_join!(
+            fetch(&fork, &one_uri, "/one"),
+            fetch(&fork, &two_uri, "/two")
+        )?;
+        assert_eq!((one.connections(), two.connections()), (2, 2));
+        assert_eq!(proxy.connections(), if challenge { 4 } else { 2 });
+        let after_fork = proxy.stream_ids();
+        let fork_start = streams.len() + usize::from(challenge);
+        assert_eq!(after_fork.len(), fork_start + 2);
+        assert_eq!(after_fork[fork_start].0, after_fork[fork_start + 1].0);
+        assert_ne!(after_fork[fork_start].1, after_fork[fork_start + 1].1);
+        assert_ne!(after_fork[fork_start].0, accepted[0].0);
+        if challenge {
+            let requests = proxy.requests();
+            assert!(
+                !requests[streams.len()]
+                    .fields
+                    .iter()
+                    .any(|(name, _)| name == "proxy-authorization")
+            );
+            assert!(requests[streams.len() + 1..].iter().all(|request| {
+                request.fields.iter().any(|(name, value)| {
+                    name == "proxy-authorization" && value == b"Basic dXNlcjpwYXNz"
+                })
+            }));
+        }
+        fork.shutdown().await;
+        assert!(!client.is_closed());
+        tokio::try_join!(
+            fetch(&client, &one_uri, "/one"),
+            fetch(&client, &two_uri, "/two")
+        )?;
+        assert_eq!(proxy.stream_ids(), after_fork);
+        assert_eq!((one.connections(), two.connections()), (2, 2));
+        client.shutdown().await;
         Ok(())
     }))
     .await;
@@ -136,6 +173,42 @@ async fn shared_h2(challenge: bool) -> TestResult<()> {
                     .any(|(n, v)| n == "proxy-authorization" && v == b"Basic dXNlcjpwYXNz")
             }));
         }
+        let fork = client.fork(SessionSharing::none());
+        tokio::try_join!(
+            fetch(&fork, &one_uri, "/one"),
+            fetch(&fork, &two_uri, "/two")
+        )?;
+        assert_eq!((one.connections(), two.connections()), (2, 2));
+        assert_eq!(proxy.connections(), if challenge { 4 } else { 2 });
+        let after_fork = proxy.stream_ids();
+        let fork_start = streams.len() + usize::from(challenge);
+        assert_eq!(after_fork.len(), fork_start + 2);
+        assert_eq!(after_fork[fork_start].0, after_fork[fork_start + 1].0);
+        assert_ne!(after_fork[fork_start].1, after_fork[fork_start + 1].1);
+        assert_ne!(after_fork[fork_start].0, accepted[0].0);
+        if challenge {
+            let requests = proxy.requests();
+            assert!(
+                !requests[streams.len()]
+                    .fields
+                    .iter()
+                    .any(|(name, _)| name == "proxy-authorization")
+            );
+            assert!(requests[streams.len() + 1..].iter().all(|request| {
+                request.fields.iter().any(|(name, value)| {
+                    name == "proxy-authorization" && value == b"Basic dXNlcjpwYXNz"
+                })
+            }));
+        }
+        fork.shutdown().await;
+        assert!(!client.is_closed());
+        tokio::try_join!(
+            fetch(&client, &one_uri, "/one"),
+            fetch(&client, &two_uri, "/two")
+        )?;
+        assert_eq!(proxy.stream_ids(), after_fork);
+        assert_eq!((one.connections(), two.connections()), (2, 2));
+        client.shutdown().await;
         Ok(())
     }))
     .await;

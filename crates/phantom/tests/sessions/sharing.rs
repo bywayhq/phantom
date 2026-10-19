@@ -3,6 +3,7 @@
 use std::{
     future::poll_fn,
     net::{IpAddr, Ipv4Addr},
+    num::NonZeroUsize,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -13,7 +14,8 @@ use std::{
 use bytes::Bytes;
 use http::Response;
 use phantom::{
-    AddressResolver, Client, HttpProtocol, SessionSharing,
+    AddressResolver, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseBody,
+    SessionSharing, TimeoutPhase,
     profile::{ClientProfile, browser::chrome},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinSet, time::timeout};
@@ -58,6 +60,30 @@ async fn get(
         .into_body()
         .collect_with_limit(1)
         .await?)
+}
+
+async fn hold_saturated(
+    client: &Client,
+    url: &str,
+    protocol: HttpProtocol,
+    negotiated: bool,
+) -> TestResult<Response<ResponseBody>> {
+    let request = || {
+        if negotiated {
+            client.get_negotiated(url)
+        } else {
+            client.get(protocol, url)
+        }
+    };
+    let held = request()?.send().await?;
+    let error = request()?
+        .send()
+        .await
+        .err()
+        .ok_or("source admission was not saturated by the unread body")?;
+    assert_eq!(error.kind(), RequestErrorKind::Timeout);
+    assert_eq!(error.timeout_phase(), Some(TimeoutPhase::PoolAdmission));
+    Ok(held)
 }
 
 async fn tcp_pools(protocol: HttpProtocol, negotiated: bool) -> TestResult<()> {
@@ -115,12 +141,18 @@ async fn tcp_pools(protocol: HttpProtocol, negotiated: bool) -> TestResult<()> {
             }
             Ok(())
         }));
-        let original = tls::client_builder(&identity, true).build()?;
+        let original = tls::client_builder(&identity, true)
+            .max_concurrent_http1_requests_per_origin(NonZeroUsize::MIN)
+            .max_concurrent_http2_requests_per_origin(NonZeroUsize::MIN)
+            .request_timeouts(RequestTimeouts::new().pool_admission(Duration::from_millis(100)))
+            .build()?;
         assert_eq!(get(&original, &url, protocol, negotiated).await?, "1");
+        let held = hold_saturated(&original, &url, protocol, negotiated).await?;
         let fork = original.fork(SessionSharing::none());
         assert_eq!(get(&fork, &url, protocol, negotiated).await?, "2");
         fork.shutdown().await;
         assert!(!original.is_closed());
+        assert_eq!(held.into_body().collect_with_limit(1).await?, "1");
         assert_eq!(get(&original, &url, protocol, negotiated).await?, "1");
         original.close_idle_connections().await;
         assert_eq!(get(&original, &url, protocol, negotiated).await?, "3");
@@ -175,13 +207,17 @@ async fn fork_uses_its_own_http3_connection_and_shutdown() -> TestResult<()> {
                 .with_http3(crate::support::h3::client_settings()),
         )
         .add_root_certificate_der(identity.root_der.clone())
+        .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
+        .request_timeouts(RequestTimeouts::new().pool_admission(Duration::from_millis(100)))
         .build()?;
         let url = format!("https://{address}/");
         assert_eq!(get(&original, &url, HttpProtocol::Http3, false).await?, "1");
+        let held = hold_saturated(&original, &url, HttpProtocol::Http3, false).await?;
         let fork = original.fork(SessionSharing::none());
         assert_eq!(get(&fork, &url, HttpProtocol::Http3, false).await?, "2");
         fork.shutdown().await;
         assert!(!original.is_closed());
+        assert_eq!(held.into_body().collect_with_limit(1).await?, "1");
         assert_eq!(get(&original, &url, HttpProtocol::Http3, false).await?, "1");
         original.shutdown().await;
         peer_completion::join(&mut peer).await?;

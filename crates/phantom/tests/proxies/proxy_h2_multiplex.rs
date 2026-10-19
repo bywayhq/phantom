@@ -16,7 +16,7 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, HttpProxy, Route,
+    BuildErrorKind, Client, HttpProtocol, HttpProxy, Route, SessionSharing,
     profile::{
         ClientProfile,
         browser::{chrome, firefox},
@@ -733,6 +733,24 @@ async fn separately_built_clients_never_share_a_proxy_connection() -> TestResult
                 .map(|seen| seen.connection)
                 .collect();
             assert_eq!(connections, [0, 1]);
+            let first = first_owner.as_ref().ok_or("missing first client")?;
+            let fork = first.fork(SessionSharing::none());
+            get_https(&fork, origin).await?;
+            get_forwarded(&fork, "fork.test:8080").await?;
+            fork.shutdown().await;
+            assert!(!first.is_closed());
+            get_https(first, origin).await?;
+            get_https(
+                second_owner.as_ref().ok_or("missing second client")?,
+                origin,
+            )
+            .await?;
+            get_forwarded(first, "source.test:8080").await?;
+            let placement: Vec<_> = observe_log(log)?
+                .iter()
+                .map(|seen| (seen.connection, seen.stream))
+                .collect();
+            assert_eq!(placement, [(0, 1), (1, 1), (2, 1), (2, 3), (0, 3)]);
             Ok(())
         }
         .await;

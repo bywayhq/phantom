@@ -14,7 +14,7 @@ use std::{
 };
 
 use http_body_util::BodyExt;
-use phantom::{Client, HttpProtocol, HttpProxy, Route};
+use phantom::{Client, HttpProtocol, HttpProxy, Route, SessionSharing};
 use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
@@ -213,18 +213,29 @@ async fn each_client_starts_with_an_empty_credential_record() -> TestResult<()> 
             send_one(&separate, &url).await?;
             assert_eq!(proxy.counts()?.challenges, 2);
 
+            let fork = client.fork(SessionSharing::none());
+            send_one(&fork, &url).await?;
+            send_one(&fork, &url).await?;
+            assert_eq!(proxy.counts()?.challenges, 3);
+            let heads = proxy.heads()?;
+            assert_eq!(authorization(&heads[6]), None);
+            assert_eq!(
+                authorization(&heads[7]).as_deref(),
+                Some("Basic YWxpY2U6c2VjcmV0")
+            );
+
             // The other client did not change what the first remembers, and a
             // clone shares the first client's record.
             send_one(&client.clone(), &url).await?;
             assert_eq!(
                 proxy.counts()?,
                 ProxyCounts {
-                    connections: 7,
-                    challenges: 2,
-                    with_credentials: 5,
+                    connections: 10,
+                    challenges: 3,
+                    with_credentials: 7,
                 }
             );
-            Ok((client, separate))
+            Ok((client, separate, fork))
         }
         .await;
 
