@@ -412,6 +412,8 @@ chain_tests() {
     "${python[@]}" python scripts/dev/check_python_binding.py
   run_step go-binding test env CARGO_BUILD_JOBS="$jobs" \
     "${python[@]}" python scripts/dev/check_go_binding.py
+  run_step node-binding test env CARGO_BUILD_JOBS="$jobs" \
+    bash scripts/dev/check-node-binding.sh
 }
 chain_lint() {
   run_step clippy lint "${clippy[@]}"
@@ -463,7 +465,7 @@ if [[ $quick == true ]]; then
     launch chain_linux
   fi
 else
-  steps+=(nextest doctest fuzz-test python-binding go-binding clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
+  steps+=(nextest doctest fuzz-test python-binding go-binding node-binding clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
     docs-check tool-pins unsafe-boundaries)
   if [[ $nightly_installed == true ]]; then

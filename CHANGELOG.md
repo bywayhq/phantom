@@ -5,6 +5,10 @@
 - Prevent a Windows stack overflow in CLI proxy requests when all library
   features are enabled.
 
+- Add a native Node.js and TypeScript adapter with reusable clients, ordered
+  headers, bounded streaming and file uploads, cookies, shared attempt budgets
+  and cancellation. Source builds target Node.js 22 and 24.
+
 - Share live TLS tickets with `SessionSharing::tickets(true)` across independent
   connection pools. Single-use tickets are consumed once, and bounded stores
   survive either client being dropped. Portable transfers reject ambiguous

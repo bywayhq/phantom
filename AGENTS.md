@@ -74,6 +74,10 @@ Use a sibling worktree only when independent work can proceed concurrently.
   `bindings/go/native`. The Go boundary borrows bounded caller buffers only
   during a synchronous call, copies inputs before asynchronous work, retains
   no Go pointers, and contains Rust unwinding at the C ABI.
+  The private `ffi` module of `bindings/node` also permits its pinned Node-API
+  registration macros and audited buffer access. It validates actual backing
+  storage and copies bounded inputs on the owning environment before async
+  work. No borrowed pointer or JavaScript environment escapes those calls.
   Each documents every unsafe block.
   `scripts/ci/check-unsafe-boundaries.sh`
   fails when unsafe code is allowed anywhere else. Adding unsafe code

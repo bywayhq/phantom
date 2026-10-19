@@ -163,6 +163,22 @@ jobs:
       - name: Test native Go adapter
         run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_go_binding.py
 
+      - name: Install Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.3"
+
+      - name: Test native Node.js 22 adapter
+        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.15.0"
+
+      - name: Test native Node.js 24 adapter
+        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
+
       # nextest does not run doctests, and `cargo test --all-targets` skips them.
       - name: Test documentation examples
         run: cargo test --doc --workspace --all-features --locked
@@ -439,6 +455,24 @@ jobs:
       - name: Test native Go adapter
         shell: bash
         run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_go_binding.py
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.3"
+
+      - name: Test native Node.js 22 adapter
+        shell: bash
+        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.15.0"
+
+      - name: Test native Node.js 24 adapter
+        shell: bash
+        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
 
       - name: Install Windows capture Python
         if: runner.os == 'Windows'

@@ -2,7 +2,7 @@
 # Check that unsafe code stays inside the audited FFI modules.
 #
 # The workspace forbids `unsafe_code`. phantom-quic-btls and phantom-net deny
-# it instead, as does the Go adapter, and allow it on their audited private
+# it instead, as do the Go and Node adapters, and allow it on their audited private
 # module declarations. This
 # check fails when an `allow(unsafe_code` or `expect(unsafe_code` attribute
 # appears anywhere else in tracked Rust code, when an audited declaration
@@ -38,6 +38,7 @@ expected=(
   "crates/phantom-quic-btls/src/lib.rs:1"
   "crates/phantom-net/src/lib.rs:4"
   "bindings/go/native/src/lib.rs:1"
+  "bindings/node/src/lib.rs:1"
 )
 
 attributes=$(search -c -E '(allow|expect)\(([^)]*,[[:space:]]*)?unsafe_code' -- '*.rs' ':!vendor')
@@ -89,6 +90,7 @@ check_modules() {
 check_modules crates/phantom-quic-btls/src/lib.rs backend
 check_modules crates/phantom-net/src/lib.rs 'socket_ffi|system_dns_ffi|linux_dns_ffi|macos_dns_ffi'
 check_modules bindings/go/native/src/lib.rs ffi
+check_modules bindings/node/src/lib.rs ffi
 
 # Manifests may deny unsafe_code but never allow or warn on it.
 manifests=$(search -n -E '^[[:space:]]*unsafe_code[[:space:]]*=.*"(allow|warn)"' -- '*Cargo.toml' ':!vendor')

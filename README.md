@@ -55,6 +55,7 @@ so it can reuse connections and session state.
 - [API reference](https://docs.rs/phantom-http/latest/phantom/) and
   [runnable examples](crates/phantom/examples/README.md)
 - [Python sync and async adapter](bindings/python/README.md): build from source.
+- [Node.js and TypeScript adapter](bindings/node/README.md): build from source.
 
 Phantom is pre-1.0. Commit your lockfile and read the [changelog](CHANGELOG.md)
 when upgrading. For a Git or path dependency, build the docs from that checkout:
