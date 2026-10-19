@@ -211,7 +211,7 @@ async fn first_original_request_error_destroys_its_actual_pending_sibling() -> T
 #[tokio::test]
 async fn two_completed_original_request_errors_keep_both_distinct_causes() -> TestResult<()> {
     let mut fixture = Fixture::start(Mode::Independent, 1, None).await?;
-    fixture.targets([INVALID_URI.to_owned(), "http://127.0.0.1/second".to_owned()])?;
+    fixture.targets([INVALID_URI.to_owned(), "ftp://127.0.0.1/second".to_owned()])?;
     let first = test_client(&fixture.identity, true)?;
     let second = test_client(&fixture.identity, true)?;
     let mut caller = Box::pin(independent_requests(

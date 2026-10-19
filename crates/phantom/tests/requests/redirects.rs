@@ -814,8 +814,9 @@ async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<(
 }
 
 #[tokio::test]
-async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResult<()> {
+async fn redirect_to_plaintext_preserves_exact_http2_and_the_attempt_budget() -> TestResult<()> {
     let mut secure = None;
+    let mut plain = None;
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -848,22 +849,40 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }));
+        plain = Some(ConnectionPeer::spawn(async move {
+            let (stream, _) = plain_listener.accept().await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = accept_request(&mut connection).await?;
+            assert_eq!(request.uri().scheme_str(), Some("http"));
+            assert_eq!(request.uri().path(), "/plain");
+            respond.send_response(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header("content-length", "0")
+                    .body(())?,
+                true,
+            )?;
+            connection.graceful_shutdown();
+            finish_h2_redirect(poll_fn(|context| connection.poll_closed(context)).await)
+        }));
 
         let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
-        let error = match session
+        let budget = phantom::HttpAttemptBudget::new(2);
+        let response = session
             .get(
                 HttpProtocol::Http2,
                 &format!("https://{secure_address}/start"),
             )?
+            .attempt_budget(budget.clone())
             .send()
-            .await
-        {
-            Ok(_) => return Err("exact HTTP/2 followed a redirect to http://".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.version(), http::Version::HTTP_2);
+        assert_response_info(&response, &format!("http://{plain_address}/plain"))?;
+        assert!(response.into_body().collect_with_limit(0).await?.is_empty());
+        assert_eq!(budget.remaining(), 0);
         client_done
             .send(())
             .map_err(|_| "redirect peer stopped before the client result")?;
@@ -873,12 +892,11 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
             .ok_or("redirect peer was not started")?
             .join()
             .await??;
-        assert!(
-            timeout(Duration::from_millis(100), plain_listener.accept())
-                .await
-                .is_err(),
-            "the refused hop reached the plaintext origin"
-        );
+        plain
+            .as_mut()
+            .ok_or("plaintext peer was not started")?
+            .join()
+            .await??;
         Ok(())
     })
     .await;
@@ -886,7 +904,11 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
         Some(peer) => peer.shutdown().await,
         None => Ok(()),
     };
-    finish_with_cleanup(primary, secure_cleanup)
+    let plain_cleanup = match plain.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, finish_with_cleanup(secure_cleanup, plain_cleanup))
 }
 
 #[tokio::test]

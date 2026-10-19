@@ -346,7 +346,7 @@ async fn direct_plaintext_loopback_sends_and_learns_client_hints() -> TestResult
 }
 
 #[tokio::test]
-async fn non_http1_plaintext_fails_before_tcp_io() -> TestResult<()> {
+async fn http3_plaintext_fails_before_tcp_io() -> TestResult<()> {
     bounded(async {
         let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin.local_addr()?;
@@ -356,15 +356,13 @@ async fn non_http1_plaintext_fails_before_tcp_io() -> TestResult<()> {
         let client = Client::builder(profile).build()?;
         let target = format!("http://{origin_address}/unsupported");
 
-        for protocol in [HttpProtocol::Http2, HttpProtocol::Http3] {
-            let error = client
-                .get(protocol, &target)?
-                .send()
-                .await
-                .err()
-                .ok_or("non-HTTP/1 plaintext request unexpectedly succeeded")?;
-            assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
-        }
+        let error = client
+            .get(HttpProtocol::Http3, &target)?
+            .send()
+            .await
+            .err()
+            .ok_or("HTTP/3 plaintext request unexpectedly succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
         assert!(
             timeout(NO_CONNECTION_WINDOW, origin.accept())
                 .await
