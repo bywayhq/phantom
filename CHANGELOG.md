@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Breaking: include opted-in HTTPS-record and ECH discovery in encrypted
+  session checkpoints, preserving record order and expiry. Checkpoints now use
+  format version 2. Migrate: create new checkpoints and set
+  `https_record_checkpoint_namespace` when using a fixed or callback HTTPS
+  resolver. Paired native resolvers cannot yet persist their discovery state.
 - Add offline, versioned profile bundles with bounded validation and
   publisher-supplied provenance. Inspect and install bundles with the CLI,
   then select an exact digest and profile name. Rollback selects an older
@@ -35,7 +40,7 @@
 - Add encrypted, versioned session checkpoints behind `session-snapshot`.
   Restore supported cookies, direct-route Alt-Svc entries and TLS tickets into
   a fresh client. Configuration mismatches and insufficient capacity fail
-  without changing the receiving client. DNS, client hints and ECH are not saved.
+  without changing the receiving client. Address DNS and client hints are not saved.
 
 - Retain capture failure causes through shared interruption handling. Move
   macOS capture provenance checks into tested scripts, with failure phases
