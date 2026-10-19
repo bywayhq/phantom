@@ -75,6 +75,8 @@ pub use request_hook::{
 pub use request_slots::{RequestSlotError, RequestSlotErrorKind, RequestSlots};
 #[cfg(feature = "json")]
 pub use response::response_json;
+#[cfg(feature = "charset")]
+pub use response::response_text_with_charset;
 pub use response::{
     ResponseInfo, ResponseReadError, ResponseReadErrorKind, StatusError, error_for_status,
     response_bytes, response_text,

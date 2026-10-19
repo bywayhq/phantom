@@ -23,6 +23,8 @@ use tokio::{
 
 use crate::support::tls::{TestResult, read_head, tls_settings};
 
+#[cfg(feature = "charset")]
+mod charset;
 mod peer_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);

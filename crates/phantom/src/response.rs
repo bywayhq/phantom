@@ -5,6 +5,11 @@ use http::{Response, StatusCode, Uri};
 
 use crate::{ContentCoding, HttpProtocol, RequestError, ResponseBody};
 
+#[cfg(feature = "charset")]
+mod charset;
+#[cfg(feature = "charset")]
+pub use charset::response_text_with_charset;
+
 /// Returns an error for a 4xx or 5xx response without reading its body.
 ///
 /// You can recover the complete response through [`StatusError::into_response`].
@@ -179,6 +184,18 @@ pub enum ResponseReadErrorKind {
     Body,
     /// The collected bytes are not valid UTF-8.
     Utf8,
+    /// The Content-Type field is malformed, repeated, or repeats charset.
+    #[cfg(feature = "charset")]
+    InvalidContentType,
+    /// The declared charset is unknown or maps to the replacement encoding.
+    #[cfg(feature = "charset")]
+    UnsupportedCharset,
+    /// The body contains malformed bytes for its selected encoding.
+    #[cfg(feature = "charset")]
+    MalformedText,
+    /// UTF-8 output exceeds its byte limit, or a bounded text allocation fails.
+    #[cfg(feature = "charset")]
+    TextLimit,
     /// The collected JSON could not be deserialized.
     #[cfg(feature = "json")]
     Json,
@@ -189,7 +206,8 @@ pub enum ResponseReadErrorKind {
 /// The body has been dropped. [`Self::response`] and [`Self::into_response`]
 /// expose the unchanged response parts with a unit body. Formatting includes
 /// only status and failure category. [`StdError::source`] returns the original
-/// body, UTF-8 or JSON error for detailed inspection.
+/// body, UTF-8 or JSON error for detailed inspection. Charset failures expose
+/// their category through [`Self::kind`] without retaining supplied text.
 pub struct ResponseReadError {
     response: Box<Response<()>>,
     cause: ResponseReadCause,
@@ -198,6 +216,8 @@ pub struct ResponseReadError {
 enum ResponseReadCause {
     Body(RequestError),
     Utf8(Utf8Error),
+    #[cfg(feature = "charset")]
+    Charset(charset::TextError),
     #[cfg(feature = "json")]
     Json(serde_json::Error),
 }
@@ -209,6 +229,8 @@ impl ResponseReadError {
         match &self.cause {
             ResponseReadCause::Body(_) => ResponseReadErrorKind::Body,
             ResponseReadCause::Utf8(_) => ResponseReadErrorKind::Utf8,
+            #[cfg(feature = "charset")]
+            ResponseReadCause::Charset(error) => error.kind(),
             #[cfg(feature = "json")]
             ResponseReadCause::Json(_) => ResponseReadErrorKind::Json,
         }
@@ -256,6 +278,14 @@ impl fmt::Display for ResponseReadError {
         let message = match self.kind() {
             ResponseReadErrorKind::Body => "response body read failed",
             ResponseReadErrorKind::Utf8 => "response body is not valid UTF-8",
+            #[cfg(feature = "charset")]
+            ResponseReadErrorKind::InvalidContentType => "response Content-Type is invalid",
+            #[cfg(feature = "charset")]
+            ResponseReadErrorKind::UnsupportedCharset => "response charset is unsupported",
+            #[cfg(feature = "charset")]
+            ResponseReadErrorKind::MalformedText => "response text contains malformed bytes",
+            #[cfg(feature = "charset")]
+            ResponseReadErrorKind::TextLimit => "response text exceeds its resource limit",
             #[cfg(feature = "json")]
             ResponseReadErrorKind::Json => "response body could not be read as JSON",
         };
@@ -265,12 +295,14 @@ impl fmt::Display for ResponseReadError {
 
 impl StdError for ResponseReadError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        Some(match &self.cause {
-            ResponseReadCause::Body(error) => error,
-            ResponseReadCause::Utf8(error) => error,
+        match &self.cause {
+            ResponseReadCause::Body(error) => Some(error),
+            ResponseReadCause::Utf8(error) => Some(error),
+            #[cfg(feature = "charset")]
+            ResponseReadCause::Charset(_) => None,
             #[cfg(feature = "json")]
-            ResponseReadCause::Json(error) => error,
-        })
+            ResponseReadCause::Json(error) => Some(error),
+        }
     }
 }
 

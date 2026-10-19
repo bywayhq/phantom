@@ -117,6 +117,9 @@ read a bounded error body.
 [`response_bytes`](crate::response_bytes) collects a bounded body while retaining
 its status, headers, and other metadata. [`response_text`](crate::response_text)
 does the same and requires valid UTF-8; it does not select a charset from headers.
+Enable `charset` and use
+[`response_text_with_charset`](crate::response_text_with_charset) for declared
+charsets and Unicode byte-order marks. Set separate input and UTF-8 output limits.
 
 ```no_run
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
