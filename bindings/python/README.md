@@ -6,6 +6,7 @@ Read response bodies in chunks, or collect them with a byte limit.
 ```python
 from phantom_http import AsyncClient
 
+
 async def fetch():
     async with AsyncClient(
         profile="chrome/154.0.8037.97/windows-11-26200/r1",

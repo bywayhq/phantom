@@ -382,6 +382,11 @@ if [[ $quick == true ]]; then
 fi
 clippy=(cargo clippy -j "$jobs" --workspace --all-targets --all-features --locked -- -D warnings)
 python=(uv run --no-project --python 3.10)
+if ! PYO3_PYTHON=$("${python[@]}" python -c 'import sys; sys.stdout.write(sys.executable)'); then
+  echo "gate: cannot select Python for the native adapter" >&2
+  exit 69
+fi
+export PYO3_PYTHON
 capture_python=("${python[@]}")
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*)
