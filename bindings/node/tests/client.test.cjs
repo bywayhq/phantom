@@ -104,7 +104,13 @@ test('compiled navigation headers remain protocol-specific and response encoding
   });
   const client = makeClient();
   t.after(() => client.close());
-  const response = await client.request(url, {...request, context: 'navigation'});
+  // The macOS navigation template requires a caller-owned User-Agent.
+  const userAgent = 'Phantom-Node-Test Chrome/154.0.0.0';
+  const response = await client.request(url, {
+    ...request, context: 'navigation',
+    headers: [{name: 'User-Agent', value: Buffer.from(userAgent)}],
+  });
+  assert.equal(fields['user-agent'], userAgent);
   assert.match(fields['user-agent'], /Chrome\/154\./);
   assert.equal(fields.priority, undefined);
   assert.deepEqual(await response.bytes(encoded.length), encoded);
