@@ -54,6 +54,15 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
+      - name: Install NASM on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm --version=2.16.3 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "NASM installation failed" }
+          nasm -v
+          if ($LASTEXITCODE -ne 0) { throw "NASM is unavailable" }
+
       - name: Check artifact helper
         run: python -m unittest discover -s scripts/dev/tests -p test_cli_artifact.py
 
