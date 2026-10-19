@@ -58,8 +58,9 @@
   Upload only candidates that pass on their recorded host.
 
 - Add a native Go adapter with reusable clients, bounded pull streaming,
-  cookies, shared attempt budgets and cancellation. Build it from source;
-  platform installation checks precede any binary distribution.
+  cookies, shared attempt budgets and cancellation. Prepare paired source and
+  native-library archives with dependency notices, external consumer checks
+  and the existing Go tests run from the extracted installation.
 
 - Generate browser profile constructors from the catalog's component selections.
   New versions no longer need Python target tables or handwritten composition.
