@@ -136,10 +136,27 @@ your custom client; they no longer reproduce the unchanged built-in recipe.
 ## Import custom settings
 
 Enable `fingerprint-import` to use `phantom::fingerprint`. You can edit complete
-profiles as JSON or name them in a `ProfileRegistry`. For an Akamai HTTP/2 string,
-use `import_akamai_profile` with an explicit base profile. The result lists fields
-taken from the string and fields retained from your base. Compact descriptions
-omit settings and do not establish an exact browser match.
+profiles as JSON or name them in a `ProfileRegistry`. For partial observations,
+supply a complete base profile for the settings the input leaves out:
+
+| Input | Import function |
+| --- | --- |
+| Raw JA3 string | `import_ja3_profile` |
+| Raw JA4_r or JA4_ro | `import_ja4_profile`, with an explicit ordering format |
+| TCP ClientHello handshake bytes | `import_client_hello_profile` |
+| QUIC transport-parameter payload | `import_quic_transport_profile` |
+| Akamai HTTP/2 string | `import_akamai_profile` |
+
+Inspect `ImportedProfile::observed_fields` and `supplemented_fields` before
+using the result. JA3 and JA4 hashes cannot recover settings. Sorted JA4 needs
+the base's cipher and extension order. ClientHello input excludes TLS record
+headers; QUIC input excludes the extension header. Unsupported fields produce
+an error with a field path.
+
+TLS imports check their supported fields against a fresh ClientHello generated
+in memory. Resumption, destination type and protocol-specific ALPN can change
+later handshakes. Imports create custom settings without a browser identity.
+They do not establish an exact browser match.
 
 Read [Making requests and handling responses](crate::guide::requests_and_responses)
 for bodies, decoding, and errors, or [Using proxies](crate::guide::proxies) for
