@@ -1,7 +1,7 @@
 # Node.js
 
 Use a reusable native Phantom client from CommonJS or ESM. This source adapter
-targets Node.js 22 and 24. It does not ship prebuilt packages.
+targets Node.js 22 and 24.
 
 Build from the repository root, then install the local development tools:
 
@@ -18,8 +18,26 @@ npm run check-types
 The Rust build uses Phantom's existing native dependencies. See the repository
 installation instructions for your platform.
 
+## Native package candidates
+
+The [package workflow](../../.github/workflows/node-packages.yml) builds optimized
+candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each package
+contains its native addon, JavaScript, types and dependency notices. Its receipt
+records source and lockfile identities, hashes, toolchains, native linkage and
+tested Node versions. It is uploaded after fresh outside-checkout installations
+pass CommonJS, ESM, TypeScript and the existing loopback and Worker controls on
+Node 22 and 24. Failed checks retain logs without promoting an artifact.
+
+Download the candidate matching your host and run `npm install ./package.tgz`.
+No install script or downloader runs. Keep its licenses and notices when
+redistributing it. Packages remain private and are not published to npm.
+The receipt establishes only its recorded host and Node versions. Older OS/libc
+versions and fully static linkage are unverified. Windows needs the Microsoft
+x64 Visual C++ v14 runtime, at least as recent as its recorded MSVC build tools.
+OS/SDK runtime licenses are separate from the package's dependency notices.
+
 ```js
-import { Client, profiles } from './index.mjs';
+import { Client, profiles } from '@byway/phantom';
 
 // Inspect profiles() and choose an exact build and platform.
 const client = new Client({

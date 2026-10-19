@@ -1,0 +1,109 @@
+name: Node package candidates
+
+on:
+  pull_request:
+    paths:
+      - bindings/node/**
+      - crates/**
+      - vendor/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - scripts/release/node_artifact.py
+      - scripts/release/cli_artifact.py
+      - scripts/release/notices/**
+      - scripts/dev/tests/test_node_artifact.py
+      - scripts/dev/with-cargo-lock.sh
+      - .github/workflows/node-packages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: node-package-candidates-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
+
+jobs:
+  candidate:
+    name: Node package (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            architecture: x64
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            architecture: x64
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            architecture: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.3"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Retain Node.js 22 executable
+        shell: bash
+        run: node -p '"NODE22=" + process.execPath' >> "$GITHUB_ENV"
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.15.0"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Retain Node.js 24 executable
+        shell: bash
+        run: node -p '"NODE24=" + process.execPath' >> "$GITHUB_ENV"
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Check package helper
+        run: python -m unittest discover -s scripts/dev/tests -p test_node_artifact.py
+
+      - name: Build and verify optimized native package
+        shell: bash
+        env:
+          PACKAGE_TARGET: ${{ matrix.target }}
+        run: |
+          scripts/dev/with-cargo-lock.sh python scripts/release/node_artifact.py \
+            --target "$PACKAGE_TARGET" --node22 "$NODE22" --node24 "$NODE24" \
+            --output target/node-package-candidate
+
+      - name: Upload verified package and receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-node-${{ matrix.target }}
+          path: target/node-package-candidate/verified/
+          if-no-files-found: error
+
+      - name: Retain build and installation logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-node-logs-${{ matrix.target }}
+          path: target/node-package-candidate/logs/
+          if-no-files-found: ignore
