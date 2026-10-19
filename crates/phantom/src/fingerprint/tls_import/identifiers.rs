@@ -3,12 +3,12 @@
 use super::{Kind, Result, error};
 use phantom_profile::{CipherSuite, ClientHelloExtension, NamedGroup, SignatureScheme};
 
-pub(super) fn cipher(id: u16) -> Result<CipherSuite> {
+pub(in crate::fingerprint) fn cipher(id: u16) -> Result<CipherSuite> {
     CipherSuite::from_iana_id(id)
         .ok_or_else(|| error(Kind::UnsupportedSetting, "tls.cipher_suites"))
 }
 
-pub(super) fn group(id: u16) -> Result<NamedGroup> {
+pub(in crate::fingerprint) fn group(id: u16) -> Result<NamedGroup> {
     use NamedGroup::*;
     Ok(match id {
         4588 => X25519MlKem768,
@@ -22,7 +22,7 @@ pub(super) fn group(id: u16) -> Result<NamedGroup> {
     })
 }
 
-pub(super) fn signature(id: u16) -> Result<SignatureScheme> {
+pub(in crate::fingerprint) fn signature(id: u16) -> Result<SignatureScheme> {
     use SignatureScheme::*;
     Ok(match id {
         0x0904 => MlDsa44,
@@ -43,7 +43,7 @@ pub(super) fn signature(id: u16) -> Result<SignatureScheme> {
     })
 }
 
-pub(super) fn extension(id: u16) -> Result<ClientHelloExtension> {
+pub(in crate::fingerprint) fn extension(id: u16) -> Result<ClientHelloExtension> {
     use ClientHelloExtension::*;
     Ok(match id {
         0 => ServerName,

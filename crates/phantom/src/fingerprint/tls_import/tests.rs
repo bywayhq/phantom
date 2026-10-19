@@ -170,3 +170,55 @@ fn missing_extensions_and_backend_point_formats_cannot_silently_pass() {
         ClientHelloExtensionOrder::Fixed(_)
     ));
 }
+
+#[test]
+fn legacy_client_hello_keeps_the_base_minimum_version_as_a_supplement() {
+    let mut settings = chrome::v154_windows().tls().clone();
+    settings.versions = TlsVersionRange::new(TlsVersion::Tls10, TlsVersion::Tls12).expect("range");
+    settings.key_shares.clear();
+    settings.alpn_protocols = vec![vec![b'x'; 200].into_boxed_slice()];
+    settings.alps = None;
+    let base = ClientProfile::new(settings);
+    let bytes = phantom_net::preview_client_hello(base.tls(), "import.invalid").expect("capture");
+    let imported = import_client_hello_profile(&bytes, &base).expect("import");
+    assert_eq!(imported.profile().tls().versions, base.tls().versions);
+    assert!(
+        imported
+            .supplemented_fields()
+            .any(|field| field == "tls.versions")
+    );
+    assert!(
+        !imported
+            .observed_fields()
+            .any(|field| field == "tls.versions")
+    );
+}
+
+#[test]
+fn retained_chrome_client_hello_imports_without_inventing_browser_identity() {
+    let fixture = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt"
+    ));
+    let record = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("record_0_hex="))
+        .expect("record");
+    let bytes = record
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let text = std::str::from_utf8(pair).expect("hex");
+            u8::from_str_radix(text, 16).expect("hex")
+        })
+        .collect::<Vec<_>>();
+    let imported =
+        import_client_hello_profile(&bytes[5..], &chrome::v154_windows()).expect("captured input");
+    let described = super::super::describe_profile(imported.profile()).expect("description");
+    assert!(described.get("browser").is_none());
+    assert!(
+        imported
+            .supplemented_fields()
+            .any(|field| field == "tls.requested_trust_anchor_ids")
+    );
+}

@@ -116,7 +116,7 @@ fn alpn_abbreviation_handles_binary_and_single_byte_identifiers() {
         (vec![0xab, 0xcd], "ad"),
         (vec![0x20, b'a'], "21"),
     ] {
-        settings.alpn_protocols = vec![protocol];
+        settings.alpn_protocols = vec![protocol.into_boxed_slice()];
         assert_eq!(
             alpn_tag(&preview(&settings, "import.invalid").expect("preview")),
             expected

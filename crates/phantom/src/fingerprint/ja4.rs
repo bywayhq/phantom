@@ -28,6 +28,9 @@ pub enum Ja4RawFormat {
 ///
 /// Pass the raw value without a `JA4_r =` or `JA4_ro =` label. Hashes cannot
 /// reconstruct settings. This produces custom settings, not browser evidence.
+/// Verification covers a fresh direct TCP handshake in the indicated DNS-name
+/// or IP context. Destination type, protocol-specific ALPN, discovery and
+/// resumption can change the projection on a later request.
 ///
 /// # Errors
 ///
@@ -92,7 +95,6 @@ pub fn import_ja4_profile(
             }
             &["tls.signature_schemes"]
         }
-        _ => return Err(error(Kind::UnsupportedFormat, "ja4.format")),
     };
     let name = match &header[3..4] {
         "d" => "import.invalid",

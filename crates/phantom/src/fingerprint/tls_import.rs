@@ -21,6 +21,15 @@ const CAPTURE_FIELDS: &[&str] = &[
     "tls.key_shares",
 ];
 
+const CAPTURE_LEGACY_FIELDS: &[&str] = &[
+    "tls.cipher_suites",
+    "tls.groups",
+    "tls.extension_order",
+    "tls.signature_schemes",
+    "tls.alpn_protocols",
+    "tls.key_shares",
+];
+
 /// Imports a raw five-section JA3 string with explicitly supplied base settings.
 ///
 /// Applies ordered ciphers, groups and extensions to TCP TLS. Other settings,
@@ -31,6 +40,9 @@ const CAPTURE_FIELDS: &[&str] = &[
 /// A fresh ClientHello is generated in memory to check every JA3 field.
 /// Extension membership must agree with the base's configured payloads.
 /// Successful import reproduces this projection, not a complete browser.
+/// Verification covers a fresh direct TCP handshake in the input's DNS-name
+/// or IP context. A different destination type, protocol-specific ALPN,
+/// discovery or session resumption can change that projection.
 ///
 /// # Errors
 ///
@@ -54,13 +66,18 @@ pub fn import_ja3_profile(input: &str, base: &ClientProfile) -> Result<ImportedP
 ///
 /// Input includes the four-byte handshake header and excludes TLS record
 /// headers. Applies ordered ciphers, groups, signatures, ALPN, versions, key
-/// share groups and extensions. Other payload settings and all other layers
+/// share groups and extensions. With no supported-versions extension, the
+/// base version policy is retained: a legacy version cannot reveal its minimum.
+/// Other payload settings and all other layers
 /// come from `base`; inspect the result's supplemented fields before use.
 /// Captured randoms, keys, session IDs and SNI are never stored in the profile.
 /// GREASE values are normalized and the base's GREASE policy is retained.
 ///
 /// A fresh in-memory ClientHello must reproduce the imported projection.
 /// This does not establish browser identity or replay arbitrary TLS bytes.
+/// Verification uses the captured SNI context for a fresh direct handshake.
+/// Destination type, protocol-specific ALPN, discovery and resumption can
+/// change the projection on a later request.
 ///
 /// # Errors
 ///
@@ -80,7 +97,11 @@ pub fn import_client_hello_profile(input: &[u8], base: &ClientProfile) -> Result
         .into_iter()
         .map(signature)
         .collect::<Result<_>>()?;
-    settings.alpn_protocols = captured.alpn_protocols().to_vec();
+    settings.alpn_protocols = captured
+        .alpn_protocols()
+        .iter()
+        .map(|value| value.clone().into_boxed_slice())
+        .collect();
     settings.key_shares = normalized(captured.key_share_groups())
         .into_iter()
         .map(group)
@@ -101,11 +122,6 @@ pub fn import_client_hello_profile(input: &[u8], base: &ClientProfile) -> Result
         let max = parsed[0];
         settings.versions = TlsVersionRange::new(min, max)
             .map_err(|source| FingerprintImportError::native("tls.versions", source))?;
-    } else {
-        let version = TlsVersion::from_protocol_id(captured.legacy_version())
-            .ok_or_else(|| error(Kind::UnsupportedSetting, "tls.versions"))?;
-        settings.versions = TlsVersionRange::new(version, version)
-            .map_err(|source| FingerprintImportError::native("tls.versions", source))?;
     }
     let name = captured
         .server_name()
@@ -117,7 +133,7 @@ pub fn import_client_hello_profile(input: &[u8], base: &ClientProfile) -> Result
     ja3.verify(&generated)?;
     equal(
         normalized(generated.supported_versions()),
-        versions,
+        versions.clone(),
         "tls.versions",
     )?;
     equal(
@@ -135,7 +151,12 @@ pub fn import_client_hello_profile(input: &[u8], base: &ClientProfile) -> Result
         normalized(captured.key_share_groups()),
         "tls.key_shares",
     )?;
-    finish(base, &settings, CAPTURE_FIELDS)
+    let fields = if versions.is_empty() {
+        CAPTURE_LEGACY_FIELDS
+    } else {
+        CAPTURE_FIELDS
+    };
+    finish(base, &settings, fields)
 }
 
 pub(super) fn finish(

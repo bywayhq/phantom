@@ -148,7 +148,6 @@ pub fn import_akamai_profile(input: &str, base: &ClientProfile) -> Result<Import
     }
     let pseudo = parse_pseudo(pseudo)?;
     let (mut document, _) = super::export::describe(base)?;
-    let supplemented = supplemented_fields(&document)?;
     let http2 = document
         .get_mut("profile")
         .and_then(|profile| profile.get_mut("http2"))
@@ -160,13 +159,7 @@ pub fn import_akamai_profile(input: &str, base: &ClientProfile) -> Result<Import
         connection_window.into(),
     );
     http2.insert("pseudo_header_order".into(), pseudo.into());
-    let bytes = serde_json::to_vec(&document)
-        .map_err(|source| FingerprintImportError::native("document", source))?;
-    Ok(ImportedProfile {
-        profile: super::import_profile_json(&bytes)?,
-        observed: OBSERVED_HTTP2.to_vec(),
-        supplemented,
-    })
+    ImportedProfile::from_document(document, OBSERVED_HTTP2)
 }
 
 fn collect_supplements(value: &Value, path: &str, observed: &[&str], fields: &mut Vec<Box<str>>) {
@@ -252,28 +245,6 @@ fn decimal(input: &str, field: &str) -> Result<u32> {
         return Err(error(Kind::InvalidValue, field));
     }
     input.parse().map_err(|_| error(Kind::InvalidValue, field))
-}
-
-fn supplemented_fields(document: &Value) -> Result<Vec<Box<str>>> {
-    let profile = document
-        .get("profile")
-        .and_then(Value::as_object)
-        .ok_or_else(|| error(Kind::InvalidValue, "profile"))?;
-    let mut fields = Vec::new();
-    for layer in profile.keys().filter(|key| key.as_str() != "http2") {
-        fields.push(layer.as_str().into());
-    }
-    let http2 = profile
-        .get("http2")
-        .and_then(Value::as_object)
-        .ok_or_else(|| error(Kind::MissingField, "http2"))?;
-    for name in http2.keys() {
-        let field = format!("http2.{name}");
-        if !OBSERVED_HTTP2.contains(&field.as_str()) {
-            fields.push(field.into());
-        }
-    }
-    Ok(fields)
 }
 
 fn error(kind: Kind, field: &str) -> FingerprintImportError {
