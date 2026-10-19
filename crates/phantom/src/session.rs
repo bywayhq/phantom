@@ -317,16 +317,19 @@ impl ClientOptions {
             ));
         }
         #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
-        if let Some(namespace) = &self.https_record_checkpoint_namespace {
-            if self.https_record_resolver.is_none()
-                || namespace.is_empty()
-                || namespace.len() > 256
-                || namespace.chars().any(char::is_control)
-            {
-                return Err(BuildError::invalid_policy(
-                    "HTTPS checkpoint namespace requires discovery and 1..=256 bytes without controls",
-                ));
-            }
+        if self
+            .https_record_checkpoint_namespace
+            .as_ref()
+            .is_some_and(|namespace| {
+                self.https_record_resolver.is_none()
+                    || namespace.is_empty()
+                    || namespace.len() > 256
+                    || namespace.chars().any(char::is_control)
+            })
+        {
+            return Err(BuildError::invalid_policy(
+                "HTTPS checkpoint namespace requires discovery and 1..=256 bytes without controls",
+            ));
         }
         if self
             .negotiated_setup_wait_limit
