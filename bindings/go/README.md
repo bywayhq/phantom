@@ -23,12 +23,15 @@ when the route cannot support them. Direct `h2` with an HTTP URL uses prior
 knowledge. An empty `Proxy` selects direct connections. Explicit HTTP,
 HTTPS, SOCKS4(a), and SOCKS5(h) proxy URLs use the Rust client's routing.
 Proxy environment variables are ignored.
+Proxy credentials are not exposed in this slice.
 
 `Headers` is an ordered slice of names and byte values. Duplicate names
 remain separate. Templates apply the public Rust API's placement rules.
 Response headers retain their received order, duplicates, and byte values.
 Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
 `CookiesForURL`, and `ClearCookies` to manage them.
+Cookie matching uses top-level navigation semantics. Selecting a fetch
+template changes headers only.
 
 Create an `AttemptBudget` and attach it to requests across clients. It is
 the Rust client's shared allowance, including internal HTTP replays. Close
@@ -37,6 +40,7 @@ the budget handle when finished. In-flight requests retain their allowance.
 Keep the request context alive until EOF or `Body.Close`. Cancelling it
 also closes an already returned body. Reads pull at most 64 KiB through the
 native boundary. EOF, a failed read, or close releases the body handle.
+Body bytes retain content encoding; decompression is not automatic.
 Read errors are terminal. `ReadAll` enforces your collection limit and
 closes the body. Concurrent calls to one body's `Read` are serialized;
 `Close` can interrupt a blocked read.
