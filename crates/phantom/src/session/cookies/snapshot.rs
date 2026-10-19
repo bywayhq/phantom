@@ -506,6 +506,50 @@ struct ImportCandidate {
 }
 
 impl CookieJar {
+    #[cfg(feature = "session-snapshot")]
+    pub(in crate::session) fn snapshot_fits(
+        &self,
+        snapshot: &CookieSnapshot,
+    ) -> Result<bool, CookieSnapshotError> {
+        // Match import's last-duplicate-wins and expiry rules before checking quotas.
+        let now = SystemTime::now();
+        let date_now = OffsetDateTime::now_utc();
+        let mut seen = HashSet::new();
+        let mut domains = HashMap::<String, usize>::new();
+        let mut total = 0;
+        let validated = snapshot
+            .entries()
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                entry
+                    .validate(self.limits)
+                    .map_err(|kind| CookieSnapshotError::entry(kind, index))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        for entry in validated.into_iter().rev() {
+            if !seen.insert(entry.candidate.key.clone()) {
+                continue;
+            }
+            if let Some(expiry) = entry.expires_at
+                && expiry_at_or_before(expiry, now).is_none_or(|expiry| expiry <= date_now)
+            {
+                continue;
+            }
+            total += 1;
+            let count = domains
+                .entry(quota_domain(&entry.candidate.key.domain))
+                .or_default();
+            *count += 1;
+            if total > self.limits.max_cookies().get()
+                || *count > self.limits.max_cookies_per_domain().get()
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     pub(crate) fn export(&self) -> CookieSnapshot {
         self.state.lock().export()
     }

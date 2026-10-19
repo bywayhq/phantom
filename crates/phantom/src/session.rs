@@ -32,10 +32,14 @@ pub(crate) mod lifecycle;
 mod prune_timer;
 mod retired_connections;
 mod sharing;
+#[cfg(feature = "session-snapshot")]
+mod snapshot;
 mod stream_count;
 mod tickets;
 
 pub use sharing::SessionSharing;
+#[cfg(feature = "session-snapshot")]
+pub use snapshot::{SessionSnapshot, SessionSnapshotError, SessionSnapshotErrorKind};
 pub use tickets::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
 
 pub(crate) use tickets::binding::encoding::Encoder as TicketBindingEncoder;

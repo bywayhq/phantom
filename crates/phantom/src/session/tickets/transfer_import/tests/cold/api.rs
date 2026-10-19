@@ -85,6 +85,27 @@ async fn public_request_export_and_cold_import_resume_the_first_request() -> Tes
     Ok(())
 }
 
+#[cfg(feature = "session-snapshot")]
+#[tokio::test]
+async fn unified_checkpoint_restores_real_tls_sessions_without_changing_recipient() -> TestResult {
+    for version in [TlsVersion::Tls12, TlsVersion::Tls13] {
+        let fixture = ImportFixture::for_version(version)?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let source = builder(&fixture).build()?;
+        public_exchange(&fixture, &listener, &source, false).await?;
+        let snapshot = source.export_session(&KEY)?;
+        let recipient = builder(&fixture).build()?;
+        let restored = recipient.restore_session(&snapshot, &KEY, &[])?;
+        assert!(recipient.state.tickets.registry().caches.is_empty());
+        assert!(recipient.state.tickets.registry().cold.is_none());
+        public_exchange(&fixture, &listener, &restored, true).await?;
+        // Export and restore retain the source's independently consumable tickets.
+        public_exchange(&fixture, &listener, &source, true).await?;
+        public_exchange(&fixture, &listener, &recipient, false).await?;
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn configured_environment_route_rejects_last_owner_without_replacing_live_or_cold_state()
 -> TestResult {

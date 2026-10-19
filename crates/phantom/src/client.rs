@@ -304,6 +304,16 @@ impl ClientInner {
         )
     }
 
+    #[cfg(feature = "session-snapshot")]
+    pub(crate) fn session_snapshot_route(&self) -> Result<Route, crate::session::PreparationError> {
+        if self.environment_proxies.is_some() {
+            return Err(crate::session::PreparationError::Unsupported(
+                "session checkpoints with environment proxy routing",
+            ));
+        }
+        Ok(self.route.clone().unwrap_or(Route::Direct))
+    }
+
     /// Shared outer owners use the configured proxy route, not NO_PROXY for
     /// the proxy's own address. Request-only routes are supplied at import.
     pub(crate) fn ticket_import_route(

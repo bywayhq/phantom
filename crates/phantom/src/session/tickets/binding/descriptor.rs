@@ -187,6 +187,43 @@ impl ClientContext {
 }
 
 impl PreparedTicketPolicy {
+    /// Configuration identity for a session checkpoint, never native ticket authority.
+    #[cfg(feature = "session-snapshot")]
+    pub(crate) fn session_snapshot_context(
+        &self,
+        route: &Route,
+    ) -> Result<Zeroizing<Vec<u8>>, PreparationError> {
+        if crate::route::transfer_credential(route)?.is_some() {
+            return Err(PreparationError::Unsupported(
+                "session checkpoints with default-route credentials",
+            ));
+        }
+        let context = self
+            .context
+            .as_ref()
+            .ok_or(PreparationError::Unsupported("missing client context"))?;
+        let mut e = Encoder::new();
+        e.bytes(b"phantom-session-checkpoint-context-v1")?;
+        e.bytes(&self.canonical)?;
+        e.bytes(&self.derived_offers)?;
+        e.bytes(&context.origin_trust)?;
+        e.bytes(&context.proxy_trust)?;
+        e.option(context.default_certificate.as_ref(), |e, hash| {
+            e.bytes(hash)
+        })?;
+        e.list(&context.certificates, |e, (host, port, hash)| {
+            e.text(host)?;
+            e.u16(*port)?;
+            e.bytes(hash)
+        })?;
+        e.bytes(&context.source_binding)?;
+        e.option(context.http3_early_data.as_ref(), |e, enabled| {
+            e.bool(*enabled)
+        })?;
+        route::encode(&mut e, route)?;
+        Ok(Zeroizing::new(e.finish()))
+    }
+
     /// Installs configured policy on the actual TCP or QUIC cache owner.
     pub(in crate::session::tickets) fn bind_transfer_policy(
         &self,
