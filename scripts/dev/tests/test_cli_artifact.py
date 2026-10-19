@@ -170,6 +170,56 @@ class CliArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "modified pinned"):
             artifact.package_notices(package, checkout)
 
+    def test_napi_subcrates_require_their_exact_retained_upstream_notice(self):
+        checkout = self.root / "checkout"
+        source = self.root / "registry/napi-build"
+        source.mkdir(parents=True)
+        package = {
+            "id": "napi-build",
+            "name": "napi-build",
+            "version": "2.6.0",
+            "license": "MIT",
+            "manifest_path": str(source / "Cargo.toml"),
+        }
+        with self.assertRaisesRegex(ValueError, "missing or modified pinned"):
+            artifact.package_notices(package, checkout)
+        pinned = checkout / artifact.NAPI_RS_LICENSE_PATH
+        pinned.parent.mkdir(parents=True)
+        pinned.write_bytes((artifact.ROOT / artifact.NAPI_RS_LICENSE_PATH).read_bytes())
+        for (name, version), revision in artifact.NAPI_RS_LICENSE_REVISIONS.items():
+            with self.subTest(name=name):
+                destination = self.root / name
+                result = artifact.copy_notices(
+                    {"packages": [{**package, "name": name, "version": version}]},
+                    {"napi-build"},
+                    destination,
+                    checkout,
+                )
+                self.assertEqual(
+                    result[0]["supplementary_notice"],
+                    {
+                        "source": f"https://raw.githubusercontent.com/napi-rs/napi-rs/{revision}/LICENSE",
+                        "sha256": artifact.NAPI_RS_LICENSE_SHA256,
+                    },
+                )
+                self.assertEqual(
+                    artifact.digest(destination / result[0]["notices"][0]["file"]),
+                    artifact.NAPI_RS_LICENSE_SHA256,
+                )
+        for key, value in (
+            ("version", "2.6.1"),
+            ("license", "Apache-2.0"),
+            ("name", "another-crate"),
+        ):
+            with (
+                self.subTest(key=key),
+                self.assertRaisesRegex(ValueError, "no retained license"),
+            ):
+                artifact.package_notices({**package, key: value}, checkout)
+        pinned.write_text("modified upstream text")
+        with self.assertRaisesRegex(ValueError, "modified pinned"):
+            artifact.package_notices(package, checkout)
+
     def test_tar_and_zip_round_trip_preserve_binary_and_notices(self):
         folder = self.root / "phantom-test"
         folder.mkdir()

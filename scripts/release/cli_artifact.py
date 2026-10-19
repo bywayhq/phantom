@@ -30,6 +30,17 @@ ALLOC_STDLIB_LICENSE_SHA256 = (
     "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae"
 )
 ALLOC_STDLIB_LICENSE_PATH = "scripts/release/notices/alloc-stdlib-0.3.0.LICENSE"
+NAPI_RS_LICENSE_REVISIONS = {
+    ("napi", "3.14.2"): "8bab46ee5dfd48a7b51e8bad3d09aed315ada4df",
+    ("napi-build", "2.6.0"): "a94cef33f62e74682963dd085e283f52dcec2600",
+    ("napi-derive", "3.6.12"): "8bab46ee5dfd48a7b51e8bad3d09aed315ada4df",
+    ("napi-derive-backend", "6.1.5"): "4694e6d7c7d7eb2ac6b9a634374c3519a9e5851f",
+    ("napi-sys", "3.4.0"): "37109f133043aff379a38edfb8b1548e7e9309e5",
+}
+NAPI_RS_LICENSE_SHA256 = (
+    "3f1ce66533302df3a32edbfdfc0b78f0dd34659e4c1f5817162e5ea3c2297215"
+)
+NAPI_RS_LICENSE_PATH = "scripts/release/notices/napi-rs.LICENSE"
 
 
 def digest(path):
@@ -177,6 +188,17 @@ def package_notices(package, root):
         if not pinned.is_file() or digest(pinned) != ALLOC_STDLIB_LICENSE_SHA256:
             raise ValueError("missing or modified pinned alloc-stdlib license")
         files = [pinned]
+    if (
+        not files
+        and package.get("license") == "MIT"
+        and (package["name"], package.get("version")) in NAPI_RS_LICENSE_REVISIONS
+    ):
+        # These published subcrates omit the same repository-root license.
+        # Retain each exact upstream revision in the resulting inventory.
+        pinned = root / NAPI_RS_LICENSE_PATH
+        if not pinned.is_file() or digest(pinned) != NAPI_RS_LICENSE_SHA256:
+            raise ValueError("missing or modified pinned napi-rs license")
+        files = [pinned]
     if not files:
         raise ValueError(f"no retained license/notice text for {package['name']}")
     return sorted(set(files))
@@ -222,6 +244,12 @@ def copy_notices(metadata, package_ids, destination, root=ROOT):
             inventory[-1]["supplementary_notice"] = {
                 "source": ALLOC_STDLIB_LICENSE_SOURCE,
                 "sha256": ALLOC_STDLIB_LICENSE_SHA256,
+            }
+        if files == [root / NAPI_RS_LICENSE_PATH]:
+            revision = NAPI_RS_LICENSE_REVISIONS[name, version]
+            inventory[-1]["supplementary_notice"] = {
+                "source": f"https://raw.githubusercontent.com/napi-rs/napi-rs/{revision}/LICENSE",
+                "sha256": NAPI_RS_LICENSE_SHA256,
             }
         if name == "phantom-btls-sys":
             native = Path(package["manifest_path"]).parent / "deps/boringssl"
