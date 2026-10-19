@@ -1179,7 +1179,7 @@ fn client_builder_debug_reports_public_policy_without_secrets() {
             .max_retained_http1_connections(SEVEN)
     );
     assert!(debug.contains(shown));
-    assert!(debug.contains("redirect_policy: RedirectPolicy { maximum: Some(7) }"));
+    assert!(debug.contains("redirect_policy: RedirectPolicy { maximum: Some(7), custom: false }"));
     assert!(debug.contains("max_retained_http1_connections: 7"));
 }
 
