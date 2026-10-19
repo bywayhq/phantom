@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-18
+
 - Add opt-in shared upload and encoded-download caps and pacing, with separate
   reservation, transferred-body and decoded-response counters across resends.
 

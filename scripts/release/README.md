@@ -21,8 +21,8 @@ scripts/dev/with-cargo-lock.sh python3 scripts/release/check-advisories.py \
 The package check creates the seven archives in `packages.txt`: five workspace
 libraries and the changed `btls` and `tokio-btls` forks. Unchanged forks keep
 their exact published versions and resolve from crates.io. The check serves
-the new archives from a
-temporary loopback registry with no publishing endpoint. The downstream
+the new archives from a temporary loopback registry with no publishing
+endpoint. The downstream
 consumer fetches those archives, builds minimal and full features, and
 checks the resolved sources. It also runs the existing public-client peers
 over TLS HTTP/1, HTTP/2, and HTTP/3, with Chrome and Firefox settings and
