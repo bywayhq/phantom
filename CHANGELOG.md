@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Share live TLS tickets with `SessionSharing::tickets(true)` across independent
+  connection pools. Single-use tickets are consumed once, and bounded stores
+  survive either client being dropped. Portable transfers reject ambiguous
+  active stores; caller-owned CONNECT-UDP pools reject conflicting sharing groups.
+
 - Add caller-owned async checkpoint storage through `SessionStore` and explicit
   `Client::save_session` / `load_session` calls. Operations use absolute deadlines,
   preserve backend errors and restore into independent clients without changing

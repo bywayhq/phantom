@@ -5,10 +5,13 @@ for the examples below. Keep it for later requests so they can share connections
 
 Cloning a client shares its connections and shutdown. Use
 [`Client::fork`](crate::Client::fork) for independent pools with the same settings.
-Select live cookies, DNS, client hints or discovery caches with
-[`SessionSharing`](crate::SessionSharing). Unselected state, TLS tickets and
-learned proxy authentication start empty. Shared caches reflect later changes
+Select live cookies, DNS, client hints, discovery caches or TLS tickets with
+[`SessionSharing`](crate::SessionSharing). Unselected state and learned proxy
+authentication start empty. Shared caches reflect later changes
 and clearing in both directions; a fork does not enable disabled features.
+Shared tickets are consumed once across the independent pools. See
+[`SessionSharing::tickets`](crate::SessionSharing::tickets) for retention and
+portable export limits while older connections remain active.
 
 With `session-snapshot`, use [`Client::export_session`](crate::Client::export_session)
 to save supported cookies, direct-route Alt-Svc entries and TLS tickets together.
