@@ -331,7 +331,10 @@ test('a fresh Worker reloads after the last native environment terminates pendin
         const client = new Client({profile: workerData.profile, route: 'direct'});
         const options = {method: 'GET', protocol: 'http1', context: 'raw', timeoutMs: 10000};
         if (workerData.pending) {
-          const setup = client.request(workerData.url + '/setup', options);
+          // The Android profile admits one HTTP/1 request per origin. Keep both
+          // operations pending without making the body request wait for setup.
+          const setupClient = new Client({profile: workerData.profile, route: 'direct'});
+          const setup = setupClient.request(workerData.url + '/setup', options);
           const body = await client.request(workerData.url + '/body', options);
           const read = body.read();
           parentPort.postMessage('pending');
