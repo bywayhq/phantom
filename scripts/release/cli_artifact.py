@@ -602,7 +602,14 @@ def verify(args):
         "See artifact.json for the exact source, compiler, tested runtime and\n"
         "native dependencies. Older runtimes and fully static linkage are not\n"
         "verified. This candidate is unsigned and is not a published release.\n\n"
-        f"[CLI guide](https://github.com/bywayhq/phantom/blob/{revision}/crates/phantom-cli/README.md)\n",
+        + (
+            "Windows requires the [Microsoft x64 Visual C++ v14 runtime]"
+            "(https://aka.ms/vc14/vc_redist.x64.exe), at least as recent as the\n"
+            "archive's MSVC build tools. Runtime DLLs are not bundled.\n\n"
+            if executable.endswith(".exe")
+            else ""
+        )
+        + f"[CLI guide](https://github.com/bywayhq/phantom/blob/{revision}/crates/phantom-cli/README.md)\n",
         encoding="utf-8",
     )
     inventory = copy_notices(metadata, package_ids, staging / "notices")

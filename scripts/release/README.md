@@ -14,6 +14,16 @@ The **CLI artifacts** workflow prepares candidates for these native targets:
 | `x86_64-unknown-linux-gnu` | Ubuntu 24.04, x64 |
 | `aarch64-apple-darwin` | macOS 15, arm64 |
 
+The local Windows checkpoint passed on Windows 11 x64, build 26200. Each hosted
+runner still needs its own successful receipt; that local check does not verify
+Windows Server 2022, Linux or macOS.
+
+Windows binaries link to `MSVCP140.dll` and `VCRUNTIME140.dll`. Install Microsoft's
+[x64 Visual C++ v14 runtime](https://aka.ms/vc14/vc_redist.x64.exe), at least as
+recent as the archive's build tools. These runtime DLLs are not bundled. See
+[Microsoft's runtime requirements](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+for installation and compatibility details.
+
 To prepare one on a matching host, use a clean checkout and its native build
 tools. The command uses the pinned Rust toolchain and locked dependencies:
 

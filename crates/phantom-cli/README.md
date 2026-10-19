@@ -21,6 +21,10 @@ Each receipt names the tested runtime and native dependencies; older systems
 are not yet verified. These workflow candidates are separate from published
 releases.
 
+Windows archives require Microsoft's
+[x64 Visual C++ v14 runtime](https://aka.ms/vc14/vc_redist.x64.exe), at least as
+recent as the archive's MSVC build tools. The runtime DLLs are not bundled.
+
 ## Requests
 
 Choose `--profile ID`, `--profile-file FILE`, or a pinned bundle entry. Built-in identifiers
