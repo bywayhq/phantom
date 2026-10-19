@@ -206,7 +206,6 @@ fn legacy_client_hello_keeps_the_base_minimum_version_as_a_supplement() {
     settings.certificate_compression.clear();
     settings.delegated_credential_schemes.clear();
     settings.tcp_early_data = false;
-    settings.alpn_protocols = vec![vec![b'x'; 200].into_boxed_slice()];
     settings.alps = None;
     settings
         .validate()
@@ -214,8 +213,14 @@ fn legacy_client_hello_keeps_the_base_minimum_version_as_a_supplement() {
     let base = ClientProfile::new(settings);
     let bytes = phantom_net::preview_client_hello(base.tls(), "import.invalid")
         .unwrap_or_else(|error| panic!("capture: {error}"));
+    let captured = ClientHelloSummary::from_handshake_bytes(&bytes)
+        .unwrap_or_else(|error| panic!("decode: {error}"));
+    assert!(captured.extension_types().contains(&21));
     let imported = import_client_hello_profile(&bytes, &base)
         .unwrap_or_else(|error| panic!("import: {error}"));
+    let ja3_imported = import_ja3_profile(&ja3(&captured), &base)
+        .unwrap_or_else(|error| panic!("JA3 import: {error}"));
+    assert_eq!(ja3_imported.profile().tls().versions, base.tls().versions);
     assert_eq!(imported.profile().tls().versions, base.tls().versions);
     assert!(
         imported

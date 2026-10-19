@@ -184,6 +184,17 @@ pub(super) fn normalized(values: &[u16]) -> Vec<u16> {
         .collect()
 }
 
+pub(super) fn extension_order(ids: &[u16]) -> Result<ClientHelloExtensionOrder> {
+    // BoringSSL appends padding when the generated message needs it. It has
+    // no configurable position; the complete generated list is checked later.
+    ids.iter()
+        .copied()
+        .filter(|id| *id != 21)
+        .map(extension)
+        .collect::<Result<_>>()
+        .map(ClientHelloExtensionOrder::Fixed)
+}
+
 pub(super) fn equal<T: PartialEq>(actual: T, expected: T, field: &str) -> Result<()> {
     if actual != expected {
         return Err(error(Kind::UnsupportedSetting, field));
@@ -260,13 +271,7 @@ impl Ja3 {
             .copied()
             .map(group)
             .collect::<Result<_>>()?;
-        settings.extension_order = ClientHelloExtensionOrder::Fixed(
-            self.extensions
-                .iter()
-                .copied()
-                .map(extension)
-                .collect::<Result<_>>()?,
-        );
+        settings.extension_order = extension_order(&self.extensions)?;
         Ok(settings)
     }
 

@@ -1,10 +1,10 @@
 //! Explicit interpretation of sorted and original JA4 raw observations.
 
+use phantom_profile::ClientProfile;
 use phantom_profile::client_hello::ClientHelloSummary;
-use phantom_profile::{ClientHelloExtensionOrder, ClientProfile};
 
-use super::tls_import::identifiers::{cipher, extension, signature};
-use super::tls_import::{equal, error, finish, normalized, preview};
+use super::tls_import::identifiers::{cipher, signature};
+use super::tls_import::{equal, error, extension_order, finish, normalized, preview};
 use super::{FingerprintImportErrorKind as Kind, ImportedProfile, Result};
 
 /// Ordering carried by the caller's JA4 raw representation.
@@ -73,13 +73,7 @@ pub fn import_ja4_profile(
     let fields: &'static [&'static str] = match format {
         Ja4RawFormat::Original => {
             settings.cipher_suites = ciphers.iter().copied().map(cipher).collect::<Result<_>>()?;
-            settings.extension_order = ClientHelloExtensionOrder::Fixed(
-                extensions
-                    .iter()
-                    .copied()
-                    .map(extension)
-                    .collect::<Result<_>>()?,
-            );
+            settings.extension_order = extension_order(&extensions)?;
             &[
                 "tls.cipher_suites",
                 "tls.extension_order",
