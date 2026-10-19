@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Prevent a Windows stack overflow in CLI proxy requests when all library
+  features are enabled.
+
 - Share live TLS tickets with `SessionSharing::tickets(true)` across independent
   connection pools. Single-use tickets are consumed once, and bounded stores
   survive either client being dropped. Portable transfers reject ambiguous

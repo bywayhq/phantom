@@ -58,7 +58,8 @@ fn main() -> ExitCode {
     };
     let result = runtime.block_on(async {
         match arguments.subcommand() {
-            Some(("request", arguments)) => request::run(arguments).await,
+            // Heap-own request state so nested debug futures fit the Windows stack.
+            Some(("request", arguments)) => Box::pin(request::run(arguments)).await,
             Some(("profiles", arguments)) => profiles::run(arguments).await,
             _ => Err(CliError::invalid("expected request or profiles")),
         }
