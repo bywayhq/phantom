@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-19
+
 - Refresh cookie public-suffix data and compatible Rust dependency locks.
   Keep Rust 1.88 as the minimum supported compiler.
 - Update the httpcloak comparison adapter's Go dependencies to address the
@@ -14,8 +16,6 @@
   existing HTTP/2 pool, attempt budgets and cancellation. Negotiated requests
   keep their browser behavior. HTTP/1.1 Upgrade and plaintext tunnels are
   unsupported, and an incompatible peer never triggers protocol fallback.
-
-## 0.2.0 - 2026-10-18
 
 - Add opt-in shared upload and encoded-download caps and pacing, with separate
   reservation, transferred-body and decoded-response counters across resends.
