@@ -15,6 +15,7 @@ pub struct SessionSharing {
     dns: bool,
     client_hints: bool,
     discovery: bool,
+    tickets: bool,
 }
 
 impl SessionSharing {
@@ -26,6 +27,7 @@ impl SessionSharing {
             dns: false,
             client_hints: false,
             discovery: false,
+            tickets: false,
         }
     }
 
@@ -56,6 +58,22 @@ impl SessionSharing {
         self.discovery = enabled;
         self
     }
+
+    /// Shares live TLS ticket stores while keeping connection pools independent.
+    ///
+    /// New connections use the first matching store. Existing work can finish
+    /// with an older store; clearing visits both. Portable export and import
+    /// report `Unsupported` while several live stores have the same identity.
+    /// A caller-owned CONNECT-UDP pool rejects a conflicting store selected
+    /// by another sharing group with a configuration error.
+    /// Shared stores survive either client being dropped. Their bounded cache
+    /// evicts least-recently-selected stores. Single-use tickets are never copied.
+    /// The store bound is four times the retained H1 pool limit, plus twice
+    /// the H2 limit and three times the H3 limit.
+    pub const fn tickets(mut self, enabled: bool) -> Self {
+        self.tickets = enabled;
+        self
+    }
 }
 
 impl Client {
@@ -63,8 +81,8 @@ impl Client {
     ///
     /// Preserves the profile, trust, routes, hooks, custom connectors, timeouts
     /// and pool limits. Origin and HTTPS-proxy pools, request admission and
-    /// shutdown are independent. TLS tickets and learned proxy authentication
-    /// start empty. Unselected caches and cookies also start empty, with the
+    /// shutdown are independent. Learned proxy authentication starts empty.
+    /// Unselected tickets, caches and cookies start empty, with the
     /// same limits as the source. Ordinary [`Clone::clone`] keeps sharing pools.
     ///
     /// A default CONNECT-UDP route receives a fresh outer pool. A route supplied
@@ -84,7 +102,7 @@ impl Client {
     /// ```
     #[must_use]
     pub fn fork(&self, sharing: SessionSharing) -> Self {
-        let inner = Arc::new(self.inner.fork(sharing.dns));
+        let inner = Arc::new(self.inner.fork(sharing.dns, sharing.tickets));
         #[cfg_attr(not(feature = "cookies"), allow(unused_mut))]
         let mut options = self.state.options.clone();
         #[cfg(feature = "cookies")]
@@ -97,7 +115,30 @@ impl Client {
                 }
             });
         }
-        let mut state = options.build(&inner);
+        let tickets = sharing.tickets.then(|| {
+            self.state.tickets.enable_sharing(
+                // Exact H1 and negotiated entries each have origin/proxy
+                // stores. H2 has two; H3 can retain origin and outer stores.
+                options
+                    .max_retained_http1_connections
+                    .get()
+                    .saturating_mul(4)
+                    .saturating_add(
+                        options
+                            .max_retained_http2_connections
+                            .get()
+                            .saturating_mul(2),
+                    )
+                    .saturating_add(
+                        options
+                            .max_retained_http3_connections
+                            .get()
+                            .saturating_mul(3),
+                    ),
+            );
+            Arc::clone(&self.state.tickets)
+        });
+        let mut state = options.build_with_tickets(&inner, tickets);
         if sharing.client_hints {
             state.client_hints.clone_from(&self.state.client_hints);
         }

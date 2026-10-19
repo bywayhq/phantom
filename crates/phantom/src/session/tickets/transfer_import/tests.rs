@@ -26,6 +26,46 @@ const KEY: [u8; 32] = [7; 32];
 const NAME: &str = "127.0.0.1";
 const DEADLINE: Duration = Duration::from_secs(15);
 
+#[test]
+fn legacy_stores_remain_explicitly_unsupported_for_portable_sharing() -> TestResult {
+    let profile = profile(TlsVersion::Tls13);
+    let owner = owner(&profile, &[])?;
+    let endpoint = Endpoint::new("127.0.0.1:443".parse()?, 443)?;
+    let base = Http1TlsConnector::new(profile.tls())?;
+    let first = base.with_isolated_session_cache();
+    let second = base.with_isolated_session_cache();
+    register(&owner, &first, &endpoint, &Route::Direct);
+    let snapshot = empty_snapshot(&owner, header(0)?)?;
+    register(&owner, &second, &endpoint, &Route::Direct);
+    owner.enable_sharing(16);
+    let export_error = owner
+        .export(&KEY)
+        .err()
+        .ok_or("ambiguous export succeeded")?;
+    assert!(matches!(
+        export_error,
+        super::super::transfer::ExportError::AmbiguousSharing
+    ));
+    assert_eq!(
+        super::super::SessionTicketError::with_source(export_error).kind(),
+        super::super::SessionTicketErrorKind::Unsupported
+    );
+    let decoding = decoding_context()?;
+    let import_error = owner
+        .import_tcp(&snapshot, &KEY, &decoding)
+        .err()
+        .ok_or("ambiguous import succeeded")?;
+    assert!(matches!(import_error, ImportError::AmbiguousSharing));
+    assert_eq!(
+        super::super::SessionTicketError::with_source(import_error).kind(),
+        super::super::SessionTicketErrorKind::Unsupported
+    );
+    assert_eq!(owner.registry().caches.len(), 2);
+    assert_eq!(owner.clear()?, 0);
+    assert_eq!(owner.registry().caches.len(), 2);
+    Ok(())
+}
+
 fn profile(version: TlsVersion) -> ClientProfile {
     let mut tls = chrome::v154_tcp_tls();
     tls.versions = TlsVersionRange::only(version);

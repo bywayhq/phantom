@@ -39,6 +39,38 @@ fn outer<'a>(
 }
 
 #[tokio::test]
+async fn registration_does_not_keep_a_connect_udp_pool_or_its_cache_alive() -> TestResult {
+    let tcp = tcp()?;
+    let owner = prepared_owner()?;
+    let cache = {
+        let proxy =
+            crate::ConnectUdpProxy::new("https://proxy.example/udp/{target_host}/{target_port}/")?
+                .with_http2_transport();
+        let endpoint = proxy_endpoint(&proxy)?;
+        let route = Route::connect_udp(proxy.clone());
+        let token = tcp.prepare_connect_udp_outer(
+            proxy.pool(),
+            proxy.host(),
+            proxy.port(),
+            proxy.authority(),
+            &[],
+            None,
+        )?;
+        let cache = token.session_ticket_cache().ok_or("cache absent")?;
+        owner.register_shared_outer_before_use(
+            Some(cache.clone()),
+            outer(&endpoint, &route, TicketCacheProtocol::Http2),
+        )?;
+        assert!(cache.is_live());
+        cache
+    };
+    assert!(!cache.is_live(), "registry retained the route's outer pool");
+    assert_eq!(owner.clear()?, 0);
+    assert!(owner.registry().caches.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
 async fn shared_h2_and_h3_register_one_actual_proxy_cache_across_inner_origins() -> TestResult {
     let tcp = tcp()?;
     let quic = quic()?;

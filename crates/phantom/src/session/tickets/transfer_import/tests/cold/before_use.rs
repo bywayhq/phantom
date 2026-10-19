@@ -176,12 +176,7 @@ async fn actual_shared_context_busy_keeps_custody_then_retry_materializes_and_re
                 .ok_or("preparation missing")?
                 .as_ref()
                 .map_err(|error| *error)?;
-            preparation.configured_policy(
-                &registration.descriptor,
-                registration.leg,
-                registration.protocol,
-                &registration.route,
-            )?
+            preparation.configured_registered_policy(registration)?
         };
         assert!(matches!(
             target_cache.bind_transfer_policy(NAME, policy),

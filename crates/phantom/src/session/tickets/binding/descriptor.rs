@@ -224,7 +224,28 @@ impl PreparedTicketPolicy {
         Ok(Zeroizing::new(e.finish()))
     }
 
+    pub(in crate::session::tickets) fn configured_registered_policy(
+        &self,
+        binding: &crate::session::tickets::RegisteredBinding,
+    ) -> Result<btls::ssl::SessionTransferPolicy, PreparationError> {
+        if !binding.route.supported(binding.leg, binding.protocol) {
+            return Err(PreparationError::Unsupported("ticket route and protocol"));
+        }
+        self.validate_source_witness(&binding.descriptor.witness)?;
+        let context = self
+            .context
+            .as_ref()
+            .ok_or(PreparationError::Unsupported("missing client context"))?;
+        btls::ssl::SessionTransferPolicy::new(
+            &binding.descriptor.policy,
+            &binding.descriptor.witness,
+            binding.route.credential()?,
+            &context.credential_subkey,
+        )
+        .map_err(native_preparation_error)
+    }
     /// Installs configured policy on the actual TCP or QUIC cache owner.
+    #[cfg(test)]
     pub(in crate::session::tickets) fn bind_transfer_policy(
         &self,
         cache: &phantom_net::SessionTicketCacheOwner,
@@ -381,7 +402,9 @@ impl PreparedTicketPolicy {
     }
 }
 
-fn native_preparation_error(error: btls::ssl::SessionTransferError) -> PreparationError {
+pub(in crate::session::tickets) fn native_preparation_error(
+    error: btls::ssl::SessionTransferError,
+) -> PreparationError {
     match error {
         btls::ssl::SessionTransferError::TooLarge => PreparationError::TooLarge,
         btls::ssl::SessionTransferError::Allocation => PreparationError::Allocation,

@@ -29,6 +29,7 @@ pub(super) enum ExportError {
     TooLarge,
     RegistryPoisoned,
     ConflictingOwner,
+    AmbiguousSharing,
     InvalidCapture,
     Cold(super::staging::ColdError),
     Preparation(PreparationError),
@@ -42,6 +43,9 @@ impl fmt::Display for ExportError {
             Self::Allocation => "ticket export allocation failed",
             Self::TooLarge => "ticket export exceeds its resource bound",
             Self::RegistryPoisoned => "ticket export registry is poisoned",
+            Self::AmbiguousSharing => {
+                "ticket sharing retains several live stores for one portable owner"
+            }
             Self::ConflictingOwner => "ticket export has conflicting cache owners",
             Self::InvalidCapture => "ticket export has invalid storage metadata",
             Self::Cold(_) => "cold ticket export failed validation",
@@ -134,7 +138,11 @@ impl TicketOwner {
                     alias = true;
                 } else if same_manifest_owner(existing.registration, registration) {
                     // Two physical counters cannot be merged into one logical owner.
-                    return Err(ExportError::ConflictingOwner);
+                    return Err(if self.sharing_enabled() {
+                        ExportError::AmbiguousSharing
+                    } else {
+                        ExportError::ConflictingOwner
+                    });
                 }
             }
             if alias {
@@ -297,7 +305,7 @@ impl TicketOwner {
                 protocol: registration.protocol,
                 policy: registration.descriptor.policy(),
                 source_witness: registration.descriptor.source_witness(),
-                has_credentials: crate::route::transfer_credential(&registration.route)?.is_some(),
+                has_credentials: registration.route.credential()?.is_some(),
                 header: headers[index],
                 slots: &slots[index],
             });

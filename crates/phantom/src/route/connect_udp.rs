@@ -1,4 +1,4 @@
-use std::{error::Error as StdError, fmt, num::NonZeroUsize};
+use std::{error::Error as StdError, fmt, num::NonZeroUsize, sync::Arc};
 
 use phantom_net::{
     proxy::{HttpBasicCredentials, HttpsProxyProtocol},
@@ -39,6 +39,71 @@ pub struct ConnectUdpProxy {
     transport: ConnectUdpTransport,
     credentials: Option<HttpBasicCredentials>,
     pool: phantom_net::proxy::ConnectUdpProxyPool,
+    ticket_scope: Arc<()>,
+}
+
+/// Configuration identity without retaining an executable outer pool.
+#[derive(Clone)]
+pub(crate) struct ConnectUdpTicketRoute {
+    endpoint: Endpoint,
+    template: Vec<TemplatePart>,
+    headers: Vec<RequestHeader>,
+    transport: ConnectUdpTransport,
+    credentials: Option<HttpBasicCredentials>,
+    scope: Arc<()>,
+}
+
+impl PartialEq for ConnectUdpTicketRoute {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.scope, &other.scope)
+            && self.endpoint == other.endpoint
+            && self.template == other.template
+            && self.headers == other.headers
+            && self.transport == other.transport
+            && self.credentials == other.credentials
+    }
+}
+
+impl Eq for ConnectUdpTicketRoute {}
+
+impl ConnectUdpTicketRoute {
+    pub(crate) fn host(&self) -> &str {
+        self.endpoint.host()
+    }
+    pub(crate) fn port(&self) -> u16 {
+        self.endpoint.port()
+    }
+    pub(crate) fn authority(&self) -> &str {
+        self.endpoint.authority().as_str()
+    }
+    pub(crate) fn tcp_protocol(&self) -> Option<HttpsProxyProtocol> {
+        match self.transport {
+            ConnectUdpTransport::Http3 => None,
+            ConnectUdpTransport::Http2 => Some(HttpsProxyProtocol::Http2),
+            ConnectUdpTransport::Http1 => Some(HttpsProxyProtocol::Http1),
+        }
+    }
+    pub(crate) fn matches(&self, other: &ConnectUdpProxy) -> bool {
+        Arc::ptr_eq(&self.scope, &other.ticket_scope)
+            && self.endpoint == other.endpoint
+            && self.template == other.template
+            && self.headers == other.headers
+            && self.transport == other.transport
+            && self.credentials == other.credentials
+    }
+    pub(crate) fn transfer_credential(
+        &self,
+    ) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError>
+    {
+        self.credentials
+            .as_ref()
+            .map(|credentials| {
+                phantom_net::proxy::HttpProxyAuthentication::Basic(credentials)
+                    .session_transfer_credential()
+            })
+            .transpose()
+            .map_err(super::transfer_credential_error)
+    }
 }
 
 #[derive(Debug)]
@@ -252,6 +317,7 @@ impl ConnectUdpProxy {
             transport: ConnectUdpTransport::Http3,
             credentials: None,
             pool: phantom_net::proxy::ConnectUdpProxyPool::new(),
+            ticket_scope: Arc::new(()),
         };
         // A representative expansion proves the literal text forms a valid
         // origin-form target before any request uses it.
@@ -369,18 +435,37 @@ impl ConnectUdpProxy {
                 )
             },
         )?;
+        self.ticket_scope = Arc::new(());
         Ok(self)
     }
 
     fn reset_pool(&mut self) {
         // Existing validated limits cannot exceed the pool's constructor bound.
         self.pool = self.pool.fresh();
+        self.ticket_scope = Arc::new(());
     }
 
     pub(crate) fn fresh(&self) -> Self {
         let mut proxy = self.clone();
         proxy.reset_pool();
         proxy
+    }
+
+    pub(crate) fn fresh_with_shared_tickets(&self) -> Self {
+        let mut proxy = self.clone();
+        proxy.pool = proxy.pool.fresh();
+        proxy
+    }
+
+    pub(crate) fn ticket_route(&self) -> ConnectUdpTicketRoute {
+        ConnectUdpTicketRoute {
+            endpoint: self.endpoint.clone(),
+            template: self.template.clone(),
+            headers: self.headers.clone(),
+            transport: self.transport,
+            credentials: self.credentials.clone(),
+            scope: Arc::clone(&self.ticket_scope),
+        }
     }
 
     pub(crate) fn pool(&self) -> &phantom_net::proxy::ConnectUdpProxyPool {

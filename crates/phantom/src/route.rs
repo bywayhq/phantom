@@ -12,6 +12,7 @@ use phantom_profile::{ProxyConnectField, ProxyConnectTemplate};
 use crate::authority::{AuthorityError, Endpoint, ParseUriError, parse_absolute_uri};
 
 pub(crate) use connect_udp::ConnectUdpTargetError;
+pub(crate) use connect_udp::ConnectUdpTicketRoute;
 
 pub use connect_udp::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind,

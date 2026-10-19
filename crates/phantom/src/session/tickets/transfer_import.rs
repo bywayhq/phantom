@@ -27,6 +27,7 @@ pub(super) enum ImportError {
     TooLarge,
     OwnerMapping,
     UnsupportedRoute,
+    AmbiguousSharing,
     EmptyCredentials,
     Preparation(PreparationError),
     Manifest(EnvelopeError),
@@ -42,6 +43,9 @@ impl fmt::Display for ImportError {
             Self::Allocation => "ticket import allocation failed",
             Self::TooLarge => "ticket import exceeds its resource bound",
             Self::OwnerMapping => "ticket owners do not match recipient configuration",
+            Self::AmbiguousSharing => {
+                "ticket sharing retains several live stores for one portable owner"
+            }
             Self::UnsupportedRoute => "ticket import route or protocol is unsupported",
             Self::EmptyCredentials => "empty credentialed ticket import is unsupported",
             Self::Preparation(_) => "ticket recipient preparation failed",
@@ -176,32 +180,27 @@ impl ImportConfiguration<'_> {
         preparation: &super::binding::PreparedTicketPolicy,
         source: &OwnerView<'_>,
         origin: &Endpoint,
-        live: Option<&Route>,
         native: &btls::ssl::VerifiedSessionEnvelope,
     ) -> Result<Route, ImportError> {
         let mut candidates = reserved(MAX_OWNERS + 1)?;
-        if let Some(route) = live {
-            candidates.push(route.clone());
-        } else {
-            match self {
-                Self::Client { client, routes } => {
-                    let shared = source.leg == TicketCacheLeg::ConnectUdp
-                        && matches!(
-                            source.protocol,
-                            TicketCacheProtocol::Http2 | TicketCacheProtocol::Http3
-                        );
-                    if let Some(route) = client.ticket_import_route(origin, shared) {
-                        candidates.push(route);
-                    }
-                    for route in *routes {
-                        if !candidates.contains(route) {
-                            candidates.push(route.clone());
-                        }
+        match self {
+            Self::Client { client, routes } => {
+                let shared = source.leg == TicketCacheLeg::ConnectUdp
+                    && matches!(
+                        source.protocol,
+                        TicketCacheProtocol::Http2 | TicketCacheProtocol::Http3
+                    );
+                if let Some(route) = client.ticket_import_route(origin, shared) {
+                    candidates.push(route);
+                }
+                for route in *routes {
+                    if !candidates.contains(route) {
+                        candidates.push(route.clone());
                     }
                 }
-                #[cfg(test)]
-                Self::Fixture => candidates.push(Route::Direct),
             }
+            #[cfg(test)]
+            Self::Fixture => candidates.push(Route::Direct),
         }
         let mut credential_mismatch = false;
         for route in candidates {
@@ -254,10 +253,19 @@ impl ImportConfiguration<'_> {
     }
 
     fn supports_route(&self, source: &OwnerView<'_>, origin: &Endpoint, route: &Route) -> bool {
+        self.supports_ticket_route(source, origin, &super::TicketRoute::capture(route))
+    }
+
+    fn supports_ticket_route(
+        &self,
+        source: &OwnerView<'_>,
+        origin: &Endpoint,
+        route: &super::TicketRoute,
+    ) -> bool {
         let client = match self {
             Self::Client { client, .. } => client,
             #[cfg(test)]
-            Self::Fixture => return matches!(route, Route::Direct),
+            Self::Fixture => return matches!(route.ordinary(), Some(Route::Direct)),
         };
         let connectors = client.connectors_for(origin);
         match source.leg {
@@ -267,25 +275,32 @@ impl ImportConfiguration<'_> {
                 }
                 match source.protocol {
                     TicketCacheProtocol::Http1 => {
-                        connectors.http1.is_some() && route.carries_origin_tls_for_alpn()
+                        connectors.http1.is_some()
+                            && route
+                                .ordinary()
+                                .is_some_and(Route::carries_origin_tls_for_alpn)
                     }
                     TicketCacheProtocol::Http2 => {
-                        connectors.http2.is_some() && route.carries_origin_tls_for_alpn()
+                        connectors.http2.is_some()
+                            && route
+                                .ordinary()
+                                .is_some_and(Route::carries_origin_tls_for_alpn)
                     }
                     TicketCacheProtocol::Negotiated => {
-                        connectors.http1_or_2.is_some() && route.carries_origin_tls_for_alpn()
+                        connectors.http1_or_2.is_some()
+                            && route
+                                .ordinary()
+                                .is_some_and(Route::carries_origin_tls_for_alpn)
                     }
                     TicketCacheProtocol::Http3 => {
                         connectors.http3.is_some()
-                            && matches!(
-                                route,
-                                Route::Direct | Route::Socks5(_) | Route::ConnectUdp(_)
-                            )
+                            && (matches!(route.ordinary(), Some(Route::Direct | Route::Socks5(_)))
+                                || route.connect_udp().is_some())
                     }
                 }
             }
             TicketCacheLeg::HttpProxy => {
-                let Route::HttpProxy(proxy) = route else {
+                let Some(Route::HttpProxy(proxy)) = route.ordinary() else {
                     return false;
                 };
                 proxy.uses_tls()
@@ -299,7 +314,7 @@ impl ImportConfiguration<'_> {
                         }
             }
             TicketCacheLeg::ConnectUdp => {
-                let Route::ConnectUdp(proxy) = route else {
+                let Some(proxy) = route.connect_udp() else {
                     return false;
                 };
                 let Some(outer) = &client.connect_udp_proxy else {
@@ -444,7 +459,11 @@ impl TicketOwner {
             for (position, (_, index)) in owners.iter().enumerate() {
                 let binding = caches[*index].binding.as_ref().map_err(|error| *error)?;
                 if matches_owner(source, binding) && matched.replace(position).is_some() {
-                    return Err(ImportError::OwnerMapping);
+                    return Err(if self.sharing_enabled() {
+                        ImportError::AmbiguousSharing
+                    } else {
+                        ImportError::OwnerMapping
+                    });
                 }
             }
             if let Some(position) = matched {
@@ -453,7 +472,7 @@ impl TicketOwner {
                 }
                 let registration = &caches[owners[position].1];
                 let binding = registration.binding.as_ref().map_err(|error| *error)?;
-                let has_credentials = crate::route::transfer_credential(&binding.route)?.is_some();
+                let has_credentials = binding.route.credential()?.is_some();
                 if envelope::store_counts(source.header).0 == 0 && has_credentials {
                     return Err(ImportError::EmptyCredentials);
                 }
@@ -483,12 +502,7 @@ impl TicketOwner {
                 return Err(ImportError::OwnerMapping);
             }
             let live_route = matched
-                .map(|position| {
-                    caches[owners[position].1]
-                        .binding
-                        .as_ref()
-                        .map(|binding| &binding.route)
-                })
+                .map(|position| caches[owners[position].1].binding.as_ref())
                 .transpose()
                 .map_err(|error| *error)?;
             preparation.validate_source_witness(source.source_witness)?;
@@ -501,7 +515,24 @@ impl TicketOwner {
                     native.owner_metadata(index)?,
                 )?;
             }
-            configuration.resolve_route(preparation, source, &origin, live_route, &native)?;
+            if let Some(binding) = live_route {
+                if !configuration.supports_ticket_route(source, &origin, &binding.route) {
+                    return Err(ImportError::OwnerMapping);
+                }
+                let configured = preparation.configured_registered_policy(binding)?;
+                let keep_early_data = matches!(source.header, SessionTicketStoreHeader::Quic(_))
+                    || binding.keep_early_data;
+                for slot in source.slots() {
+                    native.validate_record_policy(
+                        usize::from(slot.native_slot),
+                        &configured,
+                        source.server_name,
+                        keep_early_data,
+                    )?;
+                }
+            } else {
+                configuration.resolve_route(preparation, source, &origin, &native)?;
+            }
             matches.push(matched);
         }
         let mut incoming = ColdState::capture(&manifest, native)?;

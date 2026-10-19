@@ -129,6 +129,74 @@ async fn cold_import_resumes_shared_h3_outer_for_two_fresh_inner_origins() -> Te
     result
 }
 
+#[tokio::test]
+async fn independent_default_outer_pools_share_live_tickets_and_clear_together() -> TestResult<()> {
+    let (origin_identity, proxy_identity) = identities()?;
+    let store = CountingStore::new();
+    let mut proxy = MasqueProxy::spawn_with_session_storage(
+        &proxy_identity,
+        ProxyMode::Sharing,
+        Some(store.clone()),
+    )?;
+    let mut origins = Vec::new();
+    let result = super::checked(bounded(async {
+        for _ in 0..6 {
+            origins.push(origin_without_tickets(&origin_identity)?);
+        }
+        let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
+        let source = transfer_builder(&origin_identity, &proxy_identity)
+            .route(route.clone())
+            .build()?;
+        let probe = transfer_client(&origin_identity, &proxy_identity)?;
+        for origin in &origins[..2] {
+            let response = source
+                .get(HttpProtocol::Http3, &origin.uri("/one"))?
+                .send()
+                .await?;
+            response.into_body().collect().await?;
+        }
+        let _ = export_outer_tickets(&source, &probe, &[8; 32], &route).await?;
+        assert_eq!(proxy.connections(), 1);
+        let shared = source.fork(phantom::SessionSharing::none().tickets(true));
+        for origin in &origins[2..4] {
+            let response = shared
+                .get(HttpProtocol::Http3, &origin.uri("/two"))?
+                .send()
+                .await?;
+            response.into_body().collect().await?;
+        }
+        assert_eq!(
+            proxy.connections(),
+            2,
+            "fork reused the source outer connection"
+        );
+        assert_eq!(store.counts(), (1, 1));
+        assert!(shared.clear_session_tickets()? > 0);
+        assert_eq!(source.clear_session_tickets()?, 0);
+        source.refresh_connections().await;
+        for origin in &origins[4..] {
+            let response = source
+                .get(HttpProtocol::Http3, &origin.uri("/three"))?
+                .send()
+                .await?;
+            response.into_body().collect().await?;
+        }
+        assert_eq!(proxy.connections(), 3);
+        assert_eq!(
+            store.counts(),
+            (1, 1),
+            "cleared outer tickets were offered again"
+        );
+        Ok(())
+    }))
+    .await;
+    let mut result = finish_with_cleanup(result, proxy.finish().await);
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
+}
+
 async fn fetch_pair(client: &Client, route: &Route, pair: &[Origin]) -> TestResult<()> {
     let one = pair[0].uri("/one");
     let two = pair[1].uri("/two");
@@ -180,6 +248,10 @@ async fn export_outer_tickets(
 }
 
 fn transfer_client(origin: &TestIdentity, proxy: &TestIdentity) -> TestResult<Client> {
+    Ok(transfer_builder(origin, proxy).build()?)
+}
+
+fn transfer_builder(origin: &TestIdentity, proxy: &TestIdentity) -> phantom::ClientBuilder {
     let base = masque_client_settings();
     let mut quic_tls = base.tls().clone();
     quic_tls.session_tickets = chrome::v154_quic_tls().session_tickets;
@@ -189,12 +261,9 @@ fn transfer_client(origin: &TestIdentity, proxy: &TestIdentity) -> TestResult<Cl
         base.http3().clone(),
         base.request().clone(),
     );
-    Ok(
-        Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
-            .add_root_certificate_der(origin.root_der.clone())
-            .add_proxy_root_certificate_der(proxy.root_der.clone())
-            .build()?,
-    )
+    Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
+        .add_root_certificate_der(origin.root_der.clone())
+        .add_proxy_root_certificate_der(proxy.root_der.clone())
 }
 
 fn origin_without_tickets(identity: &TestIdentity) -> TestResult<Origin> {

@@ -15,6 +15,7 @@ mod requests;
 mod route;
 mod tls;
 
+pub(in crate::session::tickets) use descriptor::native_preparation_error;
 pub(crate) use descriptor::{
     PreparedCacheDescriptor, TicketCacheLeg, TicketCacheProtocol, TicketClientContext,
 };

@@ -398,7 +398,7 @@ impl ClientInner {
             .collect();
     }
 
-    pub(crate) fn fork(&self, share_dns: bool) -> Self {
+    pub(crate) fn fork(&self, share_dns: bool, share_tickets: bool) -> Self {
         let mut inner = self.clone();
         if let Some(resolver) = self.host_resolver.as_ref().filter(|_| !share_dns) {
             let mut fresh = resolver.clone();
@@ -408,7 +408,11 @@ impl ClientInner {
             inner.bind_host_resolver(fresh);
         }
         if let Some(Route::ConnectUdp(proxy)) = &self.route {
-            inner.route = Some(Route::ConnectUdp(proxy.fresh()));
+            inner.route = Some(Route::ConnectUdp(if share_tickets {
+                proxy.fresh_with_shared_tickets()
+            } else {
+                proxy.fresh()
+            }));
         }
         inner.https_proxy = inner
             .https_proxy

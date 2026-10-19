@@ -165,14 +165,9 @@ impl Fixture {
             let binding = registration.binding.as_ref().map_err(|error| *error)?;
             assert!(view.policy == binding.descriptor.policy());
             assert!(!view.has_credentials);
-            assert!(crate::route::transfer_credential(&binding.route)?.is_none());
+            assert!(binding.route.credential()?.is_none());
             preparation.validate_source_witness(view.source_witness)?;
-            let configured = preparation.configured_policy(
-                &binding.descriptor,
-                binding.leg,
-                binding.protocol,
-                &binding.route,
-            )?;
+            let configured = preparation.configured_registered_policy(binding)?;
             for slot in view.slots() {
                 native.validate_record_policy(
                     usize::from(slot.native_slot),

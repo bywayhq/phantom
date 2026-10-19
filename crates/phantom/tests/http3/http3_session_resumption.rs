@@ -95,6 +95,158 @@ impl CountingStore {
     }
 }
 
+#[tokio::test]
+async fn independent_forks_share_later_quic_tickets_and_clearing() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let store = CountingStore::new();
+        let endpoint = crate::support::h3::quic_server(
+            server_config_with_tickets(&identity, Arc::clone(&store), b"h3", 1)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let origin = endpoint.local_addr()?;
+        let no_tickets = server_config_with_tickets(&identity, Arc::clone(&store), b"h3", 0)?;
+        let tickets = server_config_with_tickets(&identity, Arc::clone(&store), b"h3", 1)?;
+        let (read_tx, mut read) = mpsc::unbounded_channel();
+        let (served_tx, mut served) = mpsc::unbounded_channel();
+        let peer_store = Arc::clone(&store);
+        let mut server = ConnectionPeer::spawn(async move {
+            for index in 0..8 {
+                let (quic, connection) = serve_one_connection(&endpoint).await?;
+                read.recv().await.ok_or("client stopped")?;
+                quic.close(0u32.into(), b"served");
+                drop(connection);
+                endpoint.wait_idle().await;
+                if index == 0 {
+                    endpoint.set_server_config(Some(no_tickets.clone()));
+                } else if index == 2 {
+                    endpoint.set_server_config(Some(tickets.clone()));
+                }
+                served_tx
+                    .send(peer_store.counts())
+                    .map_err(|_| "client stopped")?;
+            }
+            Ok(())
+        });
+        let result = async {
+            let source = Client::builder(resuming_profile(client_settings().request().clone()))
+                .add_root_certificate_der(identity.root_der.clone())
+                .http3_early_data(true)
+                .build()?;
+            let shared = source.fork(phantom::SessionSharing::none().tickets(true));
+            let isolated = source.fork(phantom::SessionSharing::none());
+            let uri = format!("https://{origin}/");
+            for (index, client) in [
+                &source, &shared, &source, &shared, &source, &source, &isolated,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if index == 5 {
+                    assert!(shared.clear_session_tickets()? > 0);
+                    assert_eq!(source.clear_session_tickets()?, 0);
+                }
+                send(client.get(HttpProtocol::Http3, &uri)?).await?;
+                read_tx.send(())?;
+                assert_eq!(
+                    served.recv().await.ok_or("peer stopped")?,
+                    Presented {
+                        // The first ticket is consumed by the fork. The source's
+                        // next full handshake proves it did not retain a copy.
+                        presented: usize::from(index > 0) + usize::from(index >= 4),
+                        accepted: usize::from(index > 0) + usize::from(index >= 4),
+                    }
+                );
+            }
+            let survivor = source.fork(phantom::SessionSharing::none().tickets(true));
+            drop(source);
+            drop(shared);
+            send(survivor.get(HttpProtocol::Http3, &uri)?).await?;
+            read_tx.send(())?;
+            assert_eq!(
+                served.recv().await.ok_or("peer stopped")?,
+                Presented {
+                    presented: 3,
+                    accepted: 3
+                }
+            );
+            Ok(())
+        }
+        .await;
+        let cleanup = if result.is_ok() {
+            match server.join().await {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            }
+        } else {
+            server.stop().await
+        };
+        finish_with_cleanup(result, cleanup)
+    })
+    .await
+}
+
+#[tokio::test]
+async fn an_unused_quic_ticket_sharing_fork_resumes_after_its_source_is_dropped() -> TestResult<()>
+{
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let store = CountingStore::new();
+        let (origin, endpoint) = server_endpoint(&identity, Arc::clone(&store))?;
+        let (read_tx, mut read) = mpsc::unbounded_channel();
+        let (served_tx, mut served) = mpsc::unbounded_channel();
+        let mut server = ConnectionPeer::spawn(async move {
+            for _ in 0..2 {
+                let (quic, connection) = serve_one_connection(&endpoint).await?;
+                read.recv().await.ok_or("client stopped")?;
+                quic.close(0u32.into(), b"served");
+                drop(connection);
+                endpoint.wait_idle().await;
+                served_tx
+                    .send(store.counts())
+                    .map_err(|_| "client stopped")?;
+            }
+            Ok(())
+        });
+        let result = async {
+            let source = resuming_client(&identity)?;
+            let uri = format!("https://{origin}/");
+            send(source.get(HttpProtocol::Http3, &uri)?).await?;
+            read_tx.send(())?;
+            assert_eq!(
+                served.recv().await.ok_or("peer stopped")?,
+                Presented {
+                    presented: 0,
+                    accepted: 0
+                }
+            );
+            let survivor = source.fork(phantom::SessionSharing::none().tickets(true));
+            drop(source);
+            send(survivor.get(HttpProtocol::Http3, &uri)?).await?;
+            read_tx.send(())?;
+            assert_eq!(
+                served.recv().await.ok_or("peer stopped")?,
+                Presented {
+                    presented: 1,
+                    accepted: 1
+                }
+            );
+            Ok(())
+        }
+        .await;
+        let cleanup = if result.is_ok() {
+            match server.join().await {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            }
+        } else {
+            server.stop().await
+        };
+        finish_with_cleanup(result, cleanup)
+    })
+    .await
+}
+
 /// Tickets presented and accepted when a connection was served.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Presented {
@@ -228,6 +380,15 @@ fn server_config(
     store: Arc<CountingStore>,
     alpn: &[u8],
 ) -> TestResult<quinn::ServerConfig> {
+    server_config_with_tickets(identity, store, alpn, 2)
+}
+
+fn server_config_with_tickets(
+    identity: &TestIdentity,
+    store: Arc<CountingStore>,
+    alpn: &[u8],
+    tickets: usize,
+) -> TestResult<quinn::ServerConfig> {
     let certificate = CertificateDer::from(identity.leaf_der().to_vec());
     let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         identity.private_key_der().to_vec(),
@@ -237,6 +398,7 @@ fn server_config(
         .with_single_cert(vec![certificate], private_key)?;
     tls.alpn_protocols = vec![alpn.to_vec()];
     tls.session_storage = store;
+    tls.send_tls13_tickets = tickets;
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     Ok(quinn::ServerConfig::with_crypto(Arc::new(crypto)))
 }

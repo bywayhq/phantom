@@ -364,6 +364,33 @@ impl HttpsProxyConnector {
         )
     }
 
+    /// Prepares a persistent outer connector attached to the selected live ticket store.
+    /// Existing prepared connectors remain valid for work already selected.
+    ///
+    /// # Errors
+    /// Returns a configuration error for an incompatible or conflicting store,
+    /// or the runtime/capacity errors of ordinary preparation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_connect_udp_outer_with_ticket_cache(
+        &self,
+        pool: &super::ConnectUdpProxyPool,
+        host: &str,
+        port: u16,
+        authority: &str,
+        fields: &[crate::request::RequestHeader],
+        owner: &crate::SessionTicketCacheOwner,
+        credentials: Option<&super::HttpBasicCredentials>,
+    ) -> Result<super::PreparedConnectUdpOuter, crate::http3::ConnectUdpError> {
+        if self.protocol != HttpsProxyProtocol::Http2 {
+            return Err(super::connect_udp_pool::prepared_outer_error());
+        }
+        pool.prepare_http2_selected(
+            super::PoolKey::http2(self, host, port, authority, fields, credentials)?,
+            self,
+            owner,
+        )
+    }
+
     /// Returns a connector clone with a fresh isolated TLS session cache.
     ///
     /// The clone keeps this connector's [`Http2ProxyPool`], so its HTTP/2

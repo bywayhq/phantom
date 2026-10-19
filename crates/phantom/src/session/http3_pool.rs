@@ -563,12 +563,12 @@ struct PoolEntry {
     /// is presented only on the origin and route that learned it. It never
     /// sends early data; it opens the connection that replaces one whose
     /// early data was rejected.
-    origin: Arc<OnceLock<Http3Connector>>,
+    origin: Arc<super::tickets::TicketConnector<Http3Connector>>,
     /// The origin connector's early-data twin, sharing its ticket cache, when
     /// the client enables HTTP/3 early data.
     origin_early: Arc<OnceLock<Option<Http3Connector>>>,
     /// Dedicated HTTP/1.1 CONNECT-UDP outer cache, scoped to this origin and route.
-    tcp_proxy: Arc<OnceLock<HttpsProxyConnector>>,
+    tcp_proxy: Arc<super::tickets::TicketConnector<HttpsProxyConnector>>,
     rtt_history: Option<Arc<RttHistory>>,
     /// The client's HTTPS-record lookups, when it makes them.
     #[cfg(feature = "https-records")]
@@ -878,6 +878,17 @@ impl PoolEntry {
                 Http3Connector::without_early_data,
             )
         });
+        let ticket_binding = TicketCacheBinding {
+            origin: endpoint,
+            server_name: endpoint.host(),
+            leg: TicketCacheLeg::Origin,
+            protocol: Ok(TicketCacheProtocol::Http3),
+            route,
+        };
+        let origin = self
+            .origin
+            .prepare(&self.tickets, origin, ticket_binding)
+            .map_err(RequestError::session_tickets)?;
         self.tickets
             .register_before_use(
                 origin.session_ticket_cache(),
@@ -894,7 +905,27 @@ impl PoolEntry {
         // ClientHello or ticket retry. `open` bounds the whole setup budget.
         #[cfg(feature = "https-records")]
         let destination = self.destination_plan(connector, route, transport).await?;
-        let early_origin = early_origin.as_ref().filter(|_| early_data);
+        let selected_early =
+            if self.tickets.sharing_enabled() && early_data {
+                let owner = origin
+                    .session_ticket_cache()
+                    .and_then(|cache| cache.upgrade());
+                match (early_origin.as_ref(), owner) {
+                    (Some(early), Some(owner)) => {
+                        Some(early.with_session_ticket_cache(&owner).map_err(|_| {
+                            RequestError::session_tickets(
+                                super::tickets::TicketUseError::incompatible(),
+                            )
+                        })?)
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            };
+        let early_origin = selected_early
+            .as_ref()
+            .or_else(|| early_origin.as_ref().filter(|_| early_data));
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
                 let base = connect_udp_http3(connect_udp_proxy)?;
@@ -1090,8 +1121,24 @@ impl PoolEntry {
                         // dedicated origin-and-route-scoped cache.
                         let connector = if protocol == phantom_net::proxy::HttpsProxyProtocol::Http1
                         {
+                            let ordinary = self
+                                .tcp_proxy
+                                .get_or_init(|| base.with_isolated_session_cache());
                             self.tcp_proxy
-                                .get_or_init(|| base.with_isolated_session_cache())
+                                .prepare(
+                                    &self.tickets,
+                                    ordinary,
+                                    TicketCacheBinding {
+                                        origin: endpoint,
+                                        server_name: proxy.host(),
+                                        leg: TicketCacheLeg::ConnectUdp,
+                                        protocol: TicketCacheBinding::proxy_protocol(protocol),
+                                        route,
+                                    },
+                                )
+                                .map_err(|error| {
+                                    SetupFailure::Other(RequestError::session_tickets(error))
+                                })?
                         } else {
                             // The client base also serves H1 proxies. Select the
                             // route's H2 policy before preparing its shared cache.
@@ -1137,7 +1184,7 @@ impl PoolEntry {
                         }
                     }
                 };
-                if let Some(prepared) = &prepared_outer {
+                if prepared_outer.is_some() {
                     // Preparation releases both net pool locks before registration.
                     // The token pins this exact cache through the awaited TLS setup.
                     let proxy_endpoint = Endpoint::new(
@@ -1150,6 +1197,72 @@ impl PoolEntry {
                     )
                     .map_err(|error| {
                         SetupFailure::Other(RequestError::invalid_authority(error.message()))
+                    })?;
+                    let ticket_binding = TicketCacheBinding {
+                        origin: &proxy_endpoint,
+                        server_name: proxy.host(),
+                        leg: TicketCacheLeg::ConnectUdp,
+                        protocol: match proxy.tcp_protocol() {
+                            Some(protocol) => TicketCacheBinding::proxy_protocol(protocol),
+                            None => Ok(TicketCacheProtocol::Http3),
+                        },
+                        route,
+                    };
+                    if self.tickets.sharing_enabled() {
+                        let cache = prepared_outer
+                            .as_ref()
+                            .and_then(|prepared| prepared.session_ticket_cache());
+                        if let Some(owner) = self
+                            .tickets
+                            .select_store(cache, ticket_binding)
+                            .map_err(|error| {
+                                SetupFailure::Other(RequestError::session_tickets(error))
+                            })?
+                        {
+                            prepared_outer = Some(
+                                match &outer {
+                                    ConnectUdpTransport::Http3(base) => connector
+                                        .prepare_connect_udp_outer_with_ticket_cache(
+                                            base,
+                                            proxy.pool(),
+                                            proxy.host(),
+                                            proxy.port(),
+                                            proxy.authority(),
+                                            proxy.headers(),
+                                            &owner,
+                                            proxy.credentials(),
+                                        ),
+                                    ConnectUdpTransport::Tls {
+                                        connector: base, ..
+                                    } => base.prepare_connect_udp_outer_with_ticket_cache(
+                                        proxy.pool(),
+                                        proxy.host(),
+                                        proxy.port(),
+                                        proxy.authority(),
+                                        proxy.headers(),
+                                        &owner,
+                                        proxy.credentials(),
+                                    ),
+                                    _ => {
+                                        return Err(SetupFailure::Other(
+                                            RequestError::session_tickets(
+                                                super::tickets::TicketUseError::incompatible(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                                .map_err(|error| {
+                                    SetupFailure::Other(
+                                        RequestError::http3_connect_udp_preparation(error),
+                                    )
+                                })?,
+                            );
+                        }
+                    }
+                    let prepared = prepared_outer.as_ref().ok_or_else(|| {
+                        SetupFailure::Other(RequestError::session_tickets(
+                            super::tickets::TicketUseError::incompatible(),
+                        ))
                     })?;
                     self.tickets
                         .register_shared_outer_before_use(

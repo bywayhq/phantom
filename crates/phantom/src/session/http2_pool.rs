@@ -607,8 +607,8 @@ struct PoolEntry {
     setup_done: Arc<Notify>,
     admission: Arc<Admission>,
     family: Arc<AddressFamilyMemory>,
-    connector: Arc<OnceLock<Http2TlsConnector>>,
-    https_proxy: Arc<OnceLock<HttpsProxyConnector>>,
+    connector: Arc<super::tickets::TicketConnector<Http2TlsConnector>>,
+    https_proxy: Arc<super::tickets::TicketConnector<HttpsProxyConnector>>,
     /// The client's prune timer, when the profile closes idle connections on
     /// one.
     prune: Option<Arc<PruneTimer>>,
@@ -700,17 +700,19 @@ impl PoolEntry {
         let connector = self
             .connector
             .get_or_init(|| base.with_isolated_session_cache());
+        let ticket_binding = TicketCacheBinding {
+            origin: endpoint,
+            server_name: endpoint.host(),
+            leg: TicketCacheLeg::Origin,
+            protocol: Ok(TicketCacheProtocol::Http2),
+            route,
+        };
+        let connector = self
+            .connector
+            .prepare(&self.tickets, connector, ticket_binding)
+            .map_err(RequestError::session_tickets)?;
         self.tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: endpoint.host(),
-                    leg: TicketCacheLeg::Origin,
-                    protocol: Ok(TicketCacheProtocol::Http2),
-                    route,
-                },
-            )
+            .register_before_use(connector.session_ticket_cache(), ticket_binding)
             .map_err(RequestError::session_tickets)?;
         Ok(connector.clone())
     }
@@ -1052,17 +1054,19 @@ impl PoolEntry {
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
+        let ticket_binding = TicketCacheBinding {
+            origin: endpoint,
+            server_name: endpoint.host(),
+            leg: TicketCacheLeg::Origin,
+            protocol: Ok(TicketCacheProtocol::Http2),
+            route,
+        };
+        let connector = self
+            .connector
+            .prepare(&self.tickets, connector, ticket_binding)
+            .map_err(RequestError::session_tickets)?;
         self.tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: endpoint.host(),
-                    leg: TicketCacheLeg::Origin,
-                    protocol: Ok(TicketCacheProtocol::Http2),
-                    route,
-                },
-            )
+            .register_before_use(connector.session_ticket_cache(), ticket_binding)
             .map_err(RequestError::session_tickets)?;
         let connection = match route {
             // The forwarding connector's pool decides whether this proxy
@@ -1074,19 +1078,19 @@ impl PoolEntry {
                 let proxy_connector = self
                     .https_proxy
                     .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                let ticket_binding = TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: proxy.host(),
+                    leg: TicketCacheLeg::HttpProxy,
+                    protocol: TicketCacheBinding::proxy_protocol(proxy_connector.protocol()),
+                    route,
+                };
+                let proxy_connector = self
+                    .https_proxy
+                    .prepare(&self.tickets, proxy_connector, ticket_binding)
+                    .map_err(RequestError::session_tickets)?;
                 self.tickets
-                    .register_before_use(
-                        proxy_connector.session_ticket_cache(),
-                        TicketCacheBinding {
-                            origin: endpoint,
-                            server_name: proxy.host(),
-                            leg: TicketCacheLeg::HttpProxy,
-                            protocol: TicketCacheBinding::proxy_protocol(
-                                proxy_connector.protocol(),
-                            ),
-                            route,
-                        },
-                    )
+                    .register_before_use(proxy_connector.session_ticket_cache(), ticket_binding)
                     .map_err(RequestError::session_tickets)?;
                 super::box_send(connector.connect(phantom_net::route::Http2Route::Forward {
                     proxy: phantom_net::route::ProxyTransport::Tls {
@@ -1128,19 +1132,19 @@ impl PoolEntry {
                     let proxy_connector = self
                         .https_proxy
                         .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    let ticket_binding = TicketCacheBinding {
+                        origin: endpoint,
+                        server_name: proxy.host(),
+                        leg: TicketCacheLeg::HttpProxy,
+                        protocol: TicketCacheBinding::proxy_protocol(proxy_connector.protocol()),
+                        route,
+                    };
+                    let proxy_connector = self
+                        .https_proxy
+                        .prepare(&self.tickets, proxy_connector, ticket_binding)
+                        .map_err(RequestError::session_tickets)?;
                     self.tickets
-                        .register_before_use(
-                            proxy_connector.session_ticket_cache(),
-                            TicketCacheBinding {
-                                origin: endpoint,
-                                server_name: proxy.host(),
-                                leg: TicketCacheLeg::HttpProxy,
-                                protocol: TicketCacheBinding::proxy_protocol(
-                                    proxy_connector.protocol(),
-                                ),
-                                route,
-                            },
-                        )
+                        .register_before_use(proxy_connector.session_ticket_cache(), ticket_binding)
                         .map_err(RequestError::session_tickets)?;
                     phantom_net::route::ProxyTransport::Tls {
                         endpoint: proxy_endpoint,
@@ -1422,18 +1426,21 @@ impl OriginHttp2Opening {
             .entry
             .https_proxy
             .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+        let ticket_binding = TicketCacheBinding {
+            origin: endpoint,
+            server_name: proxy.host(),
+            leg: TicketCacheLeg::HttpProxy,
+            protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+            route,
+        };
+        let connector = self
+            .entry
+            .https_proxy
+            .prepare(&self.entry.tickets, connector, ticket_binding)
+            .map_err(RequestError::session_tickets)?;
         self.entry
             .tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: proxy.host(),
-                    leg: TicketCacheLeg::HttpProxy,
-                    protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
-                    route,
-                },
-            )
+            .register_before_use(connector.session_ticket_cache(), ticket_binding)
             .map_err(RequestError::session_tickets)?;
         Ok(connector.clone())
     }

@@ -316,6 +316,39 @@ impl Http3Connector {
         )
     }
 
+    /// Prepares a persistent outer connector attached to the selected live ticket store.
+    /// Existing prepared connectors remain valid for work already selected.
+    ///
+    /// # Errors
+    /// Returns a configuration error for an incompatible or conflicting store,
+    /// or the runtime/capacity errors of ordinary preparation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_connect_udp_outer_with_ticket_cache(
+        &self,
+        proxy: &Self,
+        pool: &ConnectUdpProxyPool,
+        host: &str,
+        port: u16,
+        authority: &str,
+        fields: &[RequestHeader],
+        owner: &crate::SessionTicketCacheOwner,
+        credentials: Option<&HttpBasicCredentials>,
+    ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        pool.prepare_http3_selected(
+            PoolKey::http3(
+                &proxy.proxy_settings,
+                &self.proxy_dial_settings,
+                host,
+                port,
+                authority,
+                fields,
+                credentials,
+            )?,
+            proxy,
+            owner,
+        )
+    }
+
     /// Returns a connector clone with a fresh, empty QUIC ticket cache.
     ///
     /// When the TLS profile enables `session_tickets`, connections opened by

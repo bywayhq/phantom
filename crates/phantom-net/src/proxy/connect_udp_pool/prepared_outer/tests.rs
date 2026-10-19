@@ -2,6 +2,151 @@ use super::*;
 use phantom_profile::browser::chrome;
 
 #[tokio::test]
+async fn selected_stores_persist_and_leave_preexisting_preparations_valid() -> TestResult {
+    let tcp = tcp()?;
+    let quic = quic()?;
+    let pool = ConnectUdpProxyPool::new();
+    let tcp_source = tcp.with_isolated_session_cache();
+    let quic_source = quic.with_isolated_session_cache();
+    let tcp_owner = tcp_source
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("TCP cache absent")?;
+    let quic_owner = quic_source
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("QUIC cache absent")?;
+    let old_h2 =
+        tcp.prepare_connect_udp_outer(&pool, "localhost", 443, "localhost:443", &[], None)?;
+    let old_h3 =
+        quic.prepare_connect_udp_outer(&quic, &pool, "localhost", 443, "localhost:443", &[], None)?;
+    let selected_h2 = tcp.prepare_connect_udp_outer_with_ticket_cache(
+        &pool,
+        "localhost",
+        443,
+        "localhost:443",
+        &[],
+        &tcp_owner,
+        None,
+    )?;
+    let selected_h3 = quic.prepare_connect_udp_outer_with_ticket_cache(
+        &quic,
+        &pool,
+        "localhost",
+        443,
+        "localhost:443",
+        &[],
+        &quic_owner,
+        None,
+    )?;
+    assert!(!same_cache(&old_h2, &selected_h2)?);
+    assert!(!same_cache(&old_h3, &selected_h3)?);
+    for token in [&old_h2, &old_h3, &selected_h2, &selected_h3] {
+        drop(pool.acquire_prepared(token.key.clone(), token).await?);
+    }
+    let tcp_weak = selected_h2
+        .session_ticket_cache()
+        .ok_or("TCP control absent")?;
+    let quic_weak = selected_h3
+        .session_ticket_cache()
+        .ok_or("QUIC control absent")?;
+    drop((
+        selected_h2,
+        selected_h3,
+        tcp_owner,
+        quic_owner,
+        tcp_source,
+        quic_source,
+    ));
+    assert!(tcp_weak.is_live());
+    assert!(quic_weak.is_live());
+    drop((old_h2, old_h3));
+    pool.clear();
+    assert!(!tcp_weak.is_live());
+    assert!(!quic_weak.is_live());
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_existing_selected_outer_rejects_a_different_group_without_changing_it() -> TestResult {
+    let tcp = tcp()?;
+    let quic = quic()?;
+    let pool = ConnectUdpProxyPool::new();
+    let tcp_one = tcp.with_isolated_session_cache();
+    let tcp_two = tcp.with_isolated_session_cache();
+    let quic_one = quic.with_isolated_session_cache();
+    let quic_two = quic.with_isolated_session_cache();
+    let tcp_owner = tcp_one
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("TCP owner absent")?;
+    let tcp_other = tcp_two
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("TCP owner absent")?;
+    let quic_owner = quic_one
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("QUIC owner absent")?;
+    let quic_other = quic_two
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("QUIC owner absent")?;
+    let h2 = tcp.prepare_connect_udp_outer_with_ticket_cache(
+        &pool,
+        "localhost",
+        443,
+        "localhost:443",
+        &[],
+        &tcp_owner,
+        None,
+    )?;
+    let h3 = quic.prepare_connect_udp_outer_with_ticket_cache(
+        &quic,
+        &pool,
+        "localhost",
+        443,
+        "localhost:443",
+        &[],
+        &quic_owner,
+        None,
+    )?;
+    let h2_error = tcp
+        .prepare_connect_udp_outer_with_ticket_cache(
+            &pool,
+            "localhost",
+            443,
+            "localhost:443",
+            &[],
+            &tcp_other,
+            None,
+        )
+        .err()
+        .ok_or("conflicting group accepted")?;
+    let h3_error = quic
+        .prepare_connect_udp_outer_with_ticket_cache(
+            &quic,
+            &pool,
+            "localhost",
+            443,
+            "localhost:443",
+            &[],
+            &quic_other,
+            None,
+        )
+        .err()
+        .ok_or("conflicting group accepted")?;
+    for error in [h2_error, h3_error] {
+        assert_eq!(error.kind(), ConnectUdpErrorKind::Configuration);
+        assert!(error.to_string().contains("different shared ticket store"));
+    }
+    for token in [&h2, &h3] {
+        drop(pool.acquire_prepared(token.key.clone(), token).await?);
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn refresh_keeps_prepared_caches_and_isolates_old_setup() -> TestResult {
     let tcp = tcp()?;
     let quic = quic()?;

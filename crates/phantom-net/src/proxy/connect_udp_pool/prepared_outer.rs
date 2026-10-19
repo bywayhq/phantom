@@ -68,14 +68,26 @@ impl PreparedConnectUdpOuter {
     fn validate_cache(&self) -> Result<(), ConnectUdpError> {
         let state = lock(&self.connectors);
         let current = match &self.connector {
-            Connector::Http2(connector) => state
-                .http2_connector
-                .as_ref()
-                .is_some_and(|current| Arc::ptr_eq(current, connector)),
-            Connector::Http3(connector) => state
-                .http3_connector
-                .as_ref()
-                .is_some_and(|current| Arc::ptr_eq(current, connector)),
+            Connector::Http2(connector) => {
+                state
+                    .http2_connector
+                    .as_ref()
+                    .is_some_and(|current| Arc::ptr_eq(current, connector))
+                    || state
+                        .selected_http2
+                        .as_ref()
+                        .is_some_and(|current| Arc::ptr_eq(current, connector))
+            }
+            Connector::Http3(connector) => {
+                state
+                    .http3_connector
+                    .as_ref()
+                    .is_some_and(|current| Arc::ptr_eq(current, connector))
+                    || state
+                        .selected_http3
+                        .as_ref()
+                        .is_some_and(|current| Arc::ptr_eq(current, connector))
+            }
         };
         if !current {
             return Err(invalid_prepared());
@@ -85,6 +97,71 @@ impl PreparedConnectUdpOuter {
 }
 
 impl ConnectUdpProxyPool {
+    pub(crate) fn prepare_http2_selected(
+        &self,
+        key: PoolKey,
+        base: &HttpsProxyConnector,
+        owner: &crate::SessionTicketCacheOwner,
+    ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        // Attachment is checked before either pool lock; registry callers must
+        // finish cache selection before entering this method.
+        let candidate = base
+            .with_session_ticket_cache(owner)
+            .map_err(|_| invalid_prepared())?;
+        let entry = self.entry(key)?;
+        let connector = {
+            let mut state = lock(&entry.connectors);
+            let current = state
+                .selected_http2
+                .get_or_insert_with(|| Arc::new(candidate));
+            if !current
+                .session_ticket_cache()
+                .and_then(|cache| cache.upgrade())
+                .is_some_and(|actual| actual.same_cache(owner))
+            {
+                return Err(conflicting_selected());
+            }
+            Arc::clone(current)
+        };
+        Ok(PreparedConnectUdpOuter {
+            key: entry.key.clone(),
+            connectors: Arc::clone(&entry.connectors),
+            pool: Arc::clone(&self.inner),
+            connector: Connector::Http2(connector),
+        })
+    }
+
+    pub(crate) fn prepare_http3_selected(
+        &self,
+        key: PoolKey,
+        base: &Http3Connector,
+        owner: &crate::SessionTicketCacheOwner,
+    ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        let candidate = base
+            .with_session_ticket_cache(owner)
+            .map_err(|_| invalid_prepared())?;
+        let entry = self.entry(key)?;
+        let connector = {
+            let mut state = lock(&entry.connectors);
+            let current = state
+                .selected_http3
+                .get_or_insert_with(|| Arc::new(candidate));
+            if !current
+                .session_ticket_cache()
+                .and_then(|cache| cache.upgrade())
+                .is_some_and(|actual| actual.same_cache(owner))
+            {
+                return Err(conflicting_selected());
+            }
+            Arc::clone(current)
+        };
+        Ok(PreparedConnectUdpOuter {
+            key: entry.key.clone(),
+            connectors: Arc::clone(&entry.connectors),
+            pool: Arc::clone(&self.inner),
+            connector: Connector::Http3(connector),
+        })
+    }
     pub(crate) fn prepare_http2(
         &self,
         key: PoolKey,
@@ -193,6 +270,13 @@ pub(crate) fn invalid_prepared() -> ConnectUdpError {
     ConnectUdpError::new(
         ConnectUdpErrorKind::Configuration,
         "CONNECT-UDP prepared outer differs from the route or was cleared",
+    )
+}
+
+fn conflicting_selected() -> ConnectUdpError {
+    ConnectUdpError::new(
+        ConnectUdpErrorKind::Configuration,
+        "CONNECT-UDP outer pool already uses a different shared ticket store",
     )
 }
 

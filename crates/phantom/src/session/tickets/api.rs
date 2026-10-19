@@ -191,11 +191,14 @@ fn classify(error: &(dyn StdError + 'static)) -> SessionTicketErrorKind {
                 ImportError::Allocation => Kind::Allocation,
                 ImportError::OwnerMapping => Kind::Policy,
                 ImportError::Application(_) => Kind::InvalidSnapshot,
-                ImportError::UnsupportedRoute | ImportError::EmptyCredentials => Kind::Unsupported,
+                ImportError::UnsupportedRoute
+                | ImportError::EmptyCredentials
+                | ImportError::AmbiguousSharing => Kind::Unsupported,
                 _ => kind,
             };
         } else if let Some(error) = error.downcast_ref::<ExportError>() {
             kind = match error {
+                ExportError::AmbiguousSharing => Kind::Unsupported,
                 ExportError::TooLarge => Kind::TooLarge,
                 ExportError::Allocation => Kind::Allocation,
                 ExportError::ConflictingOwner | ExportError::InvalidCapture => Kind::Policy,

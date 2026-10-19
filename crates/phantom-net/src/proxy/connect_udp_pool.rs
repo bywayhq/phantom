@@ -437,6 +437,8 @@ struct SessionState {
 struct ConnectorState {
     http3_connector: Option<Arc<Http3Connector>>,
     http2_connector: Option<Arc<HttpsProxyConnector>>,
+    selected_http3: Option<Arc<Http3Connector>>,
+    selected_http2: Option<Arc<HttpsProxyConnector>>,
 }
 
 #[derive(Clone)]

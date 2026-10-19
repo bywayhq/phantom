@@ -205,6 +205,160 @@ async fn clearing_shared_client_tickets_forces_full_tcp_handshakes() -> TestResu
     Ok(())
 }
 
+#[tokio::test]
+async fn independent_forks_share_later_tcp_tickets_and_clearing() -> TestResult<()> {
+    for (protocol, negotiated, custom) in [
+        (HttpProtocol::Http1, false, false),
+        (HttpProtocol::Http2, false, false),
+        (HttpProtocol::Http2, true, false),
+        (HttpProtocol::Http2, false, true),
+    ] {
+        let mut server = None;
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let address = listener.local_addr()?;
+            let h1 = protocol == HttpProtocol::Http1;
+            let acceptor = if h1 {
+                tls12_acceptor(&identity)?
+            } else {
+                tls13_acceptor(&identity, Arc::new(AtomicUsize::new(0)))?
+            };
+            let client = if h1 {
+                tls_support::test_client(&identity, false)?
+            } else if custom {
+                let mut tls = tls_support::tls_settings();
+                tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
+                tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
+                tls.groups = vec![NamedGroup::X25519];
+                tls.key_shares = vec![NamedGroup::X25519];
+                Client::builder(ClientProfile::new(tls).with_http2(chrome::v154_http2()))
+                    .add_root_certificate_der(identity.root_der.clone())
+                    .tcp_connector(phantom::TcpConnector::from_fn(|target| async move {
+                        Ok(phantom::ConnectedStream::new(
+                            TcpStream::connect((target.host.as_str(), target.port)).await?,
+                        ))
+                    }))
+                    .build()?
+            } else {
+                tls13_client(&identity)?
+            };
+            let shared = client.fork(phantom::SessionSharing::none().tickets(true));
+            let isolated = client.fork(phantom::SessionSharing::none());
+            let (closed_tx, mut closed) = tokio::sync::mpsc::unbounded_channel();
+            server = Some(ConnectionPeer::spawn(async move {
+                for (path, resumed) in [
+                    ("/first", false),
+                    ("/shared", true),
+                    ("/cleared", false),
+                    ("/isolated", false),
+                    ("/source", true),
+                    ("/source-dropped", true),
+                ] {
+                    let stream = accept_tls(&listener, &acceptor).await?;
+                    assert!(stream.ssl().session_reused() == resumed, "{path}");
+                    if h1 {
+                        serve_http1(stream, path).await?;
+                    } else {
+                        serve_one(stream, path).await?;
+                    }
+                    closed_tx.send(()).map_err(|_| "client stopped")?;
+                }
+                Ok(())
+            }));
+            for (index, (selected, path, resumed)) in [
+                (&client, "/first", false),
+                (&shared, "/shared", true),
+                (&shared, "/cleared", false),
+                (&isolated, "/isolated", false),
+                (&client, "/source", true),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if index == 2 {
+                    assert!(shared.clear_session_tickets()? > 0);
+                    assert_eq!(client.clear_session_tickets()?, 0);
+                }
+                let uri = format!("https://{address}{path}");
+                let request = if negotiated {
+                    selected.get_negotiated(&uri)?
+                } else {
+                    selected.get(protocol, &uri)?
+                };
+                assert_resumption(send_request(request).await?, resumed);
+                closed.recv().await.ok_or("peer stopped")?;
+            }
+            let survivor = client.fork(phantom::SessionSharing::none().tickets(true));
+            drop(shared);
+            drop(client);
+            let uri = format!("https://{address}/source-dropped");
+            let request = if negotiated {
+                survivor.get_negotiated(&uri)?
+            } else {
+                survivor.get(protocol, &uri)?
+            };
+            assert_resumption(send_request(request).await?, true);
+            closed.recv().await.ok_or("peer stopped")?;
+            join(&mut server).await?;
+            Ok(())
+        })
+        .await;
+        finish(result, server).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unused_ticket_sharing_fork_resumes_after_its_source_is_dropped() -> TestResult<()> {
+    for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+        let mut server = None;
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let address = listener.local_addr()?;
+            let h1 = protocol == HttpProtocol::Http1;
+            let (acceptor, client) = if h1 {
+                (
+                    tls12_acceptor(&identity)?,
+                    tls_support::test_client(&identity, false)?,
+                )
+            } else {
+                (
+                    tls13_acceptor(&identity, Arc::new(AtomicUsize::new(0)))?,
+                    tls13_client(&identity)?,
+                )
+            };
+            let (closed_tx, mut closed) = tokio::sync::mpsc::unbounded_channel();
+            server = Some(ConnectionPeer::spawn(async move {
+                for resumed in [false, true] {
+                    let stream = accept_tls(&listener, &acceptor).await?;
+                    assert_eq!(stream.ssl().session_reused(), resumed);
+                    if h1 {
+                        serve_http1(stream, "/").await?;
+                    } else {
+                        serve_one(stream, "/").await?;
+                    }
+                    closed_tx.send(()).map_err(|_| "client stopped")?;
+                }
+                Ok(())
+            }));
+            let uri = format!("https://{address}/");
+            assert_resumption(send(&client, protocol, uri.clone()).await?, false);
+            closed.recv().await.ok_or("peer stopped")?;
+            let survivor = client.fork(phantom::SessionSharing::none().tickets(true));
+            drop(client);
+            assert_resumption(send(&survivor, protocol, uri).await?, true);
+            closed.recv().await.ok_or("peer stopped")?;
+            join(&mut server).await?;
+            Ok(())
+        })
+        .await;
+        finish(result, server).await?;
+    }
+    Ok(())
+}
+
 fn tls13_acceptor(
     identity: &TestIdentity,
     early_data_hellos: Arc<AtomicUsize>,
@@ -292,7 +446,12 @@ async fn send(
     protocol: HttpProtocol,
     uri: String,
 ) -> TestResult<Arc<phantom::RequestConnection>> {
-    let mut request = session.get(protocol, &uri)?;
+    send_request(session.get(protocol, &uri)?).await
+}
+
+async fn send_request(
+    mut request: phantom::RequestBuilder,
+) -> TestResult<Arc<phantom::RequestConnection>> {
     let trace = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(63));
     let response = request.send().await?;
     assert_eq!(response.status(), StatusCode::OK);

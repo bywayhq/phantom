@@ -107,6 +107,31 @@ async fn unified_checkpoint_restores_real_tls_sessions_without_changing_recipien
 }
 
 #[tokio::test]
+async fn a_selected_fork_materializes_cold_tickets_and_clears_older_entry_owners() -> TestResult {
+    for version in [TlsVersion::Tls12, TlsVersion::Tls13] {
+        let fixture = ImportFixture::for_version(version)?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let source = builder(&fixture).route(Route::Direct).build()?;
+        public_exchange(&fixture, &listener, &source, false).await?;
+        let snapshot = source.export_session_tickets(&KEY)?;
+        let recipient = builder(&fixture).route(Route::Direct).build()?;
+        // This older entry is not the imported origin, and remains live while
+        // the selected fork materializes and clears the imported store.
+        let legacy = fixture.store(&recipient.state.tickets, 445)?;
+        fixture.exchange(&legacy, false).await?;
+        recipient.import_session_tickets(&snapshot, &KEY, &[])?;
+        let shared = recipient.fork(crate::SessionSharing::none().tickets(true));
+        public_exchange(&fixture, &listener, &shared, true).await?;
+        assert!(recipient.state.tickets.registry().cold.is_none());
+        assert!(shared.clear_session_tickets()? > 0);
+        assert_eq!(recipient.clear_session_tickets()?, 0);
+        public_exchange(&fixture, &listener, &recipient, false).await?;
+        fixture.exchange(&legacy, false).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn configured_environment_route_rejects_last_owner_without_replacing_live_or_cold_state()
 -> TestResult {
     let fixture = ImportFixture::new()?;

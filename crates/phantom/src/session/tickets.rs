@@ -1,6 +1,9 @@
 //! Controls every TLS and QUIC cache owned by one client.
 
-use std::sync::Mutex;
+use std::sync::{
+    Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 #[cfg(test)]
 use std::sync::{MutexGuard, PoisonError};
 
@@ -14,11 +17,14 @@ use binding::{PreparationError, PreparedCacheDescriptor, TicketCacheLeg, TicketC
 mod api;
 pub(super) mod binding;
 mod envelope;
+mod live;
 mod staging;
 mod transfer;
 mod transfer_import;
 
 pub use api::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
+pub(super) use live::TicketConnector;
+use live::{LiveBinding, SharedCaches, TicketRoute};
 
 #[derive(Clone, Copy)]
 pub(super) struct TicketCacheBinding<'a> {
@@ -43,6 +49,7 @@ impl TicketCacheBinding<'_> {
 
 struct RegisteredCache {
     cache: SessionTicketCache,
+    live: LiveBinding,
     binding: Result<RegisteredBinding, PreparationError>,
     native_binding: Result<btls::ssl::SessionPolicyBinding, PreparationError>,
 }
@@ -55,13 +62,31 @@ struct RegisteredBinding {
     server_name: String,
     leg: TicketCacheLeg,
     protocol: TicketCacheProtocol,
-    route: Route,
+    route: TicketRoute,
+    keep_early_data: bool,
 }
 
 #[derive(Default)]
 struct TicketRegistry {
     caches: Vec<RegisteredCache>,
     cold: Option<staging::ColdState>,
+    shared: Option<SharedCaches>,
+}
+
+impl TicketRegistry {
+    fn retain_shared(&mut self, live: &LiveBinding) {
+        let Some(shared) = self.shared.as_mut() else {
+            return;
+        };
+        if let Some(owner) = self
+            .caches
+            .iter()
+            .filter(|entry| entry.live == *live)
+            .find_map(|entry| entry.cache.upgrade())
+        {
+            shared.retain(live.clone(), owner);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -79,15 +104,25 @@ impl std::error::Error for TicketUseError {
     }
 }
 
-/// Registered caches remain weak so evicted entries can release their tickets.
+impl TicketUseError {
+    pub(super) fn incompatible() -> Self {
+        Self(transfer_import::ImportError::Preparation(
+            PreparationError::Unsupported("incompatible native ticket store"),
+        ))
+    }
+}
+
+/// Unshared registrations remain weak so evicted entries release their tickets.
+/// Sharing additionally retains bounded canonical stores, never pool entries.
 /// Dead registrations are removed on every registration and clear. The live
-/// set follows pool entries plus evicted entries still used by a connection
+/// set includes bounded shared custody and stores still used by a connection
 /// or setup. No connection or setup is retained by this registry.
 #[derive(Default)]
 pub(super) struct TicketOwner {
     preparation:
         Option<Result<std::sync::Arc<binding::PreparedTicketPolicy>, binding::PreparationError>>,
     registry: Mutex<TicketRegistry>,
+    sharing: AtomicBool,
 }
 
 impl TicketOwner {
@@ -100,7 +135,57 @@ impl TicketOwner {
         Self {
             preparation: Some(preparation),
             registry: Mutex::default(),
+            sharing: AtomicBool::new(false),
         }
+    }
+
+    pub(super) fn enable_sharing(&self, capacity: usize) {
+        // Publish the fast-path flag only after existing stores have custody.
+        // Registrations made by work already in flight observe the same lock.
+        if let Ok(mut registry) = self.registry.lock()
+            && registry.shared.is_none()
+        {
+            registry.shared = Some(SharedCaches::new(capacity));
+            for index in 0..registry.caches.len() {
+                let live = registry.caches[index].live.clone();
+                registry.retain_shared(&live);
+            }
+        }
+        // A poisoned registry remains a typed error before the next handshake;
+        // creating an independent client itself remains infallible.
+        self.sharing.store(true, Ordering::Release);
+    }
+
+    pub(super) fn sharing_enabled(&self) -> bool {
+        self.sharing.load(Ordering::Acquire)
+    }
+
+    pub(super) fn select_store(
+        &self,
+        cache: Option<SessionTicketCache>,
+        input: TicketCacheBinding<'_>,
+    ) -> Result<Option<SessionTicketCacheOwner>, TicketUseError> {
+        let Some(cache) = cache else { return Ok(None) };
+        let Some(owner) = cache.upgrade() else {
+            return Ok(None);
+        };
+        let mut registry = self
+            .registry
+            .lock()
+            .map_err(|_| TicketUseError(transfer_import::ImportError::RegistryPoisoned))?;
+        registry.caches.retain(|entry| entry.cache.is_live());
+        let live = LiveBinding::capture(input);
+        if let Some(canonical) = registry
+            .caches
+            .iter()
+            .filter(|entry| entry.live == live)
+            .find_map(|entry| entry.cache.upgrade())
+        {
+            registry.retain_shared(&live);
+            return Ok(Some(canonical));
+        }
+        self.register_locked(&mut registry, cache, live, self.prepare_registration(input));
+        Ok(Some(owner))
     }
 
     /// Register before the connector is used. The registry lock serializes
@@ -117,8 +202,9 @@ impl TicketOwner {
         };
         let mut registry = self.registry();
         self.register_locked(
-            &mut registry.caches,
+            &mut registry,
             cache,
+            LiveBinding::capture(input),
             self.prepare_registration(input),
         );
     }
@@ -146,10 +232,12 @@ impl TicketOwner {
 
     fn register_locked(
         &self,
-        caches: &mut Vec<RegisteredCache>,
+        registry: &mut TicketRegistry,
         cache: SessionTicketCache,
+        live: LiveBinding,
         mut binding: Result<RegisteredBinding, PreparationError>,
     ) {
+        let caches = &mut registry.caches;
         caches.retain(|registered| registered.cache.is_live());
         let mut native_binding = Err(PreparationError::Unsupported("dead cache"));
         if let Some(owner) = cache.upgrade() {
@@ -198,22 +286,22 @@ impl TicketOwner {
                         .as_ref()
                         .map_err(|error| *error)?;
                     let registration = binding.as_ref().map_err(|error| *error)?;
-                    prepared.bind_transfer_policy(
-                        &owner,
-                        &registration.descriptor,
-                        &registration.server_name,
-                        registration.leg,
-                        registration.protocol,
-                        &registration.route,
-                    )
+                    owner
+                        .bind_transfer_policy(
+                            &registration.server_name,
+                            prepared.configured_registered_policy(registration)?,
+                        )
+                        .map_err(binding::native_preparation_error)
                 });
             }
         }
         caches.push(RegisteredCache {
             cache,
+            live: live.clone(),
             binding,
             native_binding,
         });
+        registry.retain_shared(&live);
     }
 
     /// Apply matching cold custody before a connector's next TCP or QUIC TLS use.
@@ -282,13 +370,16 @@ impl TicketOwner {
             None => {
                 let index = registry.caches.len();
                 self.register_locked(
-                    &mut registry.caches,
+                    &mut registry,
                     cache,
+                    LiveBinding::capture(input),
                     self.prepare_registration(input),
                 );
                 index
             }
         };
+        let live = registry.caches[index].live.clone();
+        registry.retain_shared(&live);
         let Some(cold) = registry.cold.as_ref() else {
             return Ok(());
         };
@@ -338,14 +429,13 @@ impl TicketOwner {
                 .ok_or(PreparationError::Unsupported("missing client preparation"))?
                 .as_ref()
                 .map_err(|error| *error)?;
-            let retried = preparation.bind_transfer_policy(
-                &owner,
-                &binding.descriptor,
-                &binding.server_name,
-                binding.leg,
-                binding.protocol,
-                &binding.route,
-            );
+            let retried = preparation
+                .configured_registered_policy(binding)
+                .and_then(|policy| {
+                    owner
+                        .bind_transfer_policy(&binding.server_name, policy)
+                        .map_err(binding::native_preparation_error)
+                });
             registry.caches[index].native_binding = retried;
         }
         let recipient = registry.caches[index]
@@ -417,7 +507,8 @@ impl TicketOwner {
             server_name,
             leg: input.leg,
             protocol,
-            route: input.route.clone(),
+            route: TicketRoute::capture(input.route),
+            keep_early_data: preparation.allows_early_data(input.leg, protocol, input.route)?,
         })
     }
 
