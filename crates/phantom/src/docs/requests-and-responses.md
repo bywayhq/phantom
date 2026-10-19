@@ -16,6 +16,12 @@ Keep its secret key separately. [`Client::restore_session`](crate::Client::resto
 returns a new client with independent pools and checks the receiving configuration.
 See the API for supported routes, size limits and state that is not saved.
 
+For async storage, implement [`SessionStore`](crate::SessionStore) and call
+[`Client::save_session`](crate::Client::save_session) or
+[`Client::load_session`](crate::Client::load_session) with a name and deadline.
+Storage receives encrypted bytes only. Loading returns a separate client, or
+`None` for a missing name. Cancellation cannot undo an external write.
+
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and

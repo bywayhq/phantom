@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add caller-owned async checkpoint storage through `SessionStore` and explicit
+  `Client::save_session` / `load_session` calls. Operations use absolute deadlines,
+  preserve backend errors and restore into independent clients without changing
+  the receiver. Storage backends receive encrypted snapshots, never keys.
+
 - Add encrypted, versioned session checkpoints behind `session-snapshot`.
   Restore supported cookies, direct-route Alt-Svc entries and TLS tickets into
   a fresh client. Configuration mismatches and insufficient capacity fail

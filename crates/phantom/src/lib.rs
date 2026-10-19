@@ -98,6 +98,8 @@ pub use session::{
 };
 #[cfg(feature = "session-snapshot")]
 pub use session::{SessionSnapshot, SessionSnapshotError, SessionSnapshotErrorKind};
+#[cfg(feature = "session-snapshot")]
+pub use session::{SessionStorageError, SessionStorageErrorKind, SessionStore, SessionStoreFuture};
 #[cfg(feature = "sse")]
 pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseHeader, SseLimits, SseRequestBuilder,

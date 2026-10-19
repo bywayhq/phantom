@@ -34,12 +34,16 @@ mod retired_connections;
 mod sharing;
 #[cfg(feature = "session-snapshot")]
 mod snapshot;
+#[cfg(feature = "session-snapshot")]
+mod storage;
 mod stream_count;
 mod tickets;
 
 pub use sharing::SessionSharing;
 #[cfg(feature = "session-snapshot")]
 pub use snapshot::{SessionSnapshot, SessionSnapshotError, SessionSnapshotErrorKind};
+#[cfg(feature = "session-snapshot")]
+pub use storage::{SessionStorageError, SessionStorageErrorKind, SessionStore, SessionStoreFuture};
 pub use tickets::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
 
 pub(crate) use tickets::binding::encoding::Encoder as TicketBindingEncoder;
