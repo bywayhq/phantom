@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a controlled HTTP/2 upload cancellation comparison. Check remote stream
+  cancellation after received headers, zero request DATA, and a healthy request
+  on the same connection.
+
 - Extend controlled client comparisons with HTTP/1.1 and HTTP/3 body
   cancellation checks, including incomplete responses and healthy concurrent
   requests. Retain unsupported cases and failed cancellation outcomes.
