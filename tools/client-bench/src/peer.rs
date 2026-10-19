@@ -365,20 +365,19 @@ async fn http2<S: AsyncRead + AsyncWrite + Unpin>(
                 wait = Some(healthy_wait.take().ok_or("duplicate healthy GET")?);
             }
         }
-        if response_body.upload_cancellation && response_body.cancel {
-            if request
+        if response_body.upload_cancellation
+            && response_body.cancel
+            && (request
                 .headers()
                 .get(http::header::CONTENT_LENGTH)
                 .and_then(|value| value.to_str().ok())
                 .and_then(|value| value.parse::<usize>().ok())
                 != Some(body.upload.length())
-                || request.body().is_end_stream()
-            {
-                return Err(
-                    "selected upload needs its nonzero configured content length and open body"
-                        .into(),
-                );
-            }
+                || request.body().is_end_stream())
+        {
+            return Err(
+                "selected upload needs its nonzero configured content length and open body".into(),
+            );
         }
         let mut incoming = request.into_body();
         received += 1;
