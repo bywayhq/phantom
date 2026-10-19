@@ -29,9 +29,9 @@ use crate::authority::Endpoint;
 /// A proxy route's alternatives therefore never cross a snapshot into another
 /// route or another client's configuration.
 ///
-/// Phantom does not serialize snapshots; callers persist the accessor values
-/// in a format of their choice and rebuild entries with
-/// [`AltSvcSnapshotEntry::new`]. Formatting with `Debug` omits hosts.
+/// Persist individual snapshots through the accessor values and rebuild entries
+/// with [`AltSvcSnapshotEntry::new`]. The `session-snapshot` feature also includes
+/// these entries in an encrypted client checkpoint. `Debug` omits hosts.
 #[derive(Clone, Default, Eq, PartialEq)]
 pub struct AltSvcSnapshot {
     entries: Vec<AltSvcSnapshotEntry>,

@@ -55,6 +55,10 @@ For caller-owned persistence, export and import
 or encrypted [TLS tickets](crate::Client::export_session_tickets). These are
 separate snapshots; they do not restore a client's full configuration.
 Cookie APIs require `cookies`; ticket snapshots and their keys must stay private.
+With `session-snapshot`, [`Client::export_session`](crate::Client::export_session)
+combines supported state into one encrypted checkpoint.
+[`Client::restore_session`](crate::Client::restore_session) checks the receiving
+configuration and returns a separate client.
 
 ## Guides
 
@@ -92,6 +96,7 @@ uses to the `phantom` dependency in `Cargo.toml`.
 | `websocket` | WebSocket connections |
 | `websocket-deflate` | WebSocket compression; includes `websocket` |
 | `serde` | Cookie snapshot serialization, when `cookies` is also enabled |
+| `session-snapshot` | Encrypted cookie, direct-route Alt-Svc and TLS ticket checkpoints |
 | `fingerprint-import` | Editable JSON profiles and partial TLS, QUIC and HTTP/2 imports |
 | `full` | All features above |
 | `diagnostics` | TLS key logs and QUIC qlog files; excluded from `full` |
