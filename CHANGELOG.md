@@ -51,8 +51,9 @@
   CLI installation alongside the library release archives.
 
 - Add a native Python adapter with reusable sync and async clients, bounded
-  streaming, cookies, shared attempt budgets and cancellation. Build it from
-  source; prebuilt wheels and their installation matrix remain release work.
+  streaming, cookies, shared attempt budgets and cancellation. Prepare native
+  wheel candidates with dependency notices and isolated installation checks.
+  Upload only candidates that pass on their recorded host.
 
 - Add a native Go adapter with reusable clients, bounded pull streaming,
   cookies, shared attempt budgets and cancellation. Build it from source;
