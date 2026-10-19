@@ -794,6 +794,12 @@ Cleanup attempts to collect accepted response workers within a five-second
 cooperative deadline. A response or cleanup failure prevents publishing its
 fixture.
 
+The macOS headed Chrome workflow runs `macos_headful_capture.py` for one
+`reconnect-204` attempt. Its artifact retains command output, source and
+browser hashes, observed User-Agent bytes, and the last phase on failure.
+Source or browser changes, missing terminal observations, and failed capture
+commands prevent success, even when a fixture exists.
+
 Capture Chrome on Windows:
 
 ```sh

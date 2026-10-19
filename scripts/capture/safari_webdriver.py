@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 
+from .capture_report import file_digest as file_hash
 from .fixture_file import write_text_fixture
 from .sse_reconnect import (
     SCENARIOS,
@@ -416,14 +417,6 @@ class SafariSession:
             await self.close()
         except BaseException as cleanup:
             raise SafariFailure(primary, [cleanup]) from primary
-
-
-def file_hash(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        while chunk := stream.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 async def provenance(protocol="h1") -> dict:
