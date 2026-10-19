@@ -88,6 +88,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "peer_completion",
                 "runtimes",
                 "session",
+                "shutdown",
                 "session_http1",
                 "session_http1_parallel",
                 "session_http2_authority",
