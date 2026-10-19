@@ -1,4 +1,5 @@
 use super::*;
+use phantom::profile::{RequestField, RequestTemplate};
 use phantom::{RequestErrorKind, StreamingMultipartBody, StreamingMultipartPart};
 
 #[tokio::test]
@@ -34,12 +35,25 @@ async fn multipart_reader_reaches_http1_and_http2_with_matching_type_and_no_leng
                 ],
                 4096,
             )?;
+            let fields = vec![
+                RequestField::caller("content-type"),
+                RequestField::caller("content-length"),
+                RequestField::literal("x-after", "last"),
+            ];
+            let template = PreparedRequestTemplate::new(RequestTemplate {
+                http1_fields: fields.clone(),
+                http2_fields: fields,
+                http3_fields: None,
+                http2_priority: None,
+                requested_client_hint_placement: false,
+                restarts_for_connection_accept_ch: false,
+            })?;
             let (url, stop, server) = serve_upload(&identity, protocol).await?;
             let observed = collect_upload(
                 async {
                     let response = client
                         .request(protocol, Method::POST, &url)?
-                        .header(RequestHeader::new("content-type", body.content_type()))
+                        .template(&template)
                         .multipart_body(body)
                         .send()
                         .await?;
@@ -58,7 +72,13 @@ async fn multipart_reader_reaches_http1_and_http2_with_matching_type_and_no_leng
                 Some(expected.content_type().as_bytes())
             );
             assert_eq!(observed.body.as_slice(), expected.bytes().as_ref());
-            Ok(())
+            let names: Vec<_> = observed
+                .fields
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect();
+            assert!(names.windows(2).any(|pair| pair == ["content-type", "x-after"]));
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         })
         .await??;
     }

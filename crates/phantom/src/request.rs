@@ -1035,12 +1035,13 @@ impl RequestBuilder {
 
             if self.trailers.is_empty()
                 && !self.body.has_trailers()
+                && let Some(length) = self.body.exact_length()
                 && template::place_prepared_content_length(
                     self.request.template.as_ref(),
                     scope,
                     initial_fallback,
                     &mut self.headers,
-                    self.body.exact_length().unwrap_or(0),
+                    length,
                 )?
             {
                 filled_slots.push(Box::<str>::from("content-length"));

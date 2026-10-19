@@ -30,7 +30,7 @@ inventory uses the Windows name.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,345 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-http` | 1,374 | Application client, ordered requests, responses, state, custom profile import |
 | `phantom-net` | 1,647 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 1,041 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 291 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
@@ -52,7 +52,7 @@ compile checks verify those paths.
 
 | Library | Dependencies named by its API |
 | --- | --- |
-| `phantom-http` | `bytes`, `http`, `http-body`, `futures-core`, `futures-sink`, `url`, optional `serde` and `serde_json`, `phantom-net`, `phantom-profile` |
+| `phantom-http` | `bytes`, `http`, `http-body`, `futures-core`, `futures-sink`, Tokio I/O, `url`, optional `serde` and `serde_json`, `phantom-net`, `phantom-profile` |
 | `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `btls`, `phantom-profile`, `phantom-quic-btls` |
 | `phantom-profile` | Standard library only |
 | `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile`, `zeroize` (`keylog`) |

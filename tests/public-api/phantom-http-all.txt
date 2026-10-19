@@ -349,6 +349,13 @@ pub phantom::LinkParseErrorKind::InvalidParameter
 pub phantom::LinkParseErrorKind::InvalidRelation
 pub phantom::LinkParseErrorKind::InvalidSyntax
 pub phantom::LinkParseErrorKind::InvalidTarget
+#[non_exhaustive] pub enum phantom::MultipartStreamError
+pub phantom::MultipartStreamError::Framing(phantom::PreparedBodyError)
+pub phantom::MultipartStreamError::Source(alloc::boxed::Box<(dyn core::error::Error + core::marker::Send + core::marker::Sync)>)
+impl core::error::Error for phantom::MultipartStreamError
+pub fn phantom::MultipartStreamError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::MultipartStreamError
+pub fn phantom::MultipartStreamError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub enum phantom::PerMessageDeflateOfferParameter
 pub phantom::PerMessageDeflateOfferParameter::ClientMaxWindowBits(core::option::Option<u8>)
 pub phantom::PerMessageDeflateOfferParameter::ClientNoContextTakeover
@@ -976,6 +983,7 @@ pub fn phantom::RequestBuilder::fill_slots<F>(self, F) -> core::result::Result<S
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
 pub fn phantom::RequestBuilder::header_hook<F>(self, F) -> Self where F: core::ops::function::Fn(&mut phantom::HeaderHookContext<'_>) -> core::result::Result<(), phantom::HeaderHookError> + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::multipart_body(self, phantom::StreamingMultipartBody) -> Self
 pub fn phantom::RequestBuilder::prepared_body(self, phantom::PreparedRequestBody) -> Self
 pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
 pub fn phantom::RequestBuilder::redirect_history(self, core::num::nonzero::NonZeroUsize) -> Self
@@ -1264,6 +1272,27 @@ pub const fn phantom::StatusRetryError::status(self) -> core::option::Option<htt
 impl core::error::Error for phantom::StatusRetryError
 impl core::fmt::Display for phantom::StatusRetryError
 pub fn phantom::StatusRetryError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::StreamingMultipartBody
+impl phantom::StreamingMultipartBody
+pub fn phantom::StreamingMultipartBody::content_type(&self) -> &str
+pub fn phantom::StreamingMultipartBody::new(&str, impl core::iter::traits::collect::IntoIterator<Item = phantom::StreamingMultipartPart>, usize) -> core::result::Result<Self, phantom::PreparedBodyError>
+impl core::fmt::Debug for phantom::StreamingMultipartBody
+pub fn phantom::StreamingMultipartBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl http_body::Body for phantom::StreamingMultipartBody
+pub type phantom::StreamingMultipartBody::Data = bytes::bytes::Bytes
+pub type phantom::StreamingMultipartBody::Error = phantom::MultipartStreamError
+pub fn phantom::StreamingMultipartBody::is_end_stream(&self) -> bool
+pub fn phantom::StreamingMultipartBody::poll_frame(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<core::result::Result<http_body::frame::Frame<bytes::bytes::Bytes>, Self::Error>>>
+pub struct phantom::StreamingMultipartPart
+impl phantom::StreamingMultipartPart
+pub fn phantom::StreamingMultipartPart::bytes(&str, bytes::bytes::Bytes) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::StreamingMultipartPart::reader<R: tokio::io::async_read::AsyncRead + core::marker::Send + 'static>(&str, R) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::StreamingMultipartPart::stream<B>(&str, B) -> core::result::Result<Self, phantom::PreparedBodyError> where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::StreamingMultipartPart::text(&str, &str, usize) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::StreamingMultipartPart::with_content_type(self, &str) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::StreamingMultipartPart::with_filename(self, &str) -> core::result::Result<Self, phantom::PreparedBodyError>
+impl core::fmt::Debug for phantom::StreamingMultipartPart
+pub fn phantom::StreamingMultipartPart::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::WebSocket
 impl phantom::WebSocket
 pub async fn phantom::WebSocket::close(&mut self, core::option::Option<phantom::WebSocketCloseFrame>) -> core::result::Result<(), phantom::WebSocketError>
