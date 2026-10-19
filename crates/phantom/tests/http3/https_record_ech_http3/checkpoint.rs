@@ -63,6 +63,9 @@ async fn restored_checkpoint_offers_ech_on_its_first_quic_connection_without_a_l
                 &origin.url("/restored"),
             )
             .await?;
+            // The peer serves one request per connection. Keep discovery state,
+            // but release the source's idle connection before requesting again.
+            source.close_idle_connections().await;
             get(
                 &source,
                 Some(HttpProtocol::Http3),
