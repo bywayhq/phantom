@@ -176,6 +176,68 @@ async fn consume_reply<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin>(
 }
 
 #[tokio::test]
+async fn attached_tcp_ticket_store_resumes_and_clears_through_both_connectors() -> TestResult<()> {
+    for version in [TlsVersion::Tls12, TlsVersion::Tls13] {
+        let identity = TestIdentity::generate()?;
+        let source = connector(&identity, version)?;
+        let control = source.session_ticket_cache().ok_or("cache missing")?;
+        let owner = control.upgrade().ok_or("owner missing")?;
+        let other = source
+            .with_isolated_session_cache()
+            .with_session_ticket_cache(&owner)?;
+        let (address, task) = peer(&identity, version, 3).await?;
+        let ((), result) = task
+            .run(async {
+                let mut first = connect_local(&source, address, TEST_SERVER_NAME).await??;
+                consume_reply(&mut first).await?;
+                drop(first);
+                let mut second = connect_local(&other, address, TEST_SERVER_NAME).await??;
+                assert!(second.session_reused());
+                consume_reply(&mut second).await?;
+                drop(second);
+                assert!(other.session_ticket_cache().ok_or("cache missing")?.clear() > 0);
+                assert_eq!(
+                    source.session_cache.as_ref().ok_or("cache missing")?.len(),
+                    0
+                );
+                let mut third = connect_local(&source, address, TEST_SERVER_NAME).await??;
+                assert!(!third.session_reused());
+                consume_reply(&mut third).await?;
+                Ok(())
+            })
+            .await?;
+        assert_eq!(result?, [false, true, false]);
+    }
+    Ok(())
+}
+
+#[test]
+fn attached_tcp_ticket_store_rejects_an_independently_built_policy() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let source = connector(&identity, TlsVersion::Tls13)?;
+    let owner = source
+        .session_ticket_cache()
+        .ok_or("cache missing")?
+        .upgrade()
+        .ok_or("owner missing")?;
+    assert!(
+        source
+            .without_early_data()
+            .with_session_ticket_cache(&owner)
+            .is_ok()
+    );
+    let independent = connector(&identity, TlsVersion::Tls13)?;
+    assert_eq!(
+        independent
+            .with_session_ticket_cache(&owner)
+            .err()
+            .map(|e| e.kind()),
+        Some(TlsErrorKind::InvalidConfiguration)
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn bound_tcp_tls12_and_tls13_publish_sealable_tickets_and_resume() -> TestResult<()> {
     for version in [TlsVersion::Tls12, TlsVersion::Tls13] {
         let identity = TestIdentity::generate()?;

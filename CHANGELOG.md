@@ -24,6 +24,10 @@
   existing profile authoring, attempt budget, DNS and persistence APIs from
   the public guides, and clarify caller cookie placement and fork sharing.
 
+- Let compatible low-level TCP and QUIC connector clones attach the same
+  consuming TLS ticket cache while retaining separate DNS and connection pools.
+  Reject attachment after incompatible profile, certificate or trust changes.
+
 - Import raw JA3, raw JA4 and supported captured TCP ClientHello fields using
   explicit base settings. Check the imported projection against a fresh
   in-memory ClientHello and report which settings remain supplemented.

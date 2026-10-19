@@ -35,7 +35,8 @@ use crate::key_schedule::{
     derive_version_keys,
 };
 use crate::resumption::{
-    ApplicationState, QuicSessionTicketCache, ResumptionTicket, SessionCache, SessionCacheCapture,
+    ApplicationState, QuicSessionTicketCache, QuicSessionTicketCacheOwner, ResumptionTicket,
+    SessionCache, SessionCacheCapture,
 };
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
@@ -93,6 +94,7 @@ pub struct QuicClientConfig {
     transport_profile: Option<TransportParameterProfile>,
     tls_profile: ClientTlsProfile,
     sessions: Option<SessionCache>,
+    session_cache_compatibility: Option<Arc<()>>,
     offer_tickets: bool,
     early_data: bool,
     application_state: Option<ApplicationState>,
@@ -121,6 +123,7 @@ impl QuicClientConfig {
                 client_certificate: None,
             },
             sessions: None,
+            session_cache_compatibility: None,
             offer_tickets: true,
             early_data: false,
             application_state: None,
@@ -152,6 +155,7 @@ impl QuicClientConfig {
             transport_profile: Some(transport_profile),
             tls_profile: ClientTlsProfile::default(),
             sessions: None,
+            session_cache_compatibility: Some(Arc::new(())),
             offer_tickets: true,
             application_state: None,
             ech: None,
@@ -172,10 +176,11 @@ impl QuicClientConfig {
     #[must_use]
     pub fn danger_disable_server_authentication(mut self) -> Self {
         if self.verify_peer {
+            self.session_cache_compatibility = Some(Arc::new(()));
             self.sessions = self
                 .sessions
                 .as_ref()
-                .map(|_| SessionCache::new(self.context.clone(), false));
+                .and_then(|_| self.new_session_cache(false));
             self.application_state = None;
         }
         self.verify_peer = false;
@@ -245,6 +250,7 @@ impl QuicClientConfig {
                 SessionDelivery::Foreign => return Err(foreign_session_callback()),
             }
         }
+        self.session_cache_compatibility = Some(Arc::new(()));
         if !profile.session_tickets {
             self.early_data = false;
             self.sessions = None;
@@ -252,7 +258,7 @@ impl QuicClientConfig {
             self.sessions = self
                 .sessions
                 .as_ref()
-                .map(|_| SessionCache::new(self.context.clone(), self.verify_peer));
+                .and_then(|_| self.new_session_cache(self.verify_peer));
         }
         let client_certificate = self.tls_profile.client_certificate.take();
         self.tls_profile = ClientTlsProfile {
@@ -272,11 +278,12 @@ impl QuicClientConfig {
     /// the reverse.
     #[must_use]
     pub fn with_client_certificate(&self, certificate: &QuicClientCertificate) -> Self {
-        let sessions = self
+        let mut config = self.clone_with_sessions(None);
+        config.session_cache_compatibility = Some(Arc::new(()));
+        config.sessions = self
             .sessions
             .as_ref()
-            .map(|_| SessionCache::new(self.context.clone(), self.verify_peer));
-        let mut config = self.clone_with_sessions(sessions);
+            .and_then(|_| config.new_session_cache(self.verify_peer));
         config.tls_profile.client_certificate = Some(Arc::clone(&certificate.inner));
         config
     }
@@ -297,10 +304,12 @@ impl QuicClientConfig {
             context: self.context.clone(),
             transport_profile: self.transport_profile.clone(),
             tls_profile: self.tls_profile.clone(),
-            sessions: self
-                .tls_profile
-                .session_tickets
-                .then(|| SessionCache::new(self.context.clone(), self.verify_peer)),
+            sessions: if self.tls_profile.session_tickets {
+                self.new_session_cache(self.verify_peer)
+            } else {
+                None
+            },
+            session_cache_compatibility: self.session_cache_compatibility.clone(),
             offer_tickets: true,
             early_data: self.early_data,
             application_state: None,
@@ -325,6 +334,7 @@ impl QuicClientConfig {
             transport_profile: self.transport_profile.clone(),
             tls_profile: self.tls_profile.clone(),
             sessions: self.sessions.clone(),
+            session_cache_compatibility: self.session_cache_compatibility.clone(),
             offer_tickets: false,
             early_data: self.early_data,
             application_state: self.application_state.clone(),
@@ -354,14 +364,14 @@ impl QuicClientConfig {
     /// `early_data_accepted`.
     #[must_use]
     pub fn with_early_data(&self) -> Self {
-        let sessions = self.sessions.as_ref().map(|cache| {
-            if !self.early_data {
-                SessionCache::new(self.context.clone(), self.verify_peer)
-            } else {
-                cache.clone()
-            }
-        });
-        let mut config = self.clone_with_sessions(sessions);
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        if !self.early_data {
+            config.session_cache_compatibility = Some(Arc::new(()));
+            config.sessions = self
+                .sessions
+                .as_ref()
+                .and_then(|_| config.new_session_cache(self.verify_peer));
+        }
         config.early_data = true;
         config
     }
@@ -406,6 +416,7 @@ impl QuicClientConfig {
             transport_profile: self.transport_profile.clone(),
             tls_profile: self.tls_profile.clone(),
             sessions,
+            session_cache_compatibility: self.session_cache_compatibility.clone(),
             offer_tickets: self.offer_tickets,
             early_data: self.early_data,
             application_state: self.application_state.clone(),
@@ -492,6 +503,45 @@ impl QuicClientConfig {
     #[must_use]
     pub fn session_ticket_cache(&self) -> Option<QuicSessionTicketCache> {
         self.sessions.as_ref().map(SessionCache::control)
+    }
+
+    fn new_session_cache(&self, verify_peer: bool) -> Option<SessionCache> {
+        self.session_cache_compatibility
+            .as_ref()
+            .map(|compatibility| {
+                SessionCache::with_compatibility(
+                    self.context.clone(),
+                    verify_peer,
+                    Arc::clone(compatibility),
+                )
+            })
+    }
+
+    /// Attaches the consuming ticket store from a compatible configuration.
+    ///
+    /// Only clones of the same immutable profile, certificate and verification
+    /// policy are compatible. DNS and connection settings remain independent.
+    /// Callers must separately isolate the server name and route.
+    ///
+    /// # Errors
+    /// Returns a configuration error for disabled tickets or a different policy.
+    pub fn with_session_ticket_cache(
+        &self,
+        owner: &QuicSessionTicketCacheOwner,
+    ) -> Result<Self, QuicTlsProfileError> {
+        let cache = self
+            .tls_profile
+            .session_tickets
+            .then_some(())
+            .and(self.session_cache_compatibility.as_ref())
+            .and_then(|compatibility| owner.cache_with_compatibility(compatibility))
+            .ok_or_else(|| {
+                QuicTlsProfileError::invalid(
+                    "session_cache",
+                    "cache belongs to a different QUIC TLS configuration or tickets are disabled",
+                )
+            })?;
+        Ok(self.clone_with_sessions(Some(cache)))
     }
 
     #[cfg(test)]

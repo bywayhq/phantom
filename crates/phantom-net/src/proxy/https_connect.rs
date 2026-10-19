@@ -391,6 +391,22 @@ impl HttpsProxyConnector {
         self.tls.session_ticket_cache()
     }
 
+    /// Attaches a consuming ticket store from the same immutable TLS configuration.
+    ///
+    /// Keeps this connector's DNS and proxy connection pools. The caller must
+    /// separately match the cache's proxy endpoint and route before attaching it.
+    ///
+    /// # Errors
+    /// Rejects disabled tickets or a cache from a different profile or certificate.
+    pub fn with_session_ticket_cache(
+        &self,
+        owner: &crate::SessionTicketCacheOwner,
+    ) -> Result<Self, crate::TlsError> {
+        let mut connector = self.clone();
+        connector.tls = self.tls.with_session_ticket_cache(owner)?;
+        Ok(connector)
+    }
+
     pub(crate) async fn connect_forward(
         &self,
         proxy_host: &str,

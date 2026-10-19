@@ -32,7 +32,7 @@ use tracing::debug;
 const MAX_SESSIONS: usize = 10;
 
 #[derive(Clone)]
-pub(super) struct TlsSessionCache {
+pub(crate) struct TlsSessionCache {
     inner: Arc<CacheInner>,
 }
 
@@ -57,6 +57,7 @@ struct CaptureState {
 }
 
 struct CacheInner {
+    compatibility: Arc<()>,
     context: SslContext,
     scope: SslSessionScope,
     /// The profile's TCP session-ticket limit, applied per verified
@@ -122,6 +123,14 @@ impl TlsSessionControl {
 }
 
 impl TlsSessionOwner {
+    pub(crate) fn cache_with_compatibility(
+        &self,
+        compatibility: &Arc<()>,
+    ) -> Option<TlsSessionCache> {
+        Arc::ptr_eq(&self.inner.compatibility, compatibility).then(|| TlsSessionCache {
+            inner: Arc::clone(&self.inner),
+        })
+    }
     /// Original indices in private actual-store lock order, with no transfer bound.
     /// Reject aliases before any locks; this operation grants no ticket authority.
     ///
@@ -276,9 +285,20 @@ struct Arrival {
 }
 
 impl TlsSessionCache {
+    #[cfg(test)]
     pub(super) fn new(per_hostname: u8, order: TicketOrder, context: SslContext) -> Self {
+        Self::with_compatibility(per_hostname, order, context, Arc::new(()))
+    }
+
+    pub(super) fn with_compatibility(
+        per_hostname: u8,
+        order: TicketOrder,
+        context: SslContext,
+        compatibility: Arc<()>,
+    ) -> Self {
         Self {
             inner: Arc::new(CacheInner {
+                compatibility,
                 context,
                 scope: SslSessionScope::default(),
                 per_hostname: usize::from(per_hostname).clamp(1, MAX_SESSIONS),

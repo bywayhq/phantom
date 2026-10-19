@@ -165,6 +165,20 @@ impl SessionTicketCache {
 }
 
 impl SessionTicketCacheOwner {
+    pub(crate) fn tcp_cache(&self, compatibility: &Arc<()>) -> Option<crate::tls::TlsSessionCache> {
+        match &self.cache {
+            OwnedCache::Tcp(owner) => owner.cache_with_compatibility(compatibility),
+            OwnedCache::Quic(_) => None,
+        }
+    }
+
+    pub(crate) fn quic_owner(&self) -> Option<&QuicSessionTicketCacheOwner> {
+        match &self.cache {
+            OwnedCache::Tcp(_) => None,
+            OwnedCache::Quic(owner) => Some(owner),
+        }
+    }
+
     fn mixed_owner(&self) -> MixedSessionOwner<'_> {
         match &self.cache {
             OwnedCache::Tcp(owner) => MixedSessionOwner::Tcp(owner),

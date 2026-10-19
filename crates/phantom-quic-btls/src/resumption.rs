@@ -57,6 +57,7 @@ pub(crate) struct SessionCache {
 }
 
 struct CacheOwner {
+    compatibility: Arc<()>,
     context: SslContext,
     verify_peer: bool,
     state: Mutex<CacheState>,
@@ -87,6 +88,14 @@ pub struct QuicSessionTicketCache {
 /// A temporary strong owner used while a client freezes its ticket stores.
 pub struct QuicSessionTicketCacheOwner {
     inner: Arc<CacheOwner>,
+}
+
+impl QuicSessionTicketCacheOwner {
+    pub(crate) fn cache_with_compatibility(&self, compatibility: &Arc<()>) -> Option<SessionCache> {
+        Arc::ptr_eq(&self.inner.compatibility, compatibility).then(|| SessionCache {
+            inner: Arc::clone(&self.inner),
+        })
+    }
 }
 
 /// A synchronous guard that blocks ticket consumption and publication.
@@ -578,9 +587,19 @@ impl std::fmt::Debug for ApplicationState {
 }
 
 impl SessionCache {
+    #[cfg(test)]
     pub(crate) fn new(context: SslContext, verify_peer: bool) -> Self {
+        Self::with_compatibility(context, verify_peer, Arc::new(()))
+    }
+
+    pub(crate) fn with_compatibility(
+        context: SslContext,
+        verify_peer: bool,
+        compatibility: Arc<()>,
+    ) -> Self {
         Self {
             inner: Arc::new(CacheOwner {
+                compatibility,
                 context,
                 verify_peer,
                 state: Mutex::new(CacheState::default()),

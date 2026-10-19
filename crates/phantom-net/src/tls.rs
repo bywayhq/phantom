@@ -40,13 +40,10 @@ pub use self::server_pins::{InvalidServerSpkiPins, ServerSpkiPins};
 pub(crate) use self::session_cache::{
     FrozenTlsSessionCache, MixedSessionOwner, MixedSessionStoreExport, MixedSessionStoreHeader,
     PreparedMixedSessionReplacement, PreparedTlsSessionReplacement, RetiredMixedSessionStores,
-    RetiredTlsSessionReplacements, RetiredTlsTicketPublications, TlsSessionControl,
-    TlsSessionOwner, capture_mixed_stores, replace_mixed_stores,
+    RetiredTlsSessionReplacements, RetiredTlsTicketPublications, TlsSessionCache,
+    TlsSessionControl, TlsSessionOwner, capture_mixed_stores, replace_mixed_stores,
 };
-use self::{
-    early_data::EarlyData,
-    session_cache::{TicketOrder, TlsSessionCache},
-};
+use self::{early_data::EarlyData, session_cache::TicketOrder};
 
 mod client_certificate;
 mod client_hello;
@@ -202,6 +199,7 @@ pub(crate) struct TlsConnector {
     /// early-data capability their server granted.
     early_data: bool,
     session_cache: Option<TlsSessionCache>,
+    session_cache_compatibility: Arc<()>,
     client_certificate: Option<ClientCertificate>,
     #[cfg(feature = "keylog")]
     key_log: key_log::KeyLogSlot,
@@ -372,13 +370,38 @@ impl TlsConnector {
             .tcp_per_origin_limit()
             .filter(|_| self.scoped_sessions_enabled)
             .map(|limit| {
-                TlsSessionCache::new(
+                TlsSessionCache::with_compatibility(
                     limit.get(),
                     self.session_ticket_order,
                     self.backend.context().to_owned(),
+                    Arc::clone(&self.session_cache_compatibility),
                 )
             });
         connector
+    }
+
+    pub(crate) fn with_session_ticket_cache(
+        &self,
+        owner: &crate::SessionTicketCacheOwner,
+    ) -> Result<Self, TlsError> {
+        let mut connector = self.clone();
+        if self.session_tickets.tcp_per_origin_limit().is_none() || !self.scoped_sessions_enabled {
+            return Err(TlsError::configuration(
+                "session_cache",
+                "session tickets are disabled",
+            ));
+        }
+        connector.session_cache = Some(
+            owner
+                .tcp_cache(&self.session_cache_compatibility)
+                .ok_or_else(|| {
+                    TlsError::configuration(
+                        "session_cache",
+                        "cache belongs to a different TLS configuration",
+                    )
+                })?,
+        );
+        Ok(connector)
     }
 
     pub(crate) fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
@@ -394,7 +417,9 @@ impl TlsConnector {
     /// has one, so a session authenticated with the certificate is never
     /// resumed by a connector without it, or the reverse.
     pub(crate) fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
-        let mut connector = self.with_isolated_session_cache();
+        let mut connector = self.clone();
+        connector.session_cache_compatibility = Arc::new(());
+        connector = connector.with_isolated_session_cache();
         if self.session_cache.is_none() {
             connector.session_cache = None;
         }
@@ -619,6 +644,7 @@ impl TlsConnector {
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
             early_data,
             session_cache: None,
+            session_cache_compatibility: Arc::new(()),
             client_certificate: None,
             peer_role: crate::connection_diagnostics::TlsPeerRole::Origin,
             #[cfg(feature = "keylog")]

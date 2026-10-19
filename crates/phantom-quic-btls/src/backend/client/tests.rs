@@ -336,6 +336,72 @@ fn transfer_test_owner(
 }
 
 #[test]
+fn attached_quic_ticket_store_preserves_policy_boundaries() -> FixtureResult {
+    let source = transfer_test_config(false)?;
+    let owner = transfer_test_owner(&source)?;
+    let attached = source
+        .with_isolated_session_cache()
+        .with_session_ticket_cache(&owner)?;
+    assert!(owner.same_cache(&transfer_test_owner(&attached)?));
+    let suppressed = source
+        .without_ticket_offers()
+        .without_early_data()
+        .with_session_ticket_cache(&owner)?;
+    assert!(!suppressed.offer_tickets);
+    assert!(!suppressed.early_data);
+    assert!(owner.same_cache(&transfer_test_owner(&suppressed)?));
+    let profile = phantom_profile::browser::chrome::v154_quic_tls();
+    assert!(
+        source
+            .clone_with_sessions(source.sessions.clone())
+            .with_tls_profile(&profile)?
+            .with_session_ticket_cache(&owner)
+            .is_err()
+    );
+    assert!(
+        source
+            .with_early_data()
+            .with_session_ticket_cache(&owner)
+            .is_err()
+    );
+    let (certificate, key) = client_certificate_der()?;
+    let certificate = QuicClientCertificate::from_der([certificate.as_slice()], &key)?;
+    assert!(
+        source
+            .with_client_certificate(&certificate)
+            .with_session_ticket_cache(&owner)
+            .is_err()
+    );
+    let mut disabled = profile;
+    disabled.session_tickets = phantom_profile::SessionTickets::disabled();
+    assert!(
+        source
+            .with_tls_profile(&disabled)?
+            .with_session_ticket_cache(&owner)
+            .is_err()
+    );
+    assert!(
+        transfer_test_config(false)?
+            .with_session_ticket_cache(&owner)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn isolated_default_quic_config_keeps_tickets_disabled() -> FixtureResult {
+    use btls::ssl::SslMethod;
+    let context = SslContext::builder(SslMethod::tls())?.build();
+    let config = QuicClientConfig::new(context).with_isolated_session_cache();
+    assert!(config.session_ticket_cache().is_none());
+    let enabled = transfer_test_config(false)?;
+    let owner = transfer_test_owner(&enabled)?;
+    assert!(config.with_session_ticket_cache(&owner).is_err());
+    assert!(enabled.with_session_ticket_cache(&owner).is_ok());
+    Ok(())
+}
+
+#[test]
 fn upgraded_ticket_owner_retains_its_actual_context_until_drop() -> FixtureResult {
     let config = transfer_test_config(false)?;
     let control = config

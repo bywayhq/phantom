@@ -346,6 +346,30 @@ impl Http3Connector {
             .map(crate::SessionTicketCache::quic)
     }
 
+    /// Attaches a consuming ticket store from the same immutable QUIC TLS configuration.
+    ///
+    /// Keeps this connector's DNS and socket settings. The caller must separately
+    /// match the cache's origin and route before attaching it.
+    ///
+    /// # Errors
+    /// Rejects disabled tickets, a TCP store, or a different profile or certificate.
+    pub fn with_session_ticket_cache(
+        &self,
+        owner: &crate::SessionTicketCacheOwner,
+    ) -> Result<Self, Http3ConnectorError> {
+        let owner = owner.quic_owner().ok_or_else(|| {
+            Http3ConnectorError::invalid_profile(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "a QUIC connector requires a QUIC ticket cache",
+            ))
+        })?;
+        Ok(self.with_crypto(
+            self.crypto
+                .with_session_ticket_cache(owner)
+                .map_err(Http3ConnectorError::quic_tls)?,
+        ))
+    }
+
     /// Returns whether connections from this connector resume sessions.
     #[must_use]
     pub fn resumes_sessions(&self) -> bool {
