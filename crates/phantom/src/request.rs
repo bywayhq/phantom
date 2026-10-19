@@ -141,7 +141,6 @@ impl RequestBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn transfer_control(mut self, control: crate::TransferControl) -> Self {
         self.request.transfer = Some(control);
         self
