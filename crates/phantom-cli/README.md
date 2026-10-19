@@ -13,6 +13,14 @@ Build from this repository with `cargo build -p phantom-cli --release --locked`.
 The executable is `target/release/phantom` (`phantom.exe` on Windows). Building
 requires Phantom's [native build tools](../phantom/src/docs/getting-started.md#install-the-build-tools).
 
+The [CLI artifact workflow](../../scripts/release/README.md#cli-archives) also
+prepares checked ZIP/tar archives for Windows x64, Linux x64 and macOS arm64.
+Download a successful workflow artifact, check `SHA256SUMS`, then extract its
+platform archive and put `phantom` on your path. Keep the included notices.
+Each receipt names the tested runtime and native dependencies; older systems
+are not yet verified. These workflow candidates are separate from published
+releases.
+
 ## Requests
 
 Choose `--profile ID`, `--profile-file FILE`, or a pinned bundle entry. Built-in identifiers

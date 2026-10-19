@@ -1,8 +1,45 @@
 # Release Phantom
 
-Use these steps to publish the Rust libraries. There is no supported CLI
-binary in this release. Package metadata points to Byway's repository.
-Registry ownership is checked separately.
+Use these steps to verify and publish Rust packages, or prepare native CLI
+archives. Package metadata points to Byway's repository. Registry ownership
+is checked separately.
+
+## CLI archives
+
+The **CLI artifacts** workflow prepares candidates for these native targets:
+
+| Target | Verification runner |
+| --- | --- |
+| `x86_64-pc-windows-msvc` | Windows Server 2022, x64 |
+| `x86_64-unknown-linux-gnu` | Ubuntu 24.04, x64 |
+| `aarch64-apple-darwin` | macOS 15, arm64 |
+
+To prepare one on a matching host, use a clean checkout and its native build
+tools. The command uses the pinned Rust toolchain and locked dependencies:
+
+```sh
+scripts/dev/with-cargo-lock.sh python scripts/release/cli_artifact.py \
+  --target x86_64-unknown-linux-gnu --output target/cli-artifact
+```
+
+`CARGO_BUILD_JOBS` sets a positive build-job count; the default is two.
+
+The archive contains the executable, project licenses, dependency/native
+notices and `artifact.json`. That receipt records the source revision, lockfile
+and binary hashes, compiler versions, actual runtime and native dependency
+inspection. Build-tool and procedural-macro notices are included conservatively.
+The archive's SHA256 and installation results accompany it in `verified/`.
+Build and command logs remain in `logs/`, including failed checks.
+
+Verification extracts outside the checkout and runs version/profile checks,
+an HTTP/1 request with ordered headers, file upload, chunked download and a
+stalled-body deadline that must disconnect. These are installation checks,
+not browser captures, throughput measurements or Control-C signal tests.
+
+Only successful candidates are uploaded. This workflow does not publish a
+GitHub Release or upload packages to any registry. No older runtime floor,
+fully static binary, cross-compilation or code-signing support is claimed.
+Inspect each receipt's actual runtime and dependency output before deployment.
 
 ## Prepare and verify
 
@@ -18,9 +55,9 @@ scripts/dev/with-cargo-lock.sh python3 scripts/release/check-advisories.py \
   --output target/release-advisories
 ```
 
-The package check creates the seven archives in `packages.txt`: five workspace
-libraries and the changed `btls` and `tokio-btls` forks. Unchanged forks keep
-their exact published versions and resolve from crates.io. The check serves
+The package check creates the eight archives in `packages.txt`: five workspace
+libraries, the CLI and the changed `btls` and `tokio-btls` forks. Unchanged forks
+keep their exact published versions and resolve from crates.io. The check serves
 the new archives from a temporary loopback registry with no publishing
 endpoint. The downstream
 consumer fetches those archives, builds minimal and full features, and
