@@ -108,9 +108,26 @@ struct Observed {
     tickets: Counts,
 }
 
+enum ColdRestore {
+    Tickets,
+    #[cfg(feature = "session-snapshot")]
+    Session,
+}
+
 #[tokio::test]
 async fn public_quic_cold_import_and_warm_replacement_resume_without_consuming_source()
 -> TestResult<()> {
+    quic_ticket_transfer(ColdRestore::Tickets).await
+}
+
+#[cfg(feature = "session-snapshot")]
+#[tokio::test]
+async fn public_quic_session_checkpoint_restores_single_use_tickets_without_consuming_source()
+-> TestResult<()> {
+    quic_ticket_transfer(ColdRestore::Session).await
+}
+
+async fn quic_ticket_transfer(cold_restore: ColdRestore) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let oracle = TicketOracle::new()?;
     let endpoint = h3_support::quic_server(
@@ -183,7 +200,19 @@ async fn public_quic_cold_import_and_warm_replacement_resume_without_consuming_s
         close_connection(&read_tx, &mut closed, 2).await?;
 
         // No request has created the cold recipient's origin pool/cache yet.
-        cold.import_session_tickets(&restored, &key, &[])?;
+        let cold = match cold_restore {
+            ColdRestore::Tickets => {
+                cold.import_session_tickets(&restored, &key, &[])?;
+                cold
+            }
+            #[cfg(feature = "session-snapshot")]
+            ColdRestore::Session => {
+                let checkpoint = source.export_session(&key)?;
+                let restored = cold.restore_session(&checkpoint, &key, &[])?;
+                assert_eq!(cold.clear_session_tickets()?, 0);
+                restored
+            }
+        };
         exchange(&cold, address, "/cold-import", 3, 2, &mut observed).await?;
         close_connection(&read_tx, &mut closed, 3).await?;
         exchange(&cold, address, "/cold-exhausted", 4, 2, &mut observed).await?;
