@@ -75,7 +75,7 @@ windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Wi
 libc = "0.2.189"
 
 [build-dependencies]
-cc = "=1.4.6"
+cc = "=1.8.0"
 
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
