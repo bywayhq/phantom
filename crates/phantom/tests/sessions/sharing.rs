@@ -143,7 +143,7 @@ async fn fork_uses_its_own_http3_connection_and_shutdown() -> TestResult<()> {
         let (address, endpoint) = crate::support::h3::server_endpoint(&identity)?;
         peer = Some(Peer::spawn(async move {
             let mut workers = JoinSet::<TestResult<()>>::new();
-            for id in [b'1', b'2'] {
+            for id in *b"12" {
                 let incoming = endpoint.accept().await.ok_or("endpoint stopped")?.await?;
                 workers.spawn(async move {
                     let mut connection =
