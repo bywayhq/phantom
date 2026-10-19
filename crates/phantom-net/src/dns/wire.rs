@@ -1,4 +1,4 @@
-//! Bounded DNS messages for an explicitly configured HTTPS resolver.
+//! Bounded DNS messages for an explicitly configured encrypted resolver.
 //!
 //! This codec performs no I/O or caching. Callers own exchange deadlines and
 //! subtract response age and elapsed exchange time from the returned TTLs.
@@ -16,7 +16,7 @@ use hickory_resolver::proto::{
 
 use super::{HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup};
 
-/// Largest DNS message carried by one HTTPS exchange (RFC 8484 section 6).
+/// Largest DNS message over HTTPS or length-prefixed TLS (RFC 8484 section 6).
 pub const MAX_MESSAGE_BYTES: usize = 65_535;
 /// Maximum CNAME hops across a query and its codec-created follow-ups.
 pub const MAX_CNAME_HOPS: usize = 16;
@@ -131,6 +131,17 @@ impl DnsWireQuery {
     #[must_use]
     pub fn cname_hops(&self) -> usize {
         self.visited.len() - 1
+    }
+
+    // The multiplexer correlates its own ID; keep the codec's other checks.
+    pub(super) fn parse_multiplexed_response(
+        &self,
+        assigned_id: u16,
+        bytes: &[u8],
+    ) -> Result<DnsWireResult, DnsWireError> {
+        let mut expected = self.clone();
+        expected.id = assigned_id;
+        expected.parse_response(bytes)
     }
 
     /// Validates the complete response and extracts only its terminal answer.

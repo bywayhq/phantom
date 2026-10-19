@@ -1,4 +1,4 @@
-//! Explicit DNS-over-HTTPS lookups through an independent HTTP/2 client.
+//! Explicit encrypted DNS lookups through HTTPS or a verified TLS connection.
 
 use std::{
     error::Error, fmt, io, net::IpAddr, num::NonZeroU16, num::NonZeroUsize, sync::Arc,
@@ -18,6 +18,8 @@ use crate::{
 mod address;
 mod exchange;
 mod https;
+mod over_tls;
+pub use over_tls::{DnsOverTls, DnsOverTlsBuilder, DotAddressFamilies, DotConfiguration};
 #[cfg(test)]
 mod tests;
 
@@ -144,10 +146,28 @@ pub struct DnsOverHttps {
 }
 
 struct Endpoint {
+    transport: Transport,
+    settings: LookupSettings,
+    admission: Semaphore,
+}
+
+enum Transport {
+    Https(HttpsEndpoint),
+    Tls(phantom_net::dns::DnsOverTlsTransport),
+}
+
+struct HttpsEndpoint {
     client: Client,
     url: Url,
     configuration: DohConfiguration,
-    admission: Semaphore,
+}
+
+#[derive(Debug)]
+struct LookupSettings {
+    families: DohAddressFamilies,
+    lookup_timeout: Duration,
+    query_id: u16,
+    padding_block: Option<NonZeroU16>,
 }
 
 impl DnsOverHttps {
@@ -224,11 +244,7 @@ impl DnsOverHttps {
     /// bounded by this endpoint's deadline and admission limit.
     #[must_use]
     pub fn address_resolver(&self) -> AddressResolver {
-        let endpoint = Arc::clone(&self.endpoint);
-        AddressResolver::from_answer_fn(move |host| {
-            let endpoint = Arc::clone(&endpoint);
-            async move { address::lookup(&endpoint, &host).await }
-        })
+        address_resolver(&self.endpoint)
     }
 
     /// Returns an HTTPS-record resolver through this endpoint's HTTP/2 client.
@@ -242,15 +258,7 @@ impl DnsOverHttps {
     /// This does not enable discovery or follow HTTPS AliasMode targets.
     #[must_use]
     pub fn https_record_resolver(&self) -> HttpsRecordResolver {
-        let endpoint = Arc::clone(&self.endpoint);
-        HttpsRecordResolver::from_fn(move |host, port| {
-            let endpoint = Arc::clone(&endpoint);
-            async move {
-                https::lookup(&endpoint, &host, port)
-                    .await
-                    .map_err(HttpsLookupError::other)
-            }
-        })
+        https_record_resolver(&self.endpoint)
     }
 }
 
@@ -258,7 +266,7 @@ impl fmt::Debug for DnsOverHttps {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("DnsOverHttps")
-            .field("configuration", &self.endpoint.configuration)
+            .field("configuration", &self.endpoint.settings)
             .finish_non_exhaustive()
     }
 }
@@ -292,9 +300,17 @@ impl DnsOverHttpsBuilder {
         let admission = Semaphore::new(self.configuration.maximum_lookups.get());
         Ok(DnsOverHttps {
             endpoint: Arc::new(Endpoint {
-                client,
-                url: self.url,
-                configuration: self.configuration,
+                settings: LookupSettings {
+                    families: self.configuration.families,
+                    lookup_timeout: self.configuration.lookup_timeout,
+                    query_id: self.configuration.query_id,
+                    padding_block: self.configuration.padding_block,
+                },
+                transport: Transport::Https(HttpsEndpoint {
+                    client,
+                    url: self.url,
+                    configuration: self.configuration,
+                }),
                 admission,
             }),
         })
@@ -426,4 +442,24 @@ fn validate_configuration(configuration: &DohConfiguration) -> Result<Url, DohBu
         return Err(DohBuildError::new(DohBuildErrorKind::InvalidLimits));
     }
     Ok(url)
+}
+
+fn address_resolver(endpoint: &Arc<Endpoint>) -> AddressResolver {
+    let endpoint = Arc::clone(endpoint);
+    AddressResolver::from_answer_fn(move |host| {
+        let endpoint = Arc::clone(&endpoint);
+        async move { address::lookup(&endpoint, &host).await }
+    })
+}
+
+fn https_record_resolver(endpoint: &Arc<Endpoint>) -> HttpsRecordResolver {
+    let endpoint = Arc::clone(endpoint);
+    HttpsRecordResolver::from_fn(move |host, port| {
+        let endpoint = Arc::clone(&endpoint);
+        async move {
+            https::lookup(&endpoint, &host, port)
+                .await
+                .map_err(HttpsLookupError::other)
+        }
+    })
 }

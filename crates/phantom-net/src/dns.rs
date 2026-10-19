@@ -43,6 +43,8 @@ use hickory_resolver::{
 use phantom_profile::UdpSettings;
 
 mod address_lookup;
+mod over_tls;
+pub use over_tls::DnsOverTlsTransport;
 #[cfg(any(target_os = "linux", test))]
 mod linux_configuration;
 #[cfg(target_os = "linux")]

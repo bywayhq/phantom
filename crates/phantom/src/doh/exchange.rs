@@ -5,7 +5,7 @@ use http::{HeaderMap, Method, header};
 use phantom_net::dns::wire::{DnsWireErrorKind, DnsWireQuery, DnsWireResult, MAX_MESSAGE_BYTES};
 use tokio::time::Instant;
 
-use super::{DohMethod, Endpoint};
+use super::{DohMethod, Endpoint, HttpsEndpoint, Transport};
 use crate::{Bytes, ContentDecoding, HttpProtocol, RequestHeader};
 
 #[cfg(test)]
@@ -30,6 +30,22 @@ impl Exchange {
 }
 
 pub(super) async fn send(endpoint: &Endpoint, query: &DnsWireQuery) -> io::Result<Exchange> {
+    match &endpoint.transport {
+        Transport::Https(endpoint) => send_https(endpoint, query).await,
+        Transport::Tls(transport) => {
+            let started = Instant::now();
+            let answer = transport.exchange(query).await?;
+            Ok(Exchange {
+                answer,
+                started,
+                received: Instant::now(),
+                age: 0,
+            })
+        }
+    }
+}
+
+async fn send_https(endpoint: &HttpsEndpoint, query: &DnsWireQuery) -> io::Result<Exchange> {
     let started = Instant::now();
     let method = match endpoint.configuration.method {
         DohMethod::Get => Method::GET,

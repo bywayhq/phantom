@@ -186,15 +186,19 @@ pub mod profile {
     pub use phantom_profile::browser;
 }
 
-/// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.
+/// Address and HTTPS-record lookups, including explicit encrypted resolvers.
 ///
-/// See `ClientBuilder::https_record_discovery`. Requires the
-/// `https-records` feature.
+/// [`DnsOverTls`](dns::DnsOverTls) and [`DnsOverHttps`](dns::DnsOverHttps)
+/// require explicit bootstrap addresses and keep endpoint verification enabled.
+/// Attach their address resolver with [`ClientBuilder::dns_resolver`]. Use
+/// [`ClientBuilder::https_record_discovery`] for HTTPS records.
+/// Requires the `https-records` feature.
 #[cfg(feature = "https-records")]
 pub mod dns {
     pub use crate::doh::{
-        DnsOverHttps, DnsOverHttpsBuilder, DohAddressFamilies, DohBuildError, DohBuildErrorKind,
-        DohConfiguration, DohMethod,
+        DnsOverHttps, DnsOverHttpsBuilder, DnsOverTls, DnsOverTlsBuilder, DohAddressFamilies,
+        DohBuildError, DohBuildErrorKind, DohConfiguration, DohMethod, DotAddressFamilies,
+        DotConfiguration,
     };
     #[cfg(target_os = "linux")]
     pub use phantom_net::dns::chromium_linux_resolvers;

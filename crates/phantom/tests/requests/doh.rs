@@ -15,6 +15,7 @@ use crate::support::{
 mod answers;
 mod failures;
 mod lifecycle;
+mod over_tls;
 mod peer;
 
 const DEADLINE: Duration = Duration::from_secs(10);

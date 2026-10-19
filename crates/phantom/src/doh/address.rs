@@ -24,13 +24,13 @@ pub(super) async fn lookup(endpoint: &Endpoint, host: &str) -> io::Result<Addres
     let _permit = endpoint.admission.try_acquire().map_err(|_| {
         io::Error::new(
             io::ErrorKind::WouldBlock,
-            "DNS-over-HTTPS lookup admission is full",
+            "encrypted DNS lookup admission is full",
         )
     })?;
     let mut ipv6_result = None;
     let mut ipv4_result = None;
     let operation = async {
-        let family = match endpoint.configuration.families {
+        let family = match endpoint.settings.families {
             DohAddressFamilies::Ipv4Only => {
                 resolve_family(endpoint, host, DnsWireQueryKind::A).await
             }
@@ -66,7 +66,7 @@ pub(super) async fn lookup(endpoint: &Endpoint, host: &str) -> io::Result<Addres
         }?;
         into_answer(family)
     };
-    match crate::timeout::within(endpoint.configuration.lookup_timeout, operation)
+    match crate::timeout::within(endpoint.settings.lookup_timeout, operation)
         .await
         .map_err(io::Error::other)?
     {
@@ -75,10 +75,10 @@ pub(super) async fn lookup(endpoint: &Endpoint, host: &str) -> io::Result<Addres
             let expired = || {
                 io::Error::new(
                     io::ErrorKind::TimedOut,
-                    "DNS-over-HTTPS lookup deadline expired",
+                    "encrypted DNS lookup deadline expired",
                 )
             };
-            if endpoint.configuration.families == DohAddressFamilies::DualIpv6First {
+            if endpoint.settings.families == DohAddressFamilies::DualIpv6First {
                 // `within` has dropped the join and both pending HTTP futures.
                 // A completed positive survives only with zero cache lifetime.
                 aggregate(
@@ -101,8 +101,8 @@ async fn resolve_family(
     let mut query = DnsWireQuery::new(
         host,
         kind,
-        endpoint.configuration.query_id,
-        endpoint.configuration.padding_block,
+        endpoint.settings.query_id,
+        endpoint.settings.padding_block,
     )
     .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
     let mut earlier_expiry = None;
@@ -220,7 +220,7 @@ fn aggregate(ipv6: io::Result<Family>, ipv4: io::Result<Family>) -> io::Result<F
         }),
         (Ok(_), Ok(_)) => Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            "DNS-over-HTTPS address families disagree about name existence",
+            "encrypted DNS address families disagree about name existence",
         )),
         (Ok(Family::Positive { addresses, .. }), Err(_))
         | (Err(_), Ok(Family::Positive { addresses, .. })) => Ok(Family::Positive {

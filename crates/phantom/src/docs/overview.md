@@ -72,7 +72,7 @@ uses to the `phantom` dependency in `Cargo.toml`.
 | Feature | Adds |
 | --- | --- |
 | `cookies` | A client-owned cookie jar |
-| `https-records` | HTTPS DNS records for HTTP/3 discovery and Encrypted Client Hello |
+| `https-records` | HTTPS DNS records, encrypted DNS resolvers, HTTP/3 discovery and Encrypted Client Hello |
 | `json` | Prepared JSON request bodies and bounded typed response reads |
 | `sse` | Server-sent events and reconnect support |
 | `websocket` | WebSocket connections |

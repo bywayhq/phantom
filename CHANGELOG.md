@@ -6,6 +6,9 @@
   Keep Rust 1.88 as the minimum supported compiler.
 - Update the httpcloak comparison adapter's Go dependencies to address the
   reported `golang.org/x/crypto` and `golang.org/x/net` advisories.
+- Add explicit DNS-over-TLS address and HTTPS-record resolvers with verified
+  endpoint identity, ordered bootstrap addresses, shared query limits and
+  deadlines. Lookups reuse a TLS connection and support independent cancellation.
 
 ## 0.2.0 - 2026-10-18
 

@@ -76,6 +76,9 @@ pub phantom::dns::DohBuildErrorKind::MissingHttp2
 pub enum phantom::dns::DohMethod
 pub phantom::dns::DohMethod::Get
 pub phantom::dns::DohMethod::Post
+pub enum phantom::dns::DotAddressFamilies
+pub phantom::dns::DotAddressFamilies::DualIpv6First
+pub phantom::dns::DotAddressFamilies::Ipv4Only
 pub struct phantom::dns::DnsOverHttps
 impl phantom::dns::DnsOverHttps
 pub fn phantom::dns::DnsOverHttps::address_resolver(&self) -> phantom_net::host_resolver::AddressResolver
@@ -89,6 +92,19 @@ pub fn phantom::dns::DnsOverHttpsBuilder::add_root_certificate_der(self, impl co
 pub fn phantom::dns::DnsOverHttpsBuilder::build(self) -> core::result::Result<phantom::dns::DnsOverHttps, phantom::dns::DohBuildError>
 impl core::fmt::Debug for phantom::dns::DnsOverHttpsBuilder
 pub fn phantom::dns::DnsOverHttpsBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DnsOverTls
+impl phantom::dns::DnsOverTls
+pub fn phantom::dns::DnsOverTls::address_resolver(&self) -> phantom_net::host_resolver::AddressResolver
+pub fn phantom::dns::DnsOverTls::builder(phantom_profile::tls::TlsSettings, phantom::dns::DotConfiguration) -> phantom::dns::DnsOverTlsBuilder
+pub fn phantom::dns::DnsOverTls::https_record_resolver(&self) -> phantom_net::dns::HttpsRecordResolver
+impl core::fmt::Debug for phantom::dns::DnsOverTls
+pub fn phantom::dns::DnsOverTls::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DnsOverTlsBuilder
+impl phantom::dns::DnsOverTlsBuilder
+pub fn phantom::dns::DnsOverTlsBuilder::add_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
+pub fn phantom::dns::DnsOverTlsBuilder::build(self) -> core::io::error::Result<phantom::dns::DnsOverTls>
+impl core::fmt::Debug for phantom::dns::DnsOverTlsBuilder
+pub fn phantom::dns::DnsOverTlsBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::dns::DohBuildError
 impl phantom::dns::DohBuildError
 pub const fn phantom::dns::DohBuildError::kind(&self) -> phantom::dns::DohBuildErrorKind
@@ -104,6 +120,12 @@ pub const fn phantom::dns::DohConfiguration::padding_block(self, core::option::O
 pub const fn phantom::dns::DohConfiguration::query_id(self, u16) -> Self
 impl core::fmt::Debug for phantom::dns::DohConfiguration
 pub fn phantom::dns::DohConfiguration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DotConfiguration
+impl phantom::dns::DotConfiguration
+pub fn phantom::dns::DotConfiguration::new(impl core::convert::Into<alloc::string::String>, impl core::iter::traits::collect::IntoIterator<Item = core::net::socket_addr::SocketAddr>, phantom::dns::DotAddressFamilies, core::time::Duration, core::num::nonzero::NonZeroUsize) -> Self
+pub const fn phantom::dns::DotConfiguration::padding_block(self, core::option::Option<core::num::nonzero::NonZeroU16>) -> Self
+impl core::fmt::Debug for phantom::dns::DotConfiguration
+pub fn phantom::dns::DotConfiguration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub mod phantom::fingerprint
 #[non_exhaustive] pub enum phantom::fingerprint::FingerprintImportErrorKind
 pub phantom::fingerprint::FingerprintImportErrorKind::DuplicateField

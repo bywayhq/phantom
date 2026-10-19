@@ -20,21 +20,18 @@ pub(super) async fn lookup(
     let _permit = endpoint.admission.try_acquire().map_err(|_| {
         io::Error::new(
             io::ErrorKind::WouldBlock,
-            "DNS-over-HTTPS lookup admission is full",
+            "encrypted DNS lookup admission is full",
         )
     })?;
-    crate::timeout::within(
-        endpoint.configuration.lookup_timeout,
-        resolve(endpoint, query),
-    )
-    .await
-    .map_err(io::Error::other)?
-    .ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::TimedOut,
-            "DNS-over-HTTPS lookup deadline expired",
-        )
-    })?
+    crate::timeout::within(endpoint.settings.lookup_timeout, resolve(endpoint, query))
+        .await
+        .map_err(io::Error::other)?
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                "encrypted DNS lookup deadline expired",
+            )
+        })?
 }
 
 fn origin_query(endpoint: &Endpoint, host: &str, port: u16) -> io::Result<DnsWireQuery> {
@@ -62,8 +59,8 @@ fn origin_query(endpoint: &Endpoint, host: &str, port: u16) -> io::Result<DnsWir
     DnsWireQuery::new(
         &name,
         DnsWireQueryKind::Https,
-        endpoint.configuration.query_id,
-        endpoint.configuration.padding_block,
+        endpoint.settings.query_id,
+        endpoint.settings.padding_block,
     )
     .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))
 }
