@@ -1,0 +1,41 @@
+[package]
+name = "phantom-go"
+description = "Native Go adapter for Phantom's asynchronous HTTP client"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+http = "1.4.0"
+http-body-util = "0.1.3"
+phantom = { package = "phantom-http", path = "../../../crates/phantom", features = ["cookies"] }
+phantom-profile = { path = "../../../crates/phantom-profile" }
+serde.workspace = true
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+
+# Match the workspace, with one audited private ABI boundary.
+[lints.rust]
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unreachable_pub = "warn"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+cargo = { level = "warn", priority = -1 }
+cast_lossless = "warn"
+dbg_macro = "deny"
+expect_used = "warn"
+must_use_candidate = "warn"
+todo = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unwrap_used = "warn"

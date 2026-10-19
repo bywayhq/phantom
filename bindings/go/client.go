@@ -1,0 +1,278 @@
+// Package phantom provides native requests with explicit profiles and protocols.
+package phantom
+
+import (
+	"context"
+	"encoding/json"
+	"runtime"
+	"sync/atomic"
+	"time"
+)
+
+// Config selects one named profile, protocol and optional request context.
+// Protocol is h1, h2, h3 or negotiated. Context is navigation, fetch or empty.
+type Config struct {
+	Profile        string
+	Protocol       string
+	Context        string
+	Proxy          string
+	DisableCookies bool
+	Timeout        time.Duration
+}
+
+// Header retains one field's position, name and byte value. Duplicate names work.
+type Header struct {
+	Name  string `json:"name"`
+	Value []byte `json:"value"`
+}
+
+// Request holds one logical request. Body is replayable and limited to 8 MiB.
+type Request struct {
+	Method  string
+	URL     string
+	Headers []Header
+	Body    []byte
+	Budget  *AttemptBudget
+	Timeout time.Duration
+}
+
+// Client reuses native connection pools and cookies. It is safe for concurrent use.
+type Client struct {
+	id      atomic.Uint64
+	closing atomic.Bool
+}
+
+func timeoutValue(timeout time.Duration) (*uint64, error) {
+	if timeout == 0 {
+		return nil, nil
+	}
+	if timeout < time.Millisecond {
+		return nil, &Error{Kind: "invalid_timeout"}
+	}
+	value := uint64(timeout / time.Millisecond)
+	return &value, nil
+}
+
+// New creates a client. It performs no request and ignores proxy environment variables.
+func New(config Config) (*Client, error) {
+	timeout, err := timeoutValue(config.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	wire := struct {
+		Profile  string  `json:"profile"`
+		Protocol string  `json:"protocol"`
+		Context  string  `json:"context,omitempty"`
+		Proxy    string  `json:"proxy,omitempty"`
+		Cookies  bool    `json:"cookies"`
+		Timeout  *uint64 `json:"timeout_ms,omitempty"`
+	}{config.Profile, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, timeout}
+	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		ID uint64 `json:"id"`
+	}
+	if json.Unmarshal(value, &result) != nil || result.ID == 0 {
+		return nil, &Error{Kind: "native_abi"}
+	}
+	client := &Client{}
+	client.id.Store(result.ID)
+	runtime.SetFinalizer(client, func(owner *Client) {
+		if id := owner.id.Swap(0); id != 0 {
+			_ = control("release_client", "client", id)
+		}
+	})
+	return client, nil
+}
+
+// Do returns the response head and an owned pull-driven body. Keep ctx valid until
+// EOF or Body.Close; cancelling it also closes a body already returned to you.
+func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
+	if c.closing.Load() || c.id.Load() == 0 {
+		return nil, &Error{Kind: "client_closed"}
+	}
+	if len(request.Body) > maxUpload {
+		return nil, &Error{Kind: "upload_limit"}
+	}
+	timeout, err := timeoutValue(request.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	type wireHeader struct {
+		Name  string   `json:"name"`
+		Value []uint16 `json:"value"`
+	}
+	if len(request.Headers) > 256 {
+		return nil, &Error{Kind: "input_limit"}
+	}
+	size := len(request.URL) + len(request.Method)
+	if size > 64*1024 {
+		return nil, &Error{Kind: "input_limit"}
+	}
+	headers := make([]wireHeader, 0, len(request.Headers))
+	for _, header := range request.Headers {
+		if len(header.Name) > 64*1024-size || len(header.Value) > 64*1024-size-len(header.Name) {
+			return nil, &Error{Kind: "input_limit"}
+		}
+		size += len(header.Name) + len(header.Value)
+		values := make([]uint16, len(header.Value))
+		for i, value := range header.Value {
+			values[i] = uint16(value)
+		}
+		headers = append(headers, wireHeader{header.Name, values})
+	}
+	var budget *uint64
+	if request.Budget != nil {
+		value := request.Budget.id.Load()
+		if value == 0 {
+			return nil, &Error{Kind: "invalid_handle"}
+		}
+		budget = &value
+	}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeout_ms": timeout, "has_body": request.Body != nil}
+	var response *Response
+	err = perform(ctx, command, request.Body, func(event completion) error {
+		var head struct {
+			Body     uint64   `json:"body"`
+			Status   int      `json:"status"`
+			Protocol string   `json:"protocol"`
+			Headers  []Header `json:"headers"`
+		}
+		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 {
+			return &Error{Kind: "native_abi"}
+		}
+		response = &Response{Status: head.Status, Protocol: head.Protocol, Headers: head.Headers, Body: newBody(ctx, c, head.Body)}
+		return nil
+	})
+	runtime.KeepAlive(request.Budget)
+	runtime.KeepAlive(c)
+	if err != nil {
+		if response != nil {
+			_ = response.Body.Close()
+		}
+		return nil, err
+	}
+	return response, nil
+}
+
+// Shutdown closes admission, then waits for active requests and bodies. A cancelled
+// wait leaves admission closed; after closing bodies you can call Shutdown again.
+func (c *Client) Shutdown(ctx context.Context) error {
+	if c.id.Load() == 0 {
+		return nil
+	}
+	if ctx == nil {
+		return &Error{Kind: "invalid_context"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	c.closing.Store(true)
+	err := perform(ctx, map[string]any{"kind": "shutdown", "client": c.id.Load()}, nil, func(completion) error { return nil })
+	if err == nil {
+		id := c.id.Swap(0)
+		runtime.SetFinalizer(c, nil)
+		if id != 0 {
+			err = control("release_client", "client", id)
+		}
+	}
+	runtime.KeepAlive(c)
+	return err
+}
+
+// Close waits up to five seconds for graceful shutdown. Close response bodies first.
+func (c *Client) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return c.Shutdown(ctx)
+}
+
+// SetCookie updates the native bounded jar using a Set-Cookie field.
+func (c *Client) SetCookie(url, value string) error {
+	_, err := dispatch(map[string]any{"kind": "cookie_set", "client": c.id.Load(), "url": url, "value": value}, nil)
+	runtime.KeepAlive(c)
+	return err
+}
+
+// CookiesForURL returns the native jar's request Cookie value, or an empty string.
+func (c *Client) CookiesForURL(url string) (string, error) {
+	value, err := dispatch(map[string]any{"kind": "cookie_get", "client": c.id.Load(), "url": url}, nil)
+	runtime.KeepAlive(c)
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Cookie *string `json:"cookie"`
+	}
+	if json.Unmarshal(value, &result) != nil {
+		return "", &Error{Kind: "native_abi"}
+	}
+	if result.Cookie == nil {
+		return "", nil
+	}
+	return *result.Cookie, nil
+}
+
+// ClearCookies clears this client's jar.
+func (c *Client) ClearCookies() error {
+	err := control("cookie_clear", "client", c.id.Load())
+	runtime.KeepAlive(c)
+	return err
+}
+
+// AttemptBudget is an atomic native allowance shared across requests and clients.
+// Admissions include initial attempts and resends, and are never refunded.
+type AttemptBudget struct{ id atomic.Uint64 }
+
+// NewAttemptBudget creates a shared allowance, including an initially empty one.
+func NewAttemptBudget(maximum uint64) (*AttemptBudget, error) {
+	value, err := dispatch(map[string]any{"kind": "new_budget", "maximum": maximum}, nil)
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		ID uint64 `json:"id"`
+	}
+	if json.Unmarshal(value, &result) != nil {
+		return nil, &Error{Kind: "native_abi"}
+	}
+	budget := &AttemptBudget{}
+	budget.id.Store(result.ID)
+	runtime.SetFinalizer(budget, func(owner *AttemptBudget) { _ = owner.Close() })
+	return budget, nil
+}
+
+// Remaining reports the allowance left.
+func (b *AttemptBudget) Remaining() (uint64, error) {
+	value, err := dispatch(map[string]any{"kind": "budget_remaining", "budget": b.id.Load()}, nil)
+	runtime.KeepAlive(b)
+	if err != nil {
+		return 0, err
+	}
+	var result struct {
+		Remaining uint64 `json:"remaining"`
+	}
+	if json.Unmarshal(value, &result) != nil {
+		return 0, &Error{Kind: "native_abi"}
+	}
+	return result.Remaining, nil
+}
+
+// TryAdmit charges work initiated outside Phantom; Do charges its own attempts.
+func (b *AttemptBudget) TryAdmit() error {
+	err := control("budget_admit", "budget", b.id.Load())
+	runtime.KeepAlive(b)
+	return err
+}
+
+// Close releases this handle. Requests already admitted retain their allowance.
+func (b *AttemptBudget) Close() error {
+	id := b.id.Swap(0)
+	if id == 0 {
+		return nil
+	}
+	runtime.SetFinalizer(b, nil)
+	return control("release_budget", "budget", id)
+}
