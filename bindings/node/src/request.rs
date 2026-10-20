@@ -17,7 +17,7 @@ use tokio::io::{AsyncRead, ReadBuf};
 use crate::{
     client::ClientState,
     error::{failure, request},
-    ffi::RequestOptions,
+    ffi::{RedirectHistoryInfo, RedirectHopInfo, RequestOptions, positive_count},
     response::{Exchange, Pending},
 };
 
@@ -32,6 +32,7 @@ pub(crate) struct ResponseHead {
     pub(crate) redirects: u32,
     pub(crate) connection_retries: u32,
     pub(crate) decoded_content_codings: Vec<String>,
+    pub(crate) redirect_history: Option<RedirectHistoryInfo>,
 }
 
 pub(crate) struct Prepared {
@@ -82,6 +83,12 @@ impl Prepared {
         .headers(headers);
         if let Some(policy) = options.content_decoding {
             builder = builder.content_decoding(policy.policy()?);
+        }
+        if let Some(policy) = options.redirect_policy {
+            builder = builder.redirect_policy(policy.policy()?);
+        }
+        if let Some(maximum) = options.redirect_history_limit {
+            builder = builder.redirect_history(positive_count(maximum)?);
         }
         if let Some(prepared) = client.profile.template(&options.context)? {
             builder = builder.template(&prepared);
@@ -195,6 +202,26 @@ impl Prepared {
             };
             let redirects = count(info.redirects_followed())?;
             let connection_retries = count(info.retries_performed())?;
+            let redirect_history = response
+                .extensions()
+                .get::<phantom::RedirectHistory>()
+                .map(|history| -> Result<RedirectHistoryInfo> {
+                    Ok(RedirectHistoryInfo {
+                        entries: history
+                            .entries()
+                            .iter()
+                            .map(|hop| RedirectHopInfo {
+                                from_url: hop.from_uri().to_string(),
+                                to_url: hop.to_uri().to_string(),
+                                method: hop.method().to_string(),
+                                next_method: hop.next_method().to_string(),
+                                status: u32::from(hop.status().as_u16()),
+                            })
+                            .collect(),
+                        omitted_hops: count(history.omitted_hops())?,
+                    })
+                })
+                .transpose()?;
             let decoded_content_codings = info
                 .decoded_content_codings()
                 .iter()
@@ -226,6 +253,7 @@ impl Prepared {
                     redirects,
                     connection_retries,
                     decoded_content_codings,
+                    redirect_history,
                 },
                 Arc::clone(&exchange),
             ))

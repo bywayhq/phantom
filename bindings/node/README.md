@@ -170,6 +170,19 @@ Documents can contain literal headers. Import/export errors expose redacted
 `kind` and `field`. Shared buffers, accessors, cycles and unsupported values
 are rejected.
 
+## Redirects
+
+Redirects are returned by default. Set `redirectPolicy: {mode: 'limited',
+maximumHops: 5}` on a client or request to follow them. Request policies replace
+the client policy; `{mode: 'none'}` stops following. Counts accept positive safe
+integers or `bigint` values fitting the host's native pointer size.
+
+Add `redirectHistoryLimit: 3` to retain the first three selected hops in
+`response.redirectHistory`. Later hops increment `omittedHops`; omitted history
+is `null`. History includes URLs, so treat it as sensitive. Failed requests
+return no history. Redirects share the request deadline and attempt budget.
+One-shot files cannot be replayed for a redirect that retains their body.
+
 ## Share session state
 
 Use `const worker = client.fork({cookies: true, tickets: true})` for independent

@@ -110,6 +110,41 @@ test(`${overflow ? 'overflowing' : 'cancelling'} an HTTP/2 ${method} preserves a
 });
 }
 
+test('cancelling a pending redirect hop preserves a live HTTP/2 sibling', {timeout: 30000}, async (t) => {
+  const sessions = new Set();
+  const server = http2.createSecureServer({key: fixture('key.pem'), cert: fixture('certificate.pem')});
+  server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
+  let held, reset, finish;
+  const selected = new Promise((resolve) => { held = resolve; });
+  const cancelled = new Promise((resolve) => { reset = resolve; });
+  server.on('stream', (stream, headers) => {
+    stream.on('error', () => {});
+    if (headers[':path'] === '/start') { stream.respond({':status': 302, location: '/hold'}); stream.end(); }
+    else if (headers[':path'] === '/hold') {
+      stream.on('close', () => reset(stream.rstCode)); held();
+    } else { stream.respond({':status': 200}); finish = () => stream.end('healthy'); }
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {
+    for (const session of sessions) session.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')],
+    redirectPolicy: {mode: 'limited', maximumHops: 1}});
+  t.after(() => client.close());
+  const url = `https://127.0.0.1:${server.address().port}`;
+  const options = {method: 'GET', protocol: 'http2', context: 'raw', timeoutMs: 5000};
+  const controller = new AbortController();
+  const pending = client.request(url + '/start', {...options, signal: controller.signal});
+  await selected;
+  const healthy = await client.request(url + '/healthy', options);
+  controller.abort();
+  await assert.rejects(pending, (error) => error instanceof PhantomError && error.code === 'Cancelled');
+  assert.equal(await cancelled, http2.constants.NGHTTP2_CANCEL);
+  finish(); assert.equal(await healthy.text(7), 'healthy');
+  assert.equal(sessions.size, 1);
+});
+
 test('zero-window HTTP/2 file upload cancellation retains the reusable session', { timeout: 30000 }, async (t) => {
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'phantom-node-h2-'));
   t.after(() => fs.promises.rm(directory, {recursive: true, force: true}));

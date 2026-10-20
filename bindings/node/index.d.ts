@@ -55,6 +55,7 @@ export interface ClientOptions {
   additionalProxyRoots?: Uint8Array[];
   baseUrl?: string;
   timeouts?: Timeouts;
+  redirectPolicy?: RedirectPolicy;
 }
 /** Selected live state only; pools and cancellation stay independent. */
 export interface SessionSharing {
@@ -67,6 +68,19 @@ export interface SessionSharing {
 export type ContentDecoding = Readonly<{mode: 'none'}>
   | Readonly<{mode: 'advertised'; maximumDecodedBytes: number | bigint}>;
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
+export type RedirectPolicy = Readonly<{mode: 'none'}>
+  | Readonly<{mode: 'limited'; maximumHops: number | bigint}>;
+export interface RedirectHop {
+  readonly fromUrl: string;
+  readonly toUrl: string;
+  readonly method: string;
+  readonly nextMethod: string;
+  readonly status: number;
+}
+export interface RedirectHistory {
+  readonly entries: readonly RedirectHop[];
+  readonly omittedHops: number;
+}
 export interface RequestOptions {
   method: string;
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
@@ -79,6 +93,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   attemptBudget?: AttemptBudget;
   contentDecoding?: ContentDecoding;
+  redirectPolicy?: RedirectPolicy;
+  redirectHistoryLimit?: number | bigint;
 }
 export class Response implements AsyncIterable<Buffer> {
   private constructor();
@@ -90,6 +106,7 @@ export class Response implements AsyncIterable<Buffer> {
   readonly connectionRetries: number;
   /** Selected chain in wire Content-Encoding order; not a completion signal. */
   readonly decodedContentCodings: readonly ContentCoding[];
+  readonly redirectHistory: RedirectHistory | null;
   readonly headers: Header[];
   read(maximumBytes?: number): Promise<Buffer | null>;
   bytes(maximumBytes: number): Promise<Buffer>;

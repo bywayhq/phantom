@@ -116,3 +116,21 @@ async function decoding(client: Client): Promise<void> {
   void codings;
 }
 void decoding;
+
+async function redirects(client: Client, response: Response): Promise<void> {
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw',
+    redirectPolicy: {mode: 'limited', maximumHops: 3n}, redirectHistoryLimit: 2});
+  const destination: string | undefined = response.redirectHistory?.entries[0]?.toUrl;
+  // @ts-expect-error Limited redirects require a hop bound.
+  new Client({profile: 'exact/id', route: 'direct', redirectPolicy: {mode: 'limited'}});
+  // @ts-expect-error None cannot specify a hop bound.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', redirectPolicy: {mode: 'none', maximumHops: 1}});
+  // @ts-expect-error History bounds are exact integers, not strings.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', redirectHistoryLimit: '1'});
+  // @ts-expect-error History entries are immutable.
+  response.redirectHistory?.entries.push({fromUrl: '', toUrl: '', method: 'GET', nextMethod: 'GET', status: 302});
+  // @ts-expect-error Hop metadata is immutable.
+  if (response.redirectHistory?.entries[0]) response.redirectHistory.entries[0].status = 200;
+  void destination;
+}
+void redirects;

@@ -1,7 +1,7 @@
 'use strict';
 
 const native = require('./phantom.node');
-const { types, TextDecoder } = require('node:util');
+const { types, TextDecoder, inspect } = require('node:util');
 const { addAbortListener } = require('node:events');
 const apply = Reflect.apply;
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype);
@@ -121,6 +121,24 @@ function contentDecoding(value) {
     }
   }
   throw new PhantomError('InvalidArgument', 'choose none or advertised with an exact unsigned u64 byte cap');
+}
+
+function redirectPolicy(value) {
+  if (value === undefined) return undefined;
+  const copy = policyFields(value, ['mode', 'maximumHops']);
+  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumHops')) return {mode: 'none'};
+  if (copy.mode === 'limited') return {
+    mode: 'limited', maximumHops: positiveCount(copy.maximumHops),
+  };
+  throw new PhantomError('InvalidArgument', 'choose none or limited with a positive hop count');
+}
+
+function positiveCount(value) {
+  if ((typeof value === 'bigint' && value > 0n && value <= 18446744073709551615n)
+    || (typeof value === 'number' && Number.isSafeInteger(value) && value > 0)) {
+    return BigInt(value);
+  }
+  throw new PhantomError('InvalidArgument', 'count must be a positive exact integer fitting the native pointer size');
 }
 
 class AttemptBudget {
@@ -253,6 +271,15 @@ class Response {
     Object.defineProperty(this, 'decodedContentCodings', {
       value: Object.freeze(response.decodedContentCodings), enumerable: true,
     });
+    const history = response.redirectHistory;
+    Object.defineProperty(this, 'redirectHistory', {
+      value: history == null ? null : Object.freeze(Object.defineProperty({
+        entries: Object.freeze(history.entries.map((hop) => Object.freeze(Object.defineProperty(
+          {...hop}, inspect.custom, {value: () => 'RedirectHop { URLs redacted }'},
+        )))),
+        omittedHops: history.omittedHops,
+      }, inspect.custom, {value: () => 'RedirectHistory { URLs redacted }'})), enumerable: true,
+    });
     this.headers = response.headers.map(({ name, value }) => ({ name, value }));
   }
   #finished() {
@@ -331,6 +358,7 @@ class Client {
         additionalRoots: options.additionalRoots?.map(bytes),
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
         timeouts: phaseTimeouts(options.timeouts),
+        redirectPolicy: redirectPolicy(options.redirectPolicy),
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }
@@ -360,6 +388,9 @@ class Client {
         body: options.body === undefined ? undefined : bytes(options.body),
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
         contentDecoding: contentDecoding(options.contentDecoding),
+        redirectPolicy: redirectPolicy(options.redirectPolicy),
+        redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
+          : positiveCount(options.redirectHistoryLimit),
       }, cancellation, budget);
       if (signal?.aborted) { response.close(); throw new PhantomError('Cancelled', 'request was cancelled'); }
       return new Response(response, cleanup, this);

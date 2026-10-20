@@ -12,6 +12,7 @@ mod ffi;
 
 pub use ffi::{
     ClientOptions, ContentDecodingOptions, FileUpload, NativeAttemptBudget, NativeCancellation,
-    NativeClient, NativeEnvironment, NativeProfile, NativeResponse, RequestOptions, WireHeader,
-    profile_catalog, profile_ids, profile_import_json,
+    NativeClient, NativeEnvironment, NativeProfile, NativeResponse, RedirectHistoryInfo,
+    RedirectHopInfo, RedirectPolicyOptions, RequestOptions, WireHeader, profile_catalog,
+    profile_ids, profile_import_json,
 };

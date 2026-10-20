@@ -106,6 +106,9 @@ impl ClientState {
             options.proxy_username.as_deref(),
             options.proxy_password.as_deref(),
         )?);
+        if let Some(policy) = options.redirect_policy {
+            builder = builder.redirect_policy(policy.policy()?);
+        }
         if options.cookies.unwrap_or(false) {
             builder = builder.cookies();
         }

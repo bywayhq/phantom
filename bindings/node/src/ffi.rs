@@ -126,6 +126,8 @@ pub struct ClientOptions {
     pub base_url: Option<String>,
     /// Per-phase defaults; omitted phases retain the Rust defaults.
     pub timeouts: Option<PhaseTimeouts>,
+    /// Default redirect following; omission leaves redirects visible.
+    pub redirect_policy: Option<RedirectPolicyOptions>,
 }
 
 /// Native state categories selected by the JavaScript facade.
@@ -235,6 +237,83 @@ impl ContentDecodingOptions {
     }
 }
 
+/// Explicit redirect following, normalized before asynchronous work.
+#[derive(Debug)]
+#[napi(object)]
+pub struct RedirectPolicyOptions {
+    /// Either none or limited.
+    pub mode: String,
+    /// Positive hop bound for limited following.
+    pub maximum_hops: Option<BigInt>,
+}
+
+pub(crate) fn positive_count(value: BigInt) -> Result<std::num::NonZeroUsize> {
+    match (value.sign_bit, value.words.as_slice()) {
+        (false, [value]) => usize::try_from(*value)
+            .ok()
+            .and_then(std::num::NonZeroUsize::new)
+            .ok_or_else(|| failure("InvalidArgument", "count must be positive and fit usize")),
+        _ => Err(failure(
+            "InvalidArgument",
+            "count must be positive and fit usize",
+        )),
+    }
+}
+
+impl RedirectPolicyOptions {
+    pub(crate) fn policy(self) -> Result<phantom::RedirectPolicy> {
+        match (self.mode.as_str(), self.maximum_hops) {
+            ("none", None) => Ok(phantom::RedirectPolicy::none()),
+            ("limited", Some(maximum)) => {
+                Ok(phantom::RedirectPolicy::limited(positive_count(maximum)?))
+            }
+            _ => Err(failure("InvalidArgument", "invalid redirect policy")),
+        }
+    }
+}
+
+/// One selected redirect, retaining URLs only when explicitly requested.
+#[derive(Clone)]
+#[napi(object)]
+pub struct RedirectHopInfo {
+    /// URL that produced the redirect response.
+    pub from_url: String,
+    /// Resolved destination selected by the core.
+    pub to_url: String,
+    /// Method used for the redirect response.
+    pub method: String,
+    /// Method selected for the destination.
+    pub next_method: String,
+    /// Redirect status received from the peer.
+    pub status: u32,
+}
+
+/// Opt-in bounded history; missing history is distinct from an empty history.
+#[derive(Clone)]
+#[napi(object)]
+pub struct RedirectHistoryInfo {
+    /// First selected hops in order.
+    pub entries: Vec<RedirectHopInfo>,
+    /// Later selected hops not retained.
+    pub omitted_hops: u32,
+}
+
+impl fmt::Debug for RedirectHopInfo {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RedirectHopInfo")
+            .finish_non_exhaustive()
+    }
+}
+
+impl fmt::Debug for RedirectHistoryInfo {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RedirectHistoryInfo")
+            .finish_non_exhaustive()
+    }
+}
+
 /// Owned inputs for one request.
 #[napi(object)]
 pub struct RequestOptions {
@@ -258,6 +337,10 @@ pub struct RequestOptions {
     pub timeouts: Option<PhaseTimeouts>,
     /// Decodes only caller-advertised codings, with an explicit byte cap.
     pub content_decoding: Option<ContentDecodingOptions>,
+    /// Overrides the client policy; absence inherits it.
+    pub redirect_policy: Option<RedirectPolicyOptions>,
+    /// Positive number of selected hops to retain; does not enable following.
+    pub redirect_history_limit: Option<BigInt>,
 }
 
 impl fmt::Debug for WireHeader {
@@ -614,6 +697,7 @@ impl NativeClient {
                 redirects: head.redirects,
                 connection_retries: head.connection_retries,
                 decoded_content_codings: head.decoded_content_codings,
+                redirect_history: head.redirect_history,
                 exchange,
                 owner,
             })
@@ -669,6 +753,7 @@ pub struct NativeResponse {
     redirects: u32,
     connection_retries: u32,
     decoded_content_codings: Vec<String>,
+    redirect_history: Option<RedirectHistoryInfo>,
     exchange: Arc<Exchange>,
     owner: Arc<ClientState>,
 }
@@ -713,6 +798,12 @@ impl NativeResponse {
     #[must_use]
     pub fn decoded_content_codings(&self) -> Vec<String> {
         self.decoded_content_codings.clone()
+    }
+    /// First retained redirects, or no history when not requested.
+    #[napi(getter)]
+    #[must_use]
+    pub fn redirect_history(&self) -> Option<RedirectHistoryInfo> {
+        self.redirect_history.clone()
     }
     /// HTTP status received from the peer.
     #[napi(getter)]
