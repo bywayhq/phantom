@@ -6,7 +6,17 @@ import threading
 import time
 import unittest
 
-from phantom_http import AsyncClient, Client, Error, RedirectPolicy, UploadError
+from phantom_http import (
+    AsyncClient,
+    AttemptBudget,
+    Client,
+    Error,
+    RedirectPolicy,
+    TimeoutError,
+    TimeoutOverrides,
+    Timeouts,
+    UploadError,
+)
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
@@ -118,6 +128,54 @@ def server():
 
 
 class UploadTests(unittest.IsolatedAsyncioTestCase):
+    async def test_zero_total_rejects_before_attempt_and_producer_demand(self):
+        with server() as (peer, url):
+            async with (
+                AsyncClient(
+                    profile=PROFILE, protocol="h1", timeouts=Timeouts(total=0)
+                ) as zero,
+                zero.fork() as fork,
+                AsyncClient(
+                    profile=PROFILE, protocol="h1", timeouts=Timeouts(total=5)
+                ) as positive,
+            ):
+                for name, client, overrides in (
+                    ("client default", zero, None),
+                    ("fork inherits", fork, None),
+                    ("request override", positive, TimeoutOverrides(total=0)),
+                ):
+                    with self.subTest(name=name):
+                        pulls = []
+
+                        async def chunks(pulls=pulls):
+                            pulls.append(True)
+                            yield b"must not be pulled"
+
+                        budget = AttemptBudget(1)
+                        with self.assertRaises(TimeoutError) as caught:
+                            await client.request(
+                                "POST",
+                                url,
+                                body=chunks(),
+                                budget=budget,
+                                timeouts=overrides,
+                            )
+                        self.assertEqual(caught.exception.kind, "timeout")
+                        self.assertEqual(caught.exception.timeout_phase, "total")
+                        self.assertEqual(pulls, [])
+                        self.assertEqual(budget.remaining, 1)
+                        for limit in (None, 5):
+                            async with await client.request(
+                                "POST",
+                                url,
+                                body=b"ok",
+                                timeouts=TimeoutOverrides(total=limit),
+                            ) as response:
+                                self.assertEqual(
+                                    await response.read(max_bytes=2), b"ok"
+                                )
+                self.assertEqual(len(peer.records), 6)
+
     async def test_unknown_and_exact_length_preserve_payload_and_wire_headers(self):
         for length in (None, 131075):
             with self.subTest(length=length), server() as (peer, url):

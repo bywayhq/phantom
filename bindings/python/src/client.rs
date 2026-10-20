@@ -259,6 +259,10 @@ impl NativeClient {
         let total = overrides
             .resolve(self.client.request_timeouts())
             .total_duration();
+        // A ready send may beat an asynchronously polled zero timeout.
+        if total.is_some_and(|duration| duration.is_zero()) {
+            return Err(error::total_timeout(Some(&self.protocol)));
+        }
         let bounded_upload = upload.is_some() || producer.is_some();
         let deadline = if bounded_upload {
             total
