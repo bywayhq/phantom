@@ -58,6 +58,9 @@ func sessionCall(ctx context.Context, command any, key, ciphertext, output []byt
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if err := ensureNativeIdentity(); err != nil {
+		return nil, err
+	}
 	metadata := scratch.Get().([]byte)
 	defer scratch.Put(metadata)
 	length, err := nativeSession(input, key, ciphertext, metadata, output)
