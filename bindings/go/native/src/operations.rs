@@ -20,6 +20,8 @@ use std::{
 };
 use tokio::sync::{Notify, oneshot};
 
+pub(super) mod session;
+
 pub(super) const MAX_METADATA: usize = 256 * 1024;
 pub(super) const MAX_COMMAND: usize = 64 * 1024;
 pub(super) const MAX_CHUNK: usize = 64 * 1024;
@@ -274,6 +276,7 @@ enum Target {
     Maintenance(u64),
     UploadWrite(u64),
     UploadWait(u64),
+    Session(u64),
 }
 struct Operation {
     target: Target,
@@ -282,6 +285,7 @@ struct Operation {
     finished: bool,
     delivered: bool,
     response: Option<u64>,
+    snapshot: Option<phantom::SessionSnapshot>,
 }
 pub(super) struct Completion {
     pub(super) metadata: Vec<u8>,
@@ -419,6 +423,7 @@ impl State {
                 finished: false,
                 delivered: false,
                 response: None,
+                snapshot: None,
             },
         );
         Ok((id, receiver))
@@ -452,7 +457,10 @@ impl State {
             .operations
             .iter()
             .filter_map(|(id, op)| match op.target {
-                Target::Request(owner) | Target::Shutdown(owner) | Target::Maintenance(owner)
+                Target::Request(owner)
+                | Target::Shutdown(owner)
+                | Target::Maintenance(owner)
+                | Target::Session(owner)
                     if owner == client =>
                 {
                     Some(*id)
@@ -642,6 +650,7 @@ impl Global {
                     let _ = cancel.send(());
                 }
                 operation.response = None;
+                operation.snapshot = None;
                 operation.finished = true;
                 if operation.abandoned {
                     return false;

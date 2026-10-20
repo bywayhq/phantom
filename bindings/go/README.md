@@ -151,6 +151,15 @@ Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
 `CookiesForURL` and `ClearCookies`. Matching uses top-level navigation semantics,
 independently of the header template.
 
+`ExportSession(ctx, key)` returns encrypted checkpoint bytes; `key` is a secret
+random `[32]byte`. `RestoreSession(ctx, bytes, key, receivingRoutes)` returns
+independent pools using the receiver's compatible settings, never changing it.
+`SessionRoute{}` means direct; its proxy fields follow `Config` rules. Core
+expiry, capacity and isolation checks remain authoritative. `SessionSnapshotError`
+retains the typed core kind and wraps `*Error`; unsupported state is rejected.
+These CPU-only calls cannot be preempted once running; context cancellation
+discards any unpublished result. Configuration and file I/O are not serialized.
+
 Create `NewAttemptBudget(maximum)` and attach it as `Request.Budget` across
 clients. Initial origin attempts and internal resends spend it atomically.
 Admissions are not refunded, even if no bytes are sent. DNS/setup/proxy

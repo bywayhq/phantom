@@ -13,6 +13,17 @@ import (
 	"unsafe"
 )
 
+func nativeSession(command, key, ciphertext, metadata, output []byte) (int, error) {
+	// All buffers are borrowed only for this synchronous copy; none is retained.
+	length := C.phantom_go_session((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(key))), C.size_t(len(key)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(ciphertext))), C.size_t(len(ciphertext)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(metadata))), C.size_t(len(metadata)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
+	runtime.KeepAlive(command)
+	runtime.KeepAlive(key)
+	runtime.KeepAlive(ciphertext)
+	runtime.KeepAlive(metadata)
+	runtime.KeepAlive(output)
+	return int(length), nil
+}
+
 func nativeDispatch(command, body, output []byte) (int, error) {
 	length := C.phantom_go_dispatch((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(body))), C.size_t(len(body)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
 	runtime.KeepAlive(command)

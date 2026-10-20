@@ -9,3 +9,6 @@ func nativeWait([]byte, []byte) (int, error) { return 0, &Error{Kind: "unsupport
 func nativeProfile([]byte, []byte, []byte, []byte) (int, error) {
 	return 0, &Error{Kind: "unsupported_platform"}
 }
+func nativeSession([]byte, []byte, []byte, []byte, []byte) (int, error) {
+	return 0, &Error{Kind: "unsupported_platform"}
+}

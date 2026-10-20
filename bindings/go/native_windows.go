@@ -12,9 +12,9 @@ import (
 )
 
 var library struct {
-	once                    sync.Once
-	dispatch, wait, profile *syscall.LazyProc
-	err                     error
+	once                             sync.Once
+	dispatch, wait, profile, session *syscall.LazyProc
+	err                              error
 }
 
 func loadNative() error {
@@ -40,13 +40,29 @@ func loadNative() error {
 		library.dispatch = dll.NewProc("phantom_go_dispatch")
 		library.wait = dll.NewProc("phantom_go_wait")
 		library.profile = dll.NewProc("phantom_go_profile")
-		if library.dispatch.Find() != nil || library.wait.Find() != nil || library.profile.Find() != nil {
+		library.session = dll.NewProc("phantom_go_session")
+		if library.dispatch.Find() != nil || library.wait.Find() != nil || library.profile.Find() != nil || library.session.Find() != nil {
 			library.err = &Error{Kind: "native_abi"}
 		}
 		// Keep the module loaded for the process lifetime: shared Tokio tasks must
 		// never execute code from an unloaded DLL.
 	})
 	return library.err
+}
+
+func nativeSession(command, key, ciphertext, metadata, output []byte) (int, error) {
+	if err := loadNative(); err != nil {
+		return 0, err
+	}
+	// Borrowed pointers remain live through this synchronous CPU call; native
+	// state contains only owned core values and the zeroized copy of the key.
+	length, _, _ := library.session.Call(uintptr(unsafe.Pointer(unsafe.SliceData(command))), uintptr(len(command)), uintptr(unsafe.Pointer(unsafe.SliceData(key))), uintptr(len(key)), uintptr(unsafe.Pointer(unsafe.SliceData(ciphertext))), uintptr(len(ciphertext)), uintptr(unsafe.Pointer(unsafe.SliceData(metadata))), uintptr(len(metadata)), uintptr(unsafe.Pointer(unsafe.SliceData(output))), uintptr(len(output)))
+	runtime.KeepAlive(command)
+	runtime.KeepAlive(key)
+	runtime.KeepAlive(ciphertext)
+	runtime.KeepAlive(metadata)
+	runtime.KeepAlive(output)
+	return int(length), nil
 }
 
 func nativeProfile(command, document, metadata, output []byte) (int, error) {

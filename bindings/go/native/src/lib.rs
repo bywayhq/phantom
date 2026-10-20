@@ -8,5 +8,6 @@ mod operations;
 mod policy;
 mod profile;
 mod retry;
+mod session;
 mod timeouts;
 mod upload;

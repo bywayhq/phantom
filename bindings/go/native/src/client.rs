@@ -32,7 +32,7 @@ pub(super) struct Config {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ProxyCredentials {
+pub(super) struct ProxyCredentials {
     username: String,
     password: String,
 }
@@ -46,6 +46,7 @@ pub(super) struct Header {
     pub(super) sensitive: bool,
 }
 
+#[derive(Clone)]
 pub(super) struct NativeClient {
     pub(super) client: Client,
     protocol: String,
@@ -82,7 +83,10 @@ pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     }
 }
 
-fn route(uri: Option<&str>, credentials: Option<ProxyCredentials>) -> Result<Route, Failure> {
+pub(super) fn route(
+    uri: Option<&str>,
+    credentials: Option<ProxyCredentials>,
+) -> Result<Route, Failure> {
     let Some(uri) = uri else {
         if credentials.is_some() {
             return Err(Failure::new("invalid_proxy_credentials"));
@@ -123,6 +127,14 @@ fn route(uri: Option<&str>, credentials: Option<ProxyCredentials>) -> Result<Rou
 }
 
 impl NativeClient {
+    pub(super) fn restored(&self, client: Client) -> Self {
+        Self {
+            client,
+            protocol: self.protocol.clone(),
+            closing: false,
+        }
+    }
+
     pub(super) fn fork(&self, sharing: SessionSharing) -> Self {
         Self {
             client: self.client.fork(sharing.core()),

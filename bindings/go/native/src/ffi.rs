@@ -1,6 +1,7 @@
 //! Private C ABI boundary. Callers supply valid, nonoverlapping byte buffers
 //! for the full call. No Go pointer is stored in the runtime or a task.
-//! Only the completion pump blocks here; worker tasks never receive its buffers.
+//! Only the completion pump waits on external completion. Profile/checkpoint
+//! calls run synchronous CPU work; worker tasks never receive foreign buffers.
 //!
 //! The symbols use the target C ABI and usize/size_t widths. Clients pass
 //! only bytes and monotonic integer handles; no foreign callback or allocation
@@ -11,7 +12,7 @@
 //! IDs with terminal errors and rejects new work; it never yields an anonymous
 //! completion. The shared runtime and loaded library live for the process.
 
-use crate::{error::Failure, operations, profile};
+use crate::{error::Failure, operations, profile, session};
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
     ptr, slice,
@@ -150,6 +151,65 @@ pub(super) unsafe extern "C" fn phantom_go_profile(
         output(metadata, &reply);
         if !document.is_empty() {
             output(result, &document);
+        }
+    }
+    reply.len()
+}
+
+// SAFETY: The caller supplies disjoint command/key/ciphertext/output buffers
+// valid for this entire synchronous call. Lengths and nulls are checked before
+// slices are formed; core work retains no foreign pointers. Unwinding is caught.
+#[unsafe(no_mangle)]
+pub(super) unsafe extern "C" fn phantom_go_session(
+    command: *const u8,
+    command_len: usize,
+    key: *const u8,
+    key_len: usize,
+    ciphertext: *const u8,
+    ciphertext_len: usize,
+    metadata: *mut u8,
+    metadata_capacity: usize,
+    result: *mut u8,
+    result_capacity: usize,
+) -> usize {
+    if metadata.is_null() || metadata_capacity < operations::MAX_METADATA {
+        return 0;
+    }
+    let (reply, snapshot) = catch_unwind(AssertUnwindSafe(|| {
+        if command_len > operations::MAX_COMMAND
+            || key_len > 32
+            || ciphertext_len > session::MAX_SNAPSHOT
+            || result_capacity > session::MAX_SNAPSHOT
+            || (command.is_null() && command_len != 0)
+            || (key.is_null() && key_len != 0)
+            || (ciphertext.is_null() && ciphertext_len != 0)
+            || (result.is_null() && result_capacity != 0)
+        {
+            return (operations::failure(Failure::new("input_limit")), None);
+        }
+        // SAFETY: All three readable caller-owned buffers are checked above;
+        // their pointers remain live for this call, and no slice escapes it.
+        let command = unsafe { input(command, command_len) };
+        // SAFETY: Same checked caller-owned contract; empty key may be null.
+        let key = unsafe { input(key, key_len) };
+        // SAFETY: Same checked contract; ciphertext is never interpreted as JSON.
+        let ciphertext = unsafe { input(ciphertext, ciphertext_len) };
+        session::dispatch(command, key, ciphertext, result_capacity)
+    }))
+    .unwrap_or_else(|_| (operations::failure(Failure::new("internal")), None));
+    if reply.len() > metadata_capacity {
+        return 0;
+    }
+    // SAFETY: Writable disjoint output capacities were checked before execution.
+    // A retained core snapshot owns its bytes until these copies have completed.
+    unsafe {
+        output(metadata, &reply);
+        if let Some(snapshot) = snapshot {
+            let bytes = snapshot.as_bytes();
+            if bytes.len() > result_capacity {
+                return 0;
+            }
+            output(result, bytes);
         }
     }
     reply.len()
