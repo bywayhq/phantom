@@ -1,215 +1,197 @@
-# Go binding
+# Phantom for Go
 
-Reuse one native client for connection pools and cookies. Choose an exact
-catalog profile and a protocol. Add `Context: "navigation"` or `"fetch"`
-when you want that profile's request headers.
-
-```go
-client, err := phantom.New(phantom.Config{
-    Profile: "chrome/154.0.8037.97/windows-11-26200/r1",
-    Protocol: "h2",
-    Timeout: 30 * time.Second,
-})
-if err != nil { return err }
-defer client.Close()
-response, err := client.Do(ctx, phantom.Request{Method: "GET", URL: url})
-if err != nil { return err }
-defer response.Body.Close()
-data, err := response.Body.ReadAll(1024 * 1024)
-```
-
-`Protocol` accepts `h1`, `h2`, `h3`, or `negotiated`. Exact protocols fail
-when the route cannot support them. Direct `h2` with an HTTP URL uses prior
-knowledge. An empty `Proxy` selects direct connections. Explicit HTTP,
-HTTPS, SOCKS4(a), and SOCKS5(h) proxy URLs use the Rust client's routing.
-Proxy environment variables are ignored.
-For HTTP Basic or SOCKS5 authentication, set `ProxyCredentials` to an explicit
-`Username`/`Password` pair. It requires the matching proxy URL. Credentials in
-URLs remain unsupported. HTTP authentication follows the native challenge and
-credential-isolation rules. SOCKS4 credentials and Digest are not exposed.
-
-`BaseURL` resolves relative request URLs. Include a trailing slash when you
-want paths appended to its directory. Absolute request URLs override the base.
-`AdditionalRootsDER` extends origin trust. `ProxyAdditionalRootsDER` separately
-extends HTTPS-proxy trust. Both take DER certificates and retain hostname
-verification. Neither bypasses verification or configures client certificates.
-
-`Headers` is an ordered slice of names and byte values. Duplicate names
-remain separate. Templates apply the public Rust API's placement rules.
-Set `Header.Sensitive` for never-indexed HTTP/2 and HTTP/3 fields. A profile's
-cookie-crumb policy can choose its own encoding. HTTP/1 field bytes are unchanged.
-Response headers retain their received order, duplicates, and byte values.
-Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
-`CookiesForURL`, and `ClearCookies` to manage them.
-Cookie matching uses top-level navigation semantics. Selecting a fetch
-template changes headers only.
-
-Create an `AttemptBudget` and attach it to requests across clients. It is
-the Rust client's shared allowance, including internal HTTP replays. Close
-the budget handle when finished. In-flight requests retain their allowance.
-
-Keep the request context alive until EOF or `Body.Close`. Cancelling it
-also closes an already returned body. Reads pull at most 64 KiB through the
-native boundary. EOF, a failed read, or close releases the body handle.
-Body bytes retain content encoding; decompression is not automatic.
-Read errors are terminal. `ReadAll` enforces your collection limit and
-closes the body, including when the limit is invalid.
-Concurrent calls to one body's `Read` are serialized;
-`Close` can interrupt a blocked read.
-
-`Shutdown(ctx)` closes admission and waits for active requests and bodies.
-Close bodies you no longer need. Cancelling the wait leaves admission
-closed. A retry can briefly return `shutdown_in_progress` while the old
-wait settles. `Close` allows five seconds for graceful shutdown. Explicit
-shutdown is preferred; finalizers provide eventual handle cleanup.
-
-`CloseIdleConnections(ctx)` releases idle connections and keeps active work.
-`RefreshConnections(ctx)` makes later requests select fresh connections while
-existing work can finish. Both retain tickets and learned state. Cancelling a
-maintenance call can leave some pools unvisited. Neither waits for old transport
-drivers to stop. Use `ClearSessionTickets`, `ClearDNSCache`, `ClearClientHints`,
-`ClearAltSvc` or `ClearAltSvcRacingHistory` when you need to forget that state.
-Clearing caches does not close active connections or disable their configuration.
-
-Client and request `Timeouts` contain `PoolAdmission`, `Connect`, `ResponseHead`,
-`ReadIdle` and `Total`. Each field uses `LimitTimeout(duration)`, including zero,
-`Timeout{Mode: TimeoutDisabled}`, or its default `TimeoutInherit`. Request fields
-inherit client settings. Client fields start without limits. For example:
+Make concurrent requests with reusable native connection pools and explicit
+browser profiles. Response bodies implement `io.ReadCloser`.
 
 ```go
-config.Timeouts = phantom.Timeouts{
-    Connect: phantom.LimitTimeout(10 * time.Second),
-    Total: phantom.LimitTimeout(time.Minute),
+package example
+
+import (
+    "context"
+    "time"
+
+    phantom "github.com/bywayhq/phantom/bindings/go"
+)
+
+func example(ctx context.Context) error {
+    client, err := phantom.New(phantom.Config{
+        Profile: "chrome/154.0.8037.97/windows-11-26200/r1",
+        Protocol: "negotiated",
+        Timeout: 30 * time.Second,
+    })
+    if err != nil { return err }
+    defer client.Close()
+
+    for _, url := range []string{"https://example.com/", "https://example.com/next"} {
+        if _, err := fetch(ctx, client, url); err != nil { return err }
+    }
+    return nil
 }
-request.Timeouts.ReadIdle = phantom.Timeout{Mode: phantom.TimeoutDisabled}
+
+func fetch(ctx context.Context, client *phantom.Client, url string) ([]byte, error) {
+    response, err := client.Do(ctx, phantom.Request{Method: "GET", URL: url})
+    if err != nil { return nil, err }
+    defer response.Body.Close()
+    return response.Body.ReadAll(1024 * 1024)
+}
 ```
 
-Finite zero is an expired limit, not disabling; a ready native operation can
-still win. `Connect` covers DNS, proxy and TLS setup. `ResponseHead` includes
-uploading. `Total` spans all attempts and the response body. The original
-`Timeout` remains a total limit with millisecond precision and a one-millisecond
-minimum. Do not combine a nonzero `Timeout` with an explicit `Timeouts.Total`.
-
-`*Error` contains a redacted `Kind`, protocol, and timeout phase when known.
-HTTP error statuses remain responses. Context cancellation returns Go's
-context error. Error messages omit URLs, proxy credentials, and native
-source chains.
-
-Responses expose `EffectiveURL`, `RedirectsFollowed` and
-`ConnectionSetupRetries`. The last count covers only caller-enabled setup
-retries when setup starts. See [ResponseInfo](https://docs.rs/phantom-http/latest/phantom/struct.ResponseInfo.html)
-for the counting rules. Go does not expose redirect or retry policies yet,
-so both counts are zero.
-
-## Edit profiles
-
-Create an immutable `Profile` from an exact catalog entry or a complete custom
-document. Choose exactly one of `Config.Profile` and `Config.ProfileSettings`.
-
-```go
-settings, err := phantom.NewCatalogProfile(profileID, "navigation")
-if err != nil { return err }
-defer settings.Close()
-document, err := settings.Describe()
-if err != nil { return err }
-tls := document["profile"].(map[string]any)["tls"].(map[string]any)
-tls["session_ticket_order"] = "OldestFirst"
-encoded, err := json.Marshal(document)
-if err != nil { return err }
-edited, err := phantom.ImportProfileJSON(encoded)
-if err != nil { return err }
-defer edited.Close()
-client, err := phantom.New(phantom.Config{
-    ProfileSettings: edited, Protocol: "h2", Context: "profile",
-})
-```
-
-`Describe` uses `json.Number` to preserve integer settings exactly. Keep that
-representation when editing large integers. `ExportJSON` returns fresh editable
-bytes; the Rust importer validates every edit and preserves supported ordering.
-Exported documents can contain literal headers, so treat them as sensitive.
-Import errors expose a redacted `Kind` and canonical `Field` through `*Error`.
-Importing settings does not assign catalog identity or browser evidence.
-
-An empty or `raw` client context removes attached headers. `profile` selects
-the owner's attached template and fails if absent. Named `navigation`, `fetch`,
-`fetchNoStore` and `fetchUpload` contexts require a catalog owner with that
-template. Imported owners cannot borrow catalog templates implicitly.
-
-Profile owners are safe for concurrent use. Close them when finished; clients
-already created retain their settings. Concurrent close either follows a native
-settings acquisition or returns `profile_closed`. Finalizers provide eventual
-cleanup. Profile count does not consume the HTTP capacities below. Raw profile
-documents use a separate 16 MiB channel with the core's structural limits;
-the HTTP upload and command-metadata limits do not truncate profile documents.
-
-## Fork session state
-
-Use `worker, err := client.Fork(phantom.SessionSharing{Cookies: true, DNS: true})`
-for independent connection pools with selected live state. Close each owner.
-The zero value shares nothing. `Cookies`, `DNS`, `ClientHints`, `Discovery`
-and `Tickets` share existing state, later changes, expiry and clearing. A
-selection does not enable a category disabled in the source configuration.
-Discovery includes Alt-Svc, racing history and enabled HTTPS-record state.
-
-Forks retain profile settings, template context, protocol, routes, trust,
-timeouts and limits. Pools, request admission and shutdown are independent.
-Unselected state and learned proxy authentication start empty. Ticket sharing
-uses the core's consuming stores and bounded cache; it does not copy tickets.
-Forks count toward the ordinary native client capacity.
-
-Successful Go `Shutdown` releases its native owner, so a later `Fork` returns
-`client_closed`. During concurrent shutdown a still-registered source can
-produce an open fork; otherwise the call returns `client_closed`. Closing
-either owner leaves the other usable.
-
-## Build and limits
-
-Build the workspace package `phantom-go` with Rust 1.88 or later, including
-the repository's native TLS prerequisites. The Go module requires Go 1.26.
-On Windows amd64, set `PHANTOM_GO_LIBRARY` to the absolute path of
-`target/debug/phantom_go.dll`, or put the DLL beside your executable.
-Windows uses native DLL calls and does not require cgo. The DLL stays
-loaded for the process lifetime.
-
-Linux and macOS use cgo and require a C compiler. Point `CGO_LDFLAGS` and
-your platform's dynamic loader at the built `libphantom_go` directory.
+This example selects Windows Chrome. Choose your host's profile from the
+[catalog](../../crates/phantom-profile/catalog/profiles.json). For repeated
+requests, keep the client open and call `Do` from any goroutine.
 
 ## Native installation candidates
 
-The [Go installation workflow](../../.github/workflows/go-artifacts.yml)
-prepares optimized candidates for Windows x64 MSVC, Linux x64 GNU and macOS
-arm64. Each archive pairs `module/` sources with `lib/`, licenses and a
-receipt. Keep that pair together. Add a local `replace` in your Go module
-to the extracted `module/` directory, as the archive's README describes.
-Windows uses `PHANTOM_GO_LIBRARY`; Unix uses the cgo and loader paths above.
+There are no public module tags or registry releases yet. Download a matching
+candidate from the [installation workflow](../../.github/workflows/go-artifacts.yml).
+Each archive pairs `module/` with `lib/`, licenses and a receipt. Keep that pair
+together and add the local `replace` described in its README.
 
-Candidates are tested after installation outside the checkout. Their receipts
-record source, checksums, tools and native dependencies. There are no public
-module tags or registry releases.
+Candidates cover Windows x64 MSVC, Linux x64 GNU and macOS arm64, tested outside
+the checkout. Receipts identify source, checksums and dependencies; only their
+recorded hosts are verified. Windows needs
+the x64 Visual C++ v14 runtime at least as recent as the receipt's build tools.
+Runtime DLLs are not bundled. Keep the included notices when redistributing.
 
-The receipt covers its recorded native host, not older OS/libc versions or
-other architectures. Windows requires the Microsoft x64 Visual C++ v14
-runtime, at least as recent as the recorded build tools. Runtime DLLs are
-not bundled. Keep all included notices when redistributing an archive.
+## Build and limits
+
+Source builds require Go 1.26, Rust 1.88+ and the repository's
+[native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
+Build from the repository root:
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo build -p phantom-go --locked
+```
+
+From your application's module, select this local binding checkout:
+
+```sh
+go mod edit -replace=github.com/bywayhq/phantom/bindings/go=/absolute/path/phantom/bindings/go
+go mod edit -require=github.com/bywayhq/phantom/bindings/go@v0.0.0
+```
+
+On Windows amd64, set `PHANTOM_GO_LIBRARY` to the absolute
+`target/debug/phantom_go.dll` path or place it beside your executable. Windows
+uses native DLL calls without cgo. Linux/macOS need cgo and a C compiler:
+point `CGO_LDFLAGS` at the native library directory with `-L`, then add that
+directory to `LD_LIBRARY_PATH` on Linux or `DYLD_LIBRARY_PATH` on macOS.
+The library remains loaded for the process lifetime.
+
+## Requests and streaming
+
+`Protocol` accepts `h1`, `h2`, `h3` or `negotiated`. Exact protocols fail when
+unsupported by a route. Direct H2 with an HTTP URL uses cleartext prior
+knowledge. Add `Context: "navigation"` or `"fetch"` for the catalog's template;
+an empty context uses caller headers only.
+
+Headers are ordered `[]Header` values, including duplicates. Names and byte
+values retain template placement rules; use lowercase caller names for H2/H3.
+`Sensitive` requests never-indexed compression, subject to cookie policy.
+Response headers retain received order and bytes. HTTP error statuses remain
+responses; inspect `Status` before consuming the body.
+
+`Body.ReadAll(maximum)` collects within your limit and closes the body on
+success or failure. To stream to a writer, use the standard `io.Copy`:
+
+```go
+func download(ctx context.Context, client *phantom.Client, url string, out io.Writer) error {
+    response, err := client.Do(ctx, phantom.Request{Method: "GET", URL: url})
+    if err != nil { return err }
+    defer response.Body.Close()
+    _, err = io.Copy(out, response.Body)
+    return err
+}
+```
+
+Add `io` to your imports. Copying imposes no total download limit. Reads pull
+up to 64 KiB at a time; content encoding is retained. EOF, read errors and
+`Close` release the native body. Concurrent reads are serialized. Byte uploads
+use replayable `Request.Body`; streaming upload readers/files are not exposed.
+
+## Cancellation and state
+
+Keep `ctx` alive through body EOF or close. Cancelling it interrupts setup,
+uploads and later reads without cancelling another multiplexed response.
+Errors from context cancellation are Go's context errors.
+
+`Shutdown(ctx)` closes admission and waits for active work. Close unused bodies
+first. Cancelling the wait leaves admission closed; retrying can briefly return
+`shutdown_in_progress`. `Close` waits up to five seconds. Use explicit shutdown;
+finalizers provide eventual handle cleanup.
+
+`CloseIdleConnections(ctx)` retires idle connections. `RefreshConnections(ctx)`
+retires pools while active work finishes. Both retain learned state; cancellation
+can leave some pools unvisited. Use `ClearSessionTickets`, `ClearDNSCache`,
+`ClearClientHints`, `ClearAltSvc` or `ClearAltSvcRacingHistory` to clear state.
+
+`Config.BaseURL` joins relative request URLs; a trailing slash appends to its
+directory. Routing is direct unless `Proxy` selects HTTP(S), SOCKS4(a) or
+SOCKS5(h). Proxy environment variables are ignored. Set `ProxyCredentials` for
+HTTP Basic or SOCKS5 username/password auth, separately from the URI.
+`AdditionalRootsDER` and `ProxyAdditionalRootsDER` separately extend origin
+and HTTPS-proxy trust while retaining certificate verification.
+
+Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
+`CookiesForURL` and `ClearCookies`. Matching uses top-level navigation semantics,
+independently of the header template.
+
+Create `NewAttemptBudget(maximum)` and attach it as `Request.Budget` across
+clients. Initial origin attempts and internal resends spend it atomically.
+Admissions are not refunded, even if no bytes are sent. DNS/setup/proxy
+negotiation are separate. Use `TryAdmit()` for attempts outside Phantom only.
+Close the budget handle when finished; in-flight requests retain it.
+
+Client/request `Timeouts` has `PoolAdmission`, `Connect`, `ResponseHead`,
+`ReadIdle` and `Total`. Use `LimitTimeout(duration)`,
+`Timeout{Mode: TimeoutDisabled}`, or default `TimeoutInherit`. Request fields
+inherit the client; client limits start disabled. `Connect` includes setup,
+`ResponseHead` includes upload and `Total` includes body reads. Zero is finite;
+ready work can win. The older `Timeout` field uses milliseconds with a
+one-millisecond minimum; do not combine it with explicit `Timeouts.Total`.
+
+`*Error` exposes redacted `Kind`, protocol and timeout phase when known.
+Messages omit URLs, credentials and native source chains. Responses retain
+`EffectiveURL`, `RedirectsFollowed` and `ConnectionSetupRetries`; the last
+counter covers caller-enabled setup retries only. Redirect/retry policies
+are not exposed yet.
+
+## Edit profiles
+
+`NewCatalogProfile(identifier, context)` and `ImportProfileJSON(document)` create
+immutable settings. Choose exactly one of `Config.Profile` and `ProfileSettings`.
+Close profile owners when finished; existing clients retain their settings.
+
+Use `settings.Describe()` for an editable `map[string]any`, edit it, then
+`json.Marshal` and `ImportProfileJSON` to validate the result. Numbers use
+`json.Number` to preserve large integers. `ExportJSON()` returns complete bytes
+within a separate 16 MiB document limit. Documents can contain literal headers;
+import errors expose redacted `Kind` and `Field`. Imports have no catalog identity
+or browser-fidelity claim. `Context: "profile"` selects an attached template;
+`raw` omits it, and named contexts require catalog ownership.
+
+## Fork session state
+
+`worker, err := client.Fork(phantom.SessionSharing{Cookies: true, DNS: true})`
+creates independent pools sharing selected live state. Close each client.
+Selectors are `Cookies`, `DNS`, `ClientHints`, `Discovery` and `Tickets`; the
+zero value shares nothing. Selected changes, expiry and clears are shared;
+other state starts empty. Sharing does not enable disabled features. Profile,
+routes, trust and timeouts are retained; admission and shutdown are independent.
+Shared tickets remain single-use. Forks use ordinary client capacity. Go cannot
+fork a released owner after successful shutdown.
 
 ## Capacity and feature limits
 
-This first slice has fixed process-wide caps: 64 clients, budgets, response
-handles, and ordinary operations, plus 64 separately reserved shutdown
-operations. Byte uploads are limited to 8 MiB each and 16 MiB of aggregate
-native upload custody, retained conservatively until the response closes.
-Command metadata is limited to 64 KiB. Response headers allow 256 fields
-and 32 KiB of names and values. Encoded replies are limited to 256 KiB.
-Capacity exhaustion returns a typed error without waiting for admission.
+Process-wide limits are 64 each for clients, budgets, response handles and
+ordinary operations, plus 64 separate shutdown operations. Exhaustion returns
+a typed error without waiting. Uploads allow 8 MiB each and 16 MiB aggregate
+native custody until responses close. Metadata limits are 64 KiB per command,
+256 response fields/32 KiB and 256 KiB per encoded reply.
 
-One shared Rust runtime runs requests. One Go completion pump blocks on a
-native wakeup, using one OS thread. At most 64 completed ordinary operations
-retain up to 64 KiB of body data each until Go accepts or cancels them.
-These bounds exclude caller buffers, the native HTTP/TLS pools, and Go
-responses already delivered to application code. They are capacity limits,
-not a measured high-throughput claim.
+Pinning/client certificates, custom connectors, CONNECT-UDP and session
+snapshots are not exposed yet.
 
-Streaming uploads (`io.Reader` and files), compact fingerprint imports,
-pinning/client certificates, custom connectors, CONNECT-UDP configuration, session
-snapshots are not exposed in this slice.
+## Next
+
+See the [library guides](../../crates/phantom/src/docs/overview.md) for the
+underlying protocols and profiles.

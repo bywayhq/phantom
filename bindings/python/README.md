@@ -1,209 +1,178 @@
 # Phantom for Python
 
-Reuse a client with an exact browser profile and an explicit HTTP protocol.
-Read response bodies in chunks, or collect them with a byte limit.
+Make sync or async requests with reusable native connection pools and browser
+profiles. Read bodies in chunks or collect them within an explicit byte limit.
 
 ```python
-from phantom_http import AsyncClient
+from phantom_http import Client
 
+PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
-async def fetch():
-    async with AsyncClient(
-        profile="chrome/154.0.8037.97/windows-11-26200/r1",
-        protocol="negotiated",
-        context="navigation",
-        timeout_ms=30_000,
-    ) as client:
-        response = await client.request("GET", "https://example.com/")
-        async with response:
-            return await response.read(max_bytes=1_000_000)
+with Client(profile=PROFILE, protocol="negotiated", timeout_ms=30_000) as client:
+    with client.request("GET", "https://example.com/") as response:
+        response.raise_for_status()
+        print(response.text(max_bytes=1_000_000))
 ```
 
-Build locally with CPython 3.10 or newer, Rust 1.88 and Phantom's
-[native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
-From this directory, run `maturin develop` inside a virtual environment.
-Maturin 1.9.4 or newer selects extension linking for this build only.
-Ordinary Cargo checks retain Python linking.
+This example selects Windows Chrome. Choose a profile for your host from the
+[catalog](../../crates/phantom-profile/catalog/profiles.json). Reuse the client
+for subsequent requests.
 
 ## Native wheel candidates
 
-The [wheel workflow](../../.github/workflows/python-wheels.yml) builds optimized
-candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Download a
-matching candidate and run `python -m pip install path/to/file.whl`.
+Python packages are not published to PyPI yet. Install a matching candidate
+from the [wheel workflow](../../.github/workflows/python-wheels.yml):
 
-Candidates are tested after installation outside the checkout and include a
-receipt with source, checksums, runtime and native dependencies. Keep the included
-licenses when redistributing them. They are not published to PyPI. Linux uses
-`linux_x86_64`, without a manylinux compatibility claim. Only the recorded host
-and CPython version are verified. Windows needs the Microsoft x64 Visual C++
-v14 runtime, at least as recent as the receipt's MSVC build tools.
+```sh
+python -m pip install path/to/file.whl
+```
 
-The package includes inline type hints and `py.typed` for Python 3.10 or newer.
-Sync and async clients expose the same explicit request options to editors and
-type checkers. Headers retain their order, including duplicate names.
+Candidates cover Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each includes
+licenses and a receipt identifying its source, checksums and native dependencies.
+Only the recorded host and CPython version are verified. Linux wheels do not
+claim manylinux compatibility. Windows needs the x64 Visual C++ v14 runtime
+at least as recent as the receipt's build tools.
+
+For a source build, use CPython 3.10+, Rust 1.88+ and the
+[native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
+From this directory, run `maturin develop` in a virtual environment with
+Maturin 1.9.4+. The package includes type hints and `py.typed`.
+
+## Streaming and lifetime
+
+`AsyncClient` has the same options as `Client`. Use it inside an async event
+loop and use `async with` for clients and responses:
+
+```python
+import asyncio
+from phantom_http import AsyncClient
+
+async def main():
+    async with AsyncClient(profile=PROFILE, protocol="h2", timeout_ms=30_000) as client:
+        async with await client.request("GET", "https://example.com/") as response:
+            async for chunk in response.iter_bytes():
+                print(len(chunk))
+
+asyncio.run(main())
+```
+
+Reads pull data on demand. `await response.read_chunk(maximum)` returns bytes
+or `None` at EOF on async responses. Its limit is 1 byte through 1 MiB.
+`read(max_bytes=N)`, `text(max_bytes=N)` and
+`json(max_bytes=N)` consume the remaining body. Overflow closes the response.
+Content encoding is retained; trailers are not exposed.
+
+Text uses your chosen Python codec and error policy, with UTF-8/strict defaults.
+JSON uses Python's standard decoder. Collection bounds input bytes, not parsed
+objects or parsing time. Parsing runs on your Python thread.
+
+Use `body=b"..."` for replayable bytes or `upload=path` for a one-shot file
+stream. Files use their opened length: growth is excluded and shrinkage fails.
+Arbitrary upload producers are not accepted. File opening precedes the native
+request deadline.
+
+Close an unused response or leave its context manager. Concurrent reads fail.
+Cancelling a request interrupts setup/upload; cancelling a read closes that
+response. Other multiplexed streams remain usable. Cleanup may finish later.
+
+## Requests and state
+
+Protocols are `h1`, `h2`, `h3` and `negotiated` (HTTP/2 or HTTP/1.1). Direct
+`h2` with an HTTP URL uses cleartext prior knowledge. Unknown profiles and
+unsupported combinations fail. Wrapper retries and redirects are not enabled.
+
+Pass `context="navigation"` or `"fetch"` for that catalog profile's headers.
+The default, `None`, and `"raw"` use caller fields only. Headers are ordered
+pairs, including duplicates: `headers=[("x-example", b"value")]`. Values accept
+bytes or Latin-1 text. H2/H3 caller names must be lowercase. Use
+`Header("x-secret", b"value", sensitive=True)` for never-index encoding.
+
+Responses expose ordered byte-valued headers, `status`, `url`,
+`redirects_followed` and `connection_setup_retries`. The last count covers
+caller-enabled setup retries only. HTTP error statuses remain responses until
+you call `raise_for_status()` for a 4xx or 5xx status.
+
+Routing defaults to direct and ignores proxy environment variables. `proxy`
+accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. Use
+`Proxy(uri, username="user", password="secret")` for HTTP Basic or SOCKS5 auth;
+credentials belong outside the URI. `Trust(roots=(der,), proxy_roots=(der,))`
+adds separate origin/proxy roots while retaining certificate verification.
+
+`base_url="https://example.com/api/"` resolves `"child"` to `/api/child`;
+`"/child"` starts at the origin root. Cookies are enabled by default. Use
+`client.cookies.set(url, set_cookie)`, `for_url(url)` and `clear()`;
+`cookies=False` disables storage. Matching uses top-level navigation semantics,
+independently of the selected header template.
+
+Attach one `AttemptBudget(maximum)` as `budget` across requests and clients.
+Origin attempts, including internal resends, spend it atomically. Admissions
+are not refunded, even if no bytes are sent. DNS, setup and proxy negotiation
+are separate. `try_admit()` charges attempts made outside Phantom only.
+
+Use `timeout_ms` for a total deadline through body completion, or client
+`Timeouts(connect=5, total=30)` for phase limits in seconds. Phases are
+`pool_admission`, `connect`, `response_head`, `read_idle` and `total`.
+Response-head time includes upload. Omitted client limits are disabled.
+Request `TimeoutOverrides` inherits omitted fields, disables `None` fields
+and applies finite nonnegative numbers, including zero. For example,
+`TimeoutOverrides(total=None, read_idle=2)` disables total but limits idle reads.
+Do not combine `timeout_ms` and `timeouts`. Zero can still admit ready work.
+
+`close_idle_connections()` retires idle connections; `refresh_connections()`
+retires pools while active responses finish. Both retain learned state. Clear
+it explicitly with `clear_session_tickets()`, `clear_dns_cache()`,
+`clear_client_hints()`, `clear_alt_svc()` or `clear_alt_svc_racing_history()`.
+These clears are synchronous; the pool controls are awaitable on `AsyncClient`.
+
+`close(timeout_ms=5000)` closes admission and waits for active work. Read or
+close bodies first. Expiry leaves admission closed; other clients stay usable.
+
+Use `client.fork(sharing=SessionSharing(cookies=True, tickets=True))` for new
+pools sharing selected live state. Import `SessionSharing` from `phantom_http`;
+selectors are `cookies`, `dns`, `client_hints`, `discovery` and `tickets`, all
+false by default. Selected learning, expiry and clearing are shared; other state
+starts empty. Sharing does not enable disabled features. Profile, routes, trust
+and timeouts are retained. Close either client independently, or fork a closed
+source into an open client. Sync forks retain the creating-thread rule.
 
 ## Author profiles
 
 ```python
 import json
-from phantom_http import Client, Profile
+from phantom_http import Profile
 
-profile = Profile.from_catalog(
-    "chrome/154.0.8037.97/windows-11-26200/r1", context="fetch"
-)
-document = profile.describe()  # A fresh editable mapping.
-edited = Profile.import_json(json.dumps(document).encode("utf-8"))
-with Client(profile=edited, protocol="h1", context="profile") as client:
+profile = Profile.from_catalog(PROFILE, context="fetch")
+document = profile.describe()
+custom = Profile.import_json(json.dumps(document).encode("utf-8"))
+with Client(profile=custom, protocol="h1", context="profile") as client:
     with client.request("GET", "https://example.com/") as response:
         body = response.read(max_bytes=1_000_000)
 ```
 
-`export_json()` returns the complete editable document as bytes. Import uses
-the core's strict format, ordering and limits, including a 16 MiB input cap.
-`ProfileError.kind` and `.field` identify failures without including supplied
-values. Documents include literal headers and should be treated as sensitive.
-Profiles are immutable; editing or importing a document never changes a client.
-An imported profile has `catalog_id=None` and carries no browser-fidelity claim.
+`describe()` returns an editable mapping; `export_json()` returns its complete
+JSON bytes. Import validates the schema, ordering and 16 MiB input limit.
+`ProfileError.kind` and `.field` identify failures without supplied values.
+Documents can contain literal headers; treat them as sensitive.
 
-Use `context="profile"` for its attached template. `None` and `"raw"` send only
-caller fields. Named `"navigation"` and `"fetch"` contexts require a catalog ID
-or catalog-owned Profile; imports cannot acquire those contexts. A catalog
-Profile retains its available named contexts even when exported with another.
-
-## Requests and state
-
-Use `client.fork(sharing=SessionSharing(cookies=True, tickets=True))` for
-independent pools with selected live state. Both client classes return a new
-client immediately; use `async with` for an async fork. Import `SessionSharing`
-from `phantom_http`. Its `cookies`, `dns`, `client_hints`, `discovery` and `tickets`
-flags default to false, giving the fork empty state in those categories.
-Selected learning, expiry and clearing are shared in both directions. A flag
-does not enable a category disabled on the source. Discovery includes Alt-Svc,
-racing history and enabled HTTPS-record state; DNS selects the address cache.
-
-A fork retains profile, template, protocol, routes, trust and timeouts. Closing
-either client leaves the other usable. You can fork a closed client to create
-an open one. Sync forks have independent event loops and retain the same
-creating-thread rule.
-
-`AsyncClient` requires `profile` and `protocol`. Protocols are `h1`, `h2`, `h3`
-and `negotiated` (the library's HTTP/2 and HTTP/1.1 policy). No template is
-selected unless you pass an explicit context.
-Unknown profiles and unavailable contexts fail. No retries or protocol fallbacks
-are enabled by the wrapper.
-For direct `http://` URLs, `h2` selects cleartext HTTP/2 prior knowledge.
-
-Pass ordered `headers=[("x-first", b"one"), ("x-second", b"two")]`.
-Values accept bytes or Latin-1 text. Other text requires explicit encoding into
-bytes. The library enforces the selected protocol and template rules.
-HTTP/2 and HTTP/3 require lowercase caller header names.
-Use `Header("x-secret", b"value", sensitive=True)` alongside pairs to request
-never-index encoding in HTTP/2 and HTTP/3. This does not encrypt a header.
-Responses retain ordered duplicate header pairs with byte values. HTTP error
-statuses are responses; this slice does not raise for them automatically.
-
-`response.url` is the effective URL. `redirects_followed` counts followed hops.
-`connection_setup_retries` counts only caller-enabled setup retries when setup
-starts. See [ResponseInfo](https://docs.rs/phantom-http/latest/phantom/struct.ResponseInfo.html)
-for the counting rules. Python does not expose retry or redirect policy setters
-yet, so both counts are zero. These properties remain available after close.
-
-The route defaults to direct and ignores proxy environment variables. `proxy`
-accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. For HTTP Basic or SOCKS5
-authentication, pass `Proxy(uri, username="user", password="secret")`.
-Supply credentials together, separately from the URI. SOCKS4 credentials
-and CONNECT-UDP are not exposed yet.
-
-Set `base_url="https://example.com/api/"` to resolve relative request URLs.
-`"child"` joins to `/api/child`; `"/child"` starts at the origin's root.
-`Trust(roots=(der_bytes,), proxy_roots=(proxy_der_bytes,))` adds separate
-origin and HTTPS-proxy roots. Certificate and hostname verification stay enabled.
-
-Cookies are enabled by default. Use `client.cookies.set(url, set_cookie)`,
-`for_url(url)` and `clear()`. Cookie matching uses Phantom's top-level navigation
-context; selecting a fetch header template does not supply a browser cookie
-context. Pass `cookies=False` to disable storage.
-
-Create `AttemptBudget(maximum)` and pass the same object as `budget` to requests
-across clients. Initial attempts and resends consume admissions atomically.
-Admissions are not refunded; they can fail before sending bytes. DNS, connection
-setup and proxy negotiation are separate work. The budget does not enable retries.
-
-`timeout_ms` on the client or request covers the library operation through body
-completion across internal attempts. File opening occurs before its clock starts.
-Inactive Python consumers must still close their response bodies.
-For phase limits in seconds, use `timeouts=Timeouts(connect=5, total=30)`.
-The phases are `pool_admission`, `connect`, `response_head`, `read_idle` and
-`total`. Response-head time includes upload. Each omitted client limit is
-disabled. A request's `TimeoutOverrides` inherits omitted fields (`INHERIT`),
-disables explicit `None` fields and applies finite numbers, including zero.
-For example, `TimeoutOverrides(total=None, read_idle=2)` disables the inherited
-total limit while limiting body-read idle time. Pass `timeouts` or `timeout_ms`,
-never both. Durations must be finite and nonnegative.
-With zero, an already-ready operation can send bytes before expiry is observed.
-
-## Streaming and lifetime
-
-Use `body=b"..."` for replayable bytes or `upload=path` for an 8 KiB file stream.
-They are mutually exclusive. File uploads use the opened file's length, stop at
-that length if it grows and fail if it shrinks. They are one-shot: a required
-resend returns a request-body error. Arbitrary Python upload producers are not
-accepted or collected implicitly.
-
-`await response.read_chunk(maximum)` returns bytes or `None` at EOF. The chunk
-limit is 1 through 1 MiB. `async for chunk in response.iter_bytes()` reads only
-as you ask for chunks; there is no background body collector. `read(max_bytes=N)`
-closes the body if its bound is exceeded. Content is not decoded automatically.
-Trailers are consumed but not exposed by this slice.
-
-Use `text(max_bytes=N, encoding="utf-8", errors="strict")` or `json(max_bytes=N)`
-to collect and decode the remaining body. Text uses your chosen Python codec
-and standard error policy; it does not guess from headers. JSON uses Python's
-standard decoder, including UTF-8/16/32 detection. Neither helper decompresses
-content or caches the body. The byte limit does not bound decoded allocations
-or parsing time. Parsing runs on your Python thread after the native read.
-`DecodeError` reports `encoding`, `text_decode` or `json_decode` without content.
-
-`status_code` aliases `status`. Call `raise_for_status()` explicitly to reject
-400 through 599; redirects remain ordinary responses. `HTTPStatusError.response`
-retains the original response, with its body still readable.
-
-Use response context managers, or call `response.close()` when stopping early.
-Concurrent reads fail. Cancelling a read closes that response permanently.
-Cancelling a request drops its native operation, including setup or upload.
-It does not close another request on a shared multiplexed connection.
-Cancellation can return before background connection cleanup finishes.
-
-`await client.close(timeout_ms=5000)` closes admission and waits for active
-requests and bodies. Read or close them first. Expiry returns `TimeoutError`;
-admission stays closed. Close does not abort unrelated active operations.
-The shared Tokio runtime remains available to other clients.
-
-`await client.close_idle_connections()` releases idle pools without interrupting
-active responses. `await client.refresh_connections()` retires current pools
-while active owners finish. Both retain cookies, tickets and discovery state.
-Use `clear_session_tickets()`, `clear_dns_cache()`, `clear_client_hints()`,
-`clear_alt_svc()` or `clear_alt_svc_racing_history()` to clear selected state.
-These clearing calls are synchronous on both clients. The two pool controls
-are synchronous on `Client`.
+Profiles are immutable. Import creates new settings with `catalog_id=None`
+and no browser-fidelity claim. Use `context="profile"` for an attached template.
+Named contexts require a catalog-owned profile; imports cannot borrow them.
 
 ## Synchronous calls and errors
 
-`Client` wraps the same async API on one reusable Python event loop. Use it from
-its creating thread, outside an active event loop. `request`, `read`, `iter_bytes`
-and `close` are synchronous. Both client and response support `with`.
-Control-C cancels and settles the pending operation before rethrowing.
+`Client` uses one reusable Python event loop. Call it from its creating thread,
+outside an active event loop. Client and response support `with`; Control-C
+cancels and settles pending work before rethrowing.
 
 Failures derive from `Error` and expose `kind`, `protocol` and `timeout_phase`.
-Specific classes include `TimeoutError`, `AttemptBudgetExhausted`, `ClientClosed`
-and `BodyLimitExceeded`. Messages omit URLs, credentials and backend causes.
-Cancellation remains `asyncio.CancelledError`. Python argument conversion can
-also raise normal `TypeError`, `ValueError` or `OverflowError`.
+Specific errors include `TimeoutError`, `AttemptBudgetExhausted`, `ClientClosed`,
+`BodyLimitExceeded` and `DecodeError`. Messages omit request inputs and backend
+causes. Cancellation remains `asyncio.CancelledError`. Argument conversion can
+raise Python's usual type/value/overflow errors. `HTTPStatusError.response`
+retains the response and its readable body.
 
 ## Next
 
-See the [library guides](../../crates/phantom/src/docs/overview.md) for protocol
-and profile limits.
-
-After `maturin develop`, run the loopback tests with
+See the [library guides](../../crates/phantom/src/docs/overview.md).
+After `maturin develop`, run the loopback tests from this directory with
 `uv run --active --no-project --with h2==4.4.1 python -m unittest discover -s tests`.
