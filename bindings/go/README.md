@@ -42,7 +42,8 @@ also closes an already returned body. Reads pull at most 64 KiB through the
 native boundary. EOF, a failed read, or close releases the body handle.
 Body bytes retain content encoding; decompression is not automatic.
 Read errors are terminal. `ReadAll` enforces your collection limit and
-closes the body. Concurrent calls to one body's `Read` are serialized;
+closes the body, including when the limit is invalid.
+Concurrent calls to one body's `Read` are serialized;
 `Close` can interrupt a blocked read.
 
 `Shutdown(ctx)` closes admission and waits for active requests and bodies.
@@ -79,7 +80,7 @@ Windows uses `PHANTOM_GO_LIBRARY`; Unix uses the cgo and loader paths above.
 
 Each successful receipt records source, lockfile, native library and archive
 hashes, tools and native dependencies. Verification extracts outside the
-checkout, builds a separate consumer and runs all ten existing Go controls
+checkout, builds a separate consumer and runs the existing Go controls
 without skips. Only candidates passing those checks are uploaded. Failure
 logs remain available. There are no public module tags or registry releases.
 

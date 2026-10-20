@@ -115,6 +115,10 @@ func perform(ctx context.Context, command any, data []byte, accept func(completi
 	pump.once.Do(func() { pump.pending = make(map[uint64]chan completion); go completionPump() })
 	// Register before the pump can dispatch a very fast completion.
 	pump.mu.Lock()
+	if err := ctx.Err(); err != nil {
+		pump.mu.Unlock()
+		return err
+	}
 	if pump.failure != nil {
 		err := pump.failure
 		pump.mu.Unlock()

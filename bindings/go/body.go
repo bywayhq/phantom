@@ -94,10 +94,10 @@ func (body *Body) Read(output []byte) (int, error) {
 
 // ReadAll collects at most maximum bytes and closes the body in all cases.
 func (body *Body) ReadAll(maximum int) ([]byte, error) {
+	defer body.Close()
 	if maximum < 0 {
 		return nil, &Error{Kind: "invalid_body_limit"}
 	}
-	defer body.Close()
 	var result []byte
 	buffer := make([]byte, maxChunk)
 	for {

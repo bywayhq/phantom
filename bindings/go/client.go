@@ -90,6 +90,12 @@ func New(config Config) (*Client, error) {
 // Do returns the response head and an owned pull-driven body. Keep ctx valid until
 // EOF or Body.Close; cancelling it also closes a body already returned to you.
 func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
+	if ctx == nil {
+		return nil, &Error{Kind: "invalid_context"}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
 	}
