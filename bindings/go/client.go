@@ -31,6 +31,8 @@ type Config struct {
 	// Timeout retains the original total timeout. Do not combine it with Timeouts.Total.
 	Timeout  time.Duration
 	Timeouts Timeouts
+	// RedirectPolicy applies to requests that do not override it. Zero follows none.
+	RedirectPolicy RedirectPolicy
 }
 
 // ProxyCredentials is one explicit username/password pair. Empty values are
@@ -63,6 +65,10 @@ type Request struct {
 	Timeouts Timeouts
 	// ContentDecoding is opt-in and uses the request's own Accept-Encoding fields.
 	ContentDecoding ContentDecoding
+	// RedirectPolicy replaces the client policy. Nil inherits; an empty value disables.
+	RedirectPolicy *RedirectPolicy
+	// RedirectHistoryLimit opts into first-N selected hops. Nil disables; zero is invalid.
+	RedirectHistoryLimit *uint64
 }
 
 // Client reuses native connection pools and cookies. It is safe for concurrent use.
@@ -139,7 +145,8 @@ func New(config Config) (*Client, error) {
 		Roots           [][]uint16        `json:"additional_roots_der"`
 		ProxyRoots      [][]uint16        `json:"proxy_additional_roots_der"`
 		Timeouts        wireTimeouts      `json:"timeouts"`
-	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts}
+		RedirectPolicy  RedirectPolicy    `json:"redirect_policy"`
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts, config.RedirectPolicy}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err
@@ -190,6 +197,20 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Copy pointer-selected policies before submission; asynchronous work owns only JSON bytes.
+	var redirects *RedirectPolicy
+	if request.RedirectPolicy != nil {
+		snapshot := *request.RedirectPolicy
+		redirects = &snapshot
+	}
+	var history *uint64
+	if request.RedirectHistoryLimit != nil {
+		snapshot := *request.RedirectHistoryLimit
+		if snapshot == 0 {
+			return nil, &Error{Kind: "invalid_redirect_history"}
+		}
+		history = &snapshot
+	}
 	type wireHeader struct {
 		Name      string   `json:"name"`
 		Value     []uint16 `json:"value"`
@@ -222,18 +243,19 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		budget = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history}
 	var response *Response
 	err = perform(ctx, command, request.Body, func(event completion) error {
 		var head struct {
-			Body                   uint64   `json:"body"`
-			Status                 int      `json:"status"`
-			Protocol               string   `json:"protocol"`
-			Headers                []Header `json:"headers"`
-			EffectiveURL           string   `json:"effective_url"`
-			RedirectsFollowed      uint64   `json:"redirects_followed"`
-			ConnectionSetupRetries uint64   `json:"connection_setup_retries"`
-			DecodedContentCodings  []string `json:"decoded_content_codings"`
+			Body                   uint64           `json:"body"`
+			Status                 int              `json:"status"`
+			Protocol               string           `json:"protocol"`
+			Headers                []Header         `json:"headers"`
+			EffectiveURL           string           `json:"effective_url"`
+			RedirectsFollowed      uint64           `json:"redirects_followed"`
+			ConnectionSetupRetries uint64           `json:"connection_setup_retries"`
+			DecodedContentCodings  []string         `json:"decoded_content_codings"`
+			RedirectHistory        *RedirectHistory `json:"redirect_history"`
 		}
 		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 || head.EffectiveURL == "" {
 			return &Error{Kind: "native_abi"}
@@ -243,6 +265,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 			Body: newBody(ctx, c, head.Body), EffectiveURL: head.EffectiveURL,
 			RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries,
 			DecodedContentCodings: head.DecodedContentCodings,
+			RedirectHistory:       head.RedirectHistory,
 		}
 		return nil
 	})

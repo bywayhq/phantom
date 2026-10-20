@@ -1,7 +1,7 @@
 use crate::{
     client::{Config, Header, NativeClient, SessionSharing},
     error::Failure,
-    policy::{ContentDecoding, RequestPolicy, coding_name},
+    policy::{ContentDecoding, RedirectHistory, RedirectPolicy, RequestPolicy, coding_name},
     timeouts::Timeouts,
 };
 use http_body_util::BodyExt;
@@ -72,6 +72,8 @@ enum Command {
         timeouts: Timeouts,
         #[serde(default)]
         content_decoding: ContentDecoding,
+        redirect_policy: Option<RedirectPolicy>,
+        redirect_history_limit: Option<u64>,
         has_body: bool,
     },
     Read {
@@ -443,6 +445,7 @@ struct Head {
     redirects_followed: usize,
     connection_setup_retries: usize,
     decoded_content_codings: Vec<&'static str>,
+    redirect_history: Option<RedirectHistory>,
     headers: Vec<Header>,
     body: std::sync::Arc<BodyOwner>,
 }
@@ -465,6 +468,11 @@ fn response_head(
         .copied()
         .map(coding_name)
         .collect();
+    let redirect_history = response
+        .extensions()
+        .get::<phantom::RedirectHistory>()
+        .map(|history| RedirectHistory::capture(history, MAX_METADATA))
+        .transpose()?;
     let fields = response
         .extensions()
         .get::<phantom::OrderedResponseHeaders>()
@@ -509,6 +517,7 @@ fn response_head(
         redirects_followed,
         connection_setup_retries,
         decoded_content_codings,
+        redirect_history,
         headers,
         body: owner,
     })
@@ -625,7 +634,8 @@ impl Global {
                         json!({"body":body,"status":head.status,"protocol":head.protocol,"headers":head.headers,
                             "effective_url":head.effective_url,"redirects_followed":head.redirects_followed,
                             "connection_setup_retries":head.connection_setup_retries,
-                            "decoded_content_codings":head.decoded_content_codings})
+                            "decoded_content_codings":head.decoded_content_codings,
+                            "redirect_history":head.redirect_history})
                     })
                 }
             }
@@ -842,6 +852,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 budget,
                 timeouts,
                 content_decoding,
+                redirect_policy,
+                redirect_history_limit,
                 has_body,
             } => {
                 let budget = budget
@@ -865,6 +877,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                         RequestPolicy {
                             timeouts,
                             content_decoding,
+                            redirects: redirect_policy,
+                            history: redirect_history_limit,
                         },
                     )?;
                 let permit = global.upload(bytes.len())?;
@@ -1071,6 +1085,7 @@ mod tests {
                 redirects_followed: 0,
                 connection_setup_retries: 0,
                 decoded_content_codings: Vec::new(),
+                redirect_history: None,
                 headers: vec![Header {
                     name: "x".to_owned(),
                     value: vec![255; MAX_METADATA],
@@ -1202,6 +1217,7 @@ mod tests {
                 redirects_followed: 0,
                 connection_setup_retries: 0,
                 decoded_content_codings: Vec::new(),
+                redirect_history: None,
                 headers: Vec::new(),
                 body: std::sync::Arc::clone(&owner),
             })),

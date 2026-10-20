@@ -27,6 +27,9 @@ type Response struct {
 	// DecodedContentCodings records the applied chain in header order: gzip,
 	// deflate, br or zstd. It does not promise successful body completion.
 	DecodedContentCodings []string
+	// RedirectHistory is nil unless requested. An enabled zero-hop response has
+	// a non-nil history with no entries. No history is returned on request errors.
+	RedirectHistory *RedirectHistory
 }
 type bodyLifetime struct {
 	id     uint64

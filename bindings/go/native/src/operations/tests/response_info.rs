@@ -75,6 +75,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
                         &format!("http://{address}/original?x=a%20b"),
                     )
                     .map_err(Failure::from)?
+                    .redirect_history(NonZeroUsize::new(1).ok_or_else(|| Failure::new("internal"))?)
                     .send()
                     .await
                     .map_err(|error| {
@@ -101,6 +102,20 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
                 assert_eq!(metadata["value"]["redirects_followed"], 2);
                 assert_eq!(metadata["value"]["connection_setup_retries"], 0);
                 assert_eq!(metadata["value"]["status"], 200);
+                let history = &metadata["value"]["redirect_history"];
+                assert_eq!(history["omitted_hops"], 1);
+                let hops = history["entries"]
+                    .as_array()
+                    .ok_or_else(|| Failure::new("internal"))?;
+                assert_eq!(hops.len(), 1);
+                assert_eq!(
+                    hops[0]["from_url"],
+                    format!("http://{address}/original?x=a%20b")
+                );
+                assert_eq!(hops[0]["to_url"], format!("http://{address}/middle"));
+                assert_eq!(hops[0]["method"], "GET");
+                assert_eq!(hops[0]["next_method"], "GET");
+                assert_eq!(hops[0]["status"], 302);
                 assert_eq!(metadata["value"]["protocol"], "h1");
                 let headers = metadata["value"]["headers"]
                     .as_array()

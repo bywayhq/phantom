@@ -1,5 +1,5 @@
 use crate::error::Failure;
-use crate::policy::RequestPolicy;
+use crate::policy::{RedirectPolicy, RequestPolicy};
 use crate::timeouts::Timeouts;
 use phantom::{
     Client, HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, Route,
@@ -24,6 +24,8 @@ pub(super) struct Config {
     cookies: bool,
     #[serde(default)]
     timeouts: Timeouts,
+    #[serde(default)]
+    redirect_policy: RedirectPolicy,
 }
 
 #[derive(Deserialize)]
@@ -154,7 +156,9 @@ impl NativeClient {
         if config.cookies {
             builder = builder.cookies();
         }
-        builder = builder.request_timeouts(config.timeouts.defaults());
+        builder = builder
+            .request_timeouts(config.timeouts.defaults())
+            .redirect_policy(config.redirect_policy.core()?);
         let client = builder.build().map_err(Failure::from)?;
         Ok(Self {
             client,
@@ -199,10 +203,7 @@ impl NativeClient {
         if let Some(budget) = budget {
             request = request.attempt_budget(budget);
         }
-        request = request
-            .timeouts(policy.timeouts.overrides())
-            .content_decoding(policy.content_decoding.core());
-        Ok(request)
+        policy.apply(request)
     }
 }
 
