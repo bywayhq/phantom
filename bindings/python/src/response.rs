@@ -1,12 +1,16 @@
-use crate::error;
+use crate::{error, upload::Producer};
 use http_body_util::BodyExt;
 use phantom::{Bytes, ResponseBody};
 use pyo3::{exceptions::PyMemoryError, prelude::*, types::PyBytes};
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU8, Ordering},
 };
 use tokio::sync::Notify;
+
+const OPEN: u8 = 0;
+const CLOSED: u8 = 1;
+const EXPIRED: u8 = 2;
 
 struct Stream {
     body: ResponseBody,
@@ -15,8 +19,59 @@ struct Stream {
 struct BodyOwner {
     stream: Mutex<Option<Stream>>,
     busy: AtomicBool,
-    closed: AtomicBool,
+    state: AtomicU8,
     changed: Notify,
+    upload: Mutex<Option<Arc<Producer>>>,
+    watchdog: Mutex<Option<tokio::task::AbortHandle>>,
+    protocol: String,
+}
+
+impl BodyOwner {
+    fn close(&self, expired: bool) {
+        if self
+            .state
+            .compare_exchange(
+                OPEN,
+                if expired { EXPIRED } else { CLOSED },
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            )
+            .is_err()
+        {
+            return;
+        }
+        if let Ok(mut stream) = self.stream.lock() {
+            stream.take();
+        }
+        if let Ok(mut upload) = self.upload.lock()
+            && let Some(upload) = upload.take()
+        {
+            upload.close();
+        }
+        self.changed.notify_waiters();
+        if let Ok(mut task) = self.watchdog.lock()
+            && let Some(task) = task.take()
+        {
+            task.abort();
+        }
+    }
+    fn closed_error(&self) -> PyErr {
+        if self.state.load(Ordering::SeqCst) == EXPIRED {
+            error::total_timeout(Some(&self.protocol))
+        } else {
+            error::input("body_closed")
+        }
+    }
+}
+impl Drop for BodyOwner {
+    fn drop(&mut self) {
+        self.close(false);
+        if let Ok(mut task) = self.watchdog.lock()
+            && let Some(task) = task.take()
+        {
+            task.abort();
+        }
+    }
 }
 
 struct ReadLease {
@@ -28,7 +83,7 @@ struct ReadLease {
 impl Drop for ReadLease {
     fn drop(&mut self) {
         if !self.finished {
-            self.owner.closed.store(true, Ordering::SeqCst);
+            self.owner.close(false);
         }
         self.owner.busy.store(false, Ordering::SeqCst);
     }
@@ -59,7 +114,7 @@ impl ReadLease {
             .stream
             .lock()
             .map_err(|_| error::input("body_state"))?;
-        if !self.owner.closed.load(Ordering::SeqCst) {
+        if self.owner.state.load(Ordering::SeqCst) == OPEN {
             *slot = self.stream.take();
         }
         self.finished = true;
@@ -184,7 +239,7 @@ impl NativeResponse {
             .collect();
         Ok(Self {
             status,
-            protocol,
+            protocol: protocol.clone(),
             url,
             redirects_followed,
             connection_setup_retries,
@@ -197,10 +252,41 @@ impl NativeResponse {
                     pending: Bytes::new(),
                 })),
                 busy: AtomicBool::new(false),
-                closed: AtomicBool::new(false),
+                state: AtomicU8::new(OPEN),
                 changed: Notify::new(),
+                upload: Mutex::new(None),
+                watchdog: Mutex::new(None),
+                protocol: protocol.clone(),
             }),
         })
+    }
+    pub(super) fn watch_upload(
+        &self,
+        upload: Option<Arc<Producer>>,
+        deadline: Option<tokio::time::Instant>,
+    ) -> PyResult<()> {
+        *self
+            .owner
+            .upload
+            .lock()
+            .map_err(|_| error::input("body_state"))? = upload;
+        if let Some(deadline) = deadline {
+            let owner = Arc::downgrade(&self.owner);
+            let task = tokio::spawn(async move {
+                tokio::time::sleep_until(deadline).await;
+                if let Some(owner) = owner.upgrade()
+                    && owner.state.load(Ordering::SeqCst) == OPEN
+                {
+                    owner.close(true);
+                }
+            });
+            *self
+                .owner
+                .watchdog
+                .lock()
+                .map_err(|_| error::input("body_state"))? = Some(task.abort_handle());
+        }
+        Ok(())
     }
 }
 
@@ -215,13 +301,7 @@ impl NativeResponse {
     }
 
     fn close(&self) -> PyResult<()> {
-        self.owner.closed.store(true, Ordering::SeqCst);
-        self.owner
-            .stream
-            .lock()
-            .map_err(|_| error::input("body_state"))?
-            .take();
-        self.owner.changed.notify_waiters();
+        self.owner.close(false);
         Ok(())
     }
 
@@ -233,13 +313,16 @@ impl NativeResponse {
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
             let Some(stream) = lease.stream.as_mut() else {
+                if owner.state.load(Ordering::SeqCst) == EXPIRED {
+                    return Err(owner.closed_error());
+                }
                 return Ok(None::<Py<PyBytes>>);
             };
             let changed = owner.changed.notified();
             tokio::pin!(changed);
             changed.as_mut().enable();
-            if owner.closed.load(Ordering::SeqCst) {
-                return Ok(None);
+            if owner.state.load(Ordering::SeqCst) != OPEN {
+                return Err(owner.closed_error());
             }
             let next = async {
                 while stream.pending.is_empty() {
@@ -255,7 +338,7 @@ impl NativeResponse {
             };
             let bytes: Option<Bytes> = tokio::select! {
                 biased;
-                () = &mut changed => return Err(error::input("body_closed")),
+                () = &mut changed => return Err(owner.closed_error()),
                 result = next => result?,
             };
             let Some(bytes) = bytes else {
@@ -271,13 +354,16 @@ impl NativeResponse {
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
             let Some(stream) = lease.stream.as_mut() else {
+                if owner.state.load(Ordering::SeqCst) == EXPIRED {
+                    return Err(owner.closed_error());
+                }
                 return Ok(Vec::<u8>::new());
             };
             let changed = owner.changed.notified();
             tokio::pin!(changed);
             changed.as_mut().enable();
-            if owner.closed.load(Ordering::SeqCst) {
-                return Ok(Vec::new());
+            if owner.state.load(Ordering::SeqCst) != OPEN {
+                return Err(owner.closed_error());
             }
             let collect = async {
                 let mut output = Vec::new();
@@ -292,7 +378,7 @@ impl NativeResponse {
             };
             tokio::select! {
                 biased;
-                () = &mut changed => Err(error::input("body_closed")),
+                () = &mut changed => Err(owner.closed_error()),
                 result = collect => result,
             }
         })
@@ -309,6 +395,27 @@ mod tests {
         thread,
         time::{Duration, Instant},
     };
+
+    #[test]
+    fn first_terminal_outcome_wins_over_late_deadline_or_close() {
+        for (expired, expected) in [(false, super::CLOSED), (true, super::EXPIRED)] {
+            let owner = super::BodyOwner {
+                stream: std::sync::Mutex::new(None),
+                busy: std::sync::atomic::AtomicBool::new(false),
+                state: std::sync::atomic::AtomicU8::new(super::OPEN),
+                changed: tokio::sync::Notify::new(),
+                upload: std::sync::Mutex::new(None),
+                watchdog: std::sync::Mutex::new(None),
+                protocol: "h2".to_owned(),
+            };
+            owner.close(expired);
+            owner.close(!expired);
+            assert_eq!(
+                owner.state.load(std::sync::atomic::Ordering::SeqCst),
+                expected
+            );
+        }
+    }
 
     #[test]
     fn missing_response_info_is_a_typed_error() -> pyo3::PyResult<()> {

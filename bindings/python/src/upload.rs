@@ -7,6 +7,9 @@ use std::{
 };
 use tokio::io::{AsyncRead, ReadBuf};
 
+mod producer;
+pub(super) use producer::{NativeUpload, Producer};
+
 pub(super) struct FileBody {
     file: tokio::fs::File,
     remaining: u64,
@@ -16,6 +19,12 @@ pub(super) struct FileBody {
 
 impl FileBody {
     pub(super) async fn open(path: std::path::PathBuf) -> io::Result<Self> {
+        if !tokio::fs::metadata(&path).await?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "upload must be a regular file",
+            ));
+        }
         let file = tokio::fs::File::open(path).await?;
         let metadata = file.metadata().await?;
         if !metadata.is_file() {

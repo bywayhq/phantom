@@ -104,8 +104,24 @@ class SignatureTests(unittest.TestCase):
         sync = inspect.signature(Client.request)
         asynchronous = inspect.signature(AsyncClient.request)
         self.assertEqual(
-            sync.replace(return_annotation=inspect.Signature.empty),
-            asynchronous.replace(return_annotation=inspect.Signature.empty),
+            sync.replace(
+                parameters=[
+                    parameter.replace(annotation=inspect.Signature.empty)
+                    if parameter.name == "body"
+                    else parameter
+                    for parameter in sync.parameters.values()
+                ],
+                return_annotation=inspect.Signature.empty,
+            ),
+            asynchronous.replace(
+                parameters=[
+                    parameter.replace(annotation=inspect.Signature.empty)
+                    if parameter.name == "body"
+                    else parameter
+                    for parameter in asynchronous.parameters.values()
+                ],
+                return_annotation=inspect.Signature.empty,
+            ),
         )
         for signature in (inspect.signature(Client), sync):
             self.assertFalse(
@@ -125,6 +141,7 @@ class SignatureTests(unittest.TestCase):
             is_closed = False
 
             def __init__(self, **options):
+                self._uploads = set()
                 constructors.append(options)
 
             async def request(self, method, url, **options):
@@ -171,6 +188,7 @@ class SignatureTests(unittest.TestCase):
                 request = {
                     "headers": fields,
                     "body": b"bytes",
+                    "body_length": None,
                     "upload": None,
                     "content_decoding": None,
                     "redirect_policy": None,
@@ -208,6 +226,7 @@ class SignatureTests(unittest.TestCase):
                             else {
                                 "headers": (),
                                 "body": None,
+                                "body_length": None,
                                 "upload": None,
                                 "content_decoding": None,
                                 "redirect_policy": None,

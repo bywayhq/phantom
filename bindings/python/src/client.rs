@@ -1,7 +1,20 @@
-use crate::{configuration, error, profile, response::NativeResponse, runtime, upload::FileBody};
+use crate::{
+    configuration, error, profile,
+    response::NativeResponse,
+    runtime,
+    upload::{FileBody, NativeUpload},
+};
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
 use pyo3::prelude::*;
-use std::{num::NonZeroUsize, path::PathBuf, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     match protocol {
@@ -69,10 +82,31 @@ impl NativeCookies {
     }
 }
 
+#[derive(Default)]
+struct Preparation {
+    closed: AtomicBool,
+    changed: tokio::sync::Notify,
+}
+impl Preparation {
+    async fn closed(&self) {
+        let changed = self.changed.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        if !self.closed.load(Ordering::SeqCst) {
+            changed.await;
+        }
+    }
+    fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        self.changed.notify_waiters();
+    }
+}
+
 #[pyclass]
 pub(super) struct NativeClient {
     client: Client,
     protocol: String,
+    preparation: Arc<Preparation>,
 }
 
 #[pymethods]
@@ -130,6 +164,7 @@ impl NativeClient {
         Ok(Self {
             client,
             protocol: protocol.to_owned(),
+            preparation: Arc::default(),
         })
     }
 
@@ -163,10 +198,11 @@ impl NativeClient {
                     .tickets(tickets),
             ),
             protocol: self.protocol.clone(),
+            preparation: Arc::default(),
         }
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -183,8 +219,14 @@ impl NativeClient {
         redirect_maximum_hops: Option<usize>,
         redirect_history_limit: Option<usize>,
         retry_policy: Option<configuration::RetryFields>,
+        producer: Option<PyRef<'_, NativeUpload>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        if body.is_some() && upload.is_some() {
+        let started = tokio::time::Instant::now();
+        if usize::from(body.is_some())
+            + usize::from(upload.is_some())
+            + usize::from(producer.is_some())
+            > 1
+        {
             return Err(error::input("body_and_upload"));
         }
         let method =
@@ -213,7 +255,23 @@ impl NativeClient {
         if let Some(budget) = budget {
             request = request.attempt_budget(budget.inner.clone());
         }
-        request = request.timeouts(configuration::request_timeouts(timeout_ms, timeouts)?);
+        let overrides = configuration::request_timeouts(timeout_ms, timeouts)?;
+        let total = overrides
+            .resolve(self.client.request_timeouts())
+            .total_duration();
+        let bounded_upload = upload.is_some() || producer.is_some();
+        let deadline = if bounded_upload {
+            total
+                .map(|duration| {
+                    started
+                        .checked_add(duration)
+                        .ok_or_else(|| error::input("invalid_timeout"))
+                })
+                .transpose()?
+        } else {
+            None
+        };
+        request = request.timeouts(overrides);
         if let Some(maximum) = maximum_decoded_bytes {
             request = request.content_decoding(phantom::ContentDecoding::advertised(maximum));
         }
@@ -232,11 +290,46 @@ impl NativeClient {
         if let Some(body) = body {
             request = request.body(body);
         }
+        let producer = producer.map(|value| Arc::clone(&value.inner));
+        if let Some(owner) = &producer {
+            request = request.streaming_body(owner.body()?);
+        }
+        let protocol = self.protocol.clone();
+        let preparation = Arc::clone(&self.preparation);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            if let Some(path) = upload {
-                request = request.streaming_body(FileBody::open(path).await.map_err(error::io)?);
+            let send = async move {
+                if let Some(path) = upload {
+                    request =
+                        request.streaming_body(FileBody::open(path).await.map_err(error::io)?);
+                }
+                if let Some(deadline) = deadline {
+                    request = request.timeouts(overrides.total(phantom::TimeoutOverride::Limit(
+                        deadline.saturating_duration_since(tokio::time::Instant::now()),
+                    )));
+                }
+                let response = request.send().await.map_err(error::request)?;
+                let response = NativeResponse::new(response)?;
+                response.watch_upload(producer, deadline)?;
+                Ok(response)
+            };
+            let sending = async {
+                if let Some(deadline) = deadline {
+                    tokio::time::timeout_at(deadline, send)
+                        .await
+                        .map_err(|_| error::total_timeout(Some(&protocol)))?
+                } else {
+                    send.await
+                }
+            };
+            if bounded_upload {
+                tokio::select! {
+                    biased;
+                    () = preparation.closed() => Err(error::NativeError::new_err(("request", "client_closed", None::<String>, None::<String>))),
+                    response = sending => response,
+                }
+            } else {
+                sending.await
             }
-            NativeResponse::new(request.send().await.map_err(error::request)?)
         })
     }
 
@@ -280,7 +373,9 @@ impl NativeClient {
 
     fn shutdown<'py>(&self, py: Python<'py>, timeout_ms: u64) -> PyResult<Bound<'py, PyAny>> {
         let client = self.client.clone();
+        let preparation = Arc::clone(&self.preparation);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            preparation.close();
             tokio::time::timeout(Duration::from_millis(timeout_ms), client.shutdown())
                 .await
                 .map_err(|_| error::input("shutdown_timeout"))

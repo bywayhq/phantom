@@ -16,6 +16,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<client::AttemptBudget>()?;
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
+    module.add_class::<upload::NativeUpload>()?;
     module.add_class::<profile::NativeProfile>()?;
     module.add(
         "NativeProfileError",

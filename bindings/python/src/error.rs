@@ -55,3 +55,13 @@ pub(super) fn request(error: RequestError) -> PyErr {
     });
     NativeError::new_err(("request", kind, protocol, phase))
 }
+
+/// Preparation and unread streaming responses share the original total clock.
+pub(super) fn total_timeout(protocol: Option<&str>) -> PyErr {
+    NativeError::new_err((
+        "request",
+        "timeout",
+        protocol.map(str::to_owned),
+        Some("total"),
+    ))
+}

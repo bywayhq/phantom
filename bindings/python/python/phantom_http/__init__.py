@@ -8,13 +8,20 @@ import contextlib
 import json as _json
 import sys
 import threading
-from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Iterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    Callable,
+    Coroutine,
+    Generator,
+    Iterable,
+)
 from dataclasses import dataclass
 from dataclasses import field as _field
 from os import PathLike
 from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
 
-from . import _native
+from . import _native, _upload
 from ._configuration import INHERIT as INHERIT
 from ._configuration import ConnectionRetry as ConnectionRetry
 from ._configuration import ContentDecoding as ContentDecoding
@@ -71,6 +78,25 @@ class ClientClosed(Error):
 
 class BodyLimitExceeded(Error):
     """Body collection exceeded the caller's bound."""
+
+
+class UploadError(Error):
+    """Producer or cleanup failure; original exceptions require explicit inspection."""
+
+    def __init__(
+        self, original: BaseException | None, cleanup_error: BaseException | None
+    ) -> None:
+        super().__init__("request", "request_body")
+        self.original = original
+        self.cleanup_error = cleanup_error
+
+
+def _upload_error(upload: _upload.Upload) -> BaseException:
+    if isinstance(
+        upload.error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+    ):
+        return upload.error
+    return UploadError(upload.error, upload.cleanup_error)
 
 
 class ProfileError(Error):
@@ -305,8 +331,11 @@ class RedirectHistory:
 class AsyncResponse:
     """An owned response body. Close it when you stop reading."""
 
-    def __init__(self, native: _native.NativeResponse) -> None:
+    def __init__(
+        self, native: _native.NativeResponse, upload: _upload.Upload | None = None
+    ) -> None:
         self._native = native
+        self._upload = upload
         self.status = native.status
         self.protocol = native.protocol
         self.headers = native.headers
@@ -348,16 +377,41 @@ class AsyncResponse:
             raise HTTPStatusError(self)
 
     def close(self) -> None:
+        if self._upload is not None:
+            self._upload.check_loop()
         _call(self._native.close)
+        if self._upload is not None:
+            self._upload.close()
+
+    async def aclose(self, *, timeout_ms: int = 5000) -> None:
+        """Abort the body and settle cooperative producer cleanup."""
+        if self._upload is not None:
+            self._upload.check_wait()
+        self.close()
+        if self._upload is not None:
+            if not await self._upload.wait(timeout_ms):
+                raise TimeoutError("request", "shutdown_timeout", self.protocol)
+            self._check_upload()
+
+    def _check_upload(self) -> None:
+        if self._upload is not None and (
+            self._upload.error is not None or self._upload.cleanup_error is not None
+        ):
+            raise _upload_error(self._upload) from None
 
     async def read_chunk(self, maximum: int = 65536) -> bytes | None:
         """Read at most maximum bytes (1 through 1 MiB), or None at EOF."""
         try:
-            return await self._native.read_chunk(maximum)
+            chunk = await self._native.read_chunk(maximum)
+            if chunk is None:
+                await self.aclose()
+            self._check_upload()
+            return chunk
         except asyncio.CancelledError:
             self.close()
             raise
         except _native.NativeError as error:
+            self._check_upload()
             raise _error(error) from None
 
     async def iter_bytes(self, chunk_size: int = 65536) -> AsyncGenerator[bytes, None]:
@@ -365,7 +419,7 @@ class AsyncResponse:
             while (chunk := await self.read_chunk(chunk_size)) is not None:
                 yield chunk
         finally:
-            self.close()
+            await self.aclose()
 
     async def read(self, *, max_bytes: int) -> bytes:
         """Collect up to max_bytes. The body closes on failure or completion."""
@@ -376,7 +430,7 @@ class AsyncResponse:
         except _native.NativeError as error:
             raise _error(error) from None
         finally:
-            self.close()
+            await self.aclose()
 
     async def text(
         self, *, max_bytes: int, encoding: str = "utf-8", errors: str = "strict"
@@ -405,7 +459,7 @@ class AsyncResponse:
         return self
 
     async def __aexit__(self, *_: object) -> None:
-        self.close()
+        await self.aclose()
 
 
 class AsyncClient:
@@ -464,6 +518,7 @@ class AsyncClient:
             None if retry_policy is None else retry_policy._native_fields(),
         )
         self.cookies = Cookies(self._native.cookies)
+        self._uploads: set[_upload.Upload] = set()
 
     @property
     def is_closed(self) -> bool:
@@ -474,6 +529,7 @@ class AsyncClient:
         client = object.__new__(cls)
         client._native = native
         client.cookies = Cookies(native.cookies)
+        client._uploads = set()
         return client
 
     def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> AsyncClient:
@@ -497,7 +553,8 @@ class AsyncClient:
         url: str,
         *,
         headers: _Headers = (),
-        body: bytes | None = None,
+        body: bytes | AsyncIterable[bytes] | None = None,
+        body_length: int | None = None,
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
@@ -507,7 +564,11 @@ class AsyncClient:
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
     ) -> AsyncResponse:
-        """Return the response head without collecting its body."""
+        """Return the response head without collecting its body.
+
+        Producer body_length checks demanded frames and EOF. An unread source
+        suffix is not pulled after the transport finishes or abandons the body.
+        """
         if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
             raise TypeError("request timeouts must be TimeoutOverrides")
         if timeout_ms is not None and timeouts is not None:
@@ -524,6 +585,14 @@ class AsyncClient:
             raise TypeError("redirect_policy must be RedirectPolicy")
         if redirect_history_limit is not None:
             _redirect_count(redirect_history_limit, positive=True)
+        for active in self._uploads:
+            active.check_loop()
+        producer = body is not None and not isinstance(body, bytes)
+        if body is not None and upload is not None:
+            raise ValueError("pass body or upload, not both")
+        if producer and not isinstance(body, AsyncIterable):
+            raise TypeError("AsyncClient body must be bytes or AsyncIterable[bytes]")
+        _upload.length(body_length, producer)
         ordered = []
         for field in headers:
             if isinstance(field, Header):
@@ -541,12 +610,20 @@ class AsyncClient:
             if not isinstance(value, bytes):
                 raise TypeError("header values must be str or bytes")
             ordered.append((name, value, sensitive))
+        pump = (
+            _upload.Upload(cast(AsyncIterable[bytes], body), body_length)
+            if producer
+            else None
+        )
+        if pump is not None:
+            self._uploads.add(pump)
+            pump.settled.add_done_callback(lambda _: self._uploads.discard(pump))
         try:
-            native = await self._native.request(
+            arguments = (
                 method,
                 url,
                 ordered,
-                body,
+                None if producer else cast(bytes | None, body),
                 upload,
                 None if budget is None else budget._native,
                 timeout_ms,
@@ -558,9 +635,23 @@ class AsyncClient:
                 redirect_history_limit,
                 None if retry_policy is None else retry_policy._native_fields(),
             )
-            return AsyncResponse(native)
-        except _native.NativeError as error:
-            raise _error(error) from None
+            operation = (
+                self._native.request(*arguments)
+                if pump is None
+                else self._native.request(*arguments, producer=pump.native)
+            )
+            native = await operation
+            return AsyncResponse(native, pump)
+        except BaseException as error:
+            if pump is not None:
+                pump.close()
+                if not await pump.wait():
+                    raise TimeoutError("request", "shutdown_timeout") from None
+                if pump.error is not None or pump.cleanup_error is not None:
+                    raise _upload_error(pump) from None
+            if isinstance(error, _native.NativeError):
+                raise _error(error) from None
+            raise
 
     async def close_idle_connections(self) -> None:
         """Release idle connections, retaining active bodies and session state."""
@@ -593,10 +684,28 @@ class AsyncClient:
 
     async def close(self, *, timeout_ms: int = 5000) -> None:
         """Close admission and wait for active owners within this bound."""
+        started = asyncio.get_running_loop().time()
+        pumps = tuple(self._uploads)
+        for pump in pumps:
+            pump.check_wait()
+        for pump in pumps:
+            pump.close()
         try:
             await self._native.shutdown(timeout_ms)
         except _native.NativeError as error:
             raise _error(error) from None
+        if pumps:
+            remaining = max(
+                0.0, timeout_ms / 1000 - (asyncio.get_running_loop().time() - started)
+            )
+            _, pending = await asyncio.wait(
+                {pump.settled for pump in pumps}, timeout=remaining
+            )
+            if pending:
+                raise TimeoutError("request", "shutdown_timeout")
+            for pump in pumps:
+                if pump.error is not None or pump.cleanup_error is not None:
+                    raise _upload_error(pump) from None
 
     async def __aenter__(self) -> AsyncClient:
         return self
@@ -671,7 +780,11 @@ class Response:
             self.close()
 
     def close(self) -> None:
-        self._response.close()
+        self._client._check_thread_loop()
+        # Native abort remains usable after a successful client shutdown.
+        _call(self._response._native.close)
+        if not self._client._loop.is_closed():
+            self._client._run(lambda: self._response.aclose())
 
     def __enter__(self) -> Response:
         return self
@@ -763,7 +876,8 @@ class Client:
         url: str,
         *,
         headers: _Headers = (),
-        body: bytes | None = None,
+        body: bytes | Iterable[bytes] | None = None,
+        body_length: int | None = None,
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
@@ -773,6 +887,13 @@ class Client:
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
     ) -> Response:
+        if body is not None and not isinstance(body, (bytes, Iterable)):
+            raise TypeError("Client body must be bytes or Iterable[bytes]")
+        source = (
+            _upload.SyncSource(body)
+            if body is not None and not isinstance(body, bytes)
+            else body
+        )
         return Response(
             self,
             self._run(
@@ -780,7 +901,8 @@ class Client:
                     method,
                     url,
                     headers=headers,
-                    body=body,
+                    body=source,
+                    body_length=body_length,
                     upload=upload,
                     budget=budget,
                     timeout_ms=timeout_ms,
@@ -826,7 +948,10 @@ class Client:
         try:
             self._run(lambda: self._async.close(timeout_ms=timeout_ms))
         finally:
-            self._loop.close()
+            # A noncooperative iterator finalizer remains owned by this loop.
+            # A later close can resume it instead of destroying pending tasks.
+            if not any(not upload.settled.done() for upload in self._async._uploads):
+                self._loop.close()
 
     def __enter__(self) -> Client:
         return self

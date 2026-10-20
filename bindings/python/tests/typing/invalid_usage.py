@@ -1,5 +1,7 @@
 """Each marked line must fail with exactly its listed mypy error code."""
 
+from collections.abc import AsyncGenerator
+
 from phantom_http import (
     AsyncClient,
     Client,
@@ -102,3 +104,13 @@ def compact_profiles(base: Profile) -> None:
     imported = Profile.import_ja3("raw", base=base)
     imported.profile = base  # E: misc
     imported.observed_fields = ()  # E: misc
+
+
+async def invalid_upload(client: AsyncClient, sync: Client, url: str) -> None:
+    await client.request("POST", url, body=[b"one"])  # E: arg-type
+
+    async def chunks() -> AsyncGenerator[bytes, None]:
+        yield b"one"
+
+    sync.request("POST", url, body=chunks())  # E: arg-type
+    await client.request("POST", url, body_length=1.5)  # E: arg-type

@@ -203,3 +203,19 @@ async def use_async_fork(client: AsyncClient, url: str) -> None:
         await fork.request("GET", url) as response,
     ):
         _payload: bytes = await response.read(max_bytes=100)
+
+
+def upload_sync(client: Client, url: str) -> None:
+    def chunks() -> Generator[bytes, None, None]:
+        yield b"one"
+
+    with client.request("POST", url, body=chunks(), body_length=3) as response:
+        response.read(max_bytes=100)
+
+
+async def upload_async(client: AsyncClient, url: str) -> None:
+    async def chunks() -> AsyncGenerator[bytes, None]:
+        yield b"one"
+
+    response = await client.request("POST", url, body=chunks(), body_length=3)
+    await response.aclose()
