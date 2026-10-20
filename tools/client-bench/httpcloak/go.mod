@@ -6,7 +6,7 @@ require github.com/sardanioss/httpcloak v1.7.3
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
 	github.com/sardanioss/http v1.2.0 // indirect
 	github.com/sardanioss/net v1.2.12 // indirect
