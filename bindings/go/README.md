@@ -101,6 +101,48 @@ retries when setup starts. See [ResponseInfo](https://docs.rs/phantom-http/lates
 for the counting rules. Go does not expose redirect or retry policies yet,
 so both counts are zero.
 
+## Edit profiles
+
+Create an immutable `Profile` from an exact catalog entry or a complete custom
+document. Choose exactly one of `Config.Profile` and `Config.ProfileSettings`.
+
+```go
+settings, err := phantom.NewCatalogProfile(profileID, "navigation")
+if err != nil { return err }
+defer settings.Close()
+document, err := settings.Describe()
+if err != nil { return err }
+tls := document["profile"].(map[string]any)["tls"].(map[string]any)
+tls["session_ticket_order"] = "OldestFirst"
+encoded, err := json.Marshal(document)
+if err != nil { return err }
+edited, err := phantom.ImportProfileJSON(encoded)
+if err != nil { return err }
+defer edited.Close()
+client, err := phantom.New(phantom.Config{
+    ProfileSettings: edited, Protocol: "h2", Context: "profile",
+})
+```
+
+`Describe` uses `json.Number` to preserve integer settings exactly. Keep that
+representation when editing large integers. `ExportJSON` returns fresh editable
+bytes; the Rust importer validates every edit and preserves supported ordering.
+Exported documents can contain literal headers, so treat them as sensitive.
+Import errors expose a redacted `Kind` and canonical `Field` through `*Error`.
+Importing settings does not assign catalog identity or browser evidence.
+
+An empty or `raw` client context removes attached headers. `profile` selects
+the owner's attached template and fails if absent. Named `navigation`, `fetch`,
+`fetchNoStore` and `fetchUpload` contexts require a catalog owner with that
+template. Imported owners cannot borrow catalog templates implicitly.
+
+Profile owners are safe for concurrent use. Close them when finished; clients
+already created retain their settings. Concurrent close either follows a native
+settings acquisition or returns `profile_closed`. Finalizers provide eventual
+cleanup. Profile count does not consume the HTTP capacities below. Raw profile
+documents use a separate 16 MiB channel with the core's structural limits;
+the HTTP upload and command-metadata limits do not truncate profile documents.
+
 ## Build and limits
 
 Build the workspace package `phantom-go` with Rust 1.88 or later, including
@@ -148,6 +190,6 @@ These bounds exclude caller buffers, the native HTTP/TLS pools, and Go
 responses already delivered to application code. They are capacity limits,
 not a measured high-throughput claim.
 
-Streaming uploads (`io.Reader` and files), custom profile definitions,
+Streaming uploads (`io.Reader` and files), compact fingerprint imports,
 pinning/client certificates, custom connectors, CONNECT-UDP configuration, session
 snapshots, and independent shared-state forks are not exposed in this slice.

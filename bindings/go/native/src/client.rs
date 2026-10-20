@@ -3,13 +3,14 @@ use crate::timeouts::Timeouts;
 use phantom::{
     Client, HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, Route,
 };
-use phantom_profile::catalog::{self, RequestTemplateKind};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Config {
+    #[serde(default)]
     profile: String,
+    profile_settings: Option<u64>,
     protocol: String,
     context: Option<String>,
     proxy: Option<String>,
@@ -100,24 +101,15 @@ impl NativeClient {
         if !matches!(config.protocol.as_str(), "h1" | "h2" | "h3" | "negotiated") {
             return Err(Failure::new("invalid_protocol"));
         }
-        let definition =
-            catalog::profile(&config.profile).map_err(|_| Failure::new("unknown_profile"))?;
-        let mut profile = definition
-            .instantiate(&[])
-            .map_err(|_| Failure::new("invalid_profile"))?
-            .without_request_template();
-        if let Some(context) = config.context {
-            let context = match context.as_str() {
-                "navigation" => RequestTemplateKind::Navigation,
-                "fetch" => RequestTemplateKind::Fetch,
-                _ => return Err(Failure::new("invalid_context")),
-            };
-            profile = profile.with_request_template(
-                definition
-                    .request_template(context)
-                    .map_err(|_| Failure::new("context_unavailable"))?,
-            );
-        }
+        let owner = match (config.profile.is_empty(), config.profile_settings) {
+            (true, Some(id)) => Some(crate::profile::get(id)?),
+            (false, None) => None,
+            _ => return Err(Failure::new("invalid_profile_selection")),
+        };
+        let profile = match owner.as_deref() {
+            Some(owner) => owner.selected(config.context.as_deref())?,
+            None => crate::profile::named(&config.profile, config.context.as_deref())?,
+        };
         let mut builder = Client::builder(profile)
             .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
         if let Some(base_url) = config.base_url {

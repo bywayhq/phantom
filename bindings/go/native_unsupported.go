@@ -6,3 +6,6 @@ func nativeDispatch([]byte, []byte, []byte) (int, error) {
 	return 0, &Error{Kind: "unsupported_platform"}
 }
 func nativeWait([]byte, []byte) (int, error) { return 0, &Error{Kind: "unsupported_platform"} }
+func nativeProfile([]byte, []byte, []byte, []byte) (int, error) {
+	return 0, &Error{Kind: "unsupported_platform"}
+}

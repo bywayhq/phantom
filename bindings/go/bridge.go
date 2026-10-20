@@ -15,6 +15,8 @@ type Error struct {
 	Kind         string `json:"kind"`
 	Protocol     string `json:"protocol"`
 	TimeoutPhase string `json:"timeout_phase"`
+	// Field is the canonical setting path for a profile import/export error.
+	Field string `json:"field"`
 }
 
 func (e *Error) Error() string { return "phantom: " + e.Kind }

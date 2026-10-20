@@ -12,9 +12,9 @@ import (
 )
 
 var library struct {
-	once           sync.Once
-	dispatch, wait *syscall.LazyProc
-	err            error
+	once                    sync.Once
+	dispatch, wait, profile *syscall.LazyProc
+	err                     error
 }
 
 func loadNative() error {
@@ -39,13 +39,28 @@ func loadNative() error {
 		}
 		library.dispatch = dll.NewProc("phantom_go_dispatch")
 		library.wait = dll.NewProc("phantom_go_wait")
-		if library.dispatch.Find() != nil || library.wait.Find() != nil {
+		library.profile = dll.NewProc("phantom_go_profile")
+		if library.dispatch.Find() != nil || library.wait.Find() != nil || library.profile.Find() != nil {
 			library.err = &Error{Kind: "native_abi"}
 		}
 		// Keep the module loaded for the process lifetime: shared Tokio tasks must
 		// never execute code from an unloaded DLL.
 	})
 	return library.err
+}
+
+func nativeProfile(command, document, metadata, output []byte) (int, error) {
+	if err := loadNative(); err != nil {
+		return 0, err
+	}
+	// All four buffers are borrowed only by this synchronous call. Native profile
+	// owners retain Rust settings, never these Go addresses.
+	length, _, _ := library.profile.Call(uintptr(unsafe.Pointer(unsafe.SliceData(command))), uintptr(len(command)), uintptr(unsafe.Pointer(unsafe.SliceData(document))), uintptr(len(document)), uintptr(unsafe.Pointer(unsafe.SliceData(metadata))), uintptr(len(metadata)), uintptr(unsafe.Pointer(unsafe.SliceData(output))), uintptr(len(output)))
+	runtime.KeepAlive(command)
+	runtime.KeepAlive(document)
+	runtime.KeepAlive(metadata)
+	runtime.KeepAlive(output)
+	return int(length), nil
 }
 func nativeDispatch(command, body, output []byte) (int, error) {
 	if err := loadNative(); err != nil {

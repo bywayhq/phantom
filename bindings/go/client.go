@@ -9,13 +9,15 @@ import (
 	"time"
 )
 
-// Config selects one named profile, protocol and optional request context.
-// Protocol is h1, h2, h3 or negotiated. Context is navigation, fetch or empty.
+// Config selects one named or caller-owned profile and an explicit protocol.
+// Context is raw/empty, profile, or an available named catalog context.
 type Config struct {
-	Profile  string
-	Protocol string
-	Context  string
-	Proxy    string
+	Profile string
+	// ProfileSettings selects immutable settings instead of Profile. Supply exactly one.
+	ProfileSettings *Profile
+	Protocol        string
+	Context         string
+	Proxy           string
 	// ProxyCredentials configures HTTP Basic or SOCKS5 username/password auth.
 	// It requires an explicit corresponding Proxy URL; URI credentials are rejected.
 	ProxyCredentials *ProxyCredentials
@@ -69,6 +71,18 @@ type Client struct {
 
 // New creates a client. It performs no request and ignores proxy environment variables.
 func New(config Config) (*Client, error) {
+	if (config.Profile == "") == (config.ProfileSettings == nil) {
+		return nil, &Error{Kind: "invalid_profile_selection"}
+	}
+	var profileID *uint64
+	if config.ProfileSettings != nil {
+		id := config.ProfileSettings.id.Load()
+		if id == 0 {
+			return nil, &Error{Kind: "profile_closed"}
+		}
+		profileID = &id
+	}
+	defer runtime.KeepAlive(config.ProfileSettings)
 	timeouts, err := timeoutsWire(config.Timeouts, config.Timeout)
 	if err != nil {
 		return nil, err
@@ -112,17 +126,18 @@ func New(config Config) (*Client, error) {
 		return nil, err
 	}
 	wire := struct {
-		Profile     string            `json:"profile"`
-		Protocol    string            `json:"protocol"`
-		Context     string            `json:"context,omitempty"`
-		Proxy       string            `json:"proxy,omitempty"`
-		Cookies     bool              `json:"cookies"`
-		BaseURL     string            `json:"base_url,omitempty"`
-		Credentials *ProxyCredentials `json:"proxy_credentials,omitempty"`
-		Roots       [][]uint16        `json:"additional_roots_der"`
-		ProxyRoots  [][]uint16        `json:"proxy_additional_roots_der"`
-		Timeouts    wireTimeouts      `json:"timeouts"`
-	}{config.Profile, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts}
+		Profile         string            `json:"profile"`
+		ProfileSettings *uint64           `json:"profile_settings,omitempty"`
+		Protocol        string            `json:"protocol"`
+		Context         string            `json:"context,omitempty"`
+		Proxy           string            `json:"proxy,omitempty"`
+		Cookies         bool              `json:"cookies"`
+		BaseURL         string            `json:"base_url,omitempty"`
+		Credentials     *ProxyCredentials `json:"proxy_credentials,omitempty"`
+		Roots           [][]uint16        `json:"additional_roots_der"`
+		ProxyRoots      [][]uint16        `json:"proxy_additional_roots_der"`
+		Timeouts        wireTimeouts      `json:"timeouts"`
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err

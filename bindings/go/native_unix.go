@@ -26,3 +26,13 @@ func nativeWait(metadata, data []byte) (int, error) {
 	runtime.KeepAlive(data)
 	return int(length), nil
 }
+
+func nativeProfile(command, document, metadata, output []byte) (int, error) {
+	// Native copies synchronously and retains no pointers into these Go buffers.
+	length := C.phantom_go_profile((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(document))), C.size_t(len(document)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(metadata))), C.size_t(len(metadata)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
+	runtime.KeepAlive(command)
+	runtime.KeepAlive(document)
+	runtime.KeepAlive(metadata)
+	runtime.KeepAlive(output)
+	return int(length), nil
+}
