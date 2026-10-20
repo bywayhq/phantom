@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Export and restore encrypted Python session snapshots with explicit receiving
+  routes, typed errors and fresh connection pools.
+
 - Preserve completed HTTP/2 responses when a peer stops the upload with a
   clean stream reset. Release binding upload producers after an empty response.
 
