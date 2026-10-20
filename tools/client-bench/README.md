@@ -1,7 +1,8 @@
 # Measure the public client
 
 Build the isolated workload tool, then run a repeatable matrix against local
-peers. Its dependencies and heap allocator do not affect the library build.
+peers. It enables the same cookie, profile-import and session-snapshot features
+as the bindings. Its dependencies and heap allocator stay outside the library.
 
 ```sh
 scripts/dev/with-cargo-lock.sh cargo build \
