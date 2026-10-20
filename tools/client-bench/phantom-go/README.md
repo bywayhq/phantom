@@ -25,8 +25,10 @@ until `save`. Observation storage excludes allocator slack and later objects.
 The binding's current process-wide capacity remains in effect, including 64
 clients, response handles and ordinary operations. Capacity errors remain
 errors, with no adapter retry or admission queue. Cold operations also create
-and close their own client. Uploads, proxies, templates, redirects, compression,
-cancellation scenarios and diagnostics are rejected before warmup. Runtime and
+and close their own client. Known-length POST uploads use a reusable source
+chunk of at most 64 KiB. GET body-prefix cancellation closes the public body.
+Upload-stage cancellation, proxies, templates, redirects, compression and
+diagnostics are rejected before warmup. Runtime and
 protocol acceptance must be established with the retained native build; source
 compilation alone does not establish successful peer runs or performance.
 
