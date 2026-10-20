@@ -154,6 +154,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/status":
             self.reply(b"status body", status=404)
             return
+        elif self.path.startswith("/redirect?"):
+            self.send_response(302)
+            self.send_header("Location", "/must-not-be-followed")
+            self.send_header("Content-Length", "5")
+            self.end_headers()
+            self.wfile.write(b"hello")
+            self.wfile.flush()
+            return
         self.reply(body)
 
     def reply(self, body, *, status=200):

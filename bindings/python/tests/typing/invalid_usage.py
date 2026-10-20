@@ -37,6 +37,8 @@ def synchronous(profile: str, url: str) -> None:
         response.json(max_bytes="100")  # E: arg-type
         _bytes: bytes = response.text(max_bytes=100)  # E: assignment
         _data: dict[str, str] = response.json(max_bytes=100)  # E: assignment
+        response.url = "different"  # E: misc
+        response.connection_setup_retries = 0  # E: misc
 
 
 async def asynchronous(profile: str, url: str) -> None:

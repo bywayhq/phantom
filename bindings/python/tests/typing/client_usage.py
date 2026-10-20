@@ -64,6 +64,9 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         with response:
             _status: int = response.status
             _protocol: str = response.protocol
+            _effective_url: str = response.url
+            _redirects: int = response.redirects_followed
+            _setup_retries: int = response.connection_setup_retries
             _fields: list[tuple[str, bytes]] = response.headers
             collected: bytes = response.read(max_bytes=1_000_000)
         with client.request("POST", url, body=b"bytes") as streamed:
@@ -85,6 +88,9 @@ async def asynchronous(profile: str, url: str) -> bytes:
             timeouts=TimeoutOverrides(connect=INHERIT, total=None, read_idle=0),
         )
         async with response:
+            _effective_url: str = response.url
+            _redirects: int = response.redirects_followed
+            _setup_retries: int = response.connection_setup_retries
             _first: bytes | None = await response.read_chunk(1)
             collected: bytes = await response.read(max_bytes=10**100)
             # A subsequent read remains a valid call at EOF, including a bool bound.

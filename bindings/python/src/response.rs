@@ -88,12 +88,29 @@ fn append_body(output: &mut Vec<u8>, bytes: &[u8], maximum: usize) -> PyResult<(
     Ok(())
 }
 
+fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseInfo> {
+    extensions.get::<phantom::ResponseInfo>().ok_or_else(|| {
+        error::NativeError::new_err((
+            "response",
+            "response_info_unavailable",
+            None::<String>,
+            None::<String>,
+        ))
+    })
+}
+
 #[pyclass]
 pub(super) struct NativeResponse {
     #[pyo3(get)]
     status: u16,
     #[pyo3(get)]
     protocol: String,
+    #[pyo3(get)]
+    url: String,
+    #[pyo3(get)]
+    redirects_followed: usize,
+    #[pyo3(get)]
+    connection_setup_retries: usize,
     headers: Vec<(String, Vec<u8>)>,
     owner: Arc<BodyOwner>,
 }
@@ -118,9 +135,16 @@ impl NativeResponse {
                     .collect()
             })
             .ok_or_else(|| error::input("ordered_headers_unavailable"))?;
+        let info = response_info(response.extensions())?;
+        let url = info.effective_uri().to_string();
+        let redirects_followed = info.redirects_followed();
+        let connection_setup_retries = info.retries_performed();
         Ok(Self {
             status,
             protocol,
+            url,
+            redirects_followed,
+            connection_setup_retries,
             headers,
             owner: Arc::new(BodyOwner {
                 stream: Mutex::new(Some(Stream {
@@ -232,7 +256,94 @@ impl NativeResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::append_body;
+    use super::{NativeResponse, append_body, response_info};
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        num::NonZeroUsize,
+        thread,
+        time::{Duration, Instant},
+    };
+
+    #[test]
+    fn missing_response_info_is_a_typed_error() -> pyo3::PyResult<()> {
+        pyo3::Python::initialize();
+        let result = response_info(&http::Extensions::new()).map(|_| ());
+        assert!(result.is_err());
+        pyo3::Python::attach(|py| {
+            use pyo3::prelude::*;
+            let error = result
+                .err()
+                .ok_or_else(|| crate::error::input("test_error"))?;
+            assert!(error.is_instance_of::<crate::error::NativeError>(py));
+            let arguments: (String, String, Option<String>, Option<String>) =
+                error.value(py).getattr("args")?.extract()?;
+            assert_eq!(arguments.0, "response");
+            assert_eq!(arguments.1, "response_info_unavailable");
+            assert_eq!((arguments.2, arguments.3), (None, None));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn actual_followed_redirect_metadata_reaches_native_response()
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let listener = TcpListener::bind(("127.0.0.1", 0))?;
+        listener.set_nonblocking(true)?;
+        let origin = format!("http://{}", listener.local_addr()?);
+        let peer = thread::spawn(move || -> std::io::Result<()> {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            for path in ["/start", "/finish?encoded=%2F"] {
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            if Instant::now() >= deadline {
+                                return Err(std::io::ErrorKind::TimedOut.into());
+                            }
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        Err(error) => return Err(error),
+                    }
+                };
+                stream.set_nonblocking(false)?;
+                stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+                stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+                let mut head = Vec::new();
+                while !head.ends_with(b"\r\n\r\n") && head.len() < 65536 {
+                    let mut byte = [0];
+                    stream.read_exact(&mut byte)?;
+                    head.push(byte[0]);
+                }
+                assert!(head.starts_with(format!("GET {path} HTTP/1.1\r\n").as_bytes()));
+                stream.write_all(if path == "/start" {
+                    b"HTTP/1.1 302 Found\r\nLocation: /finish?encoded=%2F\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                } else {
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                })?;
+            }
+            Ok(())
+        });
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let outcome = runtime.block_on(async {
+            let client = phantom::Client::builder(phantom_profile::browser::chrome::v154_windows())
+                .route(phantom::Route::direct())
+                .redirect_policy(phantom::RedirectPolicy::limited(NonZeroUsize::MIN))
+                .build()?;
+            let request = client.get(phantom::HttpProtocol::Http1, &format!("{origin}/start"))?;
+            let response = tokio::time::timeout(Duration::from_secs(5), request.send()).await??;
+            NativeResponse::new(response)
+                .map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+        });
+        peer.join().map_err(|_| "HTTP/1 peer panicked")??;
+        let response = outcome?;
+        assert_eq!(response.url, format!("{origin}/finish?encoded=%2F"));
+        assert_eq!(response.redirects_followed, 1);
+        assert_eq!(response.connection_setup_retries, 0);
+        Ok(())
+    }
 
     #[test]
     fn collection_allocates_from_received_bytes_and_accepts_exact_bound() -> pyo3::PyResult<()> {

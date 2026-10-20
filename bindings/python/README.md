@@ -98,6 +98,14 @@ never-index encoding in HTTP/2 and HTTP/3. This does not encrypt a header.
 Responses retain ordered duplicate header pairs with byte values. HTTP error
 statuses are responses; this slice does not raise for them automatically.
 
+`response.url` is the effective URL. `redirects_followed` counts followed hops.
+`connection_setup_retries` counts caller-enabled connection-setup retries across
+those hops when their setup starts. It excludes redirects, status retries,
+reused-connection, GOAWAY, proxy-authentication and Critical-CH replays, and
+HTTP/2 fallback. Python does not expose retry or redirect policy setters yet,
+so its default counts are zero and a 302 response is returned without following.
+These properties remain available after body completion or close.
+
 The route defaults to direct and ignores proxy environment variables. `proxy`
 accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. For HTTP Basic or SOCKS5
 authentication, pass `Proxy(uri, username="user", password="secret")`.

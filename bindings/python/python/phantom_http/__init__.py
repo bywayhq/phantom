@@ -204,6 +204,20 @@ class AsyncResponse:
         self.headers = native.headers
 
     @property
+    def url(self) -> str:
+        """The effective URL reported by the HTTP client."""
+        return self._native.url
+
+    @property
+    def redirects_followed(self) -> int:
+        return self._native.redirects_followed
+
+    @property
+    def connection_setup_retries(self) -> int:
+        """Caller-enabled connection-setup retries, excluding protocol replays."""
+        return self._native.connection_setup_retries
+
+    @property
     def status_code(self) -> int:
         return self.status
 
@@ -425,6 +439,18 @@ class Response:
         self.status = response.status
         self.protocol = response.protocol
         self.headers = response.headers
+
+    @property
+    def url(self) -> str:
+        return self._response.url
+
+    @property
+    def redirects_followed(self) -> int:
+        return self._response.redirects_followed
+
+    @property
+    def connection_setup_retries(self) -> int:
+        return self._response.connection_setup_retries
 
     @property
     def status_code(self) -> int:
