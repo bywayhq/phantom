@@ -22,6 +22,11 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
 MATURIN = "1.9.6"
+SUPPORTED_TARGETS = (
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+)
 MAX_FILES = 30_000
 MAX_BYTES = 512 * 1024 * 1024
 H3_LICENSES = {
@@ -273,7 +278,17 @@ def repair(args):
         metadata = json.loads(
             commands.run([*metadata_command, "--locked"], cwd=source, timeout=180)
         )
-        package, selected = binding.dependency_closure(metadata)
+        selected = set()
+        for target in SUPPORTED_TARGETS:
+            target_metadata = json.loads(
+                commands.run(
+                    [*metadata_command, "--locked", "--filter-platform", target],
+                    cwd=source,
+                    timeout=180,
+                )
+            )
+            package, target_inputs = binding.dependency_closure(target_metadata)
+            selected.update(target_inputs)
         # The shared collector's one pinned supplemental notice is not supplied
         # by its published crate. Keep the exact checked-in fallback available.
         supplemental = source / tools.ALLOC_STDLIB_LICENSE_PATH
@@ -283,7 +298,7 @@ def repair(args):
         inventory = tools.copy_notices(metadata, selected, notices, root=source)
         for item in inventory:
             item["scope"] = (
-                "potential normal/build input; conservative resolved graph, not linked-code attribution"
+                "potential normal/build input for supported target union; not linked-code attribution"
             )
         sysroot = Path(
             commands.run(["rustc", "--print", "sysroot"], cwd=source).decode().strip()
@@ -334,6 +349,7 @@ def repair(args):
                 "cargo_lock_sha256": tools.digest(lock),
                 "maturin": MATURIN,
                 "source_builder_toolchain": toolchain,
+                "supported_targets": list(SUPPORTED_TARGETS),
                 "toolchain_scope": "pinned archive compiler only; deliberate consumer overrides are outside this notice closure",
                 "lock_pruning": pruning,
                 "notices": inventory,

@@ -268,7 +268,10 @@ class RepairFlowTests(unittest.TestCase):
     def test_different_notice_producing_compiler_never_promotes_an_archive(self):
         self.run_repair(fail_locked=False, fail_toolchain=True)
 
-    def run_repair(self, *, fail_locked, fail_toolchain=False):
+    def test_missing_supported_host_notice_still_fails_before_promotion(self):
+        self.run_repair(fail_locked=False, fail_notice=True)
+
+    def run_repair(self, *, fail_locked, fail_toolchain=False, fail_notice=False):
         tools = sdist.load_module(
             "sdist_test_tools", sdist.ROOT / "scripts/release/cli_artifact.py"
         )
@@ -320,6 +323,26 @@ class RepairFlowTests(unittest.TestCase):
             write_archive(archive, files)
             original_digest = hashlib.sha256(archive.read_bytes()).hexdigest()
             calls = []
+            targets = dict(
+                zip(sdist.SUPPORTED_TARGETS, ("windows", "linux", "macos"), strict=True)
+            )
+            dependency_packages = []
+            for name in [*targets.values(), "build-tool", "dev-only", "uefi-only"]:
+                directory = root / "registry" / name
+                directory.mkdir(parents=True)
+                if name not in {"dev-only", "uefi-only"} and not (
+                    fail_notice and name == "linux"
+                ):
+                    (directory / "LICENSE").write_bytes(license_text)
+                dependency_packages.append(
+                    {
+                        "name": name,
+                        "version": "1.0.0",
+                        "id": name,
+                        "manifest_path": str(directory / "Cargo.toml"),
+                        "license": "MIT",
+                    }
+                )
 
             class Commands:
                 def __init__(self, logs):
@@ -349,6 +372,21 @@ class RepairFlowTests(unittest.TestCase):
                         if fail_locked and "--locked" in args:
                             raise ValueError("controlled locked metadata failure")
                         source = kwargs["cwd"]
+                        normal = (
+                            [targets[args[-1]]]
+                            if "--filter-platform" in args
+                            else [*targets.values(), "uefi-only"]
+                        )
+                        edges = [
+                            {"pkg": name, "dep_kinds": [{"kind": None}]}
+                            for name in normal
+                        ]
+                        edges.extend(
+                            [
+                                {"pkg": "build-tool", "dep_kinds": [{"kind": "build"}]},
+                                {"pkg": "dev-only", "dep_kinds": [{"kind": "dev"}]},
+                            ]
+                        )
                         return json.dumps(
                             {
                                 "packages": [
@@ -360,9 +398,18 @@ class RepairFlowTests(unittest.TestCase):
                                             source / "bindings/python/Cargo.toml"
                                         ),
                                         "license": "MIT OR Apache-2.0",
-                                    }
+                                    },
+                                    *dependency_packages,
                                 ],
-                                "resolve": {"nodes": [{"id": "python", "deps": []}]},
+                                "resolve": {
+                                    "nodes": [
+                                        {"id": "python", "deps": edges},
+                                        *(
+                                            {"id": p["id"], "deps": []}
+                                            for p in dependency_packages
+                                        ),
+                                    ]
+                                },
                             }
                         ).encode()
                     raise AssertionError(args)
@@ -384,9 +431,10 @@ class RepairFlowTests(unittest.TestCase):
                 source_archive=archive, source_revision=revision, output=root / "result"
             )
             with patch.object(sdist, "load_module", side_effect=[fake_tools, binding]):
-                if fail_locked or fail_toolchain:
+                if fail_locked or fail_toolchain or fail_notice:
                     with self.assertRaisesRegex(
-                        ValueError, "controlled locked|notice-producing"
+                        ValueError,
+                        "controlled locked|notice-producing|no retained license",
                     ):
                         sdist.repair(options)
                     self.assertFalse((options.output / "verified").exists())
@@ -405,6 +453,9 @@ class RepairFlowTests(unittest.TestCase):
             )
             self.assertIn("not yet verified", receipt["validation"])
             self.assertEqual(receipt["source_builder_toolchain"], "1.99.1")
+            self.assertEqual(
+                receipt["supported_targets"], list(sdist.SUPPORTED_TARGETS)
+            )
             with tarfile.open(candidate) as result:
                 self.assertEqual(result.getmember(prefix + "/build.sh").mode, 0o755)
                 self.assertEqual(
@@ -430,6 +481,10 @@ class RepairFlowTests(unittest.TestCase):
                 inventory = json.load(
                     result.extractfile(prefix + "/third-party-notices/inventory.json")
                 )
+                self.assertEqual(
+                    {item["name"] for item in inventory},
+                    {"phantom-python", "windows", "linux", "macos", "build-tool"},
+                )
                 for item in inventory:
                     for notice in item["notices"]:
                         payload = result.extractfile(
@@ -439,7 +494,11 @@ class RepairFlowTests(unittest.TestCase):
                             hashlib.sha256(payload).hexdigest(), notice["sha256"]
                         )
             self.assertEqual(
-                sum(args[:2] == ["cargo", "metadata"] for args in calls), 2
+                sum(args[:2] == ["cargo", "metadata"] for args in calls), 5
+            )
+            self.assertEqual(
+                [args[-1] for args in calls if "--filter-platform" in args],
+                list(sdist.SUPPORTED_TARGETS),
             )
             self.assertTrue(
                 all("--offline" in args for args in calls if args[0] == "cargo")
