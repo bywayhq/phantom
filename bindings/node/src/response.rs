@@ -39,7 +39,10 @@ pub(crate) struct Exchange {
     terminal: AtomicU8,
     reading: AtomicBool,
     setting_up: AtomicBool,
+    uploading: AtomicBool,
+    upload: Mutex<Option<Arc<crate::upload::Upload>>>,
     cancelled: watch::Sender<bool>,
+    finished: watch::Sender<bool>,
     body: Mutex<Option<Body>>,
     permit: Mutex<Option<OwnedSemaphorePermit>>,
     deadline: Mutex<Option<Instant>>,
@@ -52,7 +55,10 @@ impl Exchange {
             terminal: AtomicU8::new(ACTIVE),
             reading: AtomicBool::new(false),
             setting_up: AtomicBool::new(false),
+            uploading: AtomicBool::new(false),
+            upload: Mutex::new(None),
             cancelled: watch::channel(false).0,
+            finished: watch::channel(false).0,
             body: Mutex::new(None),
             permit: Mutex::new(None),
             deadline: Mutex::new(None),
@@ -86,6 +92,15 @@ impl Exchange {
     }
 
     pub(crate) fn check(&self) -> Result<()> {
+        if self
+            .upload
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .is_some_and(|upload| upload.failed())
+        {
+            return Err(failure("UploadSource", "upload source failed"));
+        }
         if *self.cancelled.borrow() {
             return Err(failure("Cancelled", "request was cancelled"));
         }
@@ -118,6 +133,13 @@ impl Exchange {
         }
     }
 
+    pub(crate) async fn finished(&self) {
+        let mut finished = self.finished.subscribe();
+        if !*finished.borrow_and_update() {
+            let _ = finished.wait_for(|finished| *finished).await;
+        }
+    }
+
     pub(crate) fn attach(&self, stream: ResponseBody) -> Result<()> {
         let mut body = self.body.lock().unwrap_or_else(PoisonError::into_inner);
         self.check()?;
@@ -141,20 +163,55 @@ impl Exchange {
         let _ =
             self.terminal
                 .compare_exchange(ACTIVE, outcome, Ordering::AcqRel, Ordering::Acquire);
+        self.finished.send_replace(true);
         self.body
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
+        if let Some(upload) = self
+            .upload
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+        {
+            upload.stop();
+        }
         if !self.reading.load(Ordering::Acquire) && !self.setting_up.load(Ordering::Acquire) {
             self.release();
         }
     }
 
     fn release(&self) {
+        if self.uploading.load(Ordering::Acquire) {
+            return;
+        }
         self.permit
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
+    }
+
+    pub(crate) fn upload(self: &Arc<Self>, upload: Arc<crate::upload::Upload>) {
+        self.uploading.store(true, Ordering::Release);
+        upload.bind(self);
+        *self.upload.lock().unwrap_or_else(PoisonError::into_inner) = Some(upload);
+    }
+
+    pub(crate) fn upload_settled(&self) {
+        self.uploading.store(false, Ordering::Release);
+        if !self.is_active()
+            && !self.setting_up.load(Ordering::Acquire)
+            && !self.reading.load(Ordering::Acquire)
+        {
+            self.release();
+        }
+    }
+
+    pub(crate) fn upload_state(&self) -> Option<Arc<crate::upload::Upload>> {
+        self.upload
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     pub(crate) async fn read(self: Arc<Self>, maximum: u32) -> Result<Option<Vec<u8>>> {
@@ -368,6 +425,28 @@ mod tests {
         assert_eq!(admission.available_permits(), 0);
         assert!(Arc::clone(&admission).try_acquire_owned().is_err());
         drop(pending);
+        assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn cancelled_upload_retains_admission_until_javascript_cleanup_acknowledges() -> Result<()> {
+        let admission = Arc::new(Semaphore::new(1));
+        let exchange = Exchange::new();
+        let permit = Arc::clone(&admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("TestAdmission", "initial admission failed"))?;
+        exchange.claim(permit, None)?;
+        let pending = Pending {
+            exchange: Arc::clone(&exchange),
+            _owner: None,
+        };
+        let upload = crate::upload::Upload::new(None);
+        exchange.upload(Arc::clone(&upload));
+        exchange.cancel();
+        drop(pending);
+        assert_eq!(admission.available_permits(), 0);
+        upload.settled();
         assert_eq!(admission.available_permits(), 1);
         Ok(())
     }

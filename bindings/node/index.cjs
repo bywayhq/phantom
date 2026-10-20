@@ -3,6 +3,7 @@
 const native = require('./phantom.node');
 const { types, TextDecoder, inspect } = require('node:util');
 const { addAbortListener } = require('node:events');
+const { AsyncLocalStorage } = require('node:async_hooks');
 const apply = Reflect.apply;
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype);
 const backingOf = Object.getOwnPropertyDescriptor(typedArray, 'buffer').get;
@@ -14,6 +15,7 @@ const profileHandles = new WeakMap();
 const profileToken = {};
 const clientToken = {};
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
+const uploadContext = new AsyncLocalStorage();
 
 class PhantomError extends Error {
   constructor(code, message, protocol, timeoutPhase, kind, field) {
@@ -435,6 +437,17 @@ class Response {
 
 class Client {
   #native;
+  #uploads = new Set();
+  #uploadCleanupError;
+  #trackUpload(iterator, upload, outcome) {
+    const pumping = uploadContext.run(this, () => pumpUpload(iterator, upload, outcome));
+    this.#uploads.add(pumping);
+    const settled = () => {
+      this.#uploads.delete(pumping);
+      this.#uploadCleanupError ??= outcome.cleanupError;
+    };
+    pumping.then(settled, settled);
+  }
   constructor(options, token) {
     if (token === clientToken) { this.#native = options; return; }
     try {
@@ -457,32 +470,63 @@ class Client {
     const cancellation = new native.NativeCancellation();
     let signal;
     let abortListener;
+    let upload;
+    let producer;
+    let iterator;
     const abort = () => cancellation.cancel();
-    const cleanup = () => { abortListener?.[Symbol.dispose](); abortListener = undefined; };
+    const cleanup = () => { upload?.stop(); abortListener?.[Symbol.dispose](); abortListener = undefined; };
     try {
       if (options === null || typeof options !== 'object') throw new PhantomError('InvalidArgument', 'request options are required');
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
       if (options.file) integer(options.file.maximumBytes, 'maximumBytes');
+      const streaming = options.body !== undefined && !types.isUint8Array(options.body);
+      if (options.file !== undefined && options.body !== undefined) throw new PhantomError('InvalidArgument', 'choose body or file');
+      if (options.bodyLength !== undefined && (options.body === undefined || options.file !== undefined)) {
+        throw new PhantomError('InvalidArgument', 'bodyLength requires a body');
+      }
+      const length = options.bodyLength === undefined ? undefined : uploadLength(options.bodyLength);
+      const byteBody = options.body === undefined || streaming ? undefined : bytes(options.body);
+      if (byteBody !== undefined && length !== undefined && BigInt(apply(lengthOf, byteBody, [])) !== length) {
+        throw new PhantomError('UploadLength', 'body does not match bodyLength');
+      }
+      if (streaming) {
+        if (typeof options.body?.[Symbol.asyncIterator] !== 'function') throw new PhantomError('InvalidArgument', 'body must be bytes or an AsyncIterable of bytes');
+        iterator = options.body[Symbol.asyncIterator]();
+        if (iterator === null || typeof iterator?.next !== 'function') throw new PhantomError('InvalidArgument', 'body must provide an async iterator');
+        upload = new native.NativeUpload(length);
+      }
       if (signal) abortListener = addAbortListener(signal, abort);
       if (signal?.aborted) abort();
       const budget = options.attemptBudget === undefined ? undefined : budgetHandles.get(options.attemptBudget);
       if (options.attemptBudget !== undefined && budget === undefined) throw new PhantomError('InvalidArgument', 'attemptBudget must be an AttemptBudget');
-      const response = await this.#native.request({
+      const pending = this.#native.request({
         url, method: options.method, protocol: options.protocol, context: options.context,
         headers: options.headers?.map((header) => ({ ...header, value: bytes(header.value) })),
-        body: options.body === undefined ? undefined : bytes(options.body),
+        body: byteBody,
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
         contentDecoding: contentDecoding(options.contentDecoding),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
         retryPolicy: retryPolicy(options.retryPolicy),
         redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
           : positiveCount(options.redirectHistoryLimit),
-      }, cancellation, budget);
+      }, cancellation, budget, upload);
+      if (upload) {
+        producer = {error: undefined};
+        this.#trackUpload(iterator, upload, producer);
+      }
+      const response = await pending;
       if (signal?.aborted) { response.close(); throw new PhantomError('Cancelled', 'request was cancelled'); }
       return new Response(response, cleanup, this);
-    } catch (error) { cancellation.cancel(); cleanup(); throw translated(error); }
+    } catch (error) {
+      cancellation.cancel(); cleanup();
+      if (upload && !producer) {
+        producer = {error: undefined};
+        this.#trackUpload(iterator, upload, producer);
+      }
+      throw producer?.error ?? translated(error);
+    }
   }
   setCookie(url, cookie) {
     try { this.#native.setCookie(url, cookie); } catch (error) { throw translated(error); }
@@ -516,9 +560,93 @@ class Client {
   }
   async close({ timeoutMs = 5000 } = {}) {
     integer(timeoutMs, 'timeoutMs');
-    try { await this.#native.close(timeoutMs); } catch (error) { throw translated(error); }
+    if (uploadContext.getStore() === this) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own client shutdown');
+    const started = performance.now();
+    try {
+      await this.#native.close(timeoutMs);
+      if (this.#uploads.size) {
+        let timer;
+        try {
+          await Promise.race([Promise.all([...this.#uploads]), new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new PhantomError('Timeout', 'upload cleanup deadline expired')), Math.max(0, timeoutMs - (performance.now() - started)));
+          })]);
+        } finally { clearTimeout(timer); }
+      }
+      if (this.#uploadCleanupError) throw this.#uploadCleanupError;
+    } catch (error) { throw translated(error); }
   }
   async [Symbol.asyncDispose]() { await this.close(); }
+}
+
+function uploadLength(value) {
+  if ((typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+    || (typeof value === 'bigint' && value >= 0n && value <= 0xffffffffffffffffn)) return BigInt(value);
+  throw new PhantomError('InvalidArgument', 'bodyLength must be an exact unsigned 64-bit integer');
+}
+
+async function pumpUpload(iterator, upload, outcome) {
+  let ended = false;
+  let terminated = false;
+  const stopped = upload.stopped().then(() => { terminated = true; return {stopped: true}; });
+  try {
+    let credit = false;
+    let emptyChunks = 0;
+    while (true) {
+      if (!credit) {
+        const ready = await Promise.race([upload.ready().then((ready) => ({ready})), stopped]);
+        if (!ready.ready) return;
+      }
+      if (terminated) return;
+      const next = await Promise.race([Promise.resolve().then(async () => {
+        try {
+          if (terminated) return {stopped: true};
+          const result = await iterator.next();
+          if (result === null || typeof result !== 'object') throw new Error();
+          return {done: Boolean(result.done), value: result.value};
+        } catch { throw new PhantomError('UploadSource', 'upload source failed'); }
+      }), stopped]);
+      if (next.stopped) return;
+      if (next === null || typeof next !== 'object') throw new PhantomError('UploadSource', 'upload iterator returned an invalid result');
+      if (next.done) {
+        if (!uploadOperation(() => upload.end())) return;
+        ended = true; return;
+      }
+      const chunk = bytes(next.value);
+      const length = apply(lengthOf, chunk, []);
+      credit = length === 0;
+      if (credit && ++emptyChunks >= 16) {
+        await new Promise((resolve) => setImmediate(resolve));
+        emptyChunks = 0;
+      } else if (!credit) emptyChunks = 0;
+      for (let offset = 0; offset < length; offset += 65536) {
+        if (offset !== 0 && !await upload.ready()) return;
+        // The native call copies this view synchronously on this environment.
+        const view = Buffer.from(apply(backingOf, chunk, []), apply(offsetOf, chunk, []) + offset, Math.min(65536, length - offset));
+        if (!uploadOperation(() => upload.write(view))) return;
+      }
+    }
+  } catch (error) {
+    outcome.error = error instanceof PhantomError ? error : new PhantomError('UploadSource', 'upload source failed');
+    upload.fail();
+  } finally {
+    upload.stop();
+    try {
+      if (!ended && typeof iterator.return === 'function') await iterator.return();
+    } catch {
+      outcome.cleanupError = new PhantomError('UploadSource', 'upload cleanup failed');
+      outcome.error ??= outcome.cleanupError;
+      upload.fail();
+    } finally { upload.settled(); }
+  }
+}
+
+function uploadOperation(operation) {
+  try { operation(); return true; }
+  catch (error) {
+    const translatedError = translated(error);
+    if (translatedError.code === 'UploadClosed') return false;
+    throw translatedError;
+  }
 }
 
 module.exports = { AttemptBudget, Client, PhantomError, Profile, Response, profiles: () => native.profileIds() };

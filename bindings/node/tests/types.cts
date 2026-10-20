@@ -177,3 +177,15 @@ function compactProfiles(base: Profile, bytes: Uint8Array): void {
   void owner; void observed; void supplied;
 }
 void compactProfiles;
+
+async function uploadBodies(client: Client): Promise<void> {
+  async function* body(): AsyncGenerator<Uint8Array> { yield Buffer.from('hello'); }
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw', body: body(), bodyLength: 5n});
+  const readable = (await import('node:stream')).Readable.from(body());
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw', body: readable});
+  // @ts-expect-error Upload producers must yield byte arrays.
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw', body: (async function* () { yield 'text'; })()});
+  // @ts-expect-error Lengths are exact integers, not strings.
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw', body: body(), bodyLength: '5'});
+}
+void uploadBodies;

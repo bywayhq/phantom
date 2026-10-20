@@ -21,7 +21,7 @@ use napi_derive::napi;
 use std::{
     ffi::c_void,
     fmt, ptr,
-    sync::Arc,
+    sync::{Arc, Mutex, PoisonError},
     time::{Duration, Instant},
 };
 
@@ -672,6 +672,86 @@ impl Default for NativeCancellation {
     }
 }
 
+/// Private one-shot upload bridge. Every write copies on the owning Env.
+#[derive(Debug)]
+#[napi]
+pub struct NativeUpload {
+    state: Arc<crate::upload::Upload>,
+    owner: Mutex<Option<Arc<Exchange>>>,
+}
+
+#[napi]
+impl NativeUpload {
+    /// Creates a source with an optional exact length.
+    #[napi(constructor)]
+    pub fn new(length: Option<BigInt>) -> Result<Self> {
+        let length = length
+            .map(|value| match (value.sign_bit, value.words.as_slice()) {
+                (false, [value]) => Ok(*value),
+                _ => Err(failure("InvalidArgument", "bodyLength must fit u64")),
+            })
+            .transpose()?;
+        Ok(Self {
+            state: crate::upload::Upload::new(length),
+            owner: Mutex::new(None),
+        })
+    }
+    /// Waits for native body polling before pulling another source frame.
+    #[napi]
+    pub fn ready(&self, env: Env) -> Result<AsyncBlock<bool>> {
+        let state = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move { Ok(state.ready().await) }).build(&env)
+    }
+    /// Copies one owned frame synchronously before any future work.
+    #[napi]
+    pub fn write(&self, env: Env, bytes: Buffer) -> Result<()> {
+        self.state
+            .write(copy_buffer(&env, bytes, crate::upload::MAXIMUM_CHUNK)?)
+    }
+    /// Marks successful producer EOF, checking exact length.
+    #[napi]
+    pub fn end(&self) -> Result<()> {
+        self.state.end()
+    }
+    /// Reports a redacted producer failure.
+    #[napi]
+    pub fn fail(&self) {
+        self.state.fail();
+    }
+    /// Stops pulling without labelling an early response as a source failure.
+    #[napi]
+    pub fn stop(&self) {
+        self.state.stop();
+    }
+    /// Waits for upload termination, independently of response headers.
+    #[napi]
+    pub fn stopped(&self, env: Env) -> Result<AsyncBlock<()>> {
+        let state = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            state.stopped().await;
+            Ok(())
+        })
+        .build(&env)
+    }
+    /// Releases JS-producer ownership only after cooperative cleanup settles.
+    #[napi]
+    pub fn settled(&self) {
+        self.state.settled();
+        self.owner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+    }
+}
+
+impl Drop for NativeUpload {
+    fn drop(&mut self) {
+        // Env teardown cannot run JS cleanup; release only native ownership here.
+        self.state.stop();
+        self.state.settled();
+    }
+}
+
 /// Reusable native client.
 #[derive(Debug)]
 #[napi]
@@ -762,6 +842,7 @@ impl NativeClient {
         mut options: RequestOptions,
         cancellation: &NativeCancellation,
         budget: Option<&NativeAttemptBudget>,
+        upload: Option<&NativeUpload>,
     ) -> Result<AsyncBlock<NativeResponse>> {
         let started = Instant::now();
         let fields = options.headers.take().unwrap_or_default();
@@ -796,7 +877,12 @@ impl NativeClient {
             started,
             Arc::clone(&cancellation.exchange),
             budget.map(|budget| budget.budget.clone()),
+            upload.map(|upload| Arc::clone(&upload.state)),
         )?;
+        if let Some(upload) = upload {
+            *upload.owner.lock().unwrap_or_else(PoisonError::into_inner) =
+                Some(Arc::clone(&cancellation.exchange));
+        }
         let owner = Arc::clone(&self.state);
         AsyncBlockBuilder::new(async move {
             let (head, exchange) = prepared.send().await?;
@@ -981,4 +1067,34 @@ pub fn profile_ids() -> Vec<String> {
         .iter()
         .map(|profile| profile.id().as_str().to_owned())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::Semaphore;
+
+    #[test]
+    fn upload_owner_retains_admission_after_the_response_owner_disappears() -> Result<()> {
+        let admission = Arc::new(Semaphore::new(1));
+        let exchange = Exchange::new();
+        let weak = Arc::downgrade(&exchange);
+        exchange.claim(
+            Arc::clone(&admission)
+                .try_acquire_owned()
+                .map_err(|_| failure("TestAdmission", "initial admission failed"))?,
+            None,
+        )?;
+        let upload = NativeUpload::new(None)?;
+        exchange.upload(Arc::clone(&upload.state));
+        *upload.owner.lock().unwrap_or_else(PoisonError::into_inner) = Some(Arc::clone(&exchange));
+        exchange.cancel();
+        drop(exchange);
+        assert!(weak.upgrade().is_some());
+        assert_eq!(admission.available_permits(), 0);
+        upload.settled();
+        assert!(weak.upgrade().is_none());
+        assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
 }

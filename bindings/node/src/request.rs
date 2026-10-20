@@ -51,6 +51,7 @@ impl Prepared {
         started: Instant,
         exchange: Arc<Exchange>,
         budget: Option<HttpAttemptBudget>,
+        upload: Option<Arc<crate::upload::Upload>>,
     ) -> Result<Self> {
         if client.is_closed() {
             return Err(failure("ClientClosed", "client is closed"));
@@ -96,7 +97,11 @@ impl Prepared {
         if let Some(prepared) = client.profile.template(&options.context)? {
             builder = builder.template(&prepared);
         }
-        if body.is_some() && options.file.is_some() {
+        if usize::from(body.is_some())
+            + usize::from(options.file.is_some())
+            + usize::from(upload.is_some())
+            > 1
+        {
             return Err(failure(
                 "InvalidBody",
                 "choose byte or file upload, not both",
@@ -149,6 +154,10 @@ impl Prepared {
         exchange.claim(permit, deadline)?;
         let pending = Pending::new(Arc::clone(&exchange), Arc::clone(client));
         client.register(&exchange)?;
+        if let Some(upload) = upload {
+            builder = builder.streaming_body(upload.body()?);
+            exchange.upload(upload);
+        }
         Ok(Self {
             builder,
             file,
@@ -164,6 +173,12 @@ impl Prepared {
             exchange,
             _pending,
         } = self;
+        if exchange.upload_state().is_some() {
+            let exchange = Arc::clone(&exchange);
+            drop(tokio::spawn(async move {
+                tokio::select! { biased; () = exchange.finished() => {}, _ = exchange.interrupted() => exchange.fail() }
+            }));
+        }
         let send = async {
             if let Some((path, maximum)) = file {
                 let file = tokio::fs::File::open(path)

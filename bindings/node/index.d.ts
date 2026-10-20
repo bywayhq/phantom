@@ -122,7 +122,10 @@ export interface RequestOptions {
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
   context: RequestContext;
   headers?: Header[];
-  body?: Uint8Array;
+  /** Async iterables are one-shot, pulled with native backpressure. */
+  body?: Uint8Array | AsyncIterable<Uint8Array>;
+  /** Optional exact byte length. Only demanded bytes are checked; an early response can leave an unread suffix. */
+  bodyLength?: number | bigint;
   file?: { path: string; maximumBytes: number };
   timeoutMs?: number;
   timeouts?: Timeouts;
