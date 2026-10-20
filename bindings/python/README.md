@@ -27,16 +27,18 @@ from the [wheel workflow](../../.github/workflows/python-wheels.yml):
 python -m pip install path/to/file.whl
 ```
 
-Candidates cover Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each includes
-licenses and a receipt identifying its source, checksums and native dependencies.
-Only the recorded host and CPython version are verified. Linux wheels do not
-claim manylinux compatibility. Windows needs the x64 Visual C++ v14 runtime
-at least as recent as the receipt's build tools.
+Candidates cover Linux x64 GNU (manylinux 2.28), Windows x64 MSVC and macOS arm64.
+All three wheels build from the same source archive and include dependency
+licenses. Receipts identify source, checksums and tested hosts. CPython 3.10 runs
+the full installed suite; 3.15 runs a smaller loopback check of the same wheel.
+Windows needs the x64 Visual C++ v14 runtime at least as recent as the build tools.
 
 For a source build, use CPython 3.10+, Rust 1.88+ and the
 [native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
 From this directory, run `maturin develop` in a virtual environment with
-Maturin 1.9.4+. The package includes type hints and `py.typed`.
+Maturin 1.15.0. The package includes type hints and `py.typed`. Published source
+archives also require the native build tools; install one with `pip install
+./phantom_http-VERSION.tar.gz`.
 
 ## Streaming and lifetime
 

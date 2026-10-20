@@ -12,6 +12,10 @@
   Python, Go and Node.js with an explicit base profile. Reports distinguish
   observed and supplemented settings; hashes cannot reconstruct profiles.
 
+- Build Python wheel candidates from one versioned source archive, retaining
+  native dependency licenses and checking clean installs on all three hosts.
+  Linux candidates target manylinux 2.28.
+
 - Expose bounded advertised-content decoding, redirect policies and history,
   and core retry scheduling in Python, Go and Node.js. Attempts retain shared
   deadlines, budgets and replay rules.
