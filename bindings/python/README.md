@@ -72,6 +72,20 @@ Profile retains its available named contexts even when exported with another.
 
 ## Requests and state
 
+Use `client.fork(sharing=SessionSharing(cookies=True, tickets=True))` for
+independent pools with selected live state. Both client classes return a new
+client immediately; use `async with` for an async fork. Import `SessionSharing`
+from `phantom_http`. Its `cookies`, `dns`, `client_hints`, `discovery` and `tickets`
+flags default to false, giving the fork empty state in those categories.
+Selected learning, expiry and clearing are shared in both directions. A flag
+does not enable a category disabled on the source. Discovery includes Alt-Svc,
+racing history and enabled HTTPS-record state; DNS selects the address cache.
+
+A fork retains profile, template, protocol, routes, trust and timeouts. Closing
+either client leaves the other usable. You can fork a closed client to create
+an open one. Sync forks have independent event loops and retain the same
+creating-thread rule.
+
 `AsyncClient` requires `profile` and `protocol`. Protocols are `h1`, `h2`, `h3`
 and `negotiated` (the library's HTTP/2 and HTTP/1.1 policy). No template is
 selected unless you pass an explicit context.

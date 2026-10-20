@@ -18,6 +18,7 @@ from . import _native
 from ._configuration import INHERIT as INHERIT
 from ._configuration import Header as Header
 from ._configuration import Proxy as Proxy
+from ._configuration import SessionSharing as SessionSharing
 from ._configuration import TimeoutOverrides as TimeoutOverrides
 from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
@@ -30,6 +31,7 @@ _Headers: TypeAlias = Iterable[Header | tuple[str, str | bytes]]
 _UploadPath: TypeAlias = str | PathLike[str]
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
+_NO_SHARED_STATE = SessionSharing()
 
 
 class Error(Exception):
@@ -338,6 +340,28 @@ class AsyncClient:
     def is_closed(self) -> bool:
         return self._native.is_closed
 
+    @classmethod
+    def _from_native(cls, native: _native.NativeClient) -> AsyncClient:
+        client = object.__new__(cls)
+        client._native = native
+        client.cookies = Cookies(native.cookies)
+        return client
+
+    def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> AsyncClient:
+        """Create open independent pools, sharing only selected live state."""
+        if not isinstance(sharing, SessionSharing):
+            raise TypeError("sharing must be SessionSharing")
+        return AsyncClient._from_native(
+            _call(
+                self._native.fork,
+                sharing.cookies,
+                sharing.dns,
+                sharing.client_hints,
+                sharing.discovery,
+                sharing.tickets,
+            )
+        )
+
     async def request(
         self,
         method: str,
@@ -555,6 +579,20 @@ class Client:
     @property
     def is_closed(self) -> bool:
         return self._async.is_closed
+
+    def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> Client:
+        """Create a fork with its own synchronous loop and shutdown lifecycle."""
+        self._check_thread_loop()
+        client = object.__new__(Client)
+        client._thread = threading.get_ident()
+        client._loop = asyncio.new_event_loop()
+        try:
+            client._async = self._async.fork(sharing=sharing)
+            client.cookies = client._async.cookies
+        except BaseException:
+            client._loop.close()
+            raise
+        return client
 
     def request(
         self,

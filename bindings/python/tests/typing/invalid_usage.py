@@ -6,6 +6,7 @@ from phantom_http import (
     Header,
     Profile,
     Proxy,
+    SessionSharing,
     TimeoutOverrides,
     Timeouts,
     Trust,
@@ -54,3 +55,11 @@ def profile_documents() -> None:
     Client(profile={}, protocol="h1")  # E: arg-type
     profile = Profile.from_catalog("exact")
     profile.catalog_id = "other"  # E: misc
+
+
+def sharing_configuration(client: Client) -> None:
+    SessionSharing(cookies=1)  # E: arg-type
+    client.fork(sharing={})  # E: arg-type
+    client.fork(cookies=True)  # E: call-arg
+    selection = SessionSharing()
+    selection.dns = True  # E: misc

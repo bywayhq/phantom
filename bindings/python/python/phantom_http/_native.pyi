@@ -62,6 +62,14 @@ class NativeClient:
     def cookies(self) -> NativeCookies: ...
     @property
     def is_closed(self) -> bool: ...
+    def fork(
+        self,
+        cookies: bool,
+        dns: bool,
+        client_hints: bool,
+        discovery: bool,
+        tickets: bool,
+    ) -> NativeClient: ...
     def request(
         self,
         method: str,

@@ -1,5 +1,5 @@
 use crate::{configuration, error, profile, response::NativeResponse, runtime, upload::FileBody};
-use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader};
+use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
 use pyo3::prelude::*;
 use std::{path::PathBuf, time::Duration};
 
@@ -135,6 +135,27 @@ impl NativeClient {
     #[getter]
     fn is_closed(&self) -> bool {
         self.client.is_closed()
+    }
+
+    fn fork(
+        &self,
+        cookies: bool,
+        dns: bool,
+        client_hints: bool,
+        discovery: bool,
+        tickets: bool,
+    ) -> Self {
+        Self {
+            client: self.client.fork(
+                SessionSharing::none()
+                    .cookies(cookies)
+                    .dns(dns)
+                    .client_hints(client_hints)
+                    .discovery(discovery)
+                    .tickets(tickets),
+            ),
+            protocol: self.protocol.clone(),
+        }
     }
 
     #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None))]

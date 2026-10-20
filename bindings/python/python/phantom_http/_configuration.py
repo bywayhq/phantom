@@ -116,6 +116,28 @@ class Trust:
                 raise TypeError(f"{name} must be a tuple of DER bytes")
 
 
+@dataclass(frozen=True, kw_only=True)
+class SessionSharing:
+    """Live state selected for sharing between independent client pools."""
+
+    cookies: bool = False
+    dns: bool = False
+    client_hints: bool = False
+    discovery: bool = False
+    tickets: bool = False
+
+    def __post_init__(self) -> None:
+        for value in (
+            self.cookies,
+            self.dns,
+            self.client_hints,
+            self.discovery,
+            self.tickets,
+        ):
+            if not isinstance(value, bool):
+                raise TypeError("session sharing selections must be bool")
+
+
 @dataclass(frozen=True)
 class Header:
     """An ordered caller header, optionally never-indexed by HTTP/2 and HTTP/3."""

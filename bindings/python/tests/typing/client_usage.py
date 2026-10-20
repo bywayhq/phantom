@@ -20,6 +20,7 @@ from phantom_http import (
     ProfileError,
     Proxy,
     Response,
+    SessionSharing,
     TimeoutOverrides,
     Timeouts,
     Trust,
@@ -143,3 +144,16 @@ def authored_profile(exact_id: str, document: bytes, error: ProfileError) -> Pro
     Client(profile=imported, protocol="h1", context="profile")
     AsyncClient(profile=catalog, protocol="h2", context="navigation")
     return imported
+
+
+def fork_client(client: Client) -> Client:
+    selection = SessionSharing(cookies=True, dns=True, client_hints=True)
+    return client.fork(sharing=selection)
+
+
+async def use_async_fork(client: AsyncClient, url: str) -> None:
+    async with (
+        client.fork(sharing=SessionSharing(discovery=True, tickets=True)) as fork,
+        await fork.request("GET", url) as response,
+    ):
+        _payload: bytes = await response.read(max_bytes=100)
