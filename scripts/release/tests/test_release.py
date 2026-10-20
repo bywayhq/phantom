@@ -193,6 +193,44 @@ class ReleaseChecks(unittest.TestCase):
             verify.CRATES_IO,
         )
 
+    def test_transport_forks_use_their_staged_archive_identities(self):
+        versions = {name: version for name, version, _manifest in publish.plan()}
+        workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
+            "workspace"
+        ]
+        for alias in ("http2", "wreq-proto"):
+            with self.subTest(alias=alias):
+                dependency = workspace["dependencies"][alias].copy()
+                manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
+                native = tomllib.loads(manifest.read_text())["package"]
+                self.assertEqual(versions.get(native["name"]), native["version"])
+                self.assertEqual(dependency["version"], "=" + native["version"])
+                consumer = {
+                    "package": {"name": "consumer", "version": "1.0.0"},
+                    "dependencies": {alias: dependency},
+                }
+                record = verify.index_record(consumer, "checksum", versions)["deps"][0]
+                self.assertEqual(record["package"], native["name"])
+                self.assertEqual(record["req"], "=" + native["version"])
+                self.assertIsNone(record["registry"])
+
+        transport = tomllib.loads(
+            (publish.ROOT / "vendor/wreq-proto/Cargo.toml").read_text()
+        )
+        http2 = transport["dependencies"]["http2"].copy()
+        del http2["path"]
+        self.assertIn(http2["package"], versions)
+        self.assertEqual(http2["version"], "=" + versions[http2["package"]])
+        transport["dependencies"]["http2"] = http2
+        record = next(
+            dependency
+            for dependency in verify.index_record(transport, "checksum", versions)[
+                "deps"
+            ]
+            if dependency["name"] == "http2"
+        )
+        self.assertIsNone(record["registry"])
+
     def test_index_rejects_a_dependency_that_still_uses_git_or_path(self):
         for source in ["git", "path"]:
             with self.subTest(source=source), self.assertRaises(ValueError):
@@ -247,6 +285,8 @@ class ReleaseChecks(unittest.TestCase):
                 "phantom-btls-sys",
                 "phantom-btls",
                 "phantom-tokio-btls",
+                "phantom-http2",
+                "phantom-wreq-proto",
                 "phantom-testkit",
                 "phantom-profile",
                 "phantom-quic-btls",
@@ -255,6 +295,9 @@ class ReleaseChecks(unittest.TestCase):
                 "phantom-cli",
             },
         )
+        workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
+            "workspace"
+        ]
         seen = set()
         for name, _version, manifest in plan:
             data = tomllib.loads((publish.ROOT / manifest).read_text())
@@ -262,6 +305,8 @@ class ReleaseChecks(unittest.TestCase):
             for table in tables:
                 for kind in ("dependencies", "build-dependencies"):
                     for alias, dependency in table.get(kind, {}).items():
+                        if isinstance(dependency, dict) and dependency.get("workspace"):
+                            dependency = workspace["dependencies"][alias]
                         package = (
                             dependency.get("package", alias)
                             if isinstance(dependency, dict)
