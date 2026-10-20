@@ -371,6 +371,8 @@ class RepairFlowTests(unittest.TestCase):
                     ("bindings/python/README.md", README),
                     ("LICENSE-MIT", license_text),
                     ("LICENSE-APACHE", b"Apache license"),
+                    ("bindings/python/LICENSE-MIT", license_text),
+                    ("bindings/python/LICENSE-APACHE", b"Apache license"),
                     (
                         "bindings/python/Cargo.toml",
                         b'[package]\nname="phantom-python"\nversion="0.2.0"',
@@ -569,6 +571,20 @@ class RepairFlowTests(unittest.TestCase):
                 self.assertEqual(
                     {item["name"] for item in inventory},
                     {"phantom-python", "windows", "linux", "macos", "build-tool"},
+                )
+                python_notices = next(
+                    item["notices"]
+                    for item in inventory
+                    if item["name"] == "phantom-python"
+                )
+                self.assertEqual(
+                    {
+                        result.extractfile(
+                            prefix + "/third-party-notices/" + item["file"]
+                        ).read()
+                        for item in python_notices
+                    },
+                    {license_text, b"Apache license"},
                 )
                 for item in inventory:
                     for notice in item["notices"]:
