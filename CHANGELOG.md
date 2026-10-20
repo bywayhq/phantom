@@ -23,6 +23,9 @@
   native dependency licenses and checking clean installs on all three hosts.
   Linux candidates target manylinux 2.28.
 
+- Check Go native library versions before creating resources, and verify
+  versioned module installs against matching native candidates.
+
 - Expose bounded advertised-content decoding, redirect policies and history,
   and core retry scheduling in Python, Go and Node.js. Attempts retain shared
   deadlines, budgets and replay rules.

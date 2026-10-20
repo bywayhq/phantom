@@ -77,6 +77,11 @@ point `CGO_LDFLAGS` at the native library directory with `-L`, then add that
 directory to `LD_LIBRARY_PATH` on Linux or `DYLD_LIBRARY_PATH` on macOS.
 The library remains loaded for the process lifetime.
 
+Phantom checks its ABI and package version once, before creating native
+resources. A mismatch returns `*Error` with `Kind` `native_abi_mismatch` or
+`native_version_mismatch`. Install the matching library and restart the process.
+On Windows, set `PHANTOM_GO_LIBRARY` before the first native operation.
+
 ## Requests and streaming
 
 `Protocol` accepts `h1`, `h2`, `h3` or `negotiated`. Exact protocols fail when
