@@ -40,12 +40,18 @@ class SyncMetadataTests(unittest.TestCase):
         with server() as (peer, origin), Client(**OPTIONS) as client:
             url = origin + "/redirect?encoded=%2F&x=1&x=2"
             response = client.request("GET", url)
-            self.assertEqual(response.status_code, 302)
-            self.assertEqual(response.url, url)
-            self.assertEqual(response.redirects_followed, 0)
-            self.assertEqual(response.connection_setup_retries, 0)
-            self.assertEqual(response.read_chunk(2), b"he")
-            response.close()
+            chunks = response.iter_bytes(2)
+            try:
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, url)
+                self.assertEqual(response.redirects_followed, 0)
+                self.assertEqual(response.connection_setup_retries, 0)
+                self.assertEqual(next(chunks), b"he")
+            finally:
+                try:
+                    chunks.close()
+                finally:
+                    response.close()
             self.assertEqual(response.url, url)
             self.assertEqual(response.redirects_followed, 0)
             self.assertEqual(response.connection_setup_retries, 0)
