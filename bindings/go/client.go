@@ -198,15 +198,22 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	var response *Response
 	err = perform(ctx, command, request.Body, func(event completion) error {
 		var head struct {
-			Body     uint64   `json:"body"`
-			Status   int      `json:"status"`
-			Protocol string   `json:"protocol"`
-			Headers  []Header `json:"headers"`
+			Body                   uint64   `json:"body"`
+			Status                 int      `json:"status"`
+			Protocol               string   `json:"protocol"`
+			Headers                []Header `json:"headers"`
+			EffectiveURL           string   `json:"effective_url"`
+			RedirectsFollowed      uint64   `json:"redirects_followed"`
+			ConnectionSetupRetries uint64   `json:"connection_setup_retries"`
 		}
-		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 {
+		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 || head.EffectiveURL == "" {
 			return &Error{Kind: "native_abi"}
 		}
-		response = &Response{Status: head.Status, Protocol: head.Protocol, Headers: head.Headers, Body: newBody(ctx, c, head.Body)}
+		response = &Response{
+			Status: head.Status, Protocol: head.Protocol, Headers: head.Headers,
+			Body: newBody(ctx, c, head.Body), EffectiveURL: head.EffectiveURL,
+			RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries,
+		}
 		return nil
 	})
 	runtime.KeepAlive(request.Budget)

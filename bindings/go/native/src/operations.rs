@@ -415,8 +415,71 @@ fn global() -> Result<&'static Global, Failure> {
 struct Head {
     status: u16,
     protocol: &'static str,
+    effective_url: String,
+    redirects_followed: usize,
+    connection_setup_retries: usize,
     headers: Vec<Header>,
     body: std::sync::Arc<BodyOwner>,
+}
+
+fn response_head(
+    response: http::Response<ResponseBody>,
+    client: u64,
+    upload: UploadPermit,
+) -> Result<Head, Failure> {
+    let info = response
+        .extensions()
+        .get::<phantom::ResponseInfo>()
+        .ok_or_else(|| Failure::new("response_info_unavailable"))?;
+    let effective_url = info.effective_uri().to_string();
+    let redirects_followed = info.redirects_followed();
+    let connection_setup_retries = info.retries_performed();
+    let fields = response
+        .extensions()
+        .get::<phantom::OrderedResponseHeaders>()
+        .ok_or_else(|| Failure::new("ordered_headers_unavailable"))?;
+    let size = fields.iter().try_fold(0usize, |size, field| {
+        size.checked_add(field.name().len())?
+            .checked_add(field.value().len())
+    });
+    if fields.iter().count() > 256 || size.is_none_or(|size| size > 32 * 1024) {
+        return Err(Failure::new("response_headers_limit"));
+    }
+    let headers = fields
+        .iter()
+        .map(|field| Header {
+            name: field.name().to_owned(),
+            value: field.value().to_vec(),
+            sensitive: false,
+        })
+        .collect();
+    let protocol = match response.version() {
+        http::Version::HTTP_11 => "h1",
+        http::Version::HTTP_2 => "h2",
+        http::Version::HTTP_3 => "h3",
+        _ => "unknown",
+    };
+    let status = response.status().as_u16();
+    let owner = std::sync::Arc::new(BodyOwner {
+        client,
+        stream: Mutex::new(Some(Stream {
+            body: response.into_body(),
+            pending: Bytes::new(),
+        })),
+        closed: AtomicBool::new(false),
+        busy: AtomicBool::new(false),
+        changed: Notify::new(),
+        _upload: Some(upload),
+    });
+    Ok(Head {
+        status,
+        protocol,
+        effective_url,
+        redirects_followed,
+        connection_setup_retries,
+        headers,
+        body: owner,
+    })
 }
 enum Outcome {
     Head(Head),
@@ -527,7 +590,9 @@ impl Global {
                     state.id().map(|body| {
                         state.bodies.insert(body, head.body);
                         if let Some(operation) = state.operations.get_mut(&id) { operation.response = Some(body); }
-                        json!({"body":body,"status":head.status,"protocol":head.protocol,"headers":head.headers})
+                        json!({"body":body,"status":head.status,"protocol":head.protocol,"headers":head.headers,
+                            "effective_url":head.effective_url,"redirects_followed":head.redirects_followed,
+                            "connection_setup_retries":head.connection_setup_retries})
                     })
                 }
             }
@@ -766,49 +831,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 drop(state);
                 global.spawn(id, cancel, async move {
                     let response = request.send().await.map_err(Failure::from)?;
-                    let fields = response
-                        .extensions()
-                        .get::<phantom::OrderedResponseHeaders>()
-                        .ok_or_else(|| Failure::new("ordered_headers_unavailable"))?;
-                    let size = fields.iter().try_fold(0usize, |size, field| {
-                        size.checked_add(field.name().len())?
-                            .checked_add(field.value().len())
-                    });
-                    if fields.iter().count() > 256 || size.is_none_or(|size| size > 32 * 1024) {
-                        return Err(Failure::new("response_headers_limit"));
-                    }
-                    let headers = fields
-                        .iter()
-                        .map(|field| Header {
-                            name: field.name().to_owned(),
-                            value: field.value().to_vec(),
-                            sensitive: false,
-                        })
-                        .collect();
-                    let protocol = match response.version() {
-                        http::Version::HTTP_11 => "h1",
-                        http::Version::HTTP_2 => "h2",
-                        http::Version::HTTP_3 => "h3",
-                        _ => "unknown",
-                    };
-                    let status = response.status().as_u16();
-                    let owner = std::sync::Arc::new(BodyOwner {
-                        client,
-                        stream: Mutex::new(Some(Stream {
-                            body: response.into_body(),
-                            pending: Bytes::new(),
-                        })),
-                        closed: AtomicBool::new(false),
-                        busy: AtomicBool::new(false),
-                        changed: Notify::new(),
-                        _upload: Some(permit),
-                    });
-                    Ok(Outcome::Head(Head {
-                        status,
-                        protocol,
-                        headers,
-                        body: owner,
-                    }))
+                    response_head(response, client, permit).map(Outcome::Head)
                 });
                 Ok(json!({"operation":id}))
             }
@@ -900,6 +923,8 @@ pub(super) fn wait() -> Result<Completion, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod response_info;
 
     fn test_global() -> Result<&'static Global, Failure> {
         Ok(Box::leak(Box::new(Global {
@@ -997,6 +1022,9 @@ mod tests {
             Ok(Outcome::Head(Head {
                 status: 200,
                 protocol: "h1",
+                effective_url: "http://localhost/".to_owned(),
+                redirects_followed: 0,
+                connection_setup_retries: 0,
                 headers: vec![Header {
                     name: "x".to_owned(),
                     value: vec![255; MAX_METADATA],
@@ -1124,6 +1152,9 @@ mod tests {
             Ok(Outcome::Head(Head {
                 status: 200,
                 protocol: "h1",
+                effective_url: "http://localhost/".to_owned(),
+                redirects_followed: 0,
+                connection_setup_retries: 0,
                 headers: Vec::new(),
                 body: std::sync::Arc::clone(&owner),
             })),

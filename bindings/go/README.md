@@ -95,6 +95,14 @@ HTTP error statuses remain responses. Context cancellation returns Go's
 context error. Error messages omit URLs, proxy credentials, and native
 source chains.
 
+Responses expose `EffectiveURL`, `RedirectsFollowed` and
+`ConnectionSetupRetries` from the core response metadata. The last count
+covers caller-enabled connection-setup retries across redirect hops, counted
+when setup starts. It excludes redirects, status retries, reused-connection
+and GOAWAY replays, proxy authentication, client hints and protocol fallback.
+This Go facade keeps the core defaults: no automatic redirects or retries.
+Redirect and retry policy setters are not exposed yet.
+
 ## Build and limits
 
 Build the workspace package `phantom-go` with Rust 1.88 or later, including

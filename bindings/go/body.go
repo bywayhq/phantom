@@ -15,6 +15,15 @@ type Response struct {
 	Protocol string
 	Headers  []Header
 	Body     *Body
+	// EffectiveURL is the absolute URL that produced this response.
+	EffectiveURL string
+	// RedirectsFollowed counts redirects before this response.
+	RedirectsFollowed uint64
+	// ConnectionSetupRetries counts caller-enabled connection-setup retries
+	// across redirect hops, counted when setup starts. It excludes redirects,
+	// status retries, reused-connection and GOAWAY replays, proxy authentication,
+	// client hints and protocol fallback.
+	ConnectionSetupRetries uint64
 }
 type bodyLifetime struct {
 	id     uint64
