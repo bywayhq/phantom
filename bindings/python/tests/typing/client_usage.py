@@ -140,6 +140,8 @@ async def asynchronous(profile: str, url: str) -> bytes:
 
 
 def error_fields(error: Error) -> tuple[str, str, str | None, str | None]:
+    _original: BaseException | None = error.original
+    _cleanup: BaseException | None = error.cleanup_error
     if isinstance(error, BodyLimitExceeded):
         _category: str = error.category
     return error.category, error.kind, error.protocol, error.timeout_phase

@@ -48,7 +48,7 @@ _NO_SHARED_STATE = SessionSharing()
 
 
 class Error(Exception):
-    """A redacted failure with stable kind, protocol and timeout_phase fields."""
+    """A redacted failure; upload causes require explicit attribute inspection."""
 
     def __init__(
         self,
@@ -62,6 +62,8 @@ class Error(Exception):
         self.kind = kind
         self.protocol = protocol
         self.timeout_phase = timeout_phase
+        self.original: BaseException | None = None
+        self.cleanup_error: BaseException | None = None
 
 
 class TimeoutError(Error):
@@ -97,6 +99,48 @@ def _upload_error(upload: _upload.Upload) -> BaseException:
     ):
         return upload.error
     return UploadError(upload.error, upload.cleanup_error)
+
+
+def _primary_error(
+    error: BaseException,
+    upload: _upload.Upload | None = None,
+    cleanup: BaseException | None = None,
+) -> BaseException:
+    primary: BaseException = (
+        _error(error) if isinstance(error, _native.NativeError) else error
+    )
+    if not isinstance(primary, Error):
+        # Caller exceptions may define read-only or throwing metadata properties.
+        # Cleanup must not replace those exceptions while trying to annotate them.
+        return primary
+    details = cast(dict[str, object], primary.__dict__)
+    if upload is not None:
+        # A producer failure explains RequestBody, but cannot replace a distinct
+        # transport failure, timeout, cancellation or exhausted attempt budget.
+        if (
+            isinstance(error, _native.NativeError)
+            and isinstance(primary, Error)
+            and primary.kind == "request_body"
+            and upload.error is not None
+        ):
+            failure = _upload_error(upload)
+            if not isinstance(failure, Error):
+                return failure
+            failure.protocol = primary.protocol
+            failure.timeout_phase = primary.timeout_phase
+            primary = failure
+            details = cast(dict[str, object], primary.__dict__)
+        if upload.error is not None and upload.error is not primary:
+            details["original"] = upload.error
+        if upload.cleanup_error is not None:
+            details["cleanup_error"] = upload.cleanup_error
+    if isinstance(cleanup, UploadError):
+        if details.get("original") is None:
+            details["original"] = cleanup.original
+        cleanup = cleanup.cleanup_error
+    if cleanup is not None and details.get("cleanup_error") is None:
+        details["cleanup_error"] = cleanup
+    return primary
 
 
 class ProfileError(Error):
@@ -399,6 +443,13 @@ class AsyncResponse:
         ):
             raise _upload_error(self._upload) from None
 
+    async def _close_after_error(self, error: BaseException) -> BaseException:
+        try:
+            await self.aclose()
+        except BaseException as cleanup:
+            return _primary_error(error, self._upload, cleanup)
+        return _primary_error(error, self._upload)
+
     async def read_chunk(self, maximum: int = 65536) -> bytes | None:
         """Read at most maximum bytes (1 through 1 MiB), or None at EOF."""
         try:
@@ -407,18 +458,22 @@ class AsyncResponse:
                 await self.aclose()
             self._check_upload()
             return chunk
-        except asyncio.CancelledError:
-            self.close()
-            raise
-        except _native.NativeError as error:
-            self._check_upload()
-            raise _error(error) from None
+        except asyncio.CancelledError as error:
+            try:
+                self.close()
+            except BaseException as cleanup:
+                raise _primary_error(error, self._upload, cleanup) from None
+            raise _primary_error(error, self._upload) from None
+        except BaseException as error:
+            raise await self._close_after_error(error) from None
 
     async def iter_bytes(self, chunk_size: int = 65536) -> AsyncGenerator[bytes, None]:
         try:
             while (chunk := await self.read_chunk(chunk_size)) is not None:
                 yield chunk
-        finally:
+        except BaseException as error:
+            raise await self._close_after_error(error) from None
+        else:
             await self.aclose()
 
     async def read(self, *, max_bytes: int) -> bytes:
@@ -426,11 +481,11 @@ class AsyncResponse:
         if not isinstance(max_bytes, int) or max_bytes < 0:
             raise ValueError("max_bytes must be a nonnegative integer")
         try:
-            return await self._native.read(min(max_bytes, sys.maxsize))
-        except _native.NativeError as error:
-            raise _error(error) from None
-        finally:
-            await self.aclose()
+            body = await self._native.read(min(max_bytes, sys.maxsize))
+        except BaseException as error:
+            raise await self._close_after_error(error) from None
+        await self.aclose()
+        return body
 
     async def text(
         self, *, max_bytes: int, encoding: str = "utf-8", errors: str = "strict"
@@ -458,7 +513,11 @@ class AsyncResponse:
     async def __aenter__(self) -> AsyncResponse:
         return self
 
-    async def __aexit__(self, *_: object) -> None:
+    async def __aexit__(
+        self, _: object, error: BaseException | None, __: object
+    ) -> None:
+        if error is not None:
+            raise await self._close_after_error(error) from None
         await self.aclose()
 
 
@@ -644,14 +703,13 @@ class AsyncClient:
             return AsyncResponse(native, pump)
         except BaseException as error:
             if pump is not None:
-                pump.close()
-                if not await pump.wait():
-                    raise TimeoutError("request", "shutdown_timeout") from None
-                if pump.error is not None or pump.cleanup_error is not None:
-                    raise _upload_error(pump) from None
-            if isinstance(error, _native.NativeError):
-                raise _error(error) from None
-            raise
+                try:
+                    pump.close()
+                    if not await pump.wait():
+                        raise TimeoutError("request", "shutdown_timeout")
+                except BaseException as cleanup:
+                    raise _primary_error(error, pump, cleanup) from None
+            raise _primary_error(error, pump) from None
 
     async def close_idle_connections(self) -> None:
         """Release idle connections, retaining active bodies and session state."""
@@ -710,8 +768,15 @@ class AsyncClient:
     async def __aenter__(self) -> AsyncClient:
         return self
 
-    async def __aexit__(self, *_: object) -> None:
-        await self.close()
+    async def __aexit__(
+        self, _: object, error: BaseException | None, __: object
+    ) -> None:
+        try:
+            await self.close()
+        except BaseException as cleanup:
+            if error is not None:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
 
 
 class Response:
@@ -776,7 +841,13 @@ class Response:
                 )
             ) is not None:
                 yield chunk
-        finally:
+        except BaseException as error:
+            try:
+                self.close()
+            except BaseException as cleanup:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
+        else:
             self.close()
 
     def close(self) -> None:
@@ -789,8 +860,13 @@ class Response:
     def __enter__(self) -> Response:
         return self
 
-    def __exit__(self, *_: object) -> None:
-        self.close()
+    def __exit__(self, _: object, error: BaseException | None, __: object) -> None:
+        try:
+            self.close()
+        except BaseException as cleanup:
+            if error is not None:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
 
 
 class Client:
@@ -956,5 +1032,10 @@ class Client:
     def __enter__(self) -> Client:
         return self
 
-    def __exit__(self, *_: object) -> None:
-        self.close()
+    def __exit__(self, _: object, error: BaseException | None, __: object) -> None:
+        try:
+            self.close()
+        except BaseException as cleanup:
+            if error is not None:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
