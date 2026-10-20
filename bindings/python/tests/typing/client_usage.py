@@ -18,6 +18,7 @@ from phantom_http import (
     Error,
     Header,
     HTTPStatusError,
+    ImportedProfile,
     Profile,
     ProfileError,
     Proxy,
@@ -175,6 +176,19 @@ def authored_profile(exact_id: str, document: bytes, error: ProfileError) -> Pro
     _field: str = error.field
     Client(profile=imported, protocol="h1", context="profile")
     AsyncClient(profile=catalog, protocol="h2", context="navigation")
+    return imported
+
+
+def import_observations(base: Profile, raw: str, data: bytes) -> ImportedProfile:
+    _ja3: ImportedProfile = Profile.import_ja3(raw, base=base)
+    _hello: ImportedProfile = Profile.import_client_hello(data, base=base)
+    _akamai: ImportedProfile = Profile.import_akamai(raw, base=base)
+    _original: ImportedProfile = Profile.import_ja4(raw, format="original", base=base)
+    _sorted: ImportedProfile = Profile.import_ja4(raw, format="sorted", base=base)
+    imported = Profile.import_quic_transport(data, base=base)
+    _observed: tuple[str, ...] = imported.observed_fields
+    _supplemented: tuple[str, ...] = imported.supplemented_fields
+    Client(profile=imported.profile, protocol="h3")
     return imported
 
 

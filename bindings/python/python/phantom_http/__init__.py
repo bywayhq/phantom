@@ -156,6 +156,62 @@ class Profile:
             raise TypeError("profile documents must be bytes")
         return cls._wrap(_profile_call(_native.NativeProfile.import_json, document))
 
+    @classmethod
+    def import_ja3(cls, description: str, *, base: Profile) -> ImportedProfile:
+        """Import raw JA3 using the base for its missing settings."""
+        _import_input(description, str, base)
+        return _imported(
+            _profile_call(_native.NativeProfile.import_ja3, description, base._native)
+        )
+
+    @classmethod
+    def import_client_hello(cls, handshake: bytes, *, base: Profile) -> ImportedProfile:
+        """Import a TCP handshake including its four-byte header, without a TLS record."""
+        _import_input(handshake, bytes, base)
+        return _imported(
+            _profile_call(
+                _native.NativeProfile.import_client_hello, handshake, base._native
+            )
+        )
+
+    @classmethod
+    def import_akamai(cls, description: str, *, base: Profile) -> ImportedProfile:
+        """Import ordered HTTP/2 settings, window update and pseudo-header order."""
+        _import_input(description, str, base)
+        return _imported(
+            _profile_call(
+                _native.NativeProfile.import_akamai, description, base._native
+            )
+        )
+
+    @classmethod
+    def import_ja4(
+        cls,
+        description: str,
+        *,
+        format: Literal["sorted", "original"],
+        base: Profile,
+    ) -> ImportedProfile:
+        """Import raw JA4; sorted input retains the explicit base's ordering."""
+        _import_input(description, str, base)
+        return _imported(
+            _profile_call(
+                _native.NativeProfile.import_ja4, description, format, base._native
+            )
+        )
+
+    @classmethod
+    def import_quic_transport(
+        cls, parameters: bytes, *, base: Profile
+    ) -> ImportedProfile:
+        """Import extension 57 payload bytes; connection IDs are generated afresh."""
+        _import_input(parameters, bytes, base)
+        return _imported(
+            _profile_call(
+                _native.NativeProfile.import_quic_transport, parameters, base._native
+            )
+        )
+
     def export_json(self) -> bytes:
         return _profile_call(self._native.export_json)
 
@@ -166,6 +222,31 @@ class Profile:
     @property
     def catalog_id(self) -> str | None:
         return self._native.catalog_id
+
+
+@dataclass(frozen=True, slots=True)
+class ImportedProfile:
+    """Custom profile and canonical paths supplied by input or retained from its base."""
+
+    profile: Profile
+    observed_fields: tuple[str, ...]
+    supplemented_fields: tuple[str, ...]
+
+
+def _import_input(
+    value: object, expected: type[str] | type[bytes], base: Profile
+) -> None:
+    if not isinstance(base, Profile):
+        raise TypeError("base must be a Profile")
+    if not isinstance(value, expected):
+        raise TypeError(
+            "description must be str" if expected is str else "input must be bytes"
+        )
+
+
+def _imported(result: tuple[_NativeProfile, list[str], list[str]]) -> ImportedProfile:
+    profile, observed, supplemented = result
+    return ImportedProfile(Profile._wrap(profile), tuple(observed), tuple(supplemented))
 
 
 class AttemptBudget:

@@ -90,3 +90,15 @@ def retry_configuration(client: Client) -> None:
     StatusRetry(statuses=[503], maximum=1, delay=0)  # E: arg-type
     settings = RetryPolicy.none()
     settings.maximum_retries = 1  # E: misc
+
+
+def compact_profiles(base: Profile) -> None:
+    Profile.import_ja3("raw")  # E: call-arg
+    Profile.import_akamai("raw", base="catalog")  # E: arg-type
+    Profile.import_ja4("raw", base=base)  # E: call-arg
+    Profile.import_ja4("raw", format="auto", base=base)  # E: arg-type
+    Profile.import_client_hello("bytes", base=base)  # E: arg-type
+    Profile.import_quic_transport(bytearray(), base=base)  # E: arg-type
+    imported = Profile.import_ja3("raw", base=base)
+    imported.profile = base  # E: misc
+    imported.observed_fields = ()  # E: misc

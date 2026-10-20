@@ -11,6 +11,32 @@ class NativeProfile:
     def from_catalog(exact_id: str, context: str | None = None) -> NativeProfile: ...
     @staticmethod
     def import_json(document: bytes) -> NativeProfile: ...
+    @staticmethod
+    def import_ja3(
+        description: str,
+        base: NativeProfile,
+    ) -> tuple[NativeProfile, list[str], list[str]]: ...
+    @staticmethod
+    def import_client_hello(
+        handshake: bytes,
+        base: NativeProfile,
+    ) -> tuple[NativeProfile, list[str], list[str]]: ...
+    @staticmethod
+    def import_akamai(
+        description: str,
+        base: NativeProfile,
+    ) -> tuple[NativeProfile, list[str], list[str]]: ...
+    @staticmethod
+    def import_ja4(
+        description: str,
+        format: str,
+        base: NativeProfile,
+    ) -> tuple[NativeProfile, list[str], list[str]]: ...
+    @staticmethod
+    def import_quic_transport(
+        parameters: bytes,
+        base: NativeProfile,
+    ) -> tuple[NativeProfile, list[str], list[str]]: ...
     def export_json(self) -> bytes: ...
     @property
     def catalog_id(self) -> str | None: ...
