@@ -167,7 +167,8 @@ Verification remains enabled. `closeIdleConnections()` retires idle connections;
 `refreshConnections()` retires pools while preserving tickets. Active responses
 remain usable. Clear cookies, DNS, client hints, Alt-Svc, or tickets explicitly
 with `clearCookies()`, `clearDnsCache()`, `clearClientHints()`, `clearAltSvc()`,
-or `clearSessionTickets()`.
+or `clearSessionTickets()`. Use `clearAltSvcRacingHistory()` to reset racing
+decisions while retaining advertised alternatives.
 
 `maximumActiveRequests` bounds requests plus unfinished bodies, defaults to 32,
 and accepts 1 through 1024. Admission fails with `Capacity` when full. Each
@@ -177,7 +178,11 @@ Closed clients still count until their owned work settles. Request slots do
 not bound the shared napi-rs Tokio runtime's host-dependent worker count.
 
 `AttemptBudget` wraps the shared native origin-attempt counter. Attach the same
-object to concurrent requests to share its allowance. Native cookies are
+object to concurrent requests to share its allowance. Counts accept safe integer
+numbers or `bigint` within the native platform's range. `remaining` returns a
+number through `Number.MAX_SAFE_INTEGER`, then `bigint`. Call `tryAdmit()` only
+for attempts made outside Phantom; exhaustion throws `AttemptBudgetExhausted`.
+Phantom charges attached requests itself. Native cookies are
 opt-in with `cookies: true`; use `setCookie` and `cookieValue` for jar access.
 Cookie matching uses top-level navigation semantics. A fetch template changes
 headers only.

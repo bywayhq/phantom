@@ -94,6 +94,75 @@ test('native attempt budgets atomically gate concurrent sends and stay independe
   assert.equal(received, 2);
 });
 
+test('external admissions and concurrent native sends spend the same allowance', async (t) => {
+  let received = 0;
+  const {url} = await peer(t, (_req, res) => { received++; res.end('ok'); });
+  const client = makeClient();
+  const other = makeClient();
+  t.after(() => client.close());
+  t.after(() => other.close());
+  const budget = new AttemptBudget(13);
+  budget.tryAdmit();
+  await (await client.request(url, {...request, attemptBudget: budget})).bytes(2);
+  assert.equal(budget.remaining, 11);
+  const outcomes = await Promise.allSettled(Array.from({length: 16}, async (_, index) => {
+    await Promise.resolve();
+    if (index % 2 === 0) { budget.tryAdmit(); return 'external'; }
+    const owner = index % 4 === 1 ? client : other;
+    await (await owner.request(url, {...request, attemptBudget: budget})).bytes(2);
+    return 'http';
+  }));
+  const admitted = outcomes.filter(({status}) => status === 'fulfilled');
+  assert.equal(admitted.length, 11);
+  for (const outcome of outcomes.filter(({status}) => status === 'rejected')) {
+    assert.ok(code('AttemptBudgetExhausted')(outcome.reason));
+  }
+  assert.equal(received, 1 + admitted.filter(({value}) => value === 'http').length);
+  assert.equal(budget.remaining, 0);
+  const before = received;
+  assert.throws(() => budget.tryAdmit(), code('AttemptBudgetExhausted'));
+  await assert.rejects(client.request(url, {...request, attemptBudget: budget}), code('AttemptBudgetExhausted'));
+  assert.equal(received, before);
+  const independent = new AttemptBudget(2);
+  independent.tryAdmit();
+  await (await client.request(url, {...request, attemptBudget: independent})).bytes(2);
+  assert.equal(independent.remaining, 0);
+  assert.equal(received, before + 1);
+});
+
+test('attempt counts preserve exact values above u32 and the safe-number boundary', () => {
+  for (const maximum of [0, 1, 0x100000000, Number.MAX_SAFE_INTEGER]) {
+    const budget = new AttemptBudget(maximum);
+    assert.equal(budget.remaining, maximum);
+    if (maximum === 0) assert.throws(() => budget.tryAdmit(), code('AttemptBudgetExhausted'));
+    else { budget.tryAdmit(); assert.equal(budget.remaining, maximum - 1); }
+  }
+  const crossing = new AttemptBudget(9007199254740993n);
+  assert.equal(crossing.remaining, 9007199254740993n);
+  crossing.tryAdmit();
+  assert.equal(crossing.remaining, 9007199254740992n);
+  crossing.tryAdmit();
+  assert.equal(crossing.remaining, Number.MAX_SAFE_INTEGER);
+  const maximum = new AttemptBudget(0xffffffffffffffffn);
+  assert.equal(maximum.remaining, 0xffffffffffffffffn);
+  maximum.tryAdmit();
+  assert.equal(maximum.remaining, 0xfffffffffffffffen);
+});
+
+test('invalid or unsupported attempt counts fail before creating an allowance', () => {
+  for (const value of [-1, -1n, 0.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1,
+    '1', true, null, undefined, {}, Object(1n), 1n << 64n]) {
+    assert.throws(() => new AttemptBudget(value), code('InvalidArgument'));
+  }
+  const {NativeAttemptBudget} = require('../phantom.node');
+  for (const value of [-1n, 1n << 64n]) {
+    assert.throws(() => new NativeAttemptBudget(value), /PHANTOM:InvalidArgument:/);
+  }
+  const empty = new NativeAttemptBudget(0n);
+  assert.equal(empty.remaining, 0);
+  assert.throws(() => empty.tryAdmit(), /PHANTOM:AttemptBudgetExhausted:/);
+});
+
 test('compiled navigation headers remain protocol-specific and response encoding stays explicit', async (t) => {
   let fields;
   const encoded = require('node:zlib').gzipSync('encoded body');

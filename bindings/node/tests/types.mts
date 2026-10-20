@@ -1,4 +1,4 @@
-import { Client, Profile } from '../index.mjs';
+import { AttemptBudget, Client, Profile } from '../index.mjs';
 
 async function use(): Promise<void> {
   await using client = new Client({profile: 'exact/profile/id', route: 'proxy', proxy: 'http://127.0.0.1:8080'});
@@ -25,3 +25,8 @@ function fork(client: Client): Client {
   return client.fork({cookies: true, tickets: true});
 }
 void fork;
+
+const budget = new AttemptBudget(4294967296n);
+const remaining: number | bigint = budget.remaining;
+budget.tryAdmit();
+void remaining;

@@ -95,9 +95,18 @@ function sessionSharing(value) {
 
 class AttemptBudget {
   constructor(maximum) {
-    budgetHandles.set(this, new native.NativeAttemptBudget(integer(maximum, 'maximum')));
+    if (typeof maximum === 'number' && Number.isSafeInteger(maximum) && maximum >= 0) maximum = BigInt(maximum);
+    if (typeof maximum !== 'bigint' || maximum < 0n) {
+      throw new PhantomError('InvalidArgument', 'maximum must be a nonnegative safe integer or bigint');
+    }
+    try { budgetHandles.set(this, new native.NativeAttemptBudget(maximum)); }
+    catch (error) { throw translated(error); }
   }
   get remaining() { return budgetHandles.get(this).remaining; }
+  tryAdmit() {
+    try { budgetHandles.get(this).tryAdmit(); }
+    catch (error) { throw translated(error); }
+  }
 }
 
 function profileHandle(value) {
@@ -336,6 +345,9 @@ class Client {
   }
   clearAltSvc() {
     try { this.#native.clearAltSvc(); } catch (error) { throw translated(error); }
+  }
+  clearAltSvcRacingHistory() {
+    try { this.#native.clearAltSvcRacingHistory(); } catch (error) { throw translated(error); }
   }
   clearClientHints() {
     try { this.#native.clearClientHints(); } catch (error) { throw translated(error); }

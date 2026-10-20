@@ -15,7 +15,7 @@ use crate::{
 };
 use napi::{
     Env, Result,
-    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer, ToNapiValue},
+    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, BigInt, Buffer, Either, ToNapiValue},
 };
 use napi_derive::napi;
 use std::{
@@ -384,17 +384,39 @@ pub struct NativeAttemptBudget {
 impl NativeAttemptBudget {
     /// Creates one counter shared by every request receiving this object.
     #[napi(constructor)]
-    #[must_use]
-    pub fn new(maximum: u32) -> Self {
-        Self {
-            budget: phantom::HttpAttemptBudget::new(maximum as usize),
+    pub fn new(maximum: BigInt) -> Result<Self> {
+        let maximum = match (maximum.sign_bit, maximum.words.as_slice()) {
+            (false, [value]) => usize::try_from(*value).ok(),
+            _ => None,
         }
+        .ok_or_else(|| failure("InvalidArgument", "maximum must fit usize"))?;
+        Ok(Self {
+            budget: phantom::HttpAttemptBudget::new(maximum),
+        })
     }
     /// Returns a snapshot, not a reservation.
     #[napi(getter)]
     #[must_use]
-    pub fn remaining(&self) -> u32 {
-        self.budget.remaining() as u32
+    pub fn remaining(&self) -> Either<f64, BigInt> {
+        let remaining = self.budget.remaining() as u64;
+        if remaining <= (1_u64 << 53) - 1 {
+            Either::A(remaining as f64)
+        } else {
+            Either::B(BigInt {
+                sign_bit: false,
+                words: vec![remaining],
+            })
+        }
+    }
+    /// Charges an external attempt; Phantom requests already charge themselves.
+    #[napi]
+    pub fn try_admit(&self) -> Result<()> {
+        self.budget.try_admit().map_err(|_| {
+            failure(
+                "AttemptBudgetExhausted",
+                "shared HTTP attempt budget exhausted",
+            )
+        })
     }
 }
 
@@ -471,6 +493,13 @@ impl NativeClient {
     pub fn clear_alt_svc(&self) -> Result<()> {
         self.state.check_open()?;
         self.state.core.clear_alt_svc();
+        Ok(())
+    }
+    /// Clears racing history while retaining advertised alternatives.
+    #[napi]
+    pub fn clear_alt_svc_racing_history(&self) -> Result<()> {
+        self.state.check_open()?;
+        self.state.core.clear_alt_svc_racing_history();
         Ok(())
     }
     /// Clears learned client hints.

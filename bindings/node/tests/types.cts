@@ -18,7 +18,7 @@ async function use(): Promise<void> {
   const retries: number = response.connectionRetries;
   void actual; void finalUrl; void redirects; void retries;
   await client.closeIdleConnections(); await client.refreshConnections();
-  client.clearDnsCache(); client.clearAltSvc(); client.clearClientHints();
+  client.clearDnsCache(); client.clearAltSvc(); client.clearAltSvcRacingHistory(); client.clearClientHints();
   client.clearCookies(); client.clearSessionTickets();
   // @ts-expect-error Timeout values use numbers or null.
   await client.request('child', {method: 'GET', protocol: 'http1', context: 'raw', timeouts: {totalMs: '100'}});
@@ -86,3 +86,15 @@ function sessionSharing(client: Client): void {
   void separate; void shared;
 }
 void sessionSharing;
+
+function attemptBudgets(): void {
+  const budget = new AttemptBudget(9007199254740993n);
+  const remaining: number | bigint = budget.remaining;
+  const admitted: void = budget.tryAdmit();
+  // @ts-expect-error Large remaining counts cannot always be represented as number.
+  const rounded: number = budget.remaining;
+  // @ts-expect-error Counts are numbers or bigint, never parsed strings.
+  new AttemptBudget('1');
+  void remaining; void admitted; void rounded;
+}
+void attemptBudgets;

@@ -115,7 +115,7 @@ test('idle retirement and refresh keep the client usable while caches can be cle
   owner.setCookie(url, 'a=1');
   owner.clearCookies();
   assert.equal(owner.cookieValue(url), null);
-  owner.clearDnsCache(); owner.clearClientHints(); owner.clearAltSvc();
+  owner.clearDnsCache(); owner.clearClientHints(); owner.clearAltSvcRacingHistory(); owner.clearAltSvc();
   assert.equal(typeof owner.clearSessionTickets(), 'number');
   await owner.closeIdleConnections();
   await send();
@@ -123,4 +123,7 @@ test('idle retirement and refresh keep the client usable while caches can be cle
   await owner.refreshConnections();
   await send();
   assert.notEqual(sockets[2], sockets[3]);
+  await owner.close();
+  assert.throws(() => owner.clearAltSvcRacingHistory(),
+    (error) => error instanceof PhantomError && error.code === 'ClientClosed');
 });

@@ -27,8 +27,12 @@ export class Profile {
   describe(): { [key: string]: ProfileValue };
 }
 export class AttemptBudget {
-  constructor(maximum: number);
-  readonly remaining: number;
+  /** Exact nonnegative count within the native platform's usize range. */
+  constructor(maximum: number | bigint);
+  /** A number through MAX_SAFE_INTEGER; larger counts are bigint. Not a reservation. */
+  readonly remaining: number | bigint;
+  /** Charges an attempt outside Phantom; exhaustion throws AttemptBudgetExhausted. */
+  tryAdmit(): void;
 }
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
 /** Omit to inherit; null disables; zero is finite (a ready core phase can win). */
@@ -99,6 +103,7 @@ export class Client {
   clearCookies(): void;
   clearDnsCache(): void;
   clearAltSvc(): void;
+  clearAltSvcRacingHistory(): void;
   clearClientHints(): void;
   clearSessionTickets(): number;
   closeIdleConnections(): Promise<void>;
