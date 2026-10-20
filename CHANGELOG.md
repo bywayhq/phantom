@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fork Python, Go and Node.js clients with independent connection pools and
+  explicitly shared cookies, DNS, client hints, discovery state or tickets.
+
 - Add immutable Go profile owners with editable JSON round trips, exact catalog
   selection and explicit request-template contexts.
 

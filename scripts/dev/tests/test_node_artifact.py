@@ -191,6 +191,7 @@ class NodeArtifactTests(unittest.TestCase):
             "pipeline.test.cjs",
             "configuration.test.cjs",
             "profiles.test.cjs",
+            "session-sharing.test.cjs",
         ):
             test = (destination / name).read_text()
             self.assertNotIn("require('..')", test)

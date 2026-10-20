@@ -176,6 +176,9 @@ def copied_tests(destination):
         "pipeline.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "configuration.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "profiles.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "session-sharing.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -327,6 +330,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/pipeline.test.cjs",
                         "tests/configuration.test.cjs",
                         "tests/profiles.test.cjs",
+                        "tests/session-sharing.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,
