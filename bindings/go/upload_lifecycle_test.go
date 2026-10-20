@@ -15,10 +15,17 @@ func TestEarlyHTTP2UploadCloseCancelAndAbandonPreserveSibling(t *testing.T) {
 	for _, action := range []string{"close", "cancel", "abandon"} {
 		t.Run(action, func(t *testing.T) {
 			addresses := make(chan string, 2)
+			releaseSibling := make(chan struct{})
 			peer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				addresses <- r.RemoteAddr
 				if r.URL.Path == "/sibling" {
-					_, _ = io.WriteString(w, "healthy")
+					_, _ = io.WriteString(w, "heal")
+					w.(http.Flusher).Flush()
+					select {
+					case <-releaseSibling:
+						_, _ = io.WriteString(w, "thy")
+					case <-r.Context().Done():
+					}
 					return
 				}
 				_, _ = io.WriteString(w, "head")
@@ -36,9 +43,19 @@ func TestEarlyHTTP2UploadCloseCancelAndAbandonPreserveSibling(t *testing.T) {
 			source := newGatedUpload()
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			var sibling *Response
+			defer func() {
+				if sibling != nil {
+					_ = sibling.Body.Close()
+				}
+			}()
 			// Keep the response out of the test's stack for the abandoned case.
 			func() {
 				response, err := client.Do(ctx, Request{Method: "POST", URL: peer.URL, Upload: source})
+				if err != nil {
+					t.Fatal(err)
+				}
+				sibling, err = client.Do(context.Background(), Request{Method: "GET", URL: peer.URL + "/sibling"})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -57,10 +74,7 @@ func TestEarlyHTTP2UploadCloseCancelAndAbandonPreserveSibling(t *testing.T) {
 				}
 			}
 			waitUploadClosed(t, &source.closes)
-			sibling, err := client.Do(context.Background(), Request{Method: "GET", URL: peer.URL + "/sibling"})
-			if err != nil {
-				t.Fatal(err)
-			}
+			close(releaseSibling)
 			if data, err := sibling.Body.ReadAll(7); err != nil || string(data) != "healthy" {
 				t.Fatalf("sibling %q: %v", data, err)
 			}
