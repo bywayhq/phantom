@@ -200,11 +200,7 @@ Create separate connection pools while sharing selected live state:
 ```js
 const worker = client.fork({cookies: true, tickets: true});
 try {
-  const response = await worker.request('https://example.com/', {
-    method: 'GET', protocol: 'http2', context: 'raw', timeoutMs: 5000,
-  });
-  try { console.log(await response.text(1024)); }
-  finally { response.close(); }
+  // Use worker with the request and response pattern above.
 } finally { await worker.close(); }
 ```
 
