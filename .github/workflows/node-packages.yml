@@ -12,6 +12,9 @@ on:
       - .gitattributes
       - LICENSE-*
       - scripts/release/node_artifact.py
+      - scripts/release/node_registry.py
+      - scripts/release/promote_prebuilds.py
+      - scripts/release/tests/test_node_registry.py
       - scripts/release/cli_artifact.py
       - scripts/release/notices/**
       - scripts/dev/tests/test_node_artifact.py
@@ -147,3 +150,146 @@ jobs:
           name: phantom-node-logs-${{ matrix.target }}
           path: target/node-package-candidate/logs/
           if-no-files-found: ignore
+
+  registry-assembly:
+    name: Assemble npm registry packages
+    needs: candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Node.js for packing
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.3"
+
+      - name: Download Linux candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: phantom-node-x86_64-unknown-linux-gnu
+          path: target/npm-candidates/linux
+
+      - name: Download Windows candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: phantom-node-x86_64-pc-windows-msvc
+          path: target/npm-candidates/windows
+
+      - name: Download macOS candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: phantom-node-aarch64-apple-darwin
+          path: target/npm-candidates/macos
+
+      - name: Check registry assembly helper
+        run: python -m unittest discover -s scripts/release/tests -p test_node_registry.py
+
+      - name: Assemble unchanged native payloads into npm packages
+        shell: bash
+        run: |
+          node_exe="$(node -p 'process.execPath')"
+          npm_cli="$(dirname "$node_exe")/../lib/node_modules/npm/bin/npm-cli.js"
+          python scripts/release/node_registry.py assemble \
+            --candidate target/npm-candidates/linux \
+            --candidate target/npm-candidates/windows \
+            --candidate target/npm-candidates/macos \
+            --source-revision "$(git rev-parse HEAD)" \
+            --node "$node_exe" --npm-cli "$npm_cli" \
+            --output target/npm-registry-assembly
+
+      - name: Upload assembled packages and identities
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-npm-registry-assembly
+          path: target/npm-registry-assembly/assembled/
+          if-no-files-found: error
+
+      - name: Retain assembly logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-npm-registry-assembly-logs
+          path: target/npm-registry-assembly/logs/
+          if-no-files-found: ignore
+
+  registry-installation:
+    name: Npm resolver install (${{ matrix.target }})
+    needs: registry-assembly
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            architecture: x64
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            architecture: x64
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            architecture: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.3"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Retain Node.js 22 executable
+        shell: bash
+        run: node -p '"NODE22=" + process.execPath' >> "$GITHUB_ENV"
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.15.0"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Retain Node.js 24 executable
+        shell: bash
+        run: node -p '"NODE24=" + process.execPath' >> "$GITHUB_ENV"
+
+      - name: Download assembled packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: phantom-npm-registry-assembly
+          path: target/npm-registry-assembly
+
+      - name: Check normal and lockfile installs with installed APIs
+        shell: bash
+        env:
+          PACKAGE_TARGET: ${{ matrix.target }}
+        run: |
+          python scripts/release/node_registry.py check-install \
+            --assembly target/npm-registry-assembly --target "$PACKAGE_TARGET" \
+            --node22 "$NODE22" --node24 "$NODE24" \
+            --output target/npm-registry-installation
+
+      - name: Retain installation receipts and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: phantom-npm-registry-installation-${{ matrix.target }}
+          path: target/npm-registry-installation/
+          if-no-files-found: error

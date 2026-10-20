@@ -1,15 +1,20 @@
 """Registry assembly controls do not build or load native code."""
 
+import base64
 import copy
+import hashlib
 import importlib.util
 import io
 import json
+import os
 import tarfile
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 SPEC = importlib.util.spec_from_file_location(
     "node_registry", Path(__file__).parents[1] / "node_registry.py"
@@ -298,6 +303,212 @@ class RegistryAssemblyTests(unittest.TestCase):
     def test_failed_pack_keeps_evidence_without_an_assembled_result(self):
         self.assembly_flow(fail_pack=True)
 
+    def test_fixture_serves_only_exact_package_versions_and_archive_integrity(self):
+        output = self.assembly_flow(fail_pack=False)
+        manifest = registry.read_assembly(output, REVISION, node, promotion)
+        with registry.registry_fixture(manifest["packages"], output) as (
+            address,
+            requests,
+        ):
+            for package in manifest["packages"]:
+                with urlopen(
+                    address + "/" + package["name"].replace("/", "%2f"), timeout=2
+                ) as response:
+                    document = json.load(response)
+                self.assertEqual(list(document["versions"]), [VERSION])
+                self.assertEqual(document["name"], package["name"])
+                distribution = document["versions"][VERSION]["dist"]
+                with urlopen(distribution["tarball"], timeout=2) as response:
+                    raw = response.read()
+                self.assertEqual(raw, (output / package["archive"]).read_bytes())
+                self.assertEqual(
+                    distribution["integrity"],
+                    "sha512-" + base64.b64encode(hashlib.sha512(raw).digest()).decode(),
+                )
+            for request, status in (
+                (address + "/not-an-allowed-package", 404),
+                (address + "/@byway/phantom?write=true", 404),
+                (Request(address + "/@byway/phantom", method="POST", data=b"no"), 405),
+            ):
+                with self.assertRaises(HTTPError) as caught:
+                    urlopen(request, timeout=2)
+                self.assertEqual(caught.exception.code, status)
+                caught.exception.close()
+        self.assertEqual(len(requests), 11)
+
+    def test_assembly_input_tampering_and_incompatible_installed_packages_fail(self):
+        output = self.assembly_flow(fail_pack=False)
+        manifest = registry.read_assembly(output, REVISION, node, promotion)
+        consumer = self.root / "consumer"
+        selected = registry.PACKAGES["x86_64-pc-windows-msvc"]
+        self.install_payloads(consumer, manifest["packages"], output, selected)
+        registry.installed_payloads(consumer, manifest["packages"], selected, tools)
+        extra = (
+            consumer
+            / "node_modules"
+            / next(name for name in registry.PACKAGES.values() if name != selected)
+        )
+        extra.mkdir()
+        with self.assertRaisesRegex(ValueError, "incompatible"):
+            registry.installed_payloads(consumer, manifest["packages"], selected, tools)
+        extra.rmdir()
+        (consumer / "node_modules" / selected / "phantom.node").write_bytes(
+            b"changed native input"
+        )
+        with self.assertRaisesRegex(ValueError, "payload differs"):
+            registry.installed_payloads(consumer, manifest["packages"], selected, tools)
+        archive = output / manifest["packages"][0]["archive"]
+        archive.write_bytes(b"changed archive")
+        with self.assertRaisesRegex(ValueError, "archive hash"):
+            registry.read_assembly(output, REVISION, node, promotion)
+
+    @staticmethod
+    def install_payloads(consumer, packages, directory, selected):
+        for package in packages:
+            if package["name"] not in {node.PACKAGE, selected}:
+                continue
+            for name, raw in registry.archive_payload(
+                directory / package["archive"], node.MAX_ARCHIVE_BYTES
+            ).items():
+                destination = consumer / "node_modules" / package["name"] / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(raw)
+
+    def test_install_checker_uses_name_resolution_fresh_lock_install_and_shared_checks(
+        self,
+    ):
+        self.install_flow(fail_public=False)
+
+    def test_failed_public_check_never_writes_install_verification(self):
+        self.install_flow(fail_public=True)
+
+    def install_flow(self, *, fail_public):
+        assembly = self.assembly_flow(fail_pack=False)
+        manifest = registry.read_assembly(assembly, REVISION, node, promotion)
+        target = "x86_64-pc-windows-msvc"
+        selected = registry.PACKAGES[target]
+        calls, public_calls = [], []
+        output = self.root / "installation"
+        source = self.git["bindings/node/package.json"]
+        owner = self
+
+        class Commands:
+            def __init__(self, logs):
+                logs.mkdir(parents=True)
+
+            def run(self, args, **options):
+                calls.append((args, options))
+                if args[:2] == ["git", "rev-parse"]:
+                    return REVISION.encode()
+                if args[:2] == ["git", "show"]:
+                    return source
+                owner.assertIn("--ignore-scripts", args)
+                owner.assertIn("--no-audit", args)
+                owner.assertFalse(
+                    any(key.startswith("npm_config_") for key in options["env"])
+                )
+                owner.assertEqual(
+                    {
+                        key
+                        for key in options["env"]
+                        if key.upper().startswith("NPM_CONFIG_")
+                    },
+                    {
+                        "NPM_CONFIG_USERCONFIG",
+                        "NPM_CONFIG_GLOBALCONFIG",
+                        "NPM_CONFIG_UPDATE_NOTIFIER",
+                    },
+                )
+                owner.assertEqual(
+                    Path(options["env"]["NPM_CONFIG_USERCONFIG"]).read_bytes(), b""
+                )
+                owner.assertFalse(
+                    any(
+                        str(value).startswith("file:") or str(value).endswith(".tgz")
+                        for value in args
+                    )
+                )
+                address = args[args.index("--registry") + 1]
+                with urlopen(address + "/@byway%2fphantom", timeout=2) as response:
+                    json.load(response)
+                consumer = options["cwd"]
+                owner.install_payloads(
+                    consumer, manifest["packages"], assembly, selected
+                )
+                if "install" in args:
+                    owner.assertEqual(args[-1], f"@byway/phantom@{VERSION}")
+                    (consumer / "package-lock.json").write_text('{"controlled":"lock"}')
+                else:
+                    owner.assertIn("ci", args)
+                    owner.assertEqual(
+                        (consumer / "package-lock.json").read_text(),
+                        '{"controlled":"lock"}',
+                    )
+                return b""
+
+        def public_checks(*args):
+            public_calls.append(args)
+            self.assertEqual(args[-1], selected)
+            if fail_public:
+                raise ValueError("controlled installed API failure")
+            return {
+                "installation": {"version": VERSION},
+                "loopback_checks": {"pass": 19},
+            }
+
+        fake_tools = SimpleNamespace(**vars(tools))
+        fake_tools.Commands = Commands
+        fake_node = SimpleNamespace(**vars(node))
+        fake_node.artifact_tools = lambda: fake_tools
+        fake_node.runtime = lambda executable, major, *_: (
+            executable,
+            Path("npm-cli.js"),
+            {"versions": {"node": f"{major}.0.0"}},
+        )
+        fake_node.public_checks = public_checks
+        args = SimpleNamespace(
+            assembly=assembly,
+            output=output,
+            target=target,
+            node22=Path("node22"),
+            node24=Path("node24"),
+        )
+        with (
+            patch.object(registry, "load_module", side_effect=[fake_node, promotion]),
+            patch.dict(
+                os.environ,
+                {
+                    "npm_config_userconfig": "unexpected-host-config",
+                    "npm_config_registry": "https://unexpected.invalid",
+                    "npm_config_omit": "optional",
+                },
+            ),
+        ):
+            if fail_public:
+                with self.assertRaisesRegex(ValueError, "controlled installed API"):
+                    registry.check_install(args)
+                self.assertFalse((output / "verification.json").exists())
+                self.assertTrue((output / "logs").exists())
+                return
+            receipt = json.loads(registry.check_install(args).read_text())
+        self.assertEqual(len(public_calls), 2)
+        self.assertEqual(len(receipt["checks"]), 2)
+        installs = [(args, options) for args, options in calls if "--registry" in args]
+        self.assertEqual(len(installs), 4)
+        self.assertEqual(
+            len({args[args.index("--cache") + 1] for args, _ in installs}), 4
+        )
+        self.assertTrue(
+            all(
+                not options["cwd"].is_relative_to(registry.ROOT)
+                for _, options in installs
+            )
+        )
+        self.assertTrue(
+            all(request["status"] == 200 for request in receipt["registry_requests"])
+        )
+        self.assertIn("no public registry publication", receipt["scope"])
+
     def assembly_flow(self, *, fail_pack):
         candidates = [self.candidate(target)[0] for target in registry.PACKAGES]
         npm, executable = self.root / "npm-cli.js", self.root / "node"
@@ -380,6 +591,7 @@ class RegistryAssemblyTests(unittest.TestCase):
                     payload["notices/package/LICENSE"], b"original native license text"
                 )
         self.assertEqual(sum("pack" in call for call in calls), 4)
+        return output
 
 
 if __name__ == "__main__":

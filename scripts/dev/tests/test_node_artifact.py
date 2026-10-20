@@ -224,6 +224,53 @@ class NodeArtifactTests(unittest.TestCase):
         ):
             artifact.copied_tests(self.directory / "copied")
 
+    def test_shared_public_checks_keep_installed_native_and_types_controls(self):
+        consumer = self.directory / "consumer"
+        consumer.mkdir()
+        package = consumer / "node_modules/@byway/phantom"
+        package.mkdir(parents=True)
+        calls = []
+
+        def run(args, **options):
+            calls.append((args, options))
+            if "-e" in args:
+                return json.dumps(
+                    {"entry": str(package / "index.cjs"), "version": "0.2.0"}
+                ).encode()
+            return successful_tap() if "--test" in args else b""
+
+        result = artifact.public_checks(
+            consumer,
+            Path("node"),
+            Path("npm-cli.js"),
+            "0.2.0",
+            SimpleNamespace(run=run),
+            self.tools,
+            {"isolated": "environment"},
+            consumer / "cache",
+            "@byway/phantom-win32-x64-msvc",
+        )
+        self.assertEqual(result["loopback_checks"]["pass"], 19)
+        self.assertEqual(len(calls), 4)
+        peer = next(args for args, _ in calls if "--test" in args)
+        self.assertIn("tests/native-loader.test.cjs", peer)
+        self.assertIn("tests/pipeline.test.cjs", peer)
+        self.assertIn(
+            'require("@byway/phantom-win32-x64-msvc")',
+            (consumer / "tests/client.test.cjs").read_text(),
+        )
+        compiler = consumer / "compiler"
+        self.assertEqual(
+            (compiler / "package-lock.json").read_bytes(),
+            (artifact.ROOT / "bindings/node/package-lock.json").read_bytes(),
+        )
+        self.assertEqual(calls[2][0][:3], ["node", "npm-cli.js", "ci"])
+        self.assertEqual(calls[2][1]["cwd"], compiler)
+        self.assertIn(str(compiler / "node_modules/typescript/bin/tsc"), calls[3][0])
+        self.assertTrue(
+            all(options["env"] == {"isolated": "environment"} for _, options in calls)
+        )
+
     def test_loopback_summary_requires_complete_unskipped_controls(self):
         self.assertEqual(artifact.tap_summary(successful_tap())["pass"], 19)
         for raw in (

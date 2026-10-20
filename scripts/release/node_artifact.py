@@ -163,7 +163,7 @@ def inspect_archive(archive, staging, tools):
     return found
 
 
-def copied_tests(destination):
+def copied_tests(destination, native_package=None):
     """Run existing peers against installed public entry points, with checked edits."""
     shutil.copytree(
         ROOT / "bindings/node/tests",
@@ -177,7 +177,9 @@ def copied_tests(destination):
             ("path.resolve(__dirname, '..')", "require.resolve('@byway/phantom')", 3),
             (
                 "require('../phantom.node')",
-                "require(path.join(path.dirname(require.resolve('@byway/phantom')), 'phantom.node'))",
+                ("require(" + json.dumps(native_package) + ")")
+                if native_package
+                else "require(path.join(path.dirname(require.resolve('@byway/phantom')), 'phantom.node'))",
                 2,
             ),
         ),
@@ -284,6 +286,108 @@ def npm_environment(consumer, node):
     return environment
 
 
+def public_checks(
+    consumer,
+    node,
+    cli,
+    version,
+    commands,
+    tools,
+    environment,
+    cache,
+    native_package=None,
+):
+    package = consumer / "node_modules/@byway/phantom"
+    base = [str(node), str(cli)]
+    probe = (
+        "const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');"
+        "const c=require('@byway/phantom'),entry=require.resolve('@byway/phantom');"
+        "const metadata=JSON.parse(fs.readFileSync(path.join(path.dirname(entry),'package.json'),'utf8'));"
+        "assert.equal(metadata.version," + json.dumps(version) + ");"
+        "import('@byway/phantom').then(e=>{assert.equal(c.Client,e.Client);assert.equal(c.Profile,e.Profile);"
+        "assert.equal(typeof c.AttemptBudget,'function');assert.ok(c.profiles().length);"
+        "console.log(JSON.stringify({entry,version:metadata.version,profiles:c.profiles().length}));});"
+    )
+    observed = json.loads(
+        commands.run([str(node), "-e", probe], cwd=consumer, env=environment)
+    )
+    if Path(observed["entry"]).resolve() != (package / "index.cjs").resolve():
+        raise ValueError("Node resolved a package outside the clean consumer")
+    environment = h3_peer_environment(ROOT, consumer, environment)
+    copied_tests(consumer / "tests", native_package)
+    checked = tap_summary(
+        commands.run(
+            [
+                str(node),
+                "--test",
+                "--test-concurrency=1",
+                "--test-reporter=tap",
+                "tests/client.test.cjs",
+                "tests/http2.test.cjs",
+                "tests/pipeline.test.cjs",
+                "tests/configuration.test.cjs",
+                "tests/profiles.test.cjs",
+                "tests/compact-profiles.test.cjs",
+                "tests/session-sharing.test.cjs",
+                "tests/content-decoding.test.cjs",
+                "tests/redirects.test.cjs",
+                "tests/retries.test.cjs",
+                "tests/uploads.test.cjs",
+                "tests/upload-http3.test.cjs",
+                "tests/native-loader.test.cjs",
+            ],
+            cwd=consumer,
+            env=environment,
+            timeout=300,
+        )
+    )
+    # Install only the already locked development compiler in a separate project.
+    compiler = consumer / "compiler"
+    compiler.mkdir()
+    for name in ("package.json", "package-lock.json"):
+        shutil.copyfile(ROOT / "bindings/node" / name, compiler / name)
+    commands.run(
+        [
+            *base,
+            "ci",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--cache",
+            str(cache),
+        ],
+        cwd=compiler,
+        env=environment,
+        timeout=180,
+    )
+    commands.run(
+        [
+            str(node),
+            str(compiler / "node_modules/typescript/bin/tsc"),
+            "--noEmit",
+            "--strict",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--lib",
+            "ES2022,ESNext.Disposable",
+            "--typeRoots",
+            str(compiler / "node_modules/@types"),
+            "tests/types.cts",
+            "tests/types.mts",
+        ],
+        cwd=consumer,
+        env=environment,
+        timeout=60,
+    )
+    return {
+        "installation": observed,
+        "loopback_checks": checked,
+        "typescript": "locked compiler; CJS and ESM consumers passed",
+    }
+
+
 def installed_checks(archive, runtimes, version, files, commands, tools):
     results = []
     with tempfile.TemporaryDirectory(prefix="phantom-node-package-") as temporary:
@@ -329,94 +433,13 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
             }
             if actual != files:
                 raise ValueError("installed Node package differs from verified archive")
-            probe = (
-                "const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');"
-                "const c=require('@byway/phantom'),entry=require.resolve('@byway/phantom');"
-                "const metadata=JSON.parse(fs.readFileSync(path.join(path.dirname(entry),'package.json'),'utf8'));"
-                "assert.equal(metadata.version," + json.dumps(version) + ");"
-                "import('@byway/phantom').then(e=>{assert.equal(c.Client,e.Client);assert.equal(c.Profile,e.Profile);"
-                "assert.equal(typeof c.AttemptBudget,'function');assert.ok(c.profiles().length);"
-                "console.log(JSON.stringify({entry,version:metadata.version,profiles:c.profiles().length}));});"
-            )
-            observed = json.loads(
-                commands.run([str(node), "-e", probe], cwd=consumer, env=environment)
-            )
-            if Path(observed["entry"]).resolve() != (package / "index.cjs").resolve():
-                raise ValueError("Node resolved a package outside the clean consumer")
-            copied_tests(consumer / "tests")
-            environment = h3_peer_environment(ROOT, consumer, environment)
-            checked = tap_summary(
-                commands.run(
-                    [
-                        str(node),
-                        "--test",
-                        "--test-concurrency=1",
-                        "--test-reporter=tap",
-                        "tests/client.test.cjs",
-                        "tests/http2.test.cjs",
-                        "tests/pipeline.test.cjs",
-                        "tests/configuration.test.cjs",
-                        "tests/profiles.test.cjs",
-                        "tests/compact-profiles.test.cjs",
-                        "tests/session-sharing.test.cjs",
-                        "tests/content-decoding.test.cjs",
-                        "tests/redirects.test.cjs",
-                        "tests/retries.test.cjs",
-                        "tests/uploads.test.cjs",
-                        "tests/upload-http3.test.cjs",
-                        "tests/native-loader.test.cjs",
-                    ],
-                    cwd=consumer,
-                    env=environment,
-                    timeout=300,
-                )
-            )
-            # Install only the already locked development compiler in a separate project.
-            compiler = consumer / "compiler"
-            compiler.mkdir()
-            for name in ("package.json", "package-lock.json"):
-                shutil.copyfile(ROOT / "bindings/node" / name, compiler / name)
-            commands.run(
-                [
-                    *base,
-                    "ci",
-                    "--ignore-scripts",
-                    "--no-audit",
-                    "--no-fund",
-                    "--cache",
-                    str(cache),
-                ],
-                cwd=compiler,
-                env=environment,
-                timeout=180,
-            )
-            commands.run(
-                [
-                    str(node),
-                    str(compiler / "node_modules/typescript/bin/tsc"),
-                    "--noEmit",
-                    "--strict",
-                    "--module",
-                    "NodeNext",
-                    "--target",
-                    "ES2022",
-                    "--lib",
-                    "ES2022,ESNext.Disposable",
-                    "--typeRoots",
-                    str(compiler / "node_modules/@types"),
-                    "tests/types.cts",
-                    "tests/types.mts",
-                ],
-                cwd=consumer,
-                env=environment,
-                timeout=60,
+            checked = public_checks(
+                consumer, node, cli, version, commands, tools, environment, cache
             )
             results.append(
                 {
                     "runtime": identity,
-                    "installation": observed,
-                    "loopback_checks": checked,
-                    "typescript": "locked compiler; CJS and ESM consumers passed",
+                    **checked,
                 }
             )
     return results
