@@ -449,6 +449,24 @@ def installed_checks(wheel, commands, interpreter=None):
         }
 
 
+def source_build_directory():
+    # MSBuild's nested tracking logs can exceed MAX_PATH under the user temp path.
+    parent = None
+    if sys.platform == "win32" and "RUNNER_TEMP" in os.environ:
+        parent = Path(os.environ["RUNNER_TEMP"])
+        if not parent.is_absolute() or not parent.is_dir():
+            raise ValueError("RUNNER_TEMP must be an absolute existing directory")
+        parent = parent.resolve()
+        if parent.is_relative_to(ROOT.resolve()):
+            raise ValueError("RUNNER_TEMP must be outside checkout")
+    try:
+        return tempfile.TemporaryDirectory(prefix="pw-", dir=parent)
+    except OSError as error:
+        if parent is not None:
+            raise ValueError("RUNNER_TEMP must be writable") from error
+        raise
+
+
 def verify_candidate(
     target, output, source_archive, source_receipt, additional_python=None
 ):
@@ -527,9 +545,7 @@ def verify_candidate(
             ["--compatibility", "manylinux_2_28", "--auditwheel", "check"]
         )
     build_env = dict(os.environ, MATURIN_NO_INSTALL_RUST="1")
-    with tempfile.TemporaryDirectory(
-        prefix="phantom-python-source-wheel-"
-    ) as temporary:
+    with source_build_directory() as temporary:
         directory = Path(temporary).resolve()
         if directory.is_relative_to(ROOT):
             raise ValueError("source wheel build must run outside checkout")
@@ -537,7 +553,7 @@ def verify_candidate(
             TMPDIR=str(directory),
             TEMP=str(directory),
             TMP=str(directory),
-            CARGO_TARGET_DIR=str(directory / "target"),
+            CARGO_TARGET_DIR=str(directory / "t"),
         )
         commands.run(
             [

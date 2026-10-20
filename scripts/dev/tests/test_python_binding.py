@@ -179,6 +179,7 @@ class PythonWheelTests(unittest.TestCase):
         original = self.source_wheel(files)
         directory = self.directory
         calls = []
+        build_failure = False
 
         class Commands:
             def __init__(self, logs):
@@ -195,6 +196,11 @@ class PythonWheelTests(unittest.TestCase):
                 if args == ["rustc", "-vV"]:
                     return b"release: 1.99.1"
                 if "wheel" in args:
+                    native_output = kwargs["cwd"] / "t"
+                    native_output.mkdir()
+                    (native_output / "native.obj").write_bytes(b"partial native output")
+                    if build_failure:
+                        raise ValueError("source build failure")
                     self_test.assertNotIn("--no-build-isolation", args)
                     self_test.assertEqual(args[-1], str(archive.resolve()))
                     settings = next(
@@ -205,9 +211,14 @@ class PythonWheelTests(unittest.TestCase):
                     self_test.assertNotIn("--release", settings)
                     self_test.assertIn("profile.release.opt-level=3", settings)
                     self_test.assertFalse(kwargs["cwd"].is_relative_to(binding.ROOT))
+                    self_test.assertEqual(kwargs["cwd"].parent, directory.resolve())
+                    self_test.assertTrue(kwargs["cwd"].name.startswith("pw-"))
                     self_test.assertEqual(
-                        kwargs["env"]["CARGO_TARGET_DIR"], str(kwargs["cwd"] / "target")
+                        kwargs["env"]["CARGO_TARGET_DIR"], str(kwargs["cwd"] / "t")
                     )
+                    for name in ("TMP", "TEMP", "TMPDIR"):
+                        self_test.assertEqual(kwargs["env"][name], str(kwargs["cwd"]))
+                    self_test.assertTrue(kwargs["cwd"].is_dir())
                     wheels = Path(args[args.index("--wheel-dir") + 1])
                     wheels.mkdir()
                     shutil.copyfile(original, wheels / original.name)
@@ -236,7 +247,8 @@ class PythonWheelTests(unittest.TestCase):
             patch.object(
                 binding, "installed_checks", return_value=installed
             ) as install,
-            patch.dict(os.environ, {}, clear=True),
+            patch.object(binding.sys, "platform", "win32"),
+            patch.dict(os.environ, {"RUNNER_TEMP": str(directory)}, clear=True),
         ):
             output = directory / "candidate-proof"
             binding.verify_candidate(
@@ -261,6 +273,61 @@ class PythonWheelTests(unittest.TestCase):
                     TARGET, directory / "failed-source", archive, receipt_path
                 )
             self.assertFalse((directory / "failed-source/verified").exists())
+            build_failure = True
+            with self.assertRaisesRegex(ValueError, "source build failure"):
+                binding.verify_candidate(
+                    TARGET, directory / "failed-build", archive, receipt_path
+                )
+            self.assertFalse((directory / "failed-build/verified").exists())
+        for args, kwargs in calls:
+            if "wheel" in args:
+                self.assertFalse(kwargs["cwd"].exists())
+
+    def test_windows_source_build_rejects_invalid_runner_temp(self):
+        checkout = self.directory / "checkout"
+        checkout.mkdir()
+        file = self.directory / "file"
+        file.write_bytes(b"not a directory")
+        for parent in (
+            "",
+            "relative",
+            str(file),
+            str(self.directory / "missing"),
+            str(checkout),
+        ):
+            with (
+                self.subTest(parent=parent),
+                patch.object(binding, "ROOT", checkout),
+                patch.object(binding.sys, "platform", "win32"),
+                patch.dict(os.environ, {"RUNNER_TEMP": parent}, clear=True),
+                self.assertRaisesRegex(ValueError, "RUNNER_TEMP"),
+            ):
+                binding.source_build_directory()
+        with (
+            patch.object(binding.sys, "platform", "win32"),
+            patch.dict(os.environ, {"RUNNER_TEMP": str(self.directory)}, clear=True),
+            patch.object(
+                binding.tempfile, "TemporaryDirectory", side_effect=PermissionError
+            ),
+            self.assertRaisesRegex(ValueError, "RUNNER_TEMP must be writable"),
+        ):
+            binding.source_build_directory()
+
+    def test_source_build_without_runner_temp_uses_system_temp_on_every_host(self):
+        for platform in ("win32", "linux", "darwin"):
+            environment = {} if platform == "win32" else {"RUNNER_TEMP": "ignored"}
+            with (
+                self.subTest(platform=platform),
+                patch.object(binding.sys, "platform", platform),
+                patch.dict(os.environ, environment, clear=True),
+                binding.source_build_directory() as temporary,
+            ):
+                directory = Path(temporary)
+                self.assertEqual(
+                    directory.parent, Path(tempfile.gettempdir()).resolve()
+                )
+                self.assertTrue(directory.name.startswith("pw-"))
+            self.assertFalse(directory.exists())
 
     def test_current_stable_installation_is_explicitly_limited_without_a_typing_build(
         self,
