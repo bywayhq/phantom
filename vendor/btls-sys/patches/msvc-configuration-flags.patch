@@ -18,7 +18,7 @@
              cc: target_only_var("CC"),
 --- a/build/main.rs
 +++ b/build/main.rs
-@@ -256,6 +256,24 @@
+@@ -256,4 +256,22 @@
          } else {
              boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
          }
@@ -41,5 +41,3 @@
 +            }
 +        }
      }
- 
-     if config.host == config.target {
