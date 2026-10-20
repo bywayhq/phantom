@@ -990,7 +990,9 @@ impl Recv {
         }
 
         // Notify the stream
-        stream.state.recv_reset(frame, stream.is_pending_send);
+        stream
+            .state
+            .recv_reset(frame, stream.is_pending_send, !counts.peer().is_server());
 
         stream.notify_send();
         stream.notify_recv();

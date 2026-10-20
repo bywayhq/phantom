@@ -34,6 +34,13 @@ in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
 
+`completed-response-reset.patch` preserves a client's completed response when
+the peer follows `END_STREAM` with `RST_STREAM(NO_ERROR)`, as RFC 9113 section
+8.1 requires. Buffered DATA and trailers remain readable; the send side still
+observes the reset and stops its upload. Incomplete responses, other reset
+codes, and server request bodies retain their existing error behavior. The
+adjacent test patch exercises these cases over real HTTP/2 frames.
+
 `io-error-causes.patch` retains one original transport error across the
 connection and its failed streams. The private fanout shares an
 `Arc<io::Error>` instead of reconstructing errors from a kind and string.

@@ -52,6 +52,7 @@ use self::Peer::*;
 #[derive(Clone)]
 pub struct State {
     inner: Inner,
+    recv_complete_before_no_error: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -256,7 +257,8 @@ impl State {
     /// # Arguments
     /// - `frame`: the received RST_STREAM frame.
     /// - `queued`: true if this stream has frames in the pending send queue.
-    pub fn recv_reset(&mut self, frame: frame::Reset, queued: bool) {
+    /// - `is_response`: true on clients receiving a response, not on servers.
+    pub fn recv_reset(&mut self, frame: frame::Reset, queued: bool, is_response: bool) {
         match self.inner {
             // If the stream is already in a `Closed` state, do nothing,
             // provided that there are no frames still in the send queue.
@@ -282,6 +284,11 @@ impl State {
                     _state,
                     queued
                 );
+                // RFC 9113 section 8.1: a NO_ERROR reset may stop the upload
+                // after a complete response, without discarding that response.
+                // Keep the reset in `inner` for send-side observation.
+                self.recv_complete_before_no_error =
+                    is_response && frame.reason() == Reason::NO_ERROR && self.is_recv_end_stream();
                 self.inner = Closed(Cause::Error(Error::remote_reset(
                     frame.stream_id(),
                     frame.reason(),
@@ -335,12 +342,14 @@ impl State {
 
     /// Set the stream state to reset locally.
     pub fn set_reset(&mut self, stream_id: StreamId, reason: Reason, initiator: Initiator) {
+        self.recv_complete_before_no_error = false;
         self.inner = Closed(Cause::Error(Error::Reset(stream_id, reason, initiator)));
     }
 
     /// Set the stream state to a scheduled reset.
     pub fn set_scheduled_reset(&mut self, reason: Reason) {
         debug_assert!(!self.is_closed());
+        self.recv_complete_before_no_error = false;
         self.inner = Closed(Cause::ScheduledLibraryReset(reason));
     }
 
@@ -413,7 +422,8 @@ impl State {
 
     pub fn is_recv_end_stream(&self) -> bool {
         // In either case END_STREAM has been received
-        matches!(self.inner, Closed(Cause::EndStream) | HalfClosedRemote(..))
+        self.recv_complete_before_no_error
+            || matches!(self.inner, Closed(Cause::EndStream) | HalfClosedRemote(..))
     }
 
     pub fn is_closed(&self) -> bool {
@@ -432,6 +442,9 @@ impl State {
     }
 
     pub fn ensure_recv_open(&self) -> Result<bool, proto::Error> {
+        if self.recv_complete_before_no_error {
+            return Ok(false);
+        }
         // TODO: Is this correct?
         match self.inner {
             Closed(Cause::Error(ref e)) => Err(e.clone()),
@@ -464,7 +477,10 @@ impl State {
 
 impl Default for State {
     fn default() -> State {
-        State { inner: Inner::Idle }
+        State {
+            inner: Inner::Idle,
+            recv_complete_before_no_error: false,
+        }
     }
 }
 
