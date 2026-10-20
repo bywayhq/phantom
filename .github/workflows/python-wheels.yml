@@ -189,9 +189,9 @@ jobs:
             --release-candidate --target x86_64-unknown-linux-gnu --output /output/check \
             --source-archive "${archives[0]}" --source-receipt target/python-source/receipt.json \
             --additional-python /opt/python/cp315-cp315/bin/python
+          mv /output/check/* /output/
+          rmdir /output/check
           BUILD
-          mv target/python-wheel-candidate/check/* target/python-wheel-candidate/
-          rmdir target/python-wheel-candidate/check
 
       - name: Upload verified wheel and receipt
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
