@@ -138,6 +138,13 @@ refunded, including when no bytes are sent. Setup/proxy negotiation are separate
 Replayable byte uploads are limited to 16 MiB. `file: {path, maximumBytes}`
 streams a regular file once using its initial length; growth is excluded and
 shrinkage fails. A required replay fails rather than rereading a one-shot file.
+For streaming sources, pass `body` an `AsyncIterable<Uint8Array>`, including a
+byte-mode Node `Readable`. Native demand copies at most 64 KiB per chunk.
+Set `bodyLength` for a known byte count; unread suffixes are not validated.
+Producers are one-shot. Cancellation and early completion call the iterator's
+`return()` cooperatively. Client closure waits for cleanup within its deadline;
+unresolved cleanup remains owned. An iterator cannot await its own client's close.
+
 Request headers allow 256 entries/64 KiB. Additional roots allow sixteen
 certificates up to 1 MiB each.
 

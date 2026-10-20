@@ -187,6 +187,7 @@ def copied_tests(destination):
         ),
         "redirects.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "retries.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "uploads.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -343,6 +344,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/content-decoding.test.cjs",
                         "tests/redirects.test.cjs",
                         "tests/retries.test.cjs",
+                        "tests/uploads.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,

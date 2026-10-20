@@ -195,6 +195,7 @@ class NodeArtifactTests(unittest.TestCase):
             "content-decoding.test.cjs",
             "redirects.test.cjs",
             "retries.test.cjs",
+            "uploads.test.cjs",
         ):
             test = (destination / name).read_text()
             self.assertNotIn("require('..')", test)
