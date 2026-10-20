@@ -96,14 +96,20 @@ class Peer:
                         elif isinstance(event, h2.events.DataReceived):
                             self.data_bytes += len(event.data)
                         elif isinstance(event, h2.events.StreamReset):
+                            if (
+                                event.stream_id != self.requests[1][0]
+                                or event.error_code != 8
+                            ):
+                                raise AssertionError("expected selected stream CANCEL")
                             self.reset_code = event.error_code
                             self.reset_stream = event.stream_id
                             self.reset.set()
-                            if healthy is None:
-                                raise AssertionError(
-                                    "selected stream reset before live healthy sibling"
-                                )
-                            connection.send_data(healthy, b"hello", end_stream=True)
+                            if not self.complete_upload:
+                                if healthy is None:
+                                    raise AssertionError(
+                                        "selected stream reset before live healthy sibling"
+                                    )
+                                connection.send_data(healthy, b"hello", end_stream=True)
                         elif isinstance(event, h2.events.ConnectionTerminated):
                             if len(self.requests) != 4:
                                 raise AssertionError(
@@ -157,7 +163,8 @@ class UploadMultiplexingTests(unittest.IsolatedAsyncioTestCase):
                     response = await client.request("GET", peer.url + path)
                     self.assertEqual(await response.read(max_bytes=5), b"hello")
                 self.assertEqual(peer.data_bytes, 0)
-                self.assertIsNone(peer.reset_code)
+                # The completed response can cancel the unfinished request body.
+                self.assertIn(peer.reset_code, (None, 8))
                 self.assertEqual(len(peer.requests), 4)
 
     async def check_upload(self, early):
