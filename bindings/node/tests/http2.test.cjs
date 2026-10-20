@@ -8,12 +8,62 @@ const path = require('node:path');
 const os = require('node:os');
 const { test } = require('node:test');
 const { Client, PhantomError } = require('..');
+const { gzipSync } = require('node:zlib');
 
 const fixture = (name) => fs.readFileSync(path.join(__dirname, 'fixtures', name));
 const profile = process.platform === 'win32'
   ? 'chrome/154.0.8037.97/windows-11-26200/r1'
   : process.platform === 'darwin' ? 'chrome/154.0.8037.95/macos-15.5-arm64/r1'
   : 'chrome/154.0.8037.57/android-17-pixel7-emulator/r1';
+
+test('decoded overflow and cancellation preserve a live HTTP/2 sibling and its session', {timeout: 30000}, async (t) => {
+  const sessions = new Set();
+  const observed = new Map();
+  const finishes = new Map();
+  const resets = new Map();
+  const server = http2.createSecureServer({key: fixture('key.pem'), cert: fixture('certificate.pem')});
+  server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
+  server.on('stream', (stream, headers) => {
+    const target = headers[':path'];
+    stream.on('error', () => {});
+    observed.set(target, stream.session);
+    if (target.startsWith('/healthy')) {
+      stream.respond({':status': 200});
+      finishes.set(target, () => stream.end('healthy'));
+    } else {
+      resets.set(target, new Promise((resolve) => stream.once('close', () => resolve(stream.rstCode))));
+      stream.respond({':status': 200, 'content-encoding': 'gzip'});
+      const encoded = gzipSync(Buffer.alloc(65536, 0x61));
+      stream.write(target === '/overflow' ? encoded : encoded.subarray(0, 10));
+    }
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {
+    for (const session of sessions) session.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')]});
+  t.after(() => client.close());
+  const url = `https://127.0.0.1:${server.address().port}`;
+  const options = {method: 'GET', protocol: 'http2', context: 'raw', timeoutMs: 5000};
+  for (const target of ['/overflow', '/cancel']) {
+    const controller = new AbortController();
+    const selected = await client.request(url + target, {...options, signal: controller.signal,
+      headers: [{name: 'accept-encoding', value: Buffer.from('gzip')}],
+      contentDecoding: {mode: 'advertised', maximumDecodedBytes: 8n}});
+    const healthyPath = '/healthy' + target;
+    const healthy = await client.request(url + healthyPath, options);
+    assert.equal(observed.get(target), observed.get(healthyPath));
+    const reading = selected.bytes(100);
+    if (target === '/cancel') controller.abort();
+    await assert.rejects(reading, (error) => error instanceof PhantomError
+      && error.code === (target === '/cancel' ? 'Cancelled' : 'ResponseBodyLimit'));
+    assert.equal(await resets.get(target), http2.constants.NGHTTP2_CANCEL);
+    finishes.get(healthyPath)();
+    assert.equal(await healthy.text(7), 'healthy');
+  }
+  assert.equal(sessions.size, 1);
+});
 
 for (const [method, overflow] of [['read', false], ['bytes', false], ['text', false], ['json', false], ['bytes', true]]) {
 test(`${overflow ? 'overflowing' : 'cancelling'} an HTTP/2 ${method} preserves another live stream on the same session`, { timeout: 30000 }, async (t) => {

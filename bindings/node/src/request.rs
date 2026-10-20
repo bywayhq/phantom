@@ -31,6 +31,7 @@ pub(crate) struct ResponseHead {
     pub(crate) url: String,
     pub(crate) redirects: u32,
     pub(crate) connection_retries: u32,
+    pub(crate) decoded_content_codings: Vec<String>,
 }
 
 pub(crate) struct Prepared {
@@ -79,6 +80,9 @@ impl Prepared {
         }
         .map_err(request)?
         .headers(headers);
+        if let Some(policy) = options.content_decoding {
+            builder = builder.content_decoding(policy.policy()?);
+        }
         if let Some(prepared) = client.profile.template(&options.context)? {
             builder = builder.template(&prepared);
         }
@@ -191,6 +195,20 @@ impl Prepared {
             };
             let redirects = count(info.redirects_followed())?;
             let connection_retries = count(info.retries_performed())?;
+            let decoded_content_codings = info
+                .decoded_content_codings()
+                .iter()
+                .map(|coding| match coding {
+                    phantom::ContentCoding::Gzip => Ok("gzip".to_owned()),
+                    phantom::ContentCoding::Deflate => Ok("deflate".to_owned()),
+                    phantom::ContentCoding::Brotli => Ok("br".to_owned()),
+                    phantom::ContentCoding::Zstd => Ok("zstd".to_owned()),
+                    _ => Err(failure(
+                        "Internal",
+                        "response content coding is unsupported",
+                    )),
+                })
+                .collect::<Result<Vec<_>>>()?;
             let headers = response
                 .extensions()
                 .get::<phantom::OrderedResponseHeaders>()
@@ -207,6 +225,7 @@ impl Prepared {
                     url,
                     redirects,
                     connection_retries,
+                    decoded_content_codings,
                 },
                 Arc::clone(&exchange),
             ))

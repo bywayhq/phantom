@@ -98,3 +98,21 @@ function attemptBudgets(): void {
   void remaining; void admitted; void rounded;
 }
 void attemptBudgets;
+
+async function decoding(client: Client): Promise<void> {
+  const response = await client.request('https://example.com/', {
+    method: 'GET', protocol: 'http2', context: 'raw',
+    contentDecoding: {mode: 'advertised', maximumDecodedBytes: 18446744073709551615n},
+  });
+  const codings: readonly ('gzip' | 'deflate' | 'br' | 'zstd')[] = response.decodedContentCodings;
+  // @ts-expect-error Decoded-byte bounds are required when enabling decoding.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', contentDecoding: {mode: 'advertised'}});
+  // @ts-expect-error None has no decoded-byte bound.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', contentDecoding: {mode: 'none', maximumDecodedBytes: 5}});
+  // @ts-expect-error Recorded coding metadata is immutable.
+  response.decodedContentCodings.push('gzip');
+  // @ts-expect-error Content decoding is request-only.
+  new Client({profile: 'exact/id', route: 'direct', contentDecoding: {mode: 'none'}});
+  void codings;
+}
+void decoding;

@@ -93,6 +93,36 @@ function sessionSharing(value) {
   return result;
 }
 
+function policyFields(value, names) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)
+    || types.isProxy(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new PhantomError('InvalidArgument', 'policy must be a plain data object');
+  }
+  const result = Object.create(null);
+  for (const name of Reflect.ownKeys(value)) {
+    const field = Object.getOwnPropertyDescriptor(value, name);
+    if (!names.includes(name) || !Object.hasOwn(field, 'value')) {
+      throw new PhantomError('InvalidArgument', 'policy contains an unknown or non-data field');
+    }
+    result[name] = field.value;
+  }
+  return result;
+}
+
+function contentDecoding(value) {
+  if (value === undefined) return undefined;
+  const copy = policyFields(value, ['mode', 'maximumDecodedBytes']);
+  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumDecodedBytes')) return {mode: 'none'};
+  if (copy.mode === 'advertised') {
+    const maximum = copy.maximumDecodedBytes;
+    if ((typeof maximum === 'bigint' && maximum >= 0n && maximum <= 18446744073709551615n)
+      || (typeof maximum === 'number' && Number.isSafeInteger(maximum) && maximum >= 0)) {
+      return {mode: 'advertised', maximumDecodedBytes: BigInt(maximum)};
+    }
+  }
+  throw new PhantomError('InvalidArgument', 'choose none or advertised with an exact unsigned u64 byte cap');
+}
+
 class AttemptBudget {
   constructor(maximum) {
     if (typeof maximum === 'number' && Number.isSafeInteger(maximum) && maximum >= 0) maximum = BigInt(maximum);
@@ -220,6 +250,9 @@ class Response {
     this.url = response.url;
     this.redirects = response.redirects;
     this.connectionRetries = response.connectionRetries;
+    Object.defineProperty(this, 'decodedContentCodings', {
+      value: Object.freeze(response.decodedContentCodings), enumerable: true,
+    });
     this.headers = response.headers.map(({ name, value }) => ({ name, value }));
   }
   #finished() {
@@ -326,6 +359,7 @@ class Client {
         headers: options.headers?.map((header) => ({ ...header, value: bytes(header.value) })),
         body: options.body === undefined ? undefined : bytes(options.body),
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
+        contentDecoding: contentDecoding(options.contentDecoding),
       }, cancellation, budget);
       if (signal?.aborted) { response.close(); throw new PhantomError('Cancelled', 'request was cancelled'); }
       return new Response(response, cleanup, this);

@@ -209,6 +209,32 @@ pub struct FileUpload {
     pub maximum_bytes: u32,
 }
 
+/// Request-only, opt-in decoding of advertised content codings.
+#[derive(Debug)]
+#[napi(object)]
+pub struct ContentDecodingOptions {
+    /// Either none or advertised; never adds Accept-Encoding.
+    pub mode: String,
+    /// Inclusive decoded-byte cap, including zero, for advertised decoding.
+    pub maximum_decoded_bytes: Option<BigInt>,
+}
+
+impl ContentDecodingOptions {
+    pub(crate) fn policy(self) -> Result<phantom::ContentDecoding> {
+        match (self.mode.as_str(), self.maximum_decoded_bytes) {
+            ("none", None) => Ok(phantom::ContentDecoding::none()),
+            ("advertised", Some(value)) => match (value.sign_bit, value.words.as_slice()) {
+                (false, [maximum]) => Ok(phantom::ContentDecoding::advertised(*maximum)),
+                _ => Err(failure("InvalidArgument", "decoded-byte cap must fit u64")),
+            },
+            _ => Err(failure(
+                "InvalidArgument",
+                "invalid content-decoding policy",
+            )),
+        }
+    }
+}
+
 /// Owned inputs for one request.
 #[napi(object)]
 pub struct RequestOptions {
@@ -230,6 +256,8 @@ pub struct RequestOptions {
     pub timeout_ms: Option<u32>,
     /// Per-phase overrides; absence inherits and explicit disable removes a limit.
     pub timeouts: Option<PhaseTimeouts>,
+    /// Decodes only caller-advertised codings, with an explicit byte cap.
+    pub content_decoding: Option<ContentDecodingOptions>,
 }
 
 impl fmt::Debug for WireHeader {
@@ -585,6 +613,7 @@ impl NativeClient {
                 url: head.url,
                 redirects: head.redirects,
                 connection_retries: head.connection_retries,
+                decoded_content_codings: head.decoded_content_codings,
                 exchange,
                 owner,
             })
@@ -639,6 +668,7 @@ pub struct NativeResponse {
     url: String,
     redirects: u32,
     connection_retries: u32,
+    decoded_content_codings: Vec<String>,
     exchange: Arc<Exchange>,
     owner: Arc<ClientState>,
 }
@@ -677,6 +707,12 @@ impl NativeResponse {
     #[must_use]
     pub fn connection_retries(&self) -> u32 {
         self.connection_retries
+    }
+    /// Selected coding chain in Content-Encoding order, not completion status.
+    #[napi(getter)]
+    #[must_use]
+    pub fn decoded_content_codings(&self) -> Vec<String> {
+        self.decoded_content_codings.clone()
     }
     /// HTTP status received from the peer.
     #[napi(getter)]

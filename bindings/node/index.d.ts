@@ -64,6 +64,9 @@ export interface SessionSharing {
   discovery?: boolean;
   tickets?: boolean;
 }
+export type ContentDecoding = Readonly<{mode: 'none'}>
+  | Readonly<{mode: 'advertised'; maximumDecodedBytes: number | bigint}>;
+export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
 export interface RequestOptions {
   method: string;
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
@@ -75,6 +78,7 @@ export interface RequestOptions {
   timeouts?: Timeouts;
   signal?: AbortSignal;
   attemptBudget?: AttemptBudget;
+  contentDecoding?: ContentDecoding;
 }
 export class Response implements AsyncIterable<Buffer> {
   private constructor();
@@ -84,6 +88,8 @@ export class Response implements AsyncIterable<Buffer> {
   readonly redirects: number;
   /** Connection-setup retries only; excludes status retries and protocol replays. */
   readonly connectionRetries: number;
+  /** Selected chain in wire Content-Encoding order; not a completion signal. */
+  readonly decodedContentCodings: readonly ContentCoding[];
   readonly headers: Header[];
   read(maximumBytes?: number): Promise<Buffer | null>;
   bytes(maximumBytes: number): Promise<Buffer>;
