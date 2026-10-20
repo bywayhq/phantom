@@ -193,6 +193,9 @@ def copied_tests(destination, native_package=None):
         "session-sharing.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "session-snapshots.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "content-decoding.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
@@ -329,6 +332,7 @@ def public_checks(
                 "tests/profiles.test.cjs",
                 "tests/compact-profiles.test.cjs",
                 "tests/session-sharing.test.cjs",
+                "tests/session-snapshots.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",
                 "tests/retries.test.cjs",

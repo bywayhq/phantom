@@ -1528,6 +1528,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]
@@ -1683,6 +1684,7 @@ dependencies = [
  "phantom-http",
  "phantom-profile",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]
