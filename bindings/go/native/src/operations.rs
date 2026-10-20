@@ -1006,7 +1006,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .clients
                     .get(&client)
                     .ok_or_else(|| Failure::new("invalid_handle"))?
-                    .timeouts;
+                    .client
+                    .request_timeouts();
                 let total = timeouts.overrides().resolve(defaults).total_duration();
                 let mut request = state
                     .clients
