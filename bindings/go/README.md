@@ -114,9 +114,10 @@ serialized. Byte uploads use replayable `Request.Body`, limited to 8 MiB.
 For larger uploads, set `Request.Upload` to an `io.ReadCloser`, such as an open
 file. `Do` takes ownership and closes it once, including on validation failure.
 Its `Close` must unblock a concurrent `Read`. Set `UploadLength` for an exact
-byte count, or leave it nil for unknown length. Streaming uses bounded chunks
-and cannot be combined with `Body`. A reader is one-shot; retries cannot reopen
-it. Cancellation and the total deadline remain active after an early response.
+byte count, or leave it nil for unknown length. Unread suffixes are not validated.
+Streaming uses bounded chunks and cannot be combined with `Body`. A reader is
+one-shot; retries cannot reopen it. Cancellation and the total deadline remain
+active after an early response.
 
 ## Cancellation and state
 

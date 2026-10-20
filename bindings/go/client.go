@@ -68,7 +68,7 @@ type Request struct {
 	// Close must unblock Read. It cannot be combined with Body.
 	Upload io.ReadCloser
 	// UploadLength is nil for unknown length, or an exact byte count (including
-	// zero). Unread bytes cannot be checked after a peer abandons the upload.
+	// zero). Checks bytes read and observed EOF; unread suffixes are not validated.
 	// Streaming uploads have bounded buffering, without Body's 8 MiB size cap.
 	UploadLength *uint64
 	Budget       *AttemptBudget
