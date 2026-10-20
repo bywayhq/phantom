@@ -242,47 +242,60 @@ def check_development() -> None:
     root = ROOT
     os.chdir(root)
     output = root / "target" / "python-binding"
-    environment = output / f"python-{sys.version_info.major}.{sys.version_info.minor}"
-    venv.EnvBuilder(with_pip=True).create(environment)
-    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    run(
-        str(python),
-        "-m",
-        "pip",
-        "install",
-        "--disable-pip-version-check",
-        f"maturin=={MATURIN}",
-        *TEST_DEPENDENCIES,
-    )
-    wheels = Path(tempfile.mkdtemp(prefix="wheels-", dir=output))
-    run(
-        str(python),
-        "-m",
-        "maturin",
-        "build",
-        "--locked",
-        "--profile",
-        "dev",
-        "--manifest-path",
-        "bindings/python/Cargo.toml",
-        "--interpreter",
-        str(python),
-        "--out",
-        str(wheels),
-    )
-    built = list(wheels.glob("*.whl"))
-    if len(built) != 1:
-        raise RuntimeError(f"expected one built wheel, found {len(built)}")
-    run(
-        str(python),
-        "-m",
-        "pip",
-        "install",
-        "--no-deps",
-        "--force-reinstall",
-        str(built[0]),
-    )
-    run(str(python), "-m", "unittest", "discover", "-s", "bindings/python/tests", "-v")
+    output.mkdir(parents=True, exist_ok=True)
+    # Cargo caches can restore incomplete virtualenvs; never cache this environment.
+    with tempfile.TemporaryDirectory(prefix="phantom-python-binding-") as temporary:
+        environment = Path(temporary) / "environment"
+        venv.EnvBuilder(with_pip=True).create(environment)
+        python = environment / (
+            "Scripts/python.exe" if os.name == "nt" else "bin/python"
+        )
+        run(
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            "--disable-pip-version-check",
+            f"maturin=={MATURIN}",
+            *TEST_DEPENDENCIES,
+        )
+        wheels = Path(tempfile.mkdtemp(prefix="wheels-", dir=output))
+        run(
+            str(python),
+            "-m",
+            "maturin",
+            "build",
+            "--locked",
+            "--profile",
+            "dev",
+            "--manifest-path",
+            "bindings/python/Cargo.toml",
+            "--interpreter",
+            str(python),
+            "--out",
+            str(wheels),
+        )
+        built = list(wheels.glob("*.whl"))
+        if len(built) != 1:
+            raise RuntimeError(f"expected one built wheel, found {len(built)}")
+        run(
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--force-reinstall",
+            str(built[0]),
+        )
+        run(
+            str(python),
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "bindings/python/tests",
+            "-v",
+        )
 
 
 def installed_checks(wheel, commands):

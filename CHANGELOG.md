@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Use fresh Python check environments so restored build caches cannot corrupt
+  binding installation checks.
+
 - Stop capture process groups before closing their control pipes to avoid
   intermittent cleanup failures on macOS.
 
