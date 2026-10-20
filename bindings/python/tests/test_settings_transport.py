@@ -127,6 +127,25 @@ def peer(**options):
 
 
 class PeerFailureTests(unittest.TestCase):
+    def test_response_head_waits_until_released(self):
+        with (
+            peer() as server,
+            socket.create_connection(("127.0.0.1", server.server_port), 2) as stream,
+        ):
+            stream.sendall(b"GET /head HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            self.assertTrue(server.entered.wait(2))
+            stream.settimeout(0.05)
+            with self.assertRaises(socket.timeout):
+                stream.recv(4096)
+            server.release.set()
+            stream.settimeout(2)
+            response = b""
+            while not response.endswith(b"hello"):
+                chunk = stream.recv(4096)
+                self.assertTrue(chunk)
+                response += chunk
+            self.assertTrue(response.startswith(b"HTTP/1.1 200"))
+
     def test_expected_disconnects_outside_the_handler_are_retained_as_disconnects(self):
         for kind in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             with self.subTest(kind=kind.__name__):
@@ -421,9 +440,11 @@ class AsyncSettingsTests(unittest.IsolatedAsyncioTestCase):
                         pending.cancel()
                         with self.assertRaises(asyncio.CancelledError):
                             await pending
+                # A ready response can beat a zero timer, so hold the next head.
+                server.release.clear()
                 with self.assertRaises(TimeoutError) as failure:
                     await client.request(
-                        "GET", server.url, timeouts=TimeoutOverrides(total=0)
+                        "GET", server.url + "/head", timeouts=TimeoutOverrides(total=0)
                     )
                 self.assertEqual(failure.exception.timeout_phase, "total")
 
