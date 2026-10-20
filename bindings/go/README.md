@@ -215,7 +215,7 @@ fork a released owner after successful shutdown.
 
 Process-wide limits are 64 each for clients, budgets, response handles and
 ordinary operations, plus 64 separate shutdown operations. Exhaustion returns
-a typed error without waiting. Uploads allow 8 MiB each and 16 MiB aggregate
+a typed error without waiting. Byte uploads allow 8 MiB each and 16 MiB aggregate
 native custody until responses close. Metadata limits are 64 KiB per command,
 256 response fields/32 KiB and 256 KiB per encoded reply.
 
