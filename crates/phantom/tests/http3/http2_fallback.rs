@@ -863,7 +863,7 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
     let mut refused = None;
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let (port, quic, tcp) = bind_origin(&identity, ReservedPort::bind_port)?;
+        let (port, quic, _tcp) = bind_origin(&identity, ReservedPort::bind_port)?;
         // Keep the TCP address reserved while its non-listening socket refuses.
         // macOS releases the reservation to preserve its refusal behavior.
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
@@ -881,7 +881,6 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
         assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
         assert_eq!(error.kind(), RequestErrorKind::Connect);
         join_worker(&mut refused).await?;
-        drop(tcp);
         Ok(())
     })
     .await;
