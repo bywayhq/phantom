@@ -83,6 +83,15 @@ comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents
 its supported workloads and measurement limits. Their availability alone does
 not establish parity.
 
+Public-binding adapters are `phantom_python_client.py`,
+`phantom_node_client.cjs` and [phantom-go](phantom-go/README.md). They cover
+direct verified HTTPS GETs over H1/H2/H3, cold or warm clients, collection or
+streaming, multiple origins and planned arrivals. Unsupported workloads fail
+before warmup. Python needs an installed wheel; Node needs an absolute
+`PHANTOM_NODE_PACKAGE` directory. Use matching native artifacts and retain
+runtime, binding and adapter hashes. Runtime scheduling and payload checking
+are part of their measured CPU cost; their observation-size estimates differ.
+
 The descriptor has exactly four fields:
 
 ```json
