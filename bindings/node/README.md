@@ -144,6 +144,9 @@ Set `bodyLength` for a known byte count; unread suffixes are not validated.
 Producers are one-shot. Cancellation and early completion call the iterator's
 `return()` cooperatively. Client closure waits for cleanup within its deadline;
 unresolved cleanup remains owned. An iterator cannot await its own client's close.
+Upload errors expose caller failures through `cause` and `cleanupError`;
+automatic formatting omits their text. Cleanup errors may settle later and
+are reported by `close()`.
 
 Request headers allow 256 entries/64 KiB. Additional roots allow sixteen
 certificates up to 1 MiB each.
