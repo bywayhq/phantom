@@ -1,5 +1,5 @@
-use crate::{error, response::NativeResponse, runtime, upload::FileBody};
-use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, Route};
+use crate::{configuration, error, response::NativeResponse, runtime, upload::FileBody};
+use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader};
 use phantom_profile::catalog::{self, RequestTemplateKind};
 use pyo3::prelude::*;
 use std::{path::PathBuf, time::Duration};
@@ -70,24 +70,6 @@ impl NativeCookies {
     }
 }
 
-fn route(uri: Option<&str>) -> PyResult<Route> {
-    let Some(uri) = uri else {
-        return Ok(Route::direct());
-    };
-    match uri.split_once("://").map(|(scheme, _)| scheme) {
-        Some("http" | "https") => phantom::HttpProxy::new(uri)
-            .map(Route::http_proxy)
-            .map_err(|_| error::input("invalid_http_proxy")),
-        Some("socks4" | "socks4a") => phantom::Socks4Proxy::new(uri)
-            .map(Route::socks4)
-            .map_err(|_| error::input("invalid_socks4_proxy")),
-        Some("socks5" | "socks5h") => phantom::Socks5Proxy::new(uri)
-            .map(Route::socks5)
-            .map_err(|_| error::input("invalid_socks5_proxy")),
-        _ => Err(error::input("invalid_proxy_scheme")),
-    }
-}
-
 #[pyclass]
 pub(super) struct NativeClient {
     client: Client,
@@ -97,7 +79,8 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &str,
         protocol: &str,
@@ -105,6 +88,12 @@ impl NativeClient {
         proxy: Option<&str>,
         cookies: bool,
         timeout_ms: Option<u64>,
+        base_url: Option<&str>,
+        roots: Vec<Vec<u8>>,
+        proxy_roots: Vec<Vec<u8>>,
+        proxy_username: Option<&str>,
+        proxy_password: Option<&str>,
+        timeouts: Option<configuration::TimeoutFields>,
     ) -> PyResult<Self> {
         runtime::initialize()?;
         if !matches!(protocol, "h1" | "h2" | "h3" | "negotiated") {
@@ -127,14 +116,22 @@ impl NativeClient {
                     .map_err(|_| error::input("context_unavailable"))?,
             );
         }
-        let mut builder = Client::builder(profile).route(route(proxy)?);
+        let mut builder = Client::builder(profile)
+            .route(configuration::route(proxy, proxy_username, proxy_password)?)
+            .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
+        if let Some(base_url) = base_url {
+            builder = builder
+                .base_url(base_url)
+                .map_err(|_| error::input("invalid_base_url"))?;
+        }
+        for root in roots {
+            builder = builder.add_root_certificate_der(root);
+        }
+        for root in proxy_roots {
+            builder = builder.add_proxy_root_certificate_der(root);
+        }
         if cookies {
             builder = builder.cookies();
-        }
-        if let Some(timeout) = timeout_ms {
-            builder = builder.request_timeouts(
-                phantom::RequestTimeouts::new().total(Duration::from_millis(timeout)),
-            );
         }
         let client = builder
             .build()
@@ -157,18 +154,19 @@ impl NativeClient {
         self.client.is_closed()
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
         py: Python<'py>,
         method: &str,
         url: &str,
-        headers: Vec<(String, Vec<u8>)>,
+        headers: Vec<(String, Vec<u8>, bool)>,
         body: Option<Vec<u8>>,
         upload: Option<PathBuf>,
         budget: Option<PyRef<'_, AttemptBudget>>,
         timeout_ms: Option<u64>,
+        timeouts: Option<configuration::TimeoutFields>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if body.is_some() && upload.is_some() {
             return Err(error::input("body_and_upload"));
@@ -186,17 +184,20 @@ impl NativeClient {
         request = request.headers(
             headers
                 .into_iter()
-                .map(|(name, value)| RequestHeader::new(name, value))
+                .map(|(name, value, sensitive)| {
+                    let header = RequestHeader::new(name, value);
+                    if sensitive {
+                        header.sensitive()
+                    } else {
+                        header
+                    }
+                })
                 .collect(),
         );
         if let Some(budget) = budget {
             request = request.attempt_budget(budget.inner.clone());
         }
-        if let Some(timeout) = timeout_ms {
-            request = request.timeouts(phantom::RequestTimeoutOverrides::new().total(
-                phantom::TimeoutOverride::Limit(Duration::from_millis(timeout)),
-            ));
-        }
+        request = request.timeouts(configuration::request_timeouts(timeout_ms, timeouts)?);
         if let Some(body) = body {
             request = request.body(body);
         }
@@ -206,6 +207,44 @@ impl NativeClient {
             }
             NativeResponse::new(request.send().await.map_err(error::request)?)
         })
+    }
+
+    fn close_idle_connections<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.client.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            client.close_idle_connections().await;
+            Ok(())
+        })
+    }
+
+    fn refresh_connections<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.client.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            client.refresh_connections().await;
+            Ok(())
+        })
+    }
+
+    fn clear_session_tickets(&self) -> PyResult<usize> {
+        self.client
+            .clear_session_tickets()
+            .map_err(|_| error::input("session_tickets"))
+    }
+
+    fn clear_dns_cache(&self) {
+        self.client.clear_dns_cache();
+    }
+
+    fn clear_client_hints(&self) {
+        self.client.clear_client_hints();
+    }
+
+    fn clear_alt_svc(&self) {
+        self.client.clear_alt_svc();
+    }
+
+    fn clear_alt_svc_racing_history(&self) {
+        self.client.clear_alt_svc_racing_history();
     }
 
     fn shutdown<'py>(&self, py: Python<'py>, timeout_ms: u64) -> PyResult<Bound<'py, PyAny>> {

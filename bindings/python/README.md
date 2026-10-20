@@ -50,7 +50,7 @@ keeps the ordinary development build used by the gate.
 
 The package includes inline type hints and `py.typed` for Python 3.10 or newer.
 Sync and async clients expose the same explicit request options to editors and
-type checkers. Headers remain ordered pairs, including duplicate names.
+type checkers. Headers retain their order, including duplicate names.
 
 ## Requests and state
 
@@ -64,12 +64,21 @@ For direct `http://` URLs, `h2` selects cleartext HTTP/2 prior knowledge.
 Pass ordered `headers=[("X-First", b"one"), ("X-Second", b"two")]`.
 Values accept bytes or Latin-1 text. Other text requires explicit encoding into
 bytes. The library enforces the selected protocol and template rules.
+Use `Header("X-Secret", b"value", sensitive=True)` alongside pairs to request
+never-index encoding in HTTP/2 and HTTP/3. This does not encrypt a header.
 Responses retain ordered duplicate header pairs with byte values. HTTP error
 statuses are responses; this slice does not raise for them automatically.
 
 The route defaults to direct and ignores proxy environment variables. `proxy`
-accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. Proxy credentials, CONNECT-UDP,
-custom trust configuration and custom profile documents are not exposed yet.
+accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. For HTTP Basic or SOCKS5
+authentication, pass `Proxy(uri, username="user", password="secret")`.
+Supply credentials together, separately from the URI. SOCKS4 credentials,
+CONNECT-UDP and custom profile documents are not exposed yet.
+
+Set `base_url="https://example.com/api/"` to resolve relative request URLs.
+`"child"` joins to `/api/child`; `"/child"` starts at the origin's root.
+`Trust(roots=(der_bytes,), proxy_roots=(proxy_der_bytes,))` adds separate
+origin and HTTPS-proxy roots. Certificate and hostname verification stay enabled.
 
 Cookies are enabled by default. Use `client.cookies.set(url, set_cookie)`,
 `for_url(url)` and `clear()`. Cookie matching uses Phantom's top-level navigation
@@ -84,6 +93,14 @@ setup and proxy negotiation are separate work. The budget does not enable retrie
 `timeout_ms` on the client or request covers the library operation through body
 completion across internal attempts. File opening occurs before its clock starts.
 Inactive Python consumers must still close their response bodies.
+For phase limits in seconds, use `timeouts=Timeouts(connect=5, total=30)`.
+The phases are `pool_admission`, `connect`, `response_head`, `read_idle` and
+`total`. Response-head time includes upload. Each omitted client limit is
+disabled. A request's `TimeoutOverrides` inherits omitted fields (`INHERIT`),
+disables explicit `None` fields and applies finite numbers, including zero.
+For example, `TimeoutOverrides(total=None, read_idle=2)` disables the inherited
+total limit while limiting body-read idle time. Pass `timeouts` or `timeout_ms`,
+never both. Durations must be finite and nonnegative.
 
 ## Streaming and lifetime
 
@@ -109,6 +126,14 @@ Cancellation can return before background connection cleanup finishes.
 requests and bodies. Read or close them first. Expiry returns `TimeoutError`;
 admission stays closed. Close does not abort unrelated active operations.
 The shared Tokio runtime remains available to other clients.
+
+`await client.close_idle_connections()` releases idle pools without interrupting
+active responses. `await client.refresh_connections()` retires current pools
+while active owners finish. Both retain cookies, tickets and discovery state.
+Use `clear_session_tickets()`, `clear_dns_cache()`, `clear_client_hints()`,
+`clear_alt_svc()` or `clear_alt_svc_racing_history()` to clear selected state.
+These clearing calls are synchronous on both clients. The two pool controls
+are synchronous on `Client`.
 
 ## Synchronous calls and errors
 

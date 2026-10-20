@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 from phantom_http import (
+    INHERIT,
     AsyncClient,
     AsyncResponse,
     AttemptBudget,
@@ -12,7 +13,12 @@ from phantom_http import (
     Client,
     Cookies,
     Error,
+    Header,
+    Proxy,
     Response,
+    TimeoutOverrides,
+    Timeouts,
+    Trust,
 )
 
 
@@ -29,9 +35,11 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         profile=profile,
         protocol="negotiated",
         context="navigation",
-        proxy=None,
+        proxy=Proxy("http://proxy.invalid", username="user", password="secret"),
         cookies=True,
-        timeout_ms=5000,
+        base_url="https://origin.invalid/api/",
+        trust=Trust(roots=(b"DER",), proxy_roots=(b"DER",)),
+        timeouts=Timeouts(connect=1, total=5),
     ) as client:
         _closed: bool = client.is_closed
         jar: Cookies = client.cookies
@@ -39,6 +47,13 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         _cookie: str | None = jar.for_url(url)
         _count: int = len(jar)
         jar.clear()
+        client.close_idle_connections()
+        client.refresh_connections()
+        _tickets: int = client.clear_session_tickets()
+        client.clear_dns_cache()
+        client.clear_client_hints()
+        client.clear_alt_svc()
+        client.clear_alt_svc_racing_history()
         response: Response = client.request(
             "PUT", url, headers=headers(), upload=upload, budget=budget, timeout_ms=1000
         )
@@ -59,7 +74,11 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
 async def asynchronous(profile: str, url: str) -> bytes:
     async with AsyncClient(profile=profile, protocol="h2", context="fetch") as client:
         response: AsyncResponse = await client.request(
-            "GET", url, headers=headers(), budget=AttemptBudget(2)
+            "GET",
+            url,
+            headers=[Header("X-Secret", b"value", sensitive=True), ("X-Other", "x")],
+            budget=AttemptBudget(2),
+            timeouts=TimeoutOverrides(connect=INHERIT, total=None, read_idle=0),
         )
         async with response:
             _first: bytes | None = await response.read_chunk(1)

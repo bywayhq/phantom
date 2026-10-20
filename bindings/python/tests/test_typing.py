@@ -139,6 +139,9 @@ class SignatureTests(unittest.TestCase):
                     "proxy": None,
                     "cookies": True,
                     "timeout_ms": None,
+                    "base_url": None,
+                    "trust": None,
+                    "timeouts": None,
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -147,6 +150,9 @@ class SignatureTests(unittest.TestCase):
                     "proxy": "http://proxy.invalid",
                     "cookies": False,
                     "timeout_ms": 1234,
+                    "base_url": "https://origin.invalid/api/",
+                    "trust": phantom_http.Trust(roots=(b"certificate",)),
+                    "timeouts": None,
                 }
                 fields = iter([("X-Duplicate", b"a"), ("X-Duplicate", "b")])
                 budget = object()
@@ -156,6 +162,7 @@ class SignatureTests(unittest.TestCase):
                     "upload": None,
                     "budget": budget,
                     "timeout_ms": 42,
+                    "timeouts": None,
                 }
                 with patch("phantom_http.AsyncClient", FakeAsyncClient):
                     client = Client(
@@ -188,6 +195,7 @@ class SignatureTests(unittest.TestCase):
                                 "upload": None,
                                 "budget": None,
                                 "timeout_ms": None,
+                                "timeouts": None,
                             }
                         )
                         self.assertEqual(forwarded, expected)

@@ -8,7 +8,7 @@ import unittest
 import h2.config
 import h2.connection
 import h2.events
-from phantom_http import AsyncClient, BodyLimitExceeded
+from phantom_http import AsyncClient, BodyLimitExceeded, Header
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
@@ -23,6 +23,7 @@ class H2Peer:
         self.reset = threading.Event()
         self.error = None
         self.requests = []
+        self.headers = []
         self.reset_code = None
         self.reset_stream = None
         self.premature_close = False
@@ -57,6 +58,7 @@ class H2Peer:
                         if isinstance(event, h2.events.RequestReceived):
                             path = dict(event.headers)[b":path"]
                             self.requests.append((event.stream_id, path))
+                            self.headers.append(event.headers)
                             connection.send_headers(
                                 event.stream_id, [(":status", "200")]
                             )
@@ -90,6 +92,38 @@ class H2Peer:
 
 
 class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sensitive_header_never_indexes_and_duplicate_order_is_preserved(
+        self,
+    ):
+        with H2Peer() as peer:
+            async with AsyncClient(
+                profile=PROFILE, protocol="h2", timeout_ms=5000
+            ) as client:
+                for path in ("/first", "/second", "/third"):
+                    response = await client.request(
+                        "GET",
+                        peer.url + path,
+                        headers=[
+                            ("X-Duplicate", b"one"),
+                            Header("X-Secret", b"private", sensitive=True),
+                            ("X-Duplicate", b"two"),
+                        ],
+                    )
+                    self.assertEqual(await response.read(max_bytes=5), b"hello")
+            self.assertEqual(len(peer.headers), 3)
+            for headers in peer.headers:
+                supplied = [field for field in headers if field[0].startswith(b"x-")]
+                self.assertEqual(
+                    supplied,
+                    [
+                        (b"x-duplicate", b"one"),
+                        (b"x-secret", b"private"),
+                        (b"x-duplicate", b"two"),
+                    ],
+                )
+                self.assertFalse(supplied[1].indexable)
+        self.assertFalse(peer.premature_close)
+
     async def test_cancel_one_body_keeps_other_stream_and_connection(self):
         await self.check_body_isolation("chunk")
 

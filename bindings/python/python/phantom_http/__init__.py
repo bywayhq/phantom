@@ -11,10 +11,16 @@ from os import PathLike
 from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
 
 from . import _native
+from ._configuration import INHERIT as INHERIT
+from ._configuration import Header as Header
+from ._configuration import Proxy as Proxy
+from ._configuration import TimeoutOverrides as TimeoutOverrides
+from ._configuration import Timeouts as Timeouts
+from ._configuration import Trust as Trust
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
 _Context: TypeAlias = Literal["navigation", "fetch"]
-_Headers: TypeAlias = Iterable[tuple[str, str | bytes]]
+_Headers: TypeAlias = Iterable[Header | tuple[str, str | bytes]]
 _UploadPath: TypeAlias = str | PathLike[str]
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -164,12 +170,39 @@ class AsyncClient:
         profile: str,
         protocol: _Protocol,
         context: _Context | None = None,
-        proxy: str | None = None,
+        proxy: str | Proxy | None = None,
         cookies: bool = True,
         timeout_ms: int | None = None,
+        base_url: str | None = None,
+        trust: Trust | None = None,
+        timeouts: Timeouts | None = None,
     ) -> None:
+        if timeouts is not None and not isinstance(timeouts, Timeouts):
+            raise TypeError("timeouts must be Timeouts")
+        if timeout_ms is not None and timeouts is not None:
+            raise ValueError("pass timeout_ms or timeouts, not both")
+        if trust is not None and not isinstance(trust, Trust):
+            raise TypeError("trust must be Trust")
+        if proxy is not None and not isinstance(proxy, (str, Proxy)):
+            raise TypeError("proxy must be a URI string or Proxy")
+        if isinstance(proxy, str):
+            proxy = Proxy(proxy)
+        route = proxy
+        roots = Trust() if trust is None else trust
         self._native = _call(
-            _native.NativeClient, profile, protocol, context, proxy, cookies, timeout_ms
+            _native.NativeClient,
+            profile,
+            protocol,
+            context,
+            None if route is None else route.url,
+            cookies,
+            timeout_ms,
+            base_url,
+            list(roots.roots),
+            list(roots.proxy_roots),
+            None if route is None else route.username,
+            None if route is None else route.password,
+            None if timeouts is None else timeouts._native_fields(),
         )
         self.cookies = Cookies(self._native.cookies)
 
@@ -187,10 +220,20 @@ class AsyncClient:
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
+        timeouts: TimeoutOverrides | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body."""
+        if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
+            raise TypeError("request timeouts must be TimeoutOverrides")
+        if timeout_ms is not None and timeouts is not None:
+            raise ValueError("pass timeout_ms or timeouts, not both")
         ordered = []
-        for name, value in headers:
+        for field in headers:
+            if isinstance(field, Header):
+                name, value, sensitive = field.name, field.value, field.sensitive
+            else:
+                name, value = field
+                sensitive = False
             if isinstance(value, str):
                 try:
                     value = value.encode("latin-1")
@@ -200,7 +243,7 @@ class AsyncClient:
                     ) from None
             if not isinstance(value, bytes):
                 raise TypeError("header values must be str or bytes")
-            ordered.append((name, value))
+            ordered.append((name, value, sensitive))
         try:
             native = await self._native.request(
                 method,
@@ -210,10 +253,40 @@ class AsyncClient:
                 upload,
                 None if budget is None else budget._native,
                 timeout_ms,
+                None if timeouts is None else timeouts._native_fields(),
             )
             return AsyncResponse(native)
         except _native.NativeError as error:
             raise _error(error) from None
+
+    async def close_idle_connections(self) -> None:
+        """Release idle connections, retaining active bodies and session state."""
+        try:
+            await self._native.close_idle_connections()
+        except _native.NativeError as error:
+            raise _error(error) from None
+
+    async def refresh_connections(self) -> None:
+        """Retire current pools; active owners finish and tickets remain available."""
+        try:
+            await self._native.refresh_connections()
+        except _native.NativeError as error:
+            raise _error(error) from None
+
+    def clear_session_tickets(self) -> int:
+        return _call(self._native.clear_session_tickets)
+
+    def clear_dns_cache(self) -> None:
+        _call(self._native.clear_dns_cache)
+
+    def clear_client_hints(self) -> None:
+        _call(self._native.clear_client_hints)
+
+    def clear_alt_svc(self) -> None:
+        _call(self._native.clear_alt_svc)
+
+    def clear_alt_svc_racing_history(self) -> None:
+        _call(self._native.clear_alt_svc_racing_history)
 
     async def close(self, *, timeout_ms: int = 5000) -> None:
         """Close admission and wait for active owners within this bound."""
@@ -272,9 +345,12 @@ class Client:
         profile: str,
         protocol: _Protocol,
         context: _Context | None = None,
-        proxy: str | None = None,
+        proxy: str | Proxy | None = None,
         cookies: bool = True,
         timeout_ms: int | None = None,
+        base_url: str | None = None,
+        trust: Trust | None = None,
+        timeouts: Timeouts | None = None,
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -285,6 +361,9 @@ class Client:
             proxy=proxy,
             cookies=cookies,
             timeout_ms=timeout_ms,
+            base_url=base_url,
+            trust=trust,
+            timeouts=timeouts,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies
@@ -326,6 +405,7 @@ class Client:
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
+        timeouts: TimeoutOverrides | None = None,
     ) -> Response:
         return Response(
             self,
@@ -338,9 +418,36 @@ class Client:
                     upload=upload,
                     budget=budget,
                     timeout_ms=timeout_ms,
+                    timeouts=timeouts,
                 )
             ),
         )
+
+    def close_idle_connections(self) -> None:
+        self._run(lambda: self._async.close_idle_connections())
+
+    def refresh_connections(self) -> None:
+        self._run(lambda: self._async.refresh_connections())
+
+    def clear_session_tickets(self) -> int:
+        self._check_thread_loop()
+        return self._async.clear_session_tickets()
+
+    def clear_dns_cache(self) -> None:
+        self._check_thread_loop()
+        self._async.clear_dns_cache()
+
+    def clear_client_hints(self) -> None:
+        self._check_thread_loop()
+        self._async.clear_client_hints()
+
+    def clear_alt_svc(self) -> None:
+        self._check_thread_loop()
+        self._async.clear_alt_svc()
+
+    def clear_alt_svc_racing_history(self) -> None:
+        self._check_thread_loop()
+        self._async.clear_alt_svc_racing_history()
 
     def close(self, *, timeout_ms: int = 5000) -> None:
         self._check_thread_loop()

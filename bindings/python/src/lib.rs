@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 
 mod client;
+mod configuration;
 mod error;
 mod response;
 mod runtime;
