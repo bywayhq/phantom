@@ -198,6 +198,13 @@ def copied_tests(destination):
         "retries.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "uploads.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "upload-http3.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "native-loader.test.cjs": (
+            (
+                "path.join(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -357,6 +364,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/retries.test.cjs",
                         "tests/uploads.test.cjs",
                         "tests/upload-http3.test.cjs",
+                        "tests/native-loader.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,

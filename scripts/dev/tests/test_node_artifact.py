@@ -203,6 +203,9 @@ class NodeArtifactTests(unittest.TestCase):
             self.assertIn("require('@byway/phantom')", test)
         for name in ("types.cts", "types.mts"):
             self.assertIn("from '@byway/phantom'", (destination / name).read_text())
+        loader = (destination / "native-loader.test.cjs").read_text()
+        self.assertIn("require.resolve('@byway/phantom')", loader)
+        self.assertNotIn("path.join(__dirname, '../index.cjs')", loader)
         fixtures = artifact.ROOT / "bindings/node/tests/fixtures"
         for source in fixtures.iterdir():
             self.assertEqual(
