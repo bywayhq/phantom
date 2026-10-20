@@ -2,7 +2,7 @@ use phantom::{RequestTimeoutOverrides, RequestTimeouts, TimeoutOverride};
 use serde::Deserialize;
 use std::time::Duration;
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 enum Timeout {
     Inherit {},
@@ -28,7 +28,7 @@ impl Timeout {
     }
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Copy, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub(super) struct Timeouts {
     pool_admission: Timeout,

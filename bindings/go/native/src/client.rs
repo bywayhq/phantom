@@ -50,6 +50,7 @@ pub(super) struct NativeClient {
     pub(super) client: Client,
     protocol: String,
     pub(super) closing: bool,
+    pub(super) timeouts: phantom::RequestTimeouts,
 }
 
 #[derive(Default, Deserialize)]
@@ -128,6 +129,7 @@ impl NativeClient {
             client: self.client.fork(sharing.core()),
             protocol: self.protocol.clone(),
             closing: false,
+            timeouts: self.timeouts,
         }
     }
 
@@ -158,8 +160,9 @@ impl NativeClient {
         if config.cookies {
             builder = builder.cookies();
         }
+        let timeouts = config.timeouts.defaults();
         builder = builder
-            .request_timeouts(config.timeouts.defaults())
+            .request_timeouts(timeouts)
             .retry_policy(config.retry_policy.core()?)
             .redirect_policy(config.redirect_policy.core()?);
         let client = builder.build().map_err(Failure::from)?;
@@ -167,6 +170,7 @@ impl NativeClient {
             client,
             protocol: config.protocol,
             closing: false,
+            timeouts,
         })
     }
 

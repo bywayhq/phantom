@@ -83,7 +83,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
                         Failure::from(error)
                     })
             })?;
-            let head = response_head(response, 1, global.upload(0)?)?;
+            let head = response_head(response, 1, global.upload(0)?, None)?;
             let id = global.lock().reserve(Target::Request(1))?.0;
             global.finish(id, Ok(Outcome::Head(head)));
             {
@@ -149,7 +149,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
             })?;
             response.extensions_mut().remove::<phantom::ResponseInfo>();
             assert_eq!(
-                response_head(response, 1, global.upload(0)?)
+                response_head(response, 1, global.upload(0)?, None)
                     .err()
                     .map(|error| error.kind),
                 Some("response_info_unavailable")

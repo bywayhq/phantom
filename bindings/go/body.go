@@ -34,13 +34,16 @@ type Response struct {
 type bodyLifetime struct {
 	id     uint64
 	closed atomic.Bool
+	upload *uploadLifetime
 }
 
 func (owner *bodyLifetime) close() error {
 	if owner.closed.Swap(true) {
 		return nil
 	}
-	return control("close_body", "body", owner.id)
+	err := control("close_body", "body", owner.id)
+	owner.upload.close()
+	return err
 }
 
 // Body implements io.ReadCloser. Reads are serialized; Close can interrupt a read.
@@ -53,8 +56,8 @@ type Body struct {
 	eof    atomic.Bool
 }
 
-func newBody(ctx context.Context, client *Client, id uint64) *Body {
-	owner := &bodyLifetime{id: id}
+func newBody(ctx context.Context, client *Client, id uint64, upload *uploadLifetime) *Body {
+	owner := &bodyLifetime{id: id, upload: upload}
 	body := &Body{owner: owner, client: client, ctx: ctx}
 	// The callback retains only the native lifetime, not Body, so collection can
 	// release an abandoned body even while a cancellable request context survives.
@@ -97,7 +100,7 @@ func (body *Body) Read(output []byte) (int, error) {
 	runtime.KeepAlive(body)
 	if err != nil {
 		_ = body.Close()
-		return 0, err
+		return 0, body.owner.upload.wrap(err)
 	}
 	if eof {
 		body.eof.Store(true)

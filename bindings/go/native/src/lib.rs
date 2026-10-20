@@ -9,3 +9,4 @@ mod policy;
 mod profile;
 mod retry;
 mod timeouts;
+mod upload;

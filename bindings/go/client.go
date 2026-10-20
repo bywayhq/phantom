@@ -4,6 +4,7 @@ package phantom
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -58,13 +59,21 @@ type Header struct {
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
 type Request struct {
-	Method   string
-	URL      string
-	Headers  []Header
-	Body     []byte
-	Budget   *AttemptBudget
-	Timeout  time.Duration
-	Timeouts Timeouts
+	Method  string
+	URL     string
+	Headers []Header
+	Body    []byte
+	// Upload transfers a one-shot source to Do, which closes it exactly once,
+	// including on validation failure. Read may run concurrently with Close;
+	// Close must unblock Read. It cannot be combined with Body.
+	Upload io.ReadCloser
+	// UploadLength is nil for unknown length, or an exact byte count (including
+	// zero). Unread bytes cannot be checked after a peer abandons the upload.
+	// Streaming uploads have bounded buffering, without Body's 8 MiB size cap.
+	UploadLength *uint64
+	Budget       *AttemptBudget
+	Timeout      time.Duration
+	Timeouts     Timeouts
 	// ContentDecoding is opt-in and uses the request's own Accept-Encoding fields.
 	ContentDecoding ContentDecoding
 	// RedirectPolicy replaces the client policy. Nil inherits; an empty value disables.
@@ -186,6 +195,23 @@ func clientFromReply(value json.RawMessage) (*Client, error) {
 // Do returns the response head and an owned pull-driven body. Keep ctx valid until
 // EOF or Body.Close; cancelling it also closes a body already returned to you.
 func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
+	var upload *uploadLifetime
+	if request.Upload != nil {
+		upload = &uploadLifetime{source: request.Upload}
+		if request.UploadLength != nil {
+			length := *request.UploadLength
+			upload.length = &length
+		}
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			upload.close()
+		}
+	}()
+	if (request.Upload != nil && request.Body != nil) || (request.Upload == nil && request.UploadLength != nil) {
+		return nil, &Error{Kind: "invalid_upload"}
+	}
 	if ctx == nil {
 		return nil, &Error{Kind: "invalid_context"}
 	}
@@ -261,8 +287,14 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		budget = &value
 	}
 	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
+	if upload != nil {
+		if err := upload.prepare(ctx, c.id.Load()); err != nil {
+			return nil, err
+		}
+		command["upload"] = upload.id
+	}
 	var response *Response
-	err = perform(ctx, command, request.Body, func(event completion) error {
+	err = performStarted(ctx, command, request.Body, upload.start, func(event completion) error {
 		var head struct {
 			Body                   uint64           `json:"body"`
 			Status                 int              `json:"status"`
@@ -279,7 +311,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		response = &Response{
 			Status: head.Status, Protocol: head.Protocol, Headers: head.Headers,
-			Body: newBody(ctx, c, head.Body), EffectiveURL: head.EffectiveURL,
+			Body: newBody(ctx, c, head.Body, upload), EffectiveURL: head.EffectiveURL,
 			RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries,
 			DecodedContentCodings: head.DecodedContentCodings,
 			RedirectHistory:       head.RedirectHistory,
@@ -292,8 +324,9 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		if response != nil {
 			_ = response.Body.Close()
 		}
-		return nil, err
+		return nil, upload.wrap(err)
 	}
+	transferred = true
 	return response, nil
 }
 

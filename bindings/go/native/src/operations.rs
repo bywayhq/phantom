@@ -3,6 +3,7 @@ use crate::{
     error::Failure,
     policy::{ContentDecoding, RedirectHistory, RedirectPolicy, RequestPolicy, coding_name},
     timeouts::Timeouts,
+    upload::Upload,
 };
 use http_body_util::BodyExt;
 use phantom::{Bytes, HttpAttemptBudget, ResponseBody};
@@ -62,6 +63,20 @@ enum Command {
     CookieClear {
         client: u64,
     },
+    NewUpload {
+        client: u64,
+        length: Option<u64>,
+    },
+    WriteUpload {
+        upload: u64,
+        end: Option<bool>,
+    },
+    WaitUpload {
+        upload: u64,
+    },
+    CloseUpload {
+        upload: u64,
+    },
     Request {
         client: u64,
         method: String,
@@ -76,6 +91,7 @@ enum Command {
         redirect_history_limit: Option<u64>,
         retry_policy: Option<crate::retry::RetryPolicy>,
         has_body: bool,
+        upload: Option<u64>,
     },
     Read {
         body: u64,
@@ -169,6 +185,7 @@ struct BodyOwner {
     busy: AtomicBool,
     changed: Notify,
     _upload: Option<UploadPermit>,
+    stream_upload: Option<std::sync::Arc<Upload>>,
 }
 impl BodyOwner {
     fn close(&self) {
@@ -223,7 +240,10 @@ impl ReadLease {
         let bytes = tokio::select! {
             biased;
             () = &mut changed => return Err(Failure::new("body_closed")),
-            result = next => result?,
+            result = next => result.map_err(|error| match &self.owner.stream_upload {
+                Some(upload) => upload.failure(error),
+                None => error,
+            })?,
         };
         if bytes.is_some() {
             let mut slot = self
@@ -246,6 +266,8 @@ enum Target {
     Read(u64),
     Shutdown(u64),
     Maintenance(u64),
+    UploadWrite(u64),
+    UploadWait(u64),
 }
 struct Operation {
     target: Target,
@@ -269,6 +291,7 @@ struct State {
     clients: HashMap<u64, NativeClient>,
     budgets: HashMap<u64, HttpAttemptBudget>,
     bodies: HashMap<u64, std::sync::Arc<BodyOwner>>,
+    streams: HashMap<u64, std::sync::Arc<Upload>>,
     operations: HashMap<u64, Operation>,
     ready: VecDeque<Queued>,
 }
@@ -280,6 +303,7 @@ impl Default for State {
             clients: HashMap::new(),
             budgets: HashMap::new(),
             bodies: HashMap::new(),
+            streams: HashMap::new(),
             operations: HashMap::new(),
             ready: VecDeque::new(),
         }
@@ -313,6 +337,36 @@ impl State {
     }
     fn reserve(&mut self, target: Target) -> Result<(u64, oneshot::Receiver<()>), Failure> {
         match target {
+            Target::UploadWrite(upload) | Target::UploadWait(upload) => {
+                // Each bounded upload owns one writer and one terminal waiter.
+                // They do not reduce ordinary request/read admission capacity.
+                if self
+                    .operations
+                    .values()
+                    .filter(|op| {
+                        matches!(
+                            (target, op.target),
+                            (Target::UploadWrite(_), Target::UploadWrite(_))
+                                | (Target::UploadWait(_), Target::UploadWait(_))
+                        )
+                    })
+                    .count()
+                    >= MAX_HANDLES
+                {
+                    return Err(Failure::new("capacity"));
+                }
+                if self
+                    .operations
+                    .values()
+                    .any(|op| match (target, op.target) {
+                        (Target::UploadWrite(_), Target::UploadWrite(id))
+                        | (Target::UploadWait(_), Target::UploadWait(id)) => id == upload,
+                        _ => false,
+                    })
+                {
+                    return Err(Failure::new("upload_operation_pending"));
+                }
+            }
             Target::Shutdown(client) => {
                 if self
                     .operations
@@ -335,7 +389,12 @@ impl State {
                 if self
                     .operations
                     .values()
-                    .filter(|op| !matches!(op.target, Target::Shutdown(_)))
+                    .filter(|op| {
+                        !matches!(
+                            op.target,
+                            Target::Shutdown(_) | Target::UploadWrite(_) | Target::UploadWait(_)
+                        )
+                    })
                     .count()
                     >= MAX_HANDLES
                 {
@@ -365,6 +424,16 @@ impl State {
     }
     fn release_client(&mut self, client: u64) {
         self.clients.remove(&client);
+        let uploads: Vec<_> = self
+            .streams
+            .iter()
+            .filter_map(|(id, owner)| (owner.client == client).then_some(*id))
+            .collect();
+        for upload in &uploads {
+            if let Some(owner) = self.streams.remove(upload) {
+                owner.close();
+            }
+        }
         let bodies: Vec<_> = self
             .bodies
             .iter()
@@ -383,6 +452,11 @@ impl State {
                     Some(*id)
                 }
                 Target::Read(body) if bodies.contains(&body) => Some(*id),
+                Target::UploadWrite(upload) | Target::UploadWait(upload)
+                    if uploads.contains(&upload) =>
+                {
+                    Some(*id)
+                }
                 _ => None,
             })
             .collect();
@@ -455,6 +529,7 @@ fn response_head(
     response: http::Response<ResponseBody>,
     client: u64,
     upload: UploadPermit,
+    stream_upload: Option<std::sync::Arc<Upload>>,
 ) -> Result<Head, Failure> {
     let info = response
         .extensions()
@@ -510,6 +585,7 @@ fn response_head(
         busy: AtomicBool::new(false),
         changed: Notify::new(),
         _upload: Some(upload),
+        stream_upload,
     });
     Ok(Head {
         status,
@@ -544,6 +620,9 @@ impl Global {
             state.failed = true;
             for (_, body) in state.bodies.drain() {
                 body.close();
+            }
+            for (_, upload) in state.streams.drain() {
+                upload.close();
             }
             state.ready.clear();
             let mut terminal = Vec::new();
@@ -735,6 +814,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 Command::ReleaseClient { .. }
                     | Command::ReleaseBudget { .. }
                     | Command::CloseBody { .. }
+                    | Command::CloseUpload { .. }
                     | Command::Cancel { .. }
                     | Command::Ack { .. }
             )
@@ -806,6 +886,60 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .clear();
                 Ok(json!({}))
             }
+            Command::NewUpload { client, length } => {
+                let owner = state
+                    .clients
+                    .get(&client)
+                    .ok_or_else(|| Failure::new("client_closed"))?;
+                if owner.closing {
+                    return Err(Failure::new("client_closed"));
+                }
+                if state.streams.len() >= MAX_HANDLES {
+                    return Err(Failure::new("capacity"));
+                }
+                let id = state.id()?;
+                state.streams.insert(id, Upload::new(client, length));
+                Ok(json!({"id": id}))
+            }
+            Command::WriteUpload { upload, end } => {
+                if (end.is_some() && !bytes.is_empty())
+                    || (end.is_none() && (bytes.is_empty() || bytes.len() > MAX_CHUNK))
+                {
+                    return Err(Failure::new("chunk_size"));
+                }
+                let owner = state
+                    .streams
+                    .get(&upload)
+                    .cloned()
+                    .ok_or_else(|| Failure::new("upload_closed"))?;
+                let (id, cancel) = state.reserve(Target::UploadWrite(upload))?;
+                let bytes = Bytes::copy_from_slice(bytes);
+                drop(state);
+                global.spawn(id, cancel, async move {
+                    owner.write(bytes, end).await.map(|()| Outcome::Complete)
+                });
+                Ok(json!({"operation": id}))
+            }
+            Command::WaitUpload { upload } => {
+                let owner = state
+                    .streams
+                    .get(&upload)
+                    .cloned()
+                    .ok_or_else(|| Failure::new("upload_closed"))?;
+                let (id, cancel) = state.reserve(Target::UploadWait(upload))?;
+                drop(state);
+                global.spawn(id, cancel, async move {
+                    owner.closed().await;
+                    Ok(Outcome::Complete)
+                });
+                Ok(json!({"operation": id}))
+            }
+            Command::CloseUpload { upload } => {
+                if let Some(owner) = state.streams.remove(&upload) {
+                    owner.close();
+                }
+                Ok(json!({}))
+            }
             Command::ClearState { client, category } => {
                 let client = &state
                     .clients
@@ -857,6 +991,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 redirect_history_limit,
                 retry_policy,
                 has_body,
+                upload,
             } => {
                 let budget = budget
                     .map(|id| {
@@ -867,6 +1002,12 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                             .ok_or_else(|| Failure::new("invalid_handle"))
                     })
                     .transpose()?;
+                let defaults = state
+                    .clients
+                    .get(&client)
+                    .ok_or_else(|| Failure::new("invalid_handle"))?
+                    .timeouts;
+                let total = timeouts.overrides().resolve(defaults).total_duration();
                 let mut request = state
                     .clients
                     .get(&client)
@@ -886,13 +1027,44 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     )?;
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
-                if has_body {
+                let mut stream_upload = None;
+                if let Some(upload) = upload {
+                    let body = (|| {
+                        if has_body || !bytes.is_empty() {
+                            return Err(Failure::new("invalid_upload"));
+                        }
+                        let owner = state
+                            .streams
+                            .get(&upload)
+                            .ok_or_else(|| Failure::new("upload_closed"))?;
+                        if owner.client != client {
+                            return Err(Failure::new("invalid_upload"));
+                        }
+                        let body = owner.body()?;
+                        owner.deadline(global.runtime.handle(), total)?;
+                        stream_upload = Some(std::sync::Arc::clone(owner));
+                        Ok(body)
+                    })();
+                    match body {
+                        Ok(body) => request = request.streaming_body(body),
+                        Err(error) => {
+                            state.operations.remove(&id);
+                            return Err(error);
+                        }
+                    }
+                } else if has_body {
                     request = request.body(bytes.to_vec());
                 }
                 drop(state);
                 global.spawn(id, cancel, async move {
-                    let response = request.send().await.map_err(Failure::from)?;
-                    response_head(response, client, permit).map(Outcome::Head)
+                    let response = request.send().await.map_err(|error| {
+                        let failure = Failure::from(error);
+                        match &stream_upload {
+                            Some(upload) => upload.failure(failure),
+                            None => failure,
+                        }
+                    })?;
+                    response_head(response, client, permit, stream_upload).map(Outcome::Head)
                 });
                 Ok(json!({"operation":id}))
             }
@@ -987,6 +1159,7 @@ mod tests {
 
     mod response_info;
     mod session_sharing;
+    mod uploads;
 
     fn test_global() -> Result<&'static Global, Failure> {
         Ok(Box::leak(Box::new(Global {
@@ -1009,6 +1182,7 @@ mod tests {
             busy: AtomicBool::new(false),
             changed: Notify::new(),
             _upload: None,
+            stream_upload: None,
         })
     }
 
@@ -1024,6 +1198,7 @@ mod tests {
             busy: AtomicBool::new(false),
             changed: Notify::new(),
             _upload: None,
+            stream_upload: None,
         });
         state.bodies.insert(20, std::sync::Arc::clone(&first));
         state.bodies.insert(21, std::sync::Arc::clone(&second));
@@ -1206,6 +1381,7 @@ mod tests {
             busy: AtomicBool::new(false),
             changed: Notify::new(),
             _upload: Some(first),
+            stream_upload: None,
         });
         let id = {
             let mut state = global.state.lock().map_err(|_| Failure::new("internal"))?;

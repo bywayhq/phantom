@@ -17,10 +17,12 @@ type Error struct {
 	TimeoutPhase string `json:"timeout_phase"`
 	// Field is the canonical setting path for a profile import/export error.
 	Field string `json:"field"`
+	cause error
 }
 
 func (e *Error) Error() string { return "phantom: " + e.Kind }
 func (e *Error) Timeout() bool { return e.Kind == "timeout" }
+func (e *Error) Unwrap() error { return e.cause }
 
 type reply struct {
 	Value json.RawMessage `json:"value"`
@@ -108,6 +110,11 @@ func completionPump() {
 }
 
 func perform(ctx context.Context, command any, data []byte, accept func(completion) error) error {
+	return performStarted(ctx, command, data, nil, accept)
+}
+
+// started runs outside the pump lock, after native admission and registration.
+func performStarted(ctx context.Context, command any, data []byte, started func(), accept func(completion) error) error {
 	if ctx == nil {
 		return &Error{Kind: "invalid_context"}
 	}
@@ -149,6 +156,9 @@ func perform(ctx context.Context, command any, data []byte, accept func(completi
 	}
 	stop := context.AfterFunc(ctx, cancel)
 	defer stop()
+	if started != nil {
+		started()
+	}
 	select {
 	case <-ctx.Done():
 		cancel()
