@@ -323,9 +323,7 @@ class PythonWheelTests(unittest.TestCase):
                 binding.source_build_directory() as temporary,
             ):
                 directory = Path(temporary)
-                self.assertEqual(
-                    directory.parent, Path(tempfile.gettempdir()).resolve()
-                )
+                self.assertTrue(directory.parent.samefile(tempfile.gettempdir()))
                 self.assertTrue(directory.name.startswith("pw-"))
             self.assertFalse(directory.exists())
 
