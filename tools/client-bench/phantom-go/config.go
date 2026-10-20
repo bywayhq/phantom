@@ -74,11 +74,20 @@ func (c config) validate() error {
 	if c.Protocol != "h1" && c.Protocol != "h2" && c.Protocol != "h3" {
 		return errors.New("adapter requires exact h1, h2 or h3")
 	}
-	if c.Profile != "chrome" || c.Route != "direct" || c.Method != "GET" ||
-		c.UploadBytes != 0 || c.Redirects != 0 || c.CancelAfterBytes != 0 || c.CancelStage != "body" ||
+	if c.Profile != "chrome" || c.Route != "direct" ||
+		c.Redirects != 0 || c.CancelStage != "body" ||
 		c.Gzip || c.Template || c.Workers != 2 || c.SpeculativeTLS || c.ProxyDelayMS != 0 ||
 		c.ProxyAuth || c.DiagnosticEvents != 0 || !c.DiagnosticSnapshot {
-		return errors.New("adapter requires raw Chrome, direct GET, two native workers and no optional work")
+		return errors.New("adapter requires raw Chrome, direct HTTPS, two native workers and no optional work")
+	}
+	if (c.Method != "GET" && c.Method != "POST") || (c.Method != "POST" && c.UploadBytes != 0) ||
+		c.UploadBytes < 0 || c.UploadBytes > 16*1024*1024 || c.CancelAfterBytes < 0 {
+		return errors.New("invalid known-length POST upload")
+	}
+	if c.CancelAfterBytes != 0 && (c.Consume != "stream" || c.Cold || c.Origins != 1 ||
+		c.Method != "GET" || c.Warmup != 1 || c.Concurrency != 2 || c.Requests < 2 || c.Requests%2 != 0 ||
+		c.CancelAfterBytes >= c.Bytes || c.ChunkDelayMS == 0 || c.ArrivalIntervalUS != 0) {
+		return errors.New("body cancellation requires two warm direct streaming workers and a delayed incomplete body")
 	}
 	if (c.Consume != "collect" && c.Consume != "stream") ||
 		c.Concurrency < 1 || c.Concurrency > 256 || c.Requests < 1 || c.Requests > 1_000_000 ||

@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from workload_config import DEFAULTS, effective_config
+from workload_config import DEFAULTS, effective_config, validate_cancellation
 
 
 def configuration(supplied):
@@ -26,8 +26,18 @@ def configuration(supplied):
         "server_delay_ms": (0, 1000),
         "chunk_delay_ms": (0, 1000),
         "arrival_interval_us": (0, 1_000_000),
+        "upload_bytes": (0, 16 * 1024 * 1024),
+        "cancel_after_bytes": (0, 16 * 1024 * 1024),
     }
-    variable = {*bounds, "name", "protocol", "consume", "cold", "peer_workers"}
+    variable = {
+        *bounds,
+        "name",
+        "protocol",
+        "consume",
+        "cold",
+        "peer_workers",
+        "method",
+    }
     for key, default in DEFAULTS.items():
         if key not in variable and config[key] != default:
             raise ValueError(f"adapter requires {key}={default!r}")
@@ -38,6 +48,11 @@ def configuration(supplied):
         raise ValueError("adapter requires an exact HTTP protocol")
     if config["consume"] not in ("collect", "stream"):
         raise ValueError("adapter requires collect or stream consumption")
+    if config["method"] not in ("GET", "POST") or (
+        config["method"] != "POST" and config["upload_bytes"]
+    ):
+        raise ValueError("uploads require POST")
+    validate_cancellation(config)
     workers = config["peer_workers"]
     if workers is not None and (type(workers) is not int or not 1 <= workers <= 16):
         raise ValueError("invalid peer_workers")
@@ -90,6 +105,15 @@ def storage_size(records):
     return total
 
 
+async def upload(size):
+    chunk = b"U" * min(size, 65536)
+    while size:
+        if size < len(chunk):
+            chunk = chunk[:size]
+        yield chunk
+        size -= len(chunk)
+
+
 async def execute(config, urls, shared, create, record):
     start = time.perf_counter_ns()
     selected, response, owned = shared, None, None
@@ -97,7 +121,15 @@ async def execute(config, urls, shared, create, record):
         if config["cold"]:
             owned = selected = create()
             record["build_ns"] = time.perf_counter_ns() - start
-        response = await selected.request("GET", urls[record["id"] % len(urls)])
+        cancel = config["cancel_after_bytes"] != 0 and record["id"] % 2 == 0
+        url = urls[record["id"] % len(urls)] + ("?cancel=1" if cancel else "")
+        options = {}
+        if config["method"] == "POST":
+            options = {
+                "body": upload(config["upload_bytes"]),
+                "body_length": config["upload_bytes"],
+            }
+        response = await selected.request(config["method"], url, **options)
         record["head_ns"] = time.perf_counter_ns() - start
         if (
             response.status != 200
@@ -112,24 +144,42 @@ async def execute(config, urls, shared, create, record):
             if data.count(b"Z") != len(data):
                 raise ValueError("incorrect response content")
         else:
-            async for data in response.iter_bytes(65536):
+            chunk_bytes = min(65536, config["cancel_after_bytes"]) if cancel else 65536
+            async for data in response.iter_bytes(chunk_bytes):
                 if data and record["first_byte_ns"] is None:
                     record["first_byte_ns"] = time.perf_counter_ns() - start
                 record["bytes"] += len(data)
                 if record["bytes"] > config["bytes"] or data.count(b"Z") != len(data):
                     raise ValueError("incorrect response content or length")
-        if record["bytes"] != config["bytes"]:
+                if cancel and record["bytes"] >= config["cancel_after_bytes"]:
+                    if record["bytes"] >= config["bytes"]:
+                        raise ValueError("body finished before cancellation")
+                    record["cancelled"] = True
+                    break
+        if not record["cancelled"] and record["bytes"] != config["bytes"]:
             raise ValueError("incorrect response length")
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
     finally:
         record["complete_ns"] = time.perf_counter_ns() - start
-        try:
-            if response is not None:
-                response.close()
-        finally:
-            if owned is not None:
-                await owned.close()
+        for cleanup in (
+            response.aclose if response is not None else None,
+            owned.close if owned is not None else None,
+        ):
+            if cleanup is not None:
+                try:
+                    await cleanup()
+                except Exception as error:
+                    record["error"] = "; ".join(
+                        part
+                        for part in (
+                            record["error"],
+                            f"{type(error).__name__}: {error}",
+                        )
+                        if part
+                    )
+        if record["error"] is not None:
+            record["cancelled"] = False
 
 
 async def run_workers(config, urls, shared, create, records, start=None):
@@ -190,7 +240,9 @@ async def run(supplied, ready, output):
     shared = create()
     try:
         warmup = [sample(i) for i in range(config["warmup"])]
-        await run_workers(config, urls, shared, create, warmup)
+        await run_workers(
+            config | {"cancel_after_bytes": 0}, urls, shared, create, warmup
+        )
         if any(record["error"] is not None for record in warmup):
             raise ValueError("warmup failed; no measurement accepted")
         del warmup
@@ -218,6 +270,8 @@ async def run(supplied, ready, output):
                 "recipe": identifier,
                 "native_workers": 2,
                 "stream_chunk_bytes": 65536,
+                "cancellation_read_bytes": min(65536, config["cancel_after_bytes"]),
+                "upload_source": "one-shot known-length producer; source chunk <=65536 bytes",
                 "cookies": False,
                 "connect_timeout_s": 5,
                 "total_timeout_s": 15,

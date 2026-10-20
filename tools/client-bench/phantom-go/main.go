@@ -63,25 +63,47 @@ func consume(body *phantom.Body, c config, record *sample, start time.Time) erro
 			return errors.New("incorrect response content")
 		}
 	} else {
-		buffer := make([]byte, 65536)
-		for {
-			n, err := body.Read(buffer)
-			if n > 0 {
-				if record.FirstByteNS == nil {
-					elapsed := time.Since(start).Nanoseconds()
-					record.FirstByteNS = &elapsed
-				}
-				record.Bytes += n
-				if record.Bytes > c.Bytes || !allZ(buffer[:n]) {
-					return errors.New("incorrect response content or length")
-				}
+		return consumeStream(body, c, record, start)
+	}
+	if record.Bytes != c.Bytes {
+		return errors.New("incorrect response length")
+	}
+	return nil
+}
+
+func consumeStream(body io.Reader, c config, record *sample, start time.Time) error {
+	cancel := c.CancelAfterBytes != 0 && record.ID%2 == 0
+	buffer := make([]byte, 65536)
+	if cancel {
+		buffer = buffer[:min(len(buffer), c.CancelAfterBytes)]
+	}
+	for {
+		n, err := body.Read(buffer)
+		if n > 0 {
+			if record.FirstByteNS == nil {
+				elapsed := time.Since(start).Nanoseconds()
+				record.FirstByteNS = &elapsed
 			}
-			if errors.Is(err, io.EOF) {
-				break
+			record.Bytes += n
+			if record.Bytes > c.Bytes || !allZ(buffer[:n]) {
+				return errors.New("incorrect response content or length")
 			}
-			if err != nil {
+		}
+		if cancel && record.Bytes >= c.CancelAfterBytes {
+			if err != nil && !errors.Is(err, io.EOF) {
 				return err
 			}
+			if record.Bytes >= c.Bytes {
+				return errors.New("body finished before cancellation")
+			}
+			record.Cancelled = true
+			return nil
+		}
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return err
 		}
 	}
 	if record.Bytes != c.Bytes {
@@ -89,6 +111,29 @@ func consume(body *phantom.Body, c config, record *sample, start time.Time) erro
 	}
 	return nil
 }
+
+type upload struct {
+	remaining int
+	chunk     []byte
+}
+
+func newUpload(size int) *upload {
+	return &upload{remaining: size, chunk: bytes.Repeat([]byte{'U'}, min(size, 65536))}
+}
+
+func (source *upload) Read(output []byte) (int, error) {
+	if len(output) == 0 {
+		return 0, nil
+	}
+	if source.remaining == 0 {
+		return 0, io.EOF
+	}
+	n := copy(output, source.chunk[:min(source.remaining, len(source.chunk))])
+	source.remaining -= n
+	return n, nil
+}
+
+func (source *upload) Close() error { return nil }
 
 func request(c config, r ready, shared *phantom.Client, record *sample, start time.Time) (err error) {
 	selected := shared
@@ -112,7 +157,15 @@ func request(c config, r ready, shared *phantom.Client, record *sample, start ti
 		record.BuildNS = time.Since(start).Nanoseconds()
 	}
 	target := r.URLs[record.ID%len(r.URLs)]
-	response, err = selected.Do(context.Background(), phantom.Request{Method: "GET", URL: target})
+	if c.CancelAfterBytes != 0 && record.ID%2 == 0 {
+		target += "?cancel=1"
+	}
+	req := phantom.Request{Method: c.Method, URL: target}
+	if c.Method == "POST" {
+		length := uint64(c.UploadBytes)
+		req.Upload, req.UploadLength = newUpload(c.UploadBytes), &length
+	}
+	response, err = selected.Do(context.Background(), req)
 	if err != nil {
 		return err
 	}
@@ -127,6 +180,7 @@ func request(c config, r ready, shared *phantom.Client, record *sample, start ti
 
 func execute(c config, r ready, shared *phantom.Client, record *sample) {
 	if err := request(c, r, shared, record, time.Now()); err != nil {
+		record.Cancelled = false
 		message := err.Error()
 		record.Error = &message
 	}
@@ -160,7 +214,9 @@ func run(c config, r ready, output string) (err error) {
 		warmup.Go(func() {
 			for id := worker; id < c.Warmup; id += c.Concurrency {
 				record := sample{ID: id}
-				execute(c, r, shared, &record)
+				warm := c
+				warm.CancelAfterBytes = 0
+				execute(warm, r, shared, &record)
 				if record.Error != nil {
 					failures <- fmt.Errorf("warmup failed: %s", *record.Error)
 					return
@@ -223,7 +279,9 @@ func run(c config, r ready, output string) (err error) {
 			"library": "phantom-go (repository binding)", "recipe": profile, "context": "raw",
 			"go_version": runtime.Version(), "runtime_gomaxprocs": c.Workers, "native_workers": 2,
 			"stream_chunk_bytes": 65536, "cookies": false, "route": "direct",
-			"connect_timeout_ms": 5000, "total_timeout_ms": 15000,
+			"cancellation_read_bytes": min(65536, c.CancelAfterBytes),
+			"upload_source":           "one-shot known-length producer; source chunk <=65536 bytes",
+			"connect_timeout_ms":      5000, "total_timeout_ms": 15000,
 			"retries": false, "redirects": false, "pool_limits": "library defaults",
 			"native_capacity": "binding defaults: 64 clients, bodies and ordinary operations",
 		},

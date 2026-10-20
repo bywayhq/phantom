@@ -17,7 +17,7 @@ func TestUnsupportedWorkFailsBeforeWarmup(t *testing.T) {
 		"protocol":            func(c *config) { c.Protocol = "negotiated" },
 		"profile":             func(c *config) { c.Profile = "firefox" },
 		"route":               func(c *config) { c.Route = "connect" },
-		"method":              func(c *config) { c.Method = "POST" },
+		"method":              func(c *config) { c.Method = "PUT" },
 		"upload":              func(c *config) { c.UploadBytes = 1 },
 		"redirects":           func(c *config) { c.Redirects = 1 },
 		"cancellation":        func(c *config) { c.CancelAfterBytes = 1 },
@@ -49,6 +49,33 @@ func TestUnsupportedWorkFailsBeforeWarmup(t *testing.T) {
 				t.Fatal("unsupported work accepted")
 			}
 		})
+	}
+}
+
+func TestKnownLengthUploadsAndBodyPrefixCancellation(t *testing.T) {
+	for _, protocol := range []string{"h1", "h2", "h3"} {
+		c := validConfig()
+		c.Protocol, c.Method, c.UploadBytes = protocol, "POST", 16*1024*1024
+		if err := c.validate(); err != nil {
+			t.Fatal(err)
+		}
+		c.Method, c.UploadBytes, c.Warmup, c.ChunkDelayMS, c.CancelAfterBytes = "GET", 0, 1, 1, 1024
+		if err := c.validate(); err != nil {
+			t.Fatal(err)
+		}
+		for _, change := range []func(*config){
+			func(c *config) { c.Consume = "collect" },
+			func(c *config) { c.Cold = true },
+			func(c *config) { c.Requests = 3 },
+			func(c *config) { c.CancelAfterBytes = c.Bytes },
+			func(c *config) { c.ChunkDelayMS = 0 },
+		} {
+			bad := c
+			change(&bad)
+			if bad.validate() == nil {
+				t.Fatal("invalid cancellation work accepted")
+			}
+		}
 	}
 }
 

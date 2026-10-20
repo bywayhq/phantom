@@ -36,8 +36,9 @@ function configuration(supplied) {
     bytes: [0, 16 * 1024 * 1024], origins: [1, 128], chunk_bytes: [1, 65536],
     server_delay_ms: [0, 1000], chunk_delay_ms: [0, 1000],
     arrival_interval_us: [0, 1000000],
+    upload_bytes: [0, 16 * 1024 * 1024], cancel_after_bytes: [0, 16 * 1024 * 1024],
   };
-  const variable = new Set([...Object.keys(bounds), 'name', 'protocol', 'consume', 'cold', 'peer_workers']);
+  const variable = new Set([...Object.keys(bounds), 'name', 'protocol', 'consume', 'cold', 'peer_workers', 'method']);
   for (const [key, value] of Object.entries(DEFAULTS)) {
     if (!variable.has(key) && config[key] !== value) {
       throw new Error(`adapter requires ${key}=${JSON.stringify(value)}`);
@@ -58,6 +59,15 @@ function configuration(supplied) {
   // The shared client stays alive; the binding permits 128 retained clients/Env.
   if (config.cold && config.concurrency > 127) {
     throw new Error('cold concurrency exceeds the native environment client bound');
+  }
+  if (!['GET', 'POST'].includes(config.method) || (config.method !== 'POST' && config.upload_bytes)) {
+    throw new Error('uploads require POST');
+  }
+  if (config.cancel_after_bytes && (config.consume !== 'stream' || config.cold || config.origins !== 1
+    || config.method !== 'GET' || config.warmup !== 1 || config.concurrency !== 2
+    || config.requests < 2 || config.requests % 2 || config.cancel_after_bytes >= config.bytes
+    || !config.chunk_delay_ms || config.arrival_interval_us)) {
+    throw new Error('body cancellation requires two warm direct streaming workers and a delayed incomplete body');
   }
   return config;
 }
@@ -94,17 +104,30 @@ function errorText(error) {
   return `${error?.name ?? 'Error'}${error?.code ? ` (${error.code})` : ''}: ${error?.message ?? 'operation failed'}`;
 }
 
+async function* upload(size) {
+  const chunk = Buffer.alloc(Math.min(size, 65536), 85);
+  while (size) {
+    const part = size >= chunk.length ? chunk : chunk.subarray(0, size);
+    yield part;
+    size -= part.length;
+  }
+}
+
 async function execute(config, urls, shared, create, record) {
   const start = process.hrtime.bigint();
   const elapsed = () => Number(process.hrtime.bigint() - start);
   let owned;
   let response;
+  let source;
   try {
     const selected = config.cold ? (owned = create()) : shared;
     if (owned) record.build_ns = elapsed();
-    const url = urls[record.id % urls.length];
+    const cancel = config.cancel_after_bytes !== 0 && record.id % 2 === 0;
+    const url = urls[record.id % urls.length] + (cancel ? '?cancel=1' : '');
+    if (config.method === 'POST') source = upload(config.upload_bytes);
     response = await selected.request(url, {
-      method: 'GET', protocol: PROTOCOLS[config.protocol], context: 'raw',
+      method: config.method, protocol: PROTOCOLS[config.protocol], context: 'raw',
+      ...(source ? {body: source, bodyLength: config.upload_bytes} : {}),
     });
     record.head_ns = elapsed();
     if (response.status !== 200 || response.protocol !== PROTOCOLS[config.protocol]
@@ -122,12 +145,19 @@ async function execute(config, urls, shared, create, record) {
       verify(await response.bytes(config.bytes));
       // The public collector does not expose first data arrival.
     } else {
-      for await (const data of response) {
+      for (;;) {
+        const data = await response.read(cancel ? Math.min(65536, config.cancel_after_bytes) : 65536);
+        if (data === null) break;
         if (data.length && record.first_byte_ns === null) record.first_byte_ns = elapsed();
         verify(data);
+        if (cancel && record.bytes >= config.cancel_after_bytes) {
+          if (record.bytes >= config.bytes) throw new Error('body finished before cancellation');
+          record.cancelled = true;
+          break;
+        }
       }
     }
-    if (record.bytes !== config.bytes) throw new Error('incorrect response length');
+    if (!record.cancelled && record.bytes !== config.bytes) throw new Error('incorrect response length');
   } catch (error) {
     record.error = errorText(error);
   } finally {
@@ -138,10 +168,16 @@ async function execute(config, urls, shared, create, record) {
       record.error = [record.error, errorText(error)].filter(Boolean).join('; ');
     }
     try {
+      if (source) await source.return();
+    } catch (error) {
+      record.error = [record.error, errorText(error)].filter(Boolean).join('; ');
+    }
+    try {
       if (owned) await owned.close({timeoutMs: 5000});
     } catch (error) {
       record.error = [record.error, errorText(error)].filter(Boolean).join('; ');
     }
+    if (record.error !== null) record.cancelled = false;
   }
 }
 
@@ -206,7 +242,7 @@ async function run(supplied, ready, output) {
   const lines = input[Symbol.asyncIterator]();
   try {
     let warmup = Array.from({length: config.warmup}, (_, i) => sample(i));
-    await runWorkers(config, urls, shared, create, warmup);
+    await runWorkers({...config, cancel_after_bytes: 0}, urls, shared, create, warmup);
     if (warmup.some((record) => record.error !== null)) throw new Error('warmup failed; no measurement accepted');
     warmup = null;
     const records = Array.from({length: config.requests}, (_, i) => sample(i));
@@ -227,6 +263,8 @@ async function run(supplied, ready, output) {
         library: `${metadata.name}@${metadata.version}`, runtime: process.version,
         recipe: PROFILE, native_workers: 2, native_workers_source: 'TOKIO_WORKER_THREADS before addon load',
         maximum_active_requests: config.concurrency, stream_chunk_bytes: 65536,
+        cancellation_read_bytes: Math.min(65536, config.cancel_after_bytes),
+        upload_source: 'one-shot known-length producer; source chunk <=65536 bytes',
         cookies: false, connect_timeout_s: 5, total_timeout_s: 15, route: 'direct',
       },
     };
@@ -249,4 +287,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = {DEFAULTS, configuration, peerInputs, control};
+module.exports = {DEFAULTS, configuration, peerInputs, control, execute, sample, upload};
