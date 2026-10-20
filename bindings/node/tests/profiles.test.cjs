@@ -85,7 +85,8 @@ test('strict native profile input retains view bounds and redacts category/field
 });
 
 test('editable descriptions preserve native u64 precision and reject lossy JavaScript values', () => {
-  const document = custom();
+  // This profile has a fixed DNS TTL; some platforms use native cache policy.
+  const document = Profile.fromCatalog('chrome/154.0.8037.97/windows-11-26200/r1').describe();
   document.profile.dns_cache.ttl.seconds = 9007199254740993n;
   const imported = Profile.fromDescription(document);
   assert.equal(imported.describe().profile.dns_cache.ttl.seconds, 9007199254740993n);
