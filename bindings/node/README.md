@@ -219,6 +219,16 @@ not enable disabled features. Profile, routes, trust and timeouts are retained.
 Admission and shutdown stay independent. You can fork a closed source into an
 open client. Shared tickets remain single-use; this does not save a checkpoint.
 
+## Encrypted session checkpoints
+
+Use `const bytes = await client.exportSession(key)` with a random 32-byte key;
+keep the key separately. `await client.restoreSession(bytes, key)` returns
+independent state and pools without changing the receiving client. Checkpoints
+are limited to 32 MiB. Optional `receivingRoutes` validate request-only ticket
+routes; profile, trust and default route must match. Cookies, direct Alt-Svc and
+TLS tickets use core persistence rules; this is not serialized configuration.
+CPU work runs off the event loop and is not abortable.
+
 ## Next
 
 Run `npm test` and `npm run check-types` from this directory after building.

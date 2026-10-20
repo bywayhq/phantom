@@ -12,6 +12,7 @@ use crate::{
     profile::{MAXIMUM_PROFILE_BYTES, ProfileState},
     request::{MAXIMUM_HEADER_BYTES, MAXIMUM_INPUT_BYTES, Prepared},
     response::Exchange,
+    session,
 };
 use napi::{
     Env, Result,
@@ -24,6 +25,7 @@ use std::{
     sync::{Arc, Mutex, PoisonError},
     time::{Duration, Instant},
 };
+use zeroize::Zeroizing;
 
 fn copy_buffer(env: &Env, buffer: Buffer, maximum: usize) -> Result<Vec<u8>> {
     // SAFETY: This is the owning Env's synchronous callback. The generated
@@ -90,6 +92,29 @@ fn copy_buffer(env: &Env, buffer: Buffer, maximum: usize) -> Result<Vec<u8>> {
     Ok(unsafe { std::slice::from_raw_parts(data.cast::<u8>(), length) }.to_vec())
 }
 
+fn checkpoint_bytes(env: &Env, input: Buffer, maximum: usize) -> Result<Zeroizing<Vec<u8>>> {
+    copy_buffer(env, input, maximum)
+        .map(Zeroizing::new)
+        .map_err(|error| {
+            if error.reason.starts_with("PHANTOM:InputLimit:") {
+                session::failure("too_large")
+            } else {
+                error
+            }
+        })
+}
+
+fn checkpoint_key(env: &Env, input: Buffer) -> Result<Zeroizing<[u8; 32]>> {
+    let bytes = copy_buffer(env, input, 32).map_err(|error| {
+        if error.reason.starts_with("PHANTOM:InputLimit:") {
+            session::failure("invalid_key_length")
+        } else {
+            error
+        }
+    })?;
+    session::key(Zeroizing::new(bytes))
+}
+
 /// One ordered request or response field, retaining arbitrary value bytes.
 #[napi(object)]
 pub struct WireHeader {
@@ -146,6 +171,27 @@ pub struct SessionSharingOptions {
     pub discovery: Option<bool>,
     /// Shares live, single-use TLS ticket stores.
     pub tickets: Option<bool>,
+}
+
+/// Explicit receiving ticket route; it does not change later request routing.
+#[napi(object)]
+pub struct SessionRouteOptions {
+    /// Either direct or proxy.
+    pub route: String,
+    /// Explicit HTTP, HTTPS or SOCKS5 proxy URI.
+    pub proxy: Option<String>,
+    /// Optional paired proxy username.
+    pub proxy_username: Option<String>,
+    /// Optional paired proxy password, omitted from formatting.
+    pub proxy_password: Option<String>,
+}
+
+impl fmt::Debug for SessionRouteOptions {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SessionRouteOptions")
+            .finish_non_exhaustive()
+    }
 }
 
 /// One normalized, private timeout choice from the JavaScript facade.
@@ -494,6 +540,43 @@ impl NativeEnvironment {
             .fork(sharing, &self.state)
             .map(|state| NativeClient { state })
     }
+
+    /// Restores CPU-owned checkpoint bytes and registers a fresh client owner.
+    #[napi]
+    pub fn restore_session(
+        &self,
+        env: Env,
+        source: &NativeClient,
+        snapshot: Buffer,
+        secret: Buffer,
+        routes: Vec<SessionRouteOptions>,
+    ) -> Result<AsyncBlock<NativeClient>> {
+        let key = checkpoint_key(&env, secret)?;
+        let bytes = checkpoint_bytes(&env, snapshot, session::MAXIMUM_BYTES)?;
+        if routes.len() > session::MAXIMUM_ROUTES {
+            return Err(session::failure("too_large"));
+        }
+        let routes = routes
+            .into_iter()
+            .map(|route| {
+                crate::client::route(
+                    &route.route,
+                    route.proxy.as_deref(),
+                    route.proxy_username.as_deref(),
+                    route.proxy_password.as_deref(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let owner = Arc::clone(&source.state);
+        let environment = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            let core = session::restore(owner.core.clone(), bytes, key, routes).await?;
+            owner
+                .with_core(core, &environment)
+                .map(|state| NativeClient { state })
+        })
+        .build(&env)
+    }
 }
 
 /// Immutable settings owned by Rust, without references to JavaScript inputs.
@@ -761,6 +844,14 @@ pub struct NativeClient {
 
 #[napi]
 impl NativeClient {
+    /// Encrypts supported state off the JavaScript and async runtime workers.
+    #[napi]
+    pub fn export_session(&self, env: Env, secret: Buffer) -> Result<AsyncBlock<Buffer>> {
+        let key = checkpoint_key(&env, secret)?;
+        let client = self.state.core.clone();
+        AsyncBlockBuilder::new(async move { session::export(client, key).await.map(Buffer::from) })
+            .build(&env)
+    }
     /// Closes idle origin and proxy connections without closing this client.
     #[napi]
     pub fn close_idle_connections(&self, env: Env) -> Result<AsyncBlock<()>> {

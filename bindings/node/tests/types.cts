@@ -27,6 +27,22 @@ async function use(): Promise<void> {
 void use;
 const code = (error: PhantomError): string => error.code;
 void code;
+async function checkpoints(client: Client, key: Uint8Array): Promise<void> {
+  const bytes: Buffer = await client.exportSession(key);
+  const restored: Client = await client.restoreSession(bytes, key, {receivingRoutes: [
+    {route: 'direct'}, {route: 'proxy', proxy: 'http://127.0.0.1:8080'},
+  ]});
+  await restored.close();
+  // @ts-expect-error A key must be bytes, not text.
+  await client.exportSession('key');
+  // @ts-expect-error Checkpoints contain encoded bytes, not configuration.
+  await client.restoreSession({}, key);
+  // @ts-expect-error Direct receiving routes cannot include proxy configuration.
+  await client.restoreSession(bytes, key, {receivingRoutes: [{route: 'direct', proxy: 'http://proxy.invalid'}]});
+  // @ts-expect-error CPU checkpoint operations do not expose AbortSignal.
+  await client.restoreSession(bytes, key, {signal: new AbortController().signal});
+}
+void checkpoints;
 const phase = (error: PhantomError): string | undefined => error.timeoutPhase;
 const protocol = (error: PhantomError): string | undefined => error.protocol;
 void phase; void protocol;

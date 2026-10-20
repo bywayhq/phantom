@@ -4,7 +4,7 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
-  /** Core profile-document category, when code is ProfileImport/ProfileExport. */
+  /** Core profile-document or session checkpoint category. */
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
@@ -87,6 +87,11 @@ export interface SessionSharing {
   discovery?: boolean;
   tickets?: boolean;
 }
+/** Ticket validation only; these routes do not change later request routing. */
+export type SessionRoute = Readonly<{route: 'direct'}> | Readonly<{
+  route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string;
+}>;
+export interface RestoreSessionOptions { readonly receivingRoutes?: readonly SessionRoute[]; }
 export type ContentDecoding = Readonly<{mode: 'none'}>
   | Readonly<{mode: 'advertised'; maximumDecodedBytes: number | bigint}>;
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
@@ -164,6 +169,10 @@ export class Client {
   constructor(options: ClientOptions);
   /** Creates an open client with independent pools, even from a closed source. */
   fork(sharing?: SessionSharing): Client;
+  /** Encrypted supported state, at most 32 MiB; key must contain exactly 32 bytes. CPU work is not abortable. */
+  exportSession(key: Uint8Array): Promise<Buffer>;
+  /** Restores independent pools using this client's configuration; leaves this client unchanged. */
+  restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;
   request(url: string, options: RequestOptions): Promise<Response>;
   setCookie(url: string, setCookie: string): void;
   cookieValue(url: string): string | null;

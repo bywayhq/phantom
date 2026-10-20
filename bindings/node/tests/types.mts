@@ -48,3 +48,11 @@ const budget = new AttemptBudget(4294967296n);
 const remaining: number | bigint = budget.remaining;
 budget.tryAdmit();
 void remaining;
+async function checkpoints(client: Client, key: Buffer): Promise<void> {
+  const checkpoint: Buffer = await client.exportSession(key);
+  const restored: Client = await client.restoreSession(checkpoint, key);
+  await restored.close();
+  // @ts-expect-error Restore accepts byte input only.
+  await client.restoreSession('checkpoint', key);
+}
+void checkpoints;

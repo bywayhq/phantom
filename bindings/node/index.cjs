@@ -70,6 +70,8 @@ const environment = new native.NativeEnvironment();
 
 function translated(error) {
   if (error instanceof PhantomError) return error;
+  const snapshot = /^PHANTOM_SNAPSHOT:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
+  if (snapshot) return new PhantomError('SessionSnapshot', snapshot[2], undefined, undefined, snapshot[1]);
   const profile = /^PHANTOM_PROFILE:(ProfileImport|ProfileExport):([A-Za-z0-9_]+):([^:]*):([\s\S]*)$/.exec(error?.message ?? '');
   if (profile) return new PhantomError(profile[1], profile[4], undefined, undefined, profile[2], profile[3]);
   const request = /^PHANTOM_REQUEST:([A-Za-z0-9_]+):([A-Za-z0-9_]*):([A-Za-z0-9_]*):([\s\S]*)$/.exec(error?.message ?? '');
@@ -152,6 +154,36 @@ function sessionSharing(value) {
       throw new PhantomError('InvalidArgument', 'sharing selectors must be known boolean fields');
     }
     result[name] = field.value;
+  }
+  return result;
+}
+
+function checkpointKey(value) {
+  const key = bytes(value);
+  if (apply(lengthOf, key, []) !== 32) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'invalid_key_length');
+  return key;
+}
+
+function receivingRoutes(options) {
+  const fields = policyFields(options, ['receivingRoutes']);
+  const routes = fields.receivingRoutes === undefined ? [] : fields.receivingRoutes;
+  if (!Array.isArray(routes) || types.isProxy(routes)) throw new PhantomError('InvalidArgument', 'receivingRoutes must be a data array');
+  if (routes.length > 256) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'too_large');
+  if (Reflect.ownKeys(routes).length !== routes.length + 1) throw new PhantomError('InvalidArgument', 'receivingRoutes must contain only route entries');
+  const result = [];
+  for (let index = 0; index < routes.length; index++) {
+    const field = Object.getOwnPropertyDescriptor(routes, String(index));
+    if (!field || !Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', 'receivingRoutes must contain data entries');
+    const route = policyFields(field.value, ['route', 'proxy', 'proxyUsername', 'proxyPassword']);
+    if (route.route === 'direct') {
+      if (route.proxy !== undefined || route.proxyUsername !== undefined || route.proxyPassword !== undefined) throw new PhantomError('InvalidArgument', 'a direct receiving route cannot include a proxy');
+    } else if (route.route !== 'proxy' || typeof route.proxy !== 'string'
+      || (route.proxyUsername !== undefined && typeof route.proxyUsername !== 'string')
+      || (route.proxyPassword !== undefined && typeof route.proxyPassword !== 'string')
+      || (route.proxyUsername === undefined) !== (route.proxyPassword === undefined)) {
+      throw new PhantomError('InvalidArgument', 'receiving proxy routes require a URI and paired string credentials');
+    }
+    result.push(route);
   }
   return result;
 }
@@ -528,6 +560,18 @@ class Client {
   fork(sharing = {}) {
     try { return new Client(environment.fork(this.#native, sessionSharing(sharing)), clientToken); }
     catch (error) { throw translated(error); }
+  }
+  async exportSession(key) {
+    try { return await this.#native.exportSession(checkpointKey(key)); }
+    catch (error) { throw translated(error); }
+  }
+  async restoreSession(snapshot, key, options = {}) {
+    try {
+      const input = bytes(snapshot);
+      if (apply(lengthOf, input, []) > 32 * 1024 * 1024) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'too_large');
+      const restored = await environment.restoreSession(this.#native, input, checkpointKey(key), receivingRoutes(options));
+      return new Client(restored, clientToken);
+    } catch (error) { throw translated(error); }
   }
   async request(url, options) {
     const cancellation = new native.NativeCancellation();

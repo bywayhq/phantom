@@ -70,8 +70,12 @@ impl ClientState {
         sharing: SessionSharing,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
+        self.with_core(self.core.fork(sharing), environment)
+    }
+
+    pub(crate) fn with_core(&self, core: Client, environment: &Environment) -> Result<Arc<Self>> {
         let state = Arc::new(Self {
-            core: self.core.fork(sharing),
+            core,
             profile: Arc::clone(&self.profile),
             admission: Arc::new(Semaphore::new(self.maximum)),
             timeouts: self.timeouts,
