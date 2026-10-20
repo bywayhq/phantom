@@ -248,13 +248,13 @@ mod tests {
             imported
                 .observed_fields
                 .iter()
-                .any(|path| path == "tls.supported_versions")
+                .any(|path| path == "tls.versions")
         );
         assert!(
             imported
                 .supplemented_fields
                 .iter()
-                .any(|path| path == "tls.trust_anchors")
+                .any(|path| path == "tls.requested_trust_anchor_ids")
         );
         assert_eq!(base.export()?, before);
         assert_eq!(imported.state.catalog_id(), None);
