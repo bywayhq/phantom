@@ -32,9 +32,14 @@ def synchronous(profile: str, url: str) -> None:
         client.request("GET", url, timeouts=Timeouts())  # E: arg-type
         response = client.request("GET", url)
         _text: str = response.read(max_bytes=100)  # E: assignment
+        response.text()  # E: call-arg
+        response.json(max_bytes="100")  # E: arg-type
+        _bytes: bytes = response.text(max_bytes=100)  # E: assignment
+        _data: dict[str, str] = response.json(max_bytes=100)  # E: assignment
 
 
 async def asynchronous(profile: str, url: str) -> None:
     async with AsyncClient(profile=profile, protocol="h2") as client:
         response = await client.request("GET", url)
         _number: int = await response.read(max_bytes=100)  # E: assignment
+        _bytes: bytes = await response.text(max_bytes=100)  # E: assignment

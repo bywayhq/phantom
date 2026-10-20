@@ -12,8 +12,10 @@ from phantom_http import (
     BodyLimitExceeded,
     Client,
     Cookies,
+    DecodeError,
     Error,
     Header,
+    HTTPStatusError,
     Proxy,
     Response,
     TimeoutOverrides,
@@ -99,3 +101,25 @@ def error_fields(error: Error) -> tuple[str, str, str | None, str | None]:
     if isinstance(error, BodyLimitExceeded):
         _category: str = error.category
     return error.category, error.kind, error.protocol, error.timeout_phase
+
+
+def response_readers(text_response: Response, json_response: Response) -> object:
+    _status: int = text_response.status_code
+    text_response.raise_for_status()
+    _text: str = text_response.text(max_bytes=100, encoding="latin-1", errors="replace")
+    return json_response.json(max_bytes=100)
+
+
+async def async_response_readers(
+    text_response: AsyncResponse, json_response: AsyncResponse
+) -> object:
+    text_response.raise_for_status()
+    _text: str = await text_response.text(max_bytes=100)
+    return await json_response.json(max_bytes=100)
+
+
+def response_errors(error: DecodeError | HTTPStatusError) -> None:
+    _kind: str = error.kind
+    if isinstance(error, HTTPStatusError):
+        _status: int = error.status_code
+        _response: Response | AsyncResponse = error.response

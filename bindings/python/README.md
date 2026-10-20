@@ -118,6 +118,18 @@ as you ask for chunks; there is no background body collector. `read(max_bytes=N)
 closes the body if its bound is exceeded. Content is not decoded automatically.
 Trailers are consumed but not exposed by this slice.
 
+Use `text(max_bytes=N, encoding="utf-8", errors="strict")` or `json(max_bytes=N)`
+to collect and decode the remaining body. Text uses your chosen Python codec
+and standard error policy; it does not guess from headers. JSON uses Python's
+standard decoder, including UTF-8/16/32 detection. Neither helper decompresses
+content or caches the body. The byte limit does not bound decoded allocations
+or parsing time. Parsing runs on your Python thread after the native read.
+`DecodeError` reports `encoding`, `text_decode` or `json_decode` without content.
+
+`status_code` aliases `status`. Call `raise_for_status()` explicitly to reject
+400 through 599; redirects remain ordinary responses. `HTTPStatusError.response`
+retains the original response, with its body still readable.
+
 Use response context managers, or call `response.close()` when stopping early.
 Concurrent reads fail. Cancelling a read closes that response permanently.
 Cancelling a request drops its native operation, including setup or upload.

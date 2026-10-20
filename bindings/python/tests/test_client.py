@@ -141,10 +141,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         body = b"" if self.path == "/empty" else b"hello"
         if self.path == "/large":
             body = b"x" * 200000
+        elif self.path == "/latin1":
+            body = b"caf\xe9"
+        elif self.path == "/json":
+            body = b'{"value": [true, null]}'
+        elif self.path == "/json-utf16":
+            body = '{"value": "caf\u00e9"}'.encode("utf-16")
+        elif self.path == "/json-null":
+            body = b"null"
+        elif self.path == "/invalid-json":
+            body = b'{"private-response":'
+        elif self.path == "/status":
+            self.reply(b"status body", status=404)
+            return
         self.reply(body)
 
-    def reply(self, body):
-        self.send_response(200)
+    def reply(self, body, *, status=200):
+        self.send_response(status)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Set-Cookie", "seen=yes; Path=/")
         self.send_header("X-Duplicate", "one")

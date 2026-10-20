@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import codecs
 import contextlib
+import json as _json
 import sys
 import threading
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Iterable
@@ -57,6 +59,20 @@ class ClientClosed(Error):
 
 class BodyLimitExceeded(Error):
     """Body collection exceeded the caller's bound."""
+
+
+class DecodeError(Error):
+    """Text or JSON decoding failed without including response content."""
+
+
+class HTTPStatusError(Error):
+    """An explicit status check failed; the response remains readable."""
+
+    def __init__(self, response: Response | AsyncResponse) -> None:
+        super().__init__("response", "http_status", response.protocol)
+        self.response = response
+        self.status_code = response.status_code
+        self.args = (f"response: HTTP status {self.status_code}",)
 
 
 def _error(error: _native.NativeError) -> Error:
@@ -123,6 +139,15 @@ class AsyncResponse:
         self.protocol = native.protocol
         self.headers = native.headers
 
+    @property
+    def status_code(self) -> int:
+        return self.status
+
+    def raise_for_status(self) -> None:
+        """Raise for HTTP 4xx/5xx without consuming or closing the body."""
+        if 400 <= self.status < 600:
+            raise HTTPStatusError(self)
+
     def close(self) -> None:
         _call(self._native.close)
 
@@ -153,6 +178,29 @@ class AsyncResponse:
             raise _error(error) from None
         finally:
             self.close()
+
+    async def text(
+        self, *, max_bytes: int, encoding: str = "utf-8", errors: str = "strict"
+    ) -> str:
+        """Collect and decode remaining bytes with an explicit input limit."""
+        try:
+            codecs.lookup(encoding)
+            codecs.lookup_error(errors)
+        except LookupError:
+            raise DecodeError("response", "encoding", self.protocol) from None
+        body = await self.read(max_bytes=max_bytes)
+        try:
+            return body.decode(encoding, errors)
+        except (UnicodeError, LookupError):
+            raise DecodeError("response", "text_decode", self.protocol) from None
+
+    async def json(self, *, max_bytes: int) -> object:
+        """Collect and parse remaining bytes using Python's JSON decoder."""
+        body = await self.read(max_bytes=max_bytes)
+        try:
+            return cast(object, _json.loads(body))
+        except (ValueError, RecursionError):
+            raise DecodeError("response", "json_decode", self.protocol) from None
 
     async def __aenter__(self) -> AsyncResponse:
         return self
@@ -312,8 +360,29 @@ class Response:
         self.protocol = response.protocol
         self.headers = response.headers
 
+    @property
+    def status_code(self) -> int:
+        return self.status
+
+    def raise_for_status(self) -> None:
+        """Raise for HTTP 4xx/5xx without consuming or closing the body."""
+        if 400 <= self.status < 600:
+            raise HTTPStatusError(self)
+
     def read(self, *, max_bytes: int) -> bytes:
         return self._client._run(lambda: self._response.read(max_bytes=max_bytes))
+
+    def text(
+        self, *, max_bytes: int, encoding: str = "utf-8", errors: str = "strict"
+    ) -> str:
+        return self._client._run(
+            lambda: self._response.text(
+                max_bytes=max_bytes, encoding=encoding, errors=errors
+            )
+        )
+
+    def json(self, *, max_bytes: int) -> object:
+        return self._client._run(lambda: self._response.json(max_bytes=max_bytes))
 
     def iter_bytes(self, chunk_size: int = 65536) -> Generator[bytes, None, None]:
         try:

@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import phantom_http
-from phantom_http import AsyncClient, Client
+from phantom_http import AsyncClient, AsyncResponse, Client, Response
 
 
 class InstalledTypingTests(unittest.TestCase):
@@ -91,6 +91,14 @@ class InstalledTypingTests(unittest.TestCase):
 
 
 class SignatureTests(unittest.TestCase):
+    def test_sync_and_async_response_reader_options_match(self):
+        for name in ("read", "text", "json", "raise_for_status"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    inspect.signature(getattr(Response, name)),
+                    inspect.signature(getattr(AsyncResponse, name)),
+                )
+
     def test_sync_options_and_defaults_match_async_signatures(self):
         self.assertEqual(inspect.signature(Client), inspect.signature(AsyncClient))
         sync = inspect.signature(Client.request)
