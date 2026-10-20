@@ -2,22 +2,25 @@ use phantom::{RequestTimeoutOverrides, RequestTimeouts, TimeoutOverride};
 use serde::Deserialize;
 use std::time::Duration;
 
-#[derive(Default, Deserialize)]
+#[derive(Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 enum Timeout {
-    #[default]
-    Inherit,
-    Disabled,
-    Limit {
-        nanoseconds: u64,
-    },
+    Inherit {},
+    Disabled {},
+    Limit { nanoseconds: u64 },
+}
+
+impl Default for Timeout {
+    fn default() -> Self {
+        Self::Inherit {}
+    }
 }
 
 impl Timeout {
     const fn into_override(self) -> TimeoutOverride {
         match self {
-            Self::Inherit => TimeoutOverride::Inherit,
-            Self::Disabled => TimeoutOverride::Disabled,
+            Self::Inherit {} => TimeoutOverride::Inherit,
+            Self::Disabled {} => TimeoutOverride::Disabled,
             Self::Limit { nanoseconds } => {
                 TimeoutOverride::Limit(Duration::from_nanos(nanoseconds))
             }
@@ -64,6 +67,8 @@ mod tests {
             .total(Duration::from_secs(5));
         let inherited: Timeouts = serde_json::from_str("{}")?;
         assert_eq!(inherited.overrides().resolve(defaults), defaults);
+        let inherited: Timeouts = serde_json::from_str(r#"{"total":{"mode":"inherit"}}"#)?;
+        assert_eq!(inherited.overrides().resolve(defaults), defaults);
         for mode in ["disabled", "limit"] {
             let value = if mode == "limit" {
                 serde_json::json!({"mode":mode,"nanoseconds":0})
@@ -97,8 +102,12 @@ mod tests {
             r#"{"total":{"mode":"limit"}}"#,
             r#"{"total":{"mode":"limit","nanoseconds":-1}}"#,
             r#"{"total":{"mode":"disabled","nanoseconds":0}}"#,
+            r#"{"total":{"mode":"inherit","nanoseconds":0}}"#,
+            r#"{"total":{"mode":"disabled","unexpected":true}}"#,
+            r#"{"total":{"mode":"inherit","unexpected":true}}"#,
+            r#"{"total":{"mode":"limit","nanoseconds":0,"unexpected":true}}"#,
         ] {
-            assert!(serde_json::from_str::<Timeouts>(input).is_err());
+            assert!(serde_json::from_str::<Timeouts>(input).is_err(), "{input}");
         }
     }
 }
