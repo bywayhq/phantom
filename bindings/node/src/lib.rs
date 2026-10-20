@@ -13,8 +13,8 @@ mod ffi;
 
 pub use ffi::{
     ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, NativeAttemptBudget,
-    NativeCancellation, NativeClient, NativeEnvironment, NativeProfile, NativeResponse,
-    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    NativeCancellation, NativeClient, NativeEnvironment, NativeImportedProfile, NativeProfile,
+    NativeResponse, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
     RetryPolicyOptions, StatusRetryOptions, WireHeader, profile_catalog, profile_ids,
     profile_import_json,
 };

@@ -149,3 +149,31 @@ async function retries(client: Client): Promise<void> {
   await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', retryPolicy: {statusRetry: {statuses: ['503'], maximum: 1, delayMs: 0}}});
 }
 void retries;
+
+function compactProfiles(base: Profile, bytes: Uint8Array): void {
+  const result = Profile.importJa3('771,...', {base});
+  const owner: Profile = result.profile;
+  const observed: readonly string[] = result.observedFields;
+  const supplied: readonly string[] = result.supplementedFields;
+  Profile.importAkamai('1:65536;4:65535|0|0|m,a,s,p', {base});
+  Profile.importClientHello(bytes.subarray(4), {base});
+  Profile.importQuicTransport(bytes, {base});
+  Profile.importJa4('raw', {base, format: 'sorted'});
+  Profile.importJa4('raw', {base, format: 'original'});
+  // @ts-expect-error No implicit default base.
+  Profile.importJa3('771,...');
+  // @ts-expect-error A catalog string is not an explicitly instantiated base.
+  Profile.importAkamai('raw', {base: 'chrome'});
+  // @ts-expect-error JA4 interpretation must be explicit.
+  Profile.importJa4('raw', {base});
+  // @ts-expect-error Hash formats cannot reconstruct settings.
+  Profile.importJa4('hash', {base, format: 'hashed'});
+  // @ts-expect-error ClientHello input is binary.
+  Profile.importClientHello('hex', {base});
+  // @ts-expect-error Reports are immutable.
+  result.observedFields.push('invented');
+  // @ts-expect-error The result owner is immutable.
+  result.profile = base;
+  void owner; void observed; void supplied;
+}
+void compactProfiles;

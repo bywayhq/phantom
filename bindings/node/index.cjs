@@ -298,6 +298,35 @@ class Profile {
     catch (error) { throw translated(error); }
   }
   static fromDescription(document) { return Profile.importJson(encodeDescription(document)); }
+  static #import(input, options, method, binary = false) {
+    if (options === null || typeof options !== 'object' || types.isProxy(options) || Array.isArray(options)) {
+      throw new PhantomError('InvalidArgument', 'imports require an explicit base Profile');
+    }
+    const properties = Object.getOwnPropertyDescriptors(options);
+    if (Object.keys(properties).some((name) => !['base', ...(method === 'importJa4' ? ['format'] : [])].includes(name))
+      || Object.values(properties).some((property) => !Object.hasOwn(property, 'value'))) {
+      throw new PhantomError('InvalidArgument', 'import options must contain only base and the required JA4 format');
+    }
+    const handle = profileHandle(properties.base?.value);
+    const format = properties.format?.value;
+    if (method === 'importJa4' && format !== 'sorted' && format !== 'original') {
+      throw new PhantomError('ProfileImport', 'profile description rejected', undefined, undefined, 'InvalidValue', 'ja4.format');
+    }
+    if (!binary && typeof input !== 'string') throw new PhantomError('InvalidArgument', 'fingerprint description must be a string');
+    try {
+      const imported = method === 'importJa4' ? handle[method](input, format) : handle[method](binary ? bytes(input) : input);
+      return Object.freeze({
+        profile: new Profile(profileToken, imported.profile),
+        observedFields: Object.freeze([...imported.observedFields]),
+        supplementedFields: Object.freeze([...imported.supplementedFields]),
+      });
+    } catch (error) { throw translated(error); }
+  }
+  static importJa3(description, options) { return Profile.#import(description, options, 'importJa3'); }
+  static importClientHello(handshake, options) { return Profile.#import(handshake, options, 'importClientHello', true); }
+  static importAkamai(description, options) { return Profile.#import(description, options, 'importAkamai'); }
+  static importJa4(description, options) { return Profile.#import(description, options, 'importJa4'); }
+  static importQuicTransport(parameters, options) { return Profile.#import(parameters, options, 'importQuicTransport', true); }
   get catalogId() { return profileHandle(this).catalogId; }
   get contexts() { return Object.freeze(profileHandle(this).contexts); }
   exportJson() {

@@ -13,6 +13,14 @@ export class PhantomError extends Error {
 export type ProfileValue = null | boolean | number | bigint | string | ProfileValue[] | { [key: string]: ProfileValue };
 export type CatalogContext = 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload';
 export type RequestContext = 'raw' | 'profile' | CatalogContext;
+/** A compact description establishes only observed fields; the base supplies the rest. */
+export interface ImportedProfile {
+  readonly profile: Profile;
+  readonly observedFields: readonly string[];
+  readonly supplementedFields: readonly string[];
+}
+export interface ProfileImportOptions { readonly base: Profile; }
+export interface JA4ImportOptions extends ProfileImportOptions { readonly format: 'sorted' | 'original'; }
 /** Immutable native settings. Imported documents never acquire catalog evidence. */
 export class Profile {
   private constructor();
@@ -20,6 +28,15 @@ export class Profile {
   static importJson(input: Uint8Array): Profile;
   /** Validates an editable data document through the native importer. */
   static fromDescription(document: { [key: string]: ProfileValue }): Profile;
+  /** Imports raw five-part JA3; hashes cannot recover settings. */
+  static importJa3(description: string, options: ProfileImportOptions): ImportedProfile;
+  /** Complete handshake message including its four-byte header, excluding the TLS record header. */
+  static importClientHello(handshake: Uint8Array, options: ProfileImportOptions): ImportedProfile;
+  static importAkamai(description: string, options: ProfileImportOptions): ImportedProfile;
+  /** Sorted JA4 checks membership while retaining the base's explicit ordering. */
+  static importJa4(description: string, options: JA4ImportOptions): ImportedProfile;
+  /** TLS extension 57 payload; this is neither a QUIC packet nor a ClientHello. */
+  static importQuicTransport(parameters: Uint8Array, options: ProfileImportOptions): ImportedProfile;
   readonly catalogId: string | null;
   readonly contexts: readonly RequestContext[];
   exportJson(): Buffer;

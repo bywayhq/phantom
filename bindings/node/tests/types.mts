@@ -1,5 +1,23 @@
 import { AttemptBudget, Client, Profile } from '../index.mjs';
 
+function compactProfiles(base: Profile, bytes: Uint8Array): void {
+  const imported = Profile.importClientHello(bytes, {base});
+  const profile: Profile = imported.profile;
+  const fields: readonly string[] = imported.observedFields;
+  Profile.importJa3('raw', {base});
+  Profile.importAkamai('raw', {base});
+  Profile.importQuicTransport(bytes, {base});
+  Profile.importJa4('raw', {base, format: 'original'});
+  // @ts-expect-error Both base and JA4 format are required.
+  Profile.importJa4('raw', {format: 'sorted'});
+  // @ts-expect-error Reports cannot be reassigned.
+  imported.supplementedFields = [];
+  // @ts-expect-error QUIC transport input is binary.
+  Profile.importQuicTransport('hex', {base});
+  void profile; void fields;
+}
+void compactProfiles;
+
 async function use(): Promise<void> {
   await using client = new Client({profile: 'exact/profile/id', route: 'proxy', proxy: 'http://127.0.0.1:8080'});
   await using response = await client.request('https://example.com/', {
