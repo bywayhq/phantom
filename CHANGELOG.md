@@ -7,7 +7,7 @@
 
 - Stream Python, Go and Node.js upload producers with bounded native demand,
   explicit lengths, cancellation and owned cleanup. Include Python file setup
-  in the total deadline.
+  in the total deadline. Preserve Python request errors when upload cleanup fails.
 
 - Update the bundled root store and test certificate verifier for the emSign
   certificate distrust fixes.

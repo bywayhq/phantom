@@ -90,7 +90,7 @@ and remains active after an early response.
 
 Use `await response.aclose()` to wait for cooperative producer cleanup.
 Noncooperative cleanup can time out and remains owned for a later close.
-`UploadError.original` and `.cleanup_error` expose producer failures explicitly;
+`Error.original` and `.cleanup_error` expose upload failures explicitly;
 error messages omit their text.
 
 Close an unused response or leave its context manager. Concurrent reads fail.
