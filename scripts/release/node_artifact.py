@@ -175,6 +175,7 @@ def copied_tests(destination):
         "http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "pipeline.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "configuration.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "profiles.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -304,7 +305,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                 "const c=require('@byway/phantom'),entry=require.resolve('@byway/phantom');"
                 "const metadata=JSON.parse(fs.readFileSync(path.join(path.dirname(entry),'package.json'),'utf8'));"
                 "assert.equal(metadata.version," + json.dumps(version) + ");"
-                "import('@byway/phantom').then(e=>{assert.equal(c.Client,e.Client);"
+                "import('@byway/phantom').then(e=>{assert.equal(c.Client,e.Client);assert.equal(c.Profile,e.Profile);"
                 "assert.equal(typeof c.AttemptBudget,'function');assert.ok(c.profiles().length);"
                 "console.log(JSON.stringify({entry,version:metadata.version,profiles:c.profiles().length}));});"
             )
@@ -325,6 +326,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/http2.test.cjs",
                         "tests/pipeline.test.cjs",
                         "tests/configuration.test.cjs",
+                        "tests/profiles.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add immutable Python and Node.js profiles with editable JSON round trips,
+  exact catalog selection and explicit request-template contexts. Imported
+  settings carry no catalog provenance; Node.js preserves large integers
+  during editing.
+
+- Expose Python response URLs, redirect counts and caller-enabled connection
+  setup retry counts from the core response metadata.
+
 - Add bounded Python text and JSON response readers, a `status_code` alias,
   and explicit HTTP status checks that leave response bodies readable.
 

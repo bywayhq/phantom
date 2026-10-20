@@ -186,7 +186,12 @@ class NodeArtifactTests(unittest.TestCase):
         self.assertIn("require.resolve('@byway/phantom')", client)
         self.assertIn("require('node:worker_threads')", client)
         self.assertIn("'phantom.node'", client)
-        for name in ("http2.test.cjs", "pipeline.test.cjs", "configuration.test.cjs"):
+        for name in (
+            "http2.test.cjs",
+            "pipeline.test.cjs",
+            "configuration.test.cjs",
+            "profiles.test.cjs",
+        ):
             test = (destination / name).read_text()
             self.assertNotIn("require('..')", test)
             self.assertIn("require('@byway/phantom')", test)
