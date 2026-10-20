@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve completed HTTP/2 responses when a peer stops the upload with a
+  clean stream reset. Release binding upload producers after an empty response.
+
 - Stream Python, Go and Node.js upload producers with bounded native demand,
   explicit lengths, cancellation and owned cleanup. Include Python file setup
   in the total deadline.
