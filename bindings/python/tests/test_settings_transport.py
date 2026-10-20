@@ -63,7 +63,13 @@ class SettingsPeer(http.server.ThreadingHTTPServer):
     def handle_error(self, *_):
         error = sys.exc_info()[1]
         if isinstance(
-            error, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)
+            error,
+            (
+                ConnectionAbortedError,
+                ConnectionResetError,
+                BrokenPipeError,
+                ssl.SSLEOFError,
+            ),
         ):
             self.disconnected.set()
             return
@@ -188,7 +194,12 @@ class PeerFailureTests(unittest.TestCase):
             self.assertTrue(response.startswith(b"HTTP/1.1 200"))
 
     def test_expected_disconnects_outside_the_handler_are_retained_as_disconnects(self):
-        for kind in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+        for kind in (
+            ConnectionAbortedError,
+            ConnectionResetError,
+            BrokenPipeError,
+            ssl.SSLEOFError,
+        ):
             with self.subTest(kind=kind.__name__):
                 server = SettingsPeer()
                 try:
@@ -212,6 +223,21 @@ class PeerFailureTests(unittest.TestCase):
             self.assertEqual(len(server.errors), 1)
             self.assertIn("Traceback (most recent call last)", server.errors[0])
             self.assertIn("RuntimeError: unexpected test failure", server.errors[0])
+        finally:
+            server.server_close()
+
+    def test_other_tls_errors_retain_their_traceback(self):
+        server = SettingsPeer()
+        try:
+            try:
+                raise ssl.SSLError("unexpected TLS failure")
+            except ssl.SSLError:
+                server.handle_error()
+            self.assertFalse(server.disconnected.is_set())
+            self.assertEqual(len(server.errors), 1)
+            self.assertIn("Traceback (most recent call last)", server.errors[0])
+            self.assertIn("SSLError", server.errors[0])
+            self.assertIn("unexpected TLS failure", server.errors[0])
         finally:
             server.server_close()
 
