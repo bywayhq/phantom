@@ -26,6 +26,8 @@ pub(super) struct Config {
     timeouts: Timeouts,
     #[serde(default)]
     redirect_policy: RedirectPolicy,
+    #[serde(default)]
+    retry_policy: crate::retry::RetryPolicy,
 }
 
 #[derive(Deserialize)]
@@ -158,6 +160,7 @@ impl NativeClient {
         }
         builder = builder
             .request_timeouts(config.timeouts.defaults())
+            .retry_policy(config.retry_policy.core()?)
             .redirect_policy(config.redirect_policy.core()?);
         let client = builder.build().map_err(Failure::from)?;
         Ok(Self {

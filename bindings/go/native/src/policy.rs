@@ -31,6 +31,7 @@ pub(super) struct RequestPolicy {
     pub(super) content_decoding: ContentDecoding,
     pub(super) redirects: Option<RedirectPolicy>,
     pub(super) history: Option<u64>,
+    pub(super) retries: Option<crate::retry::RetryPolicy>,
 }
 
 impl RequestPolicy {
@@ -43,6 +44,9 @@ impl RequestPolicy {
             .content_decoding(self.content_decoding.core());
         if let Some(policy) = self.redirects {
             request = request.redirect_policy(policy.core()?);
+        }
+        if let Some(policy) = self.retries {
+            request = request.retry_policy(policy.core()?);
         }
         if let Some(maximum) = self.history {
             let maximum = history_maximum(maximum)?;

@@ -7,4 +7,5 @@ mod ffi;
 mod operations;
 mod policy;
 mod profile;
+mod retry;
 mod timeouts;

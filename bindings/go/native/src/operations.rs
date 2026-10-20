@@ -74,6 +74,7 @@ enum Command {
         content_decoding: ContentDecoding,
         redirect_policy: Option<RedirectPolicy>,
         redirect_history_limit: Option<u64>,
+        retry_policy: Option<crate::retry::RetryPolicy>,
         has_body: bool,
     },
     Read {
@@ -854,6 +855,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 content_decoding,
                 redirect_policy,
                 redirect_history_limit,
+                retry_policy,
                 has_body,
             } => {
                 let budget = budget
@@ -879,6 +881,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                             content_decoding,
                             redirects: redirect_policy,
                             history: redirect_history_limit,
+                            retries: retry_policy,
                         },
                     )?;
                 let permit = global.upload(bytes.len())?;
