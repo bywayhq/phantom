@@ -29,6 +29,15 @@ TARGETS = {
 MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 
 
+def h3_peer_environment(root, directory, environment=None):
+    spec = importlib.util.spec_from_file_location(
+        "binding_h3_peer", root / "scripts/dev/binding_h3_peer.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.peer_environment(root, directory, environment)
+
+
 def artifact_tools():
     spec = importlib.util.spec_from_file_location(
         "cli_artifact", ROOT / "scripts/release/cli_artifact.py"
@@ -188,6 +197,7 @@ def copied_tests(destination):
         "redirects.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "retries.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "uploads.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "upload-http3.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -327,6 +337,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
             if Path(observed["entry"]).resolve() != (package / "index.cjs").resolve():
                 raise ValueError("Node resolved a package outside the clean consumer")
             copied_tests(consumer / "tests")
+            environment = h3_peer_environment(ROOT, consumer, environment)
             checked = tap_summary(
                 commands.run(
                     [
@@ -345,6 +356,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/redirects.test.cjs",
                         "tests/retries.test.cjs",
                         "tests/uploads.test.cjs",
+                        "tests/upload-http3.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,

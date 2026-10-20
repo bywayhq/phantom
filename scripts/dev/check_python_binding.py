@@ -32,6 +32,15 @@ TEST_DEPENDENCIES = (
 MAX_WHEEL_BYTES = 256 * 1024 * 1024
 
 
+def h3_peer_environment(root, directory, environment=None):
+    spec = importlib.util.spec_from_file_location(
+        "binding_h3_peer", root / "scripts/dev/binding_h3_peer.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.peer_environment(root, directory, environment)
+
+
 def artifact_tools():
     spec = importlib.util.spec_from_file_location(
         "phantom_cli_artifact", ROOT / "scripts/release/cli_artifact.py"
@@ -289,9 +298,9 @@ def dependency_closure(metadata):
     return packages[0], selected
 
 
-def run(*command: str) -> None:
+def run(*command: str, **options) -> None:
     print("+", *command, flush=True)
-    subprocess.run(command, check=True)
+    subprocess.run(command, check=True, **options)
 
 
 def check_development() -> None:
@@ -343,6 +352,7 @@ def check_development() -> None:
             "--force-reinstall",
             str(built[0]),
         )
+        peer_environment = h3_peer_environment(root, Path(temporary))
         run(
             str(python),
             "-m",
@@ -351,6 +361,7 @@ def check_development() -> None:
             "-s",
             "bindings/python/tests",
             "-v",
+            env=peer_environment,
         )
 
 
@@ -426,6 +437,9 @@ def installed_checks(wheel, commands, interpreter=None):
             directory / "tests",
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
         )
+        peer_environment = (
+            h3_peer_environment(ROOT, directory) if interpreter is None else None
+        )
         checks = json.loads(
             commands.run(
                 [
@@ -444,6 +458,7 @@ def installed_checks(wheel, commands, interpreter=None):
                 ],
                 cwd=directory,
                 timeout=300,
+                env=peer_environment,
             )
         )
         return {

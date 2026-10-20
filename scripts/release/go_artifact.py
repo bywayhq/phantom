@@ -18,6 +18,15 @@ LIBRARIES = {
 }
 
 
+def h3_peer_environment(root, directory, environment=None):
+    spec = importlib.util.spec_from_file_location(
+        "binding_h3_peer", root / "scripts/dev/binding_h3_peer.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.peer_environment(root, directory, environment)
+
+
 def artifact_tools():
     spec = importlib.util.spec_from_file_location(
         "phantom_cli_artifact", ROOT / "scripts/release/cli_artifact.py"
@@ -120,8 +129,14 @@ def completed_tests(raw):
                 passed.add(name)
             elif name is None and event.get("Package") == MODULE:
                 package_passed = True
-    if not package_passed or len(passed) < 10:
-        raise ValueError("extracted Go tests did not complete all ten controls")
+    if (
+        not package_passed
+        or len(passed) < 11
+        or "TestHTTP3UploadCancellation" not in passed
+    ):
+        raise ValueError(
+            "extracted Go tests did not complete all controls including HTTP/3"
+        )
     return sorted(passed)
 
 
@@ -251,6 +266,7 @@ def installed_checks(extracted, name, target, identity, commands, tools):
     result = commands.run([str(executable)], cwd=consumer, env=environment)
     if result.strip() != b"external-consumer-ok":
         raise ValueError("external Go consumer omitted success marker")
+    environment = h3_peer_environment(ROOT, extracted, environment)
     tests = completed_tests(
         commands.run(
             ["go", "test", "-mod=readonly", "-count=1", "-json", "-timeout=5m", "."],

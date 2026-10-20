@@ -1,11 +1,22 @@
 """Build the native Go adapter and exercise its public Go API."""
 
+import importlib.util
 import json
 import os
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+
+def h3_peer_environment(root, directory, environment=None):
+    spec = importlib.util.spec_from_file_location(
+        "binding_h3_peer", root / "scripts/dev/binding_h3_peer.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.peer_environment(root, directory, environment)
 
 
 def run(*command: str, **options) -> None:
@@ -40,7 +51,18 @@ def main() -> None:
     unformatted = subprocess.check_output(["gofmt", "-l", *sources], text=True)
     if unformatted:
         raise RuntimeError("Go files need formatting:\n" + unformatted)
-    run("go", "test", "-count=1", "-timeout=5m", "-v", ".", cwd=module, env=environment)
+    with tempfile.TemporaryDirectory(prefix="phantom-go-h3-peer-") as temporary:
+        environment = h3_peer_environment(root, Path(temporary), environment)
+        run(
+            "go",
+            "test",
+            "-count=1",
+            "-timeout=5m",
+            "-v",
+            ".",
+            cwd=module,
+            env=environment,
+        )
 
 
 if __name__ == "__main__":

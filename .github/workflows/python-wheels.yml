@@ -10,6 +10,10 @@ on:
       - Cargo.lock
       - rust-toolchain.toml
       - scripts/dev/check_python_binding.py
+      - scripts/dev/binding_h3_peer.py
+      - scripts/conformance/binding_upload_h3.py
+      - scripts/conformance/aioquic_versions.py
+      - scripts/conformance/loopback_tls.py
       - scripts/dev/tests/test_python_binding*.py
       - scripts/release/python_sdist.py
       - scripts/release/tests/test_python_sdist.py
@@ -102,6 +106,13 @@ jobs:
           name: phantom-python-source
           path: target/python-source
 
+      - name: Install HTTP/3 peer Python
+        if: runner.os != 'Linux'
+        id: h3-python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
       - name: Install current stable CPython for a second installation of the same wheel
         if: runner.os != 'Linux'
         id: stable
@@ -115,6 +126,22 @@ jobs:
         with:
           python-version: "3.10"
           architecture: ${{ matrix.python-architecture }}
+
+      - name: Prepare isolated HTTP/3 peer
+        if: runner.os != 'Linux'
+        shell: bash
+        env:
+          H3_PYTHON: ${{ steps.h3-python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          "$H3_PYTHON" -m venv "$RUNNER_TEMP/phantom-h3-peer"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            peer="$RUNNER_TEMP/phantom-h3-peer/Scripts/python.exe"
+          else
+            peer="$RUNNER_TEMP/phantom-h3-peer/bin/python"
+          fi
+          "$peer" -m pip install --disable-pip-version-check aioquic==1.3.0
+          printf 'PHANTOM_H3_PEER_PYTHON=%s\n' "$peer" >> "$GITHUB_ENV"
 
       - name: Install project toolchain
         run: rustc --version
@@ -163,6 +190,9 @@ jobs:
             -w /io -e CARGO_BUILD_JOBS=2 -e PHANTOM_MANYLINUX_IMAGE="$image" "$image" -s <<'BUILD'
           set -euo pipefail
           export PATH=/opt/python/cp310-cp310/bin:/root/.cargo/bin:$PATH
+          /opt/python/cp312-cp312/bin/python -m venv /tmp/phantom-h3-peer
+          /tmp/phantom-h3-peer/bin/python -m pip install --disable-pip-version-check aioquic==1.3.0
+          export PHANTOM_H3_PEER_PYTHON=/tmp/phantom-h3-peer/bin/python
           dnf install --assumeyes nasm-2.15.03-3.el8.x86_64 \
             clang-libs-21.1.8-1.module_el8.10.0+4172+b6b13d75.x86_64
           rpm -q clang-libs llvm-libs

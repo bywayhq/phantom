@@ -13,5 +13,5 @@ CARGO_TARGET_DIR=$(cargo metadata --locked --no-deps --format-version 1 |
 export CARGO_TARGET_DIR
 npm --prefix bindings/node ci --ignore-scripts
 npm --prefix bindings/node run copy-native
-npm --prefix bindings/node test
+python scripts/dev/binding_h3_peer.py -- "$BASH" -c 'npm --prefix bindings/node test'
 npm --prefix bindings/node run check-types

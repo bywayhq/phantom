@@ -131,20 +131,28 @@ class GoArtifactTests(unittest.TestCase):
                 "Test": f"TestControl{index}",
             }
             for index in range(10)
-        ] + [{"Action": "pass", "Package": artifact.MODULE}]
+        ] + [
+            {
+                "Action": "pass",
+                "Package": artifact.MODULE,
+                "Test": "TestHTTP3UploadCancellation",
+            },
+            {"Action": "pass", "Package": artifact.MODULE},
+        ]
 
-    def test_existing_ten_controls_must_pass_with_no_skips(self):
+    def test_existing_controls_and_http3_must_pass_with_no_skips(self):
         events = self.events()
         passed = artifact.completed_tests(
             "\n".join(json.dumps(event) for event in events)
         )
-        self.assertEqual(len(passed), 10)
+        self.assertEqual(len(passed), 11)
         for mutation in (
             "skip",
             "fail",
             "missing-test",
             "missing-package",
             "duplicate-test",
+            "missing-http3",
         ):
             changed = self.events()
             if mutation in {"skip", "fail"}:
@@ -153,6 +161,8 @@ class GoArtifactTests(unittest.TestCase):
                 changed.pop(0)
             elif mutation == "missing-package":
                 changed.pop()
+            elif mutation == "missing-http3":
+                changed[-2]["Test"] = "TestDifferentControl"
             else:
                 changed[0] = changed[1]
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):

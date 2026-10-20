@@ -32,6 +32,12 @@ class PythonBindingEnvironmentTests(unittest.TestCase):
         self.environments = []
         self.commands = []
         self.failure = None
+        self.peer_environment = {"PHANTOM_H3_PEER_PYTHON": "separate-peer-python"}
+        self.stack.enter_context(
+            patch.object(
+                BINDING, "h3_peer_environment", return_value=self.peer_environment
+            )
+        )
         self.stack.enter_context(
             patch.object(
                 BINDING,
@@ -56,7 +62,7 @@ class PythonBindingEnvironmentTests(unittest.TestCase):
         if self.failure == "venv":
             raise RuntimeError("venv failed")
 
-    def run_command(self, *command):
+    def run_command(self, *command, **options):
         self.commands.append(command)
         environment = self.environments[-1]
         self.assertTrue(environment.is_dir())
@@ -72,6 +78,7 @@ class PythonBindingEnvironmentTests(unittest.TestCase):
             (wheels / "phantom.whl").write_bytes(b"wheel fixture")
             stage = "build"
         elif "unittest" in command:
+            self.assertEqual(options, {"env": self.peer_environment})
             stage = "tests"
         elif "--force-reinstall" in command:
             stage = "wheel-install"

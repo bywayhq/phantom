@@ -395,14 +395,19 @@ class PythonWheelTests(unittest.TestCase):
             with (
                 self.subTest(additional=additional),
                 patch.object(
+                    binding, "h3_peer_environment", return_value={"peer": "isolated"}
+                ) as peer,
+                patch.object(
                     binding.venv.EnvBuilder, "create", lambda _, path: path.mkdir()
                 ),
             ):
                 checked = binding.installed_checks(self.wheel(), Commands(), additional)
             if additional is None:
+                peer.assert_called_once()
                 self.assertTrue(any("mypy==1.19.1" in args for args in calls))
                 self.assertEqual(checked["coverage"], "full installed suite and typing")
             else:
+                peer.assert_not_called()
                 self.assertFalse(
                     any(any("mypy" in arg for arg in args) for args in calls)
                 )
