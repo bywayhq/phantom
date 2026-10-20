@@ -82,8 +82,16 @@ objects or parsing time. Parsing runs on your Python thread.
 
 Use `body=b"..."` for replayable bytes or `upload=path` for a one-shot file
 stream. Files use their opened length: growth is excluded and shrinkage fails.
-Arbitrary upload producers are not accepted. File opening precedes the native
-request deadline.
+You can also pass an async iterable of bytes to `AsyncClient`, or an iterable
+to `Client`. Producers are one-shot. Native demand copies at most 64 KiB per chunk.
+Set `body_length=N` for a known length. Checks cover demanded bytes and observed
+EOF; unread suffixes are not validated. The total deadline includes file setup
+and remains active after an early response.
+
+Use `await response.aclose()` to wait for cooperative producer cleanup.
+Noncooperative cleanup can time out and remains owned for a later close.
+`UploadError.original` and `.cleanup_error` expose producer failures explicitly;
+error messages omit their text.
 
 Close an unused response or leave its context manager. Concurrent reads fail.
 Cancelling a request interrupts setup/upload; cancelling a read closes that
