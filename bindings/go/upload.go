@@ -92,6 +92,10 @@ func (u *uploadLifetime) produce() {
 			}
 			total += uint64(n)
 			// Reader permits final bytes and EOF (or another error) together.
+			// Retain the cause even if the native write itself fails or is cancelled.
+			if err != nil && err != io.EOF {
+				u.remember(err)
+			}
 			if u.write(buffer[:n], nil) != nil {
 				return
 			}
@@ -116,11 +120,15 @@ func (u *uploadLifetime) produce() {
 }
 
 func (u *uploadLifetime) fail(err error) {
+	u.remember(err)
+	failed := true
+	_ = u.write(nil, &failed)
+}
+
+func (u *uploadLifetime) remember(err error) {
 	u.mu.Lock()
 	u.failure = err
 	u.mu.Unlock()
-	failed := true
-	_ = u.write(nil, &failed)
 }
 
 func (u *uploadLifetime) wrap(err error) error {
