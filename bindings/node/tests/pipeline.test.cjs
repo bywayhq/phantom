@@ -28,6 +28,13 @@ function observeClose(socket) {
   });
 }
 
+function isCancellation(error) {
+  if (error instanceof AggregateError) {
+    return error.errors.length > 0 && error.errors.every(isCancellation);
+  }
+  return error?.name === 'AbortError' || (error instanceof PhantomError && error.code === 'Cancelled');
+}
+
 async function peer(t, handler) {
   const sockets = new Set();
   const server = http.createServer(handler);
@@ -142,7 +149,7 @@ test('aborted pipeline settles a pending read and closes the peer response', { t
     ]);
     controller.abort();
     const error = await outcome;
-    assert.ok(error?.name === 'AbortError' || (error instanceof PhantomError && error.code === 'Cancelled'));
+    assert.ok(isCancellation(error), error);
     assert.equal(await closed, null);
     assert.equal((await (await client.request(url + '/healthy', options)).bytes(2)).toString(), 'ok');
   } finally { response.close(); await outcome; }

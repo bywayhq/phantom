@@ -105,7 +105,8 @@ try {
 Pipeline applies backpressure and closes an unfinished body on output failure.
 It does not impose a total download limit. Keep the client for further requests,
 then call `await client.close()` at application shutdown. Node's pipeline may
-report `AbortError`; direct response reads use `PhantomError` with `Cancelled`.
+report `AbortError` or combine cancellation errors in an `AggregateError`.
+Direct response reads use `PhantomError` with `Cancelled`.
 
 ## Cancellation and client state
 
