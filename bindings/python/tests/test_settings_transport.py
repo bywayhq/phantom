@@ -5,7 +5,9 @@ import contextlib
 import http.server
 import socket
 import ssl
+import sys
 import threading
+import traceback
 import unittest
 from pathlib import Path
 
@@ -44,7 +46,13 @@ class SettingsPeer(http.server.ThreadingHTTPServer):
         self.url = f"{'https' if tls else 'http'}://127.0.0.1:{self.server_port}"
 
     def handle_error(self, *_):
-        self.errors.append("unexpected handler failure")
+        error = sys.exc_info()[1]
+        if isinstance(
+            error, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)
+        ):
+            self.disconnected.set()
+            return
+        self.errors.append(traceback.format_exc())
 
 
 class SettingsHandler(http.server.BaseHTTPRequestHandler):
@@ -116,6 +124,36 @@ def peer(**options):
             raise AssertionError("settings peer did not stop")
         if server.errors:
             raise AssertionError(server.errors)
+
+
+class PeerFailureTests(unittest.TestCase):
+    def test_expected_disconnects_outside_the_handler_are_retained_as_disconnects(self):
+        for kind in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            with self.subTest(kind=kind.__name__):
+                server = SettingsPeer()
+                try:
+                    try:
+                        raise kind("peer disconnected")
+                    except kind:
+                        server.handle_error()
+                    self.assertTrue(server.disconnected.is_set())
+                    self.assertEqual(server.errors, [])
+                finally:
+                    server.server_close()
+
+    def test_unexpected_handler_errors_retain_their_traceback(self):
+        server = SettingsPeer()
+        try:
+            try:
+                raise RuntimeError("unexpected test failure")
+            except RuntimeError:
+                server.handle_error()
+            self.assertFalse(server.disconnected.is_set())
+            self.assertEqual(len(server.errors), 1)
+            self.assertIn("Traceback (most recent call last)", server.errors[0])
+            self.assertIn("RuntimeError: unexpected test failure", server.errors[0])
+        finally:
+            server.server_close()
 
 
 class ClientSettingsTests(unittest.TestCase):
