@@ -21,20 +21,15 @@ installation instructions for your platform.
 ## Native package candidates
 
 The [package workflow](../../.github/workflows/node-packages.yml) builds optimized
-candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each package
-contains its native addon, JavaScript, types and dependency notices. Its receipt
-records source and lockfile identities, hashes, toolchains, native linkage and
-tested Node versions. It is uploaded after fresh outside-checkout installations
-pass CommonJS, ESM, TypeScript and the existing loopback and Worker controls on
-Node 22 and 24. Failed checks retain logs without promoting an artifact.
+candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Download the
+candidate matching your host and run `npm install ./package.tgz`.
 
-Download the candidate matching your host and run `npm install ./package.tgz`.
-No install script or downloader runs. Keep its licenses and notices when
-redistributing it. Packages remain private and are not published to npm.
-The receipt establishes only its recorded host and Node versions. Older OS/libc
-versions and fully static linkage are unverified. Windows needs the Microsoft
-x64 Visual C++ v14 runtime, at least as recent as its recorded MSVC build tools.
-OS/SDK runtime licenses are separate from the package's dependency notices.
+Packages are tested after installation outside the checkout on Node 22 and 24.
+They include source, checksum, runtime and dependency receipts. No install script
+or downloader runs. Keep included licenses and notices when redistributing them.
+Packages are private and are not published to npm. Only the recorded hosts and
+Node versions are verified. Windows needs the Microsoft x64 Visual C++ v14
+runtime, at least as recent as the receipt's MSVC build tools.
 
 ```js
 import { Client, profiles } from '@byway/phantom';
@@ -69,7 +64,7 @@ Use an exact catalog profile or import the core's complete custom-profile JSON.
 document. Select a catalog context to include its template in the export:
 
 ```js
-import { Profile } from '@byway/phantom';
+import { Client, Profile } from '@byway/phantom';
 
 const original = Profile.fromCatalog(
   'chrome/154.0.8037.97/windows-11-26200/r1', 'navigation',
@@ -78,14 +73,10 @@ const document = original.describe();
 document.profile.tls.session_ticket_order = 'OldestFirst';
 const custom = Profile.fromDescription(document);
 const customClient = new Client({profile: custom, route: 'direct'});
-try {
-  const response = await customClient.request('https://example.com/', {
-    method: 'GET', protocol: 'http2', context: 'profile', timeoutMs: 5000,
-  });
-  try { console.log(await response.text(1024)); }
-  finally { response.close(); }
-} finally { await customClient.close(); }
 ```
+
+Pass `context: 'profile'` on requests to use the attached template. Read responses
+and close the client as shown above.
 
 `exportJson()` returns a fresh Buffer for storage or exact byte-based imports.
 Documents include configured literal headers; handle them as potentially
@@ -101,8 +92,7 @@ construction still checks backend and host support.
 import, including an unchanged round trip. An import carries settings, not
 browser evidence. `contexts` lists available choices. Use `profile` to apply
 an attached template, or `raw` for caller fields only. Named catalog contexts
-remain available on catalog-owned profiles; imports reject them. This API
-imports complete JSON, not compact fingerprints or versioned bundles.
+remain available on catalog-owned profiles; imports reject them.
 
 ## Read a response
 

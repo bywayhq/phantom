@@ -28,25 +28,15 @@ Ordinary Cargo checks retain Python linking.
 ## Native wheel candidates
 
 The [wheel workflow](../../.github/workflows/python-wheels.yml) builds optimized
-candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Each successful
-artifact includes its source revision, toolchain, wheel checksum, dependency
-notices, native linkage and tested runtime. It is uploaded only after a fresh,
-cache-free installation outside the checkout passes the Python loopback tests.
-Failures retain command logs without marking a wheel verified.
+candidates for Linux x64 GNU, Windows x64 MSVC and macOS arm64. Download a
+matching candidate and run `python -m pip install path/to/file.whl`.
 
-Download a matching verified candidate and run `python -m pip install path/to/file.whl`.
-Keep the wheel's included licenses when redistributing it. Candidates are not
-published to PyPI. Linux uses a native `linux_x86_64` tag, without a manylinux
-compatibility claim. The receipt covers its recorded host and CPython version;
-older operating systems, libc versions and other Python runtimes are unverified.
-Windows needs the Microsoft x64 Visual C++ v14 runtime, at least as recent as
-the recorded MSVC build tools. OS/SDK runtime licenses are separate from the
-wheel's Rust and native dependency notices.
-
-To produce a candidate from a clean checkout, run the helper from the repository
-root through `scripts/dev/with-cargo-lock.sh` with `--release-candidate`,
-`--target` and a new `--output` directory. Without those options, the helper
-keeps the ordinary development build used by the gate.
+Candidates are tested after installation outside the checkout and include a
+receipt with source, checksums, runtime and native dependencies. Keep the included
+licenses when redistributing them. They are not published to PyPI. Linux uses
+`linux_x86_64`, without a manylinux compatibility claim. Only the recorded host
+and CPython version are verified. Windows needs the Microsoft x64 Visual C++
+v14 runtime, at least as recent as the receipt's MSVC build tools.
 
 The package includes inline type hints and `py.typed` for Python 3.10 or newer.
 Sync and async clients expose the same explicit request options to editors and
@@ -99,12 +89,10 @@ Responses retain ordered duplicate header pairs with byte values. HTTP error
 statuses are responses; this slice does not raise for them automatically.
 
 `response.url` is the effective URL. `redirects_followed` counts followed hops.
-`connection_setup_retries` counts caller-enabled connection-setup retries across
-those hops when their setup starts. It excludes redirects, status retries,
-reused-connection, GOAWAY, proxy-authentication and Critical-CH replays, and
-HTTP/2 fallback. Python does not expose retry or redirect policy setters yet,
-so its default counts are zero and a 302 response is returned without following.
-These properties remain available after body completion or close.
+`connection_setup_retries` counts only caller-enabled setup retries when setup
+starts. See [ResponseInfo](https://docs.rs/phantom-http/latest/phantom/struct.ResponseInfo.html)
+for the counting rules. Python does not expose retry or redirect policy setters
+yet, so both counts are zero. These properties remain available after close.
 
 The route defaults to direct and ignores proxy environment variables. `proxy`
 accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. For HTTP Basic or SOCKS5

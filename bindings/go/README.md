@@ -96,12 +96,10 @@ context error. Error messages omit URLs, proxy credentials, and native
 source chains.
 
 Responses expose `EffectiveURL`, `RedirectsFollowed` and
-`ConnectionSetupRetries` from the core response metadata. The last count
-covers caller-enabled connection-setup retries across redirect hops, counted
-when setup starts. It excludes redirects, status retries, reused-connection
-and GOAWAY replays, proxy authentication, client hints and protocol fallback.
-This Go facade keeps the core defaults: no automatic redirects or retries.
-Redirect and retry policy setters are not exposed yet.
+`ConnectionSetupRetries`. The last count covers only caller-enabled setup
+retries when setup starts. See [ResponseInfo](https://docs.rs/phantom-http/latest/phantom/struct.ResponseInfo.html)
+for the counting rules. Go does not expose redirect or retry policies yet,
+so both counts are zero.
 
 ## Build and limits
 
@@ -124,21 +122,14 @@ receipt. Keep that pair together. Add a local `replace` in your Go module
 to the extracted `module/` directory, as the archive's README describes.
 Windows uses `PHANTOM_GO_LIBRARY`; Unix uses the cgo and loader paths above.
 
-Each successful receipt records source, lockfile, native library and archive
-hashes, tools and native dependencies. Verification extracts outside the
-checkout, builds a separate consumer and runs the existing Go controls
-without skips. Only candidates passing those checks are uploaded. Failure
-logs remain available. There are no public module tags or registry releases.
+Candidates are tested after installation outside the checkout. Their receipts
+record source, checksums, tools and native dependencies. There are no public
+module tags or registry releases.
 
 The receipt covers its recorded native host, not older OS/libc versions or
 other architectures. Windows requires the Microsoft x64 Visual C++ v14
-runtime, at least as recent as the recorded build tools. SDK/OS runtimes
-are not bundled. Keep all included notices when redistributing an archive.
-
-To prepare one locally from a clean checkout, run
-`scripts/release/go_artifact.py` through `scripts/dev/with-cargo-lock.sh`
-with `--target` and a new `--output` directory. This uses locked release
-dependencies; the ordinary development gate still uses its debug build.
+runtime, at least as recent as the recorded build tools. Runtime DLLs are
+not bundled. Keep all included notices when redistributing an archive.
 
 ## Capacity and feature limits
 
