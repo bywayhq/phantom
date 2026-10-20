@@ -44,7 +44,8 @@ function translated(error) {
 function uploadError(error, outcome, preferSource = false) {
   const nativeError = translated(error);
   if (!outcome) return nativeError;
-  const result = preferSource && outcome.error && !['Cancelled', 'Timeout'].includes(nativeError.code)
+  const result = preferSource && outcome.error && outcome.error !== outcome.cleanupError
+    && !['Cancelled', 'Timeout'].includes(nativeError.code)
     ? outcome.error : nativeError;
   if (result !== nativeError) {
     for (const field of ['protocol', 'timeoutPhase', 'kind', 'field']) {
@@ -55,7 +56,7 @@ function uploadError(error, outcome, preferSource = false) {
     Object.defineProperties(result, {
       cause: {get: () => outcome.originalPresent ? outcome.original : outcome.cleanupOriginal},
       cleanupError: {get: () => outcome.cleanupOriginal},
-      [inspect.custom]: {value: () => 'PhantomError { upload details redacted }'},
+      [inspect.custom]: {value: () => `PhantomError { code: ${inspect(result.code)}, protocol: ${inspect(result.protocol)}, timeoutPhase: ${inspect(result.timeoutPhase)}, upload details redacted }`},
     });
   }
   return result;

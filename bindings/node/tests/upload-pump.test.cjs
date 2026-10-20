@@ -135,6 +135,7 @@ test('request upload failures preserve exact source and later cleanup causes', a
     assert.ok(error instanceof PhantomError); assert.equal(error.code, 'UploadSource');
     assert.equal(error.protocol, 'http2'); assert.equal(error.cause, original);
     assert.equal(error.cleanupError, undefined); redacted(error);
+    assert.ok(inspect(error).includes("code: 'UploadSource', protocol: 'http2'"));
     received = error; return true;
   });
   upload.grant(); await rejected;
@@ -174,7 +175,10 @@ test('request cancellation and timeouts keep native category with explicit uploa
     upload.fail = () => { upload.stop(); failRequest(new Error(`PHANTOM_REQUEST:${name}:http3:${phase}:request failed`)); };
     const rejected = assert.rejects(pending, (error) => {
       assert.equal(error.code, name); assert.equal(error.protocol, 'http3'); assert.equal(error.timeoutPhase, phase || undefined);
-      assert.equal(error.cause, original); redacted(error); return true;
+      assert.equal(error.cause, original); redacted(error);
+      const summary = inspect(error, {showHidden: true});
+      assert.ok(summary.includes(`code: '${name}'`)); assert.ok(summary.includes("protocol: 'http3'"));
+      assert.ok(summary.includes(`timeoutPhase: ${phase ? "'connect'" : 'undefined'}`)); return true;
     });
     upload.grant(); await rejected; await client.close();
   }
@@ -207,5 +211,25 @@ test('arbitrary thrown upload values remain explicit and are not formatted', asy
       redacted(error); return true;
     });
     await client.close();
+  }
+});
+
+test('cleanup-only failures do not replace unrelated primary native failures', async () => {
+  for (const name of ['Connect', 'Tls', 'AttemptBudgetExhausted']) {
+    const {Client, uploads, owner} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
+    const cleanupError = new Error('secret-return'); let failRequest;
+    owner.request = () => new Promise((_, reject) => { failRequest = reject; });
+    const source = { [Symbol.asyncIterator]() { return this; }, async next() { assert.fail('setup did not request source bytes'); },
+      async return() { throw cleanupError; } };
+    const pending = client.request('http://example.test', {...options, body: source});
+    uploads[0].stop(); await tick();
+    assert.equal(uploads[0].done, true);
+    const rejected = assert.rejects(pending, (error) => {
+      assert.equal(error.code, name); assert.equal(error.protocol, 'http2');
+      assert.equal(error.cause, cleanupError); assert.equal(error.cleanupError, cleanupError);
+      assert.ok(inspect(error).includes(`code: '${name}'`)); redacted(error); return true;
+    });
+    failRequest(new Error(`PHANTOM_REQUEST:${name}:http2::request failed`)); await rejected;
+    await assert.rejects(client.close(), (error) => error.code === 'UploadSource' && error.cleanupError === cleanupError);
   }
 });
