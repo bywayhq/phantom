@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import ssl
 import sys
 import tempfile
@@ -322,7 +323,10 @@ def storage_size(records):
 
 
 def signal(event):
-    print(json.dumps({"event": event}), flush=True)
+    message = {"event": event}
+    if event == "ready":
+        message["pid"] = os.getpid()
+    print(json.dumps(message), flush=True)
 
 
 async def control(expected):

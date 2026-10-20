@@ -48,8 +48,10 @@ def output_reader(process):
 
 def event(messages, expected, timeout=60):
     line = messages.get(timeout=timeout)
-    if line is None or json.loads(line).get("event") != expected:
+    message = None if line is None else json.loads(line)
+    if message is None or message.get("event") != expected:
         raise RuntimeError(f"expected {expected}, received {line!r}")
+    return message
 
 
 def command(process, text):
@@ -271,7 +273,13 @@ def one(binary, config, folder, timeout, recovery_seconds=0, client_command=None
         peer, peer_messages = spawn("serve", "peer.json")
         event(peer_messages, "ready")
         client, client_messages = spawn("run", "client.json")
-        event(client_messages, "ready", timeout=timeout)
+        ready = event(client_messages, "ready", timeout=timeout)
+        if type(ready.get("pid")) is not int or ready["pid"] <= 0:
+            raise RuntimeError("client ready message requires a positive process id")
+        if ready["pid"] != client.pid:
+            raise RuntimeError(
+                f"client ready PID {ready['pid']} differs from launched process {client.pid}"
+            )
         client_ps = psutil.Process(client.pid)
         peer_ps = psutil.Process(peer.pid)
         before = {

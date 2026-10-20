@@ -206,8 +206,10 @@ async function runWorkers(config, urls, shared, create, records, start) {
 }
 
 function signal(event) {
+  const message = {event};
+  if (event === 'ready') message.pid = process.pid;
   return new Promise((resolve, reject) => {
-    process.stdout.write(`${JSON.stringify({event})}\n`, (error) => error ? reject(error) : resolve());
+    process.stdout.write(`${JSON.stringify(message)}\n`, (error) => error ? reject(error) : resolve());
   });
 }
 

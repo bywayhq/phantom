@@ -13,14 +13,38 @@ from run import accepted, accepted_recovery, one, quantile, sha
 
 class ExternalClientTests(unittest.TestCase):
     def test_separate_client_keeps_phase_controls_and_retains_literal_arguments(self):
+        self.controlled_trial('{"pid": os.getpid()}')
+
+    def test_client_process_mismatch_is_rejected_before_measurement(self):
+        self.controlled_trial(
+            '{"pid": os.getpid() + 1}', "differs from launched process"
+        )
+
+    def test_client_process_identity_requires_a_positive_integer(self):
+        for fields in (
+            "{}",
+            '{"pid": None}',
+            '{"pid": True}',
+            '{"pid": 1.0}',
+            '{"pid": 0}',
+            '{"pid": -1}',
+            '{"pid": "123"}',
+        ):
+            with self.subTest(fields=fields):
+                self.controlled_trial(fields, "requires a positive process id")
+
+    def controlled_trial(self, ready_fields, error=None):
         with TemporaryDirectory() as directory:
             folder = Path(directory).resolve()
             script = folder / "controlled processes.py"
             script.write_text(
-                """import json, sys
+                """import json, os, sys
 from pathlib import Path
 def signal(event):
-    print(json.dumps({"event": event}), flush=True)
+    message = {"event": event}
+    if event == "ready" and role == "client":
+        message.update(__READY_FIELDS__)
+    print(json.dumps(message), flush=True)
 role, *args = sys.argv[1:]
 if role == "client":
     marker, mode, config, ready, result = args
@@ -53,20 +77,40 @@ else:
     assert input() == "stop"
     result.write_text(json.dumps(phase))
     signal("stopped")
-""",
+""".replace("__READY_FIELDS__", ready_fields),
                 encoding="utf-8",
             )
             real_popen = subprocess.Popen
             observed = []
+            children = []
 
             def spawn(argv, **kwargs):
                 observed.append(argv)
                 if argv[1] == "serve":
                     argv = [argv[0], str(script), *argv[1:]]
-                return real_popen(argv, **kwargs)
+                process = real_popen(argv, **kwargs)
+                children.append(process)
+                return process
 
             client = [sys.executable, str(script), "client", "literal;$(unused)"]
             with patch("run.subprocess.Popen", side_effect=spawn):
+                if error is not None:
+                    with (
+                        patch("run.snapshot") as snapshot,
+                        self.assertRaisesRegex(RuntimeError, error),
+                    ):
+                        one(
+                            Path(sys.executable),
+                            {"requests": 1, "warmup": 0, "protocol": "h2", "bytes": 0},
+                            folder / "trial",
+                            10,
+                            client_command=client,
+                        )
+                    snapshot.assert_not_called()
+                    self.assertFalse((folder / "trial/process.json").exists())
+                    self.assertFalse((folder / "trial/summary.json").exists())
+                    self.assertTrue(all(child.poll() is not None for child in children))
+                    return
                 summary = one(
                     Path(sys.executable),
                     {"requests": 1, "warmup": 0, "protocol": "h2", "bytes": 0},

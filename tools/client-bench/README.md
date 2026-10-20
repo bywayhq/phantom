@@ -37,6 +37,7 @@ handshake excludes startup, warmup and result serialization from the process
 CPU measurements. The controller samples client and peer memory about every
 10 ms and retains actual sample times. Outputs include raw per-operation
 times, counters, process samples, stderr, source hashes and the binary hash.
+Clients must report the launched process ID; delegating runtime launchers are rejected.
 RSS peaks are sampled lower bounds. Inspect actual sampling gaps on a loaded
 host. Process counters bracket the phase handshake, so controller scheduling
 and snapshot delay can widen their interval beyond the client's elapsed time.

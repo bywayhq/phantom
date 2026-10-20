@@ -3,6 +3,7 @@
 import asyncio
 import importlib.metadata
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -211,7 +212,10 @@ async def run_workers(config, urls, shared, create, records, start=None):
 
 
 def signal(event):
-    print(json.dumps({"event": event}), flush=True)
+    message = {"event": event}
+    if event == "ready":
+        message["pid"] = os.getpid()
+    print(json.dumps(message), flush=True)
 
 
 async def control(expected):

@@ -62,7 +62,8 @@
   setup retry counts from the core response metadata.
 
 - Add Python, Go and Node.js adapters to the controlled-peer benchmark for
-  direct H1/H2/H3 requests through the public bindings.
+  direct H1/H2/H3 requests through the public bindings. Reject measurements
+  of launcher processes instead of the client runtime.
 
 - Collect Node.js response bodies in one bounded native operation while
   retaining streaming reads, cancellation and byte limits.

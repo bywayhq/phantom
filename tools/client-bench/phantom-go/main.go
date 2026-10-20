@@ -187,7 +187,11 @@ func execute(c config, r ready, shared *phantom.Client, record *sample) {
 }
 
 func signal(event string) error {
-	return json.NewEncoder(os.Stdout).Encode(map[string]string{"event": event})
+	message := map[string]any{"event": event}
+	if event == "ready" {
+		message["pid"] = os.Getpid()
+	}
+	return json.NewEncoder(os.Stdout).Encode(message)
 }
 
 func control(input *bufio.Reader, expected string) error {

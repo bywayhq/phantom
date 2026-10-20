@@ -207,7 +207,11 @@ async fn execute(config: &Config, ready: &Ready, shared: &Client, record: &mut S
 }
 
 fn signal(event: &str) -> Result<()> {
-    println!("{{\"event\":\"{event}\"}}");
+    if event == "ready" {
+        println!("{{\"event\":\"{event}\",\"pid\":{}}}", std::process::id());
+    } else {
+        println!("{{\"event\":\"{event}\"}}");
+    }
     io::stdout().flush()?;
     Ok(())
 }

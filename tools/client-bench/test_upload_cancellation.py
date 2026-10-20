@@ -125,9 +125,13 @@ class ContractTests(unittest.TestCase):
             directory = Path(directory).resolve()
             script = directory / "fixture.py"
             script.write_text(
-                """import json, sys
+                """import json, os, sys
 from pathlib import Path
-signal = lambda value: print(json.dumps({"event": value}), flush=True)
+def signal(value):
+    message = {"event": value}
+    if value == "ready":
+        message["pid"] = os.getpid()
+    print(json.dumps(message), flush=True)
 role, config, ready, result = sys.argv[1:]
 config, ready, result = map(Path, (config, ready, result))
 c = json.loads(config.read_text())
