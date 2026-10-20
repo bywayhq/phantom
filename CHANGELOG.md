@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add immutable Go profile owners with editable JSON round trips, exact catalog
+  selection and explicit request-template contexts.
+
 - Add immutable Python and Node.js profiles with editable JSON round trips,
   exact catalog selection and explicit request-template contexts. Imported
   settings carry no catalog provenance; Node.js preserves large integers
