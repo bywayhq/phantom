@@ -52,11 +52,39 @@ The package includes inline type hints and `py.typed` for Python 3.10 or newer.
 Sync and async clients expose the same explicit request options to editors and
 type checkers. Headers retain their order, including duplicate names.
 
+## Author profiles
+
+```python
+import json
+from phantom_http import Client, Profile
+
+profile = Profile.from_catalog(
+    "chrome/154.0.8037.97/windows-11-26200/r1", context="fetch"
+)
+document = profile.describe()  # A fresh editable mapping.
+edited = Profile.import_json(json.dumps(document).encode("utf-8"))
+with Client(profile=edited, protocol="h1", context="profile") as client:
+    with client.request("GET", "https://example.com/") as response:
+        body = response.read(max_bytes=1_000_000)
+```
+
+`export_json()` returns the complete editable document as bytes. Import uses
+the core's strict format, ordering and limits, including a 16 MiB input cap.
+`ProfileError.kind` and `.field` identify failures without including supplied
+values. Documents include literal headers and should be treated as sensitive.
+Profiles are immutable; editing or importing a document never changes a client.
+An imported profile has `catalog_id=None` and carries no browser-fidelity claim.
+
+Use `context="profile"` for its attached template. `None` and `"raw"` send only
+caller fields. Named `"navigation"` and `"fetch"` contexts require a catalog ID
+or catalog-owned Profile; imports cannot acquire those contexts. A catalog
+Profile retains its available named contexts even when exported with another.
+
 ## Requests and state
 
 `AsyncClient` requires `profile` and `protocol`. Protocols are `h1`, `h2`, `h3`
 and `negotiated` (the library's HTTP/2 and HTTP/1.1 policy). No template is
-selected unless you pass `context="navigation"` or `context="fetch"`.
+selected unless you pass an explicit context.
 Unknown profiles and unavailable contexts fail. No retries or protocol fallbacks
 are enabled by the wrapper.
 For direct `http://` URLs, `h2` selects cleartext HTTP/2 prior knowledge.
@@ -73,8 +101,8 @@ statuses are responses; this slice does not raise for them automatically.
 The route defaults to direct and ignores proxy environment variables. `proxy`
 accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. For HTTP Basic or SOCKS5
 authentication, pass `Proxy(uri, username="user", password="secret")`.
-Supply credentials together, separately from the URI. SOCKS4 credentials,
-CONNECT-UDP and custom profile documents are not exposed yet.
+Supply credentials together, separately from the URI. SOCKS4 credentials
+and CONNECT-UDP are not exposed yet.
 
 Set `base_url="https://example.com/api/"` to resolve relative request URLs.
 `"child"` joins to `/api/child`; `"/child"` starts at the origin's root.

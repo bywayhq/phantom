@@ -16,6 +16,8 @@ from phantom_http import (
     Error,
     Header,
     HTTPStatusError,
+    Profile,
+    ProfileError,
     Proxy,
     Response,
     TimeoutOverrides,
@@ -123,3 +125,15 @@ def response_errors(error: DecodeError | HTTPStatusError) -> None:
     if isinstance(error, HTTPStatusError):
         _status: int = error.status_code
         _response: Response | AsyncResponse = error.response
+
+
+def authored_profile(exact_id: str, document: bytes, error: ProfileError) -> Profile:
+    catalog = Profile.from_catalog(exact_id, context="fetch")
+    _identity: str | None = catalog.catalog_id
+    _editable: dict[str, object] = catalog.describe()
+    imported = Profile.import_json(document)
+    _document: bytes = imported.export_json()
+    _field: str = error.field
+    Client(profile=imported, protocol="h1", context="profile")
+    AsyncClient(profile=catalog, protocol="h2", context="navigation")
+    return imported

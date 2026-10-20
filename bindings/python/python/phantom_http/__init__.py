@@ -9,6 +9,8 @@ import json as _json
 import sys
 import threading
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Iterable
+from dataclasses import dataclass
+from dataclasses import field as _field
 from os import PathLike
 from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
 
@@ -19,9 +21,11 @@ from ._configuration import Proxy as Proxy
 from ._configuration import TimeoutOverrides as TimeoutOverrides
 from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
+from ._native import NativeProfile as _NativeProfile
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
-_Context: TypeAlias = Literal["navigation", "fetch"]
+_CatalogContext: TypeAlias = Literal["navigation", "fetch"]
+_Context: TypeAlias = Literal["navigation", "fetch", "profile", "raw"]
 _Headers: TypeAlias = Iterable[Header | tuple[str, str | bytes]]
 _UploadPath: TypeAlias = str | PathLike[str]
 _P = ParamSpec("_P")
@@ -61,6 +65,15 @@ class BodyLimitExceeded(Error):
     """Body collection exceeded the caller's bound."""
 
 
+class ProfileError(Error):
+    """A profile document failed strict validation at a canonical field."""
+
+    def __init__(self, kind: str, field: str) -> None:
+        super().__init__("profile", kind)
+        self.field = field
+        self.args = (f"profile: {kind} at {field}",)
+
+
 class DecodeError(Error):
     """Text or JSON decoding failed without including response content."""
 
@@ -94,6 +107,57 @@ def _call(function: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T
         return function(*args, **kwargs)
     except _native.NativeError as error:
         raise _error(error) from None
+
+
+def _profile_call(
+    function: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs
+) -> _T:
+    try:
+        return _call(function, *args, **kwargs)
+    except _native.NativeProfileError as error:
+        kind, field = cast(tuple[str, str], error.args)
+        raise ProfileError(kind, field) from None
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class Profile:
+    """Immutable native settings; imports do not retain catalog identity."""
+
+    _native: _NativeProfile = _field(repr=False)
+
+    def __init__(self) -> None:
+        raise TypeError("use Profile.from_catalog or Profile.import_json")
+
+    @classmethod
+    def _wrap(cls, native: _NativeProfile) -> Profile:
+        profile = object.__new__(cls)
+        object.__setattr__(profile, "_native", native)
+        return profile
+
+    @classmethod
+    def from_catalog(
+        cls, exact_id: str, *, context: _CatalogContext | None = None
+    ) -> Profile:
+        return cls._wrap(
+            _profile_call(_native.NativeProfile.from_catalog, exact_id, context)
+        )
+
+    @classmethod
+    def import_json(cls, document: bytes) -> Profile:
+        if not isinstance(document, bytes):
+            raise TypeError("profile documents must be bytes")
+        return cls._wrap(_profile_call(_native.NativeProfile.import_json, document))
+
+    def export_json(self) -> bytes:
+        return _profile_call(self._native.export_json)
+
+    def describe(self) -> dict[str, object]:
+        """Return a fresh editable document, including literal header values."""
+        return cast(dict[str, object], _json.loads(self.export_json()))
+
+    @property
+    def catalog_id(self) -> str | None:
+        return self._native.catalog_id
 
 
 class AttemptBudget:
@@ -215,7 +279,7 @@ class AsyncClient:
     def __init__(
         self,
         *,
-        profile: str,
+        profile: str | Profile,
         protocol: _Protocol,
         context: _Context | None = None,
         proxy: str | Proxy | None = None,
@@ -225,6 +289,8 @@ class AsyncClient:
         trust: Trust | None = None,
         timeouts: Timeouts | None = None,
     ) -> None:
+        if not isinstance(profile, (str, Profile)):
+            raise TypeError("profile must be an exact catalog ID or Profile")
         if timeouts is not None and not isinstance(timeouts, Timeouts):
             raise TypeError("timeouts must be Timeouts")
         if timeout_ms is not None and timeouts is not None:
@@ -239,7 +305,7 @@ class AsyncClient:
         roots = Trust() if trust is None else trust
         self._native = _call(
             _native.NativeClient,
-            profile,
+            profile._native if isinstance(profile, Profile) else profile,
             protocol,
             context,
             None if route is None else route.url,
@@ -411,7 +477,7 @@ class Client:
     def __init__(
         self,
         *,
-        profile: str,
+        profile: str | Profile,
         protocol: _Protocol,
         context: _Context | None = None,
         proxy: str | Proxy | None = None,

@@ -2,6 +2,16 @@ from collections.abc import Awaitable
 from os import PathLike
 
 class NativeError(Exception): ...
+class NativeProfileError(Exception): ...
+
+class NativeProfile:
+    @staticmethod
+    def from_catalog(exact_id: str, context: str | None = None) -> NativeProfile: ...
+    @staticmethod
+    def import_json(document: bytes) -> NativeProfile: ...
+    def export_json(self) -> bytes: ...
+    @property
+    def catalog_id(self) -> str | None: ...
 
 class AttemptBudget:
     def __init__(self, maximum: int) -> None: ...
@@ -29,7 +39,7 @@ class NativeResponse:
 class NativeClient:
     def __init__(
         self,
-        profile: str,
+        profile: str | NativeProfile,
         protocol: str,
         context: str | None = None,
         proxy: str | None = None,

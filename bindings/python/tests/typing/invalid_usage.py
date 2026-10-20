@@ -4,6 +4,7 @@ from phantom_http import (
     AsyncClient,
     Client,
     Header,
+    Profile,
     Proxy,
     TimeoutOverrides,
     Timeouts,
@@ -43,3 +44,11 @@ async def asynchronous(profile: str, url: str) -> None:
         response = await client.request("GET", url)
         _number: int = await response.read(max_bytes=100)  # E: assignment
         _bytes: bytes = await response.text(max_bytes=100)  # E: assignment
+
+
+def profile_documents() -> None:
+    Profile.import_json("document")  # E: arg-type
+    Profile.from_catalog("exact", context="profile")  # E: arg-type
+    Client(profile={}, protocol="h1")  # E: arg-type
+    profile = Profile.from_catalog("exact")
+    profile.catalog_id = "other"  # E: misc

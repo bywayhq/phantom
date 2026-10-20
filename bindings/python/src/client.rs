@@ -1,6 +1,5 @@
-use crate::{configuration, error, response::NativeResponse, runtime, upload::FileBody};
+use crate::{configuration, error, profile, response::NativeResponse, runtime, upload::FileBody};
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader};
-use phantom_profile::catalog::{self, RequestTemplateKind};
 use pyo3::prelude::*;
 use std::{path::PathBuf, time::Duration};
 
@@ -82,7 +81,7 @@ impl NativeClient {
     #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        profile: &str,
+        profile: &Bound<'_, PyAny>,
         protocol: &str,
         context: Option<&str>,
         proxy: Option<&str>,
@@ -99,23 +98,7 @@ impl NativeClient {
         if !matches!(protocol, "h1" | "h2" | "h3" | "negotiated") {
             return Err(error::input("invalid_protocol"));
         }
-        let definition = catalog::profile(profile).map_err(|_| error::input("unknown_profile"))?;
-        let mut profile = definition
-            .instantiate(&[])
-            .map_err(|_| error::input("invalid_profile"))?
-            .without_request_template();
-        if let Some(context) = context {
-            let context = match context {
-                "navigation" => RequestTemplateKind::Navigation,
-                "fetch" => RequestTemplateKind::Fetch,
-                _ => return Err(error::input("invalid_context")),
-            };
-            profile = profile.with_request_template(
-                definition
-                    .request_template(context)
-                    .map_err(|_| error::input("context_unavailable"))?,
-            );
-        }
+        let profile = profile::select(profile, context)?;
         let mut builder = Client::builder(profile)
             .route(configuration::route(proxy, proxy_username, proxy_password)?)
             .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
