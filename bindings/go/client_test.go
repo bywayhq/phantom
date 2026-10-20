@@ -62,7 +62,7 @@ func TestRequestsCookiesUploadsHeadersAndSharedBudget(t *testing.T) {
 	}
 	defer budget.Close()
 	for index, client := range []*Client{first, second, first} {
-		response, err := client.Do(context.Background(), Request{Method: "PUT", URL: server.URL, Headers: []Header{{"X-Duplicate", []byte("one")}, {"X-Duplicate", []byte("two")}}, Body: []byte("hello"), Budget: budget})
+		response, err := client.Do(context.Background(), Request{Method: "PUT", URL: server.URL, Headers: []Header{{Name: "X-Duplicate", Value: []byte("one")}, {Name: "X-Duplicate", Value: []byte("two")}}, Body: []byte("hello"), Budget: budget})
 		if err != nil {
 			t.Fatal(err)
 		}

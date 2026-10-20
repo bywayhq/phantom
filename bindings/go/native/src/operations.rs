@@ -1,6 +1,7 @@
 use crate::{
     client::{Config, Header, NativeClient},
     error::Failure,
+    timeouts::Timeouts,
 };
 use http_body_util::BodyExt;
 use phantom::{Bytes, HttpAttemptBudget, ResponseBody};
@@ -62,7 +63,8 @@ enum Command {
         url: String,
         headers: Vec<Header>,
         budget: Option<u64>,
-        timeout_ms: Option<u64>,
+        #[serde(default)]
+        timeouts: Timeouts,
         has_body: bool,
     },
     Read {
@@ -75,12 +77,37 @@ enum Command {
     Shutdown {
         client: u64,
     },
+    Maintain {
+        client: u64,
+        action: Maintenance,
+    },
+    ClearState {
+        client: u64,
+        category: Cache,
+    },
     Cancel {
         operation: u64,
     },
     Ack {
         operation: u64,
     },
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Maintenance {
+    CloseIdleConnections,
+    RefreshConnections,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Cache {
+    Dns,
+    ClientHints,
+    AltSvc,
+    AltSvcRacingHistory,
+    SessionTickets,
 }
 
 #[derive(Serialize)]
@@ -208,6 +235,7 @@ enum Target {
     Request(u64),
     Read(u64),
     Shutdown(u64),
+    Maintenance(u64),
 }
 struct Operation {
     target: Target,
@@ -322,7 +350,11 @@ impl State {
             .operations
             .iter()
             .filter_map(|(id, op)| match op.target {
-                Target::Request(owner) | Target::Shutdown(owner) if owner == client => Some(*id),
+                Target::Request(owner) | Target::Shutdown(owner) | Target::Maintenance(owner)
+                    if owner == client =>
+                {
+                    Some(*id)
+                }
                 Target::Read(body) if bodies.contains(&body) => Some(*id),
                 _ => None,
             })
@@ -389,7 +421,7 @@ struct Head {
 enum Outcome {
     Head(Head),
     Read(Option<Bytes>),
-    Shutdown,
+    Complete,
 }
 
 impl Global {
@@ -513,7 +545,7 @@ impl Global {
                 data = bytes.unwrap_or_default();
                 Ok(json!({"eof":eof}))
             }
-            Ok(Outcome::Shutdown) => Ok(json!({})),
+            Ok(Outcome::Complete) => Ok(json!({})),
             Err(error) => {
                 if let Some(Operation {
                     target: Target::Read(body),
@@ -664,6 +696,26 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .clear();
                 Ok(json!({}))
             }
+            Command::ClearState { client, category } => {
+                let client = &state
+                    .clients
+                    .get(&client)
+                    .ok_or_else(|| Failure::new("invalid_handle"))?
+                    .client;
+                match category {
+                    Cache::Dns => client.clear_dns_cache(),
+                    Cache::ClientHints => client.clear_client_hints(),
+                    Cache::AltSvc => client.clear_alt_svc(),
+                    Cache::AltSvcRacingHistory => client.clear_alt_svc_racing_history(),
+                    Cache::SessionTickets => {
+                        let removed = client
+                            .clear_session_tickets()
+                            .map_err(|_| Failure::new("session_tickets"))?;
+                        return Ok(json!({"removed":removed}));
+                    }
+                }
+                Ok(json!({}))
+            }
             Command::Cancel { operation } => {
                 state.cancel(operation);
                 Ok(json!({}))
@@ -689,7 +741,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 url,
                 headers,
                 budget,
-                timeout_ms,
+                timeouts,
                 has_body,
             } => {
                 let budget = budget
@@ -705,7 +757,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .clients
                     .get(&client)
                     .ok_or_else(|| Failure::new("invalid_handle"))?
-                    .request(&method, &url, headers, budget, timeout_ms)?;
+                    .request(&method, &url, headers, budget, timeouts)?;
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
                 if has_body {
@@ -730,6 +782,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                         .map(|field| Header {
                             name: field.name().to_owned(),
                             value: field.value().to_vec(),
+                            sensitive: false,
                         })
                         .collect();
                     let protocol = match response.version() {
@@ -799,7 +852,27 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 drop(state);
                 global.spawn(id, cancel, async move {
                     native.shutdown().await;
-                    Ok(Outcome::Shutdown)
+                    Ok(Outcome::Complete)
+                });
+                Ok(json!({"operation":id}))
+            }
+            Command::Maintain { client, action } => {
+                let entry = state
+                    .clients
+                    .get(&client)
+                    .ok_or_else(|| Failure::new("invalid_handle"))?;
+                if entry.closing {
+                    return Err(Failure::new("client_closed"));
+                }
+                let native = entry.client.clone();
+                let (id, cancel) = state.reserve(Target::Maintenance(client))?;
+                drop(state);
+                global.spawn(id, cancel, async move {
+                    match action {
+                        Maintenance::CloseIdleConnections => native.close_idle_connections().await,
+                        Maintenance::RefreshConnections => native.refresh_connections().await,
+                    }
+                    Ok(Outcome::Complete)
                 });
                 Ok(json!({"operation":id}))
             }
@@ -883,6 +956,29 @@ mod tests {
     }
 
     #[test]
+    fn maintenance_shares_ordinary_capacity_and_is_cancelled_with_its_client() -> Result<(), Failure>
+    {
+        let mut state = State::default();
+        let (_, mut cancelled) = state.reserve(Target::Maintenance(1))?;
+        for _ in 1..MAX_HANDLES {
+            state.reserve(Target::Request(2))?;
+        }
+        assert_eq!(
+            state
+                .reserve(Target::Maintenance(2))
+                .err()
+                .map(|error| error.kind),
+            Some("capacity")
+        );
+        state.release_client(1);
+        assert!(cancelled.try_recv().is_ok());
+        // Cancellation keeps the reservation until native work has settled.
+        assert_eq!(state.operations.len(), MAX_HANDLES);
+        assert!(state.reserve(Target::Shutdown(2)).is_ok());
+        Ok(())
+    }
+
+    #[test]
     fn oversized_metadata_returns_typed_correlated_error_and_releases_head() -> Result<(), Failure>
     {
         let reply = encode(Ok(json!({"cookie":"x".repeat(MAX_METADATA)})));
@@ -904,6 +1000,7 @@ mod tests {
                 headers: vec![Header {
                     name: "x".to_owned(),
                     value: vec![255; MAX_METADATA],
+                    sensitive: false,
                 }],
                 body: owner,
             })),

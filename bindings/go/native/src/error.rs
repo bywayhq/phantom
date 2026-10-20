@@ -18,6 +18,16 @@ impl Failure {
     }
 }
 
+impl From<phantom::BuildError> for Failure {
+    fn from(error: phantom::BuildError) -> Self {
+        Self::new(match error.kind() {
+            phantom::BuildErrorKind::InvalidBaseUrl => "invalid_base_url",
+            phantom::BuildErrorKind::TrustStore => "invalid_trust_store",
+            _ => "invalid_client_configuration",
+        })
+    }
+}
+
 impl From<RequestError> for Failure {
     fn from(error: RequestError) -> Self {
         let kind = match error.kind() {

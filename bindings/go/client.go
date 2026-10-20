@@ -12,28 +12,53 @@ import (
 // Config selects one named profile, protocol and optional request context.
 // Protocol is h1, h2, h3 or negotiated. Context is navigation, fetch or empty.
 type Config struct {
-	Profile        string
-	Protocol       string
-	Context        string
-	Proxy          string
-	DisableCookies bool
-	Timeout        time.Duration
+	Profile  string
+	Protocol string
+	Context  string
+	Proxy    string
+	// ProxyCredentials configures HTTP Basic or SOCKS5 username/password auth.
+	// It requires an explicit corresponding Proxy URL; URI credentials are rejected.
+	ProxyCredentials *ProxyCredentials
+	// BaseURL resolves relative request URLs using the Rust client's URL rules.
+	BaseURL string
+	// AdditionalRootsDER extends origin trust. ProxyAdditionalRootsDER extends
+	// HTTPS-proxy trust separately. Certificates must be DER encoded.
+	AdditionalRootsDER      [][]byte
+	ProxyAdditionalRootsDER [][]byte
+	DisableCookies          bool
+	// Timeout retains the original total timeout. Do not combine it with Timeouts.Total.
+	Timeout  time.Duration
+	Timeouts Timeouts
 }
+
+// ProxyCredentials is one explicit username/password pair. Empty values are
+// passed to the Rust route validator. Formatting omits both credentials.
+type ProxyCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (ProxyCredentials) String() string   { return "[redacted]" }
+func (ProxyCredentials) GoString() string { return "[redacted]" }
 
 // Header retains one field's position, name and byte value. Duplicate names work.
 type Header struct {
 	Name  string `json:"name"`
 	Value []byte `json:"value"`
+	// Sensitive requests never-indexed H2/H3 encoding, subject to the profile's
+	// cookie-crumb policy. HTTP/1 field bytes are unchanged.
+	Sensitive bool `json:"sensitive,omitempty"`
 }
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
 type Request struct {
-	Method  string
-	URL     string
-	Headers []Header
-	Body    []byte
-	Budget  *AttemptBudget
-	Timeout time.Duration
+	Method   string
+	URL      string
+	Headers  []Header
+	Body     []byte
+	Budget   *AttemptBudget
+	Timeout  time.Duration
+	Timeouts Timeouts
 }
 
 // Client reuses native connection pools and cookies. It is safe for concurrent use.
@@ -42,31 +67,62 @@ type Client struct {
 	closing atomic.Bool
 }
 
-func timeoutValue(timeout time.Duration) (*uint64, error) {
-	if timeout == 0 {
-		return nil, nil
-	}
-	if timeout < time.Millisecond {
-		return nil, &Error{Kind: "invalid_timeout"}
-	}
-	value := uint64(timeout / time.Millisecond)
-	return &value, nil
-}
-
 // New creates a client. It performs no request and ignores proxy environment variables.
 func New(config Config) (*Client, error) {
-	timeout, err := timeoutValue(config.Timeout)
+	timeouts, err := timeoutsWire(config.Timeouts, config.Timeout)
+	if err != nil {
+		return nil, err
+	}
+	// Bound newly exposed data before expanding DER bytes into JSON arrays.
+	size := 0
+	values := []string{config.Profile, config.Protocol, config.Context, config.Proxy, config.BaseURL}
+	if config.ProxyCredentials != nil {
+		values = append(values, config.ProxyCredentials.Username, config.ProxyCredentials.Password)
+	}
+	for _, value := range values {
+		if len(value) > 64*1024-size {
+			return nil, &Error{Kind: "input_limit"}
+		}
+		size += len(value)
+	}
+	roots := func(input [][]byte) ([][]uint16, error) {
+		if len(input) > 256 {
+			return nil, &Error{Kind: "input_limit"}
+		}
+		result := make([][]uint16, 0, len(input))
+		for _, certificate := range input {
+			if len(certificate) > 64*1024-size {
+				return nil, &Error{Kind: "input_limit"}
+			}
+			size += len(certificate)
+			bytes := make([]uint16, len(certificate))
+			for index, value := range certificate {
+				bytes[index] = uint16(value)
+			}
+			result = append(result, bytes)
+		}
+		return result, nil
+	}
+	originRoots, err := roots(config.AdditionalRootsDER)
+	if err != nil {
+		return nil, err
+	}
+	proxyRoots, err := roots(config.ProxyAdditionalRootsDER)
 	if err != nil {
 		return nil, err
 	}
 	wire := struct {
-		Profile  string  `json:"profile"`
-		Protocol string  `json:"protocol"`
-		Context  string  `json:"context,omitempty"`
-		Proxy    string  `json:"proxy,omitempty"`
-		Cookies  bool    `json:"cookies"`
-		Timeout  *uint64 `json:"timeout_ms,omitempty"`
-	}{config.Profile, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, timeout}
+		Profile     string            `json:"profile"`
+		Protocol    string            `json:"protocol"`
+		Context     string            `json:"context,omitempty"`
+		Proxy       string            `json:"proxy,omitempty"`
+		Cookies     bool              `json:"cookies"`
+		BaseURL     string            `json:"base_url,omitempty"`
+		Credentials *ProxyCredentials `json:"proxy_credentials,omitempty"`
+		Roots       [][]uint16        `json:"additional_roots_der"`
+		ProxyRoots  [][]uint16        `json:"proxy_additional_roots_der"`
+		Timeouts    wireTimeouts      `json:"timeouts"`
+	}{config.Profile, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err
@@ -102,13 +158,14 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if len(request.Body) > maxUpload {
 		return nil, &Error{Kind: "upload_limit"}
 	}
-	timeout, err := timeoutValue(request.Timeout)
+	timeouts, err := timeoutsWire(request.Timeouts, request.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	type wireHeader struct {
-		Name  string   `json:"name"`
-		Value []uint16 `json:"value"`
+		Name      string   `json:"name"`
+		Value     []uint16 `json:"value"`
+		Sensitive bool     `json:"sensitive"`
 	}
 	if len(request.Headers) > 256 {
 		return nil, &Error{Kind: "input_limit"}
@@ -127,7 +184,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		for i, value := range header.Value {
 			values[i] = uint16(value)
 		}
-		headers = append(headers, wireHeader{header.Name, values})
+		headers = append(headers, wireHeader{header.Name, values, header.Sensitive})
 	}
 	var budget *uint64
 	if request.Budget != nil {
@@ -137,7 +194,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		budget = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeout_ms": timeout, "has_body": request.Body != nil}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil}
 	var response *Response
 	err = perform(ctx, command, request.Body, func(event completion) error {
 		var head struct {

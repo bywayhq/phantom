@@ -1,10 +1,10 @@
 use crate::error::Failure;
+use crate::timeouts::Timeouts;
 use phantom::{
     Client, HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, Route,
 };
 use phantom_profile::catalog::{self, RequestTemplateKind};
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -13,8 +13,22 @@ pub(super) struct Config {
     protocol: String,
     context: Option<String>,
     proxy: Option<String>,
+    base_url: Option<String>,
+    proxy_credentials: Option<ProxyCredentials>,
+    #[serde(default)]
+    additional_roots_der: Vec<Vec<u8>>,
+    #[serde(default)]
+    proxy_additional_roots_der: Vec<Vec<u8>>,
     cookies: bool,
-    timeout_ms: Option<u64>,
+    #[serde(default)]
+    timeouts: Timeouts,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProxyCredentials {
+    username: String,
+    password: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -22,6 +36,8 @@ pub(super) struct Config {
 pub(super) struct Header {
     pub(super) name: String,
     pub(super) value: Vec<u8>,
+    #[serde(default)]
+    pub(super) sensitive: bool,
 }
 
 pub(super) struct NativeClient {
@@ -39,20 +55,42 @@ pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     }
 }
 
-fn route(uri: Option<&str>) -> Result<Route, Failure> {
+fn route(uri: Option<&str>, credentials: Option<ProxyCredentials>) -> Result<Route, Failure> {
     let Some(uri) = uri else {
+        if credentials.is_some() {
+            return Err(Failure::new("invalid_proxy_credentials"));
+        }
         return Ok(Route::direct());
     };
     match uri.split_once("://").map(|(scheme, _)| scheme) {
-        Some("http" | "https") => phantom::HttpProxy::new(uri)
-            .map(Route::http_proxy)
-            .map_err(|_| Failure::new("invalid_http_proxy")),
-        Some("socks4" | "socks4a") => phantom::Socks4Proxy::new(uri)
-            .map(Route::socks4)
-            .map_err(|_| Failure::new("invalid_socks4_proxy")),
-        Some("socks5" | "socks5h") => phantom::Socks5Proxy::new(uri)
-            .map(Route::socks5)
-            .map_err(|_| Failure::new("invalid_socks5_proxy")),
+        Some("http" | "https") => {
+            let mut proxy =
+                phantom::HttpProxy::new(uri).map_err(|_| Failure::new("invalid_http_proxy"))?;
+            if let Some(credentials) = credentials {
+                proxy = proxy
+                    .with_basic_auth(credentials.username, credentials.password)
+                    .map_err(|_| Failure::new("invalid_proxy_credentials"))?;
+            }
+            Ok(Route::http_proxy(proxy))
+        }
+        Some("socks4" | "socks4a") => {
+            if credentials.is_some() {
+                return Err(Failure::new("invalid_proxy_credentials"));
+            }
+            phantom::Socks4Proxy::new(uri)
+                .map(Route::socks4)
+                .map_err(|_| Failure::new("invalid_socks4_proxy"))
+        }
+        Some("socks5" | "socks5h") => {
+            let mut proxy =
+                phantom::Socks5Proxy::new(uri).map_err(|_| Failure::new("invalid_socks5_proxy"))?;
+            if let Some(credentials) = credentials {
+                proxy = proxy
+                    .with_username_password(credentials.username, credentials.password)
+                    .map_err(|_| Failure::new("invalid_proxy_credentials"))?;
+            }
+            Ok(Route::socks5(proxy))
+        }
         _ => Err(Failure::new("invalid_proxy_scheme")),
     }
 }
@@ -80,18 +118,22 @@ impl NativeClient {
                     .map_err(|_| Failure::new("context_unavailable"))?,
             );
         }
-        let mut builder = Client::builder(profile).route(route(config.proxy.as_deref())?);
+        let mut builder = Client::builder(profile)
+            .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
+        if let Some(base_url) = config.base_url {
+            builder = builder.base_url(&base_url).map_err(Failure::from)?;
+        }
+        for root in config.additional_roots_der {
+            builder = builder.add_root_certificate_der(root);
+        }
+        for root in config.proxy_additional_roots_der {
+            builder = builder.add_proxy_root_certificate_der(root);
+        }
         if config.cookies {
             builder = builder.cookies();
         }
-        if let Some(timeout) = config.timeout_ms {
-            builder = builder.request_timeouts(
-                phantom::RequestTimeouts::new().total(Duration::from_millis(timeout)),
-            );
-        }
-        let client = builder
-            .build()
-            .map_err(|_| Failure::new("invalid_client_configuration"))?;
+        builder = builder.request_timeouts(config.timeouts.defaults());
+        let client = builder.build().map_err(Failure::from)?;
         Ok(Self {
             client,
             protocol: config.protocol,
@@ -105,7 +147,7 @@ impl NativeClient {
         url: &str,
         headers: Vec<Header>,
         budget: Option<HttpAttemptBudget>,
-        timeout_ms: Option<u64>,
+        timeouts: Timeouts,
     ) -> Result<RequestBuilder, Failure> {
         if self.closing {
             return Err(Failure::new("client_closed"));
@@ -122,17 +164,20 @@ impl NativeClient {
         let mut request = request.map_err(Failure::from)?.headers(
             headers
                 .into_iter()
-                .map(|header| RequestHeader::new(header.name, header.value))
+                .map(|header| {
+                    let field = RequestHeader::new(header.name, header.value);
+                    if header.sensitive {
+                        field.sensitive()
+                    } else {
+                        field
+                    }
+                })
                 .collect(),
         );
         if let Some(budget) = budget {
             request = request.attempt_budget(budget);
         }
-        if let Some(timeout) = timeout_ms {
-            request = request.timeouts(phantom::RequestTimeoutOverrides::new().total(
-                phantom::TimeoutOverride::Limit(Duration::from_millis(timeout)),
-            ));
-        }
+        request = request.timeouts(timeouts.overrides());
         Ok(request)
     }
 }

@@ -23,10 +23,21 @@ when the route cannot support them. Direct `h2` with an HTTP URL uses prior
 knowledge. An empty `Proxy` selects direct connections. Explicit HTTP,
 HTTPS, SOCKS4(a), and SOCKS5(h) proxy URLs use the Rust client's routing.
 Proxy environment variables are ignored.
-Proxy credentials are not exposed in this slice.
+For HTTP Basic or SOCKS5 authentication, set `ProxyCredentials` to an explicit
+`Username`/`Password` pair. It requires the matching proxy URL. Credentials in
+URLs remain unsupported. HTTP authentication follows the native challenge and
+credential-isolation rules. SOCKS4 credentials and Digest are not exposed.
+
+`BaseURL` resolves relative request URLs. Include a trailing slash when you
+want paths appended to its directory. Absolute request URLs override the base.
+`AdditionalRootsDER` extends origin trust. `ProxyAdditionalRootsDER` separately
+extends HTTPS-proxy trust. Both take DER certificates and retain hostname
+verification. Neither bypasses verification or configures client certificates.
 
 `Headers` is an ordered slice of names and byte values. Duplicate names
 remain separate. Templates apply the public Rust API's placement rules.
+Set `Header.Sensitive` for never-indexed HTTP/2 and HTTP/3 fields. A profile's
+cookie-crumb policy can choose its own encoding. HTTP/1 field bytes are unchanged.
 Response headers retain their received order, duplicates, and byte values.
 Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
 `CookiesForURL`, and `ClearCookies` to manage them.
@@ -51,6 +62,33 @@ Close bodies you no longer need. Cancelling the wait leaves admission
 closed. A retry can briefly return `shutdown_in_progress` while the old
 wait settles. `Close` allows five seconds for graceful shutdown. Explicit
 shutdown is preferred; finalizers provide eventual handle cleanup.
+
+`CloseIdleConnections(ctx)` releases idle connections and keeps active work.
+`RefreshConnections(ctx)` makes later requests select fresh connections while
+existing work can finish. Both retain tickets and learned state. Cancelling a
+maintenance call can leave some pools unvisited. Neither waits for old transport
+drivers to stop. Use `ClearSessionTickets`, `ClearDNSCache`, `ClearClientHints`,
+`ClearAltSvc` or `ClearAltSvcRacingHistory` when you need to forget that state.
+Clearing caches does not close active connections or disable their configuration.
+
+Client and request `Timeouts` contain `PoolAdmission`, `Connect`, `ResponseHead`,
+`ReadIdle` and `Total`. Each field uses `LimitTimeout(duration)`, including zero,
+`Timeout{Mode: TimeoutDisabled}`, or its default `TimeoutInherit`. Request fields
+inherit client settings. Client fields start without limits. For example:
+
+```go
+config.Timeouts = phantom.Timeouts{
+    Connect: phantom.LimitTimeout(10 * time.Second),
+    Total: phantom.LimitTimeout(time.Minute),
+}
+request.Timeouts.ReadIdle = phantom.Timeout{Mode: phantom.TimeoutDisabled}
+```
+
+Finite zero is an expired limit, not disabling; a ready native operation can
+still win. `Connect` covers DNS, proxy and TLS setup. `ResponseHead` includes
+uploading. `Total` spans all attempts and the response body. The original
+`Timeout` remains a total limit with millisecond precision and a one-millisecond
+minimum. Do not combine a nonzero `Timeout` with an explicit `Timeouts.Total`.
 
 `*Error` contains a redacted `Kind`, protocol, and timeout phase when known.
 HTTP error statuses remain responses. Context cancellation returns Go's
@@ -112,5 +150,5 @@ responses already delivered to application code. They are capacity limits,
 not a measured high-throughput claim.
 
 Streaming uploads (`io.Reader` and files), custom profile definitions,
-custom trust/connector configuration, CONNECT-UDP configuration, session
+pinning/client certificates, custom connectors, CONNECT-UDP configuration, session
 snapshots, and independent shared-state forks are not exposed in this slice.
