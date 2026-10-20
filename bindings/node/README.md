@@ -110,8 +110,8 @@ Set client/request `timeouts` with `poolAdmissionMs`, `connectMs`,
 `responseHeadMs`, `readIdleMs` and `totalMs`. Omitted fields inherit; `null`
 disables a limit and zero is finite. Client limits start disabled. Response-head
 time includes upload; total includes body completion. Do not combine
-`timeoutMs` with `timeouts.totalMs`. An idle body's deadline is checked on its
-next read; ready work can win against zero. Errors expose `timeoutPhase`.
+`timeoutMs` with `timeouts.totalMs`. Total zero rejects before sending; other
+zero phase timers can race ready work. Errors expose `timeoutPhase`.
 
 `baseUrl` joins relative URLs. `additionalRoots` extends origin trust;
 `additionalProxyRoots` separately extends HTTPS-proxy trust. Both use DER and
@@ -231,5 +231,11 @@ CPU work runs off the event loop and is not abortable.
 
 ## Next
 
-Run `npm test` and `npm run check-types` from this directory after building.
+From the repository root, build and run the loopback tests and type checks with
+the independent HTTP/3 peer setup:
+
+```sh
+scripts/dev/with-cargo-lock.sh scripts/dev/check-node-binding.sh
+```
+
 See the [Rust API](https://docs.rs/phantom-http) for underlying behavior.

@@ -154,6 +154,8 @@ independently of the header template.
 `ExportSession(ctx, key)` returns encrypted checkpoint bytes; `key` is a secret
 random `[32]byte`. `RestoreSession(ctx, bytes, key, receivingRoutes)` returns
 independent pools using the receiver's compatible settings, never changing it.
+Checkpoints contain enabled cookies, direct Alt-Svc and TLS tickets, within
+32 MiB. Address DNS, client hints and racing history start empty.
 `SessionRoute{}` means direct; its proxy fields follow `Config` rules. Core
 expiry, capacity and isolation checks remain authoritative. `SessionSnapshotError`
 retains the typed core kind and wraps `*Error`; unsupported state is rejected.
@@ -170,9 +172,10 @@ Client/request `Timeouts` has `PoolAdmission`, `Connect`, `ResponseHead`,
 `ReadIdle` and `Total`. Use `LimitTimeout(duration)`,
 `Timeout{Mode: TimeoutDisabled}`, or default `TimeoutInherit`. Request fields
 inherit the client; client limits start disabled. `Connect` includes setup,
-`ResponseHead` includes upload and `Total` includes body reads. Zero is finite;
-ready work can win. The older `Timeout` field uses milliseconds with a
-one-millisecond minimum; do not combine it with explicit `Timeouts.Total`.
+`ResponseHead` includes upload and `Total` includes body reads. Total zero
+rejects before sending; other zero phase timers can race ready work.
+The older `Timeout` field uses milliseconds with a one-millisecond minimum;
+do not combine it with explicit `Timeouts.Total`.
 
 `*Error` exposes redacted `Kind`, protocol and timeout phase when known.
 Messages omit URLs, credentials and native source chains. Responses retain
@@ -228,8 +231,8 @@ a typed error without waiting. Byte uploads allow 8 MiB each and 16 MiB aggregat
 native custody until responses close. Metadata limits are 64 KiB per command,
 256 response fields/32 KiB and 256 KiB per encoded reply.
 
-Pinning/client certificates, custom connectors, CONNECT-UDP and session
-snapshots are not exposed yet.
+Pinning/client certificates, custom connectors and CONNECT-UDP are not
+exposed yet.
 
 ## Next
 

@@ -147,7 +147,8 @@ Response-head time includes upload. Omitted client limits are disabled.
 Request `TimeoutOverrides` inherits omitted fields, disables `None` fields
 and applies finite nonnegative numbers, including zero. For example,
 `TimeoutOverrides(total=None, read_idle=2)` disables total but limits idle reads.
-Do not combine `timeout_ms` and `timeouts`. Zero can still admit ready work.
+Do not combine `timeout_ms` and `timeouts`. Total zero rejects before sending;
+other zero phase timers can race ready work.
 
 `close_idle_connections()` retires idle connections; `refresh_connections()`
 retires pools while active responses finish. Both retain learned state. Clear
@@ -168,8 +169,10 @@ source into an open client. Sync forks retain the creating-thread rule.
 
 Export encrypted state with `checkpoint = await client.export_session(key)`,
 then `restored = await client.restore_session(checkpoint, key)`; sync clients
-have the same methods. Supply a secret random 32-byte key. Restore uses the
-receiving client's compatible configuration and returns independent pools;
+have the same methods. Supply a secret random 32-byte key. Checkpoints contain
+enabled cookies, direct Alt-Svc and TLS tickets, within 32 MiB. Address DNS,
+client hints and racing history start empty. Restore uses the receiving
+client's compatible configuration and returns independent pools;
 it never changes the receiver. `receiving_routes` lists request-only ticket
 routes (URI strings, `Proxy`, or `None` for direct). Core expiry and isolation
 checks apply; unsupported state/configuration raises `SessionSnapshotError`.
@@ -225,4 +228,9 @@ retains the response and its readable body.
 
 See the [library guides](https://github.com/bywayhq/phantom/blob/main/crates/phantom/src/docs/overview.md).
 After `maturin develop`, run the loopback tests from this directory with
-`uv run --active --no-project --with h2==4.4.1 python -m unittest discover -s tests`.
+the independent HTTP/3 peer setup:
+
+```sh
+python ../../scripts/dev/binding_h3_peer.py -- uv run --active --no-project \
+  --with h2==4.4.1 python -m unittest discover -s tests
+```

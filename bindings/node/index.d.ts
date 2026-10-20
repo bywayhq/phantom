@@ -56,7 +56,10 @@ export class AttemptBudget {
   tryAdmit(): void;
 }
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
-/** Omit to inherit; null disables; zero is finite (a ready core phase can win). */
+/**
+ * Omit to inherit; null disables. Total zero rejects before sending;
+ * other zero phase timers can race ready work.
+ */
 export interface Timeouts {
   poolAdmissionMs?: number | null;
   connectMs?: number | null;
