@@ -1,6 +1,7 @@
 use crate::{
     client::{Config, Header, NativeClient, SessionSharing},
     error::Failure,
+    policy::{ContentDecoding, RequestPolicy, coding_name},
     timeouts::Timeouts,
 };
 use http_body_util::BodyExt;
@@ -69,6 +70,8 @@ enum Command {
         budget: Option<u64>,
         #[serde(default)]
         timeouts: Timeouts,
+        #[serde(default)]
+        content_decoding: ContentDecoding,
         has_body: bool,
     },
     Read {
@@ -439,6 +442,7 @@ struct Head {
     effective_url: String,
     redirects_followed: usize,
     connection_setup_retries: usize,
+    decoded_content_codings: Vec<&'static str>,
     headers: Vec<Header>,
     body: std::sync::Arc<BodyOwner>,
 }
@@ -455,6 +459,12 @@ fn response_head(
     let effective_url = info.effective_uri().to_string();
     let redirects_followed = info.redirects_followed();
     let connection_setup_retries = info.retries_performed();
+    let decoded_content_codings = info
+        .decoded_content_codings()
+        .iter()
+        .copied()
+        .map(coding_name)
+        .collect();
     let fields = response
         .extensions()
         .get::<phantom::OrderedResponseHeaders>()
@@ -498,6 +508,7 @@ fn response_head(
         effective_url,
         redirects_followed,
         connection_setup_retries,
+        decoded_content_codings,
         headers,
         body: owner,
     })
@@ -613,7 +624,8 @@ impl Global {
                         if let Some(operation) = state.operations.get_mut(&id) { operation.response = Some(body); }
                         json!({"body":body,"status":head.status,"protocol":head.protocol,"headers":head.headers,
                             "effective_url":head.effective_url,"redirects_followed":head.redirects_followed,
-                            "connection_setup_retries":head.connection_setup_retries})
+                            "connection_setup_retries":head.connection_setup_retries,
+                            "decoded_content_codings":head.decoded_content_codings})
                     })
                 }
             }
@@ -829,6 +841,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 headers,
                 budget,
                 timeouts,
+                content_decoding,
                 has_body,
             } => {
                 let budget = budget
@@ -844,7 +857,16 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .clients
                     .get(&client)
                     .ok_or_else(|| Failure::new("invalid_handle"))?
-                    .request(&method, &url, headers, budget, timeouts)?;
+                    .request(
+                        &method,
+                        &url,
+                        headers,
+                        budget,
+                        RequestPolicy {
+                            timeouts,
+                            content_decoding,
+                        },
+                    )?;
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
                 if has_body {
@@ -1048,6 +1070,7 @@ mod tests {
                 effective_url: "http://localhost/".to_owned(),
                 redirects_followed: 0,
                 connection_setup_retries: 0,
+                decoded_content_codings: Vec::new(),
                 headers: vec![Header {
                     name: "x".to_owned(),
                     value: vec![255; MAX_METADATA],
@@ -1178,6 +1201,7 @@ mod tests {
                 effective_url: "http://localhost/".to_owned(),
                 redirects_followed: 0,
                 connection_setup_retries: 0,
+                decoded_content_codings: Vec::new(),
                 headers: Vec::new(),
                 body: std::sync::Arc::clone(&owner),
             })),

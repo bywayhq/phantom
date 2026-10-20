@@ -24,6 +24,9 @@ type Response struct {
 	// status retries, reused-connection and GOAWAY replays, proxy authentication,
 	// client hints and protocol fallback.
 	ConnectionSetupRetries uint64
+	// DecodedContentCodings records the applied chain in header order: gzip,
+	// deflate, br or zstd. It does not promise successful body completion.
+	DecodedContentCodings []string
 }
 type bodyLifetime struct {
 	id     uint64

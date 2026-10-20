@@ -61,6 +61,8 @@ type Request struct {
 	Budget   *AttemptBudget
 	Timeout  time.Duration
 	Timeouts Timeouts
+	// ContentDecoding is opt-in and uses the request's own Accept-Encoding fields.
+	ContentDecoding ContentDecoding
 }
 
 // Client reuses native connection pools and cookies. It is safe for concurrent use.
@@ -184,6 +186,10 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	decoding, err := contentDecodingWire(request.ContentDecoding)
+	if err != nil {
+		return nil, err
+	}
 	type wireHeader struct {
 		Name      string   `json:"name"`
 		Value     []uint16 `json:"value"`
@@ -216,7 +222,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		budget = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding}
 	var response *Response
 	err = perform(ctx, command, request.Body, func(event completion) error {
 		var head struct {
@@ -227,6 +233,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 			EffectiveURL           string   `json:"effective_url"`
 			RedirectsFollowed      uint64   `json:"redirects_followed"`
 			ConnectionSetupRetries uint64   `json:"connection_setup_retries"`
+			DecodedContentCodings  []string `json:"decoded_content_codings"`
 		}
 		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 || head.EffectiveURL == "" {
 			return &Error{Kind: "native_abi"}
@@ -235,6 +242,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 			Status: head.Status, Protocol: head.Protocol, Headers: head.Headers,
 			Body: newBody(ctx, c, head.Body), EffectiveURL: head.EffectiveURL,
 			RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries,
+			DecodedContentCodings: head.DecodedContentCodings,
 		}
 		return nil
 	})

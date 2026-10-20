@@ -15,6 +15,19 @@ import (
 // This peer needs only literal :status 200. Request HPACK stays opaque: stream
 // arrival order chooses the held request and the two independent controls.
 func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
+	t.Run("context", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, false) })
+	t.Run("decoded limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, true) })
+}
+
+func http2CancellationPreservesOtherStreams(t *testing.T, decoding bool) {
+	firstData := []byte("a")
+	firstHeaders := []byte{0x88}
+	if decoding {
+		firstData = gzipBytes(t, []byte("decoded bytes exceed zero"))
+		// Literal Content-Encoding name index26, value gzip; no indexing.
+		firstHeaders = append(firstHeaders, 0x0f, 0x0b, 4, 'g', 'z', 'i', 'p')
+	}
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -85,11 +98,15 @@ func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
 				}
 			case 1:
 				count++
-				err = writeFrame(1, 4, stream, []byte{0x88})
+				responseHeaders := []byte{0x88}
+				if count == 1 {
+					responseHeaders = firstHeaders
+				}
+				err = writeFrame(1, 4, stream, responseHeaders)
 				if count == 1 {
 					held = stream
 					if err == nil {
-						err = writeFrame(0, 0, stream, []byte("a"))
+						err = writeFrame(0, 0, stream, firstData)
 					}
 				} else if count == 2 && !cancelled {
 					waiting = stream
@@ -122,19 +139,33 @@ func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
 	}
 	defer client.Close()
 	ctx, cancel := context.WithCancel(context.Background())
-	first, err := client.Do(ctx, Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/held"})
+	defer cancel()
+	firstRequest := Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/held"}
+	if decoding {
+		firstRequest.ContentDecoding = AdvertisedDecoding(0)
+		firstRequest.Headers = []Header{{Name: "accept-encoding", Value: []byte("gzip")}}
+	}
+	first, err := client.Do(ctx, firstRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buffer := make([]byte, 1)
-	if n, err := first.Body.Read(buffer); n != 1 || err != nil {
-		t.Fatalf("held read %d: %v", n, err)
+	if !decoding {
+		if n, err := first.Body.Read(buffer); n != 1 || err != nil {
+			t.Fatalf("held read %d: %v", n, err)
+		}
 	}
 	second, err := client.Do(context.Background(), Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/live"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cancel()
+	if decoding {
+		if _, err := first.Body.Read(buffer); kind(err) != "response_body_limit" {
+			t.Fatalf("decoded limit: %v", err)
+		}
+	} else {
+		cancel()
+	}
 	select {
 	case code := <-reset:
 		if code != 8 {

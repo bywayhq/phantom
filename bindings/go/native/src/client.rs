@@ -1,4 +1,5 @@
 use crate::error::Failure;
+use crate::policy::RequestPolicy;
 use crate::timeouts::Timeouts;
 use phantom::{
     Client, HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, Route,
@@ -168,7 +169,7 @@ impl NativeClient {
         url: &str,
         headers: Vec<Header>,
         budget: Option<HttpAttemptBudget>,
-        timeouts: Timeouts,
+        policy: RequestPolicy,
     ) -> Result<RequestBuilder, Failure> {
         if self.closing {
             return Err(Failure::new("client_closed"));
@@ -198,7 +199,9 @@ impl NativeClient {
         if let Some(budget) = budget {
             request = request.attempt_budget(budget);
         }
-        request = request.timeouts(timeouts.overrides());
+        request = request
+            .timeouts(policy.timeouts.overrides())
+            .content_decoding(policy.content_decoding.core());
         Ok(request)
     }
 }
