@@ -161,7 +161,7 @@ Forks count toward the ordinary native client capacity.
 Successful Go `Shutdown` releases its native owner, so a later `Fork` returns
 `client_closed`. During concurrent shutdown a still-registered source can
 produce an open fork; otherwise the call returns `client_closed`. Closing
-either owner leaves the other usable. Finalizers provide eventual cleanup.
+either owner leaves the other usable.
 
 ## Build and limits
 
@@ -212,4 +212,4 @@ not a measured high-throughput claim.
 
 Streaming uploads (`io.Reader` and files), compact fingerprint imports,
 pinning/client certificates, custom connectors, CONNECT-UDP configuration, session
-snapshots, and independent shared-state forks are not exposed in this slice.
+snapshots are not exposed in this slice.
