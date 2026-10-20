@@ -15,6 +15,13 @@ this directory. The script verifies both source archive checksums.
 ## Canonical changes
 
 `patches/series` lists the packaging changes to replay on the native fork.
+`msvc-configuration-flags.patch` restores CMake's selected C/C++ profile
+flags for automatic MSVC builds. cmake-rs 0.1.58 otherwise replaces them
+without optimization, release assertion settings, or debug compiler flags.
+Debug, Release, RelWithDebInfo and MinSizeRel retain their respective flags;
+CRT selection stays separate. Explicit toolchains and generators are unchanged.
+This fixes build configuration; no performance improvement is claimed.
+
 `publish-identity.patch` is last. It materializes workspace fields, names the
 package `phantom-btls-sys`, retains the library name `btls_sys`, and changes
 `links` to `phantom_boringssl`. It includes the bundled license files in the

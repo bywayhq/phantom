@@ -256,6 +256,24 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         } else {
             boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
         }
+
+        if config.target_env == "msvc" && config.env.cmake_generator.is_none() {
+            // cmake-rs 0.1.58 replaces the automatic MSVC configuration flags
+            // after removing optimization flags. Preserve CMake's profile
+            // defaults explicitly; CRT selection remains separate above.
+            let profile = boringssl_cmake.get_profile();
+            let flags = match profile {
+                "Debug" => "/Zi /Ob0 /Od /RTC1",
+                "Release" => "/O2 /Ob2 /DNDEBUG",
+                "RelWithDebInfo" => "/Zi /O2 /Ob1 /DNDEBUG",
+                "MinSizeRel" => "/O1 /Ob1 /DNDEBUG",
+                _ => panic!("unexpected CMake profile: {profile}"),
+            };
+            let configuration = profile.to_ascii_uppercase();
+            for language in ["C", "CXX"] {
+                boringssl_cmake.define(format!("CMAKE_{language}_FLAGS_{configuration}"), flags);
+            }
+        }
     }
 
     if config.host == config.target {
