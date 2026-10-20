@@ -22,7 +22,7 @@ sdist = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sdist)
 
 PYPROJECT = """[build-system]
-requires = ["maturin>=1.9.4,<2"]
+requires = ["maturin==1.15.0"]
 build-backend = "maturin"
 [project]
 name = "phantom-http"
@@ -31,7 +31,7 @@ license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 [tool.maturin]
 python-source = "python"
 module-name = "phantom_http._native"
-manifest-path = 'bindings\\python\\Cargo.toml'
+manifest-path = 'bindings/python/Cargo.toml'
 """
 LICENSE = b"Actual retained license text\n"
 
@@ -61,10 +61,10 @@ def lock(packages):
 
 
 class SourceArchiveTests(unittest.TestCase):
-    def test_portable_manifest_and_installed_notice_fields_preserve_other_toml(self):
+    def test_installed_notice_fields_preserve_other_toml(self):
         result = sdist.rewrite_pyproject(PYPROJECT, ["third-party-notices/a/LICENSE"])
         parsed = tomllib.loads(result)
-        self.assertEqual(parsed["build-system"]["requires"], ["maturin==1.9.6"])
+        self.assertEqual(parsed["build-system"]["requires"], ["maturin==1.15.0"])
         self.assertEqual(
             parsed["tool"]["maturin"]["manifest-path"], "bindings/python/Cargo.toml"
         )
@@ -79,13 +79,19 @@ class SourceArchiveTests(unittest.TestCase):
             result, sdist.rewrite_pyproject(result, ["third-party-notices/a/LICENSE"])
         )
 
-    def test_missing_maturin_manifest_path_is_added_without_changing_source_root(self):
-        text = PYPROJECT.rsplit("manifest-path", 1)[0]
-        result = tomllib.loads(sdist.rewrite_pyproject(text, []))
-        self.assertEqual(
-            result["tool"]["maturin"]["manifest-path"], "bindings/python/Cargo.toml"
-        )
-        self.assertEqual(result["tool"]["maturin"]["python-source"], "python")
+    def test_missing_nonportable_or_unpinned_backend_is_rejected(self):
+        for text in (
+            PYPROJECT.rsplit("manifest-path", 1)[0],
+            PYPROJECT.replace(
+                "bindings/python/Cargo.toml", "bindings\\python\\Cargo.toml"
+            ),
+            PYPROJECT.replace("maturin==1.15.0", "maturin>=1.9.4,<2"),
+        ):
+            with (
+                self.subTest(project=text),
+                self.assertRaisesRegex(ValueError, "pinned Maturin source"),
+            ):
+                sdist.rewrite_pyproject(text, [])
 
     def test_unsupported_multiline_field_fails_instead_of_corrupting_metadata(self):
         text = PYPROJECT.replace(

@@ -1,7 +1,7 @@
 """Repair and verify a pinned Maturin source archive; never build or publish it.
 
 Run with Python 3.11+ through scripts/dev/with-cargo-lock.sh. The input must be
-the unmodified Maturin 1.9.6 sdist from --source-revision. Native wheel builds
+the unmodified Maturin 1.15.0 sdist from --source-revision. Native wheel builds
 and installed tests remain a separate release check.
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path, PurePosixPath
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
-MATURIN = "1.9.6"
+MATURIN = "1.15.0"
 SUPPORTED_TARGETS = (
     "x86_64-pc-windows-msvc",
     "x86_64-unknown-linux-gnu",
@@ -106,16 +106,20 @@ def extract_source(archive, destination, license_text, executables=None):
 
 
 def rewrite_pyproject(text, notices):
-    """Change three known fields and prove that all other TOML data survives."""
+    """Select notice files and prove that all other TOML data survives."""
     original = tomllib.loads(text)
+    if (
+        original["build-system"]["requires"] != [f"maturin=={MATURIN}"]
+        or original["tool"]["maturin"].get("manifest-path")
+        != "bindings/python/Cargo.toml"
+    ):
+        raise ValueError("expected pinned Maturin source with portable manifest path")
     changes = {
-        ("build-system", "requires"): [f"maturin=={MATURIN}"],
         ("project", "license-files"): [
             "LICENSE-MIT",
             "LICENSE-APACHE",
             *(["third-party-notices/**/*"] if notices else []),
         ],
-        ("tool.maturin", "manifest-path"): "bindings/python/Cargo.toml",
     }
     expected = tomllib.loads(text)
     for (table, key), value in changes.items():
@@ -128,9 +132,6 @@ def rewrite_pyproject(text, notices):
     seen = set()
     for line in text.splitlines():
         if line.startswith("["):
-            if section == "tool.maturin" and (section, "manifest-path") not in seen:
-                lines.append('manifest-path = "bindings/python/Cargo.toml"')
-                seen.add((section, "manifest-path"))
             section = line.strip()[1:-1]
         match = re.match(r"^([A-Za-z-]+)\s*=", line)
         field = (section, match.group(1)) if match else None
@@ -141,9 +142,6 @@ def rewrite_pyproject(text, notices):
             seen.add(field)
         else:
             lines.append(line)
-    if section == "tool.maturin" and (section, "manifest-path") not in seen:
-        lines.append('manifest-path = "bindings/python/Cargo.toml"')
-        seen.add((section, "manifest-path"))
     result = "\n".join(lines) + "\n"
     if seen != changes.keys() or tomllib.loads(result) != expected:
         raise ValueError("unsupported multiline source packaging fields")
