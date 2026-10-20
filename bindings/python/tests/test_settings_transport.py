@@ -7,6 +7,7 @@ import socket
 import ssl
 import sys
 import threading
+import time
 import traceback
 import unittest
 from pathlib import Path
@@ -39,11 +40,25 @@ class SettingsPeer(http.server.ThreadingHTTPServer):
         self.disconnected = threading.Event()
         self.basic_auth = basic_auth
         self.errors = []
+        self.request_workers = []
         if tls:
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             context.load_cert_chain(FIXTURES / "certificate.pem", FIXTURES / "key.pem")
             self.socket = context.wrap_socket(self.socket, server_side=True)
         self.url = f"{'https' if tls else 'http'}://127.0.0.1:{self.server_port}"
+
+    def process_request(self, request, client_address):
+        worker = threading.Thread(
+            target=self.process_request_thread,
+            args=(request, client_address),
+            daemon=True,
+        )
+        self.request_workers.append(worker)
+        try:
+            worker.start()
+        except BaseException:
+            self.request_workers.remove(worker)
+            raise
 
     def handle_error(self, *_):
         error = sys.exc_info()[1]
@@ -122,11 +137,37 @@ def peer(**options):
         worker.join(5)
         if worker.is_alive():
             raise AssertionError("settings peer did not stop")
+        deadline = time.monotonic() + 5
+        for request_worker in server.request_workers:
+            request_worker.join(max(0, deadline - time.monotonic()))
+        if any(request_worker.is_alive() for request_worker in server.request_workers):
+            raise AssertionError("settings peer request handler did not stop")
         if server.errors:
             raise AssertionError(server.errors)
 
 
 class PeerFailureTests(unittest.TestCase):
+    def test_peer_settles_held_request_handlers_before_returning(self):
+        stream = None
+        try:
+            with peer() as server:
+                stream = socket.create_connection(("127.0.0.1", server.server_port), 2)
+                stream.sendall(
+                    b"GET /head HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+                )
+                self.assertTrue(server.entered.wait(2))
+                self.assertTrue(
+                    any(worker.is_alive() for worker in server.request_workers)
+                )
+            self.assertTrue(server.request_workers)
+            self.assertFalse(
+                any(worker.is_alive() for worker in server.request_workers)
+            )
+            self.assertEqual(server.errors, [])
+        finally:
+            if stream is not None:
+                stream.close()
+
     def test_response_head_waits_until_released(self):
         with (
             peer() as server,
