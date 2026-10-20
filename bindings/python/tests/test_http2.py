@@ -1,6 +1,7 @@
 """Independent h2 peer checks cancellation on a shared cleartext connection."""
 
 import asyncio
+import gzip
 import socket
 import threading
 import unittest
@@ -8,7 +9,7 @@ import unittest
 import h2.config
 import h2.connection
 import h2.events
-from phantom_http import AsyncClient, BodyLimitExceeded, Header
+from phantom_http import AsyncClient, BodyLimitExceeded, ContentDecoding, Header
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
@@ -59,17 +60,23 @@ class H2Peer:
                             path = dict(event.headers)[b":path"]
                             self.requests.append((event.stream_id, path))
                             self.headers.append(event.headers)
-                            connection.send_headers(
-                                event.stream_id, [(":status", "200")]
-                            )
+                            fields = [(":status", "200")]
+                            if path == b"/decode-overflow":
+                                fields.append(("content-encoding", "gzip"))
+                            connection.send_headers(event.stream_id, fields)
                             if path == b"/stall":
                                 connection.send_data(event.stream_id, b"a")
-                            elif path == b"/overflow":
+                            elif path in (b"/overflow", b"/decode-overflow"):
                                 overflow = event.stream_id
                             elif path == b"/healthy":
                                 healthy = event.stream_id
                                 if overflow is not None:
-                                    connection.send_data(overflow, b"a")
+                                    connection.send_data(
+                                        overflow,
+                                        gzip.compress(b"hello", mtime=0)
+                                        if self.requests[0][1] == b"/decode-overflow"
+                                        else b"a",
+                                    )
                             else:
                                 connection.send_data(
                                     event.stream_id, b"hello", end_stream=True
@@ -133,21 +140,40 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
     async def test_collection_overflow_keeps_other_stream_and_connection(self):
         await self.check_body_isolation("overflow")
 
+    async def test_decoded_stream_limit_keeps_other_stream_and_connection(self):
+        await self.check_body_isolation("decoded")
+
     async def check_body_isolation(self, operation):
         with H2Peer() as peer:
             async with AsyncClient(
                 profile=PROFILE, protocol="h2", timeout_ms=5000
             ) as client:
-                path = "/overflow" if operation == "overflow" else "/stall"
-                stalled = await client.request("GET", peer.url + path)
+                path = {
+                    "overflow": "/overflow",
+                    "decoded": "/decode-overflow",
+                }.get(operation, "/stall")
+                stalled = await client.request(
+                    "GET",
+                    peer.url + path,
+                    headers=[("accept-encoding", "gzip")]
+                    if operation == "decoded"
+                    else (),
+                    content_decoding=ContentDecoding.advertised(4)
+                    if operation == "decoded"
+                    else None,
+                )
                 self.assertEqual(stalled.protocol, "h2")
-                if operation != "overflow":
+                if operation not in ("overflow", "decoded"):
                     self.assertEqual(await stalled.read_chunk(), b"a")
                 healthy = await client.request("GET", peer.url + "/healthy")
                 other = asyncio.create_task(healthy.read(max_bytes=5))
-                if operation == "overflow":
+                if operation in ("overflow", "decoded"):
                     with self.assertRaises(BodyLimitExceeded):
-                        await stalled.read(max_bytes=0)
+                        await stalled.read(
+                            max_bytes=10 if operation == "decoded" else 0
+                        )
+                    if operation == "decoded":
+                        self.assertEqual(stalled.decoded_content_codings, ("gzip",))
                 else:
                     pending = asyncio.create_task(
                         stalled.read_chunk()

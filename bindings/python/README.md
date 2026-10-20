@@ -60,7 +60,14 @@ Reads pull data on demand. `await response.read_chunk(maximum)` returns bytes
 or `None` at EOF on async responses. Its limit is 1 byte through 1 MiB.
 `read(max_bytes=N)`, `text(max_bytes=N)` and
 `json(max_bytes=N)` consume the remaining body. Overflow closes the response.
-Content encoding is retained; trailers are not exposed.
+Trailers are not exposed.
+
+Content stays encoded unless you pass request-only
+`content_decoding=ContentDecoding.advertised(N)` and an `Accept-Encoding` header.
+Import `ContentDecoding` from `phantom_http`. Its limit bounds the decoded stream;
+`read(max_bytes=N)` separately bounds collection. Unknown or unadvertised codings
+fail during reads. Headers remain unchanged. `decoded_content_codings` records
+the selected chain in application order, independently of body completion.
 
 Text uses your chosen Python codec and error policy, with UTF-8/strict defaults.
 JSON uses Python's standard decoder. Collection bounds input bytes, not parsed

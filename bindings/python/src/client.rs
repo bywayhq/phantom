@@ -158,7 +158,7 @@ impl NativeClient {
         }
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -171,6 +171,7 @@ impl NativeClient {
         budget: Option<PyRef<'_, AttemptBudget>>,
         timeout_ms: Option<u64>,
         timeouts: Option<configuration::TimeoutFields>,
+        maximum_decoded_bytes: Option<u64>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if body.is_some() && upload.is_some() {
             return Err(error::input("body_and_upload"));
@@ -202,6 +203,9 @@ impl NativeClient {
             request = request.attempt_budget(budget.inner.clone());
         }
         request = request.timeouts(configuration::request_timeouts(timeout_ms, timeouts)?);
+        if let Some(maximum) = maximum_decoded_bytes {
+            request = request.content_decoding(phantom::ContentDecoding::advertised(maximum));
+        }
         if let Some(body) = body {
             request = request.body(body);
         }

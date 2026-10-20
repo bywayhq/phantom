@@ -139,6 +139,35 @@ class SessionSharing:
 
 
 @dataclass(frozen=True)
+class ContentDecoding:
+    """Decode only caller-advertised codings, with an inclusive stream limit."""
+
+    maximum_decoded_bytes: int | None = None
+
+    def __post_init__(self) -> None:
+        value = self.maximum_decoded_bytes
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError("maximum_decoded_bytes must be an integer")
+            if not 0 <= value <= 2**64 - 1:
+                raise ValueError(
+                    "maximum_decoded_bytes must fit an unsigned 64-bit integer"
+                )
+
+    @classmethod
+    def none(cls) -> ContentDecoding:
+        return cls()
+
+    @classmethod
+    def advertised(cls, maximum_decoded_bytes: int) -> ContentDecoding:
+        if isinstance(maximum_decoded_bytes, bool) or not isinstance(
+            maximum_decoded_bytes, int
+        ):
+            raise TypeError("maximum_decoded_bytes must be an integer")
+        return cls(maximum_decoded_bytes)
+
+
+@dataclass(frozen=True)
 class Header:
     """An ordered caller header, optionally never-indexed by HTTP/2 and HTTP/3."""
 

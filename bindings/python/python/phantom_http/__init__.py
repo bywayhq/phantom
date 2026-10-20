@@ -16,6 +16,7 @@ from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
 
 from . import _native
 from ._configuration import INHERIT as INHERIT
+from ._configuration import ContentDecoding as ContentDecoding
 from ._configuration import Header as Header
 from ._configuration import Proxy as Proxy
 from ._configuration import SessionSharing as SessionSharing
@@ -220,6 +221,11 @@ class AsyncResponse:
         return self._native.connection_setup_retries
 
     @property
+    def decoded_content_codings(self) -> tuple[str, ...]:
+        """Recorded application order; this does not imply body completion."""
+        return tuple(self._native.decoded_content_codings)
+
+    @property
     def status_code(self) -> int:
         return self.status
 
@@ -373,12 +379,17 @@ class AsyncClient:
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
         timeouts: TimeoutOverrides | None = None,
+        content_decoding: ContentDecoding | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body."""
         if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
             raise TypeError("request timeouts must be TimeoutOverrides")
         if timeout_ms is not None and timeouts is not None:
             raise ValueError("pass timeout_ms or timeouts, not both")
+        if content_decoding is not None and not isinstance(
+            content_decoding, ContentDecoding
+        ):
+            raise TypeError("content_decoding must be ContentDecoding")
         ordered = []
         for field in headers:
             if isinstance(field, Header):
@@ -406,6 +417,9 @@ class AsyncClient:
                 None if budget is None else budget._native,
                 timeout_ms,
                 None if timeouts is None else timeouts._native_fields(),
+                None
+                if content_decoding is None
+                else content_decoding.maximum_decoded_bytes,
             )
             return AsyncResponse(native)
         except _native.NativeError as error:
@@ -475,6 +489,10 @@ class Response:
     @property
     def connection_setup_retries(self) -> int:
         return self._response.connection_setup_retries
+
+    @property
+    def decoded_content_codings(self) -> tuple[str, ...]:
+        return self._response.decoded_content_codings
 
     @property
     def status_code(self) -> int:
@@ -605,6 +623,7 @@ class Client:
         budget: AttemptBudget | None = None,
         timeout_ms: int | None = None,
         timeouts: TimeoutOverrides | None = None,
+        content_decoding: ContentDecoding | None = None,
     ) -> Response:
         return Response(
             self,
@@ -618,6 +637,7 @@ class Client:
                     budget=budget,
                     timeout_ms=timeout_ms,
                     timeouts=timeouts,
+                    content_decoding=content_decoding,
                 )
             ),
         )

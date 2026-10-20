@@ -162,6 +162,7 @@ class FacadeMappingTests(unittest.IsolatedAsyncioTestCase):
                         None,
                         None,
                         [("connect", None), ("read_idle", 0.0)],
+                        None,
                     )
                 ],
             )

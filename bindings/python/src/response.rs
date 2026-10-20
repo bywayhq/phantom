@@ -111,6 +111,8 @@ pub(super) struct NativeResponse {
     redirects_followed: usize,
     #[pyo3(get)]
     connection_setup_retries: usize,
+    #[pyo3(get)]
+    decoded_content_codings: Vec<String>,
     headers: Vec<(String, Vec<u8>)>,
     owner: Arc<BodyOwner>,
 }
@@ -139,12 +141,27 @@ impl NativeResponse {
         let url = info.effective_uri().to_string();
         let redirects_followed = info.redirects_followed();
         let connection_setup_retries = info.retries_performed();
+        let decoded_content_codings = info
+            .decoded_content_codings()
+            .iter()
+            .map(|coding| {
+                match coding {
+                    phantom::ContentCoding::Gzip => "gzip",
+                    phantom::ContentCoding::Deflate => "deflate",
+                    phantom::ContentCoding::Brotli => "br",
+                    phantom::ContentCoding::Zstd => "zstd",
+                    _ => "unknown",
+                }
+                .to_owned()
+            })
+            .collect();
         Ok(Self {
             status,
             protocol,
             url,
             redirects_followed,
             connection_setup_retries,
+            decoded_content_codings,
             headers,
             owner: Arc::new(BodyOwner {
                 stream: Mutex::new(Some(Stream {

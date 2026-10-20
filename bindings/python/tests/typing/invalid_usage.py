@@ -3,6 +3,7 @@
 from phantom_http import (
     AsyncClient,
     Client,
+    ContentDecoding,
     Header,
     Profile,
     Proxy,
@@ -40,6 +41,9 @@ def synchronous(profile: str, url: str) -> None:
         _data: dict[str, str] = response.json(max_bytes=100)  # E: assignment
         response.url = "different"  # E: misc
         response.connection_setup_retries = 0  # E: misc
+        client.request("GET", url, content_decoding={})  # E: arg-type
+        ContentDecoding.advertised(1.5)  # E: arg-type
+        response.decoded_content_codings = ()  # E: misc
 
 
 async def asynchronous(profile: str, url: str) -> None:

@@ -11,6 +11,7 @@ from phantom_http import (
     AttemptBudget,
     BodyLimitExceeded,
     Client,
+    ContentDecoding,
     Cookies,
     DecodeError,
     Error,
@@ -68,6 +69,7 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
             _effective_url: str = response.url
             _redirects: int = response.redirects_followed
             _setup_retries: int = response.connection_setup_retries
+            _codings: tuple[str, ...] = response.decoded_content_codings
             _fields: list[tuple[str, bytes]] = response.headers
             collected: bytes = response.read(max_bytes=1_000_000)
         with client.request("POST", url, body=b"bytes") as streamed:
@@ -87,11 +89,13 @@ async def asynchronous(profile: str, url: str) -> bytes:
             headers=[Header("X-Secret", b"value", sensitive=True), ("X-Other", "x")],
             budget=AttemptBudget(2),
             timeouts=TimeoutOverrides(connect=INHERIT, total=None, read_idle=0),
+            content_decoding=ContentDecoding.advertised(2**64 - 1),
         )
         async with response:
             _effective_url: str = response.url
             _redirects: int = response.redirects_followed
             _setup_retries: int = response.connection_setup_retries
+            _codings: tuple[str, ...] = response.decoded_content_codings
             _first: bytes | None = await response.read_chunk(1)
             collected: bytes = await response.read(max_bytes=10**100)
             # A subsequent read remains a valid call at EOF, including a bool bound.
