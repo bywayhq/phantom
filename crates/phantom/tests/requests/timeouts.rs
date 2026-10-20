@@ -502,46 +502,72 @@ async fn total_deadline_continues_through_response_body_eof() -> TestResult {
     .await
 }
 
-#[tokio::test(start_paused = true)]
+#[tokio::test]
 async fn total_deadline_is_shared_by_redirect_hops() -> TestResult {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
+    let (first_received, first_observed) = oneshot::channel();
+    let (release_redirect, redirect_released) = oneshot::channel();
+    let (second_received, second_observed) = oneshot::channel();
     let server = tokio::spawn(async move {
         let mut stream = accept_tls(listener, acceptor).await?;
         read_head(&mut stream).await?;
-        sleep(Duration::from_secs(4)).await;
+        first_received
+            .send(())
+            .map_err(|_| "first observer stopped")?;
+        redirect_released.await?;
         stream
             .write_all(b"HTTP/1.1 302 Found\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n")
             .await?;
         read_head(&mut stream).await?;
-        sleep(Duration::from_secs(4)).await;
-        let _ = stream
-            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-            .await;
+        second_received
+            .send(())
+            .map_err(|_| "second observer stopped")?;
+        std::future::pending::<()>().await;
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
     let client = client_builder(&identity, false)
         .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
         .request_timeouts(
             RequestTimeouts::new()
-                .response_head(Duration::from_secs(5))
-                .total(Duration::from_secs(6)),
+                .response_head(Duration::from_secs(50))
+                .total(Duration::from_secs(60)),
         )
         .build()?;
 
-    let error = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/start"))?
-        .send()
-        .await
-        .err()
-        .ok_or("redirect chain escaped its total deadline")?;
+    let mut request = tokio::spawn(async move {
+        client
+            .get(HttpProtocol::Http1, &format!("https://{address}/start"))?
+            .send()
+            .await
+            .err()
+            .ok_or_else(|| "redirect chain escaped its total deadline".into())
+    });
+    let result: TestResult<_> = async {
+        timeout(TEST_TIMEOUT, first_observed).await??;
+        // Advance only after real socket progress, so auto-advance cannot race TLS.
+        tokio::time::pause();
+        tokio::time::advance(Duration::from_secs(40)).await;
+        tokio::time::resume();
+        release_redirect
+            .send(())
+            .map_err(|_| "redirect peer stopped")?;
+        timeout(TEST_TIMEOUT, second_observed).await??;
+        tokio::time::pause();
+        tokio::time::advance(Duration::from_secs(30)).await;
+        // A renewed total/head deadline would still be pending beyond this bound.
+        timeout(TEST_TIMEOUT, &mut request).await??
+    }
+    .await;
+    request.abort();
+    server.abort();
+    let _ = server.await;
+    let error = result?;
 
     assert_eq!(error.kind(), RequestErrorKind::Timeout);
     assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
-    server.abort();
-    let _ = server.await;
     Ok(())
 }
 
