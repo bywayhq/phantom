@@ -996,6 +996,7 @@ dependencies = [
  "flate2",
  "http",
  "http-body",
+ "httparse",
  "phantom-btls",
  "phantom-net",
  "phantom-profile",
