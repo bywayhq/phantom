@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Collect Node.js response bodies in one bounded native operation while
+  retaining streaming reads, cancellation and byte limits.
+
+- Add typed Python timeouts, explicit proxy authentication, separate origin
+  and proxy trust roots, sensitive headers, base URLs and connection controls.
+
+- Add Go phase timeouts, proxy authentication, separate origin/proxy trust
+  roots, sensitive headers, base URLs and connection/cache controls.
+
 - Add Node.js base URLs, phase timeout overrides, separate HTTPS-proxy roots,
   cache clearing and connection retirement. Report actual response protocol,
   final URL, redirect and connection retry counts, and timeout phases.
