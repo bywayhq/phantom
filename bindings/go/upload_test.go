@@ -18,9 +18,15 @@ import (
 type ownedUpload struct {
 	io.Reader
 	closes atomic.Int32
+	bytes  atomic.Int64
 }
 
 func (u *ownedUpload) Close() error { u.closes.Add(1); return nil }
+func (u *ownedUpload) Read(output []byte) (int, error) {
+	n, err := u.Reader.Read(output)
+	u.bytes.Add(int64(n))
+	return n, err
+}
 
 func waitUploadClosed(t *testing.T, count *atomic.Int32) {
 	t.Helper()
@@ -48,8 +54,11 @@ func (u *tailUpload) Read(output []byte) (int, error) {
 }
 
 func TestStreamingUploadLengthsAndFinalBytes(t *testing.T) {
+	var received sync.Map
 	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		n, err := io.Copy(io.Discard, r.Body)
+		counter := &uploadByteCounter{}
+		received.Store(r.URL.Path, counter)
+		n, err := io.Copy(io.Discard, io.TeeReader(r.Body, counter))
 		if err != nil {
 			return
 		}
@@ -66,14 +75,20 @@ func TestStreamingUploadLengthsAndFinalBytes(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			source := &ownedUpload{Reader: io.LimitReader(repeatedUploadByte{}, int64(test.size))}
-			request := Request{Method: "POST", URL: peer.URL, Upload: source}
+			request := Request{Method: "POST", URL: peer.URL + "/" + test.name, Upload: source}
 			length := uint64(test.size)
 			wireLength := int64(-1)
 			if test.exact {
 				request.UploadLength = &length
 				wireLength = int64(length)
 			}
+			started := time.Now()
 			response, err := client.Do(context.Background(), request)
+			var peerBytes int64
+			if value, ok := received.Load("/" + test.name); ok {
+				peerBytes = value.(*uploadByteCounter).bytes.Load()
+			}
+			t.Logf("upload elapsed=%s source_bytes=%d peer_bytes=%d", time.Since(started), source.bytes.Load(), peerBytes)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -93,6 +108,13 @@ func TestStreamingUploadLengthsAndFinalBytes(t *testing.T) {
 		t.Fatalf("n+EOF %q: %v", data, err)
 	}
 	waitUploadClosed(t, &final.closes)
+}
+
+type uploadByteCounter struct{ bytes atomic.Int64 }
+
+func (counter *uploadByteCounter) Write(input []byte) (int, error) {
+	counter.bytes.Add(int64(len(input)))
+	return len(input), nil
 }
 
 type repeatedUploadByte struct{}
@@ -279,7 +301,15 @@ func TestStreamingUploadSurvivesEarlyHTTP2HeadAndPreservesSibling(t *testing.T) 
 
 func TestCompleteEarlyHTTP2ResponseClosesBlockedUploadReader(t *testing.T) {
 	source := newGatedUpload()
-	peer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(413) }))
+	peer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-source.started:
+		case <-time.After(3 * time.Second):
+			t.Error("source read did not overlap the early response")
+		}
+		w.Header().Set("Content-Length", "0")
+		w.WriteHeader(413)
+	}))
 	peer.EnableHTTP2 = true
 	peer.StartTLS()
 	defer peer.Close()

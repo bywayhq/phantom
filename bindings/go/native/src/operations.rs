@@ -5,6 +5,7 @@ use crate::{
     timeouts::Timeouts,
     upload::Upload,
 };
+use http_body::Body;
 use http_body_util::BodyExt;
 use phantom::{Bytes, HttpAttemptBudget, ResponseBody};
 use serde::{Deserialize, Serialize};
@@ -575,6 +576,11 @@ fn response_head(
         _ => "unknown",
     };
     let status = response.status().as_u16();
+    if response.body().is_end_stream()
+        && let Some(upload) = &stream_upload
+    {
+        upload.close();
+    }
     let owner = std::sync::Arc::new(BodyOwner {
         client,
         stream: Mutex::new(Some(Stream {
