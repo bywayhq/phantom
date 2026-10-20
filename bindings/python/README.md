@@ -15,13 +15,13 @@ with Client(profile=PROFILE, protocol="negotiated", timeout_ms=30_000) as client
 ```
 
 This example selects Windows Chrome. Choose a profile for your host from the
-[catalog](../../crates/phantom-profile/catalog/profiles.json). Reuse the client
+[catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json). Reuse the client
 for subsequent requests.
 
 ## Native wheel candidates
 
 Python packages are not published to PyPI yet. Install a matching candidate
-from the [wheel workflow](../../.github/workflows/python-wheels.yml):
+from the [wheel workflow](https://github.com/bywayhq/phantom/blob/main/.github/workflows/python-wheels.yml):
 
 ```sh
 python -m pip install path/to/file.whl
@@ -33,12 +33,15 @@ licenses. Receipts identify source, checksums and tested hosts. CPython 3.10 run
 the full installed suite; 3.15 runs a smaller loopback check of the same wheel.
 Windows needs the x64 Visual C++ v14 runtime at least as recent as the build tools.
 
-For a source build, use CPython 3.10+, Rust 1.88+ and the
-[native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
+For a checkout build, use CPython 3.10+, Rust 1.88+ and the
+[native build tools](https://github.com/bywayhq/phantom/blob/main/crates/phantom/src/docs/getting-started.md#install-the-build-tools).
 From this directory, run `maturin develop` in a virtual environment with
-Maturin 1.15.0. The package includes type hints and `py.typed`. Published source
-archives also require the native build tools; install one with `pip install
-./phantom_http-VERSION.tar.gz`.
+Maturin 1.15.0. The package includes type hints and `py.typed`.
+
+Source archives also need the native tools and pin their supported Rust compiler
+in `rust-toolchain.toml` (currently 1.99.1). Install one with
+`pip install ./phantom_http-VERSION.tar.gz`. Overriding that compiler is outside
+the archive's verified build and runtime-license coverage.
 
 ## Streaming and lifetime
 
@@ -202,6 +205,6 @@ retains the response and its readable body.
 
 ## Next
 
-See the [library guides](../../crates/phantom/src/docs/overview.md).
+See the [library guides](https://github.com/bywayhq/phantom/blob/main/crates/phantom/src/docs/overview.md).
 After `maturin develop`, run the loopback tests from this directory with
 `uv run --active --no-project --with h2==4.4.1 python -m unittest discover -s tests`.

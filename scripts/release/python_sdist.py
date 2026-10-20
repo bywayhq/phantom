@@ -155,6 +155,29 @@ def package_key(package):
     return package["name"], package["version"], package.get("source")
 
 
+def validate_description(source, expected_readme):
+    """Require the binding README in both source layout and package metadata."""
+    project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))
+    if project["project"].get("readme") != "README.md":
+        raise ValueError("source description must select the binding README")
+    expected = expected_readme.decode("utf-8").replace("\r\n", "\n")
+    if any(
+        path.read_text(encoding="utf-8") != expected
+        for path in (source / "README.md", source / "bindings/python/README.md")
+    ):
+        raise ValueError("source description differs from the tracked binding README")
+    metadata = BytesParser().parsebytes((source / "PKG-INFO").read_bytes())
+    description = metadata.get_payload(decode=True)
+    if (
+        metadata.get("Description-Content-Type", "").split(";", 1)[0].strip()
+        != "text/markdown"
+        or not isinstance(description, bytes)
+        or description.decode("utf-8").replace("\r\n", "\n").rstrip("\n")
+        != expected.rstrip("\n")
+    ):
+        raise ValueError("source metadata differs from the binding README")
+
+
 def dependency_keys(package, packages):
     result = set()
     for dependency in package.get("dependencies", []):
@@ -255,6 +278,10 @@ def repair(args):
         source = extract_source(
             args.source_archive, Path(temporary), license_text, executables
         )
+        validate_description(
+            source,
+            commands.run(["git", "show", f"{revision}:bindings/python/README.md"]),
+        )
         # Windows-produced tar entries lose executable bits. Git retains the
         # source's mode independently of the packager's host filesystem.
         executables.update(tracked_executables)
@@ -345,7 +372,7 @@ def repair(args):
             staging / "receipt.json",
             {
                 "source_revision": revision,
-                "source_revision_scope": "caller-declared archive revision; original lock, H3 license and executable modes checked against Git",
+                "source_revision_scope": "caller-declared archive revision; original lock, binding README, H3 license and executable modes checked against Git",
                 "helper_revision": helper_revision,
                 "input_sha256": tools.digest(args.source_archive),
                 "archive_sha256": tools.digest(candidate),

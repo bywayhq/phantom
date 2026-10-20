@@ -6,9 +6,14 @@ build-backend = "maturin"
 name = "phantom-http"
 version = "0.2.0"
 description = "HTTP requests with explicit browser profiles"
+readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+
+[project.urls]
+Repository = "https://github.com/bywayhq/phantom"
+Documentation = "https://github.com/bywayhq/phantom/blob/main/bindings/python/README.md"
 
 [tool.maturin]
 python-source = "python"

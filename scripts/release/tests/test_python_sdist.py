@@ -27,13 +27,22 @@ build-backend = "maturin"
 [project]
 name = "phantom-http"
 version = "0.2.0"
+readme = "README.md"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+[project.urls]
+Repository = "https://github.com/bywayhq/phantom"
+Documentation = "https://github.com/bywayhq/phantom/blob/main/bindings/python/README.md"
 [tool.maturin]
 python-source = "python"
 module-name = "phantom_http._native"
 manifest-path = 'bindings/python/Cargo.toml'
 """
 LICENSE = b"Actual retained license text\n"
+README = "# Phantom for Python\n\nRead a caf\u00e9 response.\n".encode()
+PKG_INFO = (
+    b"Metadata-Version: 2.4\nName: phantom-http\nVersion: 0.2.0\n"
+    b"License-File: LICENSE-MIT\nDescription-Content-Type: text/markdown\n\n" + README
+)
 
 
 def write_archive(path, files):
@@ -61,6 +70,48 @@ def lock(packages):
 
 
 class SourceArchiveTests(unittest.TestCase):
+    def test_project_metadata_selects_binding_readme_and_official_links(self):
+        directory = sdist.ROOT / "bindings/python"
+        project = tomllib.loads((directory / "pyproject.toml").read_text())["project"]
+        self.assertEqual(project["readme"], "README.md")
+        self.assertTrue(
+            (directory / project["readme"])
+            .read_text()
+            .startswith("# Phantom for Python\n")
+        )
+        self.assertEqual(project["urls"], tomllib.loads(PYPROJECT)["project"]["urls"])
+
+    def test_description_rejects_repository_readme_and_changed_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary)
+            (source / "bindings/python").mkdir(parents=True)
+            paths = {
+                "README.md": README,
+                "bindings/python/README.md": README,
+                "PKG-INFO": PKG_INFO,
+                "pyproject.toml": PYPROJECT.encode(),
+            }
+            for name, data in paths.items():
+                (source / name).write_bytes(data)
+            sdist.validate_description(source, README)
+            for name, replacement in (
+                ("README.md", b"# Repository overview\n"),
+                ("bindings/python/README.md", b"# Another binding\n"),
+                ("PKG-INFO", PKG_INFO.replace(README, b"Repository overview\n")),
+                ("PKG-INFO", PKG_INFO.replace(b"text/markdown", b"text/plain")),
+                (
+                    "pyproject.toml",
+                    PYPROJECT.replace(
+                        'readme = "README.md"', 'readme = "../../README.md"'
+                    ).encode(),
+                ),
+            ):
+                with self.subTest(path=name, replacement=replacement):
+                    (source / name).write_bytes(replacement)
+                    with self.assertRaisesRegex(ValueError, "description|metadata"):
+                        sdist.validate_description(source, README)
+                    (source / name).write_bytes(paths[name])
+
     def test_installed_notice_fields_preserve_other_toml(self):
         result = sdist.rewrite_pyproject(PYPROJECT, ["third-party-notices/a/LICENSE"])
         parsed = tomllib.loads(result)
@@ -314,8 +365,10 @@ class RepairFlowTests(unittest.TestCase):
                     ("pyproject.toml", PYPROJECT.encode()),
                     (
                         "PKG-INFO",
-                        b"Metadata-Version: 2.4\nName: phantom-http\nVersion: 0.2.0\nLicense-File: LICENSE-MIT\n\n",
+                        PKG_INFO,
                     ),
+                    ("README.md", README),
+                    ("bindings/python/README.md", README),
                     ("LICENSE-MIT", license_text),
                     ("LICENSE-APACHE", b"Apache license"),
                     (
@@ -359,6 +412,8 @@ class RepairFlowTests(unittest.TestCase):
                     if args[:2] == ["git", "rev-parse"]:
                         return revision.encode()
                     if args[:2] == ["git", "show"]:
+                        if args[-1].endswith("bindings/python/README.md"):
+                            return README
                         if args[-1].endswith("rust-toolchain.toml"):
                             return b'[toolchain]\nchannel="1.99.1"\ncomponents=["clippy","rustfmt"]\n'
                         return (
@@ -486,6 +541,15 @@ class RepairFlowTests(unittest.TestCase):
                     project["project"]["license-files"],
                     ["LICENSE-MIT", "LICENSE-APACHE", "third-party-notices/**/*"],
                 )
+                self.assertEqual(project["project"]["readme"], "README.md")
+                self.assertEqual(
+                    project["project"]["urls"],
+                    tomllib.loads(PYPROJECT)["project"]["urls"],
+                )
+                self.assertEqual(
+                    result.extractfile(prefix + "/README.md").read(), README
+                )
+                self.assertEqual(metadata.get_payload(decode=True), README)
                 notice_paths = {
                     item.name.removeprefix(prefix + "/")
                     for item in result.getmembers()
