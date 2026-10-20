@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import sys
 import threading
 
 from . import _native
@@ -120,15 +121,10 @@ class AsyncResponse:
         """Collect up to max_bytes. The body closes on failure or completion."""
         if not isinstance(max_bytes, int) or max_bytes < 0:
             raise ValueError("max_bytes must be a nonnegative integer")
-        result = bytearray()
         try:
-            while (
-                chunk := await self.read_chunk(min(65536, max_bytes - len(result) + 1))
-            ) is not None:
-                if len(result) + len(chunk) > max_bytes:
-                    raise BodyLimitExceeded("request", "response_body_limit")
-                result.extend(chunk)
-            return bytes(result)
+            return await self._native.read(min(max_bytes, sys.maxsize))
+        except _native.NativeError as error:
+            raise _error(error) from None
         finally:
             self.close()
 

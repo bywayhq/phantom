@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import http.server
 import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -11,6 +12,7 @@ from pathlib import Path
 
 from phantom_http import (
     AsyncClient,
+    AsyncResponse,
     AttemptBudget,
     AttemptBudgetExhausted,
     BodyLimitExceeded,
@@ -22,6 +24,58 @@ from phantom_http import (
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 OPTIONS = {"profile": PROFILE, "protocol": "h1", "timeout_ms": 5000}
+
+
+class CollectionFacadeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_one_native_collection_call_and_unbounded_python_integer(self):
+        class Native:
+            status = 200
+            protocol = "h1"
+            headers = []
+            calls = []
+            closed = False
+
+            async def read(self, maximum):
+                self.calls.append(maximum)
+                return b"hello"
+
+            def close(self):
+                self.closed = True
+
+        native = Native()
+        response = AsyncResponse(native)
+        for invalid in (-1, None, 1.5):
+            with self.assertRaises(ValueError):
+                await response.read(max_bytes=invalid)
+        self.assertFalse(native.closed)
+        self.assertEqual(native.calls, [])
+        self.assertEqual(await response.read(max_bytes=10**100), b"hello")
+        self.assertEqual(native.calls, [sys.maxsize])
+        self.assertTrue(native.closed)
+
+    async def test_cancelled_native_collection_closes_response(self):
+        started = asyncio.Event()
+
+        class Native:
+            status = 200
+            protocol = "h2"
+            headers = []
+            closed = False
+
+            async def read(self, _):
+                started.set()
+                await asyncio.Future()
+
+            def close(self):
+                self.closed = True
+
+        native = Native()
+        pending = asyncio.create_task(AsyncResponse(native).read(max_bytes=5))
+        await started.wait()
+        pending.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await pending
+        self.assertTrue(native.closed)
 
 
 class Peer(http.server.ThreadingHTTPServer):
@@ -84,7 +138,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not self.connection.recv(1):
                 self.server.disconnected.set()
             return
-        self.reply(b"hello" if self.path != "/large" else b"x" * 200000)
+        body = b"" if self.path == "/empty" else b"hello"
+        if self.path == "/large":
+            body = b"x" * 200000
+        self.reply(body)
 
     def reply(self, body):
         self.send_response(200)
@@ -113,6 +170,30 @@ def server():
 
 
 class SyncTests(unittest.TestCase):
+    def test_collection_limits_and_python_integer_validation(self):
+        with server() as (_, url), Client(**OPTIONS) as client:
+            for maximum in (5, 10**100):
+                with self.subTest(maximum=maximum):
+                    response = client.request("GET", url)
+                    self.assertEqual(response.read(max_bytes=maximum), b"hello")
+                    self.assertEqual(response.read(max_bytes=0), b"")
+            for maximum in (0, False):
+                response = client.request("GET", url + "/empty")
+                self.assertEqual(response.read(max_bytes=maximum), b"")
+            for maximum in (0, 4, True):
+                with self.subTest(maximum=maximum):
+                    response = client.request("GET", url)
+                    with self.assertRaises(BodyLimitExceeded) as caught:
+                        response.read(max_bytes=maximum)
+                    self.assertEqual(caught.exception.category, "request")
+                    self.assertEqual(caught.exception.kind, "response_body_limit")
+                    self.assertEqual(response.read(max_bytes=0), b"")
+            response = client.request("GET", url)
+            for maximum in (-1, 1.5, "5", None):
+                with self.subTest(maximum=maximum), self.assertRaises(ValueError):
+                    response.read(max_bytes=maximum)
+            self.assertEqual(response.read(max_bytes=5), b"hello")
+
     def test_reuse_headers_cookies_budget_and_shutdown(self):
         with server() as (peer, url):
             client = Client(**OPTIONS)
@@ -214,6 +295,58 @@ class SyncTests(unittest.TestCase):
 
 
 class AsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_explicit_close_wakes_pending_collection(self):
+        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
+            response = await client.request("GET", url + "/stall")
+            self.assertEqual(await response.read_chunk(), b"a")
+            pending = asyncio.create_task(response.read(max_bytes=20))
+            done, _ = await asyncio.wait({pending}, timeout=0.05)
+            self.assertFalse(done)
+            response.close()
+            with self.assertRaises(Error) as caught:
+                await pending
+            self.assertEqual(caught.exception.kind, "body_closed")
+            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+            self.assertIsNone(await response.read_chunk())
+
+    async def test_collection_after_partial_chunk_and_multiple_frames(self):
+        with server() as (_, url), AsyncClient(**OPTIONS) as client:
+            response = await client.request("GET", url)
+            self.assertEqual(await response.read_chunk(1), b"h")
+            self.assertEqual(await response.read(max_bytes=4), b"ello")
+            response = await client.request("GET", url)
+            self.assertEqual(await response.read_chunk(1), b"h")
+            with self.assertRaises(BodyLimitExceeded):
+                await response.read(max_bytes=3)
+            response = await client.request("GET", url + "/large")
+            self.assertEqual(await response.read(max_bytes=200000), b"x" * 200000)
+
+    async def test_collection_overflow_closes_an_incomplete_body(self):
+        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
+            response = await client.request("GET", url + "/stall")
+            with self.assertRaises(BodyLimitExceeded):
+                await response.read(max_bytes=0)
+            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+            self.assertIsNone(await response.read_chunk())
+
+    async def test_close_wakes_collection_and_concurrent_collection_is_rejected(self):
+        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
+            response = await client.request("GET", url + "/stall")
+            readers = [
+                asyncio.create_task(response.read(max_bytes=20)),
+                asyncio.create_task(response.read(max_bytes=20)),
+            ]
+            results = await asyncio.wait_for(
+                asyncio.gather(*readers, return_exceptions=True), 2
+            )
+            self.assertTrue(all(isinstance(result, Error) for result in results))
+            self.assertEqual(
+                {result.kind for result in results},
+                {"concurrent_body_read", "body_closed"},
+            )
+            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+            self.assertEqual(await response.read(max_bytes=20), b"")
+
     async def test_explicit_close_wakes_a_pending_body_read(self):
         with server() as (peer, url):
             async with AsyncClient(**OPTIONS) as client:

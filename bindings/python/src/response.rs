@@ -1,7 +1,7 @@
 use crate::error;
 use http_body_util::BodyExt;
 use phantom::{Bytes, ResponseBody};
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{exceptions::PyMemoryError, prelude::*, types::PyBytes};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -35,6 +35,24 @@ impl Drop for ReadLease {
 }
 
 impl ReadLease {
+    fn acquire(owner: &Arc<BodyOwner>) -> PyResult<Self> {
+        owner
+            .busy
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| error::input("concurrent_body_read"))?;
+        let mut lease = Self {
+            owner: Arc::clone(owner),
+            stream: None,
+            finished: false,
+        };
+        lease.stream = owner
+            .stream
+            .lock()
+            .map_err(|_| error::input("body_state"))?
+            .take();
+        Ok(lease)
+    }
+
     fn restore(mut self) -> PyResult<()> {
         let mut slot = self
             .owner
@@ -47,6 +65,27 @@ impl ReadLease {
         self.finished = true;
         Ok(())
     }
+}
+
+fn append_body(output: &mut Vec<u8>, bytes: &[u8], maximum: usize) -> PyResult<()> {
+    if bytes.len() > maximum.saturating_sub(output.len()) {
+        return Err(error::NativeError::new_err((
+            "request",
+            "response_body_limit",
+            None::<String>,
+            None::<String>,
+        )));
+    }
+    let length = output.len() + bytes.len();
+    if length > output.capacity() {
+        // Grow with observed data, without reserving the caller's entire bound.
+        let capacity = length.max(output.capacity().saturating_mul(2)).min(maximum);
+        output
+            .try_reserve_exact(capacity - output.len())
+            .map_err(|_| PyMemoryError::new_err("response body allocation failed"))?;
+    }
+    output.extend_from_slice(bytes);
+    Ok(())
 }
 
 #[pyclass]
@@ -123,23 +162,7 @@ impl NativeResponse {
         }
         let owner = Arc::clone(&self.owner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            if owner
-                .busy
-                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                .is_err()
-            {
-                return Err(error::input("concurrent_body_read"));
-            }
-            let mut lease = ReadLease {
-                owner: Arc::clone(&owner),
-                stream: None,
-                finished: false,
-            };
-            lease.stream = owner
-                .stream
-                .lock()
-                .map_err(|_| error::input("body_state"))?
-                .take();
+            let mut lease = ReadLease::acquire(&owner)?;
             let Some(stream) = lease.stream.as_mut() else {
                 return Ok(None::<Py<PyBytes>>);
             };
@@ -172,5 +195,63 @@ impl NativeResponse {
             lease.restore()?;
             Python::attach(|py| Ok(Some(PyBytes::new(py, &bytes).unbind())))
         })
+    }
+
+    fn read<'py>(&self, py: Python<'py>, maximum: usize) -> PyResult<Bound<'py, PyAny>> {
+        let owner = Arc::clone(&self.owner);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let mut lease = ReadLease::acquire(&owner)?;
+            let Some(stream) = lease.stream.as_mut() else {
+                return Ok(Vec::<u8>::new());
+            };
+            let changed = owner.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if owner.closed.load(Ordering::SeqCst) {
+                return Ok(Vec::new());
+            }
+            let collect = async {
+                let mut output = Vec::new();
+                append_body(&mut output, &stream.pending, maximum)?;
+                stream.pending = Bytes::new();
+                while let Some(frame) = stream.body.frame().await {
+                    if let Ok(data) = frame.map_err(error::request)?.into_data() {
+                        append_body(&mut output, &data, maximum)?;
+                    }
+                }
+                Ok(output)
+            };
+            tokio::select! {
+                biased;
+                () = &mut changed => Err(error::input("body_closed")),
+                result = collect => result,
+            }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::append_body;
+
+    #[test]
+    fn collection_allocates_from_received_bytes_and_accepts_exact_bound() -> pyo3::PyResult<()> {
+        let mut output = Vec::new();
+        append_body(&mut output, b"", usize::MAX)?;
+        assert_eq!(output.capacity(), 0);
+        append_body(&mut output, b"hello", 5)?;
+        append_body(&mut output, b"", 5)?;
+        assert_eq!(output, b"hello");
+        Ok(())
+    }
+
+    #[test]
+    fn overflow_preserves_collected_prefix_without_appending() -> pyo3::PyResult<()> {
+        let mut output = Vec::new();
+        append_body(&mut output, b"he", 4)?;
+        assert!(append_body(&mut output, b"llo", 4).is_err());
+        assert_eq!(output, b"he");
+        assert!(append_body(&mut Vec::new(), b"a", 0).is_err());
+        Ok(())
     }
 }

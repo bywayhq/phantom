@@ -8,7 +8,7 @@ import unittest
 import h2.config
 import h2.connection
 import h2.events
-from phantom_http import AsyncClient
+from phantom_http import AsyncClient, BodyLimitExceeded
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
@@ -51,6 +51,7 @@ class H2Peer:
                 connection.initiate_connection()
                 stream.sendall(connection.data_to_send())
                 healthy = None
+                overflow = None
                 while data := stream.recv(65536):
                     for event in connection.receive_data(data):
                         if isinstance(event, h2.events.RequestReceived):
@@ -61,8 +62,12 @@ class H2Peer:
                             )
                             if path == b"/stall":
                                 connection.send_data(event.stream_id, b"a")
+                            elif path == b"/overflow":
+                                overflow = event.stream_id
                             elif path == b"/healthy":
                                 healthy = event.stream_id
+                                if overflow is not None:
+                                    connection.send_data(overflow, b"a")
                             else:
                                 connection.send_data(
                                     event.stream_id, b"hello", end_stream=True
@@ -86,21 +91,40 @@ class H2Peer:
 
 class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
     async def test_cancel_one_body_keeps_other_stream_and_connection(self):
+        await self.check_body_isolation("chunk")
+
+    async def test_cancel_collection_keeps_other_stream_and_connection(self):
+        await self.check_body_isolation("collect")
+
+    async def test_collection_overflow_keeps_other_stream_and_connection(self):
+        await self.check_body_isolation("overflow")
+
+    async def check_body_isolation(self, operation):
         with H2Peer() as peer:
             async with AsyncClient(
                 profile=PROFILE, protocol="h2", timeout_ms=5000
             ) as client:
-                stalled = await client.request("GET", peer.url + "/stall")
+                path = "/overflow" if operation == "overflow" else "/stall"
+                stalled = await client.request("GET", peer.url + path)
                 self.assertEqual(stalled.protocol, "h2")
-                self.assertEqual(await stalled.read_chunk(), b"a")
+                if operation != "overflow":
+                    self.assertEqual(await stalled.read_chunk(), b"a")
                 healthy = await client.request("GET", peer.url + "/healthy")
-                pending = asyncio.create_task(stalled.read_chunk())
                 other = asyncio.create_task(healthy.read(max_bytes=5))
-                await asyncio.sleep(0.05)
-                self.assertFalse(other.done())
-                pending.cancel()
-                with self.assertRaises(asyncio.CancelledError):
-                    await pending
+                if operation == "overflow":
+                    with self.assertRaises(BodyLimitExceeded):
+                        await stalled.read(max_bytes=0)
+                else:
+                    pending = asyncio.create_task(
+                        stalled.read_chunk()
+                        if operation == "chunk"
+                        else stalled.read(max_bytes=20)
+                    )
+                    await asyncio.sleep(0.05)
+                    self.assertFalse(other.done())
+                    pending.cancel()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await pending
                 self.assertTrue(await asyncio.to_thread(peer.reset.wait, 5))
                 self.assertEqual(peer.reset_code, 8)  # HTTP/2 CANCEL
                 self.assertEqual(peer.reset_stream, peer.requests[0][0])
@@ -110,7 +134,7 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await reused.read(max_bytes=5), b"hello")
                 self.assertEqual(
                     [path for _, path in peer.requests],
-                    [b"/stall", b"/healthy", b"/reuse"],
+                    [path.encode(), b"/healthy", b"/reuse"],
                 )
                 self.assertEqual(len({stream for stream, _ in peer.requests}), 3)
         self.assertFalse(peer.premature_close)
