@@ -48,6 +48,10 @@ root through `scripts/dev/with-cargo-lock.sh` with `--release-candidate`,
 `--target` and a new `--output` directory. Without those options, the helper
 keeps the ordinary development build used by the gate.
 
+The package includes inline type hints and `py.typed` for Python 3.10 or newer.
+Sync and async clients expose the same explicit request options to editors and
+type checkers. Headers remain ordered pairs, including duplicate names.
+
 ## Requests and state
 
 `AsyncClient` requires `profile` and `protocol`. Protocols are `h1`, `h2`, `h3`
