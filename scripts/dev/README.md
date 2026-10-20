@@ -68,11 +68,15 @@ concurrent chains:
 
 | Chain | Target directory | Steps |
 | --- | --- | --- |
-| Tests | `target/gate/test` | `cargo nextest run`, `cargo test --doc`, then the tests of the `fuzz/` crate |
+| Tests | `target/gate/test` | nextest, doctests, fuzz tests, then Python, Go and Node binding tests |
 | Lint | `target/gate/lint` | Clippy on the workspace and the `fuzz/` crate, then rustdoc, then the [nightly recursion check](#nightly-recursion-check) in `target/gate/nightly` |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
 | Features | `target/gate/features` | The Features job's rows, `cargo check` or `cargo clippy` as the job writes them |
 | Python | none | ruff, the four unittest suites, the docs checker, the tool-pin check, and the unsafe-boundary check |
+
+On Windows, the capture suite runs after the concurrent chains finish. Its
+loopback deadlines include process and event-loop scheduling. Other platforms
+keep capture tests in the Python chain. Coverage and timeouts are unchanged.
 
 The feature rows are read from `.github/workflows/ci.yml`, so the gate checks
 the rows CI checks. The gate fails if either job has a `cargo check` or

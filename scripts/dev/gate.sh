@@ -388,10 +388,12 @@ if ! PYO3_PYTHON=$("${python[@]}" python -c 'import sys; sys.stdout.write(sys.ex
 fi
 export PYO3_PYTHON
 capture_python=("${python[@]}")
+defer_capture=false
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*)
     capture_version=$(tr -d '\r\n' <scripts/capture/windows-python-version.txt)
     capture_python=(uv run --no-project --python "$capture_version")
+    defer_capture=true
     ;;
 esac
 
@@ -438,12 +440,15 @@ chain_linux() {
   [[ $quick == true ]] && return
   run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
 }
+capture_tests() {
+  run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
+    --with hpack==4.2.0 python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
+}
 chain_python() {
   local ruff=(uvx ruff@0.17.0) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
-  run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
-    --with hpack==4.2.0 python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
+  [[ $defer_capture == true ]] || capture_tests
   run_step conformance-tests - "${python[@]}" --with aioquic==1.3.0 \
     python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
   run_step docs-tests - "${python[@]}" \
@@ -484,6 +489,12 @@ else
   fi
 fi
 wait "${pids[@]}"
+if [[ $quick == false && $defer_capture == true ]]; then
+  # Windows loopback capture deadlines also include subprocess and event-loop
+  # scheduling. Keep these checks out of the build and native-test overlap.
+  launch capture_tests
+  wait "$!"
+fi
 
 failed=0
 printf '\n%-18s %-6s %5s %8s\n' step result exit seconds
