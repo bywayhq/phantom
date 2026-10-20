@@ -1187,14 +1187,15 @@ mod tests {
     mod uploads;
 
     #[test]
-    fn identity_reports_native_package_without_allocating_a_handle() {
-        let result: Value = serde_json::from_slice(&dispatch(br#"{"kind":"identity"}"#, &[]))
-            .expect("identity response");
+    fn identity_reports_native_package_without_allocating_a_handle()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let result: Value = serde_json::from_slice(&dispatch(br#"{"kind":"identity"}"#, &[]))?;
         assert_eq!(
             result["value"],
             json!({"abi": 1, "version": env!("CARGO_PKG_VERSION")})
         );
         assert!(result["error"].is_null());
+        Ok(())
     }
 
     fn test_global() -> Result<&'static Global, Failure> {
