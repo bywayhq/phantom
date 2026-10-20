@@ -86,7 +86,7 @@ fn registry_has_no_http_quota_and_never_reuses_ids() -> Result<(), Failure> {
     };
     let owner = ProfileState::catalog("chrome/154.0.8037.97/windows-11-26200/r1", None)?;
     assert_eq!(
-        exhausted.insert(owner).err().map(|error| error.kind),
+        exhausted.insert(owner, None).err().map(|error| error.kind),
         Some("profile_id_exhausted")
     );
     assert!(exhausted.owners.is_empty());
@@ -138,5 +138,119 @@ fn commands_and_document_errors_are_strict_and_redacted() -> Result<(), Failure>
     assert_eq!(reply["error"]["kind"], "profile_import_unsupported_format");
     assert_eq!(reply["error"]["field"], "format");
     assert!(!reply.to_string().contains("private-secret"));
+    Ok(())
+}
+
+#[test]
+fn captured_handshake_import_keeps_owned_settings_and_exact_field_report() -> Result<(), Failure> {
+    let capture = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt"
+    ));
+    let record = capture
+        .lines()
+        .find_map(|line| line.strip_prefix("record_0_hex="))
+        .ok_or_else(|| Failure::new("test_capture"))?;
+    let record = record
+        .as_bytes()
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| {
+            let text = std::str::from_utf8(pair).map_err(|_| Failure::new("test_hex"))?;
+            u8::from_str_radix(text, 16).map_err(|_| Failure::new("test_hex"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let base = create()?;
+    let retained = get(base)?;
+    let before = fingerprint::export_profile_json(&retained.settings)
+        .map_err(|_| Failure::new("test_export"))?;
+    let (reply, output) = value(
+        json!({"kind":"import_client_hello", "base":base}),
+        &record[5..],
+        0,
+    )?;
+    assert!(output.is_empty());
+    assert_eq!(reply["value"]["catalog_id"], Value::Null);
+    let observed = reply["value"]["observed_fields"]
+        .as_array()
+        .ok_or_else(|| Failure::new("test_fields"))?;
+    assert!(observed.contains(&json!("tls.versions")));
+    assert!(
+        reply["value"]["supplemented_fields"]
+            .as_array()
+            .ok_or_else(|| Failure::new("test_fields"))?
+            .contains(&json!("tls.requested_trust_anchor_ids"))
+    );
+    let imported_id = reply["value"]["id"]
+        .as_u64()
+        .ok_or_else(|| Failure::new("test_owner"))?;
+    release(base)?;
+    let imported = get(imported_id)?;
+    assert!(imported.definition.is_none());
+    assert_eq!(imported.settings.http2(), retained.settings.http2());
+    let exported = fingerprint::export_profile_json(&imported.settings)
+        .map_err(|_| Failure::new("test_export"))?;
+    assert!(
+        !exported
+            .windows(b"server.phantom.test".len())
+            .any(|value| value == b"server.phantom.test")
+    );
+    assert_eq!(
+        fingerprint::export_profile_json(&retained.settings)
+            .map_err(|_| Failure::new("test_export"))?,
+        before
+    );
+    release(imported_id)?;
+    Ok(())
+}
+
+#[test]
+fn observation_commands_require_base_and_format_without_leaking_values() -> Result<(), Failure> {
+    let base = create()?;
+    for command in [
+        json!({"kind":"import_ja3"}),
+        json!({"kind":"import_ja4", "base":base}),
+        json!({"kind":"import_akamai", "base":base, "extra":"private-secret"}),
+    ] {
+        let (reply, _) = value(command, b"private-secret", 0)?;
+        assert_eq!(reply["error"]["kind"], "invalid_command");
+        assert!(!reply.to_string().contains("private-secret"));
+    }
+    for (command, input, field) in [
+        (json!({"kind":"import_ja3", "base":base}), &[255][..], "ja3"),
+        (
+            json!({"kind":"import_ja4", "base":base, "format":"guess"}),
+            b"private-secret",
+            "ja4.format",
+        ),
+    ] {
+        let (reply, _) = value(command, input, 0)?;
+        assert_eq!(reply["error"]["kind"], "profile_import_invalid_value");
+        assert_eq!(reply["error"]["field"], field);
+        assert!(!reply.to_string().contains("private-secret"));
+    }
+    release(base)?;
+    let (reply, _) = value(json!({"kind":"import_akamai", "base":base}), b"", 0)?;
+    assert_eq!(reply["error"]["kind"], "profile_closed");
+    Ok(())
+}
+
+#[test]
+fn oversized_import_report_does_not_publish_owner() -> Result<(), Failure> {
+    let mut registry = Registry::default();
+    let owner = ProfileState::catalog("chrome/154.0.8037.97/windows-11-26200/r1", None)?;
+    assert_eq!(
+        registry
+            .insert(
+                owner,
+                Some((vec!["x".repeat(operations::MAX_METADATA)], Vec::new()))
+            )
+            .err()
+            .map(|error| error.kind),
+        Some("metadata_limit")
+    );
+    assert!(registry.owners.is_empty());
+    assert_eq!(registry.last, 0);
     Ok(())
 }

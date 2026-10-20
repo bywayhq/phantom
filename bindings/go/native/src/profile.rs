@@ -85,12 +85,20 @@ struct Registry {
 }
 
 impl Registry {
-    fn insert(&mut self, owner: ProfileState) -> Result<Vec<u8>, Failure> {
+    fn insert(
+        &mut self,
+        owner: ProfileState,
+        fields: Option<(Vec<String>, Vec<String>)>,
+    ) -> Result<Vec<u8>, Failure> {
         let id = self
             .last
             .checked_add(1)
             .ok_or_else(|| Failure::new("profile_id_exhausted"))?;
-        let value = json!({"id": id, "catalog_id": owner.definition.map(|definition| definition.id().as_str())});
+        let mut value = json!({"id": id, "catalog_id": owner.definition.map(|definition| definition.id().as_str())});
+        if let Some((observed, supplemented)) = fields {
+            value["observed_fields"] = json!(observed);
+            value["supplemented_fields"] = json!(supplemented);
+        }
         // Serialize before publishing ownership: an ABI failure must not strand it.
         let reply = success(value)?;
         self.owners
@@ -130,6 +138,22 @@ enum Command {
         context: Option<String>,
     },
     Import {},
+    ImportJa3 {
+        base: u64,
+    },
+    ImportClientHello {
+        base: u64,
+    },
+    ImportAkamai {
+        base: u64,
+    },
+    ImportJa4 {
+        base: u64,
+        format: String,
+    },
+    ImportQuicTransport {
+        base: u64,
+    },
     Export {
         profile: u64,
     },
@@ -170,13 +194,101 @@ fn document_error(operation: &str, kind: FingerprintImportErrorKind, field: &str
     .unwrap_or_else(|_| operations::failure(Failure::new("internal")))
 }
 
+enum Observation {
+    Ja3,
+    ClientHello,
+    Akamai,
+    Ja4(String),
+    QuicTransport,
+}
+
+fn import_observation(
+    base: u64,
+    input: &[u8],
+    observation: Observation,
+) -> Result<(Vec<u8>, Vec<u8>), Failure> {
+    // Retain an immutable owner before parsing. A concurrent Close either wins
+    // this lookup or leaves these settings available through the entire import.
+    let base = get(base)?;
+    let text = match &observation {
+        Observation::Ja3 | Observation::Akamai | Observation::Ja4(_) => {
+            match std::str::from_utf8(input) {
+                Ok(text) => text,
+                Err(_) => {
+                    let field = match &observation {
+                        Observation::Ja3 => "ja3",
+                        Observation::Akamai => "akamai",
+                        _ => "ja4",
+                    };
+                    return Ok((
+                        document_error("import", FingerprintImportErrorKind::InvalidValue, field),
+                        Vec::new(),
+                    ));
+                }
+            }
+        }
+        _ => "",
+    };
+    let imported = match observation {
+        Observation::Ja3 => fingerprint::import_ja3_profile(text, &base.settings),
+        Observation::ClientHello => fingerprint::import_client_hello_profile(input, &base.settings),
+        Observation::Akamai => fingerprint::import_akamai_profile(text, &base.settings),
+        Observation::Ja4(format) => {
+            let format = match format.as_str() {
+                "sorted" => fingerprint::Ja4RawFormat::Sorted,
+                "original" => fingerprint::Ja4RawFormat::Original,
+                _ => {
+                    return Ok((
+                        document_error(
+                            "import",
+                            FingerprintImportErrorKind::InvalidValue,
+                            "ja4.format",
+                        ),
+                        Vec::new(),
+                    ));
+                }
+            };
+            fingerprint::import_ja4_profile(text, format, &base.settings)
+        }
+        Observation::QuicTransport => {
+            fingerprint::import_quic_transport_profile(input, &base.settings)
+        }
+    };
+    let imported = match imported {
+        Ok(imported) => imported,
+        Err(error) => {
+            return Ok((
+                document_error("import", error.kind(), error.field()),
+                Vec::new(),
+            ));
+        }
+    };
+    let observed = imported.observed_fields().map(str::to_owned).collect();
+    let supplemented = imported.supplemented_fields().map(str::to_owned).collect();
+    let owner = ProfileState {
+        settings: imported.into_profile(),
+        definition: None,
+    };
+    Ok((
+        registry()
+            .lock()
+            .map_err(|_| Failure::new("internal"))?
+            .insert(owner, Some((observed, supplemented)))?,
+        Vec::new(),
+    ))
+}
+
 // Export is an immutable size probe or a complete copy, never a partial document.
 // Registry guards end before parsing/exporting or building a client.
 pub(super) fn dispatch(command: &[u8], input: &[u8], capacity: usize) -> (Vec<u8>, Vec<u8>) {
     let result = (|| {
         let command: Command =
             serde_json::from_slice(command).map_err(|_| Failure::new("invalid_command"))?;
-        if !matches!(command, Command::Import {}) && !input.is_empty() {
+        if matches!(
+            command,
+            Command::Catalog { .. } | Command::Export { .. } | Command::Release { .. }
+        ) && !input.is_empty()
+        {
             return Err(Failure::new("invalid_command"));
         }
         match command {
@@ -189,7 +301,7 @@ pub(super) fn dispatch(command: &[u8], input: &[u8], capacity: usize) -> (Vec<u8
                     registry()
                         .lock()
                         .map_err(|_| Failure::new("internal"))?
-                        .insert(owner)?,
+                        .insert(owner, None)?,
                     Vec::new(),
                 ))
             }
@@ -207,12 +319,26 @@ pub(super) fn dispatch(command: &[u8], input: &[u8], capacity: usize) -> (Vec<u8
                     registry()
                         .lock()
                         .map_err(|_| Failure::new("internal"))?
-                        .insert(ProfileState {
-                            settings,
-                            definition: None,
-                        })?,
+                        .insert(
+                            ProfileState {
+                                settings,
+                                definition: None,
+                            },
+                            None,
+                        )?,
                     Vec::new(),
                 ))
+            }
+            Command::ImportJa3 { base } => import_observation(base, input, Observation::Ja3),
+            Command::ImportClientHello { base } => {
+                import_observation(base, input, Observation::ClientHello)
+            }
+            Command::ImportAkamai { base } => import_observation(base, input, Observation::Akamai),
+            Command::ImportJa4 { base, format } => {
+                import_observation(base, input, Observation::Ja4(format))
+            }
+            Command::ImportQuicTransport { base } => {
+                import_observation(base, input, Observation::QuicTransport)
             }
             Command::Export { profile } => {
                 let owner = get(profile)?;
