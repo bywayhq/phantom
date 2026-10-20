@@ -128,6 +128,8 @@ pub struct ClientOptions {
     pub timeouts: Option<PhaseTimeouts>,
     /// Default redirect following; omission leaves redirects visible.
     pub redirect_policy: Option<RedirectPolicyOptions>,
+    /// Caller-enabled retry classes and scheduling; absence keeps them disabled.
+    pub retry_policy: Option<RetryPolicyOptions>,
 }
 
 /// Native state categories selected by the JavaScript facade.
@@ -248,15 +250,16 @@ pub struct RedirectPolicyOptions {
 }
 
 pub(crate) fn positive_count(value: BigInt) -> Result<std::num::NonZeroUsize> {
+    std::num::NonZeroUsize::new(policy_count(value)?)
+        .ok_or_else(|| failure("InvalidArgument", "count must be positive"))
+}
+
+pub(crate) fn policy_count(value: BigInt) -> Result<usize> {
     match (value.sign_bit, value.words.as_slice()) {
-        (false, [value]) => usize::try_from(*value)
-            .ok()
-            .and_then(std::num::NonZeroUsize::new)
-            .ok_or_else(|| failure("InvalidArgument", "count must be positive and fit usize")),
-        _ => Err(failure(
-            "InvalidArgument",
-            "count must be positive and fit usize",
-        )),
+        (false, [value]) => {
+            usize::try_from(*value).map_err(|_| failure("InvalidArgument", "count must fit usize"))
+        }
+        _ => Err(failure("InvalidArgument", "count must fit usize")),
     }
 }
 
@@ -270,6 +273,56 @@ impl RedirectPolicyOptions {
             _ => Err(failure("InvalidArgument", "invalid redirect policy")),
         }
     }
+}
+
+/// Bounded eligible connection-establishment retries and their scheduling.
+#[derive(Debug)]
+#[napi(object)]
+pub struct ConnectionRetryOptions {
+    /// Positive number of retries.
+    pub maximum: BigInt,
+    /// Initial finite nonnegative delay in milliseconds.
+    pub delay_ms: f64,
+    /// Optional exponential backoff cap, at least the initial delay.
+    pub maximum_delay_ms: Option<f64>,
+    /// Randomizes each delay within its configured bound.
+    pub full_jitter: Option<bool>,
+}
+
+/// Explicit caller-listed response retries, subject to core replay rules.
+#[derive(Debug)]
+#[napi(object)]
+pub struct StatusRetryOptions {
+    /// HTTP status codes; the core validates retry eligibility.
+    pub statuses: Vec<u32>,
+    /// Positive retry count, shared across redirect hops.
+    pub maximum: BigInt,
+    /// Initial finite nonnegative delay in milliseconds.
+    pub delay_ms: f64,
+    /// Optional exponential backoff cap, at least the initial delay.
+    pub maximum_delay_ms: Option<f64>,
+    /// Randomizes the configured delay, not an honored Retry-After minimum.
+    pub full_jitter: Option<bool>,
+    /// Largest accepted server Retry-After delay, in milliseconds.
+    pub retry_after_limit_ms: Option<f64>,
+}
+
+/// Whole caller retry policy; an empty object disables every caller class.
+#[derive(Debug)]
+#[napi(object)]
+pub struct RetryPolicyOptions {
+    /// Eligible failures before origin request dispatch.
+    pub connection_failures: Option<ConnectionRetryOptions>,
+    /// Safe replay after an already reused connection closes.
+    pub reused_connection_replay: Option<bool>,
+    /// Positive peer-unprocessed replay allowance.
+    pub unprocessed_replays: Option<BigInt>,
+    /// Explicit idempotent response-status retries.
+    pub status_retry: Option<StatusRetryOptions>,
+    /// Shared caller cap; zero disables caller retries.
+    pub maximum_retries: Option<BigInt>,
+    /// Explicitly permits failed exact HTTP/3 setup to try HTTP/2.
+    pub http2_fallback: Option<bool>,
 }
 
 /// One selected redirect, retaining URLs only when explicitly requested.
@@ -341,6 +394,8 @@ pub struct RequestOptions {
     pub redirect_policy: Option<RedirectPolicyOptions>,
     /// Positive number of selected hops to retain; does not enable following.
     pub redirect_history_limit: Option<BigInt>,
+    /// Whole replacement for the client retry policy; absence inherits.
+    pub retry_policy: Option<RetryPolicyOptions>,
 }
 
 impl fmt::Debug for WireHeader {

@@ -87,6 +87,9 @@ impl Prepared {
         if let Some(policy) = options.redirect_policy {
             builder = builder.redirect_policy(policy.policy()?);
         }
+        if let Some(policy) = options.retry_policy {
+            builder = builder.retry_policy(crate::retry::policy(policy)?);
+        }
         if let Some(maximum) = options.redirect_history_limit {
             builder = builder.redirect_history(positive_count(maximum)?);
         }

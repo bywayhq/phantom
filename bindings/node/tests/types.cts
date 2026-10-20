@@ -134,3 +134,18 @@ async function redirects(client: Client, response: Response): Promise<void> {
   void destination;
 }
 void redirects;
+
+async function retries(client: Client): Promise<void> {
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', retryPolicy: {
+    connectionFailures: {maximum: 2n, delayMs: 0.5, maximumDelayMs: 100, fullJitter: true},
+    statusRetry: {statuses: [429, 503], maximum: 2, delayMs: 0, retryAfterLimitMs: 1000},
+    reusedConnectionReplay: true, unprocessedReplays: 1, maximumRetries: 0n, http2Fallback: false,
+  }});
+  // @ts-expect-error Retry schedules require an explicit delay.
+  new Client({profile: 'exact/id', route: 'direct', retryPolicy: {connectionFailures: {maximum: 1}}});
+  // @ts-expect-error Retry selectors are booleans.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', retryPolicy: {http2Fallback: 1}});
+  // @ts-expect-error Status retry lists contain numeric status codes.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', retryPolicy: {statusRetry: {statuses: ['503'], maximum: 1, delayMs: 0}}});
+}
+void retries;

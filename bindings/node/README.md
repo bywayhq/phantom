@@ -183,6 +183,23 @@ is `null`. History includes URLs, so treat it as sensitive. Failed requests
 return no history. Redirects share the request deadline and attempt budget.
 One-shot files cannot be replayed for a redirect that retains their body.
 
+## Retries
+
+Caller retries are disabled by default. For example, set
+`retryPolicy: {statusRetry: {statuses: [503], maximum: 2, delayMs: 100}}` on a
+client or request. A request replaces the whole policy; `{}` disables it.
+
+`connectionFailures` uses the same `maximum` and `delayMs` fields.
+Both schedules accept `maximumDelayMs` for capped exponential backoff and
+`fullJitter`. Status retries can honor `Retry-After` with `retryAfterLimitMs`.
+Delays are finite, nonnegative milliseconds. Counts follow the redirect count
+rules; `maximumRetries: 0` disables caller retries across all classes.
+
+`reusedConnectionReplay`, `unprocessedReplays`, and explicit `http2Fallback`
+select the other core classes. Core eligibility and body replay rules still
+apply. Retries share the total deadline and `AttemptBudget`; neither enables
+retries itself. Automatic browser replays remain separate from caller policy.
+
 ## Share session state
 
 Use `const worker = client.fork({cookies: true, tickets: true})` for independent

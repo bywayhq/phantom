@@ -145,6 +145,54 @@ test('cancelling a pending redirect hop preserves a live HTTP/2 sibling', {timeo
   assert.equal(sessions.size, 1);
 });
 
+test('peer-unprocessed retries replay owned bytes and a cancelled status wait leaves a live HTTP/2 sibling', {timeout: 30000}, async (t) => {
+  const sessions = new Set();
+  const server = http2.createSecureServer({key: fixture('key.pem'), cert: fixture('certificate.pem')});
+  server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
+  let attempts = 0, refusedBody, finish, received, statusSession, healthySession, statusRequests = 0;
+  const statusHead = new Promise((resolve) => { received = resolve; });
+  server.on('stream', (stream, headers) => {
+    stream.on('error', () => {});
+    if (headers[':path'] === '/refused') {
+      attempts++;
+      const chunks = [];
+      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        if (attempts === 1) { refusedBody = body; stream.close(http2.constants.NGHTTP2_REFUSED_STREAM); }
+        else { assert.equal(body, refusedBody); stream.respond({':status': 200}); stream.end('ok'); }
+      });
+    } else if (headers[':path'] === '/status') {
+      statusRequests++; statusSession = stream.session;
+      stream.respond({':status': 503}); stream.end(); received();
+    } else { healthySession = stream.session; stream.respond({':status': 200}); finish = () => stream.end('healthy'); }
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {
+    for (const session of sessions) session.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')]});
+  t.after(() => client.close());
+  const url = `https://127.0.0.1:${server.address().port}`;
+  const options = {method: 'GET', protocol: 'http2', context: 'raw', timeoutMs: 5000};
+  const retried = await client.request(url + '/refused', {...options, method: 'POST', body: Buffer.from('owned'),
+    retryPolicy: {unprocessedReplays: 1, maximumRetries: 1}});
+  assert.equal(await retried.text(2), 'ok'); assert.equal(attempts, 2); assert.equal(refusedBody, 'owned');
+  const controller = new AbortController();
+  const pending = client.request(url + '/status', {...options, signal: controller.signal,
+    timeoutMs: undefined, timeouts: {totalMs: null},
+    retryPolicy: {statusRetry: {statuses: [503], maximum: 1, delayMs: 30000}}});
+  await statusHead;
+  const before = sessions.size;
+  const healthy = await client.request(url + '/healthy', options);
+  assert.equal(healthySession, statusSession);
+  controller.abort();
+  await assert.rejects(pending, (error) => error instanceof PhantomError && error.code === 'Cancelled');
+  finish(); assert.equal(await healthy.text(7), 'healthy');
+  assert.equal(sessions.size, before); assert.equal(statusRequests, 1);
+});
+
 test('zero-window HTTP/2 file upload cancellation retains the reusable session', { timeout: 30000 }, async (t) => {
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'phantom-node-h2-'));
   t.after(() => fs.promises.rm(directory, {recursive: true, force: true}));

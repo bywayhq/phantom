@@ -141,6 +141,63 @@ function positiveCount(value) {
   throw new PhantomError('InvalidArgument', 'count must be a positive exact integer fitting the native pointer size');
 }
 
+function retryDelay(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new PhantomError('InvalidArgument', 'retry delays must be finite nonnegative milliseconds');
+  }
+  return value;
+}
+
+function retryBoolean(value) {
+  if (typeof value !== 'boolean') throw new PhantomError('InvalidArgument', 'retry selections must be boolean');
+  return value;
+}
+
+function retryStatuses(value) {
+  if (!Array.isArray(value) || types.isProxy(value)
+    || Reflect.ownKeys(value).length !== value.length + 1) {
+    throw new PhantomError('InvalidArgument', 'retry statuses must be a data-only array');
+  }
+  const unique = new Set();
+  for (let index = 0; index < value.length; index++) {
+    const field = Object.getOwnPropertyDescriptor(value, String(index));
+    if (field === undefined || !Object.hasOwn(field, 'value')) {
+      throw new PhantomError('InvalidArgument', 'retry statuses must be a data-only array');
+    }
+    unique.add(integer(field.value, 'retry status', 100, 999));
+  }
+  return [...unique];
+}
+
+function retrySchedule(value, status) {
+  const copy = policyFields(value, status
+    ? ['statuses', 'maximum', 'delayMs', 'maximumDelayMs', 'fullJitter', 'retryAfterLimitMs']
+    : ['maximum', 'delayMs', 'maximumDelayMs', 'fullJitter']);
+  const result = {maximum: positiveCount(copy.maximum), delayMs: retryDelay(copy.delayMs)};
+  if (copy.maximumDelayMs !== undefined) result.maximumDelayMs = retryDelay(copy.maximumDelayMs);
+  if (copy.fullJitter !== undefined) result.fullJitter = retryBoolean(copy.fullJitter);
+  if (status) {
+    result.statuses = retryStatuses(copy.statuses);
+    if (copy.retryAfterLimitMs !== undefined) result.retryAfterLimitMs = retryDelay(copy.retryAfterLimitMs);
+  }
+  return result;
+}
+
+function retryPolicy(value) {
+  if (value === undefined) return undefined;
+  const copy = policyFields(value, ['connectionFailures', 'reusedConnectionReplay', 'unprocessedReplays',
+    'statusRetry', 'maximumRetries', 'http2Fallback']);
+  const result = {};
+  if (copy.connectionFailures !== undefined) result.connectionFailures = retrySchedule(copy.connectionFailures, false);
+  if (copy.statusRetry !== undefined) result.statusRetry = retrySchedule(copy.statusRetry, true);
+  if (copy.unprocessedReplays !== undefined) result.unprocessedReplays = positiveCount(copy.unprocessedReplays);
+  if (copy.maximumRetries !== undefined) result.maximumRetries = copy.maximumRetries === 0 || copy.maximumRetries === 0n
+    ? 0n : positiveCount(copy.maximumRetries);
+  if (copy.reusedConnectionReplay !== undefined) result.reusedConnectionReplay = retryBoolean(copy.reusedConnectionReplay);
+  if (copy.http2Fallback !== undefined) result.http2Fallback = retryBoolean(copy.http2Fallback);
+  return result;
+}
+
 class AttemptBudget {
   constructor(maximum) {
     if (typeof maximum === 'number' && Number.isSafeInteger(maximum) && maximum >= 0) maximum = BigInt(maximum);
@@ -359,6 +416,7 @@ class Client {
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
         timeouts: phaseTimeouts(options.timeouts),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
+        retryPolicy: retryPolicy(options.retryPolicy),
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }
@@ -389,6 +447,7 @@ class Client {
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
         contentDecoding: contentDecoding(options.contentDecoding),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
+        retryPolicy: retryPolicy(options.retryPolicy),
         redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
           : positiveCount(options.redirectHistoryLimit),
       }, cancellation, budget);

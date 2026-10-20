@@ -56,6 +56,7 @@ export interface ClientOptions {
   baseUrl?: string;
   timeouts?: Timeouts;
   redirectPolicy?: RedirectPolicy;
+  retryPolicy?: RetryPolicy;
 }
 /** Selected live state only; pools and cancellation stay independent. */
 export interface SessionSharing {
@@ -70,6 +71,24 @@ export type ContentDecoding = Readonly<{mode: 'none'}>
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
 export type RedirectPolicy = Readonly<{mode: 'none'}>
   | Readonly<{mode: 'limited'; maximumHops: number | bigint}>;
+export interface ConnectionRetry {
+  readonly maximum: number | bigint;
+  readonly delayMs: number;
+  readonly maximumDelayMs?: number;
+  readonly fullJitter?: boolean;
+}
+export interface StatusRetry extends ConnectionRetry {
+  readonly statuses: readonly number[];
+  readonly retryAfterLimitMs?: number;
+}
+export interface RetryPolicy {
+  readonly connectionFailures?: ConnectionRetry;
+  readonly reusedConnectionReplay?: boolean;
+  readonly unprocessedReplays?: number | bigint;
+  readonly statusRetry?: StatusRetry;
+  readonly maximumRetries?: number | bigint;
+  readonly http2Fallback?: boolean;
+}
 export interface RedirectHop {
   readonly fromUrl: string;
   readonly toUrl: string;
@@ -94,6 +113,7 @@ export interface RequestOptions {
   attemptBudget?: AttemptBudget;
   contentDecoding?: ContentDecoding;
   redirectPolicy?: RedirectPolicy;
+  retryPolicy?: RetryPolicy;
   redirectHistoryLimit?: number | bigint;
 }
 export class Response implements AsyncIterable<Buffer> {

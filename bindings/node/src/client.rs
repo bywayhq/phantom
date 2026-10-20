@@ -109,6 +109,9 @@ impl ClientState {
         if let Some(policy) = options.redirect_policy {
             builder = builder.redirect_policy(policy.policy()?);
         }
+        if let Some(policy) = options.retry_policy {
+            builder = builder.retry_policy(crate::retry::policy(policy)?);
+        }
         if options.cookies.unwrap_or(false) {
             builder = builder.cookies();
         }
