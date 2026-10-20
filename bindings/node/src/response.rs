@@ -24,6 +24,8 @@ const EOF: u8 = 1;
 const CANCELLED: u8 = 2;
 const FAILED: u8 = 3;
 pub(crate) const MAXIMUM_READ_BYTES: usize = 64 * 1024;
+const COLLECTION_YIELD_BYTES: usize = 64 * 1024;
+const COLLECTION_YIELD_ITERATIONS: usize = 16;
 
 #[derive(Debug)]
 struct Body {
@@ -231,10 +233,21 @@ impl Exchange {
             .ok_or_else(|| failure("BodyClosed", "response body is closed"))?;
         let collect = async {
             let mut output = Vec::new();
+            let mut consumed = 0usize;
+            let mut iterations = 0usize;
             loop {
                 self.check()?;
                 append_body(&mut output, &body.pending, maximum as usize)?;
+                consumed = consumed.saturating_add(body.pending.len());
                 body.pending = Bytes::new();
+                iterations += 1;
+                if consumed >= COLLECTION_YIELD_BYTES || iterations >= COLLECTION_YIELD_ITERATIONS {
+                    // Ready frames need not yield, including empty or non-data frames.
+                    tokio::task::yield_now().await;
+                    consumed = 0;
+                    iterations = 0;
+                    self.check()?;
+                }
                 match body.stream.frame().await {
                     Some(Ok(frame)) => {
                         if let Ok(bytes) = frame.into_data() {
