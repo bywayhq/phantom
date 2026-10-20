@@ -173,6 +173,7 @@ def copied_tests(destination):
             ),
         ),
         "http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "pipeline.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -321,6 +322,7 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "--test-reporter=tap",
                         "tests/client.test.cjs",
                         "tests/http2.test.cjs",
+                        "tests/pipeline.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,
