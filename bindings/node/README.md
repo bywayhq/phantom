@@ -54,7 +54,8 @@ try {
 } finally { await client.close(); }
 ```
 
-Choose `http1`, `http2`, or `http3` explicitly. Choose `raw` for caller fields,
+Choose `http1`, `http2`, `http3`, or `negotiated` explicitly. The response's
+`protocol` reports the actual protocol. Choose `raw` for caller fields,
 or a captured context offered by that profile. An unsupported combination
 fails. Headers are ordered `{ name, value: Uint8Array, sensitive? }` entries,
 including duplicates. Responses retain received field order and byte values.
@@ -118,6 +119,20 @@ body completion; an idle body's elapsed deadline is enforced on its next read.
 Cancellation drops an idle body immediately. Cancelling a multiplexed stream
 does not close another request's stream. `close()` cancels the client's work
 and waits for native shutdown, with a default five-second shutdown deadline.
+
+Set client or request `timeouts` with `poolAdmissionMs`, `connectMs`,
+`responseHeadMs`, `readIdleMs`, and `totalMs`. Omitted fields inherit, `null`
+disables a limit, and zero expires immediately. Do not combine `timeoutMs`
+with `timeouts.totalMs`. Timeout errors expose `timeoutPhase`; request errors
+also expose `protocol` when known.
+
+`baseUrl` joins relative request URLs using Rust's URL rules. `additionalRoots`
+trusts origin DER certificates; `additionalProxyRoots` trusts HTTPS proxies.
+Verification remains enabled. `closeIdleConnections()` retires idle connections;
+`refreshConnections()` retires pools while preserving tickets. Active responses
+remain usable. Clear cookies, DNS, client hints, Alt-Svc, or tickets explicitly
+with `clearCookies()`, `clearDnsCache()`, `clearClientHints()`, `clearAltSvc()`,
+or `clearSessionTickets()`.
 
 `maximumActiveRequests` bounds requests plus unfinished bodies, defaults to 32,
 and accepts 1 through 1024. Admission fails with `Capacity` when full. Each

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add Node.js base URLs, phase timeout overrides, separate HTTPS-proxy roots,
+  cache clearing and connection retirement. Report actual response protocol,
+  final URL, redirect and connection retry counts, and timeout phases.
+
 - Restore native C/C++ profile flags for automatic MSVC builds, including
   optimization, debug information and `NDEBUG` for the selected configuration.
 

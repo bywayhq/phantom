@@ -16,7 +16,7 @@ use tokio::sync::{OwnedSemaphorePermit, watch};
 
 use crate::{
     client::ClientState,
-    error::{failure, request},
+    error::{failure, request, total_timeout},
 };
 
 const ACTIVE: u8 = 0;
@@ -93,7 +93,7 @@ impl Exchange {
             .unwrap_or_else(PoisonError::into_inner)
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
-            return Err(failure("Timeout", "request deadline expired"));
+            return Err(total_timeout());
         }
         Ok(())
     }
@@ -110,7 +110,7 @@ impl Exchange {
         match deadline {
             Some(deadline) => tokio::select! {
                 error = cancellation => error,
-                () = tokio::time::sleep_until(deadline.into()) => failure("Timeout", "request deadline expired"),
+                () = tokio::time::sleep_until(deadline.into()) => total_timeout(),
             },
             None => cancellation.await,
         }

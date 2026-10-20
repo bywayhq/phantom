@@ -13,15 +13,19 @@ const budgetHandles = new WeakMap();
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
 
 class PhantomError extends Error {
-  constructor(code, message) {
+  constructor(code, message, protocol, timeoutPhase) {
     super(message);
     this.name = 'PhantomError';
     this.code = code;
+    this.protocol = protocol;
+    this.timeoutPhase = timeoutPhase;
   }
 }
 
 function translated(error) {
   if (error instanceof PhantomError) return error;
+  const request = /^PHANTOM_REQUEST:([A-Za-z0-9_]+):([A-Za-z0-9_]*):([A-Za-z0-9_]*):([\s\S]*)$/.exec(error?.message ?? '');
+  if (request) return new PhantomError(request[1], request[4], request[2] || undefined, request[3] || undefined);
   const match = /^PHANTOM:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
   return match
     ? new PhantomError(match[1], match[2])
@@ -44,6 +48,28 @@ function bytes(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(backing, apply(offsetOf, value, []), apply(lengthOf, value, []));
 }
 
+function phaseTimeouts(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new PhantomError('InvalidArgument', 'timeouts must be an object');
+  }
+  const names = {
+    poolAdmissionMs: 'poolAdmission', connectMs: 'connect',
+    responseHeadMs: 'responseHead', readIdleMs: 'readIdle', totalMs: 'total',
+  };
+  const result = {};
+  for (const name of Object.keys(value)) {
+    if (!Object.hasOwn(names, name)) throw new PhantomError('InvalidArgument', 'unknown timeout phase');
+    const milliseconds = value[name];
+    if (milliseconds !== undefined) {
+      result[names[name]] = milliseconds === null
+        ? {disabled: true, milliseconds: 0}
+        : {disabled: false, milliseconds: integer(milliseconds, name)};
+    }
+  }
+  return result;
+}
+
 class AttemptBudget {
   constructor(maximum) {
     budgetHandles.set(this, new native.NativeAttemptBudget(integer(maximum, 'maximum')));
@@ -62,6 +88,10 @@ class Response {
     this.#owner = owner;
     abandonedResponses.register(this, cleanup, this);
     this.status = response.status;
+    this.protocol = response.protocol;
+    this.url = response.url;
+    this.redirects = response.redirects;
+    this.connectionRetries = response.connectionRetries;
     this.headers = response.headers.map(({ name, value }) => ({ name, value }));
   }
   #finished() {
@@ -134,7 +164,11 @@ class Client {
   constructor(options) {
     try {
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
-      this.#native = environment.client({ ...options, additionalRoots: options.additionalRoots?.map(bytes) });
+      this.#native = environment.client({
+        ...options, additionalRoots: options.additionalRoots?.map(bytes),
+        additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
+        timeouts: phaseTimeouts(options.timeouts),
+      });
     } catch (error) { throw translated(error); }
   }
   async request(url, options) {
@@ -157,7 +191,7 @@ class Client {
         url, method: options.method, protocol: options.protocol, context: options.context,
         headers: options.headers?.map((header) => ({ ...header, value: bytes(header.value) })),
         body: options.body === undefined ? undefined : bytes(options.body),
-        file: options.file, timeoutMs: options.timeoutMs,
+        file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
       }, cancellation, budget);
       if (signal?.aborted) { response.close(); throw new PhantomError('Cancelled', 'request was cancelled'); }
       return new Response(response, cleanup, this);
@@ -168,6 +202,27 @@ class Client {
   }
   cookieValue(url) {
     try { return this.#native.cookieValue(url); } catch (error) { throw translated(error); }
+  }
+  clearCookies() {
+    try { this.#native.clearCookies(); } catch (error) { throw translated(error); }
+  }
+  clearDnsCache() {
+    try { this.#native.clearDnsCache(); } catch (error) { throw translated(error); }
+  }
+  clearAltSvc() {
+    try { this.#native.clearAltSvc(); } catch (error) { throw translated(error); }
+  }
+  clearClientHints() {
+    try { this.#native.clearClientHints(); } catch (error) { throw translated(error); }
+  }
+  clearSessionTickets() {
+    try { return this.#native.clearSessionTickets(); } catch (error) { throw translated(error); }
+  }
+  async closeIdleConnections() {
+    try { await this.#native.closeIdleConnections(); } catch (error) { throw translated(error); }
+  }
+  async refreshConnections() {
+    try { await this.#native.refreshConnections(); } catch (error) { throw translated(error); }
   }
   async close({ timeoutMs = 5000 } = {}) {
     integer(timeoutMs, 'timeoutMs');

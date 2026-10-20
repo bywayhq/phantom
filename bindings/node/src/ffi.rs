@@ -119,6 +119,68 @@ pub struct ClientOptions {
     pub maximum_active_requests: Option<u32>,
     /// Additional DER trust roots, copied during construction.
     pub additional_roots: Option<Vec<Buffer>>,
+    /// Additional trust roots for HTTPS proxy connections.
+    pub additional_proxy_roots: Option<Vec<Buffer>>,
+    /// Base HTTP(S) URL for relative request targets.
+    pub base_url: Option<String>,
+    /// Per-phase defaults; omitted phases retain the Rust defaults.
+    pub timeouts: Option<PhaseTimeouts>,
+}
+
+/// One normalized, private timeout choice from the JavaScript facade.
+#[derive(Clone, Debug)]
+#[napi(object)]
+pub struct PhaseTimeout {
+    /// Explicitly disables this phase instead of inheriting it.
+    pub disabled: bool,
+    /// Finite milliseconds, including zero; zero when disabled.
+    pub milliseconds: u32,
+}
+
+/// Independent timeout choices for the five native request phases.
+#[derive(Clone, Debug, Default)]
+#[napi(object)]
+pub struct PhaseTimeouts {
+    /// Waiting for a native pool admission.
+    pub pool_admission: Option<PhaseTimeout>,
+    /// DNS, proxy negotiation, transport and TLS setup.
+    pub connect: Option<PhaseTimeout>,
+    /// Sending the request and receiving its final headers.
+    pub response_head: Option<PhaseTimeout>,
+    /// Inactivity between received body frames.
+    pub read_idle: Option<PhaseTimeout>,
+    /// The entire logical request through body completion.
+    pub total: Option<PhaseTimeout>,
+}
+
+impl PhaseTimeouts {
+    pub(crate) fn overrides(self) -> Result<phantom::RequestTimeoutOverrides> {
+        fn phase(value: Option<PhaseTimeout>) -> Result<phantom::TimeoutOverride> {
+            match value {
+                None => Ok(phantom::TimeoutOverride::Inherit),
+                Some(PhaseTimeout {
+                    disabled: true,
+                    milliseconds: 0,
+                }) => Ok(phantom::TimeoutOverride::Disabled),
+                Some(PhaseTimeout {
+                    disabled: false,
+                    milliseconds,
+                }) => Ok(phantom::TimeoutOverride::Limit(Duration::from_millis(
+                    u64::from(milliseconds),
+                ))),
+                Some(_) => Err(failure(
+                    "InvalidTimeout",
+                    "disabled phases must have no finite limit",
+                )),
+            }
+        }
+        Ok(phantom::RequestTimeoutOverrides::new()
+            .pool_admission(phase(self.pool_admission)?)
+            .connect(phase(self.connect)?)
+            .response_head(phase(self.response_head)?)
+            .read_idle(phase(self.read_idle)?)
+            .total(phase(self.total)?))
+    }
 }
 
 /// One bounded, one-shot regular-file upload.
@@ -133,11 +195,11 @@ pub struct FileUpload {
 /// Owned inputs for one request.
 #[napi(object)]
 pub struct RequestOptions {
-    /// Absolute HTTP or HTTPS URL.
+    /// Absolute HTTP/HTTPS URL, or a relative reference with a configured base.
     pub url: String,
     /// Explicit HTTP method.
     pub method: String,
-    /// Exact http1, http2 or http3 protocol.
+    /// Exact http1/http2/http3, or explicitly negotiated HTTP/2 and HTTP/1.
     pub protocol: String,
     /// Explicit raw or compiled browser request context.
     pub context: String,
@@ -149,6 +211,8 @@ pub struct RequestOptions {
     pub file: Option<FileUpload>,
     /// Total deadline from submission, including file opening and body reads.
     pub timeout_ms: Option<u32>,
+    /// Per-phase overrides; absence inherits and explicit disable removes a limit.
+    pub timeouts: Option<PhaseTimeouts>,
 }
 
 impl fmt::Debug for WireHeader {
@@ -198,15 +262,20 @@ impl NativeEnvironment {
     /// Constructs a reusable client without caching this Env.
     #[napi]
     pub fn client(&self, env: Env, mut options: ClientOptions) -> Result<NativeClient> {
-        let roots = options.additional_roots.take().unwrap_or_default();
-        if roots.len() > 16 {
-            return Err(failure("InputLimit", "too many additional trust roots"));
-        }
-        let roots = roots
-            .into_iter()
-            .map(|root| copy_buffer(&env, root, 1024 * 1024))
-            .collect::<Result<Vec<_>>>()?;
-        ClientState::build(options, roots, &self.state).map(|state| NativeClient { state })
+        let copy_roots = |roots: Option<Vec<Buffer>>| {
+            let roots = roots.unwrap_or_default();
+            if roots.len() > 16 {
+                return Err(failure("InputLimit", "too many additional trust roots"));
+            }
+            roots
+                .into_iter()
+                .map(|root| copy_buffer(&env, root, 1024 * 1024))
+                .collect::<Result<Vec<_>>>()
+        };
+        let roots = copy_roots(options.additional_roots.take())?;
+        let proxy_roots = copy_roots(options.additional_proxy_roots.take())?;
+        ClientState::build(options, roots, proxy_roots, &self.state)
+            .map(|state| NativeClient { state })
     }
 }
 
@@ -274,6 +343,72 @@ pub struct NativeClient {
 
 #[napi]
 impl NativeClient {
+    /// Closes idle origin and proxy connections without closing this client.
+    #[napi]
+    pub fn close_idle_connections(&self, env: Env) -> Result<AsyncBlock<()>> {
+        self.state.check_open()?;
+        let owner = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            owner.core.close_idle_connections().await;
+            Ok(())
+        })
+        .build(&env)
+    }
+    /// Retires connections while retaining compatible session state.
+    #[napi]
+    pub fn refresh_connections(&self, env: Env) -> Result<AsyncBlock<()>> {
+        self.state.check_open()?;
+        let owner = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            owner.core.refresh_connections().await;
+            Ok(())
+        })
+        .build(&env)
+    }
+    /// Clears the native DNS cache.
+    #[napi]
+    pub fn clear_dns_cache(&self) -> Result<()> {
+        self.state.check_open()?;
+        self.state.core.clear_dns_cache();
+        Ok(())
+    }
+    /// Clears advertised alternatives and their racing history.
+    #[napi]
+    pub fn clear_alt_svc(&self) -> Result<()> {
+        self.state.check_open()?;
+        self.state.core.clear_alt_svc();
+        Ok(())
+    }
+    /// Clears learned client hints.
+    #[napi]
+    pub fn clear_client_hints(&self) -> Result<()> {
+        self.state.check_open()?;
+        self.state.core.clear_client_hints();
+        Ok(())
+    }
+    /// Clears retained TLS tickets and returns the removed count.
+    #[napi]
+    pub fn clear_session_tickets(&self) -> Result<u32> {
+        self.state.check_open()?;
+        let count = self
+            .state
+            .core
+            .clear_session_tickets()
+            .map_err(|_| failure("SessionTickets", "session tickets could not be cleared"))?;
+        u32::try_from(count)
+            .map_err(|_| failure("Capacity", "ticket count exceeds the supported range"))
+    }
+    /// Clears this client's native cookie jar.
+    #[napi]
+    pub fn clear_cookies(&self) -> Result<()> {
+        self.state.check_open()?;
+        self.state
+            .core
+            .cookie_jar()
+            .ok_or_else(|| failure("CookiesDisabled", "cookie handling is disabled"))?
+            .clear();
+        Ok(())
+    }
     /// Copies JS-owned input before scheduling a native-owned request future.
     #[napi]
     pub fn request(
@@ -319,10 +454,14 @@ impl NativeClient {
         )?;
         let owner = Arc::clone(&self.state);
         AsyncBlockBuilder::new(async move {
-            let (status, headers, exchange) = prepared.send().await?;
+            let (head, exchange) = prepared.send().await?;
             Ok(NativeResponse {
-                status,
-                headers,
+                status: head.status,
+                headers: head.headers,
+                protocol: head.protocol,
+                url: head.url,
+                redirects: head.redirects,
+                connection_retries: head.connection_retries,
                 exchange,
                 owner,
             })
@@ -373,6 +512,10 @@ impl NativeClient {
 pub struct NativeResponse {
     status: u32,
     headers: Vec<(String, Vec<u8>)>,
+    protocol: String,
+    url: String,
+    redirects: u32,
+    connection_retries: u32,
     exchange: Arc<Exchange>,
     owner: Arc<ClientState>,
 }
@@ -388,6 +531,30 @@ impl fmt::Debug for NativeResponse {
 
 #[napi]
 impl NativeResponse {
+    /// Actual protocol that produced this response.
+    #[napi(getter)]
+    #[must_use]
+    pub fn protocol(&self) -> String {
+        self.protocol.clone()
+    }
+    /// Final URL after following redirects.
+    #[napi(getter)]
+    #[must_use]
+    pub fn url(&self) -> String {
+        self.url.clone()
+    }
+    /// Number of redirects followed for this logical request.
+    #[napi(getter)]
+    #[must_use]
+    pub fn redirects(&self) -> u32 {
+        self.redirects
+    }
+    /// Connection-setup retries, excluding other replay classes.
+    #[napi(getter)]
+    #[must_use]
+    pub fn connection_retries(&self) -> u32 {
+        self.connection_retries
+    }
     /// HTTP status received from the peer.
     #[napi(getter)]
     #[must_use]

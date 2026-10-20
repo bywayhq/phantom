@@ -27,6 +27,15 @@ use crate::{
 pub(crate) const MAXIMUM_INPUT_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) const MAXIMUM_HEADER_BYTES: usize = 64 * 1024;
 
+pub(crate) struct ResponseHead {
+    pub(crate) status: u32,
+    pub(crate) headers: Vec<(String, Vec<u8>)>,
+    pub(crate) protocol: String,
+    pub(crate) url: String,
+    pub(crate) redirects: u32,
+    pub(crate) connection_retries: u32,
+}
+
 pub(crate) struct Prepared {
     builder: RequestBuilder,
     file: Option<(String, u64)>,
@@ -54,23 +63,25 @@ impl Prepared {
             ));
         }
         let protocol = match options.protocol.as_str() {
-            "http1" => HttpProtocol::Http1,
-            "http2" => HttpProtocol::Http2,
-            "http3" => HttpProtocol::Http3,
+            "http1" => Some(HttpProtocol::Http1),
+            "http2" => Some(HttpProtocol::Http2),
+            "http3" => Some(HttpProtocol::Http3),
+            "negotiated" => None,
             _ => {
                 return Err(failure(
                     "InvalidProtocol",
-                    "choose http1, http2 or http3 explicitly",
+                    "choose http1, http2, http3 or negotiated explicitly",
                 ));
             }
         };
         let method = Method::from_bytes(options.method.as_bytes())
             .map_err(|_| failure("InvalidMethod", "invalid HTTP method"))?;
-        let mut builder = client
-            .core
-            .request(protocol, method, &options.url)
-            .map_err(request)?
-            .headers(headers);
+        let mut builder = match protocol {
+            Some(protocol) => client.core.request(protocol, method, &options.url),
+            None => client.core.request_negotiated(method, &options.url),
+        }
+        .map_err(request)?
+        .headers(headers);
         if options.context != "raw" {
             let kind = match options.context.as_str() {
                 "navigation" => RequestTemplateKind::Navigation,
@@ -118,14 +129,29 @@ impl Prepared {
         if let Some(budget) = budget {
             builder = builder.attempt_budget(budget);
         }
-        let deadline = options
-            .timeout_ms
-            .map(|milliseconds| {
+        let timeouts = options.timeouts.unwrap_or_default();
+        if options.timeout_ms.is_some() && timeouts.total.is_some() {
+            return Err(failure(
+                "InvalidTimeout",
+                "choose timeoutMs or timeouts.totalMs, not both",
+            ));
+        }
+        let mut overrides = timeouts.overrides()?;
+        if let Some(milliseconds) = options.timeout_ms {
+            overrides = overrides.total(phantom::TimeoutOverride::Limit(Duration::from_millis(
+                u64::from(milliseconds),
+            )));
+        }
+        let deadline = overrides
+            .resolve(client.timeouts)
+            .total_duration()
+            .map(|duration| {
                 started
-                    .checked_add(Duration::from_millis(u64::from(milliseconds)))
+                    .checked_add(duration)
                     .ok_or_else(|| failure("InvalidTimeout", "deadline cannot be represented"))
             })
             .transpose()?;
+        builder = builder.timeouts(overrides);
         let permit = Arc::clone(&client.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;
@@ -140,7 +166,7 @@ impl Prepared {
         })
     }
 
-    pub(crate) async fn send(self) -> Result<(u32, Vec<(String, Vec<u8>)>, Arc<Exchange>)> {
+    pub(crate) async fn send(self) -> Result<(ResponseHead, Arc<Exchange>)> {
         let Self {
             mut builder,
             file,
@@ -169,6 +195,25 @@ impl Prepared {
             }
             let response = builder.send().await.map_err(request)?;
             let status = u32::from(response.status().as_u16());
+            let info = response
+                .extensions()
+                .get::<phantom::ResponseInfo>()
+                .ok_or_else(|| failure("Internal", "response metadata is unavailable"))?;
+            let protocol = match info.protocol() {
+                HttpProtocol::Http1 => "http1",
+                HttpProtocol::Http2 => "http2",
+                HttpProtocol::Http3 => "http3",
+                _ => return Err(failure("Internal", "response protocol is unsupported")),
+            }
+            .to_owned();
+            let url = info.effective_uri().to_string();
+            let count = |value| {
+                u32::try_from(value).map_err(|_| {
+                    failure("Capacity", "response counter exceeds the supported range")
+                })
+            };
+            let redirects = count(info.redirects_followed())?;
+            let connection_retries = count(info.retries_performed())?;
             let headers = response
                 .extensions()
                 .get::<phantom::OrderedResponseHeaders>()
@@ -177,7 +222,17 @@ impl Prepared {
                 .map(|header| (header.name().to_owned(), header.value().to_vec()))
                 .collect();
             exchange.attach(response.into_body())?;
-            Ok((status, headers, Arc::clone(&exchange)))
+            Ok((
+                ResponseHead {
+                    status,
+                    headers,
+                    protocol,
+                    url,
+                    redirects,
+                    connection_retries,
+                },
+                Arc::clone(&exchange),
+            ))
         };
         tokio::select! {
             biased;

@@ -57,6 +57,7 @@ pub(crate) struct ClientState {
     pub(crate) core: Client,
     pub(crate) profile: &'static phantom_profile::catalog::ProfileDefinition,
     pub(crate) admission: Arc<Semaphore>,
+    pub(crate) timeouts: phantom::RequestTimeouts,
     maximum: usize,
     shutdown_pending: AtomicBool,
     closed: AtomicBool,
@@ -67,6 +68,7 @@ impl ClientState {
     pub(crate) fn build(
         options: ClientOptions,
         roots: Vec<Vec<u8>>,
+        proxy_roots: Vec<Vec<u8>>,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
         let maximum = options.maximum_active_requests.unwrap_or(32);
@@ -93,6 +95,23 @@ impl ClientState {
         for root in roots {
             builder = builder.add_root_certificate_der(root);
         }
+        for root in proxy_roots {
+            builder = builder.add_proxy_root_certificate_der(root);
+        }
+        if let Some(url) = options.base_url {
+            builder = builder.base_url(&url).map_err(|_| {
+                failure(
+                    "InvalidConfiguration",
+                    "baseUrl must be a supported absolute HTTP URL",
+                )
+            })?;
+        }
+        let timeouts = options
+            .timeouts
+            .unwrap_or_default()
+            .overrides()?
+            .resolve(phantom::RequestTimeouts::new());
+        builder = builder.request_timeouts(timeouts);
         let core = builder
             .build()
             .map_err(|error| failure(&format!("{:?}", error.kind()), &error.to_string()))?;
@@ -100,6 +119,7 @@ impl ClientState {
             core,
             profile,
             admission: Arc::new(Semaphore::new(maximum as usize)),
+            timeouts,
             maximum: maximum as usize,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
@@ -124,6 +144,14 @@ impl ClientState {
 
     pub(crate) fn is_closed(&self) -> bool {
         self.closed.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn check_open(&self) -> Result<()> {
+        if self.is_closed() {
+            Err(failure("ClientClosed", "client is closed"))
+        } else {
+            Ok(())
+        }
     }
 
     fn is_quiescent(&self) -> bool {
@@ -237,6 +265,7 @@ mod tests {
                 core: core.clone(),
                 profile,
                 admission: Arc::new(Semaphore::new(1)),
+                timeouts: phantom::RequestTimeouts::new(),
                 maximum: 1,
                 shutdown_pending: AtomicBool::new(false),
                 closed: AtomicBool::new(false),
