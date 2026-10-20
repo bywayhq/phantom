@@ -169,7 +169,7 @@ def copied_tests(destination):
             (
                 "require('../phantom.node')",
                 "require(path.join(path.dirname(require.resolve('@byway/phantom')), 'phantom.node'))",
-                1,
+                2,
             ),
         ),
         "http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
@@ -179,6 +179,11 @@ def copied_tests(destination):
         "session-sharing.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "content-decoding.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
+        "redirects.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "retries.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "types.cts": (("from '../index.cjs'", "from '@byway/phantom'", 1),),
         "types.mts": (("from '../index.mjs'", "from '@byway/phantom'", 1),),
     }
@@ -331,6 +336,9 @@ def installed_checks(archive, runtimes, version, files, commands, tools):
                         "tests/configuration.test.cjs",
                         "tests/profiles.test.cjs",
                         "tests/session-sharing.test.cjs",
+                        "tests/content-decoding.test.cjs",
+                        "tests/redirects.test.cjs",
+                        "tests/retries.test.cjs",
                     ],
                     cwd=consumer,
                     env=environment,

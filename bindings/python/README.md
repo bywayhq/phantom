@@ -86,7 +86,16 @@ response. Other multiplexed streams remain usable. Cleanup may finish later.
 
 Protocols are `h1`, `h2`, `h3` and `negotiated` (HTTP/2 or HTTP/1.1). Direct
 `h2` with an HTTP URL uses cleartext prior knowledge. Unknown profiles and
-unsupported combinations fail. Wrapper retries and redirects are not enabled.
+unsupported combinations fail. Redirect following and caller retries are opt-in.
+
+Use `redirect_policy=RedirectPolicy.limited(5)` on a client or request.
+`redirect_history_limit=3` retains the first selected hops, including their URLs.
+Use `retry_policy=RetryPolicy(status_retry=StatusRetry(statuses=(503,),
+maximum=2, delay=0.1))` for eligible status retries. Import these types from
+`phantom_http`. Connection retries, replay controls, capped backoff, jitter and
+bounded `Retry-After` use the same core policies. Delays are seconds. Request
+policies replace client policies; empty policies disable them. Attempts share
+the total deadline and budget, with the core's body-replay and credential rules.
 
 Pass `context="navigation"` or `"fetch"` for that catalog profile's headers.
 The default, `None`, and `"raw"` use caller fields only. Headers are ordered

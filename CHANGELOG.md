@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Expose bounded advertised-content decoding, redirect policies and history,
+  and core retry scheduling in Python, Go and Node.js. Attempts retain shared
+  deadlines, budgets and replay rules.
+
+- Breaking: Node.js attempt budgets accept exact `bigint` counts, expose
+  external admission and preserve counts beyond safe JavaScript integers.
+  Migrate: narrow `AttemptBudget.remaining` from `number | bigint` before
+  numeric arithmetic. Use `tryAdmit()` only for attempts outside Phantom.
+
+- Add Node.js Alt-Svc racing-history clearing and refine binding setup,
+  streaming, profile and shared-state documentation.
+
 - Fork Python, Go and Node.js clients with independent connection pools and
   explicitly shared cookies, DNS, client hints, discovery state or tickets.
 

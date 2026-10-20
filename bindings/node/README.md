@@ -63,7 +63,10 @@ Inputs are copied before async work; shared byte buffers are rejected.
 `read(maximumBytes)` pulls up to 65,536 bytes; `null` means EOF. Only one reader
 can be pending. `bytes(maximumBytes)`, `text(maximumBytes)` and
 `json(maximumBytes)` consume the remaining body within your byte limit and
-close it on completion or failure. Content encoding is retained.
+close it on completion or failure. Content stays encoded unless you pass
+`contentDecoding: {mode: 'advertised', maximumDecodedBytes: 1_000_000n}` and
+an `accept-encoding` header. Decoded-stream and collection limits are separate.
+Headers remain unchanged; `decodedContentCodings` records the selected chain.
 
 Text is strict UTF-8 with one leading BOM removed. JSON returns `unknown` in
 TypeScript; validate its shape. Parsing is synchronous and cannot be interrupted
@@ -172,33 +175,21 @@ are rejected.
 
 ## Redirects
 
-Redirects are returned by default. Set `redirectPolicy: {mode: 'limited',
-maximumHops: 5}` on a client or request to follow them. Request policies replace
-the client policy; `{mode: 'none'}` stops following. Counts accept positive safe
-integers or `bigint` values fitting the host's native pointer size.
-
-Add `redirectHistoryLimit: 3` to retain the first three selected hops in
-`response.redirectHistory`. Later hops increment `omittedHops`; omitted history
-is `null`. History includes URLs, so treat it as sensitive. Failed requests
-return no history. Redirects share the request deadline and attempt budget.
-One-shot files cannot be replayed for a redirect that retains their body.
+Set client/request `redirectPolicy: {mode: 'limited', maximumHops: 5}` to follow
+redirects; the default returns them. Request policies replace client policies;
+`{mode: 'none'}` stops following. `redirectHistoryLimit: 3` retains the first
+selected hops in `response.redirectHistory`, including their URLs. Later hops
+increment `omittedHops`; disabled history is `null`.
 
 ## Retries
 
-Caller retries are disabled by default. For example, set
+Caller retries default to disabled. Set
 `retryPolicy: {statusRetry: {statuses: [503], maximum: 2, delayMs: 100}}` on a
-client or request. A request replaces the whole policy; `{}` disables it.
-
-`connectionFailures` uses the same `maximum` and `delayMs` fields.
-Both schedules accept `maximumDelayMs` for capped exponential backoff and
-`fullJitter`. Status retries can honor `Retry-After` with `retryAfterLimitMs`.
-Delays are finite, nonnegative milliseconds. Counts follow the redirect count
-rules; `maximumRetries: 0` disables caller retries across all classes.
-
-`reusedConnectionReplay`, `unprocessedReplays`, and explicit `http2Fallback`
-select the other core classes. Core eligibility and body replay rules still
-apply. Retries share the total deadline and `AttemptBudget`; neither enables
-retries itself. Automatic browser replays remain separate from caller policy.
+client or request. Request policies replace the whole policy; `{}` disables it.
+Connection retries, replay controls, capped backoff, jitter and bounded
+`Retry-After` use the same core policies; see [types](index.d.ts).
+All attempts share deadlines and `AttemptBudget`. Core replay and credential
+rules apply; one-shot files cannot be resent with their body.
 
 ## Share session state
 

@@ -104,7 +104,11 @@ func download(ctx context.Context, client *phantom.Client, url string, out io.Wr
 ```
 
 Add `io` to your imports. Copying imposes no total download limit. Reads pull
-up to 64 KiB at a time; content encoding is retained. EOF, read errors and
+up to 64 KiB at a time. Content stays encoded unless you set
+`Request.ContentDecoding = phantom.AdvertisedDecoding(limit)` and supply
+`Accept-Encoding`. The decoded-stream limit and collection limit are separate.
+`DecodedContentCodings` records the selected chain; headers remain unchanged.
+EOF, read errors and
 `Close` release the native body. Concurrent reads are serialized. Byte uploads
 use replayable `Request.Body`; streaming upload readers/files are not exposed.
 
@@ -152,8 +156,15 @@ one-millisecond minimum; do not combine it with explicit `Timeouts.Total`.
 `*Error` exposes redacted `Kind`, protocol and timeout phase when known.
 Messages omit URLs, credentials and native source chains. Responses retain
 `EffectiveURL`, `RedirectsFollowed` and `ConnectionSetupRetries`; the last
-counter covers caller-enabled setup retries only. Redirect/retry policies
-are not exposed yet.
+counter covers caller-enabled setup retries only.
+
+`Config.RedirectPolicy` and `RetryPolicy` default to disabled. Set
+`RedirectPolicy{MaximumHops: 5}` to follow redirects. Use `StatusRetry` or
+`ConnectionRetry` for bounded retries, with optional capped backoff, jitter and
+`Retry-After`. Request pointers inherit when nil and replace the whole policy
+otherwise. `Request.RedirectHistoryLimit` retains selected hops and their URLs.
+All attempts share the total deadline and budget. See [policy types](policy.go)
+and [retry settings](retry.go) for fields and replay rules.
 
 ## Edit profiles
 
