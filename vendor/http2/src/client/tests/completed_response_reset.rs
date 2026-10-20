@@ -1,0 +1,218 @@
+use super::*;
+
+const DEADLINE: Duration = Duration::from_secs(5);
+
+struct Client {
+    peer: DuplexStream,
+    sender: super::super::SendRequest<Bytes>,
+    driver: tokio::task::JoinHandle<Result<(), crate::Error>>,
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        self.driver.abort();
+    }
+}
+
+impl Client {
+    async fn open() -> Self {
+        let (io, mut peer) = duplex(16 * 1024);
+        let (sender, connection) = super::super::handshake(io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        accept_client_handshake(&mut peer).await;
+        Self {
+            peer,
+            sender,
+            driver,
+        }
+    }
+
+    async fn close(mut self) {
+        self.driver.abort();
+        match (&mut self.driver).await {
+            Err(error) => assert!(error.is_cancelled(), "driver panicked: {error}"),
+            Ok(result) => panic!("driver exited before cleanup: {result:?}"),
+        }
+    }
+
+    async fn respond(
+        &mut self,
+        ending: Ending,
+        reason: crate::Reason,
+    ) -> (Response<crate::RecvStream>, crate::SendStream<Bytes>) {
+        let (response, send) = self
+            .sender
+            .send_request(data_budget_request(), false)
+            .expect("request rejected");
+        loop {
+            let frame = read_raw_frame(&mut self.peer).await;
+            assert_ne!(frame.kind, 7, "unexpected GOAWAY");
+            if frame.kind == 1 {
+                assert_eq!((frame.stream_id, frame.flags & 5), (1, 4));
+                break;
+            }
+        }
+
+        // Queue response and reset in one write, before polling its future.
+        // The PING ACK proves the driver processed the reset before inspection.
+        let mut frames = Vec::new();
+        frame(
+            &mut frames,
+            1,
+            if matches!(ending, Ending::Headers) {
+                5
+            } else {
+                4
+            },
+            &[0x88],
+        );
+        match ending {
+            Ending::Headers | Ending::Incomplete => {}
+            Ending::Data => frame(&mut frames, 0, 1, b"payload"),
+            Ending::Trailers => {
+                frame(&mut frames, 0, 0, b"payload");
+                // Literal, unindexed x-end: yes.
+                frame(&mut frames, 1, 5, b"\x00\x05x-end\x03yes");
+            }
+        }
+        frame(&mut frames, 3, 0, &u32::from(reason).to_be_bytes());
+        self.peer
+            .write_all(&frames)
+            .await
+            .expect("peer frames failed");
+        assert_connection_open(&mut self.peer).await;
+        (response.await.expect("response headers failed"), send)
+    }
+
+    async fn healthy_request(&mut self) {
+        let (response, send) = self
+            .sender
+            .send_request(data_budget_request(), true)
+            .expect("healthy request rejected");
+        read_request_headers(&mut self.peer, 3).await;
+        write_raw_frame(&mut self.peer, 1, 5, 3, &[0x88]).await;
+        let response = response.await.expect("healthy response failed");
+        assert!(response.body().is_end_stream());
+        drop((response, send));
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Ending {
+    Headers,
+    Data,
+    Trailers,
+    Incomplete,
+}
+
+fn frame(output: &mut Vec<u8>, kind: u8, flags: u8, payload: &[u8]) {
+    let length = u32::try_from(payload.len()).expect("small test frame");
+    output.extend_from_slice(&length.to_be_bytes()[1..]);
+    output.extend_from_slice(&[kind, flags]);
+    output.extend_from_slice(&1_u32.to_be_bytes());
+    output.extend_from_slice(payload);
+}
+
+async fn completed_response(ending: Ending) {
+    timeout(DEADLINE, async {
+        let mut client = Client::open().await;
+        let (mut response, mut send) = client.respond(ending, crate::Reason::NO_ERROR).await;
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            poll_fn(|cx| send.poll_reset(cx))
+                .await
+                .expect("reset observation failed"),
+            crate::Reason::NO_ERROR,
+            "completed receive must not erase the send-side reset"
+        );
+        assert_eq!(
+            response.body().is_end_stream(),
+            matches!(ending, Ending::Headers)
+        );
+        if !matches!(ending, Ending::Headers) {
+            assert_eq!(
+                response
+                    .body_mut()
+                    .data()
+                    .await
+                    .expect("payload missing")
+                    .expect("payload failed"),
+                "payload"
+            );
+        }
+        assert!(
+            response.body_mut().data().await.is_none(),
+            "completed response became an error"
+        );
+        let trailers = response
+            .body_mut()
+            .trailers()
+            .await
+            .expect("trailers failed");
+        if matches!(ending, Ending::Trailers) {
+            assert_eq!(trailers.expect("trailers missing")["x-end"], "yes");
+        } else {
+            assert!(trailers.is_none());
+        }
+        assert!(response.body().is_end_stream());
+        drop((response, send));
+        client.healthy_request().await;
+        client.close().await;
+    })
+    .await
+    .expect("completed response reset test timed out");
+}
+
+#[tokio::test]
+async fn completed_headers_survive_no_error_reset() {
+    completed_response(Ending::Headers).await;
+}
+
+#[tokio::test]
+async fn completed_data_survive_no_error_reset() {
+    completed_response(Ending::Data).await;
+}
+
+#[tokio::test]
+async fn completed_trailers_survive_no_error_reset() {
+    completed_response(Ending::Trailers).await;
+}
+
+#[tokio::test]
+async fn incomplete_response_no_error_reset_remains_an_error() {
+    rejected_response(Ending::Incomplete, crate::Reason::NO_ERROR).await;
+}
+
+#[tokio::test]
+async fn completed_response_internal_reset_remains_an_error() {
+    rejected_response(Ending::Headers, crate::Reason::INTERNAL_ERROR).await;
+}
+
+async fn rejected_response(ending: Ending, reason: crate::Reason) {
+    timeout(DEADLINE, async {
+        let mut client = Client::open().await;
+        let (mut response, mut send) = client.respond(ending, reason).await;
+        assert!(!response.body().is_end_stream());
+        let error = response
+            .body_mut()
+            .data()
+            .await
+            .expect("reset missing")
+            .expect_err("bad reset accepted");
+        assert!(error.is_reset() && error.is_remote());
+        assert_eq!(error.reason(), Some(reason));
+        assert_eq!(
+            poll_fn(|cx| send.poll_reset(cx))
+                .await
+                .expect("reset observation failed"),
+            reason
+        );
+        drop((response, send));
+        client.healthy_request().await;
+        client.close().await;
+    })
+    .await
+    .expect("negative response reset test timed out");
+}
