@@ -147,5 +147,11 @@ func (u *uploadLifetime) wrap(err error) error {
 		copy.cause = cause
 		return &copy
 	}
-	return err
+	kind := "request_body"
+	if errors.Is(err, context.Canceled) {
+		kind = "cancelled"
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		kind = "timeout"
+	}
+	return &Error{Kind: kind, cause: errors.Join(err, cause)}
 }
