@@ -30,6 +30,7 @@ const MAX_HANDLES: usize = 64;
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Command {
+    Identity,
     NewClient {
         config: Config,
     },
@@ -145,6 +146,10 @@ struct Reply {
 
 pub(super) fn failure(error: Failure) -> Vec<u8> {
     encode(Err(error))
+}
+
+fn native_identity() -> Value {
+    json!({"abi": 1, "version": env!("CARGO_PKG_VERSION")})
 }
 
 fn encode(result: Result<Value, Failure>) -> Vec<u8> {
@@ -812,6 +817,9 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
     encode((|| {
         let command: Command =
             serde_json::from_slice(input).map_err(|_| Failure::new("invalid_command"))?;
+        if matches!(command, Command::Identity) {
+            return Ok(native_identity());
+        }
         let global = global()?;
         let mut state = global.lock();
         if state.failed
@@ -828,6 +836,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
             return Err(Failure::new("internal"));
         }
         match command {
+            Command::Identity => Ok(native_identity()),
             Command::NewClient { config } => {
                 if state.clients.len() >= MAX_HANDLES {
                     return Err(Failure::new("capacity"));
@@ -1176,6 +1185,17 @@ mod tests {
     mod response_info;
     mod session_sharing;
     mod uploads;
+
+    #[test]
+    fn identity_reports_native_package_without_allocating_a_handle() {
+        let result: Value = serde_json::from_slice(&dispatch(br#"{"kind":"identity"}"#, &[]))
+            .expect("identity response");
+        assert_eq!(
+            result["value"],
+            json!({"abi": 1, "version": env!("CARGO_PKG_VERSION")})
+        );
+        assert!(result["error"].is_null());
+    }
 
     fn test_global() -> Result<&'static Global, Failure> {
         Ok(Box::leak(Box::new(Global {

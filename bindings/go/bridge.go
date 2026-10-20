@@ -43,6 +43,9 @@ func dispatch(command any, data []byte) (json.RawMessage, error) {
 	if err != nil || len(input) > 64*1024 || len(data) > maxUpload {
 		return nil, &Error{Kind: "input_limit"}
 	}
+	if err := ensureNativeIdentity(); err != nil {
+		return nil, err
+	}
 	output := scratch.Get().([]byte)
 	defer scratch.Put(output)
 	length, err := nativeDispatch(input, data, output)
@@ -119,6 +122,9 @@ func performStarted(ctx context.Context, command any, data []byte, started func(
 		return &Error{Kind: "invalid_context"}
 	}
 	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := ensureNativeIdentity(); err != nil {
 		return err
 	}
 	pump.once.Do(func() { pump.pending = make(map[uint64]chan completion); go completionPump() })

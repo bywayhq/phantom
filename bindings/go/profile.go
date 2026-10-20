@@ -159,6 +159,9 @@ func profileCall(command any, document, output []byte) (json.RawMessage, error) 
 	if err != nil || len(input) > 64*1024 {
 		return nil, &Error{Kind: "input_limit"}
 	}
+	if err := ensureNativeIdentity(); err != nil {
+		return nil, err
+	}
 	metadata := scratch.Get().([]byte)
 	defer scratch.Put(metadata)
 	length, err := nativeProfile(input, document, metadata, output)
