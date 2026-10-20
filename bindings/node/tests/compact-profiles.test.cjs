@@ -54,7 +54,7 @@ test('raw TLS imports preserve order, explicit supplements and immutable reports
 test('Akamai import retains base templates and client ownership after source references disappear', async (t) => {
   const identifier = process.platform === 'win32' ? catalog : process.platform === 'darwin'
     ? 'chrome/154.0.8037.95/macos-15.5-arm64/r1' : 'chrome/154.0.8037.57/android-17-pixel7-emulator/r1';
-  let base = Profile.fromCatalog(identifier, 'fetch');
+  let base = Profile.fromCatalog(identifier, 'navigation');
   let result = Profile.importAkamai(akamai, {base});
   const settings = result.profile.describe().profile;
   assert.deepEqual(settings.http2.initial_settings.map((entry) => entry.kind),
