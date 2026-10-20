@@ -7,6 +7,7 @@ and installed tests remain a separate release check.
 
 import argparse
 import gzip
+import hashlib
 import importlib.util
 import io
 import json
@@ -349,6 +350,9 @@ def repair(args):
                 "input_sha256": tools.digest(args.source_archive),
                 "archive_sha256": tools.digest(candidate),
                 "cargo_lock_sha256": tools.digest(lock),
+                "original_cargo_lock_sha256": hashlib.sha256(
+                    source_lock.encode()
+                ).hexdigest(),
                 "maturin": MATURIN,
                 "source_builder_toolchain": toolchain,
                 "supported_targets": list(SUPPORTED_TARGETS),

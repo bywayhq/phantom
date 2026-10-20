@@ -454,6 +454,10 @@ class RepairFlowTests(unittest.TestCase):
             receipt = json.loads((candidate.parent / "receipt.json").read_text())
             self.assertEqual(receipt["input_sha256"], original_digest)
             self.assertEqual(
+                receipt["original_cargo_lock_sha256"],
+                hashlib.sha256(original_lock.encode()).hexdigest(),
+            )
+            self.assertEqual(
                 receipt["archive_sha256"],
                 hashlib.sha256(candidate.read_bytes()).hexdigest(),
             )

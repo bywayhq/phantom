@@ -94,7 +94,7 @@ class PythonBindingEnvironmentTests(unittest.TestCase):
         self.assertEqual(len(self.commands), 8)
         for offset in (0, 4):
             self.assertEqual(self.commands[offset][1:4], ("-m", "pip", "install"))
-            self.assertIn("maturin==1.9.6", self.commands[offset])
+            self.assertIn("maturin==1.15.0", self.commands[offset])
             self.assertIn("--locked", self.commands[offset + 1])
             self.assertIn("--no-deps", self.commands[offset + 2])
             self.assertEqual(

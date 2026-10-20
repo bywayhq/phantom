@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import stat
+import tarfile
 import tempfile
 import unittest
 import warnings
@@ -62,6 +63,294 @@ class PythonWheelTests(unittest.TestCase):
             for name, data in files.items():
                 archive.writestr(name, data)
         return path
+
+    def source_archive(self, *, change=None):
+        revision = "a" * 40
+        lock = b"source closure lock\n"
+        notice = b"dependency license\n"
+        inventory = [
+            {
+                "name": "dependency",
+                "notices": [
+                    {
+                        "file": "dependency/LICENSE",
+                        "sha256": binding.hashlib.sha256(notice).hexdigest(),
+                    }
+                ],
+            }
+        ]
+        files = {
+            "Cargo.lock": lock,
+            "third-party-notices/dependency/LICENSE": notice,
+            "third-party-notices/rust-runtime/COPYRIGHT": b"Rust runtime notices\n",
+            "third-party-notices/inventory.json": json.dumps(inventory).encode(),
+        }
+        for name in ("LICENSE-MIT", "LICENSE-APACHE"):
+            files[name] = (binding.ROOT / "bindings/python" / name).read_bytes()
+        license_paths = sorted(name for name in files if name != "Cargo.lock")
+        files["PKG-INFO"] = (
+            "Metadata-Version: 2.4\nName: phantom-http\nVersion: 0.2.0\n"
+            + "".join(f"License-File: {name}\n" for name in license_paths)
+            + "\n"
+        ).encode()
+        if change:
+            change(files)
+        archive = self.directory / "phantom_http-0.2.0.tar.gz"
+        with tarfile.open(archive, "w:gz") as output:
+            for name, data in files.items():
+                member = tarfile.TarInfo("phantom_http-0.2.0/" + name)
+                member.size = len(data)
+                output.addfile(member, io.BytesIO(data))
+        receipt = {
+            "source_revision": revision,
+            "maturin": binding.MATURIN,
+            "archive_sha256": binding.hashlib.sha256(archive.read_bytes()).hexdigest(),
+            "cargo_lock_sha256": binding.hashlib.sha256(lock).hexdigest(),
+            "original_cargo_lock_sha256": binding.hashlib.sha256(
+                b"original workspace lock\n"
+            ).hexdigest(),
+            "source_builder_toolchain": "1.99.1",
+            "notices": inventory,
+        }
+        receipt_path = self.directory / "receipt.json"
+        receipt_path.write_text(json.dumps(receipt))
+        return archive, receipt_path, receipt, files
+
+    def source_wheel(self, files, **kwargs):
+        def change(payload):
+            for name, data in files.items():
+                if name.startswith("third-party-notices/"):
+                    payload[f"{DIST}/licenses/{name}"] = data
+                    payload[f"{DIST}/METADATA"] += f"License-File: {name}\n".encode()
+            # Add fields before the metadata/body separator.
+            payload[f"{DIST}/METADATA"] = payload[f"{DIST}/METADATA"].replace(
+                b"\n\nLicense-File:", b"\nLicense-File:"
+            )
+
+        return self.wheel(change=change, **kwargs)
+
+    def test_source_receipt_binds_original_and_closure_locks_and_notice_payload(self):
+        archive, path, receipt, files = self.source_archive()
+        checked = binding.inspect_source(
+            archive,
+            path,
+            receipt["source_revision"],
+            receipt["original_cargo_lock_sha256"],
+        )
+        wheel = self.source_wheel(files)
+        binding.inspect_wheel(wheel, TARGET, "0.2.0")
+        binding.inspect_source_notices(wheel, DIST, checked)
+        for field in (
+            "archive_sha256",
+            "cargo_lock_sha256",
+            "original_cargo_lock_sha256",
+            "source_revision",
+            "maturin",
+        ):
+            invalid = dict(receipt, **{field: "wrong"})
+            path.write_text(json.dumps(invalid))
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                binding.inspect_source(
+                    archive,
+                    path,
+                    receipt["source_revision"],
+                    receipt["original_cargo_lock_sha256"],
+                )
+        path.write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(ValueError, "license payload"):
+            binding.inspect_source_notices(self.wheel(), DIST, checked)
+        with self.assertRaisesRegex(ValueError, "inventory"):
+            archive, path, receipt, _ = self.source_archive(
+                change=lambda f: f.update(
+                    {"third-party-notices/dependency/LICENSE": b"changed"}
+                )
+            )
+            binding.inspect_source(
+                archive,
+                path,
+                receipt["source_revision"],
+                receipt["original_cargo_lock_sha256"],
+            )
+
+    def test_source_candidate_uses_only_isolated_locked_pep517_archive_and_never_rewrites_notices(
+        self,
+    ):
+        archive, receipt_path, receipt, files = self.source_archive()
+        original = self.source_wheel(files)
+        directory = self.directory
+        calls = []
+
+        class Commands:
+            def __init__(self, logs):
+                logs.mkdir(parents=True)
+
+            def run(self, args, **kwargs):
+                calls.append((args, kwargs))
+                if args[:2] == ["git", "status"]:
+                    return b""
+                if args[:2] == ["git", "rev-parse"]:
+                    return receipt["source_revision"].encode()
+                if args[:2] == ["git", "show"]:
+                    return b"original workspace lock\n"
+                if args == ["rustc", "-vV"]:
+                    return b"release: 1.99.1"
+                if "wheel" in args:
+                    self_test.assertNotIn("--no-build-isolation", args)
+                    self_test.assertEqual(args[-1], str(archive.resolve()))
+                    settings = next(
+                        a for a in args if a.startswith("--config-settings=")
+                    )
+                    self_test.assertIn("--locked", settings)
+                    self_test.assertIn("--profile release", settings)
+                    self_test.assertNotIn("--release", settings)
+                    self_test.assertIn("profile.release.opt-level=3", settings)
+                    self_test.assertFalse(kwargs["cwd"].is_relative_to(binding.ROOT))
+                    self_test.assertEqual(
+                        kwargs["env"]["CARGO_TARGET_DIR"], str(kwargs["cwd"] / "target")
+                    )
+                    wheels = Path(args[args.index("--wheel-dir") + 1])
+                    wheels.mkdir()
+                    shutil.copyfile(original, wheels / original.name)
+                self_test.assertFalse(args[:2] == ["cargo", "metadata"])
+                return b"test-toolchain"
+
+        self_test = self
+        real_tools = binding.artifact_tools()
+        tools = SimpleNamespace(
+            Commands=Commands,
+            digest=real_tools.digest,
+            host_identity=lambda *_: {},
+            build_jobs=lambda: "1",
+            dependency_inspection=lambda *_: [],
+            write_json=real_tools.write_json,
+        )
+        installed = {
+            "installation": {"version": "0.2.0"},
+            "loopback_checks": {"tests": 18, "skipped": 0},
+        }
+        with (
+            patch.object(binding, "artifact_tools", return_value=tools),
+            patch.object(
+                binding.venv.EnvBuilder, "create", lambda _, path: path.mkdir()
+            ),
+            patch.object(
+                binding, "installed_checks", return_value=installed
+            ) as install,
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            output = directory / "candidate-proof"
+            binding.verify_candidate(
+                TARGET, output, archive, receipt_path, Path("stable-python")
+            )
+            self.assertEqual(install.call_count, 2)
+            result = json.loads((output / "verified/verification.json").read_text())
+            self.assertEqual(result["source_distribution"], receipt)
+            self.assertEqual(
+                (output / "verified" / original.name).read_bytes(),
+                original.read_bytes(),
+            )
+            with (
+                patch.object(
+                    binding,
+                    "installed_checks",
+                    side_effect=ValueError("installed failure"),
+                ),
+                self.assertRaisesRegex(ValueError, "installed failure"),
+            ):
+                binding.verify_candidate(
+                    TARGET, directory / "failed-source", archive, receipt_path
+                )
+            self.assertFalse((directory / "failed-source/verified").exists())
+
+    def test_current_stable_installation_is_explicitly_limited_without_a_typing_build(
+        self,
+    ):
+        for additional in (None, Path("stable-python")):
+            calls = []
+
+            class Commands:
+                def run(self, args, *, cwd, calls=calls, **_):
+                    calls.append(args)
+                    environment = cwd / "environment"
+                    if "venv" in args:
+                        environment.mkdir()
+                    if "-c" in args:
+                        if "importlib.metadata" in args[-1]:
+                            return json.dumps(
+                                {
+                                    "version": "0.2.0",
+                                    "package": str(
+                                        environment / "phantom_http/__init__.py"
+                                    ),
+                                    "extension": str(
+                                        environment / "phantom_http/_native.pyd"
+                                    ),
+                                }
+                            ).encode()
+                        return b'{"tests":18,"skipped":0}'
+                    return b""
+
+            with (
+                self.subTest(additional=additional),
+                patch.object(
+                    binding.venv.EnvBuilder, "create", lambda _, path: path.mkdir()
+                ),
+            ):
+                checked = binding.installed_checks(self.wheel(), Commands(), additional)
+            if additional is None:
+                self.assertTrue(any("mypy==1.19.1" in args for args in calls))
+                self.assertEqual(checked["coverage"], "full installed suite and typing")
+            else:
+                self.assertFalse(
+                    any(any("mypy" in arg for arg in args) for args in calls)
+                )
+                self.assertIn("no typing", checked["coverage"])
+                self.assertTrue(
+                    any("pattern='test_client.py'" in args[-1] for args in calls)
+                )
+            install = next(args for args in calls if "--no-index" in args)
+            self.assertIn("--no-cache-dir", install)
+            self.assertIn("--no-deps", install)
+
+    def test_source_assembly_requires_three_exact_installed_consumers(self):
+        archive, path, receipt, files = self.source_archive()
+        consumers = []
+        for target, tag, extension in (
+            ("x86_64-unknown-linux-gnu", "manylinux_2_28_x86_64", "_native.abi3.so"),
+            (TARGET, "win_amd64", "_native.pyd"),
+            ("aarch64-apple-darwin", "macosx_11_0_arm64", "_native.abi3.so"),
+        ):
+            directory = self.directory / target
+            directory.mkdir()
+            wheel = self.source_wheel(files, tag=tag, extension=extension)
+            shutil.copyfile(wheel, directory / wheel.name)
+            (directory / "verification.json").write_text(
+                json.dumps(
+                    {
+                        "target": target,
+                        "source_distribution": receipt,
+                        "wheel_sha256": binding.hashlib.sha256(
+                            wheel.read_bytes()
+                        ).hexdigest(),
+                        "loopback_checks": {"tests": 18, "skipped": 0},
+                        "additional_installations": [
+                            {"loopback_checks": {"tests": 18, "skipped": 0}}
+                        ],
+                    }
+                )
+            )
+            consumers.append(directory)
+        for invalid in (consumers[:2], [consumers[0], consumers[0], consumers[2]]):
+            with self.assertRaises(ValueError):
+                binding.assemble_candidates(
+                    self.directory, invalid, self.directory / "rejected"
+                )
+            self.assertFalse((self.directory / "rejected").exists())
+        binding.assemble_candidates(self.directory, consumers, self.directory / "ready")
+        self.assertEqual(len(list((self.directory / "ready").glob("*.whl"))), 3)
+        self.assertEqual(
+            (self.directory / "ready" / archive.name).read_bytes(), archive.read_bytes()
+        )
 
     def test_explicit_host_platform_tags_and_abi_are_checked(self):
         for target, tag, extension in (
@@ -199,51 +488,6 @@ class PythonWheelTests(unittest.TestCase):
         ):
             binding.wheel_files(archive)
 
-    def test_notice_rewrite_preserves_original_and_installable_payload_record(self):
-        original = self.wheel()
-        before = original.read_bytes()
-        notices = self.directory / "notices"
-        (notices / "crate-1.0").mkdir(parents=True)
-        (notices / "crate-1.0/LICENSE").write_bytes(b"offline dependency license\n")
-        (notices / "inventory.json").write_bytes(b"{}\n")
-        candidate = self.directory / "candidate" / original.name
-        candidate.parent.mkdir()
-        binding.add_notices(original, candidate, notices, DIST)
-        binding.inspect_wheel(candidate, TARGET, "0.2.0")
-        self.assertEqual(original.read_bytes(), before)
-        with zipfile.ZipFile(original) as source, zipfile.ZipFile(candidate) as output:
-            for name in (
-                "phantom_http/__init__.py",
-                "phantom_http/_native.pyd",
-                "phantom_http/py.typed",
-                "phantom_http/_native.pyi",
-            ):
-                self.assertEqual(source.read(name), output.read(name))
-            metadata = output.read(f"{DIST}/METADATA")
-            self.assertIn(b"License-File: third-party/crate-1.0/LICENSE", metadata)
-            installed = self.directory / "isolated-site-packages"
-            output.extractall(installed)
-        self.assertEqual(
-            (installed / "phantom_http/_native.pyd").read_bytes(),
-            b"retained native bytes",
-        )
-        self.assertEqual(
-            (installed / DIST / "licenses/third-party/crate-1.0/LICENSE").read_bytes(),
-            b"offline dependency license\n",
-        )
-
-    def test_notice_collision_leaves_the_original_wheel_unchanged(self):
-        original = self.wheel()
-        notices = self.directory / "notices"
-        notices.mkdir()
-        (notices / "LICENSE").write_text("notice")
-        first = self.directory / "first.whl"
-        binding.add_notices(original, first, notices, DIST)
-        before = first.read_bytes()
-        with self.assertRaisesRegex(ValueError, "conflicts"):
-            binding.add_notices(first, self.directory / "second.whl", notices, DIST)
-        self.assertEqual(first.read_bytes(), before)
-
     def test_conservative_dependency_closure_excludes_dev_edges_and_handles_cycles(
         self,
     ):
@@ -293,82 +537,26 @@ class PythonWheelTests(unittest.TestCase):
                     TARGET,
                     "--output",
                     str(self.directory / "out"),
+                    "--source-archive",
+                    str(self.directory / "source.tar.gz"),
+                    "--source-receipt",
+                    str(self.directory / "receipt.json"),
                 ],
             ):
                 binding.main()
-            candidate.assert_called_once_with(TARGET, self.directory / "out")
+            candidate.assert_called_once_with(
+                TARGET,
+                self.directory / "out",
+                self.directory / "source.tar.gz",
+                self.directory / "receipt.json",
+                None,
+            )
             with (
                 patch("sys.argv", ["check_python_binding.py", "--target", TARGET]),
                 contextlib.redirect_stderr(io.StringIO()),
                 self.assertRaises(SystemExit),
             ):
                 binding.main()
-
-    def test_failed_install_control_retains_candidates_without_promoting_them(self):
-        original = self.wheel()
-        output = self.directory / "output"
-
-        class Commands:
-            def __init__(self, logs):
-                logs.mkdir(parents=True)
-
-            def run(self, args, **_):
-                if args[:2] == ["git", "status"]:
-                    return b""
-                if args[:2] == ["git", "rev-parse"]:
-                    return b"fixed-source"
-                if args[0] == "rustc":
-                    return str(self_directory).encode()
-                if args[:2] == ["cargo", "metadata"]:
-                    return b"{}"
-                if "build" in args:
-                    wheels = Path(args[args.index("--out") + 1])
-                    wheels.mkdir()
-                    shutil.copyfile(original, wheels / original.name)
-                return b"test-toolchain"
-
-        self_directory = self.directory
-
-        def notices(_metadata, _ids, directory):
-            directory.mkdir()
-            (directory / "LICENSE").write_text("dependency notice")
-            return []
-
-        tools = SimpleNamespace(
-            Commands=Commands,
-            digest=lambda path: binding.hashlib.sha256(path.read_bytes()).hexdigest(),
-            host_identity=lambda *_: {},
-            build_jobs=lambda: "1",
-            copy_notices=notices,
-            copy_rust_notices=lambda _sysroot, destination: destination.mkdir(),
-            dependency_inspection=lambda *_: [],
-            write_json=lambda path, value: path.write_text(json.dumps(value)),
-        )
-        with (
-            patch.object(binding, "artifact_tools", return_value=tools),
-            patch.object(
-                binding,
-                "dependency_closure",
-                return_value=({"version": "0.2.0"}, set()),
-            ),
-            patch.object(
-                binding.venv.EnvBuilder, "create", lambda _, path: path.mkdir()
-            ),
-            patch.object(
-                binding,
-                "installed_checks",
-                side_effect=ValueError("loopback control failed"),
-            ),
-            patch.dict(os.environ, {}, clear=True),
-            contextlib.redirect_stdout(io.StringIO()),
-            self.assertRaisesRegex(ValueError, "loopback control failed"),
-        ):
-            binding.verify_candidate(TARGET, output)
-        self.assertFalse((output / "verified").exists())
-        self.assertEqual(
-            (output / "original" / original.name).read_bytes(), original.read_bytes()
-        )
-        binding.inspect_wheel(output / "candidate" / original.name, TARGET, "0.2.0")
 
 
 if __name__ == "__main__":

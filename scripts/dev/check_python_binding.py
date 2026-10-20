@@ -9,19 +9,20 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import venv
 import zipfile
-from email import policy
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
-MATURIN = "1.9.6"
+MATURIN = "1.15.0"
 TEST_DEPENDENCIES = (
     "h2==4.4.1",
     "hpack==4.2.0",
@@ -72,7 +73,7 @@ def record_row(name, data):
     return [name, "sha256=" + checksum.decode("ascii"), str(len(data))]
 
 
-def inspect_wheel(wheel, target, version):
+def inspect_wheel(wheel, target, version, *, manylinux=False):
     """Check the native ABI3 wheel's metadata and every RECORD payload hash."""
     with zipfile.ZipFile(wheel) as archive:
         names = {info.filename for info in wheel_files(archive)}
@@ -130,7 +131,8 @@ def inspect_wheel(wheel, target, version):
             raise ValueError("unexpected wheel ABI or filename tags")
         platform_tag = fields[-1]
         accepted = {
-            "x86_64-unknown-linux-gnu": platform_tag == "linux_x86_64",
+            "x86_64-unknown-linux-gnu": platform_tag
+            == ("manylinux_2_28_x86_64" if manylinux else "linux_x86_64"),
             "x86_64-pc-windows-msvc": platform_tag == "win_amd64",
             "aarch64-apple-darwin": re.fullmatch(r"macosx_\d+_\d+_arm64", platform_tag)
             is not None,
@@ -168,54 +170,93 @@ def inspect_wheel(wheel, target, version):
         }
 
 
-def add_notices(original, candidate, notices, dist):
-    """Retain the original wheel and rebuild RECORD after adding offline notices."""
-    record = f"{dist}/RECORD"
-    metadata_path = f"{dist}/METADATA"
-    rows = []
-    with (
-        zipfile.ZipFile(original) as source,
-        zipfile.ZipFile(candidate, "x", compression=zipfile.ZIP_DEFLATED) as output,
+def inspect_source(archive, receipt_path, revision, original_lock):
+    """Inspect the producer's exact bounded archive without importing Python 3.11 TOML."""
+    if (
+        archive.stat().st_size > 512 * 1024 * 1024
+        or receipt_path.stat().st_size > 4 * 1024 * 1024
     ):
-        names = {info.filename for info in wheel_files(source)}
-        folded = {name.casefold() for name in names}
-        extra = [
-            (
-                path,
-                f"{dist}/licenses/third-party/{path.relative_to(notices).as_posix()}",
-            )
-            for path in sorted(notices.rglob("*"))
-            if path.is_file()
-        ]
-        metadata = BytesParser(policy=policy.default).parsebytes(
-            source.read(metadata_path)
+        raise ValueError("source archive or receipt exceeds inspection bounds")
+    receipt = json.loads(receipt_path.read_bytes())
+    if (
+        receipt["source_revision"] != revision
+        or receipt["maturin"] != MATURIN
+        or receipt["archive_sha256"] != hashlib.sha256(archive.read_bytes()).hexdigest()
+        or receipt["original_cargo_lock_sha256"] != original_lock
+    ):
+        raise ValueError("source archive identity differs from the checkout or receipt")
+    with tarfile.open(archive, "r:gz") as source:
+        members = source.getmembers()
+        if len(members) > 30_000 or sum(m.size for m in members) > 512 * 1024 * 1024:
+            raise ValueError("source archive exceeds inspection bounds")
+        names = set()
+        roots = set()
+        files = {}
+        for member in members:
+            path = PurePosixPath(member.name)
+            if (
+                not member.isfile()
+                or path.is_absolute()
+                or len(path.parts) < 2
+                or ".." in path.parts
+                or "\\" in member.name
+                or ":" in member.name
+                or str(path) != member.name
+                or member.name.casefold() in names
+            ):
+                raise ValueError("unsafe or duplicate source archive member")
+            names.add(member.name.casefold())
+            roots.add(path.parts[0])
+            files[PurePosixPath(*path.parts[1:]).as_posix()] = member
+        if len(roots) != 1:
+            raise ValueError("expected exactly one source tree")
+        metadata = BytesParser().parsebytes(
+            source.extractfile(files["PKG-INFO"]).read()
         )
-        for _, name in extra:
-            if name.casefold() in folded:
-                raise ValueError("third-party notice conflicts with wheel payload")
-            names.add(name)
-            folded.add(name.casefold())
-            metadata["License-File"] = name.removeprefix(f"{dist}/licenses/")
-        for info in wheel_files(source):
-            if info.filename == record:
-                continue
-            data = (
-                metadata.as_bytes(
-                    policy=policy.default.clone(utf8=True, max_line_length=0)
-                )
-                if info.filename == metadata_path
-                else source.read(info.filename)
-            )
-            output.writestr(info, data)
-            rows.append(record_row(info.filename, data))
-        for path, name in extra:
-            data = path.read_bytes()
-            output.writestr(name, data)
-            rows.append(record_row(name, data))
-        rows.append([record, "", ""])
-        receipt = io.StringIO(newline="")
-        csv.writer(receipt, lineterminator="\n").writerows(rows)
-        output.writestr(record, receipt.getvalue())
+        version = metadata["Version"]
+        if metadata["Name"] != "phantom-http" or roots != {f"phantom_http-{version}"}:
+            raise ValueError("unexpected source package identity")
+        lock = source.extractfile(files["Cargo.lock"]).read()
+        if hashlib.sha256(lock).hexdigest() != receipt["cargo_lock_sha256"]:
+            raise ValueError("source closure lock differs from receipt")
+        licenses = {
+            name: hashlib.sha256(source.extractfile(member).read()).hexdigest()
+            for name, member in files.items()
+            if name in ("LICENSE-MIT", "LICENSE-APACHE")
+            or name.startswith("third-party-notices/")
+        }
+        if set(metadata.get_all("License-File", [])) != licenses.keys():
+            raise ValueError("source license metadata differs from payload")
+        if not any(
+            name.startswith("third-party-notices/rust-runtime/") for name in licenses
+        ):
+            raise ValueError("source archive lacks Rust runtime notices")
+        inventory = json.loads(
+            source.extractfile(files["third-party-notices/inventory.json"]).read()
+        )
+        if inventory != receipt["notices"]:
+            raise ValueError("source notice inventory differs from receipt")
+        for package in inventory:
+            for notice in package["notices"]:
+                if (
+                    licenses.get("third-party-notices/" + notice["file"])
+                    != notice["sha256"]
+                ):
+                    raise ValueError("source dependency notice differs from inventory")
+    return {"receipt": receipt, "version": version, "licenses": licenses}
+
+
+def inspect_source_notices(wheel, dist, source):
+    """Require the source notice closure byte-for-byte, without a second notice rewrite."""
+    prefix = f"{dist}/licenses/"
+    with zipfile.ZipFile(wheel) as archive:
+        actual = {
+            name.removeprefix(prefix): hashlib.sha256(archive.read(name)).hexdigest()
+            for name in archive.namelist()
+            if name.startswith(prefix) and not name.endswith("/")
+        }
+    if actual != source["licenses"]:
+        raise ValueError("wheel license payload differs from the source archive")
 
 
 def dependency_closure(metadata):
@@ -307,28 +348,34 @@ def check_development() -> None:
         )
 
 
-def installed_checks(wheel, commands):
+def installed_checks(wheel, commands, interpreter=None):
     with tempfile.TemporaryDirectory(prefix="phantom-python-wheel-") as temporary:
         directory = Path(temporary).resolve()
         if directory.is_relative_to(ROOT):
             raise ValueError("wheel installation check must run outside checkout")
         environment = directory / "environment"
-        venv.EnvBuilder(with_pip=True).create(environment)
+        if interpreter is None:
+            venv.EnvBuilder(with_pip=True).create(environment)
+        else:
+            commands.run(
+                [str(interpreter), "-I", "-m", "venv", str(environment)], cwd=directory
+            )
         python = python_in(environment)
-        commands.run(
-            [
-                str(python),
-                "-I",
-                "-m",
-                "pip",
-                "install",
-                "--no-cache-dir",
-                "--disable-pip-version-check",
-                *TEST_DEPENDENCIES,
-            ],
-            cwd=directory,
-            timeout=180,
-        )
+        if interpreter is None:
+            commands.run(
+                [
+                    str(python),
+                    "-I",
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-cache-dir",
+                    "--disable-pip-version-check",
+                    *TEST_DEPENDENCIES,
+                ],
+                cwd=directory,
+                timeout=180,
+            )
         commands.run(
             [
                 str(python),
@@ -380,8 +427,12 @@ def installed_checks(wheel, commands):
                     "-I",
                     "-c",
                     "import json,sys,unittest; "
-                    "suite=unittest.defaultTestLoader.discover('tests'); "
-                    "r=unittest.TextTestRunner(verbosity=2).run(suite); "
+                    + (
+                        "suite=unittest.defaultTestLoader.discover('tests'); "
+                        if interpreter is None
+                        else "suite=unittest.defaultTestLoader.discover('tests',pattern='test_client.py'); "
+                    )
+                    + "r=unittest.TextTestRunner(verbosity=2).run(suite); "
                     "print(json.dumps({'tests':r.testsRun,'skipped':len(r.skipped)})); "
                     "sys.exit(0 if r.wasSuccessful() and r.testsRun>=12 and not r.skipped else 1)",
                 ],
@@ -389,10 +440,18 @@ def installed_checks(wheel, commands):
                 timeout=300,
             )
         )
-        return {"installation": identity, "loopback_checks": checks}
+        return {
+            "installation": identity,
+            "loopback_checks": checks,
+            "coverage": "full installed suite and typing"
+            if interpreter is None
+            else "stdlib test_client loopback module only; no typing or other modules",
+        }
 
 
-def verify_candidate(target, output):
+def verify_candidate(
+    target, output, source_archive, source_receipt, additional_python=None
+):
     tools = artifact_tools()
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -418,21 +477,16 @@ def verify_candidate(target, output):
     rustc = commands.run(["rustc", "-vV"]).decode()
     host = tools.host_identity(target, rustc)
     cargo = commands.run(["cargo", "-V"]).decode().strip()
-    metadata = json.loads(
-        commands.run(
-            [
-                "cargo",
-                "metadata",
-                "--locked",
-                "--format-version",
-                "1",
-                "--filter-platform",
-                target,
-            ],
-            timeout=180,
-        )
-    )
-    package, package_ids = dependency_closure(metadata)
+    original_lock = hashlib.sha256(
+        commands.run(["git", "show", f"{revision}:Cargo.lock"])
+    ).hexdigest()
+    source = inspect_source(source_archive, source_receipt, revision, original_lock)
+    if (
+        f"release: {source['receipt']['source_builder_toolchain']}"
+        not in rustc.splitlines()
+    ):
+        raise ValueError("consumer compiler differs from source notice toolchain")
+    package = {"version": source["version"]}
     build_environment = output / "build-environment"
     venv.EnvBuilder(with_pip=True).create(build_environment)
     python = python_in(build_environment)
@@ -454,49 +508,68 @@ def verify_candidate(target, output):
     )
     wheels = output / "original"
     jobs = tools.build_jobs()
-    command = [
-        str(python),
-        "-I",
-        "-m",
-        "maturin",
-        "build",
+    manylinux = target.endswith("linux-gnu")
+    # pip extracts and builds only this archive in its isolated PEP 517 environment.
+    # No checkout path is a compiler input, and the backend pin comes from the archive.
+    build_args = [
         "--locked",
-        "--release",
+        "--profile",
+        "release",
         "--config",
         "profile.release.opt-level=3",
         "--target",
         target,
         "--jobs",
         jobs,
-        "--manifest-path",
-        "bindings/python/Cargo.toml",
-        "--interpreter",
-        str(python),
-        "--out",
-        str(wheels),
     ]
-    if target.endswith("linux-gnu"):
-        # A native-host candidate does not establish a manylinux runtime floor.
-        command.extend(["--compatibility", "linux", "--auditwheel", "check"])
-    commands.run(command, timeout=1800)
+    if manylinux:
+        build_args.extend(
+            ["--compatibility", "manylinux_2_28", "--auditwheel", "check"]
+        )
+    build_env = dict(os.environ, MATURIN_NO_INSTALL_RUST="1")
+    with tempfile.TemporaryDirectory(
+        prefix="phantom-python-source-wheel-"
+    ) as temporary:
+        directory = Path(temporary).resolve()
+        if directory.is_relative_to(ROOT):
+            raise ValueError("source wheel build must run outside checkout")
+        build_env.update(
+            TMPDIR=str(directory),
+            TEMP=str(directory),
+            TMP=str(directory),
+            CARGO_TARGET_DIR=str(directory / "target"),
+        )
+        commands.run(
+            [
+                str(python),
+                "-I",
+                "-m",
+                "pip",
+                "wheel",
+                "--no-deps",
+                "--no-cache-dir",
+                "--disable-pip-version-check",
+                "--use-pep517",
+                "--wheel-dir",
+                str(wheels),
+                "--config-settings=maturin.build-args=" + shlex.join(build_args),
+                str(source_archive.resolve()),
+            ],
+            cwd=directory,
+            env=build_env,
+            timeout=1800,
+        )
     built = list(wheels.glob("*.whl"))
     if len(built) != 1:
         raise ValueError(f"expected one built wheel, found {len(built)}")
     original = built[0]
-    info = inspect_wheel(original, target, package["version"])
-    notices = output / "notices"
-    inventory = tools.copy_notices(metadata, package_ids, notices)
-    for entry in inventory:
-        entry["scope"] = (
-            "potential normal/build input; conservative feature-unified metadata graph, not linked-code attribution"
-        )
-    sysroot = Path(commands.run(["rustc", "--print", "sysroot"]).decode().strip())
-    tools.copy_rust_notices(sysroot, notices / "rust-runtime")
-    tools.write_json(notices / "inventory.json", inventory)
+    info = inspect_wheel(original, target, package["version"], manylinux=manylinux)
     candidate = output / "candidate" / original.name
     candidate.parent.mkdir()
-    add_notices(original, candidate, notices, info["dist_info"])
-    checked = inspect_wheel(candidate, target, package["version"])
+    inspect_source_notices(original, info["dist_info"], source)
+    inventory = source["receipt"]["notices"]
+    shutil.copyfile(original, candidate)
+    checked = inspect_wheel(candidate, target, package["version"], manylinux=manylinux)
     native = output / "native"
     native.mkdir()
     with zipfile.ZipFile(candidate) as archive:
@@ -504,8 +577,19 @@ def verify_candidate(target, output):
         binary.write_bytes(archive.read(checked["native"]))
     linkage = tools.dependency_inspection(binary, target, commands)
     installed = installed_checks(candidate, commands)
-    if installed["installation"]["version"] != package["version"]:
+    installations = [installed]
+    if additional_python is not None:
+        installations.append(installed_checks(candidate, commands, additional_python))
+    if any(
+        result["installation"]["version"] != package["version"]
+        for result in installations
+    ):
         raise ValueError("installed wheel version differs from source metadata")
+    if (
+        source is not None
+        and tools.digest(source_archive) != source["receipt"]["archive_sha256"]
+    ):
+        raise ValueError("source archive changed during wheel verification")
     if (
         commands.run(["git", "status", "--porcelain"]).strip()
         or commands.run(["git", "rev-parse", "HEAD"]).decode().strip() != revision
@@ -524,7 +608,14 @@ def verify_candidate(target, output):
         "build_jobs": jobs,
         "build_environment": {
             key: os.environ[key]
-            for key in ("MACOSX_DEPLOYMENT_TARGET", "CC", "CXX", "CFLAGS", "CXXFLAGS")
+            for key in (
+                "MACOSX_DEPLOYMENT_TARGET",
+                "CC",
+                "CXX",
+                "CFLAGS",
+                "CXXFLAGS",
+                "PHANTOM_MANYLINUX_IMAGE",
+            )
             if key in os.environ
         },
         "tested_host": host,
@@ -534,7 +625,13 @@ def verify_candidate(target, output):
         "notices": inventory,
         "native_linkage": linkage,
         **installed,
-        "runtime_boundary": "Tested on the recorded host and CPython only. No older OS/libc, manylinux, or PyPI compatibility established; SDK/OS runtime licenses are separate.",
+        "additional_installations": installations[1:],
+        "source_distribution": source["receipt"],
+        "runtime_boundary": (
+            "Built and audited for manylinux_2_28; installed on the recorded host and interpreters only. SDK/OS runtime licenses are separate."
+            if manylinux
+            else "Tested on the recorded host and interpreters only; older OS compatibility is not established. SDK/OS runtime licenses are separate."
+        ),
     }
     # The uploadable directory is created only after install and all controls pass.
     verified = output / "verified"
@@ -545,6 +642,81 @@ def verify_candidate(target, output):
         f"{identity['wheel_sha256']}  {candidate.name}\n", encoding="utf-8"
     )
     print(f"Verified native Python wheel candidate: {verified / candidate.name}")
+
+
+def assemble_candidates(source_directory, wheel_directories, output):
+    """Compose one exact source and three installed consumer receipts; never publish."""
+    tools = artifact_tools()
+    source_receipt = source_directory / "receipt.json"
+    receipt = json.loads(source_receipt.read_bytes())
+    archives = list(source_directory.glob("*.tar.gz"))
+    if len(archives) != 1:
+        raise ValueError("expected exactly one source archive")
+    source = inspect_source(
+        archives[0],
+        source_receipt,
+        receipt["source_revision"],
+        receipt["original_cargo_lock_sha256"],
+    )
+    targets = {
+        "x86_64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+        "aarch64-apple-darwin",
+    }
+    receipts = []
+    payloads = [archives[0]]
+    for directory in wheel_directories:
+        consumer = json.loads((directory / "verification.json").read_bytes())
+        if (
+            consumer["target"] not in targets
+            or consumer["source_distribution"] != receipt
+        ):
+            raise ValueError(
+                "consumer does not verify this exact source or has a duplicate target"
+            )
+        targets.remove(consumer["target"])
+        wheels = list(directory.glob("*.whl"))
+        if len(wheels) != 1 or tools.digest(wheels[0]) != consumer["wheel_sha256"]:
+            raise ValueError("consumer wheel identity differs from receipt")
+        info = inspect_wheel(
+            wheels[0],
+            consumer["target"],
+            source["version"],
+            manylinux=consumer["target"].endswith("linux-gnu"),
+        )
+        inspect_source_notices(wheels[0], info["dist_info"], source)
+        if (
+            consumer["loopback_checks"]["tests"] < 12
+            or consumer["loopback_checks"]["skipped"]
+        ):
+            raise ValueError("consumer installed checks are incomplete")
+        additional = consumer["additional_installations"]
+        if (
+            len(additional) != 1
+            or additional[0]["loopback_checks"]["tests"] < 12
+            or additional[0]["loopback_checks"]["skipped"]
+        ):
+            raise ValueError(
+                "consumer current-stable installation checks are incomplete"
+            )
+        receipts.append(consumer)
+        payloads.append(wheels[0])
+    if targets:
+        raise ValueError("all three native source consumers must pass before promotion")
+    output.mkdir(parents=True, exist_ok=False)
+    for path in payloads:
+        shutil.copyfile(path, output / path.name)
+    tools.write_json(
+        output / "verification.json",
+        {
+            "source": receipt,
+            "consumers": receipts,
+            "validation": "same source built and installed on all three recorded native hosts; publication is separate",
+        },
+    )
+    (output / "SHA256SUMS").write_text(
+        "".join(f"{tools.digest(p)}  {p.name}\n" for p in payloads), encoding="utf-8"
+    )
 
 
 def main() -> None:
@@ -559,12 +731,57 @@ def main() -> None:
         ),
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source-archive", type=Path)
+    parser.add_argument("--source-receipt", type=Path)
+    parser.add_argument("--additional-python", type=Path)
+    parser.add_argument("--assemble-source", type=Path)
+    parser.add_argument("--consumer", type=Path, action="append", default=[])
     args = parser.parse_args()
-    if args.release_candidate:
+    if args.assemble_source is not None:
+        if (
+            args.output is None
+            or len(args.consumer) != 3
+            or args.release_candidate
+            or args.target is not None
+            or any(
+                v is not None
+                for v in (
+                    args.source_archive,
+                    args.source_receipt,
+                    args.additional_python,
+                )
+            )
+        ):
+            parser.error(
+                "--assemble-source requires --output and exactly three --consumer directories"
+            )
+        assemble_candidates(args.assemble_source, args.consumer, args.output)
+    elif args.consumer:
+        parser.error("--consumer requires --assemble-source")
+    elif args.release_candidate:
         if args.target is None or args.output is None:
             parser.error("--release-candidate requires --target and --output")
-        verify_candidate(args.target, args.output)
-    elif args.target is not None or args.output is not None:
+        if args.source_archive is None or args.source_receipt is None:
+            parser.error(
+                "--release-candidate requires --source-archive and --source-receipt"
+            )
+        verify_candidate(
+            args.target,
+            args.output,
+            args.source_archive,
+            args.source_receipt,
+            args.additional_python,
+        )
+    elif any(
+        value is not None
+        for value in (
+            args.target,
+            args.output,
+            args.source_archive,
+            args.source_receipt,
+            args.additional_python,
+        )
+    ):
         parser.error("--target and --output require --release-candidate")
     else:
         check_development()
