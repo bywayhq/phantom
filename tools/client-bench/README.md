@@ -15,11 +15,10 @@ On Windows the executable has an `.exe` suffix. If you set
 `CARGO_TARGET_DIR`, use the executable from that directory instead. Build
 native dependencies in release mode too. Record any overridden native inputs.
 
-For an MSVC build, set `CMAKE_TOOLCHAIN_FILE` to the absolute path of
-`tools/client-bench/msvc.cmake` before building. It keeps native TLS
-optimization and symbols when cmake-rs replaces the MSVC configuration flags.
-Inspect the effective compiler command for `/O2`, with no later `/Od`
-override. A Cargo release label alone does not prove native optimization.
+Inspect the effective native C and C++ compiler commands for the selected
+profile. For an optimized MSVC build, verify `/O2` (or `/O1` for size), with
+no later `/Od` override. Retain the compiler logs and native configuration;
+a Cargo release label alone does not prove native optimization.
 Use a fresh target directory after changing native flags, or confirm that the
 native build actually reran before accepting its compiler log.
 
