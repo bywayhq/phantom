@@ -102,7 +102,7 @@ class RedirectFacadeTests(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(phantom_http._native, "NativeClient", Native):
             source = AsyncClient(**OPTIONS, redirect_policy=RedirectPolicy.limited(2))
-            self.assertEqual(constructors[0][-1], 2)
+            self.assertEqual(constructors[0][-2], 2)
             for policy, expected in (
                 (None, None),
                 (RedirectPolicy.none(), 0),
@@ -114,7 +114,7 @@ class RedirectFacadeTests(unittest.IsolatedAsyncioTestCase):
                     redirect_policy=policy,
                     redirect_history_limit=1,
                 )
-                self.assertEqual(requests[-1][-2:], (expected, 1))
+                self.assertEqual(requests[-1][-3:-1], (expected, 1))
             for value in (0, -1, True, 1.5, 2 * sys.maxsize + 2):
                 with self.assertRaises((TypeError, ValueError)):
                     await source.request(

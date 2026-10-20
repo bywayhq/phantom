@@ -3,12 +3,15 @@
 from phantom_http import (
     AsyncClient,
     Client,
+    ConnectionRetry,
     ContentDecoding,
     Header,
     Profile,
     Proxy,
     RedirectPolicy,
+    RetryPolicy,
     SessionSharing,
+    StatusRetry,
     TimeoutOverrides,
     Timeouts,
     Trust,
@@ -76,3 +79,14 @@ def sharing_configuration(client: Client) -> None:
     client.fork(cookies=True)  # E: call-arg
     selection = SessionSharing()
     selection.dns = True  # E: misc
+
+
+def retry_configuration(client: Client) -> None:
+    client.request("GET", "http://origin.invalid", retry_policy={})  # E: arg-type
+    RetryPolicy(connection_failures={})  # E: arg-type
+    RetryPolicy(status_retry={})  # E: arg-type
+    RetryPolicy(maximum_retries=1.5)  # E: arg-type
+    ConnectionRetry(maximum="2", delay=0)  # E: arg-type
+    StatusRetry(statuses=[503], maximum=1, delay=0)  # E: arg-type
+    settings = RetryPolicy.none()
+    settings.maximum_retries = 1  # E: misc

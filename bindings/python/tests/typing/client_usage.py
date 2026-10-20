@@ -11,6 +11,7 @@ from phantom_http import (
     AttemptBudget,
     BodyLimitExceeded,
     Client,
+    ConnectionRetry,
     ContentDecoding,
     Cookies,
     DecodeError,
@@ -23,7 +24,9 @@ from phantom_http import (
     RedirectHistory,
     RedirectPolicy,
     Response,
+    RetryPolicy,
     SessionSharing,
+    StatusRetry,
     TimeoutOverrides,
     Timeouts,
     Trust,
@@ -49,6 +52,18 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         trust=Trust(roots=(b"DER",), proxy_roots=(b"DER",)),
         timeouts=Timeouts(connect=1, total=5),
         redirect_policy=RedirectPolicy.limited(3),
+        retry_policy=RetryPolicy(
+            connection_failures=ConnectionRetry(
+                maximum=2, delay=0.1, maximum_delay=1, full_jitter=True
+            ),
+            reused_connection_replay=True,
+            unprocessed_replays=1,
+            status_retry=StatusRetry(
+                statuses=(429, 503), maximum=2, delay=0, retry_after_limit=1
+            ),
+            maximum_retries=3,
+            http2_fallback=False,
+        ),
     ) as client:
         _closed: bool = client.is_closed
         jar: Cookies = client.cookies
@@ -96,6 +111,7 @@ async def asynchronous(profile: str, url: str) -> bytes:
             content_decoding=ContentDecoding.advertised(2**64 - 1),
             redirect_policy=RedirectPolicy.none(),
             redirect_history_limit=2,
+            retry_policy=RetryPolicy.none(),
         )
         async with response:
             _effective_url: str = response.url

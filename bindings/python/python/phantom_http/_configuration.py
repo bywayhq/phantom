@@ -194,6 +194,156 @@ class RedirectPolicy:
         return cls(_redirect_count(maximum_hops, positive=True))
 
 
+_ConnectionRetryFields: TypeAlias = tuple[int, float, float | None, bool]
+_StatusRetryFields: TypeAlias = tuple[
+    list[int], int, float, float | None, bool, float | None
+]
+_RetryFields: TypeAlias = tuple[
+    _ConnectionRetryFields | None,
+    bool,
+    int | None,
+    _StatusRetryFields | None,
+    int | None,
+    bool,
+]
+
+
+def _retry_count(value: int, *, positive: bool = False) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("retry counts must be integers")
+    if not (1 if positive else 0) <= value <= 2 * sys.maxsize + 1:
+        raise ValueError("retry count is outside the native unsigned size range")
+    return value
+
+
+def _retry_seconds(value: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError("retry durations must be seconds as int or float")
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError("retry durations must be finite and nonnegative") from None
+    if not math.isfinite(result) or result < 0:
+        raise ValueError("retry durations must be finite and nonnegative")
+    return result
+
+
+def _retry_schedule(delay: float, maximum_delay: float | None, jitter: bool) -> None:
+    initial = _retry_seconds(delay)
+    if maximum_delay is not None and _retry_seconds(maximum_delay) < initial:
+        raise ValueError("retry maximum_delay must be at least delay")
+    if not isinstance(jitter, bool):
+        raise TypeError("full_jitter must be bool")
+
+
+@dataclass(frozen=True, kw_only=True)
+class ConnectionRetry:
+    """Retry eligible setup failures; delays are seconds, including finite zero."""
+
+    maximum: int
+    delay: float
+    maximum_delay: float | None = None
+    full_jitter: bool = False
+
+    def __post_init__(self) -> None:
+        _retry_count(self.maximum, positive=True)
+        _retry_schedule(self.delay, self.maximum_delay, self.full_jitter)
+
+    def _native_fields(self) -> _ConnectionRetryFields:
+        return (
+            self.maximum,
+            _retry_seconds(self.delay),
+            None if self.maximum_delay is None else _retry_seconds(self.maximum_delay),
+            self.full_jitter,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class StatusRetry:
+    """Retry listed statuses on replayable idempotent requests."""
+
+    statuses: tuple[int, ...]
+    maximum: int
+    delay: float
+    maximum_delay: float | None = None
+    full_jitter: bool = False
+    retry_after_limit: float | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.statuses, tuple) or any(
+            isinstance(status, bool) or not isinstance(status, int)
+            for status in self.statuses
+        ):
+            raise TypeError("statuses must be a tuple of integer status codes")
+        if not self.statuses or any(
+            status not in (408, 425, 429, 500, 502, 503, 504)
+            for status in self.statuses
+        ):
+            raise ValueError("unsupported retry status codes")
+        _retry_count(self.maximum, positive=True)
+        _retry_schedule(self.delay, self.maximum_delay, self.full_jitter)
+        if self.retry_after_limit is not None:
+            _retry_seconds(self.retry_after_limit)
+
+    def _native_fields(self) -> _StatusRetryFields:
+        return (
+            list(self.statuses),
+            self.maximum,
+            _retry_seconds(self.delay),
+            None if self.maximum_delay is None else _retry_seconds(self.maximum_delay),
+            self.full_jitter,
+            None
+            if self.retry_after_limit is None
+            else _retry_seconds(self.retry_after_limit),
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetryPolicy:
+    """Caller retries only; per-request settings replace the whole policy."""
+
+    connection_failures: ConnectionRetry | None = None
+    reused_connection_replay: bool = False
+    unprocessed_replays: int | None = None
+    status_retry: StatusRetry | None = None
+    maximum_retries: int | None = None
+    http2_fallback: bool = False
+
+    def __post_init__(self) -> None:
+        if self.connection_failures is not None and not isinstance(
+            self.connection_failures, ConnectionRetry
+        ):
+            raise TypeError("connection_failures must be ConnectionRetry")
+        if self.status_retry is not None and not isinstance(
+            self.status_retry, StatusRetry
+        ):
+            raise TypeError("status_retry must be StatusRetry")
+        if not isinstance(self.reused_connection_replay, bool) or not isinstance(
+            self.http2_fallback, bool
+        ):
+            raise TypeError("replay and fallback selections must be bool")
+        if self.unprocessed_replays is not None:
+            _retry_count(self.unprocessed_replays, positive=True)
+        if self.maximum_retries is not None:
+            _retry_count(self.maximum_retries)
+
+    @classmethod
+    def none(cls) -> RetryPolicy:
+        return cls()
+
+    def _native_fields(self) -> _RetryFields:
+        return (
+            None
+            if self.connection_failures is None
+            else self.connection_failures._native_fields(),
+            self.reused_connection_replay,
+            self.unprocessed_replays,
+            None if self.status_retry is None else self.status_retry._native_fields(),
+            self.maximum_retries,
+            self.http2_fallback,
+        )
+
+
 @dataclass(frozen=True)
 class Header:
     """An ordered caller header, optionally never-indexed by HTTP/2 and HTTP/3."""

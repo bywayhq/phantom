@@ -91,7 +91,7 @@ class DecodingFacadeTests(unittest.IsolatedAsyncioTestCase):
                     "http://origin.invalid/",
                     content_decoding=ContentDecoding.advertised(maximum),
                 )
-                self.assertEqual(received[-1][-3], maximum)
+                self.assertEqual(received[-1][-4], maximum)
                 for owner in (response, Response(None, response)):
                     self.assertEqual(owner.decoded_content_codings, ("gzip", "deflate"))
                     with self.assertRaises(AttributeError):

@@ -132,6 +132,7 @@ class FacadeMappingTests(unittest.IsolatedAsyncioTestCase):
                         "password",
                         Timeouts(connect=1, response_head=2, total=0)._native_fields(),
                         None,
+                        None,
                     )
                 ],
             )
@@ -163,6 +164,7 @@ class FacadeMappingTests(unittest.IsolatedAsyncioTestCase):
                         None,
                         None,
                         [("connect", None), ("read_idle", 0.0)],
+                        None,
                         None,
                         None,
                         None,

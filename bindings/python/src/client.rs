@@ -78,7 +78,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -94,6 +94,7 @@ impl NativeClient {
         proxy_password: Option<&str>,
         timeouts: Option<configuration::TimeoutFields>,
         redirect_maximum_hops: Option<usize>,
+        retry_policy: Option<configuration::RetryFields>,
     ) -> PyResult<Self> {
         runtime::initialize()?;
         if !matches!(protocol, "h1" | "h2" | "h3" | "negotiated") {
@@ -105,6 +106,9 @@ impl NativeClient {
             .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
         if let Some(maximum) = redirect_maximum_hops {
             builder = builder.redirect_policy(configuration::redirect_policy(maximum));
+        }
+        if let Some(policy) = retry_policy {
+            builder = builder.retry_policy(configuration::retry_policy(policy)?);
         }
         if let Some(base_url) = base_url {
             builder = builder
@@ -162,7 +166,7 @@ impl NativeClient {
         }
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -178,6 +182,7 @@ impl NativeClient {
         maximum_decoded_bytes: Option<u64>,
         redirect_maximum_hops: Option<usize>,
         redirect_history_limit: Option<usize>,
+        retry_policy: Option<configuration::RetryFields>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if body.is_some() && upload.is_some() {
             return Err(error::input("body_and_upload"));
@@ -220,6 +225,9 @@ impl NativeClient {
                 NonZeroUsize::new(maximum)
                     .ok_or_else(|| error::input("invalid_redirect_history_limit"))?,
             );
+        }
+        if let Some(policy) = retry_policy {
+            request = request.retry_policy(configuration::retry_policy(policy)?);
         }
         if let Some(body) = body {
             request = request.body(body);

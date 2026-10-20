@@ -16,11 +16,14 @@ from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
 
 from . import _native
 from ._configuration import INHERIT as INHERIT
+from ._configuration import ConnectionRetry as ConnectionRetry
 from ._configuration import ContentDecoding as ContentDecoding
 from ._configuration import Header as Header
 from ._configuration import Proxy as Proxy
 from ._configuration import RedirectPolicy as RedirectPolicy
+from ._configuration import RetryPolicy as RetryPolicy
 from ._configuration import SessionSharing as SessionSharing
+from ._configuration import StatusRetry as StatusRetry
 from ._configuration import TimeoutOverrides as TimeoutOverrides
 from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
@@ -340,7 +343,10 @@ class AsyncClient:
         trust: Trust | None = None,
         timeouts: Timeouts | None = None,
         redirect_policy: RedirectPolicy | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
+        if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
+            raise TypeError("retry_policy must be RetryPolicy")
         if redirect_policy is not None and not isinstance(
             redirect_policy, RedirectPolicy
         ):
@@ -374,6 +380,7 @@ class AsyncClient:
             None if route is None else route.password,
             None if timeouts is None else timeouts._native_fields(),
             None if redirect_policy is None else redirect_policy.maximum_hops,
+            None if retry_policy is None else retry_policy._native_fields(),
         )
         self.cookies = Cookies(self._native.cookies)
 
@@ -417,6 +424,7 @@ class AsyncClient:
         content_decoding: ContentDecoding | None = None,
         redirect_policy: RedirectPolicy | None = None,
         redirect_history_limit: int | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body."""
         if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
@@ -427,6 +435,8 @@ class AsyncClient:
             content_decoding, ContentDecoding
         ):
             raise TypeError("content_decoding must be ContentDecoding")
+        if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
+            raise TypeError("retry_policy must be RetryPolicy")
         if redirect_policy is not None and not isinstance(
             redirect_policy, RedirectPolicy
         ):
@@ -465,6 +475,7 @@ class AsyncClient:
                 else content_decoding.maximum_decoded_bytes,
                 None if redirect_policy is None else redirect_policy.maximum_hops,
                 redirect_history_limit,
+                None if retry_policy is None else retry_policy._native_fields(),
             )
             return AsyncResponse(native)
         except _native.NativeError as error:
@@ -604,6 +615,7 @@ class Client:
         trust: Trust | None = None,
         timeouts: Timeouts | None = None,
         redirect_policy: RedirectPolicy | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -618,6 +630,7 @@ class Client:
             trust=trust,
             timeouts=timeouts,
             redirect_policy=redirect_policy,
+            retry_policy=retry_policy,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies
@@ -677,6 +690,7 @@ class Client:
         content_decoding: ContentDecoding | None = None,
         redirect_policy: RedirectPolicy | None = None,
         redirect_history_limit: int | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> Response:
         return Response(
             self,
@@ -693,6 +707,7 @@ class Client:
                     content_decoding=content_decoding,
                     redirect_policy=redirect_policy,
                     redirect_history_limit=redirect_history_limit,
+                    retry_policy=retry_policy,
                 )
             ),
         )

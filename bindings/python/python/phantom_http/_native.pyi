@@ -1,6 +1,8 @@
 from collections.abc import Awaitable
 from os import PathLike
 
+from ._configuration import _RetryFields
+
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
 
@@ -64,6 +66,7 @@ class NativeClient:
         proxy_password: str | None = None,
         timeouts: list[tuple[str, float | None]] | None = None,
         redirect_maximum_hops: int | None = None,
+        retry_policy: _RetryFields | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...
@@ -90,6 +93,7 @@ class NativeClient:
         maximum_decoded_bytes: int | None = None,
         redirect_maximum_hops: int | None = None,
         redirect_history_limit: int | None = None,
+        retry_policy: _RetryFields | None = None,
     ) -> Awaitable[NativeResponse]: ...
     def close_idle_connections(self) -> Awaitable[None]: ...
     def refresh_connections(self) -> Awaitable[None]: ...
