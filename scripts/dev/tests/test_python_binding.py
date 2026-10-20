@@ -42,6 +42,8 @@ class PythonWheelTests(unittest.TestCase):
                 f"Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: cp310-abi3-{tag}\n\n"
             ).encode(),
             "phantom_http/__init__.py": b"# preserved Python facade\n",
+            "phantom_http/py.typed": b"",
+            "phantom_http/_native.pyi": b"class NativeResponse: ...\n",
             f"phantom_http/{extension}": b"retained native bytes",
         }
         for name in ("LICENSE-MIT", "LICENSE-APACHE"):
@@ -116,6 +118,22 @@ class PythonWheelTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "license metadata"):
             binding.inspect_wheel(self.wheel(change=omitted), TARGET, "0.2.0")
+
+    def test_installed_typing_payload_is_required(self):
+        for name in ("py.typed", "_native.pyi"):
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(ValueError, "missing wheel payload"),
+            ):
+                binding.inspect_wheel(
+                    self.wheel(
+                        change=lambda files, name=name: files.pop(
+                            f"phantom_http/{name}"
+                        )
+                    ),
+                    TARGET,
+                    "0.2.0",
+                )
 
     def test_record_hashes_sizes_duplicates_and_coverage_are_enforced(self):
         for mutation in ("hash", "missing", "duplicate"):
@@ -194,7 +212,12 @@ class PythonWheelTests(unittest.TestCase):
         binding.inspect_wheel(candidate, TARGET, "0.2.0")
         self.assertEqual(original.read_bytes(), before)
         with zipfile.ZipFile(original) as source, zipfile.ZipFile(candidate) as output:
-            for name in ("phantom_http/__init__.py", "phantom_http/_native.pyd"):
+            for name in (
+                "phantom_http/__init__.py",
+                "phantom_http/_native.pyd",
+                "phantom_http/py.typed",
+                "phantom_http/_native.pyi",
+            ):
                 self.assertEqual(source.read(name), output.read(name))
             metadata = output.read(f"{DIST}/METADATA")
             self.assertIn(b"License-File: third-party/crate-1.0/LICENSE", metadata)

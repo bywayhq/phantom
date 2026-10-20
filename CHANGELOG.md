@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Ship Python type information and explicit synchronous client signatures.
+
 - Collect Python response bodies in one native operation while retaining
   byte limits, cancellation and streaming reads.
 

@@ -22,7 +22,12 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
 MATURIN = "1.9.6"
-TEST_DEPENDENCIES = ("h2==4.4.1", "hpack==4.2.0", "hyperframe==6.1.0")
+TEST_DEPENDENCIES = (
+    "h2==4.4.1",
+    "hpack==4.2.0",
+    "hyperframe==6.1.0",
+    "mypy==1.19.1",
+)
 MAX_WHEEL_BYTES = 256 * 1024 * 1024
 
 
@@ -82,7 +87,11 @@ def inspect_wheel(wheel, target, version):
         if dist != f"phantom_http-{version}.dist-info":
             raise ValueError("wheel metadata directory differs from package identity")
         required = {f"{dist}/{name}" for name in ("WHEEL", "METADATA", "RECORD")}
-        if not required <= names or "phantom_http/__init__.py" not in names:
+        required.update(
+            f"phantom_http/{name}"
+            for name in ("__init__.py", "py.typed", "_native.pyi")
+        )
+        if not required <= names:
             raise ValueError("missing wheel payload or metadata")
         if names & {f"{dist}/RECORD.jws", f"{dist}/RECORD.p7s"}:
             raise ValueError("signed wheel cannot be rewritten")

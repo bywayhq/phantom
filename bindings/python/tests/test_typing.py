@@ -1,11 +1,93 @@
 """Runtime signatures and forwarding remain aligned with the typed facade."""
 
 import inspect
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
 import types
 import unittest
+from importlib import resources
+from pathlib import Path
 from unittest.mock import patch
 
+import phantom_http
 from phantom_http import AsyncClient, Client
+
+
+class InstalledTypingTests(unittest.TestCase):
+    def test_type_payload_and_external_consumer_checks(self):
+        package = resources.files(phantom_http)
+        for name in ("py.typed", "_native.pyi"):
+            self.assertTrue(package.joinpath(name).is_file(), name)
+        with tempfile.TemporaryDirectory(
+            prefix="phantom-typing-consumer-"
+        ) as temporary:
+            directory = Path(temporary).resolve()
+            fixtures = Path(__file__).with_name("typing")
+            shutil.copytree(fixtures, directory / "typing")
+            environment = os.environ.copy()
+            for name in ("MYPYPATH", "PYTHONPATH"):
+                environment.pop(name, None)
+            command = [
+                sys.executable,
+                "-I",
+                "-m",
+                "mypy",
+                "--strict",
+                "--python-version",
+                "3.10",
+                "--no-incremental",
+                "--cache-dir",
+                str(directory / "cache"),
+                "--disallow-any-expr",
+            ]
+            positive = subprocess.run(
+                [*command, "typing/client_usage.py"],
+                cwd=directory,
+                env=environment,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=60,
+                check=False,
+            )
+            self.assertEqual(positive.returncode, 0, positive.stdout + positive.stderr)
+            invalid = directory / "typing/invalid_usage.py"
+            expected = [
+                (number, line.split("# E: ", 1)[1].strip())
+                for number, line in enumerate(
+                    invalid.read_text(encoding="utf-8").splitlines(), 1
+                )
+                if "# E: " in line
+            ]
+            self.assertTrue(expected)
+            negative = subprocess.run(
+                [*command, "--output=json", str(invalid)],
+                cwd=directory,
+                env=environment,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=60,
+                check=False,
+            )
+            self.assertEqual(negative.returncode, 1, negative.stdout + negative.stderr)
+            errors = [
+                entry
+                for line in negative.stdout.splitlines()
+                if (entry := json.loads(line))["severity"] == "error"
+            ]
+            self.assertTrue(
+                all(
+                    (directory / entry["file"]).resolve() == invalid for entry in errors
+                )
+            )
+            self.assertEqual(
+                [(entry["line"], entry["code"]) for entry in errors], expected
+            )
 
 
 class SignatureTests(unittest.TestCase):
