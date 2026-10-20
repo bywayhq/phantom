@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypeAlias
@@ -165,6 +166,32 @@ class ContentDecoding:
         ):
             raise TypeError("maximum_decoded_bytes must be an integer")
         return cls(maximum_decoded_bytes)
+
+
+def _redirect_count(value: int, *, positive: bool = False) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("redirect counts must be integers")
+    if not (1 if positive else 0) <= value <= 2 * sys.maxsize + 1:
+        raise ValueError("redirect count is outside the native unsigned size range")
+    return value
+
+
+@dataclass(frozen=True)
+class RedirectPolicy:
+    """Follow at most maximum_hops redirects; zero returns redirect responses."""
+
+    maximum_hops: int = 0
+
+    def __post_init__(self) -> None:
+        _redirect_count(self.maximum_hops)
+
+    @classmethod
+    def none(cls) -> RedirectPolicy:
+        return cls()
+
+    @classmethod
+    def limited(cls, maximum_hops: int) -> RedirectPolicy:
+        return cls(_redirect_count(maximum_hops, positive=True))
 
 
 @dataclass(frozen=True)

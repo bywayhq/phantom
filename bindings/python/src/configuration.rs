@@ -1,9 +1,17 @@
 use crate::error;
 use phantom::{RequestTimeoutOverrides, RequestTimeouts, Route, TimeoutOverride};
 use pyo3::prelude::*;
+use std::num::NonZeroUsize;
 use std::time::Duration;
 
 pub(super) type TimeoutFields = Vec<(String, Option<f64>)>;
+
+pub(super) fn redirect_policy(maximum: usize) -> phantom::RedirectPolicy {
+    NonZeroUsize::new(maximum).map_or_else(
+        phantom::RedirectPolicy::none,
+        phantom::RedirectPolicy::limited,
+    )
+}
 
 pub(super) fn route(
     uri: Option<&str>,

@@ -7,6 +7,7 @@ from phantom_http import (
     Header,
     Profile,
     Proxy,
+    RedirectPolicy,
     SessionSharing,
     TimeoutOverrides,
     Timeouts,
@@ -44,6 +45,14 @@ def synchronous(profile: str, url: str) -> None:
         client.request("GET", url, content_decoding={})  # E: arg-type
         ContentDecoding.advertised(1.5)  # E: arg-type
         response.decoded_content_codings = ()  # E: misc
+        client.request("GET", url, redirect_policy={})  # E: arg-type
+        client.request("GET", url, redirect_history_limit=1.5)  # E: arg-type
+        RedirectPolicy.limited("3")  # E: arg-type
+        history = response.redirect_history
+        if history is not None:
+            history.omitted_hops = 0  # E: misc
+            history.entries[0].from_url = "different"  # E: misc
+        response.redirect_history = None  # E: misc
 
 
 async def asynchronous(profile: str, url: str) -> None:

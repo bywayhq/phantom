@@ -99,6 +99,9 @@ fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseIn
     })
 }
 
+type RedirectHopFields = (String, String, String, String, u16);
+type RedirectHistoryFields = (Vec<RedirectHopFields>, usize);
+
 #[pyclass]
 pub(super) struct NativeResponse {
     #[pyo3(get)]
@@ -113,6 +116,8 @@ pub(super) struct NativeResponse {
     connection_setup_retries: usize,
     #[pyo3(get)]
     decoded_content_codings: Vec<String>,
+    #[pyo3(get)]
+    redirect_history: Option<RedirectHistoryFields>,
     headers: Vec<(String, Vec<u8>)>,
     owner: Arc<BodyOwner>,
 }
@@ -141,6 +146,28 @@ impl NativeResponse {
         let url = info.effective_uri().to_string();
         let redirects_followed = info.redirects_followed();
         let connection_setup_retries = info.retries_performed();
+        let redirect_history =
+            response
+                .extensions()
+                .get::<phantom::RedirectHistory>()
+                .map(|history| {
+                    (
+                        history
+                            .entries()
+                            .iter()
+                            .map(|hop| {
+                                (
+                                    hop.from_uri().to_string(),
+                                    hop.to_uri().to_string(),
+                                    hop.method().to_string(),
+                                    hop.next_method().to_string(),
+                                    hop.status().as_u16(),
+                                )
+                            })
+                            .collect(),
+                        history.omitted_hops(),
+                    )
+                });
         let decoded_content_codings = info
             .decoded_content_codings()
             .iter()
@@ -162,6 +189,7 @@ impl NativeResponse {
             redirects_followed,
             connection_setup_retries,
             decoded_content_codings,
+            redirect_history,
             headers,
             owner: Arc::new(BodyOwner {
                 stream: Mutex::new(Some(Stream {

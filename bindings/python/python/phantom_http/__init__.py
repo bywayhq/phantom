@@ -19,10 +19,12 @@ from ._configuration import INHERIT as INHERIT
 from ._configuration import ContentDecoding as ContentDecoding
 from ._configuration import Header as Header
 from ._configuration import Proxy as Proxy
+from ._configuration import RedirectPolicy as RedirectPolicy
 from ._configuration import SessionSharing as SessionSharing
 from ._configuration import TimeoutOverrides as TimeoutOverrides
 from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
+from ._configuration import _redirect_count
 from ._native import NativeProfile as _NativeProfile
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
@@ -197,6 +199,25 @@ class Cookies:
         return len(self._native)
 
 
+@dataclass(frozen=True)
+class RedirectHop:
+    """One followed redirect; URL fields are omitted from repr."""
+
+    from_url: str = _field(repr=False)
+    to_url: str = _field(repr=False)
+    method: str
+    next_method: str
+    status: int
+
+
+@dataclass(frozen=True)
+class RedirectHistory:
+    """First retained hops and the count of later omitted redirects."""
+
+    entries: tuple[RedirectHop, ...]
+    omitted_hops: int
+
+
 class AsyncResponse:
     """An owned response body. Close it when you stop reading."""
 
@@ -219,6 +240,14 @@ class AsyncResponse:
     def connection_setup_retries(self) -> int:
         """Caller-enabled connection-setup retries, excluding protocol replays."""
         return self._native.connection_setup_retries
+
+    @property
+    def redirect_history(self) -> RedirectHistory | None:
+        retained = self._native.redirect_history
+        if retained is None:
+            return None
+        entries, omitted = retained
+        return RedirectHistory(tuple(RedirectHop(*hop) for hop in entries), omitted)
 
     @property
     def decoded_content_codings(self) -> tuple[str, ...]:
@@ -310,7 +339,12 @@ class AsyncClient:
         base_url: str | None = None,
         trust: Trust | None = None,
         timeouts: Timeouts | None = None,
+        redirect_policy: RedirectPolicy | None = None,
     ) -> None:
+        if redirect_policy is not None and not isinstance(
+            redirect_policy, RedirectPolicy
+        ):
+            raise TypeError("redirect_policy must be RedirectPolicy")
         if not isinstance(profile, (str, Profile)):
             raise TypeError("profile must be an exact catalog ID or Profile")
         if timeouts is not None and not isinstance(timeouts, Timeouts):
@@ -339,6 +373,7 @@ class AsyncClient:
             None if route is None else route.username,
             None if route is None else route.password,
             None if timeouts is None else timeouts._native_fields(),
+            None if redirect_policy is None else redirect_policy.maximum_hops,
         )
         self.cookies = Cookies(self._native.cookies)
 
@@ -380,6 +415,8 @@ class AsyncClient:
         timeout_ms: int | None = None,
         timeouts: TimeoutOverrides | None = None,
         content_decoding: ContentDecoding | None = None,
+        redirect_policy: RedirectPolicy | None = None,
+        redirect_history_limit: int | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body."""
         if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
@@ -390,6 +427,12 @@ class AsyncClient:
             content_decoding, ContentDecoding
         ):
             raise TypeError("content_decoding must be ContentDecoding")
+        if redirect_policy is not None and not isinstance(
+            redirect_policy, RedirectPolicy
+        ):
+            raise TypeError("redirect_policy must be RedirectPolicy")
+        if redirect_history_limit is not None:
+            _redirect_count(redirect_history_limit, positive=True)
         ordered = []
         for field in headers:
             if isinstance(field, Header):
@@ -420,6 +463,8 @@ class AsyncClient:
                 None
                 if content_decoding is None
                 else content_decoding.maximum_decoded_bytes,
+                None if redirect_policy is None else redirect_policy.maximum_hops,
+                redirect_history_limit,
             )
             return AsyncResponse(native)
         except _native.NativeError as error:
@@ -491,6 +536,10 @@ class Response:
         return self._response.connection_setup_retries
 
     @property
+    def redirect_history(self) -> RedirectHistory | None:
+        return self._response.redirect_history
+
+    @property
     def decoded_content_codings(self) -> tuple[str, ...]:
         return self._response.decoded_content_codings
 
@@ -554,6 +603,7 @@ class Client:
         base_url: str | None = None,
         trust: Trust | None = None,
         timeouts: Timeouts | None = None,
+        redirect_policy: RedirectPolicy | None = None,
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -567,6 +617,7 @@ class Client:
             base_url=base_url,
             trust=trust,
             timeouts=timeouts,
+            redirect_policy=redirect_policy,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies
@@ -624,6 +675,8 @@ class Client:
         timeout_ms: int | None = None,
         timeouts: TimeoutOverrides | None = None,
         content_decoding: ContentDecoding | None = None,
+        redirect_policy: RedirectPolicy | None = None,
+        redirect_history_limit: int | None = None,
     ) -> Response:
         return Response(
             self,
@@ -638,6 +691,8 @@ class Client:
                     timeout_ms=timeout_ms,
                     timeouts=timeouts,
                     content_decoding=content_decoding,
+                    redirect_policy=redirect_policy,
+                    redirect_history_limit=redirect_history_limit,
                 )
             ),
         )

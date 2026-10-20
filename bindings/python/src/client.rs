@@ -1,7 +1,7 @@
 use crate::{configuration, error, profile, response::NativeResponse, runtime, upload::FileBody};
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
 use pyo3::prelude::*;
-use std::{path::PathBuf, time::Duration};
+use std::{num::NonZeroUsize, path::PathBuf, time::Duration};
 
 pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     match protocol {
@@ -78,7 +78,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -93,6 +93,7 @@ impl NativeClient {
         proxy_username: Option<&str>,
         proxy_password: Option<&str>,
         timeouts: Option<configuration::TimeoutFields>,
+        redirect_maximum_hops: Option<usize>,
     ) -> PyResult<Self> {
         runtime::initialize()?;
         if !matches!(protocol, "h1" | "h2" | "h3" | "negotiated") {
@@ -102,6 +103,9 @@ impl NativeClient {
         let mut builder = Client::builder(profile)
             .route(configuration::route(proxy, proxy_username, proxy_password)?)
             .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
+        if let Some(maximum) = redirect_maximum_hops {
+            builder = builder.redirect_policy(configuration::redirect_policy(maximum));
+        }
         if let Some(base_url) = base_url {
             builder = builder
                 .base_url(base_url)
@@ -158,7 +162,7 @@ impl NativeClient {
         }
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -172,6 +176,8 @@ impl NativeClient {
         timeout_ms: Option<u64>,
         timeouts: Option<configuration::TimeoutFields>,
         maximum_decoded_bytes: Option<u64>,
+        redirect_maximum_hops: Option<usize>,
+        redirect_history_limit: Option<usize>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if body.is_some() && upload.is_some() {
             return Err(error::input("body_and_upload"));
@@ -205,6 +211,15 @@ impl NativeClient {
         request = request.timeouts(configuration::request_timeouts(timeout_ms, timeouts)?);
         if let Some(maximum) = maximum_decoded_bytes {
             request = request.content_decoding(phantom::ContentDecoding::advertised(maximum));
+        }
+        if let Some(maximum) = redirect_maximum_hops {
+            request = request.redirect_policy(configuration::redirect_policy(maximum));
+        }
+        if let Some(maximum) = redirect_history_limit {
+            request = request.redirect_history(
+                NonZeroUsize::new(maximum)
+                    .ok_or_else(|| error::input("invalid_redirect_history_limit"))?,
+            );
         }
         if let Some(body) = body {
             request = request.body(body);

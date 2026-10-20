@@ -150,6 +150,7 @@ class SignatureTests(unittest.TestCase):
                     "base_url": None,
                     "trust": None,
                     "timeouts": None,
+                    "redirect_policy": None,
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -161,6 +162,7 @@ class SignatureTests(unittest.TestCase):
                     "base_url": "https://origin.invalid/api/",
                     "trust": phantom_http.Trust(roots=(b"certificate",)),
                     "timeouts": None,
+                    "redirect_policy": None,
                 }
                 fields = iter([("X-Duplicate", b"a"), ("X-Duplicate", "b")])
                 budget = object()
@@ -169,6 +171,8 @@ class SignatureTests(unittest.TestCase):
                     "body": b"bytes",
                     "upload": None,
                     "content_decoding": None,
+                    "redirect_policy": None,
+                    "redirect_history_limit": None,
                     "budget": budget,
                     "timeout_ms": 42,
                     "timeouts": None,
@@ -203,6 +207,8 @@ class SignatureTests(unittest.TestCase):
                                 "body": None,
                                 "upload": None,
                                 "content_decoding": None,
+                                "redirect_policy": None,
+                                "redirect_history_limit": None,
                                 "budget": None,
                                 "timeout_ms": None,
                                 "timeouts": None,

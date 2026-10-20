@@ -20,6 +20,8 @@ from phantom_http import (
     Profile,
     ProfileError,
     Proxy,
+    RedirectHistory,
+    RedirectPolicy,
     Response,
     SessionSharing,
     TimeoutOverrides,
@@ -46,6 +48,7 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         base_url="https://origin.invalid/api/",
         trust=Trust(roots=(b"DER",), proxy_roots=(b"DER",)),
         timeouts=Timeouts(connect=1, total=5),
+        redirect_policy=RedirectPolicy.limited(3),
     ) as client:
         _closed: bool = client.is_closed
         jar: Cookies = client.cookies
@@ -70,6 +73,7 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
             _redirects: int = response.redirects_followed
             _setup_retries: int = response.connection_setup_retries
             _codings: tuple[str, ...] = response.decoded_content_codings
+            _history: RedirectHistory | None = response.redirect_history
             _fields: list[tuple[str, bytes]] = response.headers
             collected: bytes = response.read(max_bytes=1_000_000)
         with client.request("POST", url, body=b"bytes") as streamed:
@@ -90,12 +94,20 @@ async def asynchronous(profile: str, url: str) -> bytes:
             budget=AttemptBudget(2),
             timeouts=TimeoutOverrides(connect=INHERIT, total=None, read_idle=0),
             content_decoding=ContentDecoding.advertised(2**64 - 1),
+            redirect_policy=RedirectPolicy.none(),
+            redirect_history_limit=2,
         )
         async with response:
             _effective_url: str = response.url
             _redirects: int = response.redirects_followed
             _setup_retries: int = response.connection_setup_retries
             _codings: tuple[str, ...] = response.decoded_content_codings
+            retained = response.redirect_history
+            if retained is not None:
+                _omitted: int = retained.omitted_hops
+                for hop in retained.entries:
+                    _url: str = hop.to_url
+                    _status: int = hop.status
             _first: bytes | None = await response.read_chunk(1)
             collected: bytes = await response.read(max_bytes=10**100)
             # A subsequent read remains a valid call at EOF, including a bool bound.
