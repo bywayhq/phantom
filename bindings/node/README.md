@@ -122,7 +122,8 @@ and waits for native shutdown, with a default five-second shutdown deadline.
 
 Set client or request `timeouts` with `poolAdmissionMs`, `connectMs`,
 `responseHeadMs`, `readIdleMs`, and `totalMs`. Omitted fields inherit, `null`
-disables a limit, and zero expires immediately. Do not combine `timeoutMs`
+disables a limit, and zero is a finite limit. A ready core phase can finish
+before its timer runs. Do not combine `timeoutMs`
 with `timeouts.totalMs`. Timeout errors expose `timeoutPhase`; request errors
 also expose `protocol` when known.
 

@@ -10,7 +10,7 @@ export class AttemptBudget {
   readonly remaining: number;
 }
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
-/** Omit a phase to inherit it. null disables it; zero is an immediate limit. */
+/** Omit to inherit; null disables; zero is finite (a ready core phase can win). */
 export interface Timeouts {
   poolAdmissionMs?: number | null;
   connectMs?: number | null;

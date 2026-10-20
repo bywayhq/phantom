@@ -52,10 +52,11 @@ test('base URL joining and negotiated requests report the actual final protocol'
   assert.equal(response.connectionRetries, 0);
 });
 
-test('phase overrides distinguish inheritance, disabled limits and immediate zero', {timeout: 30000}, async (t) => {
+test('phase overrides distinguish inheritance, disabled limits and finite zero', {timeout: 30000}, async (t) => {
   let release;
   const started = new Promise((resolve) => { release = resolve; });
   const url = await peer(t, (request, response) => {
+    if (request.url === '/head') return;
     if (request.url === '/body') { response.writeHead(200); response.flushHeaders(); }
     else if (request.url === '/disabled') {
       response.writeHead(200); response.flushHeaders(); release(() => response.end('ok'));
@@ -63,7 +64,7 @@ test('phase overrides distinguish inheritance, disabled limits and immediate zer
     else response.end('ok');
   });
   const owner = client(t, {timeouts: {responseHeadMs: 0, readIdleMs: 30, totalMs: 3000}});
-  await assert.rejects(owner.request(url, options), timeout('responseHead'));
+  await assert.rejects(owner.request(url + '/head', options), timeout('responseHead'));
   const overridden = await owner.request(url, {...options, timeouts: {responseHeadMs: null}});
   assert.equal((await overridden.bytes(2)).toString(), 'ok');
   const idle = await owner.request(url + '/body', {...options, timeouts: {responseHeadMs: null}});
