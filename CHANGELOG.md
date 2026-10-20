@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Update the bundled root store and test certificate verifier for the emSign
+  certificate distrust fixes.
+
+- Reserve chosen loopback TCP ports in `phantom-testkit`, including refused
+  connections that share their port number with a QUIC peer.
+
 - Import raw JA3, JA4, Akamai, ClientHello and QUIC transport descriptions in
   Python, Go and Node.js with an explicit base profile. Reports distinguish
   observed and supplemented settings; hashes cannot reconstruct profiles.
