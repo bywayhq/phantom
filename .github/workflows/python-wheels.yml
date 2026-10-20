@@ -47,6 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m unittest discover -s scripts/release/tests -p test_python_sdist.py
           python -m pip install --no-cache-dir 'maturin==1.15.0'
           scripts/dev/with-cargo-lock.sh cargo fetch --locked
           scripts/dev/with-cargo-lock.sh python -m maturin sdist \
