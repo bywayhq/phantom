@@ -296,56 +296,60 @@ class SyncTests(unittest.TestCase):
 
 class AsyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_explicit_close_wakes_pending_collection(self):
-        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
-            response = await client.request("GET", url + "/stall")
-            self.assertEqual(await response.read_chunk(), b"a")
-            pending = asyncio.create_task(response.read(max_bytes=20))
-            done, _ = await asyncio.wait({pending}, timeout=0.05)
-            self.assertFalse(done)
-            response.close()
-            with self.assertRaises(Error) as caught:
-                await pending
-            self.assertEqual(caught.exception.kind, "body_closed")
-            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
-            self.assertIsNone(await response.read_chunk())
+        with server() as (peer, url):
+            async with AsyncClient(**OPTIONS) as client:
+                response = await client.request("GET", url + "/stall")
+                self.assertEqual(await response.read_chunk(), b"a")
+                pending = asyncio.create_task(response.read(max_bytes=20))
+                done, _ = await asyncio.wait({pending}, timeout=0.05)
+                self.assertFalse(done)
+                response.close()
+                with self.assertRaises(Error) as caught:
+                    await pending
+                self.assertEqual(caught.exception.kind, "body_closed")
+                self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+                self.assertIsNone(await response.read_chunk())
 
     async def test_collection_after_partial_chunk_and_multiple_frames(self):
-        with server() as (_, url), AsyncClient(**OPTIONS) as client:
-            response = await client.request("GET", url)
-            self.assertEqual(await response.read_chunk(1), b"h")
-            self.assertEqual(await response.read(max_bytes=4), b"ello")
-            response = await client.request("GET", url)
-            self.assertEqual(await response.read_chunk(1), b"h")
-            with self.assertRaises(BodyLimitExceeded):
-                await response.read(max_bytes=3)
-            response = await client.request("GET", url + "/large")
-            self.assertEqual(await response.read(max_bytes=200000), b"x" * 200000)
+        with server() as (_, url):
+            async with AsyncClient(**OPTIONS) as client:
+                response = await client.request("GET", url)
+                self.assertEqual(await response.read_chunk(1), b"h")
+                self.assertEqual(await response.read(max_bytes=4), b"ello")
+                response = await client.request("GET", url)
+                self.assertEqual(await response.read_chunk(1), b"h")
+                with self.assertRaises(BodyLimitExceeded):
+                    await response.read(max_bytes=3)
+                response = await client.request("GET", url + "/large")
+                self.assertEqual(await response.read(max_bytes=200000), b"x" * 200000)
 
     async def test_collection_overflow_closes_an_incomplete_body(self):
-        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
-            response = await client.request("GET", url + "/stall")
-            with self.assertRaises(BodyLimitExceeded):
-                await response.read(max_bytes=0)
-            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
-            self.assertIsNone(await response.read_chunk())
+        with server() as (peer, url):
+            async with AsyncClient(**OPTIONS) as client:
+                response = await client.request("GET", url + "/stall")
+                with self.assertRaises(BodyLimitExceeded):
+                    await response.read(max_bytes=0)
+                self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+                self.assertIsNone(await response.read_chunk())
 
     async def test_close_wakes_collection_and_concurrent_collection_is_rejected(self):
-        with server() as (peer, url), AsyncClient(**OPTIONS) as client:
-            response = await client.request("GET", url + "/stall")
-            readers = [
-                asyncio.create_task(response.read(max_bytes=20)),
-                asyncio.create_task(response.read(max_bytes=20)),
-            ]
-            results = await asyncio.wait_for(
-                asyncio.gather(*readers, return_exceptions=True), 2
-            )
-            self.assertTrue(all(isinstance(result, Error) for result in results))
-            self.assertEqual(
-                {result.kind for result in results},
-                {"concurrent_body_read", "body_closed"},
-            )
-            self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
-            self.assertEqual(await response.read(max_bytes=20), b"")
+        with server() as (peer, url):
+            async with AsyncClient(**OPTIONS) as client:
+                response = await client.request("GET", url + "/stall")
+                readers = [
+                    asyncio.create_task(response.read(max_bytes=20)),
+                    asyncio.create_task(response.read(max_bytes=20)),
+                ]
+                results = await asyncio.wait_for(
+                    asyncio.gather(*readers, return_exceptions=True), 2
+                )
+                self.assertTrue(all(isinstance(result, Error) for result in results))
+                self.assertEqual(
+                    {result.kind for result in results},
+                    {"concurrent_body_read", "body_closed"},
+                )
+                self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
+                self.assertEqual(await response.read(max_bytes=20), b"")
 
     async def test_explicit_close_wakes_a_pending_body_read(self):
         with server() as (peer, url):
