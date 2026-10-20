@@ -73,7 +73,7 @@ def record_row(name, data):
     return [name, "sha256=" + checksum.decode("ascii"), str(len(data))]
 
 
-def inspect_wheel(wheel, target, version, *, manylinux=False):
+def inspect_wheel(wheel, target, version, *, manylinux=False, project_licenses=None):
     """Check the native ABI3 wheel's metadata and every RECORD payload hash."""
     with zipfile.ZipFile(wheel) as archive:
         names = {info.filename for info in wheel_files(archive)}
@@ -104,12 +104,18 @@ def inspect_wheel(wheel, target, version, *, manylinux=False):
             or metadata["License-Expression"] != "MIT OR Apache-2.0"
         ):
             raise ValueError("unexpected Python package metadata")
+        if project_licenses is None:
+            project_licenses = {
+                name: hashlib.sha256(
+                    (ROOT / "bindings/python" / name).read_bytes()
+                ).hexdigest()
+                for name in ("LICENSE-MIT", "LICENSE-APACHE")
+            }
         for name in ("LICENSE-MIT", "LICENSE-APACHE"):
             path = f"{dist}/licenses/{name}"
-            if (
-                path not in names
-                or archive.read(path) != (ROOT / "bindings/python" / name).read_bytes()
-            ):
+            if path not in names or hashlib.sha256(
+                archive.read(path)
+            ).hexdigest() != project_licenses.get(name):
                 raise ValueError("missing or changed project license")
         licenses = {
             name.removeprefix(f"{dist}/licenses/")
@@ -579,13 +585,25 @@ def verify_candidate(
     if len(built) != 1:
         raise ValueError(f"expected one built wheel, found {len(built)}")
     original = built[0]
-    info = inspect_wheel(original, target, package["version"], manylinux=manylinux)
+    info = inspect_wheel(
+        original,
+        target,
+        package["version"],
+        manylinux=manylinux,
+        project_licenses=source["licenses"],
+    )
     candidate = output / "candidate" / original.name
     candidate.parent.mkdir()
     inspect_source_notices(original, info["dist_info"], source)
     inventory = source["receipt"]["notices"]
     shutil.copyfile(original, candidate)
-    checked = inspect_wheel(candidate, target, package["version"], manylinux=manylinux)
+    checked = inspect_wheel(
+        candidate,
+        target,
+        package["version"],
+        manylinux=manylinux,
+        project_licenses=source["licenses"],
+    )
     native = output / "native"
     native.mkdir()
     with zipfile.ZipFile(candidate) as archive:
@@ -699,6 +717,7 @@ def assemble_candidates(source_directory, wheel_directories, output):
             consumer["target"],
             source["version"],
             manylinux=consumer["target"].endswith("linux-gnu"),
+            project_licenses=source["licenses"],
         )
         inspect_source_notices(wheels[0], info["dist_info"], source)
         if (

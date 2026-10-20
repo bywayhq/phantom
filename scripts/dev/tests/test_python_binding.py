@@ -129,6 +129,43 @@ class PythonWheelTests(unittest.TestCase):
 
         return self.wheel(change=change, **kwargs)
 
+    def test_source_wheel_uses_exact_archive_licenses_across_checkout_line_endings(
+        self,
+    ):
+        licenses = {
+            name: (binding.ROOT / "bindings/python" / name)
+            .read_bytes()
+            .replace(b"\r\n", b"\n")
+            for name in ("LICENSE-MIT", "LICENSE-APACHE")
+        }
+
+        def change(payload):
+            for name, data in licenses.items():
+                payload[f"{DIST}/licenses/{name}"] = data
+
+        wheel = self.wheel(change=change)
+        checkout = self.directory / "windows-checkout"
+        folder = checkout / "bindings/python"
+        folder.mkdir(parents=True)
+        for name, data in licenses.items():
+            (folder / name).write_bytes(data.replace(b"\n", b"\r\n"))
+        expected = {
+            name: binding.hashlib.sha256(data).hexdigest()
+            for name, data in licenses.items()
+        }
+        with patch.object(binding, "ROOT", checkout):
+            with self.assertRaisesRegex(ValueError, "changed project license"):
+                binding.inspect_wheel(wheel, TARGET, "0.2.0")
+            binding.inspect_wheel(wheel, TARGET, "0.2.0", project_licenses=expected)
+            for invalid in ({}, dict(expected, **{"LICENSE-MIT": "wrong"})):
+                with (
+                    self.subTest(invalid=invalid),
+                    self.assertRaisesRegex(ValueError, "changed project license"),
+                ):
+                    binding.inspect_wheel(
+                        wheel, TARGET, "0.2.0", project_licenses=invalid
+                    )
+
     def test_source_receipt_binds_original_and_closure_locks_and_notice_payload(self):
         archive, path, receipt, files = self.source_archive()
         checked = binding.inspect_source(
@@ -411,7 +448,26 @@ class PythonWheelTests(unittest.TestCase):
                     self.directory, invalid, self.directory / "rejected"
                 )
             self.assertFalse((self.directory / "rejected").exists())
-        binding.assemble_candidates(self.directory, consumers, self.directory / "ready")
+        checkout = self.directory / "other-checkout"
+        folder = checkout / "bindings/python"
+        folder.mkdir(parents=True)
+        for name in ("LICENSE-MIT", "LICENSE-APACHE"):
+            data = files[name]
+            other_endings = (
+                data.replace(b"\r\n", b"\n")
+                if b"\r\n" in data
+                else data.replace(b"\n", b"\r\n")
+            )
+            self.assertNotEqual(data, other_endings)
+            (folder / name).write_bytes(other_endings)
+        tools = binding.artifact_tools()
+        with (
+            patch.object(binding, "ROOT", checkout),
+            patch.object(binding, "artifact_tools", return_value=tools),
+        ):
+            binding.assemble_candidates(
+                self.directory, consumers, self.directory / "ready"
+            )
         self.assertEqual(len(list((self.directory / "ready").glob("*.whl"))), 3)
         self.assertEqual(
             (self.directory / "ready" / archive.name).read_bytes(), archive.read_bytes()
