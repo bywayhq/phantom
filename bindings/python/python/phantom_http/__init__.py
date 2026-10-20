@@ -152,6 +152,10 @@ class ProfileError(Error):
         self.args = (f"profile: {kind} at {field}",)
 
 
+class SessionSnapshotError(Error):
+    """An encrypted checkpoint failed validation without exposing its contents."""
+
+
 class DecodeError(Error):
     """Text or JSON decoding failed without including response content."""
 
@@ -170,6 +174,8 @@ def _error(error: _native.NativeError) -> Error:
     category, kind, protocol, phase = cast(
         tuple[str, str, str | None, str | None], error.args
     )
+    if category == "session_snapshot":
+        return SessionSnapshotError(category, kind, protocol, phase)
     cls = {
         "timeout": TimeoutError,
         "shutdown_timeout": TimeoutError,
@@ -185,6 +191,29 @@ def _call(function: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T
         return function(*args, **kwargs)
     except _native.NativeError as error:
         raise _error(error) from None
+
+
+def _receiving_routes(
+    routes: Iterable[str | Proxy | None],
+) -> list[tuple[str | None, str | None, str | None]]:
+    result: list[tuple[str | None, str | None, str | None]] = []
+    for route in routes:
+        if isinstance(route, str):
+            route = Proxy(route)
+        if route is not None and not isinstance(route, Proxy):
+            raise TypeError("receiving routes must be URI strings, Proxy or None")
+        result.append(
+            (None, None, None)
+            if route is None
+            else (route.url, route.username, route.password)
+        )
+    return result
+
+
+def _checkpoint_bytes(value: bytes) -> bytes:
+    if not isinstance(value, bytes):
+        raise TypeError("checkpoint and key must be bytes")
+    return value
 
 
 def _profile_call(
@@ -614,6 +643,29 @@ class AsyncClient:
             )
         )
 
+    async def export_session(self, key: bytes) -> bytes:
+        """Export encrypted state; already-running native CPU work cannot be cancelled."""
+        return await asyncio.to_thread(
+            _call, self._native.export_session, _checkpoint_bytes(key)
+        )
+
+    async def restore_session(
+        self,
+        snapshot: bytes,
+        key: bytes,
+        *,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> AsyncClient:
+        """Restore into independent pools using this client's compatible settings."""
+        native = await asyncio.to_thread(
+            _call,
+            self._native.restore_session,
+            _checkpoint_bytes(snapshot),
+            _checkpoint_bytes(key),
+            _receiving_routes(receiving_routes),
+        )
+        return AsyncClient._from_native(native)
+
     async def request(
         self,
         method: str,
@@ -948,6 +1000,37 @@ class Client:
         client._loop = asyncio.new_event_loop()
         try:
             client._async = self._async.fork(sharing=sharing)
+            client.cookies = client._async.cookies
+        except BaseException:
+            client._loop.close()
+            raise
+        return client
+
+    def export_session(self, key: bytes) -> bytes:
+        """Export supported state without changing this client or its pools."""
+        self._check_thread_loop()
+        return _call(self._async._native.export_session, _checkpoint_bytes(key))
+
+    def restore_session(
+        self,
+        snapshot: bytes,
+        key: bytes,
+        *,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> Client:
+        """Restore a checkpoint into a new client with its own synchronous loop."""
+        self._check_thread_loop()
+        native = _call(
+            self._async._native.restore_session,
+            _checkpoint_bytes(snapshot),
+            _checkpoint_bytes(key),
+            _receiving_routes(receiving_routes),
+        )
+        client = object.__new__(Client)
+        client._thread = threading.get_ident()
+        client._loop = asyncio.new_event_loop()
+        try:
+            client._async = AsyncClient._from_native(native)
             client.cookies = client._async.cookies
         except BaseException:
             client._loop.close()

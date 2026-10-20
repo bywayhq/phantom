@@ -1,11 +1,11 @@
 use crate::{
     configuration, error, profile,
     response::NativeResponse,
-    runtime,
+    runtime, session,
     upload::{FileBody, NativeUpload},
 };
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
@@ -200,6 +200,24 @@ impl NativeClient {
             protocol: self.protocol.clone(),
             preparation: Arc::default(),
         }
+    }
+
+    fn export_session(&self, py: Python<'_>, key: &Bound<'_, PyBytes>) -> PyResult<Vec<u8>> {
+        session::export(py, &self.client, key)
+    }
+
+    fn restore_session(
+        &self,
+        py: Python<'_>,
+        snapshot: &Bound<'_, PyBytes>,
+        key: &Bound<'_, PyBytes>,
+        receiving_routes: session::Routes,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            client: session::restore(py, &self.client, snapshot, key, receiving_routes)?,
+            protocol: self.protocol.clone(),
+            preparation: Arc::default(),
+        })
     }
 
     #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None))]

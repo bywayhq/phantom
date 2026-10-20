@@ -215,6 +215,18 @@ def upload_sync(client: Client, url: str) -> None:
         response.read(max_bytes=100)
 
 
+def checkpoint_sync(client: Client, key: bytes) -> Client:
+    snapshot: bytes = client.export_session(key)
+    return client.restore_session(
+        snapshot, key, receiving_routes=(None, Proxy("http://proxy.invalid:80"))
+    )
+
+
+async def checkpoint_async(client: AsyncClient, key: bytes) -> AsyncClient:
+    snapshot: bytes = await client.export_session(key)
+    return await client.restore_session(snapshot, key)
+
+
 async def upload_async(client: AsyncClient, url: str) -> None:
     async def chunks() -> AsyncGenerator[bytes, None]:
         yield b"one"

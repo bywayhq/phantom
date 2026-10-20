@@ -8,6 +8,7 @@ mod error;
 mod profile;
 mod response;
 mod runtime;
+mod session;
 mod upload;
 
 #[pymodule]

@@ -114,3 +114,9 @@ async def invalid_upload(client: AsyncClient, sync: Client, url: str) -> None:
 
     sync.request("POST", url, body=chunks())  # E: arg-type
     await client.request("POST", url, body_length=1.5)  # E: arg-type
+
+
+def invalid_checkpoints(client: Client) -> None:
+    client.export_session("secret")  # E: arg-type
+    client.restore_session(bytearray(), b"key")  # E: arg-type
+    client.restore_session(b"snapshot", b"key", receiving_routes=[1])  # E: list-item

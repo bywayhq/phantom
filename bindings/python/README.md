@@ -166,6 +166,16 @@ starts empty. Sharing does not enable disabled features. Profile, routes, trust
 and timeouts are retained. Close either client independently, or fork a closed
 source into an open client. Sync forks retain the creating-thread rule.
 
+Export encrypted state with `checkpoint = await client.export_session(key)`,
+then `restored = await client.restore_session(checkpoint, key)`; sync clients
+have the same methods. Supply a secret random 32-byte key. Restore uses the
+receiving client's compatible configuration and returns independent pools;
+it never changes the receiver. `receiving_routes` lists request-only ticket
+routes (URI strings, `Proxy`, or `None` for direct). Core expiry and isolation
+checks apply; unsupported state/configuration raises `SessionSnapshotError`.
+No configuration or file I/O is serialized. Already-started CPU work continues
+if the awaiting task is cancelled; an unpublished restored client is discarded.
+
 ## Author profiles
 
 ```python

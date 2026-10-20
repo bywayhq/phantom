@@ -115,6 +115,13 @@ class NativeClient:
         discovery: bool,
         tickets: bool,
     ) -> NativeClient: ...
+    def export_session(self, key: bytes) -> bytes: ...
+    def restore_session(
+        self,
+        snapshot: bytes,
+        key: bytes,
+        receiving_routes: list[tuple[str | None, str | None, str | None]],
+    ) -> NativeClient: ...
     def request(
         self,
         method: str,
