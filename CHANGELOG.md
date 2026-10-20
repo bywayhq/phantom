@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add bounded Python text and JSON response readers, a `status_code` alias,
+  and explicit HTTP status checks that leave response bodies readable.
+
+- Expose Go response URLs, redirect counts and caller-enabled connection
+  setup retry counts from the core response metadata.
+
 - Collect Node.js response bodies in one bounded native operation while
   retaining streaming reads, cancellation and byte limits.
 
