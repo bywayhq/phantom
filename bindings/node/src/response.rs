@@ -159,17 +159,7 @@ impl Exchange {
         if maximum == 0 || maximum as usize > MAXIMUM_READ_BYTES {
             return Err(failure("InputLimit", "read size must be 1..65536 bytes"));
         }
-        if self
-            .reading
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            return Err(failure(
-                "ConcurrentRead",
-                "only one body read may be pending",
-            ));
-        }
-        let _reading = Reading(Arc::clone(&self));
+        let _reading = self.start_reading()?;
         if self.terminal.load(Ordering::Acquire) == EOF {
             return Ok(None);
         }
@@ -223,6 +213,83 @@ impl Exchange {
         }
         result
     }
+
+    pub(crate) async fn collect(self: Arc<Self>, maximum: u32) -> Result<Vec<u8>> {
+        let _reading = self.start_reading()?;
+        if self.terminal.load(Ordering::Acquire) == EOF {
+            return Ok(Vec::new());
+        }
+        if let Err(error) = self.check() {
+            self.fail();
+            return Err(error);
+        }
+        let mut body = self
+            .body
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+            .ok_or_else(|| failure("BodyClosed", "response body is closed"))?;
+        let collect = async {
+            let mut output = Vec::new();
+            loop {
+                self.check()?;
+                append_body(&mut output, &body.pending, maximum as usize)?;
+                body.pending = Bytes::new();
+                match body.stream.frame().await {
+                    Some(Ok(frame)) => {
+                        if let Ok(bytes) = frame.into_data() {
+                            body.pending = bytes;
+                        }
+                    }
+                    Some(Err(error)) => return Err(request(error)),
+                    None => return Ok(output),
+                }
+            }
+        };
+        let result = tokio::select! {
+            biased;
+            error = self.interrupted() => Err(error),
+            result = collect => result.and_then(|output| self.check().map(|()| output)),
+        };
+        match &result {
+            Ok(_) => self.finish(EOF),
+            Err(_) => self.fail(),
+        }
+        result
+    }
+
+    fn start_reading(self: &Arc<Self>) -> Result<Reading> {
+        if self
+            .reading
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(failure(
+                "ConcurrentRead",
+                "only one body read may be pending",
+            ));
+        }
+        Ok(Reading(Arc::clone(self)))
+    }
+}
+
+fn append_body(output: &mut Vec<u8>, bytes: &[u8], maximum: usize) -> Result<()> {
+    if bytes.len() > maximum.saturating_sub(output.len()) {
+        return Err(failure(
+            "ResponseBodyLimit",
+            "response exceeds maximumBytes",
+        ));
+    }
+    let length = output.len() + bytes.len();
+    if length > output.capacity() {
+        // Grow from received bytes instead of reserving the caller's entire bound.
+        let capacity = length.max(output.capacity().saturating_mul(2)).min(maximum);
+        output
+            .try_reserve_exact(capacity - output.len())
+            .map_err(|_| failure("Allocation", "response body allocation failed"))?;
+    }
+    output.extend_from_slice(bytes);
+    Ok(())
 }
 
 struct Reading(Arc<Exchange>);
@@ -289,6 +356,31 @@ mod tests {
         assert!(Arc::clone(&admission).try_acquire_owned().is_err());
         drop(pending);
         assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn collection_allocates_from_received_bytes_and_accepts_an_exact_bound() -> Result<()> {
+        let mut output = Vec::new();
+        append_body(&mut output, b"", usize::MAX)?;
+        assert_eq!(output.capacity(), 0);
+        append_body(&mut output, b"hello", 5)?;
+        append_body(&mut output, b"", 5)?;
+        assert_eq!(output, b"hello");
+        Ok(())
+    }
+
+    #[test]
+    fn collection_rejects_overflow_before_appending_or_allocating() -> Result<()> {
+        let mut output = Vec::new();
+        append_body(&mut output, b"he", 4)?;
+        let capacity = output.capacity();
+        assert!(append_body(&mut output, b"llo", 4).is_err());
+        assert_eq!(output, b"he");
+        assert_eq!(output.capacity(), capacity);
+        let mut empty = Vec::new();
+        assert!(append_body(&mut empty, b"x", 0).is_err());
+        assert_eq!(empty.capacity(), 0);
         Ok(())
     }
 }

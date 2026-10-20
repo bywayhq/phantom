@@ -15,20 +15,24 @@ const profile = process.platform === 'win32'
   : process.platform === 'darwin' ? 'chrome/154.0.8037.95/macos-15.5-arm64/r1'
   : 'chrome/154.0.8037.57/android-17-pixel7-emulator/r1';
 
-for (const method of ['read', 'text', 'json']) {
-test(`cancelling an HTTP/2 ${method} preserves another live stream on the same session`, { timeout: 30000 }, async (t) => {
+for (const [method, overflow] of [['read', false], ['bytes', false], ['text', false], ['json', false], ['bytes', true]]) {
+test(`${overflow ? 'overflowing' : 'cancelling'} an HTTP/2 ${method} preserves another live stream on the same session`, { timeout: 30000 }, async (t) => {
   const sessions = new Set();
   const server = http2.createSecureServer({ key: fixture('key.pem'), cert: fixture('certificate.pem') });
   server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
   const observed = new Map();
   let complete;
   let cancelled;
+  let sendOverflow;
   const streamClosed = new Promise((resolve) => { cancelled = resolve; });
   server.on('stream', (stream, headers) => {
     stream.on('error', () => {});
     observed.set(headers[':path'], stream.session);
     stream.respond({ ':status': 200, 'x-observed': 'h2' });
-    if (headers[':path'] === '/cancel') stream.on('close', () => cancelled(stream.rstCode));
+    if (headers[':path'] === '/cancel') {
+      stream.on('close', () => cancelled(stream.rstCode));
+      sendOverflow = () => stream.write('overflow');
+    }
     else complete = () => stream.end('healthy');
   });
   server.listen(0, '127.0.0.1');
@@ -45,9 +49,10 @@ test(`cancelling an HTTP/2 ${method} preserves another live stream on the same s
   const cancelledResponse = await client.request(url + '/cancel', { ...options, signal: controller.signal });
   const healthy = await client.request(url + '/healthy', options);
   assert.equal(observed.get('/cancel'), observed.get('/healthy'));
-  const reading = cancelledResponse[method](1024);
-  controller.abort();
-  await assert.rejects(reading, (error) => error instanceof PhantomError && error.code === 'Cancelled');
+  const reading = cancelledResponse[method](overflow ? 0 : 1024);
+  if (overflow) sendOverflow();
+  else controller.abort();
+  await assert.rejects(reading, (error) => error instanceof PhantomError && error.code === (overflow ? 'ResponseBodyLimit' : 'Cancelled'));
   assert.equal(await streamClosed, http2.constants.NGHTTP2_CANCEL);
   complete();
   assert.equal((await healthy.bytes(7)).toString(), 'healthy');

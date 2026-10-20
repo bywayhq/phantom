@@ -61,9 +61,11 @@ including duplicates. Responses retain received field order and byte values.
 Inputs are copied before asynchronous work starts. SharedArrayBuffer inputs
 are rejected.
 
-`read(maximumBytes)` pulls up to 65,536 bytes. Only one read can be pending.
+`read(maximumBytes)` pulls up to 65,536 bytes. Only one reader can be pending,
+including a whole-body collection.
 Async iteration closes an unfinished body when you leave the loop.
-`bytes(maximumBytes)` collects within your explicit limit. Close an unused
+`bytes(maximumBytes)` collects the remaining body within your explicit limit.
+It grows with received bytes rather than reserving that limit. Close an unused
 response to release its stream. The adapter holds at most one received frame
 between reads and does not collect bodies in the background.
 Body bytes retain their content encoding; decompression is not automatic.

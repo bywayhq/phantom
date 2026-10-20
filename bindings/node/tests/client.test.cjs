@@ -177,6 +177,61 @@ test('bounded collection refuses overflow and never blocks another client', asyn
   assert.equal((await (await client.request(url, request)).bytes(10)).length, 10);
 });
 
+test('native collection honors zero, exact and large bounds and the remaining cursor', async (t) => {
+  const payload = Buffer.alloc(131075, 0x61);
+  const { url } = await peer(t, (req, res) => res.end(
+    req.url === '/empty' ? '' : req.url === '/tiny' ? 'ok' : payload,
+  ));
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  for (const bound of [0, 0xffffffff]) {
+    assert.deepEqual(await (await client.request(url + '/empty', request)).bytes(bound), Buffer.alloc(0));
+  }
+  assert.equal((await (await client.request(url + '/tiny', request)).bytes(0xffffffff)).toString(), 'ok');
+  let response = await client.request(url, request);
+  assert.deepEqual(await response.bytes(payload.length), payload);
+  assert.deepEqual(await response.bytes(0), Buffer.alloc(0));
+  response = await client.request(url, request);
+  assert.deepEqual(await response.read(3), payload.subarray(0, 3));
+  assert.deepEqual(await response.bytes(payload.length - 3), payload.subarray(3));
+  assert.equal(await response.read(), null);
+  response = await client.request(url + '/tiny', request);
+  await assert.rejects(response.bytes(0), code('ResponseBodyLimit'));
+});
+
+test('a native collection holds one reader until all remaining frames arrive', async (t) => {
+  let release;
+  const { url } = await peer(t, (_req, res) => {
+    res.write('prefix');
+    release = () => res.end('suffix');
+  });
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  const response = await client.request(url, request);
+  assert.equal((await response.read(2)).toString(), 'pr');
+  const collection = response.bytes(10);
+  await assert.rejects(response.read(), code('ConcurrentRead'));
+  await assert.rejects(client.request(url, request), code('Capacity'));
+  release();
+  assert.equal((await collection).toString(), 'efixsuffix');
+  const next = await client.request(url, request);
+  next.close();
+});
+
+test('explicit close interrupts a pending collection and releases admission', async (t) => {
+  const { url } = await peer(t, (req, res) => {
+    if (req.url === '/healthy') return res.end('ok');
+    res.write('prefix');
+  });
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  const response = await client.request(url, request);
+  const collection = response.bytes(100);
+  response.close();
+  await assert.rejects(collection, code('Cancelled'));
+  assert.equal((await (await client.request(url + '/healthy', request)).bytes(2)).toString(), 'ok');
+});
+
 test('text uses a byte bound, strict UTF-8 and the remaining body cursor', async (t) => {
   const payload = Buffer.from('\ufeffh\u00e9\ud83d\ude80');
   const { url } = await peer(t, (req, res) => res.end(req.url === '/empty' ? '' : payload));
@@ -279,8 +334,10 @@ test('one total deadline covers pending response body completion', async (t) => 
   const { url } = await peer(t, (_req, res) => { res.writeHead(200); res.flushHeaders(); });
   const client = makeClient();
   t.after(() => client.close());
-  const response = await client.request(url, { ...request, timeoutMs: 1000 });
-  await assert.rejects(response.read(), code('Timeout'));
+  for (const method of ['read', 'bytes']) {
+    const response = await client.request(url, { ...request, timeoutMs: 1000 });
+    await assert.rejects(response[method](100), code('Timeout'));
+  }
 });
 
 test('text and JSON retain native deadlines and concurrent-read failures', async (t) => {

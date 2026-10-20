@@ -421,6 +421,17 @@ impl NativeResponse {
         })
         .build(&env)
     }
+    /// Collects the remaining body under one exclusive reader and byte limit.
+    #[napi]
+    pub fn collect(&self, env: Env, maximum_bytes: u32) -> Result<AsyncBlock<Buffer>> {
+        let exchange = Arc::clone(&self.exchange);
+        let owner = Arc::clone(&self.owner);
+        AsyncBlockBuilder::new(async move {
+            let _owner = owner;
+            exchange.collect(maximum_bytes).await.map(Buffer::from)
+        })
+        .build(&env)
+    }
     /// Cancels and releases an unfinished body.
     #[napi]
     pub fn close(&self) {

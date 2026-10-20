@@ -85,17 +85,17 @@ class Response {
   }
   async bytes(maximumBytes) {
     integer(maximumBytes, 'maximumBytes');
-    const chunks = [];
-    let length = 0;
+    if (this.#reading) {
+      this.close();
+      throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
+    }
+    this.#reading = true;
     try {
-      for (;;) {
-        const chunk = await this.read(Math.min(65536, Math.max(1, maximumBytes - length + 1)));
-        if (chunk === null) return Buffer.concat(chunks, length);
-        length += chunk.length;
-        if (length > maximumBytes) throw new PhantomError('ResponseBodyLimit', 'response exceeds maximumBytes');
-        chunks.push(chunk);
-      }
-    } catch (error) { this.close(); throw error; }
+      const body = await this.#native.collect(maximumBytes);
+      this.#finished();
+      return body;
+    } catch (error) { this.close(); throw translated(error); }
+    finally { this.#reading = false; }
   }
   async text(maximumBytes) {
     const body = await this.bytes(maximumBytes);
