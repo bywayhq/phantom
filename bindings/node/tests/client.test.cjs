@@ -177,6 +177,70 @@ test('bounded collection refuses overflow and never blocks another client', asyn
   assert.equal((await (await client.request(url, request)).bytes(10)).length, 10);
 });
 
+test('text uses a byte bound, strict UTF-8 and the remaining body cursor', async (t) => {
+  const payload = Buffer.from('\ufeffh\u00e9\ud83d\ude80');
+  const { url } = await peer(t, (req, res) => res.end(req.url === '/empty' ? '' : payload));
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  let response = await client.request(url, request);
+  assert.equal(await response.text(payload.length), 'h\u00e9\ud83d\ude80');
+  assert.equal(await response.text(0), '');
+  response = await client.request(url, request);
+  await assert.rejects(response.text(payload.length - 1), code('ResponseBodyLimit'));
+  response = await client.request(url, request);
+  assert.deepEqual(await response.read(3), Buffer.from([0xef, 0xbb, 0xbf]));
+  assert.equal(await response.text(payload.length - 3), 'h\u00e9\ud83d\ude80');
+  response = await client.request(url + '/empty', request);
+  assert.equal(await response.text(0), '');
+  response = await client.request(url, request);
+  await assert.rejects(response.text(), code('InvalidArgument'));
+  await assert.rejects(response.text(-1), code('InvalidArgument'));
+  assert.equal(await response.text(payload.length), 'h\u00e9\ud83d\ude80');
+});
+
+test('JSON returns parsed values without content-type or status coercion', async (t) => {
+  const cases = [
+    ['null', null], ['true', true], ['42', 42], ['"text"', 'text'],
+    ['[1,"two"]', [1, 'two']], ['{"answer":42}', { answer: 42 }],
+  ];
+  const { url } = await peer(t, (req, res) => {
+    res.writeHead(503, { 'Content-Type': 'text/plain' });
+    res.end('\ufeff' + cases[Number(req.url.slice(1))][0]);
+  });
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  for (const [index, [source, expected]] of cases.entries()) {
+    const response = await client.request(`${url}/${index}`, request);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(Buffer.byteLength(source) + 3), expected);
+    await assert.rejects(response.json(0), code('JsonDecode'));
+  }
+});
+
+test('text and JSON failures are redacted and release body admission', async (t) => {
+  const secret = 'private-response-sentinel';
+  const payloads = {
+    '/utf8': Buffer.concat([Buffer.from(secret), Buffer.from([0xff])]),
+    '/json': Buffer.from(secret),
+    '/valid': Buffer.from('{"ok":true}'),
+  };
+  const { url } = await peer(t, (req, res) => res.end(payloads[req.url]));
+  const client = makeClient({ maximumActiveRequests: 1 });
+  t.after(() => client.close());
+  for (const [pathname, method, expected] of [
+    ['/utf8', 'text', 'TextDecode'], ['/utf8', 'json', 'TextDecode'],
+    ['/json', 'json', 'JsonDecode'], ['/valid', 'json', 'ResponseBodyLimit'],
+  ]) {
+    const response = await client.request(url + pathname, request);
+    await assert.rejects(response[method](pathname === '/valid' ? 0 : 100), (error) => {
+      assert.ok(code(expected)(error));
+      assert.ok(!String(error).includes(secret));
+      return true;
+    });
+    assert.deepEqual(await (await client.request(url + '/valid', request)).json(11), { ok: true });
+  }
+});
+
 test('abort stays attached after response head and cancels an idle body', async (t) => {
   const { url } = await peer(t, (_req, res) => { res.writeHead(200); res.flushHeaders(); });
   const client = makeClient({ maximumActiveRequests: 1 });
@@ -217,6 +281,21 @@ test('one total deadline covers pending response body completion', async (t) => 
   t.after(() => client.close());
   const response = await client.request(url, { ...request, timeoutMs: 1000 });
   await assert.rejects(response.read(), code('Timeout'));
+});
+
+test('text and JSON retain native deadlines and concurrent-read failures', async (t) => {
+  const { url } = await peer(t, (_req, res) => { res.writeHead(200); res.flushHeaders(); });
+  const client = makeClient();
+  t.after(() => client.close());
+  for (const method of ['text', 'json']) {
+    const response = await client.request(url, { ...request, timeoutMs: 1000 });
+    await assert.rejects(response[method](100), code('Timeout'));
+    const overlapping = await client.request(url, request);
+    const pending = overlapping.read();
+    const cancelled = assert.rejects(pending, code('Cancelled'));
+    await assert.rejects(overlapping[method](100), code('ConcurrentRead'));
+    await cancelled;
+  }
 });
 
 test('file uploads use bounded one-shot streams and reject metadata beyond the caller limit', async (t) => {

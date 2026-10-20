@@ -1,7 +1,7 @@
 'use strict';
 
 const native = require('./phantom.node');
-const { types } = require('node:util');
+const { types, TextDecoder } = require('node:util');
 const { addAbortListener } = require('node:events');
 const apply = Reflect.apply;
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype);
@@ -96,6 +96,22 @@ class Response {
         chunks.push(chunk);
       }
     } catch (error) { this.close(); throw error; }
+  }
+  async text(maximumBytes) {
+    const body = await this.bytes(maximumBytes);
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(body);
+    } catch {
+      throw new PhantomError('TextDecode', 'response UTF-8 decoding failed');
+    } finally { this.close(); }
+  }
+  async json(maximumBytes) {
+    const text = await this.text(maximumBytes);
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new PhantomError('JsonDecode', 'response JSON parsing failed');
+    }
   }
   close() { this.#native.close(); this.#finished(); }
   [Symbol.asyncIterator]() {

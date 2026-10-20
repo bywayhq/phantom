@@ -33,6 +33,8 @@ export class Response implements AsyncIterable<Buffer> {
   readonly headers: Header[];
   read(maximumBytes?: number): Promise<Buffer | null>;
   bytes(maximumBytes: number): Promise<Buffer>;
+  text(maximumBytes: number): Promise<string>;
+  json(maximumBytes: number): Promise<unknown>;
   close(): void;
   [Symbol.asyncIterator](): AsyncIterator<Buffer>;
   [Symbol.asyncDispose](): Promise<void>;

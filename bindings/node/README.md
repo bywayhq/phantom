@@ -49,7 +49,7 @@ try {
     method: 'GET', protocol: 'http2', context: 'navigation', timeoutMs: 5000,
   });
   try {
-    console.log(response.status, (await response.bytes(1024 * 1024)).toString());
+    console.log(response.status, await response.text(1024 * 1024));
   } finally { response.close(); }
 } finally { await client.close(); }
 ```
@@ -67,6 +67,47 @@ Async iteration closes an unfinished body when you leave the loop.
 response to release its stream. The adapter holds at most one received frame
 between reads and does not collect bodies in the background.
 Body bytes retain their content encoding; decompression is not automatic.
+
+`text(maximumBytes)` decodes strict UTF-8 and removes one leading UTF-8 BOM.
+`json(maximumBytes)` parses that text and returns `unknown` in TypeScript.
+Validate its shape before using it. Both require a byte limit and consume the
+remaining body, including after a partial `read()`. At EOF, text is empty and
+JSON fails. Neither guesses a charset, decompresses content or rejects HTTP
+error statuses. Failures use redacted `TextDecode` or `JsonDecode` codes.
+Native errors, including `Cancelled`, `Timeout` and `ResponseBodyLimit`, retain
+their codes. Consumption closes the body on completion or failure.
+
+The limit bounds input bytes, not decoded text or parsed-object memory.
+JSON parsing is synchronous; cancellation and the native deadline cannot
+interrupt that parsing step.
+
+## Download to a file
+
+Use the response directly with Node's pipeline. Pass the same signal to the
+request and pipeline so an abort also interrupts a pending native body read.
+
+```js
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+
+const controller = new AbortController();
+const response = await client.request('https://example.com/file', {
+  method: 'GET', protocol: 'http2', context: 'raw',
+  signal: controller.signal, timeoutMs: 30_000,
+});
+try {
+  await pipeline(response, createWriteStream('download.bin'), {
+    signal: controller.signal,
+  });
+} finally { response.close(); }
+```
+
+Pipeline applies backpressure and closes an unfinished body on output failure.
+It does not impose a total download limit. Keep the client for further requests,
+then call `await client.close()` at application shutdown. Node's pipeline may
+report `AbortError`; direct response reads use `PhantomError` with `Cancelled`.
+
+## Cancellation and client state
 
 Pass an `AbortSignal` to cancel setup, uploads, or body reads. It stays attached
 after the response head arrives. `timeoutMs` covers the whole request through

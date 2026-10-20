@@ -15,7 +15,8 @@ const profile = process.platform === 'win32'
   : process.platform === 'darwin' ? 'chrome/154.0.8037.95/macos-15.5-arm64/r1'
   : 'chrome/154.0.8037.57/android-17-pixel7-emulator/r1';
 
-test('cancelling one HTTP/2 stream preserves another on the same native session', { timeout: 30000 }, async (t) => {
+for (const method of ['read', 'text', 'json']) {
+test(`cancelling an HTTP/2 ${method} preserves another live stream on the same session`, { timeout: 30000 }, async (t) => {
   const sessions = new Set();
   const server = http2.createSecureServer({ key: fixture('key.pem'), cert: fixture('certificate.pem') });
   server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
@@ -27,7 +28,7 @@ test('cancelling one HTTP/2 stream preserves another on the same native session'
     stream.on('error', () => {});
     observed.set(headers[':path'], stream.session);
     stream.respond({ ':status': 200, 'x-observed': 'h2' });
-    if (headers[':path'] === '/cancel') stream.on('close', cancelled);
+    if (headers[':path'] === '/cancel') stream.on('close', () => cancelled(stream.rstCode));
     else complete = () => stream.end('healthy');
   });
   server.listen(0, '127.0.0.1');
@@ -44,14 +45,15 @@ test('cancelling one HTTP/2 stream preserves another on the same native session'
   const cancelledResponse = await client.request(url + '/cancel', { ...options, signal: controller.signal });
   const healthy = await client.request(url + '/healthy', options);
   assert.equal(observed.get('/cancel'), observed.get('/healthy'));
-  const reading = cancelledResponse.read();
+  const reading = cancelledResponse[method](1024);
   controller.abort();
   await assert.rejects(reading, (error) => error instanceof PhantomError && error.code === 'Cancelled');
-  await streamClosed;
+  assert.equal(await streamClosed, http2.constants.NGHTTP2_CANCEL);
   complete();
   assert.equal((await healthy.bytes(7)).toString(), 'healthy');
   assert.equal(sessions.size, 1);
 });
+}
 
 test('zero-window HTTP/2 file upload cancellation retains the reusable session', { timeout: 30000 }, async (t) => {
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'phantom-node-h2-'));

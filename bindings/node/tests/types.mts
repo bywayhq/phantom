@@ -7,6 +7,15 @@ async function use(): Promise<void> {
     file: {path: 'input.bin', maximumBytes: 1024},
   });
   const bytes: Buffer = await response.bytes(1024);
+  const text: string = await response.text(1024);
+  const value: unknown = await response.json(1024);
+  // @ts-expect-error The input byte limit is mandatory.
+  await response.json();
+  // @ts-expect-error Parsed JSON cannot be used as validated text.
+  const unchecked: string = await response.json(1024);
+  // @ts-expect-error Text is not a byte buffer.
+  const binary: Buffer = await response.text(1024);
+  void text; void value; void unchecked; void binary;
   void bytes;
 }
 void use;
