@@ -11,10 +11,7 @@ use std::{
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use napi::Result;
-use phantom::{
-    HttpAttemptBudget, HttpProtocol, Method, PreparedRequestTemplate, RequestBuilder, RequestHeader,
-};
-use phantom_profile::catalog::RequestTemplateKind;
+use phantom::{HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader};
 use tokio::io::{AsyncRead, ReadBuf};
 
 use crate::{
@@ -82,27 +79,7 @@ impl Prepared {
         }
         .map_err(request)?
         .headers(headers);
-        if options.context != "raw" {
-            let kind = match options.context.as_str() {
-                "navigation" => RequestTemplateKind::Navigation,
-                "fetch" => RequestTemplateKind::Fetch,
-                "fetchNoStore" => RequestTemplateKind::FetchNoStore,
-                "fetchUpload" => RequestTemplateKind::FetchUpload,
-                _ => {
-                    return Err(failure(
-                        "InvalidContext",
-                        "choose raw, navigation, fetch, fetchNoStore or fetchUpload",
-                    ));
-                }
-            };
-            let template = client.profile.request_template(kind).map_err(|_| {
-                failure(
-                    "UnavailableContext",
-                    "this exact profile has no template for the requested context",
-                )
-            })?;
-            let prepared = PreparedRequestTemplate::new(template)
-                .map_err(|_| failure("InvalidProfile", "request template is invalid"))?;
+        if let Some(prepared) = client.profile.template(&options.context)? {
             builder = builder.template(&prepared);
         }
         if body.is_some() && options.file.is_some() {

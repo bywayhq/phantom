@@ -9,7 +9,7 @@ use napi::Result;
 use phantom::{Client, HttpProxy, Route, Socks5Proxy};
 use tokio::sync::Semaphore;
 
-use crate::{error::failure, ffi::ClientOptions, response::Exchange};
+use crate::{error::failure, ffi::ClientOptions, profile::ProfileState, response::Exchange};
 
 const MAXIMUM_CLIENTS_PER_ENV: usize = 128;
 
@@ -55,7 +55,7 @@ impl Environment {
 #[derive(Debug)]
 pub(crate) struct ClientState {
     pub(crate) core: Client,
-    pub(crate) profile: &'static phantom_profile::catalog::ProfileDefinition,
+    pub(crate) profile: Arc<ProfileState>,
     pub(crate) admission: Arc<Semaphore>,
     pub(crate) timeouts: phantom::RequestTimeouts,
     maximum: usize,
@@ -67,6 +67,7 @@ pub(crate) struct ClientState {
 impl ClientState {
     pub(crate) fn build(
         options: ClientOptions,
+        profile: Arc<ProfileState>,
         roots: Vec<Vec<u8>>,
         proxy_roots: Vec<Vec<u8>>,
         environment: &Environment,
@@ -78,11 +79,8 @@ impl ClientState {
                 "maximumActiveRequests must be 1..1024",
             ));
         }
-        let profile = phantom_profile::catalog::profile(&options.profile)
-            .map_err(|_| failure("UnknownProfile", "unknown exact profile identifier"))?;
-        let settings = profile
-            .instantiate(&[])
-            .map_err(|_| failure("InvalidProfile", "profile cannot be instantiated"))?;
+        // Every request selects its context explicitly, including attached templates.
+        let settings = profile.settings.clone().without_request_template();
         let mut builder = Client::builder(settings).route(route(
             &options.route,
             options.proxy.as_deref(),
@@ -251,11 +249,8 @@ mod tests {
         } else {
             "chrome/154.0.8037.57/android-17-pixel7-emulator/r1"
         };
-        let profile = phantom_profile::catalog::profile(identifier)
-            .map_err(|_| failure("TestProfile", "test profile is absent"))?;
-        let settings = profile
-            .instantiate(&[])
-            .map_err(|_| failure("TestProfile", "profile is invalid"))?;
+        let profile = ProfileState::catalog(identifier, None)?;
+        let settings = profile.settings.clone();
         let core = Client::builder(settings)
             .route(Route::direct())
             .build()
@@ -263,7 +258,7 @@ mod tests {
         let state = || {
             Arc::new(ClientState {
                 core: core.clone(),
-                profile,
+                profile: Arc::clone(&profile),
                 admission: Arc::new(Semaphore::new(1)),
                 timeouts: phantom::RequestTimeouts::new(),
                 maximum: 1,

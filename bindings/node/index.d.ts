@@ -4,6 +4,27 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
+  /** Core profile-document category, when code is ProfileImport/ProfileExport. */
+  readonly kind?: string;
+  /** Canonical document field path; supplied values are omitted. */
+  readonly field?: string;
+}
+/** Large unsigned integers use bigint rather than rounded JavaScript numbers. */
+export type ProfileValue = null | boolean | number | bigint | string | ProfileValue[] | { [key: string]: ProfileValue };
+export type CatalogContext = 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload';
+export type RequestContext = 'raw' | 'profile' | CatalogContext;
+/** Immutable native settings. Imported documents never acquire catalog evidence. */
+export class Profile {
+  private constructor();
+  static fromCatalog(identifier: string, context?: CatalogContext): Profile;
+  static importJson(input: Uint8Array): Profile;
+  /** Validates an editable data document through the native importer. */
+  static fromDescription(document: { [key: string]: ProfileValue }): Profile;
+  readonly catalogId: string | null;
+  readonly contexts: readonly RequestContext[];
+  exportJson(): Buffer;
+  /** Returns a fresh editable document, including configured literal headers. */
+  describe(): { [key: string]: ProfileValue };
 }
 export class AttemptBudget {
   constructor(maximum: number);
@@ -19,7 +40,7 @@ export interface Timeouts {
   totalMs?: number | null;
 }
 export interface ClientOptions {
-  profile: string;
+  profile: string | Profile;
   route: 'direct' | 'proxy';
   proxy?: string;
   proxyUsername?: string;
@@ -34,7 +55,7 @@ export interface ClientOptions {
 export interface RequestOptions {
   method: string;
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
-  context: 'raw' | 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload';
+  context: RequestContext;
   headers?: Header[];
   body?: Uint8Array;
   file?: { path: string; maximumBytes: number };

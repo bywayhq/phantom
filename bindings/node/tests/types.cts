@@ -1,4 +1,4 @@
-import { AttemptBudget, Client, PhantomError, Response, profiles } from '../index.cjs';
+import { AttemptBudget, Client, PhantomError, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -49,3 +49,26 @@ async function readers(response: Response): Promise<void> {
   void text; void unchecked;
 }
 void readers;
+
+function profileAuthoring(): void {
+  const exact = Profile.fromCatalog(profiles()[0]!, 'navigation');
+  const document: {[key: string]: ProfileValue} = exact.describe();
+  const large: ProfileValue = 9007199254740993n;
+  const custom = Profile.fromDescription(document);
+  const exported: Buffer = custom.exportJson();
+  const id: string | null = custom.catalogId;
+  const owner = new Client({profile: custom, route: 'direct'});
+  void owner.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'profile'});
+  // @ts-expect-error A JSON object is not bounded encoded input.
+  Profile.importJson(document);
+  // @ts-expect-error Descriptions cannot contain functions.
+  Profile.fromDescription({invalid: () => 1});
+  // @ts-expect-error A raw request has no catalog template to attach.
+  Profile.fromCatalog('exact/id', 'raw');
+  // @ts-expect-error Profiles are constructed from validated input.
+  new Profile();
+  // @ts-expect-error Context metadata cannot be mutated.
+  custom.contexts.push('navigation');
+  void exported; void id; void large;
+}
+void profileAuthoring;

@@ -9,6 +9,7 @@
 use crate::{
     client::{ClientState, Environment},
     error::failure,
+    profile::{MAXIMUM_PROFILE_BYTES, ProfileState},
     request::{MAXIMUM_HEADER_BYTES, MAXIMUM_INPUT_BYTES, Prepared},
     response::Exchange,
 };
@@ -103,8 +104,8 @@ pub struct WireHeader {
 /// Explicit native client configuration.
 #[napi(object)]
 pub struct ClientOptions {
-    /// Exact compiled catalog identifier.
-    pub profile: String,
+    /// Exact compiled catalog identifier, unless an owned profile is supplied.
+    pub profile: Option<String>,
     /// Either direct or proxy.
     pub route: String,
     /// Explicit HTTP, HTTPS or SOCKS5 proxy URI.
@@ -201,7 +202,7 @@ pub struct RequestOptions {
     pub method: String,
     /// Exact http1/http2/http3, or explicitly negotiated HTTP/2 and HTTP/1.
     pub protocol: String,
-    /// Explicit raw or compiled browser request context.
+    /// Explicit raw, attached profile template or compiled catalog context.
     pub context: String,
     /// Ordered duplicate fields.
     pub headers: Option<Vec<WireHeader>>,
@@ -261,7 +262,22 @@ impl NativeEnvironment {
     }
     /// Constructs a reusable client without caching this Env.
     #[napi]
-    pub fn client(&self, env: Env, mut options: ClientOptions) -> Result<NativeClient> {
+    pub fn client(
+        &self,
+        env: Env,
+        mut options: ClientOptions,
+        profile: Option<&NativeProfile>,
+    ) -> Result<NativeClient> {
+        let profile = match (options.profile.take(), profile) {
+            (Some(identifier), None) => ProfileState::catalog(&identifier, None)?,
+            (None, Some(profile)) => Arc::clone(&profile.state),
+            _ => {
+                return Err(failure(
+                    "InvalidProfile",
+                    "choose an exact identifier or a Profile",
+                ));
+            }
+        };
         let copy_roots = |roots: Option<Vec<Buffer>>| {
             let roots = roots.unwrap_or_default();
             if roots.len() > 16 {
@@ -274,9 +290,52 @@ impl NativeEnvironment {
         };
         let roots = copy_roots(options.additional_roots.take())?;
         let proxy_roots = copy_roots(options.additional_proxy_roots.take())?;
-        ClientState::build(options, roots, proxy_roots, &self.state)
+        ClientState::build(options, profile, roots, proxy_roots, &self.state)
             .map(|state| NativeClient { state })
     }
+}
+
+/// Immutable settings owned by Rust, without references to JavaScript inputs.
+#[derive(Debug)]
+#[napi]
+pub struct NativeProfile {
+    state: Arc<ProfileState>,
+}
+
+#[napi]
+impl NativeProfile {
+    /// Returns the exact catalog identity, or null for every imported profile.
+    #[napi(getter)]
+    #[must_use]
+    pub fn catalog_id(&self) -> Option<String> {
+        self.state.catalog_id()
+    }
+
+    /// Lists supported explicit contexts without substituting another template.
+    #[napi(getter)]
+    #[must_use]
+    pub fn contexts(&self) -> Vec<String> {
+        self.state.contexts()
+    }
+
+    /// Exports the core's editable JSON document into a fresh owned Buffer.
+    #[napi]
+    pub fn export_json(&self) -> Result<Buffer> {
+        self.state.export().map(Buffer::from)
+    }
+}
+
+/// Selects an exact catalog profile and optionally attaches its named template.
+#[napi]
+pub fn profile_catalog(identifier: String, context: Option<String>) -> Result<NativeProfile> {
+    ProfileState::catalog(&identifier, context.as_deref()).map(|state| NativeProfile { state })
+}
+
+/// Copies bounded ordinary bytes on this Env before strict native JSON import.
+#[napi]
+pub fn profile_import_json(env: Env, input: Buffer) -> Result<NativeProfile> {
+    let input = copy_buffer(&env, input, MAXIMUM_PROFILE_BYTES)?;
+    ProfileState::import(&input).map(|state| NativeProfile { state })
 }
 
 /// Native shared allowance for origin HTTP attempts.

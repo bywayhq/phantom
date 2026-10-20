@@ -62,6 +62,50 @@ including duplicates. Responses retain received field order and byte values.
 Inputs are copied before asynchronous work starts. SharedArrayBuffer inputs
 are rejected.
 
+## Edit a profile
+
+Use an exact catalog profile or import the core's complete custom-profile JSON.
+`Profile` owns immutable native settings; `describe()` returns a fresh editable
+document. Select a catalog context to include its template in the export:
+
+```js
+import { Profile } from '@byway/phantom';
+
+const original = Profile.fromCatalog(
+  'chrome/154.0.8037.97/windows-11-26200/r1', 'navigation',
+);
+const document = original.describe();
+document.profile.tls.session_ticket_order = 'OldestFirst';
+const custom = Profile.fromDescription(document);
+const customClient = new Client({profile: custom, route: 'direct'});
+try {
+  const response = await customClient.request('https://example.com/', {
+    method: 'GET', protocol: 'http2', context: 'profile', timeoutMs: 5000,
+  });
+  try { console.log(await response.text(1024)); }
+  finally { response.close(); }
+} finally { await customClient.close(); }
+```
+
+`exportJson()` returns a fresh Buffer for storage or exact byte-based imports.
+Documents include configured literal headers; handle them as potentially
+sensitive data. Input is limited to 16 MiB and uses the Rust importer's strict
+schema and resource bounds. `describe()` represents large integers as `bigint`;
+`fromDescription()` preserves them. It accepts ordinary data objects and arrays,
+rejecting getters, cycles and unsupported values. Use it instead of ordinary
+`JSON.stringify()` when editing a description. Errors with code `ProfileImport`
+or `ProfileExport` expose `kind` and `field` without supplied values. Client
+construction still checks backend and host support.
+
+`catalogId` is the exact ID for catalog-owned profiles and `null` for every
+import, including an unchanged round trip. An import carries settings, not
+browser evidence. `contexts` lists available choices. Use `profile` to apply
+an attached template, or `raw` for caller fields only. Named catalog contexts
+remain available on catalog-owned profiles; imports reject them. This API
+imports complete JSON, not compact fingerprints or versioned bundles.
+
+## Read a response
+
 `read(maximumBytes)` pulls up to 65,536 bytes. Only one reader can be pending,
 including a whole-body collection.
 Async iteration closes an unfinished body when you leave the loop.

@@ -1,4 +1,4 @@
-import { Client } from '../index.mjs';
+import { Client, Profile } from '../index.mjs';
 
 async function use(): Promise<void> {
   await using client = new Client({profile: 'exact/profile/id', route: 'proxy', proxy: 'http://127.0.0.1:8080'});
@@ -19,3 +19,5 @@ async function use(): Promise<void> {
   void bytes;
 }
 void use;
+const custom: Profile = Profile.importJson(Profile.fromCatalog('exact/profile/id').exportJson());
+void custom;

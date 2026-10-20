@@ -2,6 +2,7 @@
 
 mod client;
 mod error;
+mod profile;
 mod request;
 mod response;
 
@@ -11,5 +12,6 @@ mod ffi;
 
 pub use ffi::{
     ClientOptions, FileUpload, NativeAttemptBudget, NativeCancellation, NativeClient,
-    NativeEnvironment, NativeResponse, RequestOptions, WireHeader, profile_ids,
+    NativeEnvironment, NativeProfile, NativeResponse, RequestOptions, WireHeader, profile_catalog,
+    profile_ids, profile_import_json,
 };

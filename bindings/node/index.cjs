@@ -10,20 +10,26 @@ const offsetOf = Object.getOwnPropertyDescriptor(typedArray, 'byteOffset').get;
 const lengthOf = Object.getOwnPropertyDescriptor(typedArray, 'byteLength').get;
 const environment = new native.NativeEnvironment();
 const budgetHandles = new WeakMap();
+const profileHandles = new WeakMap();
+const profileToken = {};
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
 
 class PhantomError extends Error {
-  constructor(code, message, protocol, timeoutPhase) {
+  constructor(code, message, protocol, timeoutPhase, kind, field) {
     super(message);
     this.name = 'PhantomError';
     this.code = code;
     this.protocol = protocol;
     this.timeoutPhase = timeoutPhase;
+    this.kind = kind;
+    this.field = field;
   }
 }
 
 function translated(error) {
   if (error instanceof PhantomError) return error;
+  const profile = /^PHANTOM_PROFILE:(ProfileImport|ProfileExport):([A-Za-z0-9_]+):([^:]*):([\s\S]*)$/.exec(error?.message ?? '');
+  if (profile) return new PhantomError(profile[1], profile[4], undefined, undefined, profile[2], profile[3]);
   const request = /^PHANTOM_REQUEST:([A-Za-z0-9_]+):([A-Za-z0-9_]*):([A-Za-z0-9_]*):([\s\S]*)$/.exec(error?.message ?? '');
   if (request) return new PhantomError(request[1], request[4], request[2] || undefined, request[3] || undefined);
   const match = /^PHANTOM:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
@@ -75,6 +81,102 @@ class AttemptBudget {
     budgetHandles.set(this, new native.NativeAttemptBudget(integer(maximum, 'maximum')));
   }
   get remaining() { return budgetHandles.get(this).remaining; }
+}
+
+function profileHandle(value) {
+  const handle = profileHandles.get(value);
+  if (handle === undefined) throw new PhantomError('InvalidProfile', 'profile must be an exact identifier or a Profile');
+  return handle;
+}
+
+function descriptionError(kind = 'InvalidValue') {
+  return new PhantomError('ProfileImport', 'profile description rejected', undefined, undefined, kind, 'document');
+}
+
+function encodeDescription(document) {
+  let remaining = 16 * 1024 * 1024;
+  let nodes = 0;
+  const active = new WeakSet();
+  const charge = (length) => {
+    remaining -= length;
+    if (remaining < 0) throw descriptionError('TooLarge');
+  };
+  const string = (value) => {
+    if (value.length > 65536 || Buffer.byteLength(value) > 65536) throw descriptionError('TooLarge');
+    charge(Buffer.byteLength(JSON.stringify(value)));
+  };
+  // Snapshot data descriptors before stringify: getters/toJSON cannot change
+  // validated values or expand them after the resource checks.
+  const snapshot = (value, depth) => {
+    if (depth > 16 || ++nodes > 1048576) throw descriptionError('TooLarge');
+    if (typeof value === 'string') { string(value); return value; }
+    if (typeof value === 'bigint') {
+      if (value < 0n || value > 18446744073709551615n) throw descriptionError();
+      charge(value.toString().length);
+      return value;
+    }
+    if (value === null || typeof value === 'boolean') { charge(value === null ? 4 : value ? 4 : 5); return value; }
+    if (typeof value === 'number') {
+      if (!Number.isSafeInteger(value)) throw descriptionError();
+      charge(JSON.stringify(value).length);
+      return value;
+    }
+    if (typeof value !== 'object' || types.isProxy(value) || active.has(value)) throw descriptionError();
+    const array = Array.isArray(value);
+    if (!array && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw descriptionError();
+    if (Object.getOwnPropertySymbols(value).length !== 0) throw descriptionError();
+    if (array && value.length > 65535) throw descriptionError('TooLarge');
+    const result = array ? [] : Object.create(null);
+    active.add(value);
+    charge(2);
+    let count = 0;
+    for (const name in value) {
+      if (!Object.hasOwn(value, name)) continue;
+      if (++count > (array ? 65535 : 64)) throw descriptionError('TooLarge');
+      if (array && name !== String(count - 1)) throw descriptionError();
+      const descriptor = Object.getOwnPropertyDescriptor(value, name);
+      if (!Object.hasOwn(descriptor, 'value')) throw descriptionError();
+      if (count > 1) charge(1);
+      if (!array) { string(name); charge(1); }
+      Object.defineProperty(result, name, {value: snapshot(descriptor.value, depth + 1), enumerable: true});
+    }
+    if (array && count !== value.length) throw descriptionError();
+    active.delete(value);
+    return result;
+  };
+  if (document === null || typeof document !== 'object' || types.isProxy(document) || Array.isArray(document)) throw descriptionError();
+  const copy = snapshot(document, 0);
+  return Buffer.from(JSON.stringify(copy, (_name, value) => typeof value === 'bigint' ? JSON.rawJSON(value.toString()) : value));
+}
+
+class Profile {
+  constructor(token, handle) {
+    if (token !== profileToken) throw new PhantomError('InvalidProfile', 'use Profile.fromCatalog or Profile.importJson');
+    profileHandles.set(this, handle);
+    Object.freeze(this);
+  }
+  static fromCatalog(identifier, context) {
+    if (typeof identifier !== 'string' || (context !== undefined && typeof context !== 'string')) {
+      throw new PhantomError('InvalidArgument', 'catalog identifier and optional context must be strings');
+    }
+    try { return new Profile(profileToken, native.profileCatalog(identifier, context)); }
+    catch (error) { throw translated(error); }
+  }
+  static importJson(input) {
+    try { return new Profile(profileToken, native.profileImportJson(bytes(input))); }
+    catch (error) { throw translated(error); }
+  }
+  static fromDescription(document) { return Profile.importJson(encodeDescription(document)); }
+  get catalogId() { return profileHandle(this).catalogId; }
+  get contexts() { return Object.freeze(profileHandle(this).contexts); }
+  exportJson() {
+    try { return profileHandle(this).exportJson(); }
+    catch (error) { throw translated(error); }
+  }
+  describe() {
+    return JSON.parse(this.exportJson().toString('utf8'), (_name, value, context) =>
+      typeof value === 'number' && !Number.isSafeInteger(value) ? BigInt(context.source) : value);
+  }
 }
 
 class Response {
@@ -165,10 +267,11 @@ class Client {
     try {
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
-        ...options, additionalRoots: options.additionalRoots?.map(bytes),
+        ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
+        additionalRoots: options.additionalRoots?.map(bytes),
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
         timeouts: phaseTimeouts(options.timeouts),
-      });
+      }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }
   async request(url, options) {
@@ -231,4 +334,4 @@ class Client {
   async [Symbol.asyncDispose]() { await this.close(); }
 }
 
-module.exports = { AttemptBudget, Client, PhantomError, Response, profiles: () => native.profileIds() };
+module.exports = { AttemptBudget, Client, PhantomError, Profile, Response, profiles: () => native.profileIds() };
