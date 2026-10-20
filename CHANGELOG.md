@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add bounded UTF-8 text and JSON response readers to the Node.js adapter,
+  with typed decoding errors and a streaming download example.
+
 - Reject canceled Go requests before preparation and native admission. Close
   response bodies when `ReadAll` receives an invalid limit.
 
