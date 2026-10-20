@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Collect Python response bodies in one native operation while retaining
+  byte limits, cancellation and streaming reads.
+
 - Use fresh Python check environments so restored build caches cannot corrupt
   binding installation checks.
 
