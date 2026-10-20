@@ -18,9 +18,10 @@ expect() {
   fi
 }
 
-doc='code=false doctests=false'
-doctest='code=false doctests=true'
-code='code=true doctests=true'
+doc='code=false doctests=false core=false'
+doctest='code=false doctests=true core=false'
+binding='code=true doctests=true core=false'
+code='code=true doctests=true core=true'
 
 # Documentation only.
 expect "$doc" CONTRIBUTING.md
@@ -57,6 +58,39 @@ expect "$code" scripts/ci/changed-paths.sh scripts/requirements.txt
 expect "$code" LICENSE-MIT.rs
 expect "$code" docs/README.md crates/phantom/src/lib.rs README.md
 expect "$code" README.md docs/guides/client.md Cargo.lock
+
+# Only known binding sources skip core Features and Vendor. Manifests,
+# builders, new file kinds and other verification tools remain full code.
+for path in bindings/node/src/ffi.rs bindings/node/src/profile/tests.rs \
+  bindings/node/index.cjs bindings/node/index.mjs bindings/node/index.d.ts \
+  bindings/node/index.d.cts bindings/node/index.d.mts \
+  bindings/node/tests/client.test.cjs bindings/node/tests/types.cts \
+  bindings/node/tests/types.mts bindings/python/src/response.rs \
+  bindings/python/python/phantom_http/__init__.py \
+  bindings/python/python/phantom_http/_native.pyi \
+  bindings/python/python/phantom_http/py.typed \
+  bindings/python/tests/typing/client_usage.py \
+  bindings/go/client.go bindings/go/client_test.go \
+  bindings/go/native/src/operations/tests.rs; do
+  expect "$binding" "$path"
+done
+for path in bindings/node/Cargo.toml bindings/python/Cargo.toml \
+  bindings/go/native/Cargo.toml bindings/go/native/Cargo.lock \
+  bindings/node/build.rs bindings/node/src/build.rs \
+  bindings/node/package.json bindings/node/package-lock.json \
+  bindings/python/pyproject.toml bindings/go/go.mod bindings/go/go.sum \
+  bindings/node/scripts/copy-native.cjs bindings/node/new-file.ts \
+  bindings/node/tests/configuration.json bindings/python/new-helper.py \
+  bindings/go/new-format.json scripts/dev/check-node-binding.sh \
+  scripts/release/node_artifact.py scripts/dev/gate.sh \
+  bindings/node/src/../Cargo.toml /bindings/node/src/client.rs; do
+  expect "$code" "$path"
+done
+expect "$binding" bindings/node/index.cjs bindings/python/src/client.rs CHANGELOG.md
+expect "$code" bindings/node/index.cjs crates/phantom/src/client.rs
+expect "$code" crates/phantom/src/client.rs bindings/node/index.cjs
+expect "$code" bindings/node/index.cjs Cargo.lock
+expect "$code" Cargo.lock bindings/node/index.cjs
 
 # Every file that crates/ or fuzz/ compile in with include_str! or
 # include_bytes! must be classified as code or as a doctest source; a
@@ -187,8 +221,9 @@ while IFS=$'\t' read -r kind target location; do
       ;;
   esac
   for candidate in ${candidates[@]+"${candidates[@]}"}; do
-    if [[ $("$classifier" --classify "$candidate" | paste -sd ' ' -) == "$doc" ]]; then
-      printf 'FAILED: %s includes %s, which is classified as documentation only\n' \
+    class=$("$classifier" --classify "$candidate" | paste -sd ' ' -)
+    if [[ $class != "$code" && $class != "$doctest" ]]; then
+      printf 'FAILED: %s includes %s, which skips core and doctest coverage\n' \
         "${location:-$target}" "$candidate" >&2
       failures=$((failures + 1))
     fi
@@ -246,6 +281,20 @@ git_test mv crates/example/main.rs docs/main.md
 git_test commit --quiet --message move
 expect_diff "$code" HEAD~1 HEAD 'code moved into docs'
 
+mkdir -p "$work_root/bindings/node/src"
+git_test mv docs/main.md bindings/node/src/client.rs
+git_test commit --quiet --message 'move documentation into binding'
+expect_diff "$binding" HEAD~1 HEAD 'binding added from documentation'
+git_test mv bindings/node/src/client.rs crates/example/main.rs
+git_test commit --quiet --message 'move binding into core'
+expect_diff "$code" HEAD~1 HEAD 'binding moved into core'
+git_test mv crates/example/main.rs bindings/node/src/client.rs
+git_test commit --quiet --message 'move core into binding'
+expect_diff "$code" HEAD~1 HEAD 'core moved into binding'
+git_test rm --quiet bindings/node/src/client.rs
+git_test commit --quiet --message 'remove binding'
+expect_diff "$binding" HEAD~1 HEAD 'binding removed'
+
 git_test commit --quiet --allow-empty --message empty
 expect_diff "$code" HEAD~1 HEAD 'empty change set'
 
@@ -257,6 +306,71 @@ if "$classifier" >/dev/null 2>&1; then
   echo "FAILED: missing arguments were accepted" >&2
   failures=$((failures + 1))
 fi
+
+# Exercise the actual required-job guard, not a second policy implementation.
+# A changed command layout fails extraction instead of silently skipping it.
+workflow="$repo_root/.github/workflows/ci.yml"
+required_filter=$(awk '
+  /jq --exit-status --raw-output --arg event/ { inside = 1; count++; next }
+  inside && / <<<"\$NEEDS"/ { inside = 0; next }
+  inside { print }
+  END { if (count != 1 || inside) exit 1 }
+' "$workflow")
+[[ -n $required_filter ]] || { echo 'FAILED: missing required-job guard' >&2; exit 1; }
+everything=$(sed -n "s/^          everything=//p" "$workflow")
+[[ -n $everything ]] || { echo 'FAILED: missing full-run fallback' >&2; exit 1; }
+fallback=$(bash -c "printf '%s\\n' $everything" | paste -sd ' ' -)
+if [[ $fallback != "$code" ]]; then
+  echo 'FAILED: schedule/manual/missing-push fallback must enable every class' >&2
+  failures=$((failures + 1))
+fi
+
+full_needs=$(jq -n '{
+  changes: {result: "success", outputs: {code: "true", doctests: "true", core: "true"}},
+  docs: {result: "success"}, quality: {result: "success"},
+  features: {result: "success"}, downstream: {result: "success"},
+  vendor: {result: "success"}, platform: {result: "success"}, msrv: {result: "success"}
+}')
+binding_needs=$(jq '.changes.outputs.core = "false" | .features.result = "skipped" |
+  .vendor.result = "skipped"' <<<"$full_needs")
+doc_needs=$(jq '.changes.outputs = {code: "false", doctests: "false", core: "false"} |
+  .quality.result = "skipped" | .features.result = "skipped" |
+  .downstream.result = "skipped" | .vendor.result = "skipped" |
+  .platform.result = "skipped" | .msrv.result = "skipped"' <<<"$full_needs")
+expect_required() {
+  local expected=$1 input=$2 event=${3:-pull_request} actual=fail
+  if jq --exit-status --raw-output --arg event "$event" "$required_filter" \
+    <<<"$input" >/dev/null 2>&1; then actual=pass; fi
+  if [[ $actual != "$expected" ]]; then
+    echo "FAILED: required-job guard expected $expected for $event: $input" >&2
+    failures=$((failures + 1))
+  fi
+}
+expect_required pass "$full_needs"
+expect_required pass "$binding_needs"
+expect_required pass "$doc_needs"
+for event in schedule workflow_dispatch; do
+  expect_required pass "$full_needs" "$event"
+  expect_required fail "$binding_needs" "$event"
+done
+for job in quality downstream platform msrv; do
+  for result in skipped failure cancelled; do
+    expect_required fail "$(jq --arg job "$job" --arg result "$result" \
+      '.[$job].result = $result' <<<"$binding_needs")"
+  done
+done
+for field in code doctests core; do
+  expect_required fail "$(jq --arg field "$field" 'del(.changes.outputs[$field])' <<<"$doc_needs")"
+  expect_required fail "$(jq --arg field "$field" '.changes.outputs[$field] = "invalid"' <<<"$doc_needs")"
+done
+expect_required fail "$(jq '.changes.outputs.code = "false" | .downstream.result = "skipped" |
+  .platform.result = "skipped" | .msrv.result = "skipped"' <<<"$full_needs")"
+expect_required fail "$(jq '.changes.outputs.doctests = "false" |
+  .quality.result = "skipped"' <<<"$binding_needs")"
+expect_required fail "$(jq 'del(.platform)' <<<"$binding_needs")"
+expect_required fail "$(jq '.unexpected = {result: "success"}' <<<"$binding_needs")"
+expect_required fail "$(jq '.features.result = "skipped"' <<<"$full_needs")"
+expect_required fail "$(jq '.vendor.result = "success"' <<<"$binding_needs")"
 
 if ((failures > 0)); then
   printf '%d path classification checks failed\n' "$failures" >&2

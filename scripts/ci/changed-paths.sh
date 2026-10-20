@@ -3,10 +3,13 @@
 # change cannot affect. Prints GitHub Actions step outputs:
 #
 #   code=true|false      true when any changed path is outside the
-#                        documentation set; every CI job then runs.
+#                        documentation set; binding and workspace jobs run.
 #   doctests=true|false  true when code changed or when a Markdown file that
 #                        rustdoc compiles as doctests changed; the job that
 #                        runs `cargo test` and `cargo doc` then runs.
+#   core=true|false      true unless only documentation or known binding
+#                        implementation/test sources changed; runs Features
+#                        and Vendor in addition to the other code jobs.
 #
 # Usage:
 #   changed-paths.sh BASE HEAD           classify `git diff BASE HEAD`
@@ -20,12 +23,29 @@ usage() {
   exit 2
 }
 
-# Sets path_class to doctest, doc, or code for one repository-relative path.
+# Sets path_class to doctest, doc, binding, or code for one relative path.
 # Anything not listed as documentation is code. The doctest entries must cover
 # every `#[doc = include_str!(...)]` hook in crates/phantom/src/lib.rs;
 # test-changed-paths.sh enforces that.
 classify_path() {
   case $1 in
+    # Unknown files, build inputs and noncanonical paths must not acquire the
+    # binding-only exception through a broader source or test glob below.
+    /* | ./* | ../* | */../* | */./* | *\\* | \
+      */Cargo.toml | */Cargo.lock | */build.rs | */package.json | \
+      */package-lock.json | */go.mod | */go.sum | */pyproject.toml)
+      path_class=code
+      ;;
+    bindings/node/src/*.rs | bindings/node/tests/*.cjs | \
+      bindings/node/tests/*.cts | bindings/node/tests/*.mts | \
+      bindings/node/index.cjs | bindings/node/index.mjs | \
+      bindings/node/index.d.ts | bindings/node/index.d.cts | bindings/node/index.d.mts | \
+      bindings/python/src/*.rs | bindings/python/tests/*.py | \
+      bindings/python/python/phantom_http/*.py | bindings/python/python/phantom_http/*.pyi | \
+      bindings/python/python/phantom_http/py.typed | \
+      bindings/go/*.go | bindings/go/native/src/*.rs)
+      path_class=binding
+      ;;
     README.md | docs/getting-started.md | docs/guides/* | \
       docs/reference/fingerprint-import.md)
       path_class=doctest
@@ -46,16 +66,19 @@ classify_path() {
 }
 
 classify() {
-  local code=false doctests=false path path_class
+  local code=false doctests=false core=false path path_class
   if (($# == 0)); then
-    code=true
+    code=true core=true
   fi
   for path in "$@"; do
     classify_path "$path"
     case $path_class in
       code)
-        code=true
+        code=true core=true
         break
+        ;;
+      binding)
+        code=true
         ;;
       doctest)
         doctests=true
@@ -65,7 +88,7 @@ classify() {
   if [[ $code == true ]]; then
     doctests=true
   fi
-  printf 'code=%s\ndoctests=%s\n' "$code" "$doctests"
+  printf 'code=%s\ndoctests=%s\ncore=%s\n' "$code" "$doctests" "$core"
 }
 
 classify_diff() {

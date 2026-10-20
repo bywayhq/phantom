@@ -4,6 +4,8 @@ name: CI
 # platform jobs; the weekly schedule and manual dispatch run every job.
 # Documentation-only changes skip every job except the ones they can affect. The `CI required`
 # job is the single status check that branch protection requires.
+# Known binding-only sources retain workspace/platform checks and skip only
+# the unchanged core feature matrix and vendor replay jobs.
 on:
   pull_request:
   push:
@@ -35,6 +37,7 @@ jobs:
     outputs:
       code: ${{ steps.classify.outputs.code }}
       doctests: ${{ steps.classify.outputs.doctests }}
+      core: ${{ steps.classify.outputs.core }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,7 +52,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          everything=$'code=true\ndoctests=true'
+          everything=$'code=true\ndoctests=true\ncore=true'
           case "$EVENT_NAME" in
             pull_request)
               # The checkout is GitHub's test merge commit; its first parent
@@ -249,7 +252,7 @@ jobs:
   features:
     name: Features
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -351,7 +354,7 @@ jobs:
   vendor:
     name: Vendor (${{ matrix.package }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
@@ -621,13 +624,14 @@ jobs:
             .changes.outputs as $class
             | ($class.code == "true") as $code
             | ($class.doctests == "true") as $doctests
+            | ($class.core == "true") as $core
             | {
                 changes: true,
                 docs: true,
                 quality: $doctests,
-                features: $code,
+                features: $core,
                 downstream: $code,
-                vendor: $code,
+                vendor: $core,
                 platform: $code,
                 msrv: $code
               } as $runs
@@ -639,10 +643,14 @@ jobs:
                 | {job: .key, result: .value.result, expected: $expected}
               ] as $jobs
             | ($jobs[] | "\(.job): \(.result) (expected \(.expected))"),
-              "classification: code=\($class.code) doctests=\($class.doctests)",
+              "classification: code=\($class.code) doctests=\($class.doctests) core=\($class.core)",
               if ($class.code | IN("true", "false"))
                 and ($class.doctests | IN("true", "false"))
+                and ($class.core | IN("true", "false"))
+                and ($code or ($core | not))
                 and ($doctests or ($code | not))
+                and (if $event == "schedule" or $event == "workflow_dispatch"
+                     then $core and $code and $doctests else true end)
                 and ($runs | keys) == ([$jobs[].job] | sort)
                 and all($jobs[]; .result == .expected)
               then "all required jobs passed"
