@@ -565,7 +565,7 @@ impl NativeAttemptBudget {
     #[must_use]
     pub fn remaining(&self) -> Either<f64, BigInt> {
         let remaining = self.budget.remaining() as u64;
-        if remaining <= (1_u64 << 53) - 1 {
+        if remaining < (1_u64 << 53) {
             Either::A(remaining as f64)
         } else {
             Either::B(BigInt {

@@ -47,11 +47,13 @@ loop and use `async with` for clients and responses:
 import asyncio
 from phantom_http import AsyncClient
 
+
 async def main():
     async with AsyncClient(profile=PROFILE, protocol="h2", timeout_ms=30_000) as client:
         async with await client.request("GET", "https://example.com/") as response:
             async for chunk in response.iter_bytes():
                 print(len(chunk))
+
 
 asyncio.run(main())
 ```
