@@ -16,6 +16,28 @@ import (
 
 func durationPointer(value time.Duration) *time.Duration { return &value }
 
+func TestRetryStatusSetOwnsOnlyDistinctSupportedCodes(t *testing.T) {
+	order := []int{503, 429, 408, 504, 502, 500, 425}
+	statuses := make([]int, 65536)
+	for index := range statuses {
+		statuses[index] = order[index%len(order)]
+	}
+	wire, err := retryPolicyWire(RetryPolicy{Status: &StatusRetry{Statuses: statuses, Maximum: 1}})
+	if err != nil || wire.Status == nil || !reflect.DeepEqual(wire.Status.Statuses, order) {
+		t.Fatalf("set snapshot=%v, error=%v", wire.Status, err)
+	}
+	statuses[0] = 421
+	if !reflect.DeepEqual(wire.Status.Statuses, order) {
+		t.Fatal("wire set retains caller storage")
+	}
+	for _, invalid := range [][]int{nil, {}, {421}, {503, 200}} {
+		_, err := retryPolicyWire(RetryPolicy{Status: &StatusRetry{Statuses: invalid, Maximum: 1}})
+		if kind(err) != "invalid_retry_policy" {
+			t.Fatalf("invalid status error=%v", err)
+		}
+	}
+}
+
 func TestRetryWireSnapshotsExactValuesAndRejectsInvalidDurations(t *testing.T) {
 	cap := 31 * time.Nanosecond
 	after := 61 * time.Nanosecond

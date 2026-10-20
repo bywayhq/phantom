@@ -106,16 +106,37 @@ func retryPolicyWire(value RetryPolicy) (wireRetryPolicy, error) {
 		if !ok || !afterOK || item.Maximum == 0 || item.Delay < 0 || maximum != nil && *maximum < uint64(item.Delay) {
 			return invalid()
 		}
-		// Even the smallest JSON numeric entries exceed the existing command bound.
-		if len(item.Statuses) > 32*1024 {
-			return wireRetryPolicy{}, &Error{Kind: "input_limit"}
-		}
-		statuses := make([]int, len(item.Statuses))
-		for index, status := range item.Statuses {
-			if status < 0 || status > 65535 {
+		// The core stores a set of seven status codes. Preserve first appearance
+		// without copying repeated entries into the bounded command channel.
+		statuses := make([]int, 0, min(7, len(item.Statuses)))
+		var seen uint8
+		for _, status := range item.Statuses {
+			var bit uint8
+			switch status {
+			case 408:
+				bit = 1 << 0
+			case 425:
+				bit = 1 << 1
+			case 429:
+				bit = 1 << 2
+			case 500:
+				bit = 1 << 3
+			case 502:
+				bit = 1 << 4
+			case 503:
+				bit = 1 << 5
+			case 504:
+				bit = 1 << 6
+			default:
 				return invalid()
 			}
-			statuses[index] = status
+			if seen&bit == 0 {
+				statuses = append(statuses, status)
+				seen |= bit
+			}
+		}
+		if len(statuses) == 0 {
+			return invalid()
 		}
 		result.Status = &wireStatusRetry{statuses, item.Maximum, uint64(item.Delay), maximum, item.FullJitter, after}
 	}
