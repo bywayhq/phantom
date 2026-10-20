@@ -198,7 +198,8 @@ jobs:
           node-version: "24.15.0"
 
       - name: Test native Node.js 24 adapter
-        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
+        # Node 22 prepared the same N-API addon, dependencies and type checks.
+        run: npm --prefix bindings/node test
 
       # nextest does not run doctests, and `cargo test --all-targets` skips them.
       - name: Test documentation examples
@@ -516,7 +517,8 @@ jobs:
 
       - name: Test native Node.js 24 adapter
         shell: bash
-        run: scripts/dev/with-cargo-lock.sh bash scripts/dev/check-node-binding.sh
+        # Exercise the prepared addon on the second runtime without reinstalling.
+        run: npm --prefix bindings/node test
 
       - name: Install Windows capture Python
         if: runner.os == 'Windows'

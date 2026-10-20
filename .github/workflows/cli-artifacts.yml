@@ -8,6 +8,8 @@ on:
       - Cargo.toml
       - Cargo.lock
       - rust-toolchain.toml
+      - .gitattributes
+      - LICENSE-*
       - scripts/release/**
       - scripts/dev/tests/test_cli_artifact.py
       - scripts/dev/with-cargo-lock.sh

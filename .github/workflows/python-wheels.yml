@@ -9,6 +9,8 @@ on:
       - Cargo.toml
       - Cargo.lock
       - rust-toolchain.toml
+      - .gitattributes
+      - LICENSE-*
       - scripts/dev/check_python_binding.py
       - scripts/dev/binding_h3_peer.py
       - scripts/conformance/binding_upload_h3.py

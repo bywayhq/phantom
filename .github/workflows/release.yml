@@ -11,6 +11,9 @@ on:
       - scripts/ci/**
       - Cargo.toml
       - Cargo.lock
+      - rust-toolchain.toml
+      - .gitattributes
+      - LICENSE-*
       - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
@@ -23,8 +26,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_INCREMENTAL: "0"

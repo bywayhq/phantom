@@ -9,6 +9,8 @@ on:
       - Cargo.toml
       - Cargo.lock
       - rust-toolchain.toml
+      - .gitattributes
+      - LICENSE-*
       - scripts/release/node_artifact.py
       - scripts/release/cli_artifact.py
       - scripts/release/notices/**
