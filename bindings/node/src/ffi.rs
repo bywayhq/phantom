@@ -869,6 +869,19 @@ impl NativeClient {
             .take()
             .map(|body| copy_buffer(&env, body, MAXIMUM_INPUT_BYTES))
             .transpose()?;
+        let body = match (body, upload) {
+            (Some(_), Some(_)) => {
+                return Err(failure(
+                    "InvalidBody",
+                    "choose one byte, file or streaming body",
+                ));
+            }
+            (Some(body), None) => Some(crate::request::BodyInput::Bytes(body)),
+            (None, Some(upload)) => {
+                Some(crate::request::BodyInput::Stream(Arc::clone(&upload.state)))
+            }
+            (None, None) => None,
+        };
         let prepared = Prepared::new(
             &self.state,
             options,
@@ -877,7 +890,6 @@ impl NativeClient {
             started,
             Arc::clone(&cancellation.exchange),
             budget.map(|budget| budget.budget.clone()),
-            upload.map(|upload| Arc::clone(&upload.state)),
         )?;
         if let Some(upload) = upload {
             *upload.owner.lock().unwrap_or_else(PoisonError::into_inner) =

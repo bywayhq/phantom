@@ -42,16 +42,20 @@ pub(crate) struct Prepared {
     _pending: Pending,
 }
 
+pub(crate) enum BodyInput {
+    Bytes(Vec<u8>),
+    Stream(Arc<crate::upload::Upload>),
+}
+
 impl Prepared {
     pub(crate) fn new(
         client: &Arc<ClientState>,
         options: RequestOptions,
         headers: Vec<RequestHeader>,
-        body: Option<Vec<u8>>,
+        body: Option<BodyInput>,
         started: Instant,
         exchange: Arc<Exchange>,
         budget: Option<HttpAttemptBudget>,
-        upload: Option<Arc<crate::upload::Upload>>,
     ) -> Result<Self> {
         if client.is_closed() {
             return Err(failure("ClientClosed", "client is closed"));
@@ -97,19 +101,20 @@ impl Prepared {
         if let Some(prepared) = client.profile.template(&options.context)? {
             builder = builder.template(&prepared);
         }
-        if usize::from(body.is_some())
-            + usize::from(options.file.is_some())
-            + usize::from(upload.is_some())
-            > 1
-        {
+        if body.is_some() && options.file.is_some() {
             return Err(failure(
                 "InvalidBody",
-                "choose byte or file upload, not both",
+                "choose one byte, file or streaming body",
             ));
         }
-        if let Some(body) = body {
-            builder = builder.body(body);
-        }
+        let upload = match body {
+            Some(BodyInput::Bytes(body)) => {
+                builder = builder.body(body);
+                None
+            }
+            Some(BodyInput::Stream(upload)) => Some(upload),
+            None => None,
+        };
         let file = options
             .file
             .map(|file| (file.path, u64::from(file.maximum_bytes)));
