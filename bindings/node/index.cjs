@@ -44,7 +44,8 @@ function translated(error) {
 function uploadError(error, outcome, preferSource = false) {
   const nativeError = translated(error);
   if (!outcome) return nativeError;
-  const result = preferSource && outcome.error && outcome.error !== outcome.cleanupError
+  const result = (preferSource || nativeError.code === 'RequestBody')
+    && outcome.error && outcome.error !== outcome.cleanupError
     && !['Cancelled', 'Timeout'].includes(nativeError.code)
     ? outcome.error : nativeError;
   if (result !== nativeError) {

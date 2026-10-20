@@ -146,8 +146,12 @@ test('request upload failures preserve exact source and later cleanup causes', a
   });
 });
 
-test('post-head reads retain upload causes without replacing native error metadata', async () => {
-  for (const [method, nativeCode, phase] of [['read', 'UploadSource', ''], ['bytes', 'Timeout', 'total'], ['read', 'Cancelled', '']]) {
+test('post-head reads translate core body failures and preserve native error metadata', async () => {
+  for (const [method, nativeCode, expectedCode, phase] of [
+    ['read', 'RequestBody', 'UploadSource', ''], ['bytes', 'RequestBody', 'UploadSource', ''],
+    ['read', 'UploadSource', 'UploadSource', ''], ['bytes', 'Timeout', 'Timeout', 'total'],
+    ['read', 'Cancelled', 'Cancelled', ''],
+  ]) {
     const {Client, uploads, nativeResponse} = facade();
     const client = new Client({profile: 'exact', route: 'direct'});
     const original = {message: 'secret-source'}, cleanupError = new Error('secret-return');
@@ -156,11 +160,30 @@ test('post-head reads retain upload causes without replacing native error metada
     uploads[0].grant(); await tick();
     nativeResponse[method === 'bytes' ? 'collect' : 'read'] = async () => { throw new Error(`PHANTOM_REQUEST:${nativeCode}:http2:${phase}:request failed`); };
     await assert.rejects(response[method](16), (error) => {
-      assert.equal(error.code, nativeCode); assert.equal(error.protocol, 'http2');
+      assert.equal(error.code, expectedCode); assert.equal(error.protocol, 'http2');
       assert.equal(error.timeoutPhase, phase || undefined);
       assert.equal(error.cause, original); assert.equal(error.cleanupError, cleanupError); redacted(error); return true;
     });
     await assert.rejects(client.close(), (error) => error.cleanupError === cleanupError);
+  }
+});
+
+test('post-head core body failures stay primary without a producer failure', async () => {
+  for (const cleanupFails of [false, true]) {
+    const {Client, uploads, nativeResponse} = facade();
+    const client = new Client({profile: 'exact', route: 'direct'});
+    const cleanupError = new Error('secret-cleanup');
+    const source = { [Symbol.asyncIterator]() { return this; }, async next() { assert.fail('source was not pulled'); },
+      async return() { if (cleanupFails) throw cleanupError; return {done: true}; } };
+    const response = await client.request('http://example.test', {...options, body: source});
+    uploads[0].stop(); await tick();
+    nativeResponse.read = async () => { throw new Error('PHANTOM_REQUEST:RequestBody:http2::request failed'); };
+    await assert.rejects(response.read(), (error) => {
+      assert.equal(error.code, 'RequestBody'); assert.equal(error.protocol, 'http2');
+      assert.equal(error.cleanupError, cleanupFails ? cleanupError : undefined); redacted(error); return true;
+    });
+    if (cleanupFails) await assert.rejects(client.close(), (error) => error.cleanupError === cleanupError);
+    else await client.close();
   }
 });
 
