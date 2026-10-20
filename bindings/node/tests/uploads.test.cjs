@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {Readable} = require('node:stream');
 const {test} = require('node:test');
+const {inspect} = require('node:util');
 const {Client, AttemptBudget, PhantomError} = require('..');
 const fixture = (name) => fs.readFileSync(path.join(__dirname, 'fixtures', name));
 const profile = process.platform === 'win32' ? 'chrome/154.0.8037.97/windows-11-26200/r1'
@@ -73,8 +74,10 @@ test('zero declared length does not pull and demanded mismatches fail without ex
     async function* mismatch() { yield Buffer.from(bytes); }
     await assert.rejects(other.request(url, {...options, body: mismatch(), bodyLength: length}), code('UploadLength'));
   }
-  async function* broken() { throw new Error('secret-source-value'); }
-  await assert.rejects(other.request(url, {...options, body: broken()}), (error) => code('UploadSource')(error) && !error.message.includes('secret'));
+  const sourceError = new Error('secret-source-value');
+  async function* broken() { throw sourceError; }
+  await assert.rejects(other.request(url, {...options, body: broken()}), (error) => code('UploadSource')(error)
+    && error.cause === sourceError && !inspect(error, {showHidden: true}).includes('secret'));
   for (const bodyLength of [-1, true, 1.5, Number.MAX_SAFE_INTEGER + 1, 1n << 64n]) {
     await assert.rejects(other.request(url, {...options, body: source, bodyLength}), code('InvalidArgument'));
   }
@@ -170,4 +173,42 @@ test('cancelling TLS setup closes a source without pulling upload bytes', {timeo
   const rejected = assert.rejects(pending, code('Cancelled'));
   await connected; controller.abort(); await rejected; await client.close();
   assert.equal(pulls, 0); assert.equal(returned, 1);
+});
+
+test('post-head upload errors retain caller causes while a live HTTP/2 sibling completes', {timeout: 30000}, async (t) => {
+  const sessions = new Set();
+  const server = http2.createSecureServer({key: fixture('key.pem'), cert: fixture('certificate.pem')});
+  let selectedSession, siblingSession, finishSibling;
+  server.on('session', (session) => { sessions.add(session); session.on('error', () => {}); });
+  server.on('stream', (stream, headers) => {
+    stream.on('error', () => {});
+    stream.respond({':status': 200});
+    if (headers[':path'] === '/selected') selectedSession = stream.session;
+    else { siblingSession = stream.session; finishSibling = () => stream.end('healthy'); }
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => { for (const session of sessions) session.destroy(); await new Promise((resolve) => server.close(resolve)); });
+  const original = new Error('secret-source'), cleanupError = {message: 'secret-cleanup'};
+  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')]});
+  t.after(async () => { try { await client.close(); } catch (error) { assert.equal(error.cleanupError, cleanupError); } });
+  let rejectSource, pulled;
+  const sourcePulled = new Promise((resolve) => { pulled = resolve; });
+  const source = { [Symbol.asyncIterator]() { return this; }, next() { pulled(); return new Promise((_, reject) => { rejectSource = reject; }); },
+    async return() { throw cleanupError; } };
+  const url = `https://127.0.0.1:${server.address().port}`;
+  const response = await client.request(url + '/selected', {...options, protocol: 'http2', body: source});
+  await sourcePulled;
+  const healthy = await client.request(url + '/healthy', {...options, method: 'GET', protocol: 'http2'});
+  assert.equal(selectedSession, siblingSession);
+  rejectSource(original);
+  await assert.rejects(response.bytes(1), (error) => {
+    assert.equal(error.code, 'UploadSource'); assert.equal(error.cause, original);
+    for (const text of [String(error), inspect(error, {showHidden: true}), JSON.stringify(error)]) assert.ok(!text.includes('secret-'));
+    return true;
+  });
+  finishSibling(); assert.equal(await healthy.text(7), 'healthy');
+  await assert.rejects(client.close(), (error) => {
+    assert.equal(error.cause, original); assert.equal(error.cleanupError, cleanupError); return true;
+  });
+  assert.equal(sessions.size, 1);
 });

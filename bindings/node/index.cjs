@@ -41,6 +41,26 @@ function translated(error) {
     : new PhantomError('InvalidArgument', 'native argument conversion failed');
 }
 
+function uploadError(error, outcome, preferSource = false) {
+  const nativeError = translated(error);
+  if (!outcome) return nativeError;
+  const result = preferSource && outcome.error && !['Cancelled', 'Timeout'].includes(nativeError.code)
+    ? outcome.error : nativeError;
+  if (result !== nativeError) {
+    for (const field of ['protocol', 'timeoutPhase', 'kind', 'field']) {
+      if (result[field] === undefined) result[field] = nativeError[field];
+    }
+  }
+  if (!Object.hasOwn(result, 'cleanupError')) {
+    Object.defineProperties(result, {
+      cause: {get: () => outcome.originalPresent ? outcome.original : outcome.cleanupOriginal},
+      cleanupError: {get: () => outcome.cleanupOriginal},
+      [inspect.custom]: {value: () => 'PhantomError { upload details redacted }'},
+    });
+  }
+  return result;
+}
+
 function integer(value, name, minimum = 0, maximum = 0xffffffff) {
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new PhantomError('InvalidArgument', `${name} is outside its supported integer range`);
@@ -345,11 +365,13 @@ class Response {
   #native;
   #cleanup;
   #owner;
+  #upload;
   #reading = false;
-  constructor(response, cleanup, owner) {
+  constructor(response, cleanup, owner, upload) {
     this.#native = response;
     this.#cleanup = cleanup;
     this.#owner = owner;
+    this.#upload = upload;
     abandonedResponses.register(this, cleanup, this);
     this.status = response.status;
     this.protocol = response.protocol;
@@ -386,7 +408,7 @@ class Response {
       return part;
     } catch (error) {
       this.close();
-      throw translated(error);
+      throw uploadError(error, this.#upload);
     } finally { this.#reading = false; }
   }
   async bytes(maximumBytes) {
@@ -400,7 +422,7 @@ class Response {
       const body = await this.#native.collect(maximumBytes);
       this.#finished();
       return body;
-    } catch (error) { this.close(); throw translated(error); }
+    } catch (error) { this.close(); throw uploadError(error, this.#upload); }
     finally { this.#reading = false; }
   }
   async text(maximumBytes) {
@@ -518,14 +540,14 @@ class Client {
       }
       const response = await pending;
       if (signal?.aborted) { response.close(); throw new PhantomError('Cancelled', 'request was cancelled'); }
-      return new Response(response, cleanup, this);
+      return new Response(response, cleanup, this, producer);
     } catch (error) {
       cancellation.cancel(); cleanup();
       if (upload && !producer) {
         producer = {error: undefined};
         this.#trackUpload(iterator, upload, producer);
       }
-      throw producer?.error ?? translated(error);
+      throw uploadError(error, producer, true);
     }
   }
   setCookie(url, cookie) {
@@ -603,7 +625,11 @@ async function pumpUpload(iterator, upload, outcome) {
           const result = await iterator.next();
           if (result === null || typeof result !== 'object') throw new Error();
           return {done: Boolean(result.done), value: result.value};
-        } catch { throw new PhantomError('UploadSource', 'upload source failed'); }
+        } catch (error) {
+          outcome.original = error;
+          outcome.originalPresent = true;
+          throw new PhantomError('UploadSource', 'upload source failed');
+        }
       }), stopped]);
       if (next.stopped) return;
       if (next === null || typeof next !== 'object') throw new PhantomError('UploadSource', 'upload iterator returned an invalid result');
@@ -627,13 +653,16 @@ async function pumpUpload(iterator, upload, outcome) {
     }
   } catch (error) {
     outcome.error = error instanceof PhantomError ? error : new PhantomError('UploadSource', 'upload source failed');
+    if (!(error instanceof PhantomError)) { outcome.original = error; outcome.originalPresent = true; }
+    outcome.error = uploadError(outcome.error, outcome);
     upload.fail();
   } finally {
     upload.stop();
     try {
       if (!ended && typeof iterator.return === 'function') await iterator.return();
-    } catch {
-      outcome.cleanupError = new PhantomError('UploadSource', 'upload cleanup failed');
+    } catch (error) {
+      outcome.cleanupOriginal = error;
+      outcome.cleanupError = uploadError(new PhantomError('UploadSource', 'upload cleanup failed'), outcome);
       outcome.error ??= outcome.cleanupError;
       upload.fail();
     } finally { upload.settled(); }

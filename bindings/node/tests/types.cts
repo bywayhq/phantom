@@ -189,3 +189,14 @@ async function uploadBodies(client: Client): Promise<void> {
   await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw', body: body(), bodyLength: '5'});
 }
 void uploadBodies;
+
+function uploadErrorDetails(failure: PhantomError): void {
+  const original: unknown = failure.cause;
+  const cleanup: unknown = failure.cleanupError;
+  // @ts-expect-error Caller-thrown values require narrowing before use.
+  failure.cause.message;
+  // @ts-expect-error Cleanup details are read-only.
+  failure.cleanupError = new Error('replacement');
+  void original; void cleanup;
+}
+void uploadErrorDetails;

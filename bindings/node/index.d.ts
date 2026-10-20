@@ -8,6 +8,10 @@ export class PhantomError extends Error {
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
+  /** Caller upload failure, available only through explicit inspection. */
+  readonly cause?: unknown;
+  /** Iterator cleanup failure; may become available after request settlement. */
+  readonly cleanupError?: unknown;
 }
 /** Large unsigned integers use bigint rather than rounded JavaScript numbers. */
 export type ProfileValue = null | boolean | number | bigint | string | ProfileValue[] | { [key: string]: ProfileValue };

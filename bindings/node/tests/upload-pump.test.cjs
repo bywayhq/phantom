@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const {test} = require('node:test');
+const {inspect} = require('node:util');
 
 // Load the actual facade against a demand-controlled safe native boundary.
 function facade() {
@@ -30,7 +31,7 @@ function facade() {
   loaded.filename = filename; loaded.paths = module.paths;
   loaded.require = (id) => id === './phantom.node' ? native : Module.createRequire(filename)(id);
   loaded._compile(fs.readFileSync(filename, 'utf8'), filename);
-  return {...loaded.exports, uploads, owner};
+  return {...loaded.exports, uploads, owner, nativeResponse: response};
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const options = {method: 'POST', protocol: 'http1', context: 'raw'};
@@ -110,4 +111,101 @@ test('an endless empty producer cooperates with environment cancellation', async
   uploads[0].grant(); setImmediate(() => response.close());
   await tick(); await client.close();
   assert.ok(pulls > 0 && pulls <= 32); assert.equal(returned, true);
+});
+
+function redacted(error) {
+  for (const text of [String(error), inspect(error), inspect(error, {showHidden: true}), JSON.stringify(error)]) {
+    assert.ok(!text.includes('secret-'), text);
+  }
+}
+
+test('request upload failures preserve exact source and later cleanup causes', async () => {
+  const {Client, uploads, owner, PhantomError} = facade();
+  const client = new Client({profile: 'exact', route: 'direct'});
+  const original = new Error('secret-source'), cleanupError = {message: 'secret-cleanup'};
+  let failRequest, rejectReturn;
+  owner.request = () => new Promise((_, reject) => { failRequest = reject; });
+  const source = { [Symbol.asyncIterator]() { return this; }, async next() { throw original; },
+    return() { return new Promise((_, reject) => { rejectReturn = reject; }); } };
+  const pending = client.request('http://example.test', {...options, body: source});
+  const upload = uploads[0];
+  upload.fail = () => { upload.stop(); failRequest(new Error('PHANTOM_REQUEST:RequestBody:http2::upload failed')); };
+  let received;
+  const rejected = assert.rejects(pending, (error) => {
+    assert.ok(error instanceof PhantomError); assert.equal(error.code, 'UploadSource');
+    assert.equal(error.protocol, 'http2'); assert.equal(error.cause, original);
+    assert.equal(error.cleanupError, undefined); redacted(error);
+    received = error; return true;
+  });
+  upload.grant(); await rejected;
+  rejectReturn(cleanupError); await tick();
+  assert.equal(received.cleanupError, cleanupError); redacted(received);
+  await assert.rejects(client.close(), (error) => {
+    assert.equal(error.cause, original); assert.equal(error.cleanupError, cleanupError); redacted(error); return true;
+  });
+});
+
+test('post-head reads retain upload causes without replacing native error metadata', async () => {
+  for (const [method, nativeCode, phase] of [['read', 'UploadSource', ''], ['bytes', 'Timeout', 'total'], ['read', 'Cancelled', '']]) {
+    const {Client, uploads, nativeResponse} = facade();
+    const client = new Client({profile: 'exact', route: 'direct'});
+    const original = {message: 'secret-source'}, cleanupError = new Error('secret-return');
+    const source = { [Symbol.asyncIterator]() { return this; }, async next() { throw original; }, async return() { throw cleanupError; } };
+    const response = await client.request('http://example.test', {...options, body: source});
+    uploads[0].grant(); await tick();
+    nativeResponse[method === 'bytes' ? 'collect' : 'read'] = async () => { throw new Error(`PHANTOM_REQUEST:${nativeCode}:http2:${phase}:request failed`); };
+    await assert.rejects(response[method](16), (error) => {
+      assert.equal(error.code, nativeCode); assert.equal(error.protocol, 'http2');
+      assert.equal(error.timeoutPhase, phase || undefined);
+      assert.equal(error.cause, original); assert.equal(error.cleanupError, cleanupError); redacted(error); return true;
+    });
+    await assert.rejects(client.close(), (error) => error.cleanupError === cleanupError);
+  }
+});
+
+test('request cancellation and timeouts keep native category with explicit upload causes', async () => {
+  for (const [name, phase] of [['Cancelled', ''], ['Timeout', 'connect']]) {
+    const {Client, uploads, owner} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
+    const original = new Error('secret-source'); let failRequest;
+    owner.request = () => new Promise((_, reject) => { failRequest = reject; });
+    const source = { [Symbol.asyncIterator]() { return this; }, async next() { throw original; } };
+    const pending = client.request('http://example.test', {...options, body: source});
+    const upload = uploads[0];
+    upload.fail = () => { upload.stop(); failRequest(new Error(`PHANTOM_REQUEST:${name}:http3:${phase}:request failed`)); };
+    const rejected = assert.rejects(pending, (error) => {
+      assert.equal(error.code, name); assert.equal(error.protocol, 'http3'); assert.equal(error.timeoutPhase, phase || undefined);
+      assert.equal(error.cause, original); redacted(error); return true;
+    });
+    upload.grant(); await rejected; await client.close();
+  }
+});
+
+test('successful body completion stays successful while close reports cleanup identity', async () => {
+  const {Client, uploads} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
+  const cleanupError = new Error('secret-return'); let returned = false;
+  const source = { [Symbol.asyncIterator]() { return this; }, async next() { return {done: false, value: Buffer.from('x')}; },
+    async return() { returned = true; throw cleanupError; } };
+  const response = await client.request('http://example.test', {...options, body: source});
+  assert.deepEqual(await response.bytes(0), Buffer.alloc(0));
+  await assert.rejects(client.close(), (error) => {
+    assert.equal(error.code, 'UploadSource'); assert.equal(error.cause, cleanupError);
+    assert.equal(error.cleanupError, cleanupError); redacted(error); return true;
+  });
+  assert.equal(returned, true); assert.equal(uploads[0].done, true);
+});
+
+test('arbitrary thrown upload values remain explicit and are not formatted', async () => {
+  for (const original of ['secret-string', undefined, {[inspect.custom]() { throw new Error('secret-inspect'); }}]) {
+    const {Client, uploads, nativeResponse} = facade();
+    const client = new Client({profile: 'exact', route: 'direct'});
+    const source = { [Symbol.asyncIterator]() { return this; }, async next() { throw original; } };
+    const response = await client.request('http://example.test', {...options, body: source});
+    uploads[0].grant(); await tick();
+    nativeResponse.read = async () => { throw new Error('PHANTOM:UploadSource:upload source failed'); };
+    await assert.rejects(response.read(), (error) => {
+      assert.equal(Object.hasOwn(error, 'cause'), true); assert.equal(error.cause, original);
+      redacted(error); return true;
+    });
+    await client.close();
+  }
 });
