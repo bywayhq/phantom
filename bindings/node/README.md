@@ -173,6 +173,14 @@ Documents can contain literal headers. Import/export errors expose redacted
 `kind` and `field`. Shared buffers, accessors, cycles and unsupported values
 are rejected.
 
+Partial imports use `Profile.importJa3(text, {base: original})`, `importAkamai`,
+`importJa4(text, {base: original, format: 'original'})`, `importClientHello` or
+`importQuicTransport`. Results expose `profile`, `observedFields` and
+`supplementedFields`. JA3/JA4 require raw descriptions, not hashes; JA4 also
+accepts `format: 'sorted'`. ClientHello bytes include the four-byte handshake
+header without TLS records; QUIC bytes are extension 57's payload. Missing
+settings come from the explicit base. Imports do not establish browser fidelity.
+
 ## Redirects
 
 Set client/request `redirectPolicy: {mode: 'limited', maximumHops: 5}` to follow

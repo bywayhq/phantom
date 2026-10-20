@@ -180,6 +180,14 @@ import errors expose redacted `Kind` and `Field`. Imports have no catalog identi
 or browser-fidelity claim. `Context: "profile"` selects an attached template;
 `raw` omits it, and named contexts require catalog ownership.
 
+`ImportJA3Profile`, `ImportAkamaiProfile`, `ImportJA4Profile`,
+`ImportClientHelloProfile` and `ImportQUICTransportProfile` require a base
+`*Profile`. Results contain `Profile`, `ObservedFields` and `SupplementedFields`;
+close the returned profile owner. JA3/JA4 take raw descriptions, not hashes.
+JA4 requires `JA4Sorted` or `JA4Original`. ClientHello bytes include the
+four-byte handshake header without TLS records; QUIC bytes are extension 57's
+payload. Missing settings come from the base, without a browser-fidelity claim.
+
 ## Fork session state
 
 `worker, err := client.Fork(phantom.SessionSharing{Cookies: true, DNS: true})`

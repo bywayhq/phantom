@@ -176,6 +176,15 @@ Profiles are immutable. Import creates new settings with `catalog_id=None`
 and no browser-fidelity claim. Use `context="profile"` for an attached template.
 Named contexts require a catalog-owned profile; imports cannot borrow them.
 
+Use `Profile.import_ja3(text, base=profile)`, `import_akamai`,
+`import_ja4(text, format="original", base=profile)`, `import_client_hello`
+or `import_quic_transport` for partial observations. Each returns an immutable
+`ImportedProfile` with `profile`, `observed_fields` and `supplemented_fields`.
+JA3/JA4 require raw descriptions, not hashes. JA4 also accepts `format="sorted"`.
+ClientHello input includes its four-byte handshake header, without TLS records;
+QUIC input is extension 57's payload. Missing settings come from the explicit
+base. Successful import does not establish an exact browser match.
+
 ## Synchronous calls and errors
 
 `Client` uses one reusable Python event loop. Call it from its creating thread,

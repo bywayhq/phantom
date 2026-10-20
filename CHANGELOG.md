@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Import raw JA3, JA4, Akamai, ClientHello and QUIC transport descriptions in
+  Python, Go and Node.js with an explicit base profile. Reports distinguish
+  observed and supplemented settings; hashes cannot reconstruct profiles.
+
 - Expose bounded advertised-content decoding, redirect policies and history,
   and core retry scheduling in Python, Go and Node.js. Attempts retain shared
   deadlines, budgets and replay rules.
