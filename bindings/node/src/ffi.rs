@@ -128,6 +128,22 @@ pub struct ClientOptions {
     pub timeouts: Option<PhaseTimeouts>,
 }
 
+/// Native state categories selected by the JavaScript facade.
+#[derive(Clone, Copy, Debug, Default)]
+#[napi(object)]
+pub struct SessionSharingOptions {
+    /// Shares an already enabled cookie jar.
+    pub cookies: Option<bool>,
+    /// Shares the address cache and in-flight lookups.
+    pub dns: Option<bool>,
+    /// Shares learned client-hint preferences.
+    pub client_hints: Option<bool>,
+    /// Shares enabled discovery state and racing history.
+    pub discovery: Option<bool>,
+    /// Shares live, single-use TLS ticket stores.
+    pub tickets: Option<bool>,
+}
+
 /// One normalized, private timeout choice from the JavaScript facade.
 #[derive(Clone, Debug)]
 #[napi(object)]
@@ -291,6 +307,25 @@ impl NativeEnvironment {
         let roots = copy_roots(options.additional_roots.take())?;
         let proxy_roots = copy_roots(options.additional_proxy_roots.take())?;
         ClientState::build(options, profile, roots, proxy_roots, &self.state)
+            .map(|state| NativeClient { state })
+    }
+
+    /// Registers an independent client with explicitly selected native state.
+    #[napi]
+    pub fn fork(
+        &self,
+        source: &NativeClient,
+        sharing: SessionSharingOptions,
+    ) -> Result<NativeClient> {
+        let sharing = phantom::SessionSharing::none()
+            .cookies(sharing.cookies.unwrap_or(false))
+            .dns(sharing.dns.unwrap_or(false))
+            .client_hints(sharing.client_hints.unwrap_or(false))
+            .discovery(sharing.discovery.unwrap_or(false))
+            .tickets(sharing.tickets.unwrap_or(false));
+        source
+            .state
+            .fork(sharing, &self.state)
             .map(|state| NativeClient { state })
     }
 }

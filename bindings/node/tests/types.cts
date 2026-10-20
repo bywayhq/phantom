@@ -72,3 +72,17 @@ function profileAuthoring(): void {
   void exported; void id; void large;
 }
 void profileAuthoring;
+
+function sessionSharing(client: Client): void {
+  const separate: Client = client.fork();
+  const shared: Client = client.fork({cookies: true, dns: false, clientHints: true,
+    discovery: true, tickets: true});
+  // @ts-expect-error Sharing selectors are booleans.
+  client.fork({cookies: 'yes'});
+  // @ts-expect-error Pools cannot be selected for sharing.
+  client.fork({pools: true});
+  // @ts-expect-error Null is not a selector record.
+  client.fork(null);
+  void separate; void shared;
+}
+void sessionSharing;

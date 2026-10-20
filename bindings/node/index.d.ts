@@ -52,6 +52,14 @@ export interface ClientOptions {
   baseUrl?: string;
   timeouts?: Timeouts;
 }
+/** Selected live state only; pools and cancellation stay independent. */
+export interface SessionSharing {
+  cookies?: boolean;
+  dns?: boolean;
+  clientHints?: boolean;
+  discovery?: boolean;
+  tickets?: boolean;
+}
 export interface RequestOptions {
   method: string;
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
@@ -83,6 +91,8 @@ export class Response implements AsyncIterable<Buffer> {
 }
 export class Client {
   constructor(options: ClientOptions);
+  /** Creates an open client with independent pools, even from a closed source. */
+  fork(sharing?: SessionSharing): Client;
   request(url: string, options: RequestOptions): Promise<Response>;
   setCookie(url: string, setCookie: string): void;
   cookieValue(url: string): string | null;

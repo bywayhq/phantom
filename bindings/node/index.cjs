@@ -12,6 +12,7 @@ const environment = new native.NativeEnvironment();
 const budgetHandles = new WeakMap();
 const profileHandles = new WeakMap();
 const profileToken = {};
+const clientToken = {};
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
 
 class PhantomError extends Error {
@@ -72,6 +73,22 @@ function phaseTimeouts(value) {
         ? {disabled: true, milliseconds: 0}
         : {disabled: false, milliseconds: integer(milliseconds, name)};
     }
+  }
+  return result;
+}
+
+function sessionSharing(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)
+    || types.isProxy(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new PhantomError('InvalidArgument', 'sharing must be a plain object');
+  }
+  const result = {cookies: false, dns: false, clientHints: false, discovery: false, tickets: false};
+  for (const name of Reflect.ownKeys(value)) {
+    const field = Object.getOwnPropertyDescriptor(value, name);
+    if (!Object.hasOwn(result, name) || !Object.hasOwn(field, 'value') || typeof field.value !== 'boolean') {
+      throw new PhantomError('InvalidArgument', 'sharing selectors must be known boolean fields');
+    }
+    result[name] = field.value;
   }
   return result;
 }
@@ -263,7 +280,8 @@ class Response {
 
 class Client {
   #native;
-  constructor(options) {
+  constructor(options, token) {
+    if (token === clientToken) { this.#native = options; return; }
     try {
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
@@ -273,6 +291,10 @@ class Client {
         timeouts: phaseTimeouts(options.timeouts),
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
+  }
+  fork(sharing = {}) {
+    try { return new Client(environment.fork(this.#native, sessionSharing(sharing)), clientToken); }
+    catch (error) { throw translated(error); }
   }
   async request(url, options) {
     const cancellation = new native.NativeCancellation();

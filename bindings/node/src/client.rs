@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use napi::Result;
-use phantom::{Client, HttpProxy, Route, Socks5Proxy};
+use phantom::{Client, HttpProxy, Route, SessionSharing, Socks5Proxy};
 use tokio::sync::Semaphore;
 
 use crate::{error::failure, ffi::ClientOptions, profile::ProfileState, response::Exchange};
@@ -65,6 +65,25 @@ pub(crate) struct ClientState {
 }
 
 impl ClientState {
+    pub(crate) fn fork(
+        &self,
+        sharing: SessionSharing,
+        environment: &Environment,
+    ) -> Result<Arc<Self>> {
+        let state = Arc::new(Self {
+            core: self.core.fork(sharing),
+            profile: Arc::clone(&self.profile),
+            admission: Arc::new(Semaphore::new(self.maximum)),
+            timeouts: self.timeouts,
+            maximum: self.maximum,
+            shutdown_pending: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
+            exchanges: Mutex::new(Vec::new()),
+        });
+        environment.register(&state)?;
+        Ok(state)
+    }
+
     pub(crate) fn build(
         options: ClientOptions,
         profile: Arc<ProfileState>,

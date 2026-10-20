@@ -193,6 +193,30 @@ entries and 64 KiB in total. Additional DER roots are limited to sixteen
 certificates of at most 1 MiB each. `PhantomError.code` identifies failures;
 error messages omit request inputs, proxy credentials, and local file paths.
 
+## Share session state
+
+Create separate connection pools while sharing selected live state:
+
+```js
+const worker = client.fork({cookies: true, tickets: true});
+try {
+  const response = await worker.request('https://example.com/', {
+    method: 'GET', protocol: 'http2', context: 'raw', timeoutMs: 5000,
+  });
+  try { console.log(await response.text(1024)); }
+  finally { response.close(); }
+} finally { await worker.close(); }
+```
+
+Selectors are `cookies`, `dns`, `clientHints`, `discovery`, and `tickets`.
+All default to false. Selected changes, expiry and clears are shared in both
+directions; unselected state starts empty. Sharing does not enable a disabled
+feature. Profile, templates, trust, routes, base URL and timeouts are retained.
+Each client has independent request admission, cancellation and shutdown.
+Closing either leaves the other usable. You can fork a closed client into an
+open client. Shared tickets remain single-use; this API does not copy them or
+save a checkpoint.
+
 ## Next
 
 See the [Rust API](https://docs.rs/phantom-http) for the underlying client.

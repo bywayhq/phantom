@@ -21,3 +21,7 @@ async function use(): Promise<void> {
 void use;
 const custom: Profile = Profile.importJson(Profile.fromCatalog('exact/profile/id').exportJson());
 void custom;
+function fork(client: Client): Client {
+  return client.fork({cookies: true, tickets: true});
+}
+void fork;
