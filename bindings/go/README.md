@@ -108,9 +108,15 @@ up to 64 KiB at a time. Content stays encoded unless you set
 `Request.ContentDecoding = phantom.AdvertisedDecoding(limit)` and supply
 `Accept-Encoding`. The decoded-stream limit and collection limit are separate.
 `DecodedContentCodings` records the selected chain; headers remain unchanged.
-EOF, read errors and
-`Close` release the native body. Concurrent reads are serialized. Byte uploads
-use replayable `Request.Body`; streaming upload readers/files are not exposed.
+EOF, read errors and `Close` release the native body. Concurrent reads are
+serialized. Byte uploads use replayable `Request.Body`, limited to 8 MiB.
+
+For larger uploads, set `Request.Upload` to an `io.ReadCloser`, such as an open
+file. `Do` takes ownership and closes it once, including on validation failure.
+Its `Close` must unblock a concurrent `Read`. Set `UploadLength` for an exact
+byte count, or leave it nil for unknown length. Streaming uses bounded chunks
+and cannot be combined with `Body`. A reader is one-shot; retries cannot reopen
+it. Cancellation and the total deadline remain active after an early response.
 
 ## Cancellation and state
 

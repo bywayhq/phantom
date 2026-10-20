@@ -5,6 +5,9 @@
 - Stream Python sync and async upload producers with bounded native demand,
   cancellation and owned cleanup. Include file setup in the total deadline.
 
+- Stream Go upload readers with bounded buffering, explicit lengths and
+  cancellation through response completion.
+
 - Update the bundled root store and test certificate verifier for the emSign
   certificate distrust fixes.
 

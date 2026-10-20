@@ -1521,6 +1521,7 @@ name = "phantom-go"
 version = "0.2.0"
 dependencies = [
  "http",
+ "http-body",
  "http-body-util",
  "phantom-http",
  "phantom-profile",
