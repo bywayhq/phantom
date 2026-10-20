@@ -3,8 +3,10 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -96,6 +98,11 @@ class GoArtifactTests(unittest.TestCase):
                 "GOFLAGS": "-mod=vendor",
                 "CGO_LDFLAGS": "-Lwrong",
                 "LD_LIBRARY_PATH": "wrong",
+                "GOPRIVATE": "*",
+                "GONOPROXY": "*",
+                "GONOSUMDB": "*",
+                "GOINSECURE": "*",
+                "GOVCS": "*:all",
             },
         ):
             for target, name in artifact.LIBRARIES.items():
@@ -108,6 +115,9 @@ class GoArtifactTests(unittest.TestCase):
                 self.assertEqual(environment["GOFLAGS"], "")
                 self.assertEqual(environment["GOPROXY"], "off")
                 self.assertEqual(environment["GOTOOLCHAIN"], "local")
+                self.assertEqual(environment["GOVCS"], "off")
+                for variable in ("GOPRIVATE", "GONOPROXY", "GONOSUMDB", "GOINSECURE"):
+                    self.assertNotIn(variable, environment)
                 for variable in ("GOCACHE", "GOMODCACHE", "GOPATH"):
                     self.assertTrue(
                         Path(environment[variable]).is_relative_to(self.root)
@@ -280,6 +290,7 @@ class GoArtifactTests(unittest.TestCase):
             ),
             patch.object(tools, "dependency_inspection", return_value=[]),
             patch.object(artifact, "artifact_tools", return_value=tools),
+            patch.object(artifact, "stage_module_proxy", return_value={}),
             patch.object(
                 artifact, "installed_checks", side_effect=ValueError("failed control")
             ),
@@ -295,6 +306,211 @@ class GoArtifactTests(unittest.TestCase):
         tools.extract_archive(archives[0], extracted)
         installed = next(extracted.glob("*/lib/phantom_go.dll"))
         self.assertEqual(installed.read_bytes(), b"native bytes")
+
+    def test_version_declaration_matches_cargo_before_packaging_on_lf_or_crlf(self):
+        for newline in (b"\n", b"\r\n"):
+            (self.root / "version.go").write_bytes(
+                newline.join(
+                    [b"package phantom", b'const nativePackageVersion = "0.2.0"', b""]
+                )
+            )
+            self.assertEqual(
+                artifact.checked_module_version(self.root, "0.2.0"), "v0.2.0"
+            )
+            with self.assertRaisesRegex(ValueError, "differs from native"):
+                artifact.checked_module_version(self.root, "0.3.0")
+        for version in ("2.0.0", "0.2.0+changed", "0.2.0-pre", "0.02.0"):
+            (self.root / "version.go").write_text(
+                f'const nativePackageVersion = "{version}"\n'
+            )
+            with (
+                self.subTest(version=version),
+                self.assertRaisesRegex(ValueError, "stable v0 or v1"),
+            ):
+                artifact.checked_module_version(self.root, version)
+
+    def module_files(self):
+        return {
+            "go.mod": f"module {artifact.MODULE}\n\ngo 1.26\n".encode(),
+            "version.go": b'package phantom\nconst nativePackageVersion = "0.2.0"\n',
+            "native.h": b"native header\n",
+            "LICENSE-MIT": b"MIT\n",
+            "LICENSE-APACHE": b"Apache\n",
+            "native/src/lib.rs": b"// Retained in a real Go VCS module zip.\n",
+        }
+
+    def git_commands(self, files, irregular=()):
+        class Commands:
+            def run(self, args, **_):
+                if args[:2] == ["git", "ls-tree"]:
+                    return b"".join(
+                        f"100644 blob {index}\tbindings/go/{path}\0".encode()
+                        for index, path in enumerate(files)
+                    ) + b"".join(irregular)
+                if args[:3] == ["git", "cat-file", "blob"]:
+                    return list(files.values())[int(args[-1])]
+                if args[:2] == ["git", "show"]:
+                    return b"2026-10-20T12:00:00+00:00\n"
+                raise AssertionError(args)
+
+        return Commands()
+
+    def test_proxy_uses_full_canonical_git_module_not_checkout_or_flat_archive(self):
+        files = self.module_files()
+        files.update(
+            {
+                "vendor/ignored.go": b"vendor",
+                "nested/go.mod": b"module example.test/nested\n",
+                "nested/ignored.go": b"nested",
+            }
+        )
+        proxy = self.root / "proxy with spaces"
+        identity = artifact.stage_module_proxy(
+            proxy,
+            "fixed-source",
+            "v0.2.0",
+            self.git_commands(files, (b"120000 blob absent\tbindings/go/link.go\0",)),
+        )
+        folder = proxy / artifact.MODULE / "@v"
+        with zipfile.ZipFile(folder / "v0.2.0.zip") as archive:
+            self.assertEqual(len(archive.namelist()), 6)
+            self.assertEqual(
+                archive.read(f"{artifact.MODULE}@v0.2.0/version.go"),
+                files["version.go"],
+            )
+            self.assertIn(
+                f"{artifact.MODULE}@v0.2.0/native/src/lib.rs", archive.namelist()
+            )
+        self.assertEqual(identity["tag"], "bindings/go/v0.2.0")
+        self.assertEqual(identity["source_revision"], "fixed-source")
+        self.assertEqual((folder / "v0.2.0.mod").read_bytes(), files["go.mod"])
+        self.assertEqual(set(identity["files_sha256"]), set(self.module_files()))
+
+    def test_proxy_rejects_missing_support_files_and_wrong_module_identity(self):
+        for mutation in ("identity", "license", "version"):
+            files = self.module_files()
+            if mutation == "identity":
+                files["go.mod"] = b"module example.test/another\n"
+            else:
+                files.pop("LICENSE-MIT" if mutation == "license" else "version.go")
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                artifact.stage_module_proxy(
+                    self.root / mutation, "source", "v0.2.0", self.git_commands(files)
+                )
+
+    def proxy_consumer(self, mutation=None):
+        tools = artifact.artifact_tools()
+        proxy = self.root / "proxy"
+        identity = artifact.stage_module_proxy(
+            proxy, "fixed-source", "v0.2.0", self.git_commands(self.module_files())
+        )
+        observed = []
+
+        class Commands:
+            def run(self, args, *, cwd, env, **_):
+                observed.append((args, cwd, env))
+                cache = Path(env["GOMODCACHE"])
+                folder = cache / f"{artifact.MODULE}@v0.2.0"
+                downloads = cache / "cache/download" / artifact.MODULE / "@v"
+                if args[:2] == ["go", "get"]:
+                    (cwd / "go.sum").write_text(
+                        f"{artifact.MODULE} v0.2.0 h1:source\n"
+                        f"{artifact.MODULE} v0.2.0/go.mod h1:module\n"
+                    )
+                    return b""
+                if args[:3] == ["go", "mod", "download"]:
+                    downloads.mkdir(parents=True)
+                    for suffix in ("zip", "mod"):
+                        shutil.copyfile(
+                            proxy / artifact.MODULE / f"@v/v0.2.0.{suffix}",
+                            downloads / f"v0.2.0.{suffix}",
+                        )
+                    with zipfile.ZipFile(downloads / "v0.2.0.zip") as archive:
+                        archive.extractall(cache)
+                    if mutation == "zip":
+                        (downloads / "v0.2.0.zip").write_bytes(b"tampered")
+                    if mutation == "file":
+                        (folder / "native.h").write_bytes(b"changed")
+                    return json.dumps(
+                        {
+                            "Path": artifact.MODULE,
+                            "Version": "v0.9.0" if mutation == "version" else "v0.2.0",
+                            "Dir": str(folder if mutation != "foreign" else proxy),
+                            "Zip": str(downloads / "v0.2.0.zip"),
+                            "GoMod": str(downloads / "v0.2.0.mod"),
+                            "Sum": "h1:changed"
+                            if mutation == "sums" and cwd.name.endswith("1")
+                            else "h1:source",
+                            "GoModSum": "h1:module",
+                        }
+                    ).encode()
+                if args[:2] == ["go", "list"]:
+                    return json.dumps(
+                        {
+                            "Path": artifact.MODULE,
+                            "Version": "v0.2.0",
+                            "Dir": str(folder),
+                            **(
+                                {"Replace": {"Dir": "wrong"}}
+                                if mutation == "replace"
+                                else {}
+                            ),
+                        }
+                    ).encode()
+                if args[:2] == ["go", "build"]:
+                    return b""
+                if args[:3] == ["go", "mod", "verify"]:
+                    return b"bad" if mutation == "verify" else b"all modules verified\n"
+                return b"bad" if mutation == "marker" else b"external-consumer-ok\n"
+
+        result = artifact.module_proxy_checks(
+            self.root,
+            self.root / "native/phantom_go.dll",
+            TARGET,
+            proxy,
+            identity,
+            Commands(),
+            tools,
+        )
+        return result, observed
+
+    def test_versioned_consumer_uses_two_fresh_caches_without_a_replace(self):
+        result, observed = self.proxy_consumer()
+        self.assertEqual(result["fresh_caches"], 2)
+        self.assertIn("no public tag", result["scope"])
+        caches = {env["GOMODCACHE"] for _, _, env in observed}
+        self.assertEqual(len(caches), 2)
+        for _args, cwd, env in observed:
+            self.assertEqual(env["GOPROXY"], (self.root / "proxy").as_uri())
+            self.assertEqual(env["GOVCS"], "off")
+            self.assertEqual(env["GOSUMDB"], "off")
+            self.assertNotIn("replace", (cwd / "go.mod").read_text())
+        self.assertEqual(sum(args[:2] == ["go", "get"] for args, _, _ in observed), 1)
+
+    def test_versioned_consumer_rejects_wrong_cache_source_resolution_and_checksums(
+        self,
+    ):
+        for mutation in (
+            "zip",
+            "file",
+            "version",
+            "foreign",
+            "replace",
+            "sums",
+            "verify",
+            "marker",
+        ):
+            with (
+                self.subTest(mutation=mutation),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                original = self.root
+                self.root = Path(directory).resolve()
+                try:
+                    with self.assertRaises(ValueError):
+                        self.proxy_consumer(mutation)
+                finally:
+                    self.root = original
 
 
 if __name__ == "__main__":

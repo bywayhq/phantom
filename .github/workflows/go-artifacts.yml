@@ -107,7 +107,7 @@ jobs:
       - name: Check installation helper
         run: python -m unittest discover -s scripts/dev/tests -p test_go_artifact.py
 
-      - name: Build and verify extracted native Go archive
+      - name: Verify native archive and versioned Go module installation
         shell: bash
         env:
           ARTIFACT_TARGET: ${{ matrix.target }}

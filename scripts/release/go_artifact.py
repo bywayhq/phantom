@@ -1,13 +1,16 @@
 """Build and verify a paired Go module/native library archive; never publish it."""
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
+import re
 import shlex
 import shutil
 import tempfile
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = "github.com/bywayhq/phantom/bindings/go"
@@ -25,6 +28,85 @@ def h3_peer_environment(root, directory, environment=None):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.peer_environment(root, directory, environment)
+
+
+def checked_module_version(source, native_version):
+    declaration = re.search(
+        rb'^const nativePackageVersion = "([^"]+)"\r?$',
+        (source / "version.go").read_bytes(),
+        re.MULTILINE,
+    )
+    if declaration is None or declaration[1].decode() != native_version:
+        raise ValueError("Go module version differs from native Cargo package version")
+    version = f"v{native_version}"
+    if not re.fullmatch(r"v[01]\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
+        raise ValueError("Go candidates require a stable v0 or v1 module version")
+    return version
+
+
+def committed_module_files(commands, revision):
+    tree = commands.run(["git", "ls-tree", "-r", "-z", revision, "--", "bindings/go"])
+    blobs = {}
+    for record in tree.split(b"\0"):
+        if not record:
+            continue
+        metadata, raw_path = record.split(b"\t", 1)
+        mode, kind, blob = metadata.decode().split()
+        if mode not in {"100644", "100755"} or kind != "blob":
+            continue
+        path = PurePosixPath(raw_path.decode())
+        if path.parts[:2] != ("bindings", "go") or ".." in path.parts:
+            raise ValueError("Git module inventory contains an unexpected path")
+        relative = PurePosixPath(*path.parts[2:])
+        if "vendor" in relative.parts[:-1]:
+            continue
+        blobs[relative.as_posix()] = blob
+    nested = {
+        str(PurePosixPath(path).parent) + "/"
+        for path in blobs
+        if path != "go.mod" and PurePosixPath(path).name == "go.mod"
+    }
+    return {
+        path: commands.run(["git", "cat-file", "blob", blob])
+        for path, blob in sorted(blobs.items())
+        if not any(path.startswith(directory) for directory in nested)
+    }
+
+
+def stage_module_proxy(destination, revision, version, commands):
+    files = committed_module_files(commands, revision)
+    if files.get("go.mod", b"").splitlines()[:1] != [f"module {MODULE}".encode()]:
+        raise ValueError("committed Go module has an unexpected identity")
+    for required in ("version.go", "native.h", "LICENSE-MIT", "LICENSE-APACHE"):
+        if required not in files:
+            raise ValueError(f"committed Go module is missing {required}")
+    folder = destination / MODULE / "@v"
+    folder.mkdir(parents=True)
+    (folder / f"{version}.mod").write_bytes(files["go.mod"])
+    timestamp = (
+        commands.run(["git", "show", "-s", "--format=%cI", revision]).decode().strip()
+    )
+    (folder / f"{version}.info").write_text(
+        json.dumps({"Version": version, "Time": timestamp}), encoding="utf-8"
+    )
+    (folder / "list").write_text(version + "\n", encoding="utf-8")
+    archive = folder / f"{version}.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
+        for path, data in files.items():
+            entry = zipfile.ZipInfo(f"{MODULE}@{version}/{path}")
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            output.writestr(entry, data)
+    return {
+        "path": MODULE,
+        "version": version,
+        "tag": f"bindings/go/{version}",
+        "source_revision": revision,
+        "zip_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        "mod_sha256": hashlib.sha256(files["go.mod"]).hexdigest(),
+        "files_sha256": {
+            path: hashlib.sha256(data).hexdigest() for path, data in files.items()
+        },
+    }
 
 
 def artifact_tools():
@@ -84,6 +166,8 @@ def copy_module(source, destination):
 
 def installation_environment(directory, library, target):
     environment = os.environ.copy()
+    for name in ("GOPRIVATE", "GONOPROXY", "GONOSUMDB", "GOINSECURE", "GOVCS"):
+        environment.pop(name, None)
     go_os, go_arch = {
         "x86_64-pc-windows-msvc": ("windows", "amd64"),
         "x86_64-unknown-linux-gnu": ("linux", "amd64"),
@@ -98,6 +182,7 @@ def installation_environment(directory, library, target):
         GOARCH=go_arch,
         GOPROXY="off",
         GOSUMDB="off",
+        GOVCS="off",
         GOPATH=str(directory / "gopath"),
         GOMODCACHE=str(directory / "module-cache"),
         GOCACHE=str(directory / "build-cache"),
@@ -293,6 +378,118 @@ def installed_checks(extracted, name, target, identity, commands, tools):
     }
 
 
+def module_proxy_checks(extracted, library, target, proxy, module, commands, tools):
+    version = module["version"]
+    first_sums = None
+    first_download = None
+    resolutions = []
+    for index in range(2):
+        directory = extracted / f"registry-consumer-{index}"
+        directory.mkdir()
+        environment = installation_environment(directory, library, target)
+        environment["GOPROXY"] = proxy.resolve().as_uri()
+        consumer_mod = directory / "go.mod"
+        consumer_mod.write_text(
+            "module example.test/phantom-registry\n\ngo 1.26\n\n"
+            f"require {MODULE} {version}\n",
+            encoding="utf-8",
+        )
+        (directory / "main.go").write_text(CONSUMER, encoding="utf-8")
+        if index == 0:
+            commands.run(
+                ["go", "get", f"{MODULE}@{version}"],
+                cwd=directory,
+                env=environment,
+                timeout=180,
+            )
+        else:
+            (directory / "go.sum").write_bytes(first_sums)
+        download = json.loads(
+            commands.run(
+                ["go", "mod", "download", "-json", f"{MODULE}@{version}"],
+                cwd=directory,
+                env=environment,
+                timeout=180,
+            )
+        )
+        cache = Path(environment["GOMODCACHE"])
+        if (
+            download.get("Error")
+            or download.get("Path") != MODULE
+            or download.get("Version") != version
+            or not download.get("Sum", "").startswith("h1:")
+            or not download.get("GoModSum", "").startswith("h1:")
+        ):
+            raise ValueError(
+                "Go module proxy download did not verify the exact version"
+            )
+        for key in ("Dir", "Zip", "GoMod"):
+            if not Path(download.get(key, "")).resolve().is_relative_to(cache):
+                raise ValueError("Go module proxy download escaped its fresh cache")
+        if (
+            tools.digest(Path(download["Zip"])) != module["zip_sha256"]
+            or tools.digest(Path(download["GoMod"])) != module["mod_sha256"]
+        ):
+            raise ValueError("Go module proxy download differs from committed source")
+        downloaded = Path(download["Dir"])
+        actual_files = {
+            path.relative_to(downloaded).as_posix(): tools.digest(path)
+            for path in downloaded.rglob("*")
+            if path.is_file()
+        }
+        if actual_files != module["files_sha256"]:
+            raise ValueError("Go module cache differs from the committed module tree")
+        resolution = json.loads(
+            commands.run(
+                ["go", "list", "-mod=readonly", "-m", "-json", MODULE],
+                cwd=directory,
+                env=environment,
+            )
+        )
+        if (
+            resolution.get("Path") != MODULE
+            or resolution.get("Version") != version
+            or resolution.get("Replace") is not None
+            or Path(resolution.get("Dir", "")).resolve() != downloaded.resolve()
+        ):
+            raise ValueError("Go registry consumer did not resolve the cached module")
+        sums = (directory / "go.sum").read_bytes()
+        if index == 0:
+            first_sums, first_download = sums, download
+            executable = directory / (
+                "consumer.exe" if target.endswith("windows-msvc") else "consumer"
+            )
+            commands.run(
+                ["go", "build", "-mod=readonly", "-o", str(executable), "."],
+                cwd=directory,
+                env=environment,
+                timeout=300,
+            )
+            if (
+                commands.run([str(executable)], cwd=directory, env=environment).strip()
+                != b"external-consumer-ok"
+            ):
+                raise ValueError("Go registry consumer omitted success marker")
+        elif sums != first_sums or any(
+            download[key] != first_download[key] for key in ("Sum", "GoModSum")
+        ):
+            raise ValueError("fresh Go module cache changed the recorded checksums")
+        verified = commands.run(["go", "mod", "verify"], cwd=directory, env=environment)
+        if verified.strip() != b"all modules verified":
+            raise ValueError("Go module cache verification did not complete")
+        resolutions.append(resolution)
+    return {
+        "external_consumer": "passed",
+        "fresh_caches": 2,
+        "resolutions": resolutions,
+        "go_sum": first_sums.decode(),
+        "module_sum": first_download["Sum"],
+        "go_mod_sum": first_download["GoModSum"],
+        "source": module,
+        "scope": "isolated file proxy; no public tag or checksum database claim",
+    }
+
+
 def verify(target, output):
     tools = artifact_tools()
     jobs = tools.build_jobs()
@@ -339,6 +536,9 @@ def verify(target, output):
     if len(packages) != 1:
         raise ValueError("expected one native Go adapter in Cargo metadata")
     package = packages[0]
+    version = checked_module_version(ROOT / "bindings/go", package["version"])
+    proxy = output / "module-proxy"
+    module = stage_module_proxy(proxy, revision, version, commands)
     raw = commands.run(
         [
             "cargo",
@@ -436,6 +636,15 @@ def verify(target, output):
             raise ValueError("Go installation checks must run outside checkout")
         tools.extract_archive(archive, extracted)
         checks = installed_checks(extracted, name, target, identity, commands, tools)
+        checks["module_proxy"] = module_proxy_checks(
+            extracted,
+            extracted / name / "lib" / library.name,
+            target,
+            proxy,
+            module,
+            commands,
+            tools,
+        )
     if (
         commands.run(["git", "status", "--porcelain"]).strip()
         or commands.run(["git", "rev-parse", "HEAD"]).decode().strip() != revision
