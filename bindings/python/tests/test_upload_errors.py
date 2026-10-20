@@ -76,7 +76,70 @@ class NativeResponse:
         self.closed = True
 
 
+class PendingResponse(NativeResponse):
+    def __init__(self):
+        super().__init__()
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def read(self, _):
+        if self.entered.is_set():
+            raise FACADE._native.NativeError(
+                "input", "concurrent_body_read", None, None
+            )
+        self.entered.set()
+        await self.release.wait()
+        if self.closed:
+            raise FACADE._native.NativeError("request", "body_closed", "h2", None)
+        return b"body"
+
+    def close(self):
+        super().close()
+        self.release.set()
+
+
 class UploadErrorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_concurrent_read_rejection_preserves_pending_read_and_producer(self):
+        for method in ("read", "read_chunk", "iter_bytes"):
+            with self.subTest(method=method):
+                native = PendingResponse()
+                pump = Pump()
+                response = FACADE.AsyncResponse(native, pump)
+                pending = asyncio.create_task(response.read_chunk())
+                await native.entered.wait()
+                try:
+                    with self.assertRaises(FACADE.Error) as caught:
+                        if method == "read":
+                            await response.read(max_bytes=10)
+                        elif method == "read_chunk":
+                            await response.read_chunk()
+                        else:
+                            await anext(response.iter_bytes())
+                    self.assertEqual(caught.exception.category, "input")
+                    self.assertEqual(caught.exception.kind, "concurrent_body_read")
+                    self.assertIsNone(caught.exception.original)
+                    self.assertIsNone(caught.exception.cleanup_error)
+                    self.assertFalse(native.closed)
+                    self.assertFalse(pump.closed)
+                    self.assertFalse(pending.done())
+                    native.release.set()
+                    self.assertEqual(await pending, b"body")
+                finally:
+                    await response.aclose()
+                    await asyncio.gather(pending, return_exceptions=True)
+
+    async def test_non_input_failure_with_concurrent_kind_still_closes(self):
+        native = NativeResponse(
+            FACADE._native.NativeError("request", "concurrent_body_read", "h2", None)
+        )
+        pump = Pump()
+        response = FACADE.AsyncResponse(native, pump)
+        with self.assertRaises(FACADE.Error) as caught:
+            await response.read_chunk()
+        self.assertEqual(caught.exception.category, "request")
+        self.assertTrue(native.closed)
+        self.assertTrue(pump.closed)
+
     def assert_primary(self, error, kind, cleanup, original=None):
         self.assertEqual(error.kind, kind)
         self.assertEqual(error.protocol, "h2")

@@ -357,18 +357,22 @@ class AsyncTests(unittest.IsolatedAsyncioTestCase):
         with server() as (peer, url):
             async with AsyncClient(**OPTIONS) as client:
                 response = await client.request("GET", url + "/stall")
-                readers = [
+                readers = {
                     asyncio.create_task(response.read(max_bytes=20)),
                     asyncio.create_task(response.read(max_bytes=20)),
-                ]
-                results = await asyncio.wait_for(
-                    asyncio.gather(*readers, return_exceptions=True), 2
+                }
+                done, waiting = await asyncio.wait(
+                    readers, timeout=2, return_when=asyncio.FIRST_COMPLETED
                 )
-                self.assertTrue(all(isinstance(result, Error) for result in results))
-                self.assertEqual(
-                    {result.kind for result in results},
-                    {"concurrent_body_read", "body_closed"},
-                )
+                self.assertEqual(len(done), 1)
+                self.assertEqual(len(waiting), 1)
+                with self.assertRaises(Error) as caught:
+                    await done.pop()
+                self.assertEqual(caught.exception.kind, "concurrent_body_read")
+                response.close()
+                with self.assertRaises(Error) as caught:
+                    await waiting.pop()
+                self.assertEqual(caught.exception.kind, "body_closed")
                 self.assertTrue(await asyncio.to_thread(peer.disconnected.wait, 5))
                 self.assertEqual(await response.read(max_bytes=20), b"")
 

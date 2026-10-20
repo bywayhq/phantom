@@ -444,6 +444,14 @@ class AsyncResponse:
             raise _upload_error(self._upload) from None
 
     async def _close_after_error(self, error: BaseException) -> BaseException:
+        primary = _primary_error(error)
+        if (
+            isinstance(primary, Error)
+            and primary.category == "input"
+            and primary.kind == "concurrent_body_read"
+        ):
+            # The rejected call never acquired the other read's body lease.
+            return primary
         try:
             await self.aclose()
         except BaseException as cleanup:
@@ -477,7 +485,7 @@ class AsyncResponse:
             await self.aclose()
 
     async def read(self, *, max_bytes: int) -> bytes:
-        """Collect up to max_bytes. The body closes on failure or completion."""
+        """Collect up to max_bytes; close on completion or a body failure."""
         if not isinstance(max_bytes, int) or max_bytes < 0:
             raise ValueError("max_bytes must be a nonnegative integer")
         try:
