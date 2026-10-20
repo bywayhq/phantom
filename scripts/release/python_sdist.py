@@ -110,7 +110,11 @@ def rewrite_pyproject(text, notices):
     original = tomllib.loads(text)
     changes = {
         ("build-system", "requires"): [f"maturin=={MATURIN}"],
-        ("project", "license-files"): ["LICENSE-MIT", "LICENSE-APACHE", *notices],
+        ("project", "license-files"): [
+            "LICENSE-MIT",
+            "LICENSE-APACHE",
+            *(["third-party-notices/**/*"] if notices else []),
+        ],
         ("tool.maturin", "manifest-path"): "bindings/python/Cargo.toml",
     }
     expected = tomllib.loads(text)

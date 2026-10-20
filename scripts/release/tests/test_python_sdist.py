@@ -73,7 +73,7 @@ class SourceArchiveTests(unittest.TestCase):
         )
         self.assertEqual(
             parsed["project"]["license-files"],
-            ["LICENSE-MIT", "LICENSE-APACHE", "third-party-notices/a/LICENSE"],
+            ["LICENSE-MIT", "LICENSE-APACHE", "third-party-notices/**/*"],
         )
         self.assertEqual(
             result, sdist.rewrite_pyproject(result, ["third-party-notices/a/LICENSE"])
@@ -337,7 +337,7 @@ class RepairFlowTests(unittest.TestCase):
                 dependency_packages.append(
                     {
                         "name": name,
-                        "version": "1.0.0",
+                        "version": "2.1.2+zstd.1.5.7" if name == "linux" else "1.0.0",
                         "id": name,
                         "manifest_path": str(directory / "Cargo.toml"),
                         "license": "MIT",
@@ -473,10 +473,21 @@ class RepairFlowTests(unittest.TestCase):
                     result.extractfile(prefix + "/PKG-INFO").read()
                 )
                 self.assertEqual(
-                    set(metadata.get_all("License-File")),
-                    set(project["project"]["license-files"]),
+                    project["project"]["license-files"],
+                    ["LICENSE-MIT", "LICENSE-APACHE", "third-party-notices/**/*"],
                 )
-                for path in project["project"]["license-files"]:
+                notice_paths = {
+                    item.name.removeprefix(prefix + "/")
+                    for item in result.getmembers()
+                    if item.isfile()
+                    and item.name.startswith(prefix + "/third-party-notices/")
+                }
+                self.assertTrue(any("+" in path for path in notice_paths))
+                self.assertEqual(
+                    set(metadata.get_all("License-File")),
+                    {"LICENSE-MIT", "LICENSE-APACHE", *notice_paths},
+                )
+                for path in metadata.get_all("License-File"):
                     self.assertTrue(result.extractfile(prefix + "/" + path).read())
                 inventory = json.load(
                     result.extractfile(prefix + "/third-party-notices/inventory.json")
