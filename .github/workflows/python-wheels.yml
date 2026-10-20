@@ -167,6 +167,11 @@ jobs:
             clang-libs-21.1.8-1.module_el8.10.0+4172+b6b13d75.x86_64
           rpm -q clang-libs llvm-libs
           python -c 'import ctypes; ctypes.CDLL("libclang.so.21.1")'
+          # Bindgen loads distro libclang, while PATH selects the image's Clang.
+          export BINDGEN_EXTRA_CLANG_ARGS='-resource-dir=/usr/lib/clang/21'
+          test -f /usr/lib/clang/21/include/stddef.h
+          printf '#include <stddef.h>\n#include <stdint.h>\n#include <stdlib.h>\n#include <sys/types.h>\n' |
+            clang -resource-dir=/usr/lib/clang/21 -x c -fsyntax-only -
           command -v cc c++ readelf ldd
           cc --version
           c++ --version
