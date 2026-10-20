@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore native C/C++ profile flags for automatic MSVC builds, including
+  optimization, debug information and `NDEBUG` for the selected configuration.
+
 - Add bounded UTF-8 text and JSON response readers to the Node.js adapter,
   with typed decoding errors and a streaming download example.
 

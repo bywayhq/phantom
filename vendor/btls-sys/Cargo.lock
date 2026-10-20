@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls-sys"
-version = "0.5.6-phantom.1"
+version = "0.5.6-phantom.2"
 dependencies = [
  "bindgen",
  "cmake",

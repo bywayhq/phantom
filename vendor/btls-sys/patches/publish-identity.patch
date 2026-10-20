@@ -5,7 +5,7 @@
 -name = "btls-sys"
 -version = { workspace = true }
 +name = "phantom-btls-sys"
-+version = "0.5.6-phantom.1"
++version = "0.5.6-phantom.2"
  authors = ["0x676e67 <gngppz@gmail.com>",
              "Alex Crichton <alex@alexcrichton.com>",
              "Steven Fackler <sfackler@gmail.com>",
