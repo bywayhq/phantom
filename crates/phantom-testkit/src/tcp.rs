@@ -50,8 +50,20 @@ impl ReservedPort {
     ///
     /// Returns the socket or bind error.
     pub fn bind() -> io::Result<Self> {
+        Self::bind_port(0)
+    }
+
+    /// Reserves `port` on `127.0.0.1`, or picks a free port when it is zero.
+    ///
+    /// On macOS the port is released until [`Self::listen`], as with
+    /// [`Self::bind`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the socket or bind error, including an unavailable chosen port.
+    pub fn bind_port(port: u16) -> io::Result<Self> {
         let socket = TcpSocket::new_v4()?;
-        socket.bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
+        socket.bind(SocketAddr::from((Ipv4Addr::LOCALHOST, port)))?;
         let address = socket.local_addr()?;
         // A bound socket that is not listening drops connects on macOS
         // instead of refusing them; only a free port refuses there.
@@ -117,6 +129,18 @@ mod tests {
     async fn a_connect_is_refused_until_the_port_listens() -> io::Result<()> {
         let reserved = ReservedPort::bind()?;
         let address = reserved.address();
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            let conflict = ReservedPort::bind_port(address.port());
+            assert!(
+                conflict.as_ref().is_err_and(|error| matches!(
+                    error.kind(),
+                    io::ErrorKind::AddrInUse | io::ErrorKind::PermissionDenied
+                )),
+                "a second socket bound the reserved address: {conflict:?}"
+            );
+        }
 
         let started = Instant::now();
         let refused = TcpStream::connect(address).await;

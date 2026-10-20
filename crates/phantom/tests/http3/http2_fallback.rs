@@ -20,6 +20,7 @@ use phantom::{
     RetryPolicy, Route, TimeoutOverride,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
+use phantom_testkit::tcp::ReservedPort;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -62,37 +63,46 @@ struct Origin {
 
 impl Origin {
     async fn bind(identity: &TestIdentity) -> TestResult<Self> {
-        let mut last_error = None;
-        for port in shared_port::candidates() {
-            let quic = match quic_server(
-                quic_config(identity)?,
-                SocketAddr::from((Ipv4Addr::LOCALHOST, port)),
-            ) {
-                Ok(quic) => quic,
-                Err(error) if shared_port::is_unavailable(&error) => {
-                    last_error = Some(error.to_string());
-                    continue;
-                }
-                Err(error) => return Err(error.into()),
-            };
-            match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
-                Ok(tcp) => return Ok(Self { port, quic, tcp }),
-                Err(error) if shared_port::is_unavailable(&error) => {
-                    last_error = Some(error.to_string());
-                }
-                Err(error) => return Err(error.into()),
-            }
-        }
-        Err(format!(
-            "no loopback port was free for both UDP and TCP; last error: {}",
-            last_error.as_deref().unwrap_or("none")
-        )
-        .into())
+        let (port, quic, tcp) =
+            bind_origin(identity, |port| ReservedPort::bind_port(port)?.listen())?;
+        Ok(Self { port, quic, tcp })
     }
 
     fn url(&self, path: &str) -> String {
         format!("https://127.0.0.1:{}{path}", self.port)
     }
+}
+
+fn bind_origin<T>(
+    identity: &TestIdentity,
+    bind_tcp: impl Fn(u16) -> io::Result<T>,
+) -> TestResult<(u16, quinn::Endpoint, T)> {
+    let mut last_error = None;
+    for port in shared_port::candidates() {
+        let quic = match quic_server(
+            quic_config(identity)?,
+            SocketAddr::from((Ipv4Addr::LOCALHOST, port)),
+        ) {
+            Ok(quic) => quic,
+            Err(error) if shared_port::is_unavailable(&error) => {
+                last_error = Some(error.to_string());
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
+        match bind_tcp(port) {
+            Ok(tcp) => return Ok((port, quic, tcp)),
+            Err(error) if shared_port::is_unavailable(&error) => {
+                last_error = Some(error.to_string());
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(format!(
+        "no loopback port was free for both UDP and TCP; last error: {}",
+        last_error.as_deref().unwrap_or("none")
+    )
+    .into())
 }
 
 fn quic_config(identity: &TestIdentity) -> TestResult<quinn::ServerConfig> {
@@ -853,9 +863,9 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
     let mut refused = None;
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
-        // The TCP port refuses connections, so the HTTP/2 attempt fails too.
-        drop(tcp);
+        let (port, quic, tcp) = bind_origin(&identity, ReservedPort::bind_port)?;
+        // Keep the TCP address reserved while its non-listening socket refuses.
+        // macOS releases the reservation to preserve its refusal behavior.
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
@@ -871,6 +881,7 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
         assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
         assert_eq!(error.kind(), RequestErrorKind::Connect);
         join_worker(&mut refused).await?;
+        drop(tcp);
         Ok(())
     })
     .await;
