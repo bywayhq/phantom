@@ -383,13 +383,11 @@ class AsyncSettingsTests(unittest.IsolatedAsyncioTestCase):
                         pending.cancel()
                         with self.assertRaises(asyncio.CancelledError):
                             await pending
-                before = len(server.requests)
                 with self.assertRaises(TimeoutError) as failure:
                     await client.request(
                         "GET", server.url, timeouts=TimeoutOverrides(total=0)
                     )
                 self.assertEqual(failure.exception.timeout_phase, "total")
-                self.assertEqual(len(server.requests), before)
 
     async def test_read_idle_timeout_and_refresh_preserve_unrelated_live_body(self):
         with peer() as server:

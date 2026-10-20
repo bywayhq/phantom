@@ -104,9 +104,9 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
                         "GET",
                         peer.url + path,
                         headers=[
-                            ("X-Duplicate", b"one"),
-                            Header("X-Secret", b"private", sensitive=True),
-                            ("X-Duplicate", b"two"),
+                            ("x-duplicate", b"one"),
+                            Header("x-secret", b"private", sensitive=True),
+                            ("x-duplicate", b"two"),
                         ],
                     )
                     self.assertEqual(await response.read(max_bytes=5), b"hello")

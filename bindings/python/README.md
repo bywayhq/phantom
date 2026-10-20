@@ -61,10 +61,11 @@ Unknown profiles and unavailable contexts fail. No retries or protocol fallbacks
 are enabled by the wrapper.
 For direct `http://` URLs, `h2` selects cleartext HTTP/2 prior knowledge.
 
-Pass ordered `headers=[("X-First", b"one"), ("X-Second", b"two")]`.
+Pass ordered `headers=[("x-first", b"one"), ("x-second", b"two")]`.
 Values accept bytes or Latin-1 text. Other text requires explicit encoding into
 bytes. The library enforces the selected protocol and template rules.
-Use `Header("X-Secret", b"value", sensitive=True)` alongside pairs to request
+HTTP/2 and HTTP/3 require lowercase caller header names.
+Use `Header("x-secret", b"value", sensitive=True)` alongside pairs to request
 never-index encoding in HTTP/2 and HTTP/3. This does not encrypt a header.
 Responses retain ordered duplicate header pairs with byte values. HTTP error
 statuses are responses; this slice does not raise for them automatically.
@@ -101,6 +102,7 @@ disables explicit `None` fields and applies finite numbers, including zero.
 For example, `TimeoutOverrides(total=None, read_idle=2)` disables the inherited
 total limit while limiting body-read idle time. Pass `timeouts` or `timeout_ms`,
 never both. Durations must be finite and nonnegative.
+With zero, an already-ready operation can send bytes before expiry is observed.
 
 ## Streaming and lifetime
 
