@@ -173,6 +173,26 @@ class ReleaseChecks(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "omitted staged"):
                 verify.installed_package_sources(log, base, versions)
 
+    def test_native_dependency_uses_its_staged_archive_identity(self):
+        plan = publish.plan()
+        versions = {name: version for name, version, _manifest in plan}
+        native = tomllib.loads(
+            (publish.ROOT / "vendor/btls-sys/Cargo.toml").read_text()
+        )["package"]
+        self.assertEqual(versions.get(native["name"]), native["version"])
+        wrapper = tomllib.loads((publish.ROOT / "vendor/btls/Cargo.toml").read_text())
+        # cargo package removes the path but retains the exact registry version.
+        del wrapper["dependencies"]["btls-sys"]["path"]
+        dependencies = verify.index_record(wrapper, "checksum", versions)["deps"]
+        dependency = next(item for item in dependencies if item["name"] == "btls-sys")
+        self.assertEqual(dependency["package"], native["name"])
+        self.assertEqual(dependency["req"], "=" + native["version"])
+        self.assertIsNone(dependency["registry"])
+        self.assertEqual(
+            next(item for item in dependencies if item["name"] == "libc")["registry"],
+            verify.CRATES_IO,
+        )
+
     def test_index_rejects_a_dependency_that_still_uses_git_or_path(self):
         for source in ["git", "path"]:
             with self.subTest(source=source), self.assertRaises(ValueError):
@@ -219,11 +239,12 @@ class ReleaseChecks(unittest.TestCase):
     ):
         plan = publish.plan()
         names = {entry[0] for entry in plan}
-        self.assertEqual(plan[0][0], "phantom-btls")
+        self.assertEqual(plan[0][0], "phantom-btls-sys")
         self.assertEqual(plan[-1][0], "phantom-cli")
         self.assertEqual(
             names,
             {
+                "phantom-btls-sys",
                 "phantom-btls",
                 "phantom-tokio-btls",
                 "phantom-testkit",

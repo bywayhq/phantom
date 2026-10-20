@@ -1,3 +1,4 @@
+vendor/btls-sys/Cargo.toml
 vendor/btls/Cargo.toml
 vendor/tokio-btls/Cargo.toml
 crates/phantom-profile/Cargo.toml
