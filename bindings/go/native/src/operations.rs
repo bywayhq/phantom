@@ -1015,6 +1015,15 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .client
                     .request_timeouts();
                 let total = timeouts.overrides().resolve(defaults).total_duration();
+                // Reject an already exhausted deadline before a ready send can
+                // win the race against asynchronously polled timeout futures.
+                if total.is_some_and(|duration| duration.is_zero()) {
+                    return Err(Failure {
+                        kind: "timeout",
+                        protocol: None,
+                        timeout_phase: Some("total"),
+                    });
+                }
                 let mut request = state
                     .clients
                     .get(&client)

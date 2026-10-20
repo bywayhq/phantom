@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -151,4 +152,82 @@ func TestUnreadEarlyHTTP2UploadHonorsInheritedAndOverriddenTotal(t *testing.T) {
 		t.Fatalf("zero total: %v", err)
 	}
 	waitUploadClosed(t, &zero.closes)
+}
+
+func TestZeroTotalRejectsBeforeAttemptAndSourceAdmission(t *testing.T) {
+	var calls atomic.Int32
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = io.WriteString(w, "ok")
+	}))
+	defer peer.Close()
+	zeroClient, err := New(Config{Profile: profile, Protocol: "h1", Timeouts: Timeouts{Total: LimitTimeout(0)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zeroClient.Close()
+	fork, err := zeroClient.Fork(SessionSharing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fork.Close()
+	positiveClient := newClient(t)
+	for _, test := range []struct {
+		name     string
+		client   *Client
+		timeouts Timeouts
+	}{
+		{"client default", zeroClient, Timeouts{}},
+		{"fork inherits", fork, Timeouts{}},
+		{"request override", positiveClient, Timeouts{Total: LimitTimeout(0)}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			budget, err := NewAttemptBudget(1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer budget.Close()
+			source := newGatedUpload()
+			response, err := test.client.Do(context.Background(), Request{
+				Method: "POST", URL: peer.URL, Upload: source, Budget: budget, Timeouts: test.timeouts,
+			})
+			if response != nil {
+				_ = response.Body.Close()
+				t.Fatal("zero total returned a response")
+			}
+			var failure *Error
+			if !errors.As(err, &failure) || failure.Kind != "timeout" || failure.TimeoutPhase != "total" {
+				t.Fatalf("zero total error: %v", err)
+			}
+			select {
+			case <-source.started:
+				t.Fatal("expired source was pulled")
+			default:
+			}
+			if source.closes.Load() != 1 {
+				t.Fatalf("expired source closed %d times", source.closes.Load())
+			}
+			if remaining, err := budget.Remaining(); err != nil || remaining != 1 {
+				t.Fatalf("expired request spent attempt: %d %v", remaining, err)
+			}
+			before := calls.Load()
+			for _, limit := range []Timeout{{Mode: TimeoutDisabled}, LimitTimeout(5 * time.Second)} {
+				response, err := test.client.Do(context.Background(), Request{
+					Method: "GET", URL: peer.URL, Timeouts: Timeouts{Total: limit},
+				})
+				if err != nil {
+					t.Fatalf("usable override: %v", err)
+				}
+				if body, err := response.Body.ReadAll(2); err != nil || string(body) != "ok" {
+					t.Fatalf("override body: %q %v", body, err)
+				}
+			}
+			if got := calls.Load(); got != before+2 {
+				t.Fatalf("peer requests: %d; want %d", got, before+2)
+			}
+		})
+	}
+	if calls.Load() != 6 {
+		t.Fatalf("expired request reached peer: %d requests", calls.Load())
+	}
 }
