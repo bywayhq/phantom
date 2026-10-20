@@ -47,6 +47,27 @@ pub(super) struct NativeClient {
     pub(super) closing: bool,
 }
 
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub(super) struct SessionSharing {
+    cookies: bool,
+    dns: bool,
+    client_hints: bool,
+    discovery: bool,
+    tickets: bool,
+}
+
+impl SessionSharing {
+    fn core(self) -> phantom::SessionSharing {
+        phantom::SessionSharing::none()
+            .cookies(self.cookies)
+            .dns(self.dns)
+            .client_hints(self.client_hints)
+            .discovery(self.discovery)
+            .tickets(self.tickets)
+    }
+}
+
 pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     match protocol {
         HttpProtocol::Http1 => "h1",
@@ -97,6 +118,14 @@ fn route(uri: Option<&str>, credentials: Option<ProxyCredentials>) -> Result<Rou
 }
 
 impl NativeClient {
+    pub(super) fn fork(&self, sharing: SessionSharing) -> Self {
+        Self {
+            client: self.client.fork(sharing.core()),
+            protocol: self.protocol.clone(),
+            closing: false,
+        }
+    }
+
     pub(super) fn new(config: Config) -> Result<Self, Failure> {
         if !matches!(config.protocol.as_str(), "h1" | "h2" | "h3" | "negotiated") {
             return Err(Failure::new("invalid_protocol"));
@@ -171,5 +200,32 @@ impl NativeClient {
         }
         request = request.timeouts(timeouts.overrides());
         Ok(request)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sharing_flags_match_core_and_reject_unknown_fields() -> Result<(), serde_json::Error> {
+        assert_eq!(
+            serde_json::from_str::<SessionSharing>("{}")?.core(),
+            phantom::SessionSharing::none()
+        );
+        let sharing = serde_json::from_str::<SessionSharing>(
+            r#"{"cookies":true,"dns":true,"client_hints":true,"discovery":true,"tickets":true}"#,
+        )?;
+        assert_eq!(
+            sharing.core(),
+            phantom::SessionSharing::none()
+                .cookies(true)
+                .dns(true)
+                .client_hints(true)
+                .discovery(true)
+                .tickets(true)
+        );
+        assert!(serde_json::from_str::<SessionSharing>(r#"{"extra":false}"#).is_err());
+        Ok(())
     }
 }

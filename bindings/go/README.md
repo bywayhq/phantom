@@ -143,6 +143,26 @@ cleanup. Profile count does not consume the HTTP capacities below. Raw profile
 documents use a separate 16 MiB channel with the core's structural limits;
 the HTTP upload and command-metadata limits do not truncate profile documents.
 
+## Fork session state
+
+Use `worker, err := client.Fork(phantom.SessionSharing{Cookies: true, DNS: true})`
+for independent connection pools with selected live state. Close each owner.
+The zero value shares nothing. `Cookies`, `DNS`, `ClientHints`, `Discovery`
+and `Tickets` share existing state, later changes, expiry and clearing. A
+selection does not enable a category disabled in the source configuration.
+Discovery includes Alt-Svc, racing history and enabled HTTPS-record state.
+
+Forks retain profile settings, template context, protocol, routes, trust,
+timeouts and limits. Pools, request admission and shutdown are independent.
+Unselected state and learned proxy authentication start empty. Ticket sharing
+uses the core's consuming stores and bounded cache; it does not copy tickets.
+Forks count toward the ordinary native client capacity.
+
+Successful Go `Shutdown` releases its native owner, so a later `Fork` returns
+`client_closed`. During concurrent shutdown a still-registered source can
+produce an open fork; otherwise the call returns `client_closed`. Closing
+either owner leaves the other usable. Finalizers provide eventual cleanup.
+
 ## Build and limits
 
 Build the workspace package `phantom-go` with Rust 1.88 or later, including

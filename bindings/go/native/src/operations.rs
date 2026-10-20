@@ -1,5 +1,5 @@
 use crate::{
-    client::{Config, Header, NativeClient},
+    client::{Config, Header, NativeClient, SessionSharing},
     error::Failure,
     timeouts::Timeouts,
 };
@@ -29,6 +29,10 @@ const MAX_HANDLES: usize = 64;
 enum Command {
     NewClient {
         config: Config,
+    },
+    ForkClient {
+        client: u64,
+        sharing: SessionSharing,
     },
     ReleaseClient {
         client: u64,
@@ -276,6 +280,23 @@ impl Default for State {
     }
 }
 impl State {
+    fn fork_client(&mut self, client: u64, sharing: SessionSharing) -> Result<Value, Failure> {
+        if !self.clients.contains_key(&client) {
+            return Err(Failure::new("client_closed"));
+        }
+        if self.clients.len() >= MAX_HANDLES {
+            return Err(Failure::new("capacity"));
+        }
+        let id = self.id()?;
+        let fork = self
+            .clients
+            .get(&client)
+            .ok_or_else(|| Failure::new("client_closed"))?
+            .fork(sharing);
+        self.clients.insert(id, fork);
+        Ok(json!({"id": id}))
+    }
+
     fn id(&mut self) -> Result<u64, Failure> {
         let id = self.next;
         self.next = self
@@ -707,6 +728,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 state.clients.insert(id, client);
                 Ok(json!({"id":id}))
             }
+            Command::ForkClient { client, sharing } => state.fork_client(client, sharing),
             Command::ReleaseClient { client } => {
                 state.release_client(client);
                 Ok(json!({}))
@@ -925,6 +947,7 @@ mod tests {
     use super::*;
 
     mod response_info;
+    mod session_sharing;
 
     fn test_global() -> Result<&'static Global, Failure> {
         Ok(Box::leak(Box::new(Global {

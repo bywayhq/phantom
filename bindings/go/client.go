@@ -142,10 +142,17 @@ func New(config Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return clientFromReply(value)
+}
+
+func clientFromReply(value json.RawMessage) (*Client, error) {
 	var result struct {
 		ID uint64 `json:"id"`
 	}
 	if json.Unmarshal(value, &result) != nil || result.ID == 0 {
+		if result.ID != 0 {
+			_ = control("release_client", "client", result.ID)
+		}
 		return nil, &Error{Kind: "native_abi"}
 	}
 	client := &Client{}
