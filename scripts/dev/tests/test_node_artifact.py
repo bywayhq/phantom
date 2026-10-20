@@ -239,22 +239,36 @@ class NodeArtifactTests(unittest.TestCase):
                 ).encode()
             return successful_tap() if "--test" in args else b""
 
-        result = artifact.public_checks(
-            consumer,
-            Path("node"),
-            Path("npm-cli.js"),
-            "0.2.0",
-            SimpleNamespace(run=run),
-            self.tools,
-            {"isolated": "environment"},
-            consumer / "cache",
-            "@byway/phantom-win32-x64-msvc",
-        )
+        with patch.object(
+            artifact, "h3_peer_environment", side_effect=lambda _r, _d, env: env
+        ) as peer_environment:
+            result = artifact.public_checks(
+                consumer,
+                Path("node"),
+                Path("npm-cli.js"),
+                "0.2.0",
+                SimpleNamespace(run=run),
+                self.tools,
+                {"isolated": "environment"},
+                consumer / "cache",
+                "@byway/phantom-win32-x64-msvc",
+            )
+        peer_environment.assert_called_once()
         self.assertEqual(result["loopback_checks"]["pass"], 19)
         self.assertEqual(len(calls), 4)
         peer = next(args for args, _ in calls if "--test" in args)
         self.assertIn("tests/native-loader.test.cjs", peer)
         self.assertIn("tests/pipeline.test.cjs", peer)
+        for name in (
+            "compact-profiles",
+            "session-sharing",
+            "content-decoding",
+            "redirects",
+            "retries",
+            "uploads",
+            "upload-http3",
+        ):
+            self.assertIn(f"tests/{name}.test.cjs", peer)
         self.assertIn(
             'require("@byway/phantom-win32-x64-msvc")',
             (consumer / "tests/client.test.cjs").read_text(),

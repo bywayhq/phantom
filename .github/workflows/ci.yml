@@ -202,7 +202,7 @@ jobs:
 
       - name: Test native Node.js 24 adapter
         # Node 22 prepared the same N-API addon, dependencies and type checks.
-        run: npm --prefix bindings/node test
+        run: python scripts/dev/binding_h3_peer.py -- "$BASH" -c 'npm --prefix bindings/node test'
 
       # nextest does not run doctests, and `cargo test --all-targets` skips them.
       - name: Test documentation examples
@@ -521,7 +521,7 @@ jobs:
       - name: Test native Node.js 24 adapter
         shell: bash
         # Exercise the prepared addon on the second runtime without reinstalling.
-        run: npm --prefix bindings/node test
+        run: python scripts/dev/binding_h3_peer.py -- "$BASH" -c 'npm --prefix bindings/node test'
 
       - name: Install Windows capture Python
         if: runner.os == 'Windows'
