@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject malformed HTTP/3 response fields and reset only the affected stream.
+
 - Breaking: `ResponseReadErrorKind::Json` has a different numeric discriminant
   after adding response error variants. Migrate: update Rust dependencies to
   0.3 and match named variants instead of persisting or comparing numeric casts.
