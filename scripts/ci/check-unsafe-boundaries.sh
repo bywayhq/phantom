@@ -3,8 +3,7 @@
 #
 # The workspace forbids `unsafe_code`. phantom-quic-btls and phantom-net deny
 # it instead, as do the Go and Node adapters, and allow it on their audited private
-# module declarations. This
-# check fails when an `allow(unsafe_code` or `expect(unsafe_code` attribute
+# module declarations. The check fails when an unsafe_code allow/expect attribute
 # appears anywhere else in tracked Rust code, when an audited declaration
 # is missing, or when a manifest relaxes the `unsafe_code` lint further.
 #
@@ -33,64 +32,15 @@ search() {
   fi
 }
 
-# path:count for each audited declaration.
-expected=(
-  "crates/phantom-quic-btls/src/lib.rs:1"
-  "crates/phantom-net/src/lib.rs:4"
-  "bindings/go/native/src/lib.rs:1"
-  "bindings/node/src/lib.rs:1"
-)
-
-attributes=$(search -c -E '(allow|expect)\(([^)]*,[[:space:]]*)?unsafe_code' -- '*.rs' ':!vendor')
-
-for entry in "${expected[@]}"; do
-  if ! grep -qxF "$entry" <<<"$attributes"; then
-    fail "expected ${entry##*:} unsafe_code allowance(s) in ${entry%:*}"
-  fi
-done
-
-while IFS= read -r entry; do
-  [[ -z $entry ]] && continue
-  allowed=false
-  for expected_entry in "${expected[@]}"; do
-    if [[ ${entry%:*} == "${expected_entry%:*}" ]]; then
-      allowed=true
-    fi
-  done
-  if [[ $allowed == false ]]; then
-    fail "unsafe_code is allowed outside the audited FFI modules: ${entry%:*}"
-  fi
-done <<<"$attributes"
-
-# Count checks alone would permit an allowance moved onto another module.
-check_modules() {
-  local path=$1 names=$2
-  if ! awk -v names="$names" '
-    BEGIN {
-      count = split(names, modules, "|")
-      for (i = 1; i <= count; i++) expected[modules[i]] = 0
-    }
-    /(allow|expect)\(([^)]*,[[:space:]]*)?unsafe_code/ {
-      if (getline <= 0) { invalid = 1; exit }
-      sub(/\r$/, "")
-      if ($0 !~ ("^mod (" names ");$")) { invalid = 1; exit }
-      name = $0
-      sub(/^mod /, "", name)
-      sub(/;$/, "", name)
-      expected[name]++
-    }
-    END {
-      for (name in expected) if (expected[name] != 1) invalid = 1
-      exit invalid
-    }
-  ' "$path"; then
-    fail "unsafe_code allowance moved outside audited declarations in $path"
-  fi
-}
-check_modules crates/phantom-quic-btls/src/lib.rs backend
-check_modules crates/phantom-net/src/lib.rs 'socket_ffi|system_dns_ffi|linux_dns_ffi|macos_dns_ffi'
-check_modules bindings/go/native/src/lib.rs ffi
-check_modules bindings/node/src/lib.rs ffi
+# Python checks balanced Rust attributes, ignoring comments and literal contents.
+# Inspect every source branch without evaluating cfg or expanding macros.
+status=0
+python scripts/ci/check_unsafe_boundaries.py || status=$?
+if [[ $status -gt 1 ]]; then
+  exit "$status"
+elif [[ $status -eq 1 ]]; then
+  failures=$((failures + 1))
+fi
 
 # Manifests may deny unsafe_code but never allow or warn on it.
 manifests=$(search -n -E '^[[:space:]]*unsafe_code[[:space:]]*=.*"(allow|warn)"' -- '*Cargo.toml' ':!vendor')

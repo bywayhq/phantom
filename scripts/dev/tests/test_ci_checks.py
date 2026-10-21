@@ -1,9 +1,13 @@
+import contextlib
+import io
 import os
+import runpy
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO = Path(__file__).resolve().parents[3]
 AUDITED_MODULES = (
@@ -38,7 +42,11 @@ class CiCheckTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
-        for name in ("check-tool-pins.sh", "check-unsafe-boundaries.sh"):
+        for name in (
+            "check-tool-pins.sh",
+            "check-unsafe-boundaries.sh",
+            "check_unsafe_boundaries.py",
+        ):
             destination = self.root / "scripts/ci" / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(REPO / "scripts/ci" / name, destination)
@@ -95,15 +103,27 @@ class CiCheckTests(unittest.TestCase):
             timeout=30,
         )
 
-    def test_unsafe_checks_propagate_attribute_and_manifest_search_failures(
-        self,
-    ) -> None:
-        for pattern in ("*.rs", "*Cargo.toml"):
-            with self.subTest(pattern=pattern):
-                result = self.run_check("check-unsafe-boundaries.sh", pattern, 2)
-                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-                self.assertIn("git grep failed with status 2", result.stderr)
-                self.assertNotIn("unsafe code is allowed only", result.stdout)
+    def test_unsafe_checks_propagate_manifest_search_failure(self) -> None:
+        result = self.run_check("check-unsafe-boundaries.sh", "*Cargo.toml", 2)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("git grep failed with status 2", result.stderr)
+        self.assertNotIn("unsafe code is allowed only", result.stdout)
+
+    def test_unsafe_source_enumeration_failure_cannot_report_success(self) -> None:
+        scanner = runpy.run_path(str(REPO / "scripts/ci/check_unsafe_boundaries.py"))
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.object(
+                subprocess,
+                "run",
+                side_effect=subprocess.CalledProcessError(2, ["git", "ls-files"]),
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(scanner["main"](), 2)
+        self.assertIn("unsafe boundary source scan failed", stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
 
     def test_no_manifest_relaxation_matches_is_success(self) -> None:
         result = self.run_check("check-unsafe-boundaries.sh", "*Cargo.toml", 1)
@@ -159,6 +179,134 @@ class CiCheckTests(unittest.TestCase):
                     "allowance moved outside audited declarations", result.stderr
                 )
                 self.assertNotIn("unsafe_code allowance(s)", result.stderr)
+
+    def check_source(self, source: str, name: str = "crates/phantom-net/src/escape.rs"):
+        self.write(name, source)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.autocrlf=false",
+                "-C",
+                str(self.root),
+                "add",
+                "--",
+                name,
+            ],
+            check=True,
+        )
+        return self.run_check("check-unsafe-boundaries.sh", "unused", 1)
+
+    def test_multiline_and_conditional_allowances_cannot_escape(self) -> None:
+        for attribute in (
+            '#[allow(\n unsafe_code,\n reason = "wrapped reason"\n)]',
+            '#[expect(\n unsafe_code,\n reason = "wrapped reason"\n)]',
+            "#[cfg_attr(all(),\n allow(\n unsafe_code,\n))]",
+            "#[cfg_attr(any(), cfg_attr(all(), expect(unsafe_code)))]",
+            '#![allow(\n unused, unsafe_code, reason = "inner"\n)]',
+            "#[r#allow(r#unsafe_code)]",
+            "#[allow(dead_code,\n unsafe_code, unused_imports)]",
+        ):
+            with self.subTest(attribute=attribute):
+                result = self.check_source(attribute + "\npub unsafe fn escaped() {}\n")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("outside the audited FFI modules", result.stderr)
+                self.assertEqual(result.stdout, "")
+
+    def test_literal_and_comment_lookalikes_are_not_allowances(self) -> None:
+        source = r"""
+// #[allow(unsafe_code)]
+/// #[expect(unsafe_code)]
+/* #[allow(unsafe_code)] /* nested */ #[expect(unsafe_code)] */
+const A: &str = "\"#[allow(unsafe_code)]";
+const B: &str = r####"#[expect(unsafe_code)]"####;
+const C: &[u8] = br##"#[allow(unsafe_code)]"##;
+const D: &[u8] = b"#[allow(unsafe_code)]";
+const E: &std::ffi::CStr = c"#[allow(unsafe_code)]";
+const F: &std::ffi::CStr = cr#"#[allow(unsafe_code)]"#;
+const G: char = '\'';
+const H: char = '"';
+const I: u8 = b'"';
+const J: char = '\u{22}';
+fn borrow<'a>(value: &'a str) -> &'a str { value }
+#[allow(dead_code, reason = "#[allow(unsafe_code)]")]
+fn ordinary() {}
+"""
+        result = self.check_source(source)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        result = self.check_source(
+            source + "#[expect(unsafe_code)]\nunsafe fn real() {}"
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_audited_attributes_allow_wrapping_and_comments(self) -> None:
+        path = "crates/phantom-quic-btls/src/lib.rs"
+        result = self.check_source(
+            "#[cfg(any())]\n#[cfg_attr(all(), r#allow(\n r#unsafe_code,\n"
+            ' reason = r#"ignore #[allow(unsafe_code)]"#\n))]\n'
+            '#[doc = "boundary"] /* same item */\nmod backend;\n',
+            path,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_audited_names_cannot_be_impostor_items(self) -> None:
+        for declaration in (
+            "#[allow(unsafe_code)] pub mod backend;",
+            "#[allow(unsafe_code)] pub(crate) mod backend;",
+            "#[allow(unsafe_code)] mod backend {}",
+            "mod nested { #[allow(unsafe_code)] mod backend; }",
+            "#[allow(unsafe_code)] fn backend() {}",
+            "macro_rules! item { () => { #[allow(unsafe_code)] mod backend; } }",
+            "#![allow(unsafe_code)] mod backend;",
+        ):
+            with self.subTest(declaration=declaration):
+                result = self.check_source(
+                    declaration, "crates/phantom-quic-btls/src/lib.rs"
+                )
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("moved outside audited declarations", result.stderr)
+
+    def test_duplicate_audited_allowance_is_rejected(self) -> None:
+        result = self.check_source(
+            "#[allow(unsafe_code)] #[expect(unsafe_code)] mod backend;",
+            "crates/phantom-quic-btls/src/lib.rs",
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("unsafe_code allowance(s)", result.stderr)
+
+    def test_untracked_and_vendored_sources_are_excluded(self) -> None:
+        source = "#[allow(unsafe_code)] unsafe fn excluded() {}"
+        self.write("untracked.rs", source)
+        result = self.check_source(source, "vendor/upstream.rs")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_tracked_missing_and_invalid_utf8_sources_fail_closed(self) -> None:
+        name = "crates/phantom-net/src/escape.rs"
+        self.check_source("pub fn ordinary() {}", name)
+        path = self.root / name
+        for content in (None, b"\xff"):
+            with self.subTest(content=content):
+                if content is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(content)
+                result = self.run_check("check-unsafe-boundaries.sh", "unused", 1)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("unsafe boundary source scan failed", result.stderr)
+                self.assertEqual(result.stdout, "")
+
+    def test_unterminated_relevant_rust_source_fails_closed(self) -> None:
+        for source in (
+            "/* unsafe_code",
+            'const A: &str = "unsafe_code',
+            'const A: &str = br###"unsafe_code"##;',
+            "#[allow(unsafe_code)] fn f( {}",
+        ):
+            with self.subTest(source=source):
+                result = self.check_source(source)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("unsafe boundary source scan failed", result.stderr)
+                self.assertEqual(result.stdout, "")
 
     def test_pin_checks_propagate_each_search_failure(self) -> None:
         for pattern in (
