@@ -1312,6 +1312,8 @@ impl NativeClient {
         Ok(())
     }
     /// Copies JS-owned input before scheduling a native-owned request future.
+    // Keep foreign owners as fixed typed arguments at the Node-API boundary.
+    #[allow(clippy::too_many_arguments)]
     #[napi]
     pub fn request(
         &self,
