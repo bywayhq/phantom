@@ -14,6 +14,10 @@ major version, such as `ChromeWindows154`. Targets must be unique.
 This generates both the catalog registration and `chrome::v154_windows()`.
 The constructor leaves the request template unset.
 
+Give each record a fixed `selector`, such as `chrome-154-windows`. Use 1–64
+lowercase ASCII letters or digits, with single hyphens between groups. Selectors
+must be unique. Keep their exact profile mapping when adding newer recipes.
+
 Select existing components in `composition` when their settings still apply.
 Use `null` for layers without a recipe. HTTP/3 needs all four of its layers.
 For changed settings, add a component in the corresponding `*-components.json`

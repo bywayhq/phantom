@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Select compiled profiles by fixed short names such as `chrome-154-windows`
+  in Rust and the CLI. Full identifiers remain accepted; inspection retains the
+  exact browser build, platform and recipe revision.
+- Breaking: `phantom profiles list` prints short selectors. Migrate: use
+  `phantom profiles describe <selector>` to read the full `id`. Catalog authors
+  must add a unique, fixed `selector` to each profile declaration.
+
 ## 0.3.0 - 2026-10-21
 
 - Reject malformed HTTP/3 response fields, invalid content lengths and DATA

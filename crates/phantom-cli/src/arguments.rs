@@ -21,7 +21,7 @@ pub(super) fn command() -> Command {
                 .arg(
                     Arg::new("profile")
                         .long("profile")
-                        .help("Exact compiled profile identifier"),
+                        .help("Fixed catalog selector or full profile identifier"),
                 )
                 .arg(
                     Arg::new("profile-file")
@@ -147,7 +147,7 @@ pub(super) fn command() -> Command {
                                 ),
                         ),
                 )
-                .subcommand(Command::new("list").about("List exact compiled profile identifiers"))
+                .subcommand(Command::new("list").about("List fixed compiled profile selectors"))
                 .subcommand(
                     Command::new("describe")
                         .about("Describe catalog metadata and configured settings")

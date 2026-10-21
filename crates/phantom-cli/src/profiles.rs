@@ -57,9 +57,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
         "list" => {
             let mut stdout = tokio::io::stdout();
             for definition in catalog::profiles() {
-                stdout
-                    .write_all(definition.id().as_str().as_bytes())
-                    .await?;
+                stdout.write_all(definition.selector().as_bytes()).await?;
                 stdout.write_all(b"\n").await?;
             }
             stdout.flush().await?;
@@ -78,6 +76,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
             }
             let metadata = definition.metadata();
             let document = json!({
+                "selector": definition.selector(),
                 "id": definition.id().as_str(), "browser_build": metadata.build(),
                 "platform_release": metadata.platform_release(), "architecture": metadata.architecture(),
                 "revision": metadata.revision(),

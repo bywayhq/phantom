@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
-PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
+PROFILE = "chrome-154-windows"
 TARGETS = {
     "x86_64-pc-windows-msvc": ("Windows", {"amd64", "x86_64"}),
     "x86_64-unknown-linux-gnu": ("Linux", {"x86_64"}),
@@ -449,7 +449,7 @@ def smoke(binary, directory, commands, version):
     if run(["--version"]).decode().strip() != f"phantom {version}":
         raise ValueError("extracted CLI version differs from Cargo metadata")
     if PROFILE not in run(["profiles", "list"]).decode().splitlines():
-        raise ValueError("expected exact profile absent from extracted CLI")
+        raise ValueError("expected profile selector absent from extracted CLI")
     profile = run(["profiles", "export", PROFILE])
     profile_file = directory / "profile.json"
     profile_file.write_bytes(profile)

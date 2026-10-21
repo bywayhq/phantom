@@ -16,7 +16,8 @@ use std::{
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
-const PROFILE: &str = "chrome/154.0.8037.97/windows-11-26200/r1";
+const PROFILE: &str = "chrome-154-windows";
+const PROFILE_ID: &str = "chrome/154.0.8037.97/windows-11-26200/r1";
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
 struct Directory(PathBuf);
@@ -125,6 +126,11 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
     );
     let exported = command().args(["profiles", "export", PROFILE]).output()?;
     success(&exported);
+    let exact_export = command()
+        .args(["profiles", "export", PROFILE_ID])
+        .output()?;
+    success(&exact_export);
+    assert_eq!(exported.stdout, exact_export.stdout);
     let directory = Directory::new()?;
     let source = directory.path("profile.json");
     fs::write(&source, &exported.stdout)?;
@@ -147,9 +153,20 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
     assert_eq!(missing.status.code(), Some(2));
     let description = command().args(["profiles", "describe", PROFILE]).output()?;
     success(&description);
+    let description: serde_json::Value = serde_json::from_slice(&description.stdout)?;
+    assert_eq!(description["selector"], PROFILE);
+    assert_eq!(description["id"], PROFILE_ID);
+    assert_eq!(description["browser_build"], "154.0.8037.97");
+    assert_eq!(description["platform_release"], "windows-11-26200");
+    assert_eq!(description["revision"], 1);
+
+    let missing = command()
+        .args(["profiles", "describe", "chrome-latest-windows"])
+        .output()?;
+    assert_eq!(missing.status.code(), Some(1));
     assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(&description.stdout)?["id"],
-        PROFILE
+        String::from_utf8(missing.stderr)?.trim(),
+        "phantom: unknown profile identifier"
     );
     Ok(())
 }

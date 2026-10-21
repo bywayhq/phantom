@@ -32,6 +32,17 @@ The bare `chrome::v154_windows()` constructor leaves the ordinary request
 template unset. Select one explicitly rather than assuming a connection profile
 also chooses between navigation, fetch, and upload headers.
 
+For selection by name, use [`catalog::profile`](crate::profile::catalog::profile):
+
+```rust
+let definition = phantom::profile::catalog::profile("chrome-154-windows")?;
+assert_eq!(definition.metadata().build(), "154.0.8037.97");
+# Ok::<(), phantom::profile::catalog::CatalogError>(())
+```
+
+Short selectors have fixed mappings. The definition's `id()` retains its full
+build, platform and revision; full identifiers remain accepted too.
+
 ## Match the browser, version, and platform
 
 The [browser modules](crate::profile::browser) group constructors by browser.

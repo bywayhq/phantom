@@ -5,8 +5,8 @@ collecting the request or response body in memory.
 
 ```console
 phantom profiles list
-phantom request https://example.com/ --profile chrome/154.0.8037.97/windows-11-26200/r1 --protocol negotiated --context navigation
-phantom request https://example.com/upload --profile chrome/154.0.8037.97/windows-11-26200/r1 --protocol h2 --method PUT --upload input.bin --output response.bin --timeout-ms 30000
+phantom request https://example.com/ --profile chrome-154-windows --protocol negotiated --context navigation
+phantom request https://example.com/upload --profile chrome-154-windows --protocol h2 --method PUT --upload input.bin --output response.bin --timeout-ms 30000
 ```
 
 Build from this repository with `cargo build -p phantom-cli --release --locked`.
@@ -27,8 +27,9 @@ recent as the archive's MSVC build tools. The runtime DLLs are not bundled.
 
 ## Requests
 
-Choose `--profile ID`, `--profile-file FILE`, or a pinned bundle entry. Built-in identifiers
-are exact: no latest-version alias or platform substitution occurs. Choose
+Choose `--profile NAME`, `--profile-file FILE`, or a pinned bundle entry. Built-in
+selectors name a fixed recipe. Full identifiers also work; no latest-version or
+platform substitution occurs. Choose
 `--protocol h1`, `h2`, `h3`, or `negotiated`. Negotiation uses the library's
 HTTP/2 and HTTP/1.1 policy. The CLI does not enable HTTP/3 fallback or retries.
 
@@ -68,11 +69,14 @@ after downloading the response body.
 ## Profiles
 
 ```console
-phantom profiles describe chrome/154.0.8037.97/windows-11-26200/r1
-phantom profiles export chrome/154.0.8037.97/windows-11-26200/r1 --output profile.json
+phantom profiles describe chrome-154-windows
+phantom profiles export chrome-154-windows --output profile.json
 phantom profiles import edited.json --output checked.json
 phantom request https://example.com/ --profile-file checked.json --protocol h2
 ```
+
+`list` prints short selectors. `describe` includes the selector, full identifier,
+browser build, platform release and recipe revision.
 
 Export produces editable `phantom.custom-profile` JSON. Import validates the
 complete document and exports its supported settings with ordering preserved.
