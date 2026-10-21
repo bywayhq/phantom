@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-21
+
 - Reject malformed HTTP/3 response fields, invalid content lengths and DATA
   on bodyless responses. Reset only the affected stream.
 
