@@ -3,6 +3,7 @@
 import inspect
 import json
 import os
+import pickle
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,7 @@ import types
 import unittest
 from importlib import resources
 from pathlib import Path
+from typing import get_type_hints
 from unittest.mock import patch
 
 import phantom_http
@@ -20,7 +22,19 @@ from phantom_http import AsyncClient, AsyncResponse, Client, Response
 class InstalledTypingTests(unittest.TestCase):
     def test_type_payload_and_external_consumer_checks(self):
         package = resources.files(phantom_http)
-        for name in ("py.typed", "_native.pyi"):
+        for name in (
+            "py.typed",
+            "_native.pyi",
+            "_bodies.py",
+            "_certificates.py",
+            "_client.py",
+            "_errors.py",
+            "_profile.py",
+            "_request.py",
+            "_response.py",
+            "_session.py",
+            "_sync.py",
+        ):
             self.assertTrue(package.joinpath(name).is_file(), name)
         with tempfile.TemporaryDirectory(
             prefix="phantom-typing-consumer-"
@@ -91,6 +105,31 @@ class InstalledTypingTests(unittest.TestCase):
 
 
 class SignatureTests(unittest.TestCase):
+    def test_response_owner_and_status_error_annotations_resolve_at_runtime(self):
+        response = get_type_hints(Response.__init__)
+        self.assertIs(response["client"], Client)
+        self.assertIs(response["response"], AsyncResponse)
+        status_error = get_type_hints(phantom_http.HTTPStatusError.__init__)
+        self.assertEqual(status_error["response"], Response | AsyncResponse)
+
+    def test_public_value_types_keep_their_import_and_serialization_identity(self):
+        values = (
+            phantom_http.ResponseHeader("X-Duplicate", b"value", True),
+            phantom_http.ResponseTrailers("complete", ()),
+            phantom_http.RedirectHop(
+                "https://a.invalid", "https://b.invalid", "GET", "GET", 302
+            ),
+            phantom_http.MultipartPart("field", b"value"),
+        )
+        for value in values:
+            with self.subTest(type=type(value).__name__):
+                owner = type(value)
+                self.assertEqual(owner.__module__, phantom_http.__name__)
+                self.assertIs(getattr(phantom_http, owner.__name__), owner)
+                restored = pickle.loads(pickle.dumps(value))
+                self.assertIs(type(restored), owner)
+                self.assertEqual(restored, value)
+
     def test_sync_and_async_response_reader_options_match(self):
         for name in ("read", "text", "json", "raise_for_status"):
             with self.subTest(name=name):
@@ -101,6 +140,10 @@ class SignatureTests(unittest.TestCase):
 
     def test_sync_options_and_defaults_match_async_signatures(self):
         self.assertEqual(inspect.signature(Client), inspect.signature(AsyncClient))
+        self.assertIs(
+            inspect.signature(Client.fork).parameters["sharing"].default,
+            inspect.signature(AsyncClient.fork).parameters["sharing"].default,
+        )
         sync = inspect.signature(Client.request)
         asynchronous = inspect.signature(AsyncClient.request)
         self.assertEqual(

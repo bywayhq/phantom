@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from . import _native
+from ._errors import _call
 
 
 @dataclass(frozen=True)
@@ -134,8 +135,6 @@ class RequestDiagnostics:
     _native: _native.NativeRequestDiagnostics = field(repr=False, compare=False)
 
     def __init__(self, maximum_events: int = 128) -> None:
-        from . import _call
-
         if type(maximum_events) is not int:
             raise TypeError("maximum_events must be an integer")
         if not 0 < maximum_events <= 2 * sys.maxsize + 1:
@@ -147,8 +146,6 @@ class RequestDiagnostics:
 
     def snapshot(self) -> RequestTimeline | None:
         """None means unattached. Missing timings are unobserved, never zero."""
-        from . import _call
-
         value = _call(self._native.snapshot)
         if value is None:
             return None
