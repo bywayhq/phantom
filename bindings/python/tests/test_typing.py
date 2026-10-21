@@ -105,6 +105,16 @@ class InstalledTypingTests(unittest.TestCase):
 
 
 class SignatureTests(unittest.TestCase):
+    def test_public_class_field_annotations_resolve_in_the_preserved_module(self):
+        for owner in (
+            phantom_http.Profile,
+            phantom_http.ResponseTrailers,
+            phantom_http.StreamingMultipartBody,
+        ):
+            with self.subTest(owner=owner.__name__):
+                self.assertEqual(owner.__module__, phantom_http.__name__)
+                get_type_hints(owner)
+
     def test_response_owner_and_status_error_annotations_resolve_at_runtime(self):
         response = get_type_hints(Response.__init__)
         self.assertIs(response["client"], Client)

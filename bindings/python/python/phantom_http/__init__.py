@@ -1,5 +1,9 @@
 """HTTP requests with explicit browser profiles and protocols."""
 
+# Public class annotations resolve through their preserved module path.
+from _thread import LockType as LockType
+from typing import Literal as Literal
+
 from . import _native as _native
 from . import _upload as _upload
 from ._bodies import MultipartPart as MultipartPart
@@ -58,6 +62,8 @@ from ._sync import Response as Response
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
+
+_NativeProfile = _native.NativeProfile
 
 # Preserve the public class path for introspection and serialization.
 for _public_type in (
