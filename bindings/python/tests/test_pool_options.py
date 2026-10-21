@@ -150,7 +150,13 @@ class AsyncPoolPublicTests(unittest.IsolatedAsyncioTestCase):
     async def test_active_body_holds_pool_slot_pending_limit_and_cancel_release_it(
         self,
     ):
-        from phantom_http import AsyncClient, Error, PoolOptions, RequestDiagnostics
+        from phantom_http import (
+            AsyncClient,
+            Error,
+            PoolOptions,
+            RequestDiagnostics,
+            TimeoutOverrides,
+        )
         from test_settings_transport import PROFILE, peer
 
         with peer() as origin:
@@ -163,7 +169,11 @@ class AsyncPoolPublicTests(unittest.IsolatedAsyncioTestCase):
                     max_pending_http1_requests_per_origin=1,
                 ),
             ) as client:
-                response = await client.request("GET", origin.url + "/live")
+                response = await client.request(
+                    "GET",
+                    origin.url + "/live",
+                    timeouts=TimeoutOverrides(total=None, connect=5, response_head=5),
+                )
                 pending = None
                 try:
                     self.assertTrue(await asyncio.to_thread(origin.entered.wait, 5))
@@ -184,14 +194,35 @@ class AsyncPoolPublicTests(unittest.IsolatedAsyncioTestCase):
                             await asyncio.sleep(0.001)
 
                     await asyncio.wait_for(wait_for_pool_admission(), 2)
-                    with self.assertRaises(Error) as caught:
-                        await client.request("GET", origin.url)
-                    self.assertEqual(caught.exception.kind, "capacity")
+
+                    # The diagnostic phase begins before the pending guard is acquired.
+                    async def require_pending_capacity():
+                        while True:
+                            try:
+                                unexpected = await client.request(
+                                    "GET",
+                                    origin.url,
+                                    timeouts=TimeoutOverrides(pool_admission=0),
+                                )
+                            except Error as failure:
+                                if failure.kind == "capacity":
+                                    return
+                                self.assertEqual(failure.kind, "timeout")
+                                self.assertEqual(
+                                    failure.timeout_phase, "pool_admission"
+                                )
+                            else:
+                                await unexpected.aclose()
+                                self.fail("overflow request reached the peer")
+                            await asyncio.sleep(0)
+
+                    await asyncio.wait_for(require_pending_capacity(), 2)
                     self.assertEqual(len(origin.requests), 1)
                     pending.cancel()
                     with self.assertRaises(asyncio.CancelledError):
                         await pending
                     pending = None
+                    self.assertEqual(await response.read_chunk(1), b"a")
                     await response.aclose()
                     origin.release.set()
                     async with await client.request("GET", origin.url) as healthy:
