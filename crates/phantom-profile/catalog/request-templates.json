@@ -4258,7 +4258,7 @@
       }
     },
     {
-      "id": "curl_safari2601_navigation",
+      "id": "safari_2601_navigation",
       "base": null,
       "values": {
         "http1_fields": [],

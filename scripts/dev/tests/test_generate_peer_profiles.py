@@ -12,12 +12,14 @@ class PeerCatalogTests(unittest.TestCase):
         self.peer = next(
             entry
             for entry in self.document["profiles"]
-            if entry["id"] == "peer/curl-impersonate/safari2601/r1"
+            if entry["metadata"]["identity"].get("project") == "curl-impersonate"
         )
 
     def test_peer_uses_one_pinned_identity_without_browser_capture_metadata(self):
         profiles = cli.validate(self.document)
-        self.assertEqual(self.peer["selector"], "curl-safari-26-macos")
+        self.assertEqual(self.peer["id"], "safari/26.0.1/macos/r1")
+        self.assertEqual(self.peer["selector"], "safari-26-macos")
+        self.assertEqual(self.peer["target"], "SafariMacos26")
         self.assertEqual(
             self.peer["metadata"]["identity"],
             {
@@ -33,7 +35,7 @@ class PeerCatalogTests(unittest.TestCase):
         supplied = {layer["layer"] for layer in self.peer["layers"]}
         self.assertEqual(supplied, {"TcpTls", "Http2"})
         self.assertEqual(
-            self.peer["templates"], {"Navigation": "curl_safari2601_navigation"}
+            self.peer["templates"], {"Navigation": "safari_2601_navigation"}
         )
         self.assertEqual(
             {
@@ -47,6 +49,23 @@ class PeerCatalogTests(unittest.TestCase):
             p for p in profiles if p["metadata"]["identity"]["kind"] == "Observed"
         ]
         self.assertEqual(len(observed), 12)
+
+    def test_adopted_recipe_name_depends_on_browser_not_source_project(self):
+        metadata = copy.deepcopy(self.peer["metadata"])
+        metadata["identity"]["project"] = "another-client"
+        metadata["identity"]["recipe"] = "another-preset"
+        registry.validate_identity(metadata, "safari/26.0.1/macos/r1", "SafariMacos26")
+
+        for field, value, identifier, target in (
+            ("browser", "Chrome", "chrome/26.0.1/macos/r1", "ChromeMacos26"),
+            ("platform", "Ios", "safari/26.0.1/ios/r1", "SafariIos26"),
+        ):
+            variant = copy.deepcopy(metadata)
+            variant[field] = value
+            with self.subTest(field=field):
+                registry.validate_identity(variant, identifier, target)
+                with self.assertRaisesRegex(cli.DeclarationError, "recipe target"):
+                    registry.validate_identity(variant, identifier, "SafariMacos26")
 
     def test_peer_identity_cannot_add_observed_build_environment_or_architecture(self):
         for field, value in (
@@ -81,8 +100,8 @@ class PeerCatalogTests(unittest.TestCase):
             ):
                 cli.validate(document)
         for field, value in (
-            ("id", "safari/26.0.1/macos/r1"),
-            ("target", "SafariMacos26"),
+            ("id", "peer/curl-impersonate/safari2601/r1"),
+            ("target", "PeerCurlImpersonateSafari2601"),
         ):
             document = copy.deepcopy(self.document)
             peer = next(p for p in document["profiles"] if p["id"] == self.peer["id"])

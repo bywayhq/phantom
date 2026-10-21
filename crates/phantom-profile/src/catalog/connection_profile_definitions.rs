@@ -12,7 +12,6 @@ pub(super) enum TlsComponent {
     Chromium154AndroidTcp,
     Chromium154Quic,
     Chromium154Tcp,
-    CurlSafari2601,
     Edge153AndroidQuic,
     Edge153AndroidTcp,
     Edge154Quic,
@@ -23,6 +22,7 @@ pub(super) enum TlsComponent {
     Opera102AndroidTcp,
     Opera136Quic,
     Opera136Tcp,
+    Safari2601,
 }
 
 #[rustfmt::skip]
@@ -37,7 +37,6 @@ impl TlsComponent {
             Self::Chromium154AndroidTcp => crate::tls::components::chromium_154_android_tcp_tls(),
             Self::Chromium154Quic => crate::tls::components::chromium_154_quic_tls(),
             Self::Chromium154Tcp => crate::tls::components::chromium_154_tcp_tls(),
-            Self::CurlSafari2601 => crate::tls::components::curl_safari2601_tls(),
             Self::Edge153AndroidQuic => crate::tls::components::edge_153_android_quic_tls(),
             Self::Edge153AndroidTcp => crate::tls::components::edge_153_android_tcp_tls(),
             Self::Edge154Quic => crate::tls::components::edge_154_quic_tls(),
@@ -48,6 +47,7 @@ impl TlsComponent {
             Self::Opera102AndroidTcp => crate::tls::components::opera_102_android_tcp_tls(),
             Self::Opera136Quic => crate::tls::components::opera_136_quic_tls(),
             Self::Opera136Tcp => crate::tls::components::opera_136_tcp_tls(),
+            Self::Safari2601 => crate::tls::components::safari_2601_tls(),
         }
     }
 }
@@ -128,8 +128,8 @@ impl Http1Component {
 #[rustfmt::skip]
 pub(super) enum Http2Component {
     Chromium154,
-    CurlSafari2601,
     Firefox157,
+    Safari2601,
 }
 
 #[rustfmt::skip]
@@ -137,8 +137,8 @@ impl Http2Component {
     pub(super) fn create(self) -> crate::Http2Settings {
         match self {
             Self::Chromium154 => super::http2_components::chromium_154_http2(),
-            Self::CurlSafari2601 => super::http2_components::curl_safari2601_http2(),
             Self::Firefox157 => super::http2_components::firefox_157_http2(),
+            Self::Safari2601 => super::http2_components::safari_2601_http2(),
         }
     }
 }
@@ -511,13 +511,13 @@ pub(super) static OPERAWINDOWS136: ConnectionProfileDefinition = ConnectionProfi
 };
 
 #[rustfmt::skip]
-pub(super) static PEERCURLIMPERSONATESAFARI2601: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::CurlSafari2601,
+pub(super) static SAFARIMACOS26: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Safari2601,
     tcp: None,
     udp: None,
     dns_cache: None,
     http1: None,
-    http2: Some(Http2Component::CurlSafari2601),
+    http2: Some(Http2Component::Safari2601),
     http3: None,
     client_hints: None,
     websocket: None,

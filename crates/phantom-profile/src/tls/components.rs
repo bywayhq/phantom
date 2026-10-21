@@ -364,36 +364,6 @@ pub(crate) fn chromium_154_tcp_tls() -> crate::TlsSettings {
 }
 
 #[rustfmt::skip]
-pub(crate) fn curl_safari2601_tls() -> crate::TlsSettings {
-    crate::TlsSettings {
-        versions: crate::TlsVersionRange { min: crate::TlsVersion::Tls12, max: crate::TlsVersion::Tls13 },
-        cipher_suites: vec![crate::CipherSuite::Aes256GcmSha384, crate::CipherSuite::Chacha20Poly1305Sha256, crate::CipherSuite::Aes128GcmSha256, crate::CipherSuite::EcdheEcdsaAes256GcmSha384, crate::CipherSuite::EcdheEcdsaAes128GcmSha256, crate::CipherSuite::EcdheEcdsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheRsaAes256GcmSha384, crate::CipherSuite::EcdheRsaAes128GcmSha256, crate::CipherSuite::EcdheRsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheEcdsaAes256CbcSha, crate::CipherSuite::EcdheEcdsaAes128CbcSha, crate::CipherSuite::EcdheRsaAes256CbcSha, crate::CipherSuite::EcdheRsaAes128CbcSha, crate::CipherSuite::RsaAes256GcmSha384, crate::CipherSuite::RsaAes128GcmSha256, crate::CipherSuite::RsaAes256CbcSha, crate::CipherSuite::RsaAes128CbcSha, crate::CipherSuite::EcdheEcdsa3DesEdeCbcSha, crate::CipherSuite::EcdheRsa3DesEdeCbcSha, crate::CipherSuite::Rsa3DesEdeCbcSha],
-        groups: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519, crate::NamedGroup::Secp256r1, crate::NamedGroup::Secp384r1, crate::NamedGroup::Secp521r1],
-        key_shares: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519],
-        signature_schemes: vec![crate::SignatureScheme::EcdsaSecp256r1Sha256, crate::SignatureScheme::RsaPssRsaeSha256, crate::SignatureScheme::RsaPkcs1Sha256, crate::SignatureScheme::EcdsaSecp384r1Sha384, crate::SignatureScheme::RsaPssRsaeSha384, crate::SignatureScheme::RsaPssRsaeSha384, crate::SignatureScheme::RsaPkcs1Sha384, crate::SignatureScheme::RsaPssRsaeSha512, crate::SignatureScheme::RsaPkcs1Sha512, crate::SignatureScheme::RsaPkcs1Sha1],
-        delegated_credential_schemes: vec![],
-        alpn_protocols: vec![Box::<[u8]>::from(&[104, 50][..]), Box::<[u8]>::from(&[104, 116, 116, 112, 47, 49, 46, 49][..])],
-        alps: None,
-        certificate_compression: vec![crate::CertificateCompression::Zlib],
-        session_tickets: crate::SessionTickets::disabled(),
-        session_ticket_order: crate::SessionTicketOrder::NewestFirst,
-        session_ticket_extension_when_resuming: false,
-        tcp_early_data: false,
-        record_size_limit: None,
-        tls12_extensions_in_tls13_client_hello: true,
-        requested_trust_anchor_ids: None,
-        grease: true,
-        grease_signature_algorithms: false,
-        extension_order: crate::ClientHelloExtensionOrder::Fixed(vec![crate::ClientHelloExtension::ServerName, crate::ClientHelloExtension::ExtendedMasterSecret, crate::ClientHelloExtension::RenegotiationInfo, crate::ClientHelloExtension::SupportedGroups, crate::ClientHelloExtension::EcPointFormats, crate::ClientHelloExtension::Alpn, crate::ClientHelloExtension::StatusRequest, crate::ClientHelloExtension::SignatureAlgorithms, crate::ClientHelloExtension::SignedCertificateTimestamp, crate::ClientHelloExtension::KeyShare, crate::ClientHelloExtension::PskKeyExchangeModes, crate::ClientHelloExtension::SupportedVersions, crate::ClientHelloExtension::CertificateCompression]),
-        ech: crate::EchSettings::Disabled,
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-        close_notify: true,
-    }
-}
-
-#[rustfmt::skip]
 const _: () = assert!(matches!(2, 1..=10));
 #[rustfmt::skip]
 pub(crate) fn edge_153_android_quic_tls() -> crate::TlsSettings {
@@ -812,5 +782,35 @@ pub(crate) fn opera_136_tcp_tls() -> crate::TlsSettings {
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
         close_notify: false,
+    }
+}
+
+#[rustfmt::skip]
+pub(crate) fn safari_2601_tls() -> crate::TlsSettings {
+    crate::TlsSettings {
+        versions: crate::TlsVersionRange { min: crate::TlsVersion::Tls12, max: crate::TlsVersion::Tls13 },
+        cipher_suites: vec![crate::CipherSuite::Aes256GcmSha384, crate::CipherSuite::Chacha20Poly1305Sha256, crate::CipherSuite::Aes128GcmSha256, crate::CipherSuite::EcdheEcdsaAes256GcmSha384, crate::CipherSuite::EcdheEcdsaAes128GcmSha256, crate::CipherSuite::EcdheEcdsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheRsaAes256GcmSha384, crate::CipherSuite::EcdheRsaAes128GcmSha256, crate::CipherSuite::EcdheRsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheEcdsaAes256CbcSha, crate::CipherSuite::EcdheEcdsaAes128CbcSha, crate::CipherSuite::EcdheRsaAes256CbcSha, crate::CipherSuite::EcdheRsaAes128CbcSha, crate::CipherSuite::RsaAes256GcmSha384, crate::CipherSuite::RsaAes128GcmSha256, crate::CipherSuite::RsaAes256CbcSha, crate::CipherSuite::RsaAes128CbcSha, crate::CipherSuite::EcdheEcdsa3DesEdeCbcSha, crate::CipherSuite::EcdheRsa3DesEdeCbcSha, crate::CipherSuite::Rsa3DesEdeCbcSha],
+        groups: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519, crate::NamedGroup::Secp256r1, crate::NamedGroup::Secp384r1, crate::NamedGroup::Secp521r1],
+        key_shares: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519],
+        signature_schemes: vec![crate::SignatureScheme::EcdsaSecp256r1Sha256, crate::SignatureScheme::RsaPssRsaeSha256, crate::SignatureScheme::RsaPkcs1Sha256, crate::SignatureScheme::EcdsaSecp384r1Sha384, crate::SignatureScheme::RsaPssRsaeSha384, crate::SignatureScheme::RsaPssRsaeSha384, crate::SignatureScheme::RsaPkcs1Sha384, crate::SignatureScheme::RsaPssRsaeSha512, crate::SignatureScheme::RsaPkcs1Sha512, crate::SignatureScheme::RsaPkcs1Sha1],
+        delegated_credential_schemes: vec![],
+        alpn_protocols: vec![Box::<[u8]>::from(&[104, 50][..]), Box::<[u8]>::from(&[104, 116, 116, 112, 47, 49, 46, 49][..])],
+        alps: None,
+        certificate_compression: vec![crate::CertificateCompression::Zlib],
+        session_tickets: crate::SessionTickets::disabled(),
+        session_ticket_order: crate::SessionTicketOrder::NewestFirst,
+        session_ticket_extension_when_resuming: false,
+        tcp_early_data: false,
+        record_size_limit: None,
+        tls12_extensions_in_tls13_client_hello: true,
+        requested_trust_anchor_ids: None,
+        grease: true,
+        grease_signature_algorithms: false,
+        extension_order: crate::ClientHelloExtensionOrder::Fixed(vec![crate::ClientHelloExtension::ServerName, crate::ClientHelloExtension::ExtendedMasterSecret, crate::ClientHelloExtension::RenegotiationInfo, crate::ClientHelloExtension::SupportedGroups, crate::ClientHelloExtension::EcPointFormats, crate::ClientHelloExtension::Alpn, crate::ClientHelloExtension::StatusRequest, crate::ClientHelloExtension::SignatureAlgorithms, crate::ClientHelloExtension::SignedCertificateTimestamp, crate::ClientHelloExtension::KeyShare, crate::ClientHelloExtension::PskKeyExchangeModes, crate::ClientHelloExtension::SupportedVersions, crate::ClientHelloExtension::CertificateCompression]),
+        ech: crate::EchSettings::Disabled,
+        request_ocsp_staple: true,
+        request_signed_certificate_timestamps: true,
+        aes_hardware: true,
+        close_notify: true,
     }
 }

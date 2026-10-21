@@ -86,7 +86,7 @@
       }
     },
     {
-      "id": "curl_safari2601_http2",
+      "id": "safari_2601_http2",
       "kind": "Http2Settings",
       "base": null,
       "values": {

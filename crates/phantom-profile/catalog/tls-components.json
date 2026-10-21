@@ -12402,7 +12402,7 @@
       }
     },
     {
-      "id": "curl_safari2601_tls",
+      "id": "safari_2601_tls",
       "kind": "TlsSettings",
       "base": null,
       "values": {

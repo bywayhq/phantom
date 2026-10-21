@@ -21,6 +21,8 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
         "chrome-154-linux",
         "chrome-156-windows",
         "chrome-154-windows-r2",
+        "curl-safari-26-macos",
+        "peer/curl-impersonate/safari2601/r1",
         "Chrome-154-windows",
         "chrome/latest/windows",
         "chrome/154.0.8037.58/windows-11-26200/r1",
@@ -50,10 +52,7 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
 #[test]
 fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
     let mappings = [
-        (
-            "curl-safari-26-macos",
-            "peer/curl-impersonate/safari2601/r1",
-        ),
+        ("safari-26-macos", "safari/26.0.1/macos/r1"),
         (
             "brave-153-android",
             "brave/153.1.95.104/android-17-pixel7-emulator/r1",

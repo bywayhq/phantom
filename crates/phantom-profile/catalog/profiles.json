@@ -3032,8 +3032,8 @@
       }
     },
     {
-      "id": "peer/curl-impersonate/safari2601/r1",
-      "selector": "curl-safari-26-macos",
+      "id": "safari/26.0.1/macos/r1",
+      "selector": "safari-26-macos",
       "metadata": {
         "browser": "Safari",
         "platform": "Macos",
@@ -3103,17 +3103,17 @@
           ]
         }
       ],
-      "target": "PeerCurlImpersonateSafari2601",
+      "target": "SafariMacos26",
       "templates": {
-        "Navigation": "curl_safari2601_navigation"
+        "Navigation": "safari_2601_navigation"
       },
       "composition": {
-        "TcpTls": "curl_safari2601_tls",
+        "TcpTls": "safari_2601_tls",
         "Tcp": null,
         "Udp": null,
         "Dns": null,
         "Http1": null,
-        "Http2": "curl_safari2601_http2",
+        "Http2": "safari_2601_http2",
         "QuicTls": null,
         "QuicTransport": null,
         "Http3": null,

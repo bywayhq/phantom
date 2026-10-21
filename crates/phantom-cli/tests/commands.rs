@@ -175,11 +175,12 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
 #[test]
 fn peer_description_keeps_source_identity_separate_from_browser_observations() -> TestResult {
     let description = command()
-        .args(["profiles", "describe", "curl-safari-26-macos"])
+        .args(["profiles", "describe", "safari-26-macos"])
         .output()?;
     success(&description);
     let description: serde_json::Value = serde_json::from_slice(&description.stdout)?;
-    assert_eq!(description["id"], "peer/curl-impersonate/safari2601/r1");
+    assert_eq!(description["id"], "safari/26.0.1/macos/r1");
+    assert_eq!(description["selector"], "safari-26-macos");
     assert!(description["browser_build"].is_null());
     assert!(description["platform_release"].is_null());
     assert!(description["architecture"].is_null());

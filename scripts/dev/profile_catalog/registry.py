@@ -134,12 +134,8 @@ def validate_identity(metadata, identifier, target):
         release = text(identity["release"], "peer advertised release")
         if not re.fullmatch(r"[1-9][0-9]{0,5}(?:\.[0-9]+)+", release):
             raise DeclarationError(f"{identifier}: invalid peer advertised release")
-        expected_target = "Peer" + "".join(
-            word[:1].upper() + word[1:]
-            for field in ("project", "recipe")
-            for word in identity[field].split("-")
-        )
-        expected_id = f"peer/{identity['project']}/{identity['recipe']}/r{revision}"
+        expected_target = browser + platform + release.split(".", 1)[0]
+        expected_id = f"{browser.lower()}/{release}/{platform.lower()}/r{revision}"
     if target != expected_target:
         raise DeclarationError(f"{identifier}: incompatible recipe target")
     if identifier != expected_id:

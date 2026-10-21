@@ -2998,8 +2998,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
-        id: ProfileId("peer/curl-impersonate/safari2601/r1"),
-        selector: "curl-safari-26-macos",
+        id: ProfileId("safari/26.0.1/macos/r1"),
+        selector: "safari-26-macos",
         metadata: ProfileMetadata {
             browser: Browser::Safari,
             platform: ProfilePlatform::Macos,
@@ -3145,9 +3145,9 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 limitations: &[],
             },
         ],
-        composition: &connection_profile_definitions::PEERCURLIMPERSONATESAFARI2601,
+        composition: &connection_profile_definitions::SAFARIMACOS26,
         templates: &[
-            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CURL_SAFARI2601_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::SAFARI_2601_NAVIGATION },
         ],
     },
 ];

@@ -26,11 +26,8 @@ const HELLOS: [&[u8]; 3] = [
 
 #[test]
 fn peer_identity_does_not_invent_browser_build_or_capture_environment() -> TestResult {
-    let definition = profile("curl-safari-26-macos")?;
-    assert_eq!(
-        definition.id().as_str(),
-        "peer/curl-impersonate/safari2601/r1"
-    );
+    let definition = profile("safari-26-macos")?;
+    assert_eq!(definition.id().as_str(), "safari/26.0.1/macos/r1");
     let metadata = definition.metadata();
     assert_eq!(metadata.browser(), Browser::Safari);
     assert_eq!(metadata.platform(), ProfilePlatform::Macos);
@@ -84,7 +81,7 @@ fn peer_identity_does_not_invent_browser_build_or_capture_environment() -> TestR
 
 #[test]
 fn tls_settings_preserve_the_captured_cipher_and_duplicate_signature_order() -> TestResult {
-    let settings = profile("curl-safari-26-macos")?.instantiate(&[ProfileLayer::TcpTls])?;
+    let settings = profile("safari-26-macos")?.instantiate(&[ProfileLayer::TcpTls])?;
     let tls = settings.tls();
     tls.validate()?;
     assert_eq!(
@@ -182,7 +179,7 @@ fn tls_settings_preserve_the_captured_cipher_and_duplicate_signature_order() -> 
 
 #[test]
 fn http2_settings_keep_the_captured_preface_without_head_priority() -> TestResult {
-    let settings = profile("curl-safari-26-macos")?.instantiate(&[ProfileLayer::Http2])?;
+    let settings = profile("safari-26-macos")?.instantiate(&[ProfileLayer::Http2])?;
     let h2 = settings.http2().ok_or("missing HTTP/2")?;
     h2.validate()?;
     assert_eq!(
@@ -230,7 +227,7 @@ fn http2_settings_keep_the_captured_preface_without_head_priority() -> TestResul
 
 #[test]
 fn only_the_measured_navigation_template_is_supplied() -> TestResult {
-    let definition = profile("curl-safari-26-macos")?;
+    let definition = profile("safari-26-macos")?;
     let template = definition.request_template(RequestTemplateKind::Navigation)?;
     template.validate()?;
     let expected = [

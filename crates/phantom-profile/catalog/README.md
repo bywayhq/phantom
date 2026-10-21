@@ -35,8 +35,9 @@ settings do not become observations of the new build.
 For an external preset, use `identity.kind: "Peer"` with its project, exact
 source commit, preset name and advertised browser release. Keep browser and
 target platform in metadata; do not invent an observed build, OS release,
-architecture or capture environment. Its ID is `peer/<project>/<preset>/rN`.
-Name its target `Peer` followed by the capitalized project and preset words.
+architecture or capture environment. Name it by browser and platform: for
+example, ID `safari/26.0.1/macos/r1`, selector `safari-26-macos`, target
+`SafariMacos26`. Source project and preset names belong in identity metadata.
 Peer definitions use the same components and generated registration, without
 a browser factory. `ExternalSource` references pin the commit in an HTTPS URL;
 `PeerCapture` references name retained peer fixtures with matching execution
