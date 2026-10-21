@@ -72,8 +72,10 @@ type Request struct {
 	// Streaming uploads have bounded buffering, without Body's 8 MiB size cap.
 	UploadLength *uint64
 	Budget       *AttemptBudget
-	Timeout      time.Duration
-	Timeouts     Timeouts
+	// TransferControl shares body-byte caps, pacing and counters. Nil disables it.
+	TransferControl *TransferControl
+	Timeout         time.Duration
+	Timeouts        Timeouts
 	// ContentDecoding is opt-in and uses the request's own Accept-Encoding fields.
 	ContentDecoding ContentDecoding
 	// RedirectPolicy replaces the client policy. Nil inherits; an empty value disables.
@@ -286,7 +288,15 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		budget = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
+	var transfer *uint64
+	if request.TransferControl != nil {
+		value := request.TransferControl.id.Load()
+		if value == 0 {
+			return nil, &Error{Kind: "invalid_handle"}
+		}
+		transfer = &value
+	}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "transfer": transfer, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
 	if upload != nil {
 		if err := upload.prepare(ctx, c.id.Load()); err != nil {
 			return nil, err
@@ -319,6 +329,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		return nil
 	})
 	runtime.KeepAlive(request.Budget)
+	runtime.KeepAlive(request.TransferControl)
 	runtime.KeepAlive(c)
 	if err != nil {
 		if response != nil {

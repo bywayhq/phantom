@@ -14,18 +14,31 @@ import (
 
 // This peer needs only literal :status 200. Request HPACK stays opaque: stream
 // arrival order chooses the held request and the two independent controls.
+type http2CancellationCause uint8
+
+const (
+	http2CancelContext http2CancellationCause = iota
+	http2CancelDecodedLimit
+	http2CancelTransferLimit
+	http2CancelTransferPacing
+)
+
 func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
-	t.Run("context", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, false) })
-	t.Run("decoded limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, true) })
+	t.Run("context", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelContext) })
+	t.Run("decoded limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelDecodedLimit) })
+	t.Run("transfer limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferLimit) })
+	t.Run("transfer pacing", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferPacing) })
 }
 
-func http2CancellationPreservesOtherStreams(t *testing.T, decoding bool) {
+func http2CancellationPreservesOtherStreams(t *testing.T, cause http2CancellationCause) {
 	firstData := []byte("a")
 	firstHeaders := []byte{0x88}
-	if decoding {
+	if cause == http2CancelDecodedLimit {
 		firstData = gzipBytes(t, []byte("decoded bytes exceed zero"))
 		// Literal Content-Encoding name index26, value gzip; no indexing.
 		firstHeaders = append(firstHeaders, 0x0f, 0x0b, 4, 'g', 'z', 'i', 'p')
+	} else if cause == http2CancelTransferPacing {
+		firstData = []byte("reserved body waits for its pace")
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -141,16 +154,22 @@ func http2CancellationPreservesOtherStreams(t *testing.T, decoding bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	firstRequest := Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/held"}
-	if decoding {
+	var transfer *TransferControl
+	if cause == http2CancelDecodedLimit {
 		firstRequest.ContentDecoding = AdvertisedDecoding(0)
 		firstRequest.Headers = []Header{{Name: "accept-encoding", Value: []byte("gzip")}}
+	} else if cause == http2CancelTransferLimit {
+		transfer = newTransfer(t, TransferLimits{DownloadBytes: uint64Pointer(0)})
+	} else if cause == http2CancelTransferPacing {
+		transfer = newTransfer(t, TransferLimits{DownloadBytesPerSecond: uint64Pointer(1)})
 	}
+	firstRequest.TransferControl = transfer
 	first, err := client.Do(ctx, firstRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buffer := make([]byte, 1)
-	if !decoding {
+	if cause == http2CancelContext {
 		if n, err := first.Body.Read(buffer); n != 1 || err != nil {
 			t.Fatalf("held read %d: %v", n, err)
 		}
@@ -159,9 +178,46 @@ func http2CancellationPreservesOtherStreams(t *testing.T, decoding bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if decoding {
+	if cause == http2CancelDecodedLimit {
 		if _, err := first.Body.Read(buffer); kind(err) != "response_body_limit" {
 			t.Fatalf("decoded limit: %v", err)
+		}
+	} else if cause == http2CancelTransferLimit {
+		if _, err := first.Body.Read(buffer); kind(err) != "transfer" {
+			t.Fatalf("transfer limit: %v", err)
+		}
+	} else if cause == http2CancelTransferPacing {
+		readDone := make(chan error, 1)
+		go func() {
+			_, err := first.Body.Read(buffer)
+			readDone <- err
+		}()
+		deadline := time.NewTimer(3 * time.Second)
+		defer deadline.Stop()
+		tick := time.NewTicker(10 * time.Millisecond)
+		defer tick.Stop()
+		for transferSnapshot(t, transfer).DownloadReservedBytes == 0 {
+			select {
+			case <-tick.C:
+			case <-deadline.C:
+				t.Fatal("no paced reservation")
+			}
+		}
+		before := transferSnapshot(t, transfer)
+		if before.DownloadEncodedBytes != 0 || before.DownloadReservedBytes != uint64(len(firstData)) {
+			t.Fatalf("reservation already delivered: %+v", before)
+		}
+		cancel()
+		select {
+		case err := <-readDone:
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("paced read: %v", err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("paced read did not cancel")
+		}
+		if after := transferSnapshot(t, transfer); after != before {
+			t.Fatalf("cancelled reservation changed: before=%+v after=%+v", before, after)
 		}
 	} else {
 		cancel()

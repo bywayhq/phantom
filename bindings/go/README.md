@@ -223,10 +223,21 @@ routes, trust and timeouts are retained; admission and shutdown are independent.
 Shared tickets remain single-use. Forks use ordinary client capacity. Go cannot
 fork a released owner after successful shutdown.
 
+## Transfer limits and counters
+
+Create `NewTransferControl(TransferLimits{UploadBytes: &maximum})`, check its
+error, and attach the owner with `Request.TransferControl`. Close the owner
+when finished; already attached requests retain their policy. Share it across
+requests or clients for one allowance. `Snapshot` returns coherent counters.
+Nil limits are unlimited. Rates are positive body bytes per second.
+Download caps count encoded data; decoded counters can include the body's
+unread buffer. Headers and transport overhead are excluded. Cancellation
+retains paced reservations and their gaps in the shared schedule.
+
 ## Capacity and feature limits
 
-Process-wide limits are 64 each for clients, budgets, response handles and
-ordinary operations, plus 64 separate shutdown operations. Exhaustion returns
+Process-wide limits are 64 each for clients, budgets, transfer controls,
+response handles and ordinary operations, plus 64 separate shutdown operations. Exhaustion returns
 a typed error without waiting. Byte uploads allow 8 MiB each and 16 MiB aggregate
 native custody until responses close. Metadata limits are 64 KiB per command,
 256 response fields/32 KiB and 256 KiB per encoded reply.

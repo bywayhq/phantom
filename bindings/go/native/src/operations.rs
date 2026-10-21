@@ -7,7 +7,7 @@ use crate::{
 };
 use http_body::Body;
 use http_body_util::BodyExt;
-use phantom::{Bytes, HttpAttemptBudget, ResponseBody};
+use phantom::{Bytes, HttpAttemptBudget, ResponseBody, TransferControl};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -21,6 +21,7 @@ use std::{
 use tokio::sync::{Notify, oneshot};
 
 pub(super) mod session;
+mod transfer;
 
 pub(super) const MAX_METADATA: usize = 256 * 1024;
 pub(super) const MAX_COMMAND: usize = 64 * 1024;
@@ -55,6 +56,15 @@ enum Command {
     BudgetAdmit {
         budget: u64,
     },
+    NewTransfer {
+        limits: transfer::Limits,
+    },
+    ReleaseTransfer {
+        transfer: u64,
+    },
+    TransferSnapshot {
+        transfer: u64,
+    },
     CookieSet {
         client: u64,
         url: String,
@@ -87,6 +97,7 @@ enum Command {
         url: String,
         headers: Vec<Header>,
         budget: Option<u64>,
+        transfer: Option<u64>,
         #[serde(default)]
         timeouts: Timeouts,
         #[serde(default)]
@@ -300,6 +311,7 @@ struct State {
     next: u64,
     clients: HashMap<u64, NativeClient>,
     budgets: HashMap<u64, HttpAttemptBudget>,
+    transfers: HashMap<u64, TransferControl>,
     bodies: HashMap<u64, std::sync::Arc<BodyOwner>>,
     streams: HashMap<u64, std::sync::Arc<Upload>>,
     operations: HashMap<u64, Operation>,
@@ -312,6 +324,7 @@ impl Default for State {
             next: 1,
             clients: HashMap::new(),
             budgets: HashMap::new(),
+            transfers: HashMap::new(),
             bodies: HashMap::new(),
             streams: HashMap::new(),
             operations: HashMap::new(),
@@ -884,6 +897,26 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .map_err(|_| Failure::new("attempt_budget_exhausted"))?;
                 Ok(json!({}))
             }
+            Command::NewTransfer { limits } => {
+                let control = limits.control()?;
+                if state.transfers.len() >= MAX_HANDLES {
+                    return Err(Failure::new("capacity"));
+                }
+                let id = state.id()?;
+                state.transfers.insert(id, control);
+                Ok(json!({"id": id}))
+            }
+            Command::ReleaseTransfer { transfer } => {
+                state.transfers.remove(&transfer);
+                Ok(json!({}))
+            }
+            Command::TransferSnapshot { transfer } => {
+                let control = state
+                    .transfers
+                    .get(&transfer)
+                    .ok_or_else(|| Failure::new("invalid_handle"))?;
+                Ok(transfer::snapshot(control))
+            }
             Command::CookieSet { client, url, value } => {
                 state
                     .clients
@@ -1009,6 +1042,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 url,
                 headers,
                 budget,
+                transfer,
                 timeouts,
                 content_decoding,
                 redirect_policy,
@@ -1059,6 +1093,13 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                             retries: retry_policy,
                         },
                     )?;
+                if let Some(id) = transfer {
+                    let control = state
+                        .transfers
+                        .get(&id)
+                        .ok_or_else(|| Failure::new("invalid_handle"))?;
+                    request = request.transfer_control(control.clone());
+                }
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
                 let mut stream_upload = None;
