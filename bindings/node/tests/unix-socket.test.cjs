@@ -110,24 +110,29 @@ test('Unix TLS retains verified URL identity for HTTP/1, HTTP/2 and ALPN', {skip
 
 test('Unix HTTP/2 cancellation leaves the sibling and connection usable', {skip: !unix, timeout: 30000}, async (t) => {
   const tls = await material(t), sessions = [], controller = new AbortController();
-  let arrived;
+  let arrived, heldStream;
   const pendingArrival = new Promise((resolve) => {arrived = resolve;});
   const server = http2.createSecureServer({key: tls.key, cert: tls.cert});
   server.on('stream', (stream, headers) => {
     sessions.push(stream.session); stream.on('error', () => {});
     if (headers[':path'] === '/pending') {arrived(); return;}
     stream.respond({':status': 200, 'content-length': '2'});
-    if (headers[':path'] === '/held') stream.write('a'); else stream.end('ok');
+    if (headers[':path'] === '/held') {heldStream = stream; stream.write('a');} else stream.end('ok');
   });
   const socketPath = await peer(t, server);
   const client = new Client({profile, route: 'direct', additionalRoots: [tls.root], network: {unixSocket: socketPath}});
   const request = {...options, protocol: 'http2'};
   let held;
   try {
-    held = await client.request('https://phantom.invalid/held', request);
+    held = await client.request('https://phantom.invalid/held', {...request, timeoutMs: undefined,
+      timeouts: {connectMs: 10000, responseHeadMs: 10000, totalMs: null}});
     const pending = client.request('https://phantom.invalid/pending', {...request, signal: controller.signal});
     const rejected = assert.rejects(pending, code('Cancelled'));
     await pendingArrival; controller.abort(); await rejected;
+    assert.equal((await held.read(1)).toString(), 'a');
+    heldStream.end('b');
+    assert.equal((await held.read(1)).toString(), 'b');
+    assert.equal(await held.read(1), null);
     await read(client, 'https://phantom.invalid/healthy', {protocol: 'http2'});
     held.close();
     await read(client, 'https://phantom.invalid/reused', {protocol: 'http2'});
