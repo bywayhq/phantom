@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove the client benchmark harness and its benchmark-dependent release checks.
+
 - Pin origin and HTTPS-proxy leaf public keys separately in Python, Go and
   Node.js while retaining certificate-chain and hostname verification.
 

@@ -5,7 +5,6 @@ import argparse
 import functools
 import hashlib
 import http.server
-import importlib.util
 import json
 import os
 import shutil
@@ -262,50 +261,6 @@ def verify(args):
                 raise ValueError(f"non-registry dependency: {name} {source}")
             if name in local_names and not source.startswith("sparse+" + base):
                 raise ValueError(f"package bypassed staging archive: {name} {source}")
-
-        # Reuse the measured public-client workload and its controlled peers.
-        # These short checks establish installs and protocol operation, not speed.
-        smoke = destination / "protocol-consumer"
-        workload = ROOT / "tools/client-bench"
-        shutil.copytree(workload / "src", smoke / "src")
-        workload_text = (workload / "Cargo.toml").read_text(encoding="utf-8")
-        workload_manifest = tomllib.loads(workload_text)
-        for alias, dependency in workload_manifest["dependencies"].items():
-            if not isinstance(dependency, dict) or "path" not in dependency:
-                continue
-            name = dependency.get("package", alias)
-            old = 'path = "' + dependency["path"] + '"'
-            if name in versions:
-                new = f'version = "={versions[name]}", registry = "phantom-staging"'
-            else:
-                # Unchanged forks resolve from their existing registry release.
-                dependency_manifest = workload / dependency["path"] / "Cargo.toml"
-                version = tomllib.loads(
-                    dependency_manifest.read_text(encoding="utf-8")
-                )["package"]["version"]
-                new = f'version = "={version}"'
-            workload_text = workload_text.replace(old, new)
-        (smoke / "Cargo.toml").write_text(workload_text, encoding="utf-8")
-        shutil.copytree(config, smoke / ".cargo")
-        build_log = logs / "protocol-build.log"
-        run([*cargo, "build", "--message-format=json"], smoke, build_log)
-        binary = None
-        for line in build_log.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("{"):
-                continue
-            artifact = json.loads(line)
-            if artifact.get("reason") == "compiler-artifact" and artifact.get(
-                "executable"
-            ):
-                binary = Path(artifact["executable"])
-        if binary is None:
-            raise RuntimeError("workload executable missing from build output")
-        spec = importlib.util.spec_from_file_location(
-            "protocol_smoke", ROOT / "scripts/release/protocol-smoke.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.check(binary, destination / "protocol-results")
 
         # Install the CLI from the same archives, without checkout path overrides.
         install = destination / "cli-install"

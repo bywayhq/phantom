@@ -6,7 +6,6 @@ on:
       - scripts/release/**
       - vendor/**
       - crates/**
-      - tools/client-bench/**
       - tests/downstream/**
       - scripts/ci/**
       - Cargo.toml
@@ -86,10 +85,6 @@ jobs:
             target/release-check/metadata.json
             target/release-check/consumer/Cargo.lock
             target/release-check/registry/
-            target/release-check/protocol-results/
-            target/release-check/protocol-consumer/Cargo.lock
-            target/release-check/protocol-consumer/Cargo.toml
-            target/release-check/protocol-consumer/src/
             target/release-check/cli-install/.crates2.json
           if-no-files-found: error
 
