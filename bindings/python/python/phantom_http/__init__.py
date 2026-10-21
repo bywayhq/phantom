@@ -55,6 +55,7 @@ from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
 
 if TYPE_CHECKING:
+    from ._native import NativeClientCertificate as _NativeClientCertificate
     from ._native import NativePreparedBody as _NativePreparedBody
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
@@ -69,6 +70,11 @@ _NO_SHARED_STATE = SessionSharing()
 
 class _DiagnosticsFields(TypedDict, total=False):
     diagnostics: _native.NativeRequestDiagnostics
+
+
+class _CertificateFields(TypedDict, total=False):
+    client_certificate: _native.NativeClientCertificate
+    client_certificates_for: tuple[tuple[str, _native.NativeClientCertificate], ...]
 
 
 class Error(Exception):
@@ -366,6 +372,107 @@ class PreparedBody:
 
     def __repr__(self) -> str:
         return f"PreparedBody(length={self.length})"
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False, repr=False)
+class ClientCertificate:
+    """Parsed leaf-first chain and matching unencrypted key; no implicit file IO.
+
+    Inputs total at most 16 MiB; DER chains contain one through 256 certificates.
+    Parsing releases the GIL. The owner has no private-key export operation.
+    Client origin mappings accept at most 256 ordered pairs, with 64 KiB per
+    origin and 16 MiB aggregate UTF-8 origin bytes. The last core-normalized
+    origin match wins; unmapped origins use the optional default certificate.
+    """
+
+    _native: _NativeClientCertificate = _field(repr=False)
+
+    def __init__(self) -> None:
+        raise TypeError("use ClientCertificate.from_pem or ClientCertificate.from_der")
+
+    @classmethod
+    def _wrap(cls, native: _NativeClientCertificate) -> ClientCertificate:
+        certificate = object.__new__(cls)
+        object.__setattr__(certificate, "_native", native)
+        return certificate
+
+    @classmethod
+    def from_pem(
+        cls, certificate_chain: bytes, private_key: bytes
+    ) -> ClientCertificate:
+        cls._check_bytes((certificate_chain,), private_key)
+        return cls._wrap(
+            _call(
+                _native.NativeClientCertificate.from_pem, certificate_chain, private_key
+            )
+        )
+
+    @classmethod
+    def from_der(
+        cls, certificate_chain: tuple[bytes, ...], private_key: bytes
+    ) -> ClientCertificate:
+        if not isinstance(certificate_chain, tuple):
+            raise TypeError("certificate_chain must be a tuple of DER bytes")
+        if not 1 <= len(certificate_chain) <= 256:
+            raise Error("client_certificate", "invalid_chain_count")
+        cls._check_bytes(certificate_chain, private_key)
+        return cls._wrap(
+            _call(
+                _native.NativeClientCertificate.from_der, certificate_chain, private_key
+            )
+        )
+
+    @staticmethod
+    def _check_bytes(chain: tuple[bytes, ...], key: bytes) -> None:
+        if not isinstance(key, bytes) or any(
+            not isinstance(item, bytes) for item in chain
+        ):
+            raise TypeError("certificate chain and private key must be bytes")
+        if len(key) + sum(map(len, chain)) > 16 * 1024 * 1024:
+            raise Error("client_certificate", "too_large")
+
+    def __repr__(self) -> str:
+        return "ClientCertificate()"
+
+
+def _certificates(
+    default: ClientCertificate | None,
+    origins: tuple[tuple[str, ClientCertificate], ...],
+) -> _CertificateFields:
+    if default is not None and not isinstance(default, ClientCertificate):
+        raise TypeError("client_certificate must be ClientCertificate")
+    if not isinstance(origins, tuple):
+        raise TypeError("client_certificates_for must be an ordered tuple of pairs")
+    if len(origins) > 256:
+        raise Error("input", "too_many_client_certificate_origins")
+    total = 0
+    for pair in origins:
+        if (
+            not isinstance(pair, tuple)
+            or len(pair) != 2
+            or not isinstance(pair[0], str)
+            or not isinstance(pair[1], ClientCertificate)
+        ):
+            raise TypeError(
+                "client_certificates_for requires (origin, certificate) pairs"
+            )
+        if len(pair[0]) > 65536:
+            raise Error("input", "client_certificate_origins_too_large")
+        try:
+            size = len(pair[0].encode("utf-8"))
+        except UnicodeError:
+            raise Error("input", "invalid_client_certificates_for") from None
+        total += size
+        if size > 65536 or total > 16 * 1024 * 1024:
+            raise Error("input", "client_certificate_origins_too_large")
+    result: _CertificateFields = {}
+    if default is not None:
+        result["client_certificate"] = default._native
+    if origins:
+        result["client_certificates_for"] = tuple(
+            (origin, certificate._native) for origin, certificate in origins
+        )
+    return result
 
 
 def _receiving_routes(
@@ -750,7 +857,10 @@ class AsyncClient:
         timeouts: Timeouts | None = None,
         redirect_policy: RedirectPolicy | None = None,
         retry_policy: RetryPolicy | None = None,
+        client_certificate: ClientCertificate | None = None,
+        client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
     ) -> None:
+        certificates = _certificates(client_certificate, client_certificates_for)
         if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
             raise TypeError("retry_policy must be RetryPolicy")
         if redirect_policy is not None and not isinstance(
@@ -797,6 +907,7 @@ class AsyncClient:
                 if roots.proxy_server_spki_pins is not None
                 else {}
             ),
+            **certificates,
         )
         self.cookies = Cookies(self._native.cookies)
         self._uploads: set[_upload.Upload] = set()
@@ -1175,6 +1286,8 @@ class Client:
         timeouts: Timeouts | None = None,
         redirect_policy: RedirectPolicy | None = None,
         retry_policy: RetryPolicy | None = None,
+        client_certificate: ClientCertificate | None = None,
+        client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -1190,6 +1303,8 @@ class Client:
             timeouts=timeouts,
             redirect_policy=redirect_policy,
             retry_policy=retry_policy,
+            client_certificate=client_certificate,
+            client_certificates_for=client_certificates_for,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies

@@ -173,3 +173,18 @@ def invalid_diagnostics(client: Client) -> None:
 
 Trust(server_spki_pins=[bytes(32)])  # E: arg-type
 Trust(proxy_server_spki_pins=("private",))  # E: arg-type
+
+
+def invalid_client_certificates() -> None:
+    from phantom_http import ClientCertificate
+
+    certificate = ClientCertificate.from_pem(b"chain", b"key")
+    ClientCertificate.from_pem("chain", b"key")  # E: arg-type
+    ClientCertificate.from_der([b"DER"], b"key")  # E: arg-type
+    Client(profile="exact", protocol="h1", client_certificate=b"key")  # E: arg-type
+    AsyncClient(
+        profile="exact",
+        protocol="h2",
+        client_certificates_for=(("https://example", b"key"),),  # E: arg-type
+    )
+    certificate._native = certificate._native  # E: misc

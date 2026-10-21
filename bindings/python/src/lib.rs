@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 
 mod client;
+mod client_certificate;
 mod configuration;
 mod diagnostics;
 mod error;
@@ -18,6 +19,7 @@ mod upload;
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<client::NativeClient>()?;
+    module.add_class::<client_certificate::NativeClientCertificate>()?;
     module.add_class::<diagnostics::NativeRequestDiagnostics>()?;
     module.add_class::<client::AttemptBudget>()?;
     module.add_class::<transfer::NativeTransferControl>()?;

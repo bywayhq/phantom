@@ -17,7 +17,7 @@ PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
 
 class H2Peer:
-    def __init__(self, *, overflow_body=b"a", tls=False):
+    def __init__(self, *, overflow_body=b"a", tls=False, client_ca=None):
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -26,7 +26,11 @@ class H2Peer:
         if tls:
             self.tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             self.tls.load_cert_chain(FIXTURES / "certificate.pem", FIXTURES / "key.pem")
+            if client_ca is not None:
+                self.tls.load_verify_locations(cafile=client_ca)
+                self.tls.verify_mode = ssl.CERT_REQUIRED
             self.tls.set_alpn_protocols(["h2"])
+        self.client_certificate = None
         self.url = (
             f"{'https' if tls else 'http'}://127.0.0.1:{self.listener.getsockname()[1]}"
         )
@@ -59,6 +63,7 @@ class H2Peer:
             stream.settimeout(8)
             if self.tls is not None:
                 stream = self.tls.wrap_socket(stream, server_side=True)
+                self.client_certificate = stream.getpeercert(binary_form=True)
             with stream:
                 stream.settimeout(8)
                 connection = h2.connection.H2Connection(

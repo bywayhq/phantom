@@ -52,7 +52,7 @@ def spki_pin(certificate):
 class SettingsPeer(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, *, tls=False, basic_auth=False):
+    def __init__(self, *, tls=False, basic_auth=False, client_ca=None):
         super().__init__(("127.0.0.1", 0), SettingsHandler)
         self.requests = []
         self.entered = threading.Event()
@@ -61,11 +61,21 @@ class SettingsPeer(http.server.ThreadingHTTPServer):
         self.basic_auth = basic_auth
         self.errors = []
         self.request_workers = []
+        self.client_certificates = []
         if tls:
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             context.load_cert_chain(FIXTURES / "certificate.pem", FIXTURES / "key.pem")
+            if client_ca is not None:
+                context.load_verify_locations(cafile=client_ca)
+                context.verify_mode = ssl.CERT_REQUIRED
             self.socket = context.wrap_socket(self.socket, server_side=True)
         self.url = f"{'https' if tls else 'http'}://127.0.0.1:{self.server_port}"
+
+    def get_request(self):
+        stream, address = super().get_request()
+        if isinstance(stream, ssl.SSLSocket):
+            self.client_certificates.append(stream.getpeercert(binary_form=True))
+        return stream, address
 
     def process_request(self, request, client_address):
         worker = threading.Thread(

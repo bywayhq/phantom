@@ -1,4 +1,5 @@
 use crate::{
+    client_certificate::{self, NativeClientCertificate},
     configuration,
     diagnostics::NativeRequestDiagnostics,
     error,
@@ -120,7 +121,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None, client_certificate=None, client_certificates_for=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -139,7 +140,10 @@ impl NativeClient {
         retry_policy: Option<configuration::RetryFields>,
         server_spki_pins: Option<&Bound<'_, PyAny>>,
         proxy_server_spki_pins: Option<&Bound<'_, PyAny>>,
+        client_certificate: Option<PyRef<'_, NativeClientCertificate>>,
+        client_certificates_for: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
+        let client_certificates_for = client_certificate::origins(client_certificates_for)?;
         let server_spki_pins =
             configuration::server_pins(server_spki_pins, "invalid_server_spki_pins")?;
         let proxy_server_spki_pins =
@@ -169,6 +173,12 @@ impl NativeClient {
         if let Some(pins) = proxy_server_spki_pins {
             builder = builder.proxy_server_spki_pins(pins);
         }
+        if let Some(certificate) = client_certificate {
+            builder = builder.client_certificate(certificate.inner.clone());
+        }
+        for (origin, certificate) in client_certificates_for {
+            builder = builder.client_certificate_for(&origin, certificate);
+        }
         for root in roots {
             builder = builder.add_root_certificate_der(root);
         }
@@ -178,9 +188,7 @@ impl NativeClient {
         if cookies {
             builder = builder.cookies();
         }
-        let client = builder
-            .build()
-            .map_err(|_| error::input("invalid_client_configuration"))?;
+        let client = builder.build().map_err(client_certificate::build_error)?;
         Ok(Self {
             client,
             protocol: protocol.to_owned(),

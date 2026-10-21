@@ -150,6 +150,15 @@ leaf's DER SubjectPublicKeyInfo, each exactly 32 bytes. Pins supplement verified
 trust; `None` omits a policy, and an empty tuple is invalid. A proxy pin requires
 TLS when a proxy is used; direct routes remain usable.
 
+For client authentication, parse a reusable native owner with
+`ClientCertificate.from_pem(chain_bytes, key_bytes)` or
+`from_der((leaf_der, intermediate_der), key_der)`. Keys must be unencrypted;
+inputs are bounded as described by `ClientCertificate`. Pass it as
+`client_certificate=identity`, or use ordered
+`client_certificates_for=(("https://api.example", identity),)` overrides.
+The last matching origin wins; server verification remains enabled. Certificates
+are sent only when requested by an origin, never on the outer proxy TLS hop.
+
 `base_url="https://example.com/api/"` resolves `"child"` to `/api/child`;
 `"/child"` starts at the origin root. Cookies are enabled by default. Use
 `client.cookies.set(url, set_cookie)`, `for_url(url)` and `clear()`;

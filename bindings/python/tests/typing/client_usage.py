@@ -314,3 +314,18 @@ def pinned_clients(pin: bytes) -> None:
     trust = Trust(server_spki_pins=(pin,), proxy_server_spki_pins=(pin,))
     with Client(profile="exact", protocol="h1", trust=trust):
         pass
+
+
+def mutually_authenticated_clients(chain: bytes, key: bytes, der: bytes) -> None:
+    from phantom_http import ClientCertificate
+
+    certificate = ClientCertificate.from_pem(chain, key)
+    parsed: ClientCertificate = ClientCertificate.from_der((der,), key)
+    with Client(
+        profile="exact",
+        protocol="h1",
+        client_certificate=certificate,
+        client_certificates_for=(("https://api.example", parsed),),
+    ):
+        pass
+    AsyncClient(profile="exact", protocol="h2", client_certificate=parsed)

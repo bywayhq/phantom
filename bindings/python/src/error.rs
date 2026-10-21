@@ -3,6 +3,10 @@ use pyo3::{PyErr, create_exception, exceptions::PyException};
 
 create_exception!(_native, NativeError, PyException);
 
+pub(super) fn certificate(kind: &'static str) -> PyErr {
+    NativeError::new_err(("client_certificate", kind, None::<String>, None::<String>))
+}
+
 pub(super) fn input(kind: &'static str) -> PyErr {
     NativeError::new_err(("input", kind, None::<String>, None::<String>))
 }

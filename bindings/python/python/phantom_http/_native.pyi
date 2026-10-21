@@ -7,6 +7,16 @@ from ._configuration import _RetryFields
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
 
+class NativeClientCertificate:
+    @staticmethod
+    def from_pem(
+        certificate_chain: bytes, private_key: bytes
+    ) -> NativeClientCertificate: ...
+    @staticmethod
+    def from_der(
+        certificate_chain: tuple[bytes, ...], private_key: bytes
+    ) -> NativeClientCertificate: ...
+
 _DiagnosticOutcome: TypeAlias = Literal[
     "not_started", "pending", "response_head", "failed", "cancelled"
 ]
@@ -188,6 +198,9 @@ class NativeClient:
         retry_policy: _RetryFields | None = None,
         server_spki_pins: tuple[bytes, ...] | None = None,
         proxy_server_spki_pins: tuple[bytes, ...] | None = None,
+        client_certificate: NativeClientCertificate | None = None,
+        client_certificates_for: tuple[tuple[str, NativeClientCertificate], ...]
+        | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...
