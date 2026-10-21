@@ -727,6 +727,60 @@ async fn get(client: &Client, protocol: Option<HttpProtocol>, url: &str) -> Test
     get_as(client, protocol, url, HttpProtocol::Http3).await
 }
 
+/// Retains the request stage and the typed cause hidden by RequestError's Debug.
+struct GetFailure {
+    url: String,
+    protocol: Option<HttpProtocol>,
+    stage: &'static str,
+    cause: Box<dyn Error + Send + Sync>,
+}
+
+impl GetFailure {
+    fn new(
+        url: &str,
+        protocol: Option<HttpProtocol>,
+        stage: &'static str,
+        cause: impl Error + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            url: url.to_owned(),
+            protocol,
+            stage,
+            cause: Box::new(cause),
+        }
+    }
+}
+
+impl fmt::Debug for GetFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut causes = Vec::new();
+        let mut cause: Option<&(dyn Error + 'static)> = Some(self.cause.as_ref());
+        while let Some(error) = cause {
+            causes.push(error);
+            cause = error.source();
+        }
+        formatter
+            .debug_struct("GetFailure")
+            .field("url", &self.url)
+            .field("protocol", &self.protocol)
+            .field("stage", &self.stage)
+            .field("causes", &causes)
+            .finish()
+    }
+}
+
+impl fmt::Display for GetFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "GET {} failed during {}", self.url, self.stage)
+    }
+}
+
+impl Error for GetFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.cause.as_ref())
+    }
+}
+
 /// Sends a GET, exact when `protocol` is set, and checks it was answered
 /// over `expected`.
 async fn get_as(
@@ -736,15 +790,20 @@ async fn get_as(
     expected: HttpProtocol,
 ) -> TestResult<()> {
     let response = match protocol {
-        Some(protocol) => client.get(protocol, url)?.send().await?,
-        None => client.get_negotiated(url)?.send().await?,
-    };
+        Some(protocol) => client.get(protocol, url)?.send().await,
+        None => client.get_negotiated(url)?.send().await,
+    }
+    .map_err(|cause| GetFailure::new(url, protocol, "response head", cause))?;
     let info = response
         .extensions()
         .get::<ResponseInfo>()
         .ok_or("response omitted protocol metadata")?;
     assert_eq!(info.protocol(), expected);
-    response.into_body().collect().await?;
+    response
+        .into_body()
+        .collect()
+        .await
+        .map_err(|cause| GetFailure::new(url, protocol, "response body", cause))?;
     Ok(())
 }
 
