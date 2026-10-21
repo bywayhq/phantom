@@ -4,6 +4,7 @@ const {once} = require('node:events');
 const fs = require('node:fs/promises');
 const http = require('node:http');
 const http2 = require('node:http2');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const {test} = require('node:test');
@@ -60,7 +61,7 @@ test('streaming multipart uses literal ordered core framing, lazy files and seve
 
 test('multipart preflight keeps budgets and unclaimed sources; one-shot replay never sends twice', {timeout: 30000}, async (t) => {
   const sent = [], {url} = await peer(t, (request, response) => {
-    request.resume(); request.on('end', () => {sent.push(request.url); response.writeHead(307, {location: '/unexpected'}).end();});
+    sent.push(request.url); request.resume(); request.on('end', () => {response.writeHead(307, {location: '/unexpected'}).end();});
   });
   const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
   const budget = new AttemptBudget(2), unclaimed = source([]);
@@ -69,10 +70,10 @@ test('multipart preflight keeps budgets and unclaimed sources; one-shot replay n
     await assert.rejects(client.request(url, {...options, multipart: descriptor, ...invalid, attemptBudget: budget}), {code: 'InvalidArgument'});
   }
   assert.equal(unclaimed.closes, 0); assert.equal(unclaimed.pulls, 0);
-  for (const invalidHeaders of [[], headers('wrong'), [...headers(), field('content-type', 'multipart/form-data; boundary=b')], [...headers(), field('Content-Length', '1')]]) {
+  for (const invalidHeaders of [[], headers('wrong'), [...headers(), field('content-type', 'multipart/form-data; boundary=b')]]) {
     const stream = source([]);
     await assert.rejects(client.request(url, {...options, headers: invalidHeaders, multipart: {boundary: 'b', maximumBytes: 4096, parts: [{name: 'x', stream}]}, attemptBudget: budget}),
-      (error) => error instanceof PhantomError && ['InvalidHeader', 'RequestBody'].includes(error.code));
+      (error) => error instanceof PhantomError && error.code === 'InvalidHeader');
   }
   assert.equal(budget.remaining, 2); assert.deepEqual(sent, []);
   const stream = source([Buffer.from('one-shot')]), once = {boundary: 'b', maximumBytes: 4096, parts: [{name: 'x', stream}]};
@@ -80,6 +81,26 @@ test('multipart preflight keeps budgets and unclaimed sources; one-shot replay n
     redirectPolicy: {mode: 'limited', maximumHops: 1}}), {code: 'RequestBody'});
   await assert.rejects(client.request(url, {...options, headers: headers(), multipart: once}), {code: 'InvalidOperation'});
   await client.close(); assert.equal(stream.closes, 1); assert.deepEqual(sent, ['/redirect']); assert.equal(budget.remaining, 1);
+});
+
+test('HTTP/1 multipart rejects explicit length after admission without sending request bytes', {timeout: 30000}, async (t) => {
+  const sockets = new Set(), errors = []; let received = 0;
+  const server = net.createServer((socket) => {
+    sockets.add(socket); socket.on('data', (data) => {received += data.length;});
+    socket.on('error', (error) => {if (!['ECONNRESET', 'ECONNABORTED', 'EPIPE'].includes(error.code)) errors.push(error);});
+    socket.on('close', () => sockets.delete(socket));
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {for (const socket of sockets) socket.destroy(); if (server.listening) await new Promise((resolve) => server.close(resolve));});
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
+  const budget = new AttemptBudget(2), stream = source([]);
+  await assert.rejects(client.request(`http://127.0.0.1:${server.address().port}`, {
+    ...options, headers: [...headers(), field('Content-Length', '1')],
+    multipart: {boundary: 'b', maximumBytes: 4096, parts: [{name: 'x', stream}]}, attemptBudget: budget,
+  }), (error) => error instanceof PhantomError && error.code === 'Http1');
+  await client.close(); await new Promise((resolve) => server.close(resolve));
+  assert.equal(budget.remaining, 1); assert.equal(received, 0); assert.deepEqual(errors, []);
+  await stream.closed; assert.equal(stream.closes, 1);
 });
 
 test('multipart caps and split boundary collisions fail as typed core errors', {timeout: 30000}, async (t) => {
@@ -114,7 +135,7 @@ test('Expect early final sends no multipart data and cleans all unstarted source
 
 test('HTTP/2 multipart abort, close and unread deadline preserve a live sibling and connection', {timeout: 30000}, async (t) => {
   const fixture = (name) => require('node:fs').readFileSync(path.join(__dirname, 'fixtures', name));
-  const server = http2.createSecureServer({key: fixture('server.key'), cert: fixture('server.pem'), settings: {initialWindowSize: 0}});
+  const server = http2.createSecureServer({key: fixture('key.pem'), cert: fixture('certificate.pem'), settings: {initialWindowSize: 0}});
   const sessions = new Set(), selected = new Map(), sources = [], errors = []; let healthySession, releaseHealthy;
   server.on('session', (session) => {sessions.add(session);});
   server.on('stream', (stream, head) => {
@@ -127,7 +148,7 @@ test('HTTP/2 multipart abort, close and unread deadline preserve a live sibling 
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(async () => {for (const session of sessions) session.destroy(); await new Promise((resolve) => server.close(resolve));});
-  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('root.der')], timeouts: {totalMs: 5000}});
+  const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')], timeouts: {totalMs: 5000}});
   t.after(() => client.close()); const url = `https://127.0.0.1:${server.address().port}`, get = {method: 'GET', protocol: 'http2', context: 'raw'};
   assert.equal(await (await client.request(url + '/warm', get)).text(2), 'ok');
   for (const mode of ['abort', 'close', 'total']) {
