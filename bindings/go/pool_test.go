@@ -168,7 +168,8 @@ func TestPoolActiveBoundBackpressuresAndCancelsOnlyWaitingRequest(t *testing.T) 
 	owner := newDiagnostics(t, 32)
 	done := make(chan error, 1)
 	go func() {
-		response, err := client.Do(ctx, Request{Method: "GET", URL: server.URL + "/queued", Diagnostics: owner})
+		response, err := client.Do(ctx, Request{Method: "GET", URL: server.URL + "/queued", Diagnostics: owner,
+			Timeouts: Timeouts{Total: Timeout{Mode: TimeoutDisabled}}})
 		if response != nil {
 			_ = response.Body.Close()
 		}
@@ -197,6 +198,26 @@ func TestPoolActiveBoundBackpressuresAndCancelsOnlyWaitingRequest(t *testing.T) 
 				t.Fatal("core admission not observed")
 			case <-ticker.C:
 			}
+		}
+	}
+	// A pending timing starts just before the pending permit is acquired.
+	// A zero-wait probe can therefore time out first; require actual Capacity
+	// once the queued request holds the sole pending permit, without sending.
+	for {
+		if err := ctx.Err(); err != nil {
+			t.Fatalf("pending queue never reached capacity: %v", err)
+		}
+		response, err := client.Do(ctx, Request{Method: "GET", URL: server.URL + "/overflow",
+			Timeouts: Timeouts{PoolAdmission: LimitTimeout(0), Total: Timeout{Mode: TimeoutDisabled}}})
+		if response != nil {
+			_ = response.Body.Close()
+		}
+		if kind(err) == "capacity" {
+			break
+		}
+		var typed *Error
+		if !errors.As(err, &typed) || typed.Kind != "timeout" || typed.TimeoutPhase != "pool_admission" {
+			t.Fatalf("pending overflow probe: %v", err)
 		}
 	}
 	cancel()
