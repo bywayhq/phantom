@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stream ordered Python multipart fields, files and producers with explicit
+  boundaries and encoded-byte limits. Open files only when their part is read.
+
 - Stream ordered Go multipart fields and readers with explicit boundaries and
   encoded-byte limits. Preserve upload cleanup errors after early responses.
 
