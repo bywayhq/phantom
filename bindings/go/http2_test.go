@@ -21,6 +21,7 @@ const (
 	http2CancelDecodedLimit
 	http2CancelTransferLimit
 	http2CancelTransferPacing
+	http2CancelTransferTotal
 )
 
 func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
@@ -28,6 +29,7 @@ func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
 	t.Run("decoded limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelDecodedLimit) })
 	t.Run("transfer limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferLimit) })
 	t.Run("transfer pacing", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferPacing) })
+	t.Run("transfer total timeout", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferTotal) })
 }
 
 func http2CancellationPreservesOtherStreams(t *testing.T, cause http2CancellationCause) {
@@ -37,7 +39,7 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 		firstData = gzipBytes(t, []byte("decoded bytes exceed zero"))
 		// Literal Content-Encoding name index26, value gzip; no indexing.
 		firstHeaders = append(firstHeaders, 0x0f, 0x0b, 4, 'g', 'z', 'i', 'p')
-	} else if cause == http2CancelTransferPacing {
+	} else if cause == http2CancelTransferPacing || cause == http2CancelTransferTotal {
 		firstData = []byte("reserved body waits for its pace")
 	}
 
@@ -160,8 +162,11 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 		firstRequest.Headers = []Header{{Name: "accept-encoding", Value: []byte("gzip")}}
 	} else if cause == http2CancelTransferLimit {
 		transfer = newTransfer(t, TransferLimits{DownloadBytes: uint64Pointer(0)})
-	} else if cause == http2CancelTransferPacing {
+	} else if cause == http2CancelTransferPacing || cause == http2CancelTransferTotal {
 		transfer = newTransfer(t, TransferLimits{DownloadBytesPerSecond: uint64Pointer(1)})
+	}
+	if cause == http2CancelTransferTotal {
+		firstRequest.Timeouts = Timeouts{Total: LimitTimeout(2 * time.Second), ReadIdle: LimitTimeout(50 * time.Millisecond)}
 	}
 	firstRequest.TransferControl = transfer
 	first, err := client.Do(ctx, firstRequest)
@@ -185,6 +190,15 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	} else if cause == http2CancelTransferLimit {
 		if _, err := first.Body.Read(buffer); kind(err) != "transfer" {
 			t.Fatalf("transfer limit: %v", err)
+		}
+	} else if cause == http2CancelTransferTotal {
+		_, err := first.Body.Read(buffer)
+		var failure *Error
+		if !errors.As(err, &failure) || failure.Kind != "timeout" || failure.TimeoutPhase != "total" {
+			t.Fatalf("paced read must preserve total deadline without a read-idle failure: %v", err)
+		}
+		if snapshot := transferSnapshot(t, transfer); snapshot.DownloadReservedBytes != uint64(len(firstData)) || snapshot.DownloadEncodedBytes != 0 {
+			t.Fatalf("timed-out reservation changed: %+v", snapshot)
 		}
 	} else if cause == http2CancelTransferPacing {
 		readDone := make(chan error, 1)
