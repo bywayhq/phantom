@@ -169,6 +169,8 @@ class SignatureTests(unittest.TestCase):
                     "timeouts": None,
                     "redirect_policy": None,
                     "retry_policy": None,
+                    "client_certificate": None,
+                    "client_certificates_for": (),
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -182,6 +184,8 @@ class SignatureTests(unittest.TestCase):
                     "timeouts": None,
                     "redirect_policy": None,
                     "retry_policy": None,
+                    "client_certificate": object(),
+                    "client_certificates_for": (("https://origin.invalid", object()),),
                 }
                 fields = iter([("X-Duplicate", b"a"), ("X-Duplicate", "b")])
                 budget = object()
