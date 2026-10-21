@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import traceback
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -88,6 +89,8 @@ class BrowserContext:
         self.release_start = asyncio.Event()
         self.hold_start = False
         self.start_failure: BaseException | None = None
+        self.setup_failure: BaseException | None = None
+        self.setup_failure_phase: str | None = None
         self.start_cancellation: asyncio.CancelledError | None = None
         self.entry_cancellation: asyncio.CancelledError | None = None
         self.remote_failure: BaseException | None = None
@@ -127,20 +130,30 @@ class BrowserContext:
 
         class ObservedDriver(browser_remote.ChromiumAuthDriver):
             async def start(self, profile: Path, url: str) -> None:
-                await asyncio.wait_for(context.child_ready.wait(), DEADLINE)
+                phase = "child readiness"
                 try:
-                    await super().start(profile, url)
-                finally:
-                    context.peer.connection = self.connection
+                    await asyncio.wait_for(context.child_ready.wait(), DEADLINE)
+                    phase = "ChromiumAuthDriver.start"
+                    try:
+                        await super().start(profile, url)
+                    finally:
+                        context.peer.connection = self.connection
 
-                context.case.assertEqual(context.peer.remote.commands, COMMANDS)
-                context.case.assertEqual(len(context.children), 1)
-                context.case.assertIsNone(context.children[0].poll())
-                context.case.assertTrue(await asyncio.to_thread(profile.is_dir))
-                context.case.assertEqual(len(context.connections), 1)
-                context.case.assertFalse(context.connections[0][0].is_closing())
-                context.case.assertFalse(context.connections[0][1].done())
-                context.start_ready.set()
+                    phase = "startup resource assertions"
+                    context.case.assertEqual(context.peer.remote.commands, COMMANDS)
+                    context.case.assertEqual(len(context.children), 1)
+                    context.case.assertIsNone(context.children[0].poll())
+                    phase = "profile directory observation"
+                    context.case.assertTrue(await asyncio.to_thread(profile.is_dir))
+                    phase = "child connection assertions"
+                    context.case.assertEqual(len(context.connections), 1)
+                    context.case.assertFalse(context.connections[0][0].is_closing())
+                    context.case.assertFalse(context.connections[0][1].done())
+                    context.start_ready.set()
+                except BaseException as error:
+                    context.setup_failure = error
+                    context.setup_failure_phase = phase
+                    raise
 
                 if context.hold_start:
                     try:
@@ -215,8 +228,22 @@ class BrowserContext:
         with redirect_stderr(self.diagnostics):
             entered = await asyncio.wait_for(driver.__aenter__(), DEADLINE)
         self.case.assertIs(entered, driver)
-        self.case.assertTrue(self.start_ready.is_set())
+        try:
+            self.assert_ready()
+        except BaseException as error:
+            await driver.__aexit__(type(error), error, error.__traceback__)
+            raise
         return driver
+
+    def assert_ready(self) -> None:
+        if self.setup_failure is not None:
+            print(
+                f"fixture setup failed during {self.setup_failure_phase}",
+                file=sys.stderr,
+                flush=True,
+            )
+            raise self.setup_failure
+        self.case.assertTrue(self.start_ready.is_set())
 
     def snapshot(self) -> tuple[bool, bool, bool]:
         self.case.assertIsNotNone(self.driver)
@@ -248,7 +275,7 @@ class BrowserContext:
     async def failed_body(self, primary: BaseException) -> BaseException | None:
         try:
             async with self.driver:
-                self.case.assertTrue(self.start_ready.is_set())
+                self.assert_ready()
                 raise primary
         except BaseException as error:
             if not self.start_ready.is_set():
@@ -397,6 +424,54 @@ class ProxyBrowserDriverTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(error)
         self.assert_destroyed(snapshot)
         self.assertEqual(context.notes, ["event:driver-failure,error:StartupFailure"])
+
+    async def test_pre_ready_failure_keeps_phase_traceback_and_owned_cleanup(
+        self,
+    ) -> None:
+        for entry in ("entered", "failed_body"):
+            with self.subTest(entry=entry):
+                context = self.context()
+                setup = StartupFailure("controlled pre-ready failure")
+                body = BodyFailure("body must not start")
+                cleanup = BrowserCloseFailure("controlled browser close failure")
+                context.browser_failure = cleanup
+
+                async def fail_page_target(driver, failure=setup) -> str:
+                    self.assertIsNotNone(driver.connection)
+                    raise failure
+
+                with (
+                    patch.object(
+                        browser_remote.ChromiumAuthDriver,
+                        "page_target",
+                        fail_page_target,
+                    ),
+                    redirect_stderr(context.diagnostics),
+                    self.assertRaises(proxy_route.ProxyBrowserFailures) as caught,
+                ):
+                    if entry == "entered":
+                        await context.entered()
+                    else:
+                        await context.start()
+                        await context.failed_body(body)
+
+                snapshot = context.snapshot()
+                await context.finish()
+                self.assertFalse(context.start_ready.is_set())
+                self.assertIs(context.setup_failure, setup)
+                self.assertEqual(
+                    context.setup_failure_phase, "ChromiumAuthDriver.start"
+                )
+                self.assertIn(
+                    "fixture setup failed during ChromiumAuthDriver.start",
+                    context.diagnostics.getvalue(),
+                )
+                self.assertIn(
+                    "fail_page_target",
+                    [frame.name for frame in traceback.extract_tb(setup.__traceback__)],
+                )
+                self.assert_causes(caught.exception, setup, (cleanup,))
+                self.assert_destroyed(snapshot)
 
     async def test_cancelled_entry_releases_already_acquired_browser(self) -> None:
         context = self.context()
