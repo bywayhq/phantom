@@ -15,7 +15,7 @@ enum Tail {
     InvalidSuffix,
 }
 
-async fn raw_connection(
+pub(super) async fn raw_connection(
     endpoint: &quinn::Endpoint,
 ) -> TestResult<(
     quinn::Connection,
