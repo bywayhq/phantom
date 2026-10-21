@@ -88,14 +88,14 @@ impl Multipart {
             .map_err(crate::prepared_body::core_error)?;
             let field = if let Some(filename) = part.filename {
                 field
-                    .with_filename(filename)
+                    .with_filename(&filename)
                     .map_err(crate::prepared_body::core_error)?
             } else {
                 field
             };
             let field = if let Some(content_type) = part.content_type {
                 field
-                    .with_content_type(content_type)
+                    .with_content_type(&content_type)
                     .map_err(crate::prepared_body::core_error)?
             } else {
                 field
