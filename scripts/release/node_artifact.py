@@ -201,6 +201,9 @@ def copied_tests(destination, native_package=None):
         "request-controls.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "prepared-bodies.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "transfer-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -320,6 +323,7 @@ def public_checks(
         "const metadata=JSON.parse(fs.readFileSync(path.join(path.dirname(entry),'package.json'),'utf8'));"
         "assert.equal(metadata.version," + json.dumps(version) + ");"
         "import('@byway/phantom').then(e=>{assert.equal(c.Client,e.Client);assert.equal(c.Profile,e.Profile);"
+        "assert.equal(typeof c.PreparedBody,'function');assert.equal(c.PreparedBody,e.PreparedBody);"
         "assert.equal(typeof c.AttemptBudget,'function');assert.ok(c.profiles().length);"
         "console.log(JSON.stringify({entry,version:metadata.version,profiles:c.profiles().length}));});"
     )
@@ -348,6 +352,7 @@ def public_checks(
                 "tests/transfer.test.cjs",
                 "tests/transfer-http2.test.cjs",
                 "tests/request-controls.test.cjs",
+                "tests/prepared-bodies.test.cjs",
                 "tests/transfer-facade.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",

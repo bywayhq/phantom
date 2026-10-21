@@ -194,6 +194,7 @@ class NodeArtifactTests(unittest.TestCase):
             "session-sharing.test.cjs",
             "transfer.test.cjs",
             "request-controls.test.cjs",
+            "prepared-bodies.test.cjs",
             "transfer-http2.test.cjs",
             "content-decoding.test.cjs",
             "redirects.test.cjs",

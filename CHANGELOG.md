@@ -4,6 +4,9 @@
 
 - Remove the external-client benchmark adapters and their CI workflow.
 
+- Prepare reusable form and multipart bodies in Python, Go and Node.js with
+  ordered fields, explicit encoding limits and caller-selected boundaries.
+
 - Send ordered request trailers and opt into `100-continue` waits from
   Python, Go and Node.js. Each attempt keeps the existing deadline and
   replay rules.
