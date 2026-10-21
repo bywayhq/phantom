@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PreparedBody, Profile, RequestDiagnostics, type RequestTimeline } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type RequestTimeline } from '../index.mjs';
 
 const pinned = new Client({profile: 'exact', route: 'direct',
   serverSpkiPins: [new Uint8Array(32)] as const, proxyServerSpkiPins: [Buffer.alloc(32)] as const});
@@ -109,3 +109,19 @@ async function diagnostics(client: Client): Promise<void> {
   await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', diagnostics: {snapshot() {return null;}}});
 }
 void diagnostics;
+
+async function clientIdentities(chain: Uint8Array, key: Uint8Array): Promise<void> {
+  const owner = await ClientCertificate.fromPem(chain, key);
+  const der = await ClientCertificate.fromDer([chain] as const, key);
+  new Client({profile: 'exact', route: 'direct', clientCertificate: owner,
+    clientCertificatesFor: [['https://example.com', der]] as const});
+  // @ts-expect-error Identities cannot be fabricated.
+  new ClientCertificate();
+  // @ts-expect-error PEM input is explicit bytes, never file paths.
+  await ClientCertificate.fromPem('private-key.pem', key);
+  // @ts-expect-error Native identity owner is required.
+  new Client({profile: 'exact', route: 'direct', clientCertificate: {}});
+  // @ts-expect-error Origin mappings are ordered pairs.
+  new Client({profile: 'exact', route: 'direct', clientCertificatesFor: {origin: owner}});
+}
+void clientIdentities;

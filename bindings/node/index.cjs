@@ -13,6 +13,8 @@ const transferHandles = new WeakMap();
 const diagnosticsHandles = new WeakMap();
 const profileHandles = new WeakMap();
 const preparedHandles = new WeakMap();
+const certificateHandles = new WeakMap();
+const certificateToken = {};
 const preparedToken = {};
 const profileToken = {};
 const clientToken = {};
@@ -74,6 +76,8 @@ const environment = new native.NativeEnvironment();
 
 function translated(error) {
   if (error instanceof PhantomError) return error;
+  const certificate = /^PHANTOM_CERTIFICATE:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
+  if (certificate) return new PhantomError('ClientCertificate', certificate[2], undefined, undefined, certificate[1]);
   const prepared = /^PHANTOM_PREPARED:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
   if (prepared) return new PhantomError('PreparedBody', prepared[2], undefined, undefined, prepared[1]);
   const snapshot = /^PHANTOM_SNAPSHOT:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
@@ -150,6 +154,83 @@ function clientPins(options, name) {
     copy.push(pin);
   }
   return copy;
+}
+
+function certificateFailure(kind) {
+  return new PhantomError('ClientCertificate', 'client certificate configuration failed', undefined, undefined, kind);
+}
+
+function certificateArray(input, maximum, name) {
+  if (!Array.isArray(input) || types.isProxy(input) || input.length > maximum
+    || Reflect.ownKeys(input).length !== input.length + 1) {
+    throw new PhantomError('InvalidArgument', `${name} must be a bounded ordered data array`);
+  }
+  const result = [];
+  for (let index = 0; index < input.length; index++) {
+    const field = Object.getOwnPropertyDescriptor(input, String(index));
+    if (!field || !Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', `${name} entries must be data fields`);
+    result.push(field.value);
+  }
+  return result;
+}
+
+function certificateHandle(value) {
+  const owner = certificateHandles.get(value);
+  if (!owner) throw new PhantomError('InvalidArgument', 'client certificate must be an authentic ClientCertificate');
+  return owner;
+}
+
+class ClientCertificate {
+  constructor(owner, token) {
+    if (token !== certificateToken) throw new PhantomError('InvalidArgument', 'use ClientCertificate.fromPem or fromDer');
+    certificateHandles.set(this, owner);
+    Object.defineProperty(this, inspect.custom, {value: () => 'ClientCertificate {}'});
+    Object.freeze(this);
+  }
+  static async fromPem(certificateChain, privateKey) {
+    try {
+      const chain = bytes(certificateChain), key = bytes(privateKey);
+      if (apply(lengthOf, chain, []) + apply(lengthOf, key, []) > 16 * 1024 * 1024) throw certificateFailure('too_large');
+      return new ClientCertificate(await native.clientCertificatePem(chain, key), certificateToken);
+    } catch (error) { throw translated(error); }
+  }
+  static async fromDer(certificateChain, privateKey) {
+    try {
+      if (Array.isArray(certificateChain) && !types.isProxy(certificateChain)
+        && (certificateChain.length === 0 || certificateChain.length > 256)) throw certificateFailure('invalid_chain_count');
+      const chain = certificateArray(certificateChain, 256, 'certificateChain');
+      const key = bytes(privateKey), inputs = chain.map(bytes);
+      let total = apply(lengthOf, key, []);
+      for (const input of inputs) total += apply(lengthOf, input, []);
+      if (total > 16 * 1024 * 1024) throw certificateFailure('too_large');
+      return new ClientCertificate(await native.clientCertificateDer(inputs, key), certificateToken);
+    } catch (error) { throw translated(error); }
+  }
+}
+
+function clientCertificates(options) {
+  const field = (name) => {
+    const descriptor = Object.getOwnPropertyDescriptor(options, name);
+    if (descriptor === undefined) return undefined;
+    if (!Object.hasOwn(descriptor, 'value')) throw new PhantomError('InvalidArgument', `${name} must be a data field`);
+    return descriptor.value;
+  };
+  const defaultOwner = field('clientCertificate'), origins = field('clientCertificatesFor');
+  const result = {clientCertificate: defaultOwner === undefined ? undefined : certificateHandle(defaultOwner)};
+  if (origins === undefined) return result;
+  const input = certificateArray(origins, 256, 'clientCertificatesFor');
+  let total = 0;
+  const pairs = [];
+  for (const value of input) {
+    const pair = certificateArray(value, 2, 'clientCertificatesFor pair');
+    if (pair.length !== 2 || typeof pair[0] !== 'string') throw new PhantomError('InvalidArgument', 'clientCertificatesFor requires origin and certificate pairs');
+    const count = Buffer.byteLength(pair[0]);
+    total += count;
+    if (count > 65536 || total > 16 * 1024 * 1024) throw new PhantomError('InputLimit', 'clientCertificatesFor exceeds its byte limit');
+    pairs.push({origin: pair[0], certificate: certificateHandle(pair[1])});
+  }
+  result.clientCertificatesFor = pairs;
+  return result;
 }
 
 function requestFields(headers, trailers) {
@@ -766,12 +847,13 @@ class Client {
     try {
       const serverSpkiPins = clientPins(options, 'serverSpkiPins');
       const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
+      const certificates = clientCertificates(options);
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
         ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
         additionalRoots: options.additionalRoots?.map(bytes),
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
-        serverSpkiPins, proxyServerSpkiPins,
+        serverSpkiPins, proxyServerSpkiPins, ...certificates,
         timeouts: phaseTimeouts(options.timeouts),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
         retryPolicy: retryPolicy(options.retryPolicy),
@@ -996,4 +1078,4 @@ function uploadOperation(operation) {
   }
 }
 
-module.exports = { AttemptBudget, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, TransferControl, profiles: () => native.profileIds() };
+module.exports = { AttemptBudget, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, TransferControl, profiles: () => native.profileIds() };

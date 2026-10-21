@@ -29,7 +29,9 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-fn copy_buffer(env: &Env, buffer: Buffer, maximum: usize) -> Result<Vec<u8>> {
+// The returned pointer is used only by private synchronous code in this Env;
+// callers must not invoke JS or await before copying its validated extent.
+fn buffer_info(env: &Env, buffer: Buffer) -> Result<(*mut c_void, usize)> {
     // SAFETY: This is the owning Env's synchronous callback. The generated
     // Buffer conversion retained this value without reading its backing bytes.
     // Converting it back only creates a local handle; no JS is invoked.
@@ -79,6 +81,14 @@ fn copy_buffer(env: &Env, buffer: Buffer, maximum: usize) -> Result<Vec<u8>> {
             "detached byte buffers are unsupported",
         ));
     }
+    Ok((data, length))
+}
+
+fn copy_buffer(env: &Env, buffer: Buffer, maximum: usize) -> Result<Vec<u8>> {
+    copy_buffer_info(buffer_info(env, buffer)?, maximum)
+}
+
+fn copy_buffer_info((data, length): (*mut c_void, usize), maximum: usize) -> Result<Vec<u8>> {
     if length > maximum {
         return Err(failure(
             "InputLimit",
@@ -158,6 +168,10 @@ pub struct ClientOptions {
     pub server_spki_pins: Option<Vec<Buffer>>,
     /// Independent raw leaf SPKI digests for HTTPS proxy connections.
     pub proxy_server_spki_pins: Option<Vec<Buffer>>,
+    /// Parsed default TLS client identity.
+    pub client_certificate: Option<Reference<NativeClientCertificate>>,
+    /// Ordered per-origin overrides; canonicalization belongs to the core.
+    pub client_certificates_for: Option<Vec<ClientCertificateOrigin>>,
     /// Base HTTP(S) URL for relative request targets.
     pub base_url: Option<String>,
     /// Per-phase defaults; omitted phases retain the Rust defaults.
@@ -559,8 +573,17 @@ impl NativeEnvironment {
             origin: copy_pins(options.server_spki_pins.take(), "serverSpkiPins")?,
             proxy: copy_pins(options.proxy_server_spki_pins.take(), "proxyServerSpkiPins")?,
         };
-        ClientState::build(options, profile, roots, proxy_roots, pins, &self.state)
-            .map(|state| NativeClient { state })
+        let certificates = client_certificates(&mut options)?;
+        ClientState::build(
+            options,
+            profile,
+            roots,
+            proxy_roots,
+            pins,
+            certificates,
+            &self.state,
+        )
+        .map(|state| NativeClient { state })
     }
 
     /// Registers an independent client with explicitly selected native state.
@@ -989,6 +1012,123 @@ impl fmt::Debug for MultipartField {
             .debug_struct("MultipartField")
             .finish_non_exhaustive()
     }
+}
+
+/// Immutable parsed certificate/key owner; no key export or mutable access.
+#[derive(Debug)]
+#[napi]
+pub struct NativeClientCertificate {
+    inner: phantom::ClientCertificate,
+}
+
+/// One ordered native client identity mapping.
+#[napi(object)]
+pub struct ClientCertificateOrigin {
+    /// HTTPS or WSS origin, validated by the core.
+    pub origin: String,
+    /// Authentic parsed native identity.
+    pub certificate: Reference<NativeClientCertificate>,
+}
+
+impl fmt::Debug for ClientCertificateOrigin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ClientCertificateOrigin")
+            .finish_non_exhaustive()
+    }
+}
+
+fn client_certificates(
+    options: &mut ClientOptions,
+) -> Result<crate::client_certificate::Certificates> {
+    use crate::client_certificate::{MAXIMUM_BYTES, MAXIMUM_ORIGIN_BYTES, MAXIMUM_ORIGINS};
+    let origins = options.client_certificates_for.take().unwrap_or_default();
+    if origins.len() > MAXIMUM_ORIGINS {
+        return Err(failure(
+            "InvalidArgument",
+            "clientCertificatesFor exceeds 256 origins",
+        ));
+    }
+    let mut total = 0_usize;
+    for pair in &origins {
+        total = total.saturating_add(pair.origin.len());
+        if pair.origin.len() > MAXIMUM_ORIGIN_BYTES || total > MAXIMUM_BYTES {
+            return Err(failure(
+                "InputLimit",
+                "clientCertificatesFor exceeds its byte limit",
+            ));
+        }
+    }
+    Ok(crate::client_certificate::Certificates {
+        default: options
+            .client_certificate
+            .take()
+            .map(|certificate| certificate.inner.clone()),
+        origins: origins
+            .into_iter()
+            .map(|pair| (pair.origin, pair.certificate.inner.clone()))
+            .collect(),
+    })
+}
+
+fn certificate_inputs(
+    env: &Env,
+    chain: Vec<Buffer>,
+    key: Buffer,
+) -> Result<(Vec<Vec<u8>>, Zeroizing<Vec<u8>>)> {
+    use crate::client_certificate::{MAXIMUM_BYTES, size};
+    // Validate actual backing and all extents before allocating any byte copy.
+    // These pointers stay in this synchronous Env call, with no JS or await.
+    let key = buffer_info(env, key)?;
+    let chain = chain
+        .into_iter()
+        .map(|value| buffer_info(env, value))
+        .collect::<Result<Vec<_>>>()?;
+    let total = chain
+        .iter()
+        .fold(key.1, |total, value| total.saturating_add(value.1));
+    size(total)?;
+    let key = Zeroizing::new(copy_buffer_info(key, MAXIMUM_BYTES)?);
+    let chain = chain
+        .into_iter()
+        .map(|value| copy_buffer_info(value, MAXIMUM_BYTES))
+        .collect::<Result<Vec<_>>>()?;
+    Ok((chain, key))
+}
+
+/// Copies PEM inputs on their Env, then parses off the JavaScript thread.
+#[napi]
+pub fn client_certificate_pem(
+    env: Env,
+    chain: Buffer,
+    key: Buffer,
+) -> Result<AsyncBlock<NativeClientCertificate>> {
+    let (chain, key) = certificate_inputs(&env, vec![chain], key)?;
+    AsyncBlockBuilder::new(async move {
+        crate::client_certificate::parse(chain, key, true)
+            .await
+            .map(|inner| NativeClientCertificate { inner })
+    })
+    .build(&env)
+}
+
+/// Parses an explicitly ordered DER chain and unencrypted DER private key.
+#[napi]
+pub fn client_certificate_der(
+    env: Env,
+    chain: Vec<Buffer>,
+    key: Buffer,
+) -> Result<AsyncBlock<NativeClientCertificate>> {
+    if chain.is_empty() || chain.len() > crate::client_certificate::MAXIMUM_CERTIFICATES {
+        return Err(crate::client_certificate::failure("invalid_chain_count"));
+    }
+    let (chain, key) = certificate_inputs(&env, chain, key)?;
+    AsyncBlockBuilder::new(async move {
+        crate::client_certificate::parse(chain, key, false)
+            .await
+            .map(|inner| NativeClientCertificate { inner })
+    })
+    .build(&env)
 }
 
 /// Replayable body and content-type policy owned entirely by the native core.

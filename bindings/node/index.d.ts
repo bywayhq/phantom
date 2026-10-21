@@ -4,7 +4,7 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
-  /** Core profile-document, prepared-body or session checkpoint category. */
+  /** Core profile-document, client-certificate, prepared-body or session checkpoint category. */
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
@@ -101,6 +101,13 @@ export interface Timeouts {
   readIdleMs?: number | null;
   totalMs?: number | null;
 }
+/** Immutable parsed identity; factories copy bytes before off-thread parsing. No private-key export. */
+export class ClientCertificate {
+  private constructor();
+  private readonly _clientCertificate: void;
+  static fromPem(certificateChain: Uint8Array, privateKey: Uint8Array): Promise<ClientCertificate>;
+  static fromDer(certificateChain: readonly Uint8Array[], privateKey: Uint8Array): Promise<ClientCertificate>;
+}
 export interface ClientOptions {
   profile: string | Profile;
   route: 'direct' | 'proxy';
@@ -115,6 +122,10 @@ export interface ClientOptions {
   readonly serverSpkiPins?: readonly Uint8Array[];
   /** Independent leaf SPKI restrictions for HTTPS proxies, with normal verification. */
   readonly proxyServerSpkiPins?: readonly Uint8Array[];
+  /** Default origin TLS client identity; normal server verification remains required. */
+  readonly clientCertificate?: ClientCertificate;
+  /** Ordered overrides; the last core-canonical matching origin wins. */
+  readonly clientCertificatesFor?: readonly (readonly [string, ClientCertificate])[];
   baseUrl?: string;
   timeouts?: Timeouts;
   redirectPolicy?: RedirectPolicy;

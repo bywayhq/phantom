@@ -619,6 +619,27 @@ test('a live response retains its client across forced garbage collection', asyn
 test('direct native byte inputs reject actual shared or detached backing', async (t) => {
   const native = require('../phantom.node');
   const environment = new native.NativeEnvironment();
+  const invalidKeyBacking = new ArrayBuffer(4), invalidKey = Buffer.from(invalidKeyBacking);
+  structuredClone(invalidKeyBacking, {transfer: [invalidKeyBacking]});
+  for (const input of [Buffer.from(new SharedArrayBuffer(4)), invalidKey]) {
+    assert.throws(() => native.clientCertificatePem(input, Buffer.alloc(1)), /PHANTOM:InvalidArgument:/);
+    assert.throws(() => native.clientCertificatePem(Buffer.alloc(1), input), /PHANTOM:InvalidArgument:/);
+    assert.throws(() => native.clientCertificateDer([input], Buffer.alloc(1)), /PHANTOM:InvalidArgument:/);
+    assert.throws(() => native.clientCertificateDer([Buffer.alloc(1)], input), /PHANTOM:InvalidArgument:/);
+  }
+  for (const chain of [[], Array(257).fill(Buffer.alloc(1))]) {
+    assert.throws(() => native.clientCertificateDer(chain, Buffer.alloc(1)), /PHANTOM_CERTIFICATE:invalid_chain_count:/);
+  }
+  const maximumCertificate = Buffer.alloc(16 * 1024 * 1024);
+  assert.throws(() => native.clientCertificatePem(maximumCertificate, Buffer.alloc(1)), /PHANTOM_CERTIFICATE:too_large:/);
+  assert.throws(() => native.clientCertificateDer([maximumCertificate], Buffer.alloc(1)), /PHANTOM_CERTIFICATE:too_large:/);
+  const identity = await native.clientCertificatePem(
+    await fs.readFile(path.join(__dirname, 'fixtures', 'certificate.pem')),
+    await fs.readFile(path.join(__dirname, 'fixtures', 'key.pem')));
+  assert.throws(() => environment.client({profile, route: 'direct', clientCertificatesFor:
+    Array(257).fill({origin: 'https://example.com', certificate: identity})}), /PHANTOM:InvalidArgument:/);
+  assert.throws(() => environment.client({profile, route: 'direct', clientCertificatesFor:
+    [{origin: 'x'.repeat(65537), certificate: identity}]}), /PHANTOM:InputLimit:/);
   for (const field of ['serverSpkiPins', 'proxyServerSpkiPins']) {
     for (const pins of [[], Array(33).fill(Buffer.alloc(32)), [Buffer.alloc(31)], [Buffer.alloc(33)],
       [Buffer.from(new SharedArrayBuffer(32))]]) {

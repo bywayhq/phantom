@@ -1,6 +1,7 @@
 //! Native Node.js adapter for Phantom.
 
 mod client;
+mod client_certificate;
 mod error;
 mod prepared_body;
 mod profile;
@@ -18,13 +19,14 @@ mod upload;
 mod ffi;
 
 pub use ffi::{
-    ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, DiagnosticConnectionInfo,
-    DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo, DiagnosticTlsState, FileUpload,
-    FormField, MultipartField, NativeAttemptBudget, NativeCancellation, NativeClient,
-    NativeEnvironment, NativeImportedProfile, NativePreparedBody, NativeProfile,
-    NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload,
-    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
-    RetryPolicyOptions, SessionRouteOptions, StatusRetryOptions, TransferLimitsOptions,
-    TransferSnapshotInfo, WireHeader, prepared_form, prepared_multipart, profile_catalog,
-    profile_ids, profile_import_json,
+    ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions, ContentDecodingOptions,
+    DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
+    DiagnosticTlsState, FileUpload, FormField, MultipartField, NativeAttemptBudget,
+    NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
+    NativeImportedProfile, NativePreparedBody, NativeProfile, NativeRequestDiagnostics,
+    NativeResponse, NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
+    RedirectPolicyOptions, RequestOptions, RetryPolicyOptions, SessionRouteOptions,
+    StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo, WireHeader,
+    client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
+    profile_catalog, profile_ids, profile_import_json,
 };

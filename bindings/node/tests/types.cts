@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -287,3 +287,19 @@ async function diagnostics(client: Client): Promise<void> {
   void elapsed;
 }
 void diagnostics;
+
+async function clientIdentities(chain: Uint8Array, key: Uint8Array): Promise<void> {
+  const owner = await ClientCertificate.fromPem(chain, key);
+  const der = await ClientCertificate.fromDer([chain] as const, key);
+  new Client({profile: 'exact', route: 'direct', clientCertificate: owner,
+    clientCertificatesFor: [['https://example.com', der]] as const});
+  // @ts-expect-error Identities cannot be fabricated.
+  new ClientCertificate();
+  // @ts-expect-error PEM input is explicit bytes, never file paths.
+  await ClientCertificate.fromPem('private-key.pem', key);
+  // @ts-expect-error Native identity owner is required.
+  new Client({profile: 'exact', route: 'direct', clientCertificate: {}});
+  // @ts-expect-error Origin mappings are ordered pairs.
+  new Client({profile: 'exact', route: 'direct', clientCertificatesFor: {origin: owner}});
+}
+void clientIdentities;

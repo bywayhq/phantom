@@ -94,6 +94,7 @@ impl ClientState {
         roots: Vec<Vec<u8>>,
         proxy_roots: Vec<Vec<u8>>,
         pins: crate::tls::ServerPins,
+        certificates: crate::client_certificate::Certificates,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
         let maximum = options.maximum_active_requests.unwrap_or(32);
@@ -132,6 +133,12 @@ impl ClientState {
         if let Some(pins) = pins.proxy {
             builder = builder.proxy_server_spki_pins(pins);
         }
+        if let Some(certificate) = certificates.default {
+            builder = builder.client_certificate(certificate);
+        }
+        for (origin, certificate) in certificates.origins {
+            builder = builder.client_certificate_for(&origin, certificate);
+        }
         if let Some(url) = options.base_url {
             builder = builder.base_url(&url).map_err(|_| {
                 failure(
@@ -148,7 +155,7 @@ impl ClientState {
         builder = builder.request_timeouts(timeouts);
         let core = builder
             .build()
-            .map_err(|error| failure(&format!("{:?}", error.kind()), &error.to_string()))?;
+            .map_err(crate::client_certificate::build_error)?;
         let state = Arc::new(Self {
             core,
             profile,

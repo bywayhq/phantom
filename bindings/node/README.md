@@ -268,6 +268,17 @@ routes; profile, trust and default route must match. Cookies, direct Alt-Svc and
 TLS tickets use core persistence rules; this is not serialized configuration.
 CPU work runs off the event loop and is not abortable.
 
+## Client certificates
+
+Use `await ClientCertificate.fromPem(chainBytes, keyBytes)` or
+`fromDer([leafDer, ...chainDer], keyDer)` with an unencrypted key. Parsing runs
+off the event loop after copying at most 16 MiB; DER chains allow 1..256 entries.
+Set `clientCertificate` and/or ordered `clientCertificatesFor: [[origin, owner]]`
+on a client; the last canonical matching origin wins. Server verification still
+applies; proxies never receive the identity. Owners are immutable and reusable
+across clients and forks. Checkpoints require matching receiving identities;
+private keys are neither exported nor serialized.
+
 ## Next
 
 From the repository root, build and run the loopback tests and type checks with
