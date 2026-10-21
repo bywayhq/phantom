@@ -21,6 +21,7 @@ use super::super::{
     SHUTDOWN_GRACE,
     upload::{RequestSend, UploadError},
 };
+use super::ResponseFraming;
 use crate::shutdown_timer;
 
 const BODY_EVENT_CAPACITY: usize = 1;
@@ -49,10 +50,11 @@ impl BodyTask {
         recv: RequestRecvStream,
         connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
-        runtime: Handle,
+        framing: ResponseFraming,
         dispatch: Dispatch,
         span: Span,
     ) -> Self {
+        let runtime = connection.runtime().clone();
         let (demand, demands) = mpsc::channel(BODY_DEMAND_CAPACITY);
         let (events, receiver) = mpsc::channel(BODY_EVENT_CAPACITY);
         let (cancel, cancellation) = watch::channel(());
@@ -65,9 +67,12 @@ impl BodyTask {
                 recv,
                 connection,
                 datagrams,
-                demands,
-                events,
-                cancellation,
+                framing,
+                BodyChannels {
+                    demands,
+                    events,
+                    cancellation,
+                },
             )
             .await;
         }
@@ -138,16 +143,17 @@ impl BodyTask {
     }
 }
 
-pub(super) fn defer_datagram_abort(
+pub(super) fn defer_abort(
     mut send: RequestSend,
     mut recv: RequestRecvStream,
     connection: Http3Connection,
+    code: Code,
 ) {
     let runtime = connection.runtime().clone();
     let dispatch = dispatcher::get_default(Clone::clone);
-    let span = debug_span!("http3.stream_abort", code = "H3_DATAGRAM_ERROR");
+    let span = debug_span!("http3.stream_abort", ?code);
     let task = async move {
-        reset(&mut send, &mut recv, Code::H3_DATAGRAM_ERROR);
+        reset(&mut send, &mut recv, code);
         wait_for_abort_grace().await;
         finish(send, recv, &connection, DriverSignal::ProtocolError);
     }
@@ -162,15 +168,25 @@ enum ReceiveState {
     Trailers,
 }
 
+struct BodyChannels {
+    demands: mpsc::Receiver<()>,
+    events: mpsc::Sender<BodyEvent>,
+    cancellation: watch::Receiver<()>,
+}
+
 async fn run(
     mut send: RequestSend,
     mut recv: RequestRecvStream,
     connection: Http3Connection,
     mut datagrams: Option<DatagramMonitor>,
-    mut demands: mpsc::Receiver<()>,
-    events: mpsc::Sender<BodyEvent>,
-    mut cancellation: watch::Receiver<()>,
+    mut framing: ResponseFraming,
+    channels: BodyChannels,
 ) {
+    let BodyChannels {
+        mut demands,
+        events,
+        mut cancellation,
+    } = channels;
     let mut state = ReceiveState::Data;
 
     loop {
@@ -209,6 +225,10 @@ async fn run(
                 ReceiveState::Data => {
                     match recv_data(&mut recv, &mut send, &mut datagrams, &mut cancellation).await {
                         Receive::Value(Ok(Some(data))) => {
+                            if let Err(error) = framing.data(data.len()) {
+                                fail_framing(send, recv, &connection, &events, error).await;
+                                return;
+                            }
                             if events
                                 .send(BodyEvent::Frame(Frame::data(data)))
                                 .await
@@ -236,6 +256,10 @@ async fn run(
                         // A complete response ends the exchange; dropping `send`
                         // resets any unfinished upload (RFC 9114 section 4.1).
                         Receive::Value(Ok(Some(trailers))) => {
+                            if let Err(error) = framing.finish() {
+                                fail_framing(send, recv, &connection, &events, error).await;
+                                return;
+                            }
                             let ordered = recv.take_ordered_trailers().map(|fields| {
                                 crate::OrderedResponseHeaders::from_normalized_fields(
                                     fields.as_slice(),
@@ -246,6 +270,10 @@ async fn run(
                             return;
                         }
                         Receive::Value(Ok(None)) => {
+                            if let Err(error) = framing.finish() {
+                                fail_framing(send, recv, &connection, &events, error).await;
+                                return;
+                            }
                             let _ = events.send(BodyEvent::End).await;
                             finish(send, recv, &connection, DriverSignal::Complete);
                             return;
@@ -307,6 +335,19 @@ async fn fail_upload(
     send_error(events, error).await;
     wait_for_abort_grace().await;
     finish(send, recv, connection, DriverSignal::Cancelled);
+}
+
+async fn fail_framing(
+    mut send: RequestSend,
+    mut recv: RequestRecvStream,
+    connection: &Http3Connection,
+    events: &mpsc::Sender<BodyEvent>,
+    error: Http3Error,
+) {
+    reset(&mut send, &mut recv, Code::H3_MESSAGE_ERROR);
+    send_error(events, error).await;
+    wait_for_abort_grace().await;
+    finish(send, recv, connection, DriverSignal::ProtocolError);
 }
 
 enum Receive<T> {

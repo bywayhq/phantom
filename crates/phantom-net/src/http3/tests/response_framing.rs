@@ -2,6 +2,13 @@
 
 use http::{Method, Request};
 use http_body_util::BodyExt;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
 
 use super::{
     Http3ErrorKind, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config,
@@ -116,7 +123,11 @@ async fn response_rejects_short_and_overlong_content_length() -> TestResult<()> 
 
 #[tokio::test(flavor = "current_thread")]
 async fn response_rejects_malformed_and_conflicting_content_length() -> TestResult<()> {
-    for lengths in [vec![b"x".as_slice()], vec![b"1".as_slice(), b"2"]] {
+    for lengths in [
+        vec![b"x".as_slice()],
+        vec![b"1".as_slice(), b"2"],
+        vec![b"18446744073709551616".as_slice()],
+    ] {
         exchange(Method::GET, b"200", &lengths, b"", true).await?;
     }
     Ok(())
@@ -125,17 +136,159 @@ async fn response_rejects_malformed_and_conflicting_content_length() -> TestResu
 #[tokio::test(flavor = "current_thread")]
 async fn response_accepts_exact_streaming_and_bodyless_metadata_lengths() -> TestResult<()> {
     exchange(Method::GET, b"200", &[b"1"], b"x", false).await?;
+    exchange(Method::GET, b"200", &[b"1", b"01"], b"x", false).await?;
+    exchange(Method::GET, b"200", &[b"1, 01"], b"x", false).await?;
     exchange(Method::GET, b"200", &[], b"x", false).await?;
     exchange(Method::HEAD, b"200", &[b"123"], b"", false).await?;
     exchange(Method::GET, b"304", &[b"123"], b"", false).await?;
-    exchange(Method::GET, b"204", &[], b"", false).await
+    exchange(Method::GET, b"204", &[], b"", false).await?;
+    exchange(Method::GET, b"205", &[], b"", false).await?;
+    exchange(Method::GET, b"205", &[b"0"], b"", false).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn short_response_with_trailers_does_not_publish_retained_fields() -> TestResult<()> {
+    timeout(TEST_TIMEOUT, async {
+        let identity = TestIdentity::generate()?;
+        let client = client_config(&identity)?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (done, received) = oneshot::channel();
+        let caller = async {
+            let connection =
+                crate::http3::connect_direct(address, TEST_SERVER_NAME, client, &test_settings())
+                    .await?;
+            let mut body = connection
+                .send_request(
+                    Request::get(format!("https://{TEST_SERVER_NAME}:{}/", address.port()))
+                        .body(())?,
+                    None,
+                )
+                .await?
+                .into_body();
+            assert_eq!(
+                body.frame()
+                    .await
+                    .ok_or("missing short DATA")??
+                    .into_data()
+                    .ok(),
+                Some(bytes::Bytes::from_static(b"x"))
+            );
+            let error = body
+                .frame()
+                .await
+                .ok_or("short body ended successfully")?
+                .err()
+                .ok_or("short body published successful trailers")?;
+            assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+            assert!(body.take_received_trailers().is_none());
+            assert!(body.frame().await.is_none());
+            done.send(()).map_err(|()| "peer dropped completion")?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        };
+        let observer = async {
+            let (connection, _send, _receive) = raw_connection(&endpoint).await?;
+            let (mut response, mut request) = connection.accept_bi().await?;
+            assert!(!request.read_to_end(8192).await?.is_empty());
+            response.write_all(&head(b"200", &[b"2"])?).await?;
+            response.write_all(b"\x00\x01x").await?;
+            // Literal trailer a:1, following the underlength DATA section.
+            response.write_all(b"\x01\x06\x00\x00\x21a\x011").await?;
+            response.finish()?;
+            received.await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        };
+        tokio::try_join!(caller, observer)?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await
+    .map_err(|_| "HTTP/3 short-body trailer test timed out")?
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn response_rejects_data_for_bodyless_status_or_method() -> TestResult<()> {
     exchange(Method::HEAD, b"200", &[b"1"], b"x", true).await?;
     exchange(Method::GET, b"304", &[b"1"], b"x", true).await?;
-    exchange(Method::GET, b"204", &[], b"x", true).await
+    exchange(Method::GET, b"204", &[], b"x", true).await?;
+    exchange(Method::GET, b"205", &[], b"x", true).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn response_rejects_forbidden_bodyless_content_length() -> TestResult<()> {
+    exchange(Method::GET, b"204", &[b"0"], b"", true).await?;
+    exchange(Method::GET, b"205", &[b"1"], b"", true).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn malformed_continue_does_not_release_the_waiting_request_body() -> TestResult<()> {
+    timeout(TEST_TIMEOUT, async {
+        let identity = TestIdentity::generate()?;
+        let client = client_config(&identity)?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (done, received) = oneshot::channel();
+        let polls = Arc::new(AtomicUsize::new(0));
+        let observed = polls.clone();
+        let source = http_body_util::Full::new(bytes::Bytes::from_static(b"payload")).map_frame(
+            move |frame| {
+                observed.fetch_add(1, Ordering::SeqCst);
+                frame
+            },
+        );
+        let prepared = crate::http3::request::prepare_profiled_request_body(
+            &phantom_profile::browser::chrome::v154_http3_request(),
+            Method::POST,
+            TEST_SERVER_NAME,
+            crate::request::OriginForm::parse("/upload")?,
+            Vec::new(),
+            Some(
+                crate::request::RequestBody::streaming(source)
+                    .expect_continue(Duration::from_secs(30)),
+            ),
+        )?;
+        let caller = async {
+            let connection =
+                crate::http3::connect_direct(address, TEST_SERVER_NAME, client, &test_settings())
+                    .await?;
+            let error = connection
+                .send_prepared_request(prepared)
+                .await
+                .err()
+                .ok_or("malformed Continue was accepted")?;
+            assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+            assert_eq!(polls.load(Ordering::SeqCst), 0);
+            done.send(()).map_err(|()| "peer dropped completion")?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        };
+        let observer = async {
+            let (connection, _send, _receive) = raw_connection(&endpoint).await?;
+            let (mut response, mut request) = connection.accept_bi().await?;
+            // Read exactly the request HEADERS; the upload must remain gated.
+            let mut byte = [0];
+            request.read_exact(&mut byte).await?;
+            assert_eq!(byte[0], 1);
+            request.read_exact(&mut byte).await?;
+            let width = 1usize << (byte[0] >> 6);
+            let mut length = usize::from(byte[0] & 63);
+            for _ in 1..width {
+                request.read_exact(&mut byte).await?;
+                length = (length << 8) | usize::from(byte[0]);
+            }
+            assert!(length <= 8192);
+            request.read_exact(&mut vec![0; length]).await?;
+            response.write_all(&head(b"100", &[b"0"])?).await?;
+            match request.read_chunk(1, true).await {
+                Err(quinn::ReadError::Reset(code)) => {
+                    assert_eq!(code, quinn::VarInt::from_u32(0x10e));
+                }
+                _ => return Err("malformed Continue released or failed to reset the upload".into()),
+            }
+            received.await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        };
+        tokio::try_join!(caller, observer)?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await
+    .map_err(|_| "HTTP/3 malformed Continue test timed out")?
 }
 
 #[tokio::test(flavor = "current_thread")]

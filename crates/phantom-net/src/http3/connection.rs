@@ -543,6 +543,11 @@ impl Http3Connection {
             let response = match exchange_result {
                 Ok(response) => response,
                 Err(ResponseHeadError::RequestBody(error)) => return Err(error),
+                Err(ResponseHeadError::Framing(error)) => {
+                    let recv = pending.into_recv()?;
+                    body::defer_framing_abort(send, recv, self.clone());
+                    return Err(error);
+                }
                 Err(ResponseHeadError::Stream(error)) => {
                     return Err(Http3Error::request_stream(error));
                 }
@@ -567,6 +572,15 @@ impl Http3Connection {
             };
             span.record("status", response.status().as_u16());
 
+            let framing =
+                match body::ResponseFraming::new(&method, response.status(), response.headers()) {
+                    Ok(framing) => framing,
+                    Err(error) => {
+                        let recv = pending.into_recv()?;
+                        body::defer_framing_abort(send, recv, self.clone());
+                        return Err(error);
+                    }
+                };
             let (mut parts, ()) = response.into_parts();
             let ordered_headers = parts
                 .extensions
@@ -584,7 +598,7 @@ impl Http3Connection {
             let recv = pending.into_recv()?;
             Ok(Response::from_parts(
                 parts,
-                Http3Body::new(send, recv, self.clone(), datagrams),
+                Http3Body::new(send, recv, self.clone(), datagrams, framing),
             ))
         }
         .instrument(span.clone())
@@ -657,6 +671,11 @@ impl Http3Connection {
             let response = match response {
                 Ok(response) => response,
                 Err(ResponseHeadError::Stream(error)) => return Err(Http3Error::stream(error)),
+                Err(ResponseHeadError::Framing(error)) => {
+                    let (send, recv) = pending.into_streams()?;
+                    body::defer_framing_abort(RequestSend::stream(send), recv, self.clone());
+                    return Err(error);
+                }
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
                     let (send, recv) = pending.into_streams()?;
@@ -701,13 +720,30 @@ impl Http3Connection {
                     stream: Http3ExtendedConnectStream::new(send, recv, self.clone(), datagrams),
                 });
             }
+            let framing = match body::ResponseFraming::new(
+                &http::Method::CONNECT,
+                parts.status,
+                &parts.headers,
+            ) {
+                Ok(framing) => framing,
+                Err(error) => {
+                    body::defer_framing_abort(RequestSend::stream(send), recv, self.clone());
+                    return Err(error);
+                }
+            };
             let mut recv = recv;
             if let Err(error) = poll_fn(|context| send.poll_finish(context)).await {
                 recv.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
                 send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
                 return Err(Http3Error::stream(error));
             }
-            let body = Http3Body::new(RequestSend::stream(send), recv, self.clone(), datagrams);
+            let body = Http3Body::new(
+                RequestSend::stream(send),
+                recv,
+                self.clone(),
+                datagrams,
+                framing,
+            );
             Ok(Http3ExtendedConnectOutcome::Rejected(Response::from_parts(
                 parts, body,
             )))
@@ -793,6 +829,11 @@ impl Http3Connection {
         let response = match response {
             Ok(response) => response,
             Err(ResponseHeadError::Stream(error)) => return Err(Http3Error::stream(error)),
+            Err(ResponseHeadError::Framing(error)) => {
+                let (send, recv) = pending.into_streams()?;
+                body::defer_framing_abort(RequestSend::stream(send), recv, self.clone());
+                return Err(error);
+            }
             Err(ResponseHeadError::SwitchingProtocols) => {
                 return Err(Http3Error::without_source(
                     Http3ErrorKind::Protocol,

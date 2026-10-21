@@ -15,6 +15,9 @@ use super::{
     upload::RequestSend,
 };
 
+pub(super) use framing::ResponseFraming;
+
+mod framing;
 mod task;
 
 pub(super) fn defer_datagram_abort(
@@ -22,7 +25,15 @@ pub(super) fn defer_datagram_abort(
     recv: RequestRecvStream,
     connection: Http3Connection,
 ) {
-    task::defer_datagram_abort(send, recv, connection);
+    task::defer_abort(send, recv, connection, h3::error::Code::H3_DATAGRAM_ERROR);
+}
+
+pub(super) fn defer_framing_abort(
+    send: RequestSend,
+    recv: RequestRecvStream,
+    connection: Http3Connection,
+) {
+    task::defer_abort(send, recv, connection, h3::error::Code::H3_MESSAGE_ERROR);
 }
 
 #[must_use = "response bodies must be read or deliberately dropped"]
@@ -40,15 +51,15 @@ impl Http3Body {
         recv: RequestRecvStream,
         connection: Http3Connection,
         datagrams: Option<DatagramMonitor>,
+        framing: ResponseFraming,
     ) -> Self {
         let trace = BodyTrace::new();
-        let runtime = connection.runtime().clone();
         let task = BodyTask::spawn(
             send,
             recv,
             connection,
             datagrams,
-            runtime,
+            framing,
             trace.dispatch.clone(),
             trace.span.clone(),
         );

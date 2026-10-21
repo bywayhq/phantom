@@ -1060,6 +1060,12 @@ async fn receive_response(
             stream.stop_sending(h3::error::Code::H3_MESSAGE_ERROR);
             return Err(ResponseHeadError::SwitchingProtocols);
         }
+        if response.status().is_informational()
+            && let Err(error) =
+                body::ResponseFraming::new(&Method::GET, response.status(), response.headers())
+        {
+            return Err(ResponseHeadError::Framing(error));
+        }
         if !response.status().is_informational() {
             return Ok(response);
         }
@@ -1110,6 +1116,7 @@ async fn receive_response_head(
 
 enum ResponseHeadError {
     RequestBody(Http3Error),
+    Framing(Http3Error),
     Stream(h3::error::StreamError),
     UnsupportedDatagram,
     SwitchingProtocols,
