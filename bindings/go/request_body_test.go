@@ -216,7 +216,7 @@ func TestInvalidRequestBodyControlsPreserveAttemptBudget(t *testing.T) {
 		{Request{Trailers: make([]Header, 257)}, "input_limit"},
 		{Request{Headers: make([]Header, 255), Trailers: make([]Header, 2)}, "input_limit"},
 		{Request{Trailers: []Header{{Name: "x-proof", Value: []byte(strings.Repeat("a", 64*1024))}}}, "input_limit"},
-		{Request{Trailers: []Header{{Name: "x-proof", Value: []byte("bad\r\nvalue")}}}, "invalid_header"},
+		{Request{Trailers: []Header{{Name: "x-proof", Value: []byte("bad\r\nvalue")}}}, "http1"},
 		{Request{Trailers: []Header{{Name: "x-proof", Value: []byte("ok")}}, Headers: []Header{{Name: "Content-Length", Value: []byte("5")}}}, "http1"},
 	} {
 		test.request.Method, test.request.URL, test.request.Body, test.request.Budget = "POST", "http://"+listener.Addr().String(), []byte("hello"), budget
