@@ -81,6 +81,8 @@ func TestNetworkWireRetainsOrderedEmptyOverridesAndOwnsSlices(t *testing.T) {
 
 const networkHost = "network.phantom.invalid"
 
+type networkConnectionKey struct{}
+
 // The peer's only DNS SAN is the logical name, independently of its socket IP.
 func networkTLSPeer(t *testing.T, h2 bool, handler http.Handler) *httptest.Server {
 	t.Helper()
@@ -88,6 +90,10 @@ func networkTLSPeer(t *testing.T, h2 bool, handler http.Handler) *httptest.Serve
 	peer.EnableHTTP2 = h2
 	peer.TLS = networkTLSConfig(t)
 	peer.Config.ErrorLog = log.New(io.Discard, "", 0)
+	var connections atomic.Uint64
+	peer.Config.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
+		return context.WithValue(ctx, networkConnectionKey{}, connections.Add(1))
+	}
 	peer.StartTLS()
 	t.Cleanup(peer.Close)
 	return peer
@@ -143,11 +149,13 @@ func TestNetworkOverridesPreserveVerifiedHostSourceAndFork(t *testing.T) {
 	for _, protocol := range []string{"h1", "h2"} {
 		t.Run(protocol, func(t *testing.T) {
 			type observation struct {
+				Connection        uint64
 				Host, SNI, Remote string
 				Protocol          int
 			}
 			peer := networkTLSPeer(t, protocol == "h2", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if err := json.NewEncoder(w).Encode(observation{r.Host, r.TLS.ServerName, r.RemoteAddr, r.ProtoMajor}); err != nil {
+				connection, _ := r.Context().Value(networkConnectionKey{}).(uint64)
+				if err := json.NewEncoder(w).Encode(observation{connection, r.Host, r.TLS.ServerName, r.RemoteAddr, r.ProtoMajor}); err != nil {
 					t.Error(err)
 				}
 			}))
@@ -184,6 +192,9 @@ func TestNetworkOverridesPreserveVerifiedHostSourceAndFork(t *testing.T) {
 				if err := json.Unmarshal(body, &got); err != nil {
 					t.Fatal(err)
 				}
+				if got.Connection == 0 {
+					t.Fatal("missing peer connection identity")
+				}
 				host, _, err := net.SplitHostPort(got.Remote)
 				major := 1
 				if protocol == "h2" {
@@ -195,7 +206,7 @@ func TestNetworkOverridesPreserveVerifiedHostSourceAndFork(t *testing.T) {
 				return got
 			}
 			first := observe(client)
-			if got := observe(client); got.Remote != first.Remote {
+			if got := observe(client); got.Connection != first.Connection {
 				t.Fatal("connection not reused")
 			}
 			child, err := client.Fork(SessionSharing{})
@@ -206,7 +217,7 @@ func TestNetworkOverridesPreserveVerifiedHostSourceAndFork(t *testing.T) {
 			if err := client.Close(); err != nil {
 				t.Fatal(err)
 			}
-			if got := observe(child); got.Remote == first.Remote {
+			if got := observe(child); got.Connection == first.Connection {
 				t.Fatal("fork reused source pool")
 			}
 			key := [32]byte{7}
