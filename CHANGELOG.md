@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Connect Python, Go and Node.js clients through fixed Unix-domain sockets.
+
 - Configure native connection pool retention, active and waiting requests,
   connection counts and negotiated setup waits in Python, Go and Node.js.
 
