@@ -11,7 +11,7 @@ use std::{
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use napi::Result;
-use phantom::ResponseBody;
+use phantom::{ResponseBody, ResponseTrailers};
 use tokio::sync::{OwnedSemaphorePermit, watch};
 
 use crate::{
@@ -44,6 +44,7 @@ pub(crate) struct Exchange {
     cancelled: watch::Sender<bool>,
     finished: watch::Sender<bool>,
     body: Mutex<Option<Body>>,
+    trailers: Mutex<ResponseTrailers>,
     permit: Mutex<Option<OwnedSemaphorePermit>>,
     deadline: Mutex<Option<Instant>>,
 }
@@ -60,6 +61,7 @@ impl Exchange {
             cancelled: watch::channel(false).0,
             finished: watch::channel(false).0,
             body: Mutex::new(None),
+            trailers: Mutex::new(ResponseTrailers::Pending),
             permit: Mutex::new(None),
             deadline: Mutex::new(None),
         })
@@ -152,17 +154,27 @@ impl Exchange {
 
     pub(crate) fn cancel(&self) {
         self.cancelled.send_replace(true);
-        self.finish(CANCELLED);
+        self.finish(CANCELLED, ResponseTrailers::Unavailable);
     }
 
     pub(crate) fn fail(&self) {
-        self.finish(FAILED);
+        self.finish(FAILED, ResponseTrailers::Unavailable);
     }
 
-    fn finish(&self, outcome: u8) {
-        let _ =
-            self.terminal
-                .compare_exchange(ACTIVE, outcome, Ordering::AcqRel, Ordering::Acquire);
+    pub(crate) fn trailers(&self) -> std::sync::MutexGuard<'_, ResponseTrailers> {
+        self.trailers.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn finish(&self, outcome: u8, trailers: ResponseTrailers) {
+        let mut retained = self.trailers.lock().unwrap_or_else(PoisonError::into_inner);
+        if self
+            .terminal
+            .compare_exchange(ACTIVE, outcome, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+        {
+            *retained = trailers;
+        }
+        drop(retained);
         self.finished.send_replace(true);
         self.body
             .lock()
@@ -267,7 +279,7 @@ impl Exchange {
                 }
                 *retained = Some(body);
             }
-            Ok(None) => self.finish(EOF),
+            Ok(None) => self.finish(EOF, body.stream.into_trailers()),
             Err(_) => self.fail(),
         }
         result
@@ -322,7 +334,7 @@ impl Exchange {
             result = collect => result.and_then(|output| self.check().map(|()| output)),
         };
         match &result {
-            Ok(_) => self.finish(EOF),
+            Ok(_) => self.finish(EOF, body.stream.into_trailers()),
             Err(_) => self.fail(),
         }
         result

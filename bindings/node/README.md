@@ -68,6 +68,10 @@ close it on completion or failure. Content stays encoded unless you pass
 `contentDecoding: {mode: 'advertised', maximumDecodedBytes: 1_000_000n}` and
 an `accept-encoding` header. Decoded-stream and collection limits are separate.
 Headers remain unchanged; `decodedContentCodings` records the selected chain.
+`response.trailers` never reads the body: its state is `pending`, `unavailable`
+after failure or abandonment, or `complete` after validated EOF. Complete
+`headers` retain ordered names and owned byte values, including duplicates;
+an empty list means no trailers. Completion survives later close or parse errors.
 
 Text is strict UTF-8 with one leading BOM removed. JSON returns `unknown` in
 TypeScript; validate its shape. Parsing is synchronous and cannot be interrupted

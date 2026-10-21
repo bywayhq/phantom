@@ -303,3 +303,25 @@ async function clientIdentities(chain: Uint8Array, key: Uint8Array): Promise<voi
   new Client({profile: 'exact', route: 'direct', clientCertificatesFor: {origin: owner}});
 }
 void clientIdentities;
+
+function responseTrailers(response: import('../index.js').Response): void {
+  const trailers: import('../index.js').ResponseTrailers = response.trailers;
+  if (trailers.state === 'complete') {
+    const bytes: Buffer | undefined = trailers.headers[0]?.value;
+    // @ts-expect-error Retained field order is immutable.
+    trailers.headers.push({name: 'x', value: Buffer.alloc(0), sensitive: false});
+    // @ts-expect-error Retained names cannot be reassigned.
+    trailers.headers[0]!.name = 'other';
+    const sensitive: boolean | undefined = trailers.headers[0]?.sensitive;
+    void sensitive;
+    void bytes;
+  } else {
+    const absent: null = trailers.headers;
+    void absent;
+  }
+  // @ts-expect-error Snapshot state is read-only.
+  trailers.state = 'complete';
+  // @ts-expect-error Getter cannot be overwritten.
+  response.trailers = {state: 'pending', headers: null};
+}
+void responseTrailers;

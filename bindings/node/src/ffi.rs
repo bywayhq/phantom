@@ -1616,6 +1616,16 @@ impl NativeClient {
     }
 }
 
+/// Non-draining retained response trailers; fields exist only after validated EOF.
+#[napi(object)]
+#[derive(Debug)]
+pub struct ResponseTrailersInfo {
+    /// Pending, unavailable, or complete after validated body EOF.
+    pub state: String,
+    /// Ordered owned fields only for complete, including an empty list.
+    pub headers: Option<Vec<WireHeader>>,
+}
+
 /// Response head and one pull-driven native body.
 #[napi]
 pub struct NativeResponse {
@@ -1696,6 +1706,37 @@ impl NativeResponse {
                 sensitive: None,
             })
             .collect()
+    }
+    /// Copies the retained snapshot without reading the response body.
+    #[napi(getter)]
+    pub fn trailers(&self) -> Result<ResponseTrailersInfo> {
+        let (state, headers) = match &*self.exchange.trailers() {
+            phantom::ResponseTrailers::Pending => ("pending", None),
+            phantom::ResponseTrailers::Unavailable => ("unavailable", None),
+            phantom::ResponseTrailers::Complete(fields) => (
+                "complete",
+                Some(
+                    fields
+                        .iter()
+                        .map(|field| WireHeader {
+                            name: field.name().to_owned(),
+                            value: field.value().to_vec().into(),
+                            sensitive: Some(field.is_sensitive()),
+                        })
+                        .collect(),
+                ),
+            ),
+            _ => {
+                return Err(failure(
+                    "UnsupportedResponseTrailers",
+                    "unsupported response trailer state",
+                ));
+            }
+        };
+        Ok(ResponseTrailersInfo {
+            state: state.to_owned(),
+            headers,
+        })
     }
     /// Reads at most the requested bytes without polling ahead.
     #[napi]

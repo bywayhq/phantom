@@ -25,8 +25,8 @@ pub use ffi::{
     NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
     NativeImportedProfile, NativePreparedBody, NativeProfile, NativeRequestDiagnostics,
     NativeResponse, NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
-    RedirectPolicyOptions, RequestOptions, RetryPolicyOptions, SessionRouteOptions,
-    StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo, WireHeader,
-    client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
+    RedirectPolicyOptions, RequestOptions, ResponseTrailersInfo, RetryPolicyOptions,
+    SessionRouteOptions, StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo,
+    WireHeader, client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
     profile_catalog, profile_ids, profile_import_json,
 };

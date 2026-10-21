@@ -204,6 +204,14 @@ export interface RequestOptions {
   retryPolicy?: RetryPolicy;
   redirectHistoryLimit?: number | bigint;
 }
+export interface ResponseTrailer {
+  readonly name: string;
+  readonly value: Buffer;
+  /** Retained compression marker. False does not establish absence where the decoder does not retain it. */
+  readonly sensitive: boolean;
+}
+export type ResponseTrailers = Readonly<{state: 'pending' | 'unavailable'; headers: null}>
+  | Readonly<{state: 'complete'; headers: readonly ResponseTrailer[]}>;
 export class Response implements AsyncIterable<Buffer> {
   private constructor();
   readonly status: number;
@@ -216,6 +224,8 @@ export class Response implements AsyncIterable<Buffer> {
   readonly decodedContentCodings: readonly ContentCoding[];
   readonly redirectHistory: RedirectHistory | null;
   readonly headers: Header[];
+  /** Non-draining snapshot. Complete requires validated body EOF; Buffers are owned copies. */
+  readonly trailers: ResponseTrailers;
   /** Reads up to 1–65,536 bytes (default 65,536); returns null at EOF. */
   read(maximumBytes?: number): Promise<Buffer | null>;
   /** Collects the remaining body; exceeding the limit closes it and fails. */

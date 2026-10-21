@@ -764,6 +764,20 @@ class Response {
     });
     this.headers = response.headers.map(({ name, value }) => ({ name, value }));
   }
+  get trailers() {
+    try {
+      const snapshot = this.#native.trailers;
+      switch (snapshot.state) {
+        case 'pending': case 'unavailable':
+          return Object.freeze({state: snapshot.state, headers: null});
+        case 'complete':
+          return Object.freeze({state: 'complete', headers: Object.freeze(snapshot.headers.map(
+            ({name, value, sensitive}) => Object.freeze({name, value, sensitive}),
+          ))});
+        default: throw new PhantomError('UnsupportedResponseTrailers', 'unsupported response trailer state');
+      }
+    } catch (error) { throw translated(error); }
+  }
   #finished() {
     this.#cleanup?.();
     this.#cleanup = undefined;
