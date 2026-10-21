@@ -155,3 +155,17 @@ def invalid_prepared(client: Client) -> None:
     body.length = 1  # E: misc
     MultipartPart("name", "value").name = "changed"  # E: misc
     client.request("POST", "/", body=body)
+
+
+def invalid_diagnostics(client: Client) -> None:
+    from phantom_http import RequestDiagnostics
+
+    RequestDiagnostics(1.5)  # E: arg-type
+    client.request("GET", "/", diagnostics={})  # E: arg-type
+    observer = RequestDiagnostics()
+    observer.maximum_events = 1  # E: misc
+    snapshot = observer.snapshot()
+    if snapshot is not None:
+        snapshot.admitted_attempts = 0  # E: misc
+        snapshot.events[0].started_ns = 0  # E: misc
+        snapshot.events.append(snapshot.events[0])  # E: attr-defined

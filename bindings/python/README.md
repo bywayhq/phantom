@@ -236,6 +236,13 @@ ClientHello input includes its four-byte handshake header, without TLS records;
 QUIC input is extension 57's payload. Missing settings come from the explicit
 base. Successful import does not establish an exact browser match.
 
+Pass a fresh `RequestDiagnostics(maximum_events=128)` as `diagnostics=` to
+observe one request. `snapshot()` returns `None` before attachment, then frozen
+records with exact nanosecond timings and available endpoint/TLS/certificate
+facts. Missing values are unobserved; overlapping intervals must not be summed.
+Response-head completion is separate from body completion. The single-use
+observer survives failure or cancellation; capacity omissions are counted.
+
 ## Synchronous calls and errors
 
 `Client` uses one reusable Python event loop. Call it from its creating thread,

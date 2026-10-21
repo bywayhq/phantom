@@ -288,3 +288,23 @@ async def prepared_body_usage(client: AsyncClient, sync: Client) -> None:
     except PreparedBodyError as error:
         kind: str = error.kind
         print(kind, length, payload)
+
+
+async def diagnostics_usage(client: AsyncClient, sync: Client) -> None:
+    from phantom_http import RequestDiagnostics, RequestTimeline
+
+    diagnostics = RequestDiagnostics(maximum_events=128)
+    timeline: RequestTimeline | None = diagnostics.snapshot()
+    response = await client.request("GET", "/", diagnostics=diagnostics)
+    await response.aclose()
+    if timeline is not None:
+        elapsed: int | None = timeline.send_elapsed_ns
+        for event in timeline.events:
+            started: int = event.started_ns
+            if event.connection is not None:
+                info = event.connection.origin_tls.info
+                if info is not None:
+                    certificates: tuple[bytes, ...] | None = info.peer_certificates_der
+                    print(certificates, elapsed, started)
+    with sync.request("GET", "/", diagnostics=RequestDiagnostics(1)):
+        pass

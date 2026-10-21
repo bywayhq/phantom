@@ -19,7 +19,15 @@ from collections.abc import (
 from dataclasses import dataclass
 from dataclasses import field as _field
 from os import PathLike
-from typing import TYPE_CHECKING, Literal, ParamSpec, TypeAlias, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    ParamSpec,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+    cast,
+)
 
 from . import _native, _upload
 from ._configuration import INHERIT as INHERIT
@@ -35,6 +43,12 @@ from ._configuration import TimeoutOverrides as TimeoutOverrides
 from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
 from ._configuration import _redirect_count
+from ._diagnostics import RequestConnection as RequestConnection
+from ._diagnostics import RequestDiagnostics as RequestDiagnostics
+from ._diagnostics import RequestTimeline as RequestTimeline
+from ._diagnostics import RequestTiming as RequestTiming
+from ._diagnostics import TlsConnectionInfo as TlsConnectionInfo
+from ._diagnostics import TlsConnectionState as TlsConnectionState
 from ._native import NativeProfile as _NativeProfile
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
@@ -51,6 +65,10 @@ _UploadPath: TypeAlias = str | PathLike[str]
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
 _NO_SHARED_STATE = SessionSharing()
+
+
+class _DiagnosticsFields(TypedDict, total=False):
+    diagnostics: _native.NativeRequestDiagnostics
 
 
 class Error(Exception):
@@ -842,6 +860,7 @@ class AsyncClient:
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
         transfer_control: TransferControl | None = None,
+        diagnostics: RequestDiagnostics | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body.
 
@@ -862,6 +881,8 @@ class AsyncClient:
             transfer_control, TransferControl
         ):
             raise TypeError("transfer_control must be TransferControl")
+        if diagnostics is not None and not isinstance(diagnostics, RequestDiagnostics):
+            raise TypeError("diagnostics must be RequestDiagnostics")
         if redirect_policy is not None and not isinstance(
             redirect_policy, RedirectPolicy
         ):
@@ -899,6 +920,9 @@ class AsyncClient:
         if pump is not None:
             self._uploads.add(pump)
             pump.settled.add_done_callback(lambda _: self._uploads.discard(pump))
+        diagnostic_fields: _DiagnosticsFields = {}
+        if diagnostics is not None:
+            diagnostic_fields["diagnostics"] = diagnostics._native
         try:
             arguments = (
                 method,
@@ -919,6 +943,7 @@ class AsyncClient:
             if prepared is not None:
                 operation = self._native.request(
                     *arguments,
+                    **diagnostic_fields,
                     prepared_body=prepared._native,
                     body_length=body_length,
                     transfer_control=None
@@ -930,6 +955,7 @@ class AsyncClient:
             elif ordered_trailers or expect_continue_ms is not None:
                 operation = self._native.request(
                     *arguments,
+                    **diagnostic_fields,
                     producer=None if pump is None else pump.native,
                     transfer_control=None
                     if transfer_control is None
@@ -940,14 +966,17 @@ class AsyncClient:
             elif transfer_control is not None:
                 operation = self._native.request(
                     *arguments,
+                    **diagnostic_fields,
                     producer=None if pump is None else pump.native,
                     transfer_control=transfer_control._native,
                 )
             else:
                 operation = (
-                    self._native.request(*arguments)
+                    self._native.request(*arguments, **diagnostic_fields)
                     if pump is None
-                    else self._native.request(*arguments, producer=pump.native)
+                    else self._native.request(
+                        *arguments, producer=pump.native, **diagnostic_fields
+                    )
                 )
             native = await operation
             return AsyncResponse(native, pump)
@@ -1246,6 +1275,7 @@ class Client:
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
         transfer_control: TransferControl | None = None,
+        diagnostics: RequestDiagnostics | None = None,
     ) -> Response:
         if body is not None and not isinstance(body, (bytes, PreparedBody, Iterable)):
             raise TypeError(
@@ -1276,6 +1306,7 @@ class Client:
                     redirect_history_limit=redirect_history_limit,
                     retry_policy=retry_policy,
                     transfer_control=transfer_control,
+                    diagnostics=diagnostics,
                 )
             ),
         )

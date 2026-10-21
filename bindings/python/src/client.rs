@@ -1,5 +1,7 @@
 use crate::{
-    configuration, error,
+    configuration,
+    diagnostics::NativeRequestDiagnostics,
+    error,
     prepared_body::NativePreparedBody,
     profile, request_fields,
     response::NativeResponse,
@@ -226,7 +228,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -249,6 +251,7 @@ impl NativeClient {
         expect_continue_ms: Option<Bound<'_, PyAny>>,
         prepared_body: Option<PyRef<'_, NativePreparedBody>>,
         body_length: Option<Bound<'_, PyAny>>,
+        diagnostics: Option<PyRef<'_, NativeRequestDiagnostics>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
@@ -341,6 +344,9 @@ impl NativeClient {
         let producer = producer.map(|value| Arc::clone(&value.inner));
         if let Some(owner) = &producer {
             request = request.streaming_body(owner.body()?);
+        }
+        if let Some(diagnostics) = diagnostics {
+            diagnostics.attach(&mut request)?;
         }
         let protocol = self.protocol.clone();
         let preparation = Arc::clone(&self.preparation);

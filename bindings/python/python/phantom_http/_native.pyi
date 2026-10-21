@@ -1,10 +1,67 @@
 from collections.abc import Awaitable
 from os import PathLike
+from typing import Literal, TypeAlias
 
 from ._configuration import _RetryFields
 
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
+
+_DiagnosticOutcome: TypeAlias = Literal[
+    "not_started", "pending", "response_head", "failed", "cancelled"
+]
+_DiagnosticProtocol: TypeAlias = Literal["h0.9", "h1.0", "h1", "h2", "h3"]
+_DiagnosticPhase: TypeAlias = Literal[
+    "attempt_admission",
+    "pool_admission",
+    "connection_acquisition",
+    "connection_use",
+    "resolution_wait",
+    "tcp_connect",
+    "tls_handshake",
+    "quic_handshake",
+    "send_response_head",
+    "response_body",
+]
+_DiagnosticEventOutcome: TypeAlias = Literal[
+    "pending", "completed", "failed", "interrupted", "abandoned", "cached", "early_data"
+]
+_DiagnosticEndpointScope: TypeAlias = Literal[
+    "unavailable", "tcp_socket", "quic_endpoint"
+]
+_DiagnosticTlsState: TypeAlias = Literal[
+    "not_used", "unavailable", "pending", "established"
+]
+_DiagnosticTlsInfo: TypeAlias = tuple[
+    bool, int | None, int | None, bytes | None, bool, list[bytes] | None
+]
+_DiagnosticTls: TypeAlias = tuple[_DiagnosticTlsState, _DiagnosticTlsInfo | None]
+_DiagnosticConnection: TypeAlias = tuple[
+    bool,
+    _DiagnosticEndpointScope,
+    str | None,
+    str | None,
+    _DiagnosticTls,
+    _DiagnosticTls,
+]
+_DiagnosticEvent: TypeAlias = tuple[
+    int,
+    int,
+    int | None,
+    _DiagnosticProtocol | None,
+    _DiagnosticPhase,
+    int,
+    int | None,
+    _DiagnosticEventOutcome,
+    _DiagnosticConnection | None,
+]
+_DiagnosticTimeline: TypeAlias = tuple[
+    _DiagnosticOutcome, int | None, list[_DiagnosticEvent], int, int
+]
+
+class NativeRequestDiagnostics:
+    def __init__(self, maximum_events: int) -> None: ...
+    def snapshot(self) -> _DiagnosticTimeline | None: ...
 
 class NativePreparedBody:
     @staticmethod
@@ -169,6 +226,7 @@ class NativeClient:
         expect_continue_ms: int | None = None,
         prepared_body: NativePreparedBody | None = None,
         body_length: int | None = None,
+        diagnostics: NativeRequestDiagnostics | None = None,
     ) -> Awaitable[NativeResponse]: ...
     def close_idle_connections(self) -> Awaitable[None]: ...
     def refresh_connections(self) -> Awaitable[None]: ...
