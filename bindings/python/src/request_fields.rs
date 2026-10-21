@@ -62,7 +62,7 @@ pub(super) fn headers<'py>(
                     name.to_str()
                         .map_err(|_| error::input("invalid_request_field"))?
                         .to_owned(),
-                    value.as_bytes().to_vec(),
+                    value.as_bytes(),
                 );
                 Ok(if sensitive.is_true() {
                     header.sensitive()
