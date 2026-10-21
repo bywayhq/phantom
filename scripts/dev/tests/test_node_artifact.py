@@ -209,7 +209,10 @@ class NodeArtifactTests(unittest.TestCase):
             self.assertNotIn("require('..')", test)
             self.assertIn("require('@byway/phantom')", test)
         for name in ("types.cts", "types.mts"):
-            self.assertIn("from '@byway/phantom'", (destination / name).read_text())
+            copied = (destination / name).read_text()
+            self.assertIn("from '@byway/phantom'", copied)
+            self.assertNotIn("../index.cjs", copied)
+            self.assertNotIn("../index.mjs", copied)
         loader = (destination / "native-loader.test.cjs").read_text()
         self.assertIn("require.resolve('@byway/phantom')", loader)
         self.assertNotIn("path.join(__dirname, '../index.cjs')", loader)

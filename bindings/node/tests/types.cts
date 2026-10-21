@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ProfileValue, type RequestTimeline } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -27,7 +27,7 @@ async function use(): Promise<void> {
 void use;
 function pinnedClients(): void {
   const pins: readonly Uint8Array[] = [Buffer.alloc(32)];
-  const options: import('../index.cjs').ClientOptions = {profile: 'exact', route: 'direct', serverSpkiPins: pins, proxyServerSpkiPins: pins};
+  const options: ClientOptions = {profile: 'exact', route: 'direct', serverSpkiPins: pins, proxyServerSpkiPins: pins};
   new Client(options);
   // @ts-expect-error Pin configuration is readonly.
   options.serverSpkiPins = [];
