@@ -1,4 +1,4 @@
-use crate::{error, upload::Producer};
+use crate::{error, upload::UploadOwner};
 use http_body_util::BodyExt;
 use phantom::{Bytes, ResponseBody, ResponseTrailers};
 use pyo3::{exceptions::PyMemoryError, prelude::*, types::PyBytes};
@@ -22,7 +22,7 @@ struct BodyOwner {
     busy: AtomicBool,
     state: AtomicU8,
     changed: Notify,
-    upload: Mutex<Option<Arc<Producer>>>,
+    upload: Mutex<Option<UploadOwner>>,
     watchdog: Mutex<Option<tokio::task::AbortHandle>>,
     protocol: String,
 }
@@ -286,7 +286,7 @@ impl NativeResponse {
     }
     pub(super) fn watch_upload(
         &self,
-        upload: Option<Arc<Producer>>,
+        upload: Option<UploadOwner>,
         deadline: Option<tokio::time::Instant>,
     ) -> PyResult<()> {
         *self

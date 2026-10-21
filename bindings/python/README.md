@@ -111,6 +111,19 @@ Declare a Content-Type template slot or supply `("Content-Type",
 prepared.content_type)` in your chosen header position. `prepared.length` is the
 encoded size; `to_bytes()` makes an explicit copy. No files or producers are read.
 
+For a one-shot upload, mix these fields with `MultipartPart.stream(name, iterator)`
+or `MultipartPart.file(name, path)`. Files open on demand; sources are read in order.
+
+```python
+from phantom_http import MultipartPart, StreamingMultipartBody
+
+parts = [MultipartPart("tag", "one"), MultipartPart.file("file", "data.bin")]
+body = StreamingMultipartBody(parts, boundary="explicit", maximum_bytes=1_000_000)
+```
+
+Pass it as `body=body` with the same Content-Type placement. The first request
+takes ownership of the sources. The encoded cap includes framing.
+
 Use `await response.aclose()` to wait for cooperative producer cleanup.
 Noncooperative cleanup can time out and remains owned for a later close.
 `Error.original` and `.cleanup_error` expose upload failures explicitly;

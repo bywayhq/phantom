@@ -1,6 +1,6 @@
 """Type-check this consumer against the installed package, outside the checkout."""
 
-from collections.abc import AsyncGenerator, Awaitable, Generator
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Generator
 from pathlib import Path
 from typing import cast
 
@@ -343,3 +343,29 @@ def received_trailers(sync: Response, asynchronous: AsyncResponse) -> None:
                 value: bytes = field.value
                 marker: bool = field.sensitive
                 print(name, value, marker)
+
+
+async def streaming_multipart_usage(client: AsyncClient, sync: Client) -> None:
+    from phantom_http import MultipartPart, StreamingMultipartBody
+
+    async def source() -> AsyncIterator[bytes]:
+        yield b"contents"
+
+    body = StreamingMultipartBody(
+        [MultipartPart("tag", "one"), MultipartPart.stream("file", source())],
+        boundary="explicit",
+        maximum_bytes=4096,
+    )
+    response = await client.request(
+        "POST", "/", body=body, headers=[("Content-Type", body.content_type)]
+    )
+    await response.aclose()
+    file_body = StreamingMultipartBody(
+        [MultipartPart.file("upload", Path("data.bin"), filename="data.bin")],
+        boundary="explicit",
+        maximum_bytes=4096,
+    )
+    with sync.request(
+        "POST", "/", body=file_body, headers=[("Content-Type", file_body.content_type)]
+    ) as reply:
+        reply.read(max_bytes=0)

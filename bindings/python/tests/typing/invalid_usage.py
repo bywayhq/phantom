@@ -202,3 +202,17 @@ def invalid_received_trailers(response: Response) -> None:
     if fields is not None:
         fields[0].sensitive = False  # E: misc
         fields.append(ResponseTrailer("x", b"value", False))  # E: attr-defined
+
+
+def invalid_streaming_multipart(client: Client) -> None:
+    from phantom_http import MultipartPart, StreamingMultipartBody
+
+    MultipartPart.stream("name", [b"value"])  # E: arg-type
+    MultipartPart.file("name", b"path")  # E: arg-type
+    StreamingMultipartBody([], boundary=b"B", maximum_bytes=99)  # E: arg-type
+    StreamingMultipartBody([], boundary="B", maximum_bytes=1.5)  # E: arg-type
+    part = MultipartPart.file("name", "path")
+    part.filename = "changed"  # E: misc
+    body = StreamingMultipartBody([part], boundary="B", maximum_bytes=99)
+    body.content_type = "changed"  # E: misc
+    client.request("POST", "/", body=[part])  # E: list-item

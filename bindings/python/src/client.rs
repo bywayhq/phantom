@@ -7,8 +7,9 @@ use crate::{
     profile, request_fields,
     response::NativeResponse,
     runtime, session,
+    streaming_multipart::NativeStreamingMultipart,
     transfer::NativeTransferControl,
-    upload::{FileBody, NativeUpload},
+    upload::{FileBody, NativeUpload, UploadOwner},
 };
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, SessionSharing};
 use pyo3::{
@@ -248,7 +249,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -272,12 +273,14 @@ impl NativeClient {
         prepared_body: Option<PyRef<'_, NativePreparedBody>>,
         body_length: Option<Bound<'_, PyAny>>,
         diagnostics: Option<PyRef<'_, NativeRequestDiagnostics>>,
+        multipart: Option<PyRef<'_, NativeStreamingMultipart>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
             + usize::from(upload.is_some())
             + usize::from(producer.is_some())
             + usize::from(prepared_body.is_some())
+            + usize::from(multipart.is_some())
             > 1
         {
             return Err(error::input("body_and_upload"));
@@ -327,7 +330,7 @@ impl NativeClient {
         if total.is_some_and(|duration| duration.is_zero()) {
             return Err(error::total_timeout(Some(&self.protocol)));
         }
-        let bounded_upload = upload.is_some() || producer.is_some();
+        let bounded_upload = upload.is_some() || producer.is_some() || multipart.is_some();
         let deadline = if bounded_upload {
             total
                 .map(|duration| {
@@ -365,6 +368,13 @@ impl NativeClient {
         if let Some(owner) = &producer {
             request = request.streaming_body(owner.body()?);
         }
+        let is_multipart = multipart.is_some();
+        let upload_owner = if let Some(multipart) = multipart {
+            request = request.multipart_body(multipart.inner.take_body()?);
+            Some(UploadOwner::Multipart(Arc::clone(&multipart.inner)))
+        } else {
+            producer.map(UploadOwner::Single)
+        };
         if let Some(diagnostics) = diagnostics {
             diagnostics.attach(&mut request)?;
         }
@@ -381,9 +391,15 @@ impl NativeClient {
                         deadline.saturating_duration_since(tokio::time::Instant::now()),
                     )));
                 }
-                let response = request.send().await.map_err(error::request)?;
+                let response = request.send().await.map_err(|error| {
+                    if is_multipart {
+                        crate::streaming_multipart::request_error(error)
+                    } else {
+                        error::request(error)
+                    }
+                })?;
                 let response = NativeResponse::new(response)?;
-                response.watch_upload(producer, deadline)?;
+                response.watch_upload(upload_owner, deadline)?;
                 Ok(response)
             };
             let sending = async {

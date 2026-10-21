@@ -13,6 +13,7 @@ mod request_fields;
 mod response;
 mod runtime;
 mod session;
+mod streaming_multipart;
 mod transfer;
 mod upload;
 
@@ -26,6 +27,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
     module.add_class::<upload::NativeUpload>()?;
+    module.add_class::<streaming_multipart::NativeStreamingMultipart>()?;
     module.add_class::<profile::NativeProfile>()?;
     module.add_class::<prepared_body::NativePreparedBody>()?;
     module.add(

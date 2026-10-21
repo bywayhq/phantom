@@ -50,6 +50,8 @@ class SyncSource:
 
 
 class Upload:
+    native: _native.NativeUpload | _native.NativeStreamingMultipart
+
     def __init__(self, source: AsyncIterable[bytes], length: int | None) -> None:
         self.native = _native.NativeUpload(length)
         self.source = source
@@ -99,41 +101,53 @@ class Upload:
             if not _closed(error):
                 raise
 
-    async def _pump(self) -> None:
-        try:
-            current = b""
-            offset = 0
-            while await self.native.credit():
-                if offset == len(current):
-                    if self.iterator is None:
-                        self.iterator = aiter(self.source)
+    async def _send(
+        self,
+        source: AsyncIterable[bytes],
+        before_finish: Callable[[], Awaitable[None]] | None = None,
+    ) -> bool:
+        current = b""
+        offset = 0
+        while await self.native.credit():
+            if offset == len(current):
+                if self.iterator is None:
+                    self.iterator = aiter(source)
+                try:
+                    current = await anext(self.iterator)
+                except StopAsyncIteration:
+                    if before_finish is not None:
+                        await before_finish()
+                    self._finish()
+                    return True
+                if not isinstance(current, bytes):
+                    raise TypeError("upload chunks must be bytes")
+                offset = 0
+                # Empty chunks retain the same credit; yield for cooperative
+                # cancellation without requesting another native frame.
+                while not current:
+                    await asyncio.sleep(0)
                     try:
                         current = await anext(self.iterator)
                     except StopAsyncIteration:
+                        if before_finish is not None:
+                            await before_finish()
                         self._finish()
-                        return
+                        return True
                     if not isinstance(current, bytes):
                         raise TypeError("upload chunks must be bytes")
-                    offset = 0
-                    # Empty chunks retain the same credit; yield for cooperative
-                    # cancellation without requesting another native frame.
-                    while not current:
-                        await asyncio.sleep(0)
-                        try:
-                            current = await anext(self.iterator)
-                        except StopAsyncIteration:
-                            self._finish()
-                            return
-                        if not isinstance(current, bytes):
-                            raise TypeError("upload chunks must be bytes")
-                length = min(CHUNK_SIZE, len(current) - offset)
-                try:
-                    self.native.write(current, offset, length)
-                except _native.NativeError as error:
-                    if _closed(error):
-                        return
-                    raise
-                offset += length
+            length = min(CHUNK_SIZE, len(current) - offset)
+            try:
+                self.native.write(current, offset, length)
+            except _native.NativeError as error:
+                if _closed(error):
+                    return False
+                raise
+            offset += length
+        return False
+
+    async def _pump(self) -> None:
+        try:
+            await self._send(self.source)
         except asyncio.CancelledError as error:
             if not self.closing:
                 self.error = error

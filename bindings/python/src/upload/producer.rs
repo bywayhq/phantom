@@ -30,7 +30,7 @@ pub(crate) struct Producer {
     length: Option<u64>,
 }
 impl Producer {
-    fn new(length: Option<u64>) -> Arc<Self> {
+    pub(crate) fn new(length: Option<u64>) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(State {
                 payload: None,
@@ -69,7 +69,7 @@ impl Producer {
         }
         self.changed.notify_waiters();
     }
-    async fn wait(&self, terminal: bool) -> PyResult<bool> {
+    pub(crate) async fn wait(&self, terminal: bool) -> PyResult<bool> {
         loop {
             let changed = self.changed.notified();
             tokio::pin!(changed);
@@ -135,7 +135,12 @@ impl NativeUpload {
             async move { owner.wait(true).await.map(|_| ()) },
         )
     }
-    fn write(&self, bytes: &Bound<'_, PyBytes>, offset: usize, length: usize) -> PyResult<()> {
+    pub(crate) fn write(
+        &self,
+        bytes: &Bound<'_, PyBytes>,
+        offset: usize,
+        length: usize,
+    ) -> PyResult<()> {
         if length == 0 || length > CHUNK {
             return Err(error::input("upload_chunk_size"));
         }
@@ -151,10 +156,10 @@ impl NativeUpload {
         self.inner
             .submit(Payload::Data(Bytes::copy_from_slice(bytes)))
     }
-    fn finish(&self) -> PyResult<()> {
+    pub(crate) fn finish(&self) -> PyResult<()> {
         self.inner.submit(Payload::End)
     }
-    fn fail(&self) -> PyResult<()> {
+    pub(crate) fn fail(&self) -> PyResult<()> {
         let mut state = self
             .inner
             .state

@@ -8,7 +8,22 @@ use std::{
 use tokio::io::{AsyncRead, ReadBuf};
 
 mod producer;
-pub(super) use producer::{NativeUpload, Producer};
+pub(super) use producer::{NativeUpload, Producer, ProducerBody};
+
+#[derive(Clone)]
+pub(super) enum UploadOwner {
+    Single(std::sync::Arc<Producer>),
+    Multipart(std::sync::Arc<crate::streaming_multipart::Multipart>),
+}
+
+impl UploadOwner {
+    pub(super) fn close(&self) {
+        match self {
+            Self::Single(owner) => owner.close(),
+            Self::Multipart(owner) => owner.close(),
+        }
+    }
+}
 
 pub(super) struct FileBody {
     file: tokio::fs::File,
