@@ -51,6 +51,7 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	var accepted atomic.Int64
 	reset := make(chan uint32, 1)
 	peerDone := make(chan error, 1)
+	bodyConsumed := make(chan struct{})
 	go func() {
 		connection, err := listener.Accept()
 		if err != nil {
@@ -78,6 +79,16 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 			_, err := connection.Write(data)
 			return err
 		}
+		finishResponse := func(stream uint32) error {
+			if err := writeFrame(0, 0, stream, []byte("hello")); err != nil {
+				return err
+			}
+			// Literal HPACK fields without indexing, including interleaved duplicates.
+			trailers := []byte{0, 5, 'x', '-', 'e', 'n', 'd', 3, 'o', 'n', 'e',
+				0, 5, 'x', '-', 'm', 'i', 'd', 1, 255,
+				0, 5, 'x', '-', 'e', 'n', 'd', 3, 't', 'w', 'o'}
+			return writeFrame(1, 5, stream, trailers)
+		}
 		if err = writeFrame(4, 0, 0, nil); err != nil {
 			peerDone <- err
 			return
@@ -88,6 +99,14 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 		for {
 			header := make([]byte, 9)
 			if _, err = io.ReadFull(connection, header); err != nil {
+				if err == io.EOF && count == 3 {
+					select {
+					case <-bodyConsumed:
+						peerDone <- nil
+						return
+					default:
+					}
+				}
 				peerDone <- err
 				return
 			}
@@ -126,19 +145,16 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 				} else if count == 2 && !cancelled {
 					waiting = stream
 				} else if err == nil {
-					err = writeFrame(0, 1, stream, []byte("hello"))
+					err = finishResponse(stream)
 				}
-				if count == 3 && err == nil {
-					peerDone <- nil
-					<-time.After(100 * time.Millisecond)
-					return
-				}
+				// Keep draining control frames until the caller has consumed the
+				// third body's EOF/trailers and closed the client.
 			case 3:
 				if stream == held && len(data) == 4 {
 					reset <- binary.BigEndian.Uint32(data)
 					cancelled = true
 					if waiting != 0 {
-						err = writeFrame(0, 1, waiting, []byte("hello"))
+						err = finishResponse(waiting)
 					}
 				}
 			}
@@ -249,12 +265,19 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	if data, err := second.Body.ReadAll(5); err != nil || string(data) != "hello" {
 		t.Fatalf("independent body %q: %v", data, err)
 	}
+	responseTrailers(t, first, TrailersUnavailable)
+	checkHTTP2ResponseTrailers(t, second)
 	third, err := client.Do(context.Background(), Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/reuse"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if data, err := third.Body.ReadAll(5); err != nil || string(data) != "hello" {
 		t.Fatalf("reused body %q: %v", data, err)
+	}
+	checkHTTP2ResponseTrailers(t, third)
+	close(bodyConsumed)
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
 	}
 	if err := <-peerDone; err != nil {
 		t.Fatal(err)
@@ -277,6 +300,16 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	}
 	if !found {
 		t.Fatal("H2 connection use was not observed")
+	}
+}
+
+func checkHTTP2ResponseTrailers(t *testing.T, response *Response) {
+	t.Helper()
+	headers := responseTrailers(t, response, TrailersComplete)
+	if len(headers) != 3 || headers[0].Name != "x-end" || string(headers[0].Value) != "one" ||
+		headers[1].Name != "x-mid" || len(headers[1].Value) != 1 || headers[1].Value[0] != 255 ||
+		headers[2].Name != "x-end" || string(headers[2].Value) != "two" {
+		t.Fatalf("HTTP/2 trailer order/bytes: %+v", headers)
 	}
 }
 

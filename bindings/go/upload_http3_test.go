@@ -169,6 +169,9 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 		if err != nil || string(data) != expected || response.Protocol != "h3" {
 			t.Fatalf("body %q: %v", data, err)
 		}
+		if headers := responseTrailers(t, response, TrailersComplete); len(headers) != 0 {
+			t.Fatalf("unexpected HTTP/3 trailers: %+v", headers)
+		}
 	}
 	checkBody(request("/warm"), "ok")
 	source := &h3PendingUpload{pending: make(chan struct{}), closed: make(chan struct{})}
@@ -195,6 +198,7 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 	if _, err := selected.Body.Read(prefix); !errors.Is(err, context.Canceled) {
 		t.Fatalf("selected body cancellation: %v", err)
 	}
+	responseTrailers(t, selected, TrailersUnavailable)
 	select {
 	case <-source.closed:
 	case <-time.After(5 * time.Second):

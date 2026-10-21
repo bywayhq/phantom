@@ -124,6 +124,11 @@ up to 64 KiB at a time. Content stays encoded unless you set
 EOF, read errors and `Close` release the native body. Concurrent reads are
 serialized.
 
+`Response.Trailers()` returns an owned ordered snapshot: pending until observed
+validated EOF, complete (possibly empty) after EOF, or unavailable after early
+close/body failure. It never drains and survives close; projection exceeding the
+256 KiB native JSON reply limit returns an error.
+
 ## Send a body
 
 Byte uploads use replayable `Request.Body`, limited to 8 MiB.

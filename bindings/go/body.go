@@ -32,12 +32,14 @@ type Response struct {
 	RedirectHistory *RedirectHistory
 }
 type bodyLifetime struct {
-	id     uint64
-	closed atomic.Bool
-	upload *uploadLifetime
+	id       uint64
+	closed   atomic.Bool
+	upload   *uploadLifetime
+	trailers responseTrailersCache
 }
 
 func (owner *bodyLifetime) close() error {
+	owner.trailers.settle(ResponseTrailers{State: TrailersUnavailable}, nil)
 	if owner.closed.Swap(true) {
 		return nil
 	}
@@ -86,12 +88,21 @@ func (body *Body) Read(output []byte) (int, error) {
 	maximum := min(len(output), maxChunk)
 	var bytes []byte
 	eof := false
+	var trailers ResponseTrailers
 	err := perform(body.ctx, map[string]any{"kind": "read", "body": body.owner.id, "maximum": maximum}, nil, func(event completion) error {
 		var result struct {
-			EOF bool `json:"eof"`
+			EOF      bool            `json:"eof"`
+			Trailers json.RawMessage `json:"trailers"`
 		}
 		if json.Unmarshal(event.Value, &result) != nil {
 			return &Error{Kind: "native_abi"}
+		}
+		if result.EOF {
+			observed, err := decodeResponseTrailers(result.Trailers)
+			if err != nil {
+				return err
+			}
+			trailers = observed
 		}
 		eof = result.EOF
 		bytes = event.data
@@ -99,10 +110,15 @@ func (body *Body) Read(output []byte) (int, error) {
 	})
 	runtime.KeepAlive(body)
 	if err != nil {
+		if kind := trailerProjectionError(err); kind != nil {
+			body.owner.trailers.settle(ResponseTrailers{State: TrailersUnavailable}, kind)
+		}
 		_ = body.Close()
 		return 0, body.owner.upload.wrap(err)
 	}
 	if eof {
+		// Publish only after perform's context and acknowledgement checks succeed.
+		body.owner.trailers.settle(trailers, nil)
 		body.eof.Store(true)
 		_ = body.Close()
 		return 0, io.EOF

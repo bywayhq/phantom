@@ -24,6 +24,7 @@ use tokio::sync::{Notify, oneshot};
 
 mod diagnostics;
 pub(super) mod session;
+mod trailers;
 mod transfer;
 
 pub(super) const MAX_METADATA: usize = 256 * 1024;
@@ -259,7 +260,7 @@ impl Drop for ReadLease {
     }
 }
 impl ReadLease {
-    async fn read(mut self, maximum: usize) -> Result<Option<Bytes>, Failure> {
+    async fn read(mut self, maximum: usize) -> Result<ReadResult, Failure> {
         self.stream = self
             .owner
             .stream
@@ -267,7 +268,7 @@ impl ReadLease {
             .map_err(|_| Failure::new("internal"))?
             .take();
         let Some(stream) = self.stream.as_mut() else {
-            return Ok(None);
+            return Ok(ReadResult::End(phantom::ResponseTrailers::Unavailable));
         };
         let changed = self.owner.changed.notified();
         tokio::pin!(changed);
@@ -307,7 +308,16 @@ impl ReadLease {
                 self.restored = true;
             }
         }
-        Ok(bytes)
+        match bytes {
+            Some(bytes) => Ok(ReadResult::Data(bytes)),
+            None => Ok(ReadResult::End(
+                self.stream
+                    .take()
+                    .ok_or_else(|| Failure::new("internal"))?
+                    .body
+                    .into_trailers(),
+            )),
+        }
     }
 }
 
@@ -667,8 +677,13 @@ fn response_head(
 }
 enum Outcome {
     Head(Head),
-    Read(Option<Bytes>),
+    Read(ReadResult),
     Complete,
+}
+
+enum ReadResult {
+    Data(Bytes),
+    End(phantom::ResponseTrailers),
 }
 
 impl Global {
@@ -786,8 +801,8 @@ impl Global {
                     })
                 }
             }
-            Ok(Outcome::Read(bytes)) => {
-                if bytes.is_none()
+            Ok(Outcome::Read(read)) => {
+                if matches!(&read, ReadResult::End(_))
                     && let Some(Operation {
                         target: Target::Read(body),
                         ..
@@ -796,9 +811,14 @@ impl Global {
                     let body = *body;
                     state.close_body(body);
                 }
-                let eof = bytes.is_none();
-                data = bytes.unwrap_or_default();
-                Ok(json!({"eof":eof}))
+                match read {
+                    ReadResult::Data(bytes) => {
+                        data = bytes;
+                        Ok(json!({"eof": false}))
+                    }
+                    ReadResult::End(trailers) => trailers::snapshot(&trailers)
+                        .map(|trailers| json!({"eof": true, "trailers": trailers})),
+                }
             }
             Ok(Outcome::Complete) => Ok(json!({})),
             Err(error) => {
