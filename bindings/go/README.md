@@ -310,6 +310,12 @@ retains paced reservations and their gaps in the shared schedule.
 
 ## Capacity and feature limits
 
+Set `Config.Pool` to a `PoolOptions` value for per-origin active/pending bounds,
+H2/H3 connection counts and retained pool entries. Nil fields preserve defaults;
+count pointers must be positive. `NegotiatedSetupWaitLimit` is a duration pointer
+(nil waits for the existing handshake; zero permits a competing connection).
+These core limits are separate from the binding capacities below.
+
 Process-wide limits are 64 each for clients, budgets, transfer controls,
 response handles and ordinary operations, plus 64 separate shutdown operations.
 Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each

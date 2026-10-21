@@ -9,6 +9,7 @@ mod multipart;
 mod network;
 mod operations;
 mod policy;
+mod pool;
 mod prepared_body;
 mod profile;
 mod retry;

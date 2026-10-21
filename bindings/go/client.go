@@ -26,6 +26,9 @@ type Config struct {
 	BaseURL string
 	// Network optionally selects host overrides and outgoing socket bindings.
 	Network *NetworkOptions
+	// Pool overrides core connection retention and per-origin admission settings.
+	// Nil preserves the selected profile's defaults and core defaults.
+	Pool *PoolOptions
 	// AdditionalRootsDER extends origin trust. ProxyAdditionalRootsDER extends
 	// HTTPS-proxy trust separately. Certificates must be DER encoded.
 	AdditionalRootsDER      [][]byte
@@ -123,6 +126,10 @@ type Client struct {
 
 // New creates a client. It performs no request and ignores proxy environment variables.
 func New(config Config) (*Client, error) {
+	pool, err := poolWire(config.Pool)
+	if err != nil {
+		return nil, err
+	}
 	size, err := networkInputSize(config.Network)
 	if err != nil {
 		return nil, err
@@ -217,7 +224,8 @@ func New(config Config) (*Client, error) {
 		RedirectPolicy     RedirectPolicy          `json:"redirect_policy"`
 		RetryPolicy        wireRetryPolicy         `json:"retry_policy"`
 		Network            *wireNetworkOptions     `json:"network,omitempty"`
-	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, config.RedirectPolicy, retries, networkWire(config.Network)}
+		Pool               *wirePoolOptions        `json:"pool,omitempty"`
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, config.RedirectPolicy, retries, networkWire(config.Network), pool}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err
