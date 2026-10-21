@@ -195,6 +195,7 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer.test.cjs",
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
+            "multipart.test.cjs",
             "response-trailers.test.cjs",
             "server-pins.test.cjs",
             "client-certificates.test.cjs",
@@ -232,6 +233,7 @@ class NodeArtifactTests(unittest.TestCase):
         self.assertNotIn("path.resolve(__dirname, '../index.cjs')", trailers)
         for name in (
             "prepared-bodies-facade",
+            "multipart-facade",
             "request-controls-facade",
             "session-snapshot-facade",
             "server-pins-facade",
@@ -308,6 +310,8 @@ class NodeArtifactTests(unittest.TestCase):
             "diagnostics-http2",
             "diagnostics-facade",
             "prepared-bodies-facade",
+            "multipart",
+            "multipart-facade",
             "request-controls-facade",
             "session-snapshot-facade",
             "upload-pump",

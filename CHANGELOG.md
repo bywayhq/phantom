@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stream ordered Node.js multipart fields, lazy files and closeable producers
+  with explicit boundaries, encoded-byte limits and owned cleanup.
+
 - Stream ordered Python multipart fields, files and producers with explicit
   boundaries and encoded-byte limits. Open files only when their part is read.
 

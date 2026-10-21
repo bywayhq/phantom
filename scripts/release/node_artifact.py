@@ -204,6 +204,14 @@ def copied_tests(destination, native_package=None):
         "prepared-bodies.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "multipart.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "multipart-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "server-pins.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "response-trailers.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
@@ -421,6 +429,8 @@ def public_checks(
                 "tests/transfer-http2.test.cjs",
                 "tests/request-controls.test.cjs",
                 "tests/prepared-bodies.test.cjs",
+                "tests/multipart.test.cjs",
+                "tests/multipart-facade.test.cjs",
                 "tests/response-trailers.test.cjs",
                 "tests/response-trailers-facade.test.cjs",
                 "tests/server-pins.test.cjs",
