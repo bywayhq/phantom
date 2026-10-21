@@ -201,7 +201,11 @@ class TransferAsyncTests(unittest.IsolatedAsyncioTestCase):
                     transfer_control=control,
                     timeouts=TimeoutOverrides(total=None),
                 )
-                healthy = await client.request("GET", server.url + "/healthy")
+                healthy = await client.request(
+                    "GET",
+                    server.url + "/healthy",
+                    timeouts=TimeoutOverrides(total=None),
+                )
                 other = asyncio.create_task(healthy.read(max_bytes=5))
                 pending = asyncio.create_task(selected.read(max_bytes=65536))
 
