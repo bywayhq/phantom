@@ -154,10 +154,10 @@ MaximumBytes: maximum, Parts: []MultipartPart{MultipartText("tag", "value"),
 MultipartReader("file", file).WithFilename("input.bin")}}` for ordered streaming
 multipart. Place its `ContentType()` explicitly as above. The encoded length is
 unknown; the maximum includes framing. At most 1024 parts use one upload handle
-and one active reader with a 64 KiB source chunk. `Do` takes reader custody even
-on validation failure, closes active and unstarted readers once, and requires
-`Close` to unblock `Read`. Do not reuse readers. Text/byte fields retain the
-8 MiB binary-input limit; metadata retains 64 KiB. Reader contents are streamed
+and one active reader with a 64 KiB source chunk. Count rejection leaves readers
+caller-owned; otherwise `Do` closes active and unstarted readers once, even on
+validation failure. `Close` must unblock `Read`. Do not reuse readers. Text/byte
+fields retain the 8 MiB binary-input limit; metadata retains 64 KiB. Readers stream
 up to the encoded maximum. Streaming multipart is one-shot, exclusive with
 other body options, and cannot be used with `PrepareMultipart`.
 

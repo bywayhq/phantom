@@ -13,8 +13,9 @@ import (
 
 // StreamingMultipart is an ordered one-shot core multipart encoding. Boundary
 // is explicit; MaximumBytes includes all encoded contents, headers and delimiters.
-// Readers transfer to Do, which closes each exactly once, even on validation
-// failure. Do not reuse readers or mutate parts/byte slices during Do preparation.
+// At most 1024 parts are accepted; a count rejection leaves readers caller-owned.
+// Otherwise readers transfer to Do, which closes each exactly once, even on
+// validation failure. Do not reuse readers or mutate parts during Do preparation.
 // Read may run concurrently with Close; Close must unblock Read. A stalled custom
 // Close cannot be forcibly interrupted. Use PreparedBody for replayable fields.
 type StreamingMultipart struct {
@@ -70,10 +71,10 @@ type multipartLifetime struct {
 	oversize bool
 }
 
-// Capture source custody before any request validation. Comparable repeated
-// reader identities share Close custody and are rejected before any Read.
+// Check the count before capturing source custody. Comparable repeated reader
+// identities share Close custody and are rejected before any Read.
 func multipartUpload(m *StreamingMultipart) *uploadLifetime {
-	group := &multipartLifetime{parts: m.Parts, boundary: m.Boundary, maximum: m.MaximumBytes}
+	group := &multipartLifetime{boundary: m.Boundary, maximum: m.MaximumBytes}
 	if len(m.Parts) > 1024 {
 		group.oversize = true
 		return &uploadLifetime{multipart: group}
@@ -109,28 +110,6 @@ func multipartUpload(m *StreamingMultipart) *uploadLifetime {
 
 func (m *multipartLifetime) close() error {
 	var failure error
-	if m.oversize {
-		for index, part := range m.parts {
-			if part.reader != nil && !nilMultipartReader(part.reader.source) && part.reader.claimed.CompareAndSwap(false, true) {
-				// Invalid oversized input must not allocate an unbounded custody
-				// table, but repeated comparable readers still close only once.
-				duplicate := false
-				if reflect.TypeOf(part.reader.source).Comparable() {
-					for _, previous := range m.parts[:index] {
-						if previous.reader != nil && previous.reader.source == part.reader.source {
-							duplicate = true
-							break
-						}
-					}
-				}
-				if duplicate {
-					continue
-				}
-				failure = errors.Join(failure, part.reader.close())
-			}
-		}
-		return failure
-	}
 	for _, source := range m.sources {
 		failure = errors.Join(failure, source.close())
 	}

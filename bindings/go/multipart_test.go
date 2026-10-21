@@ -44,13 +44,6 @@ func TestMultipartReaderCustodyOnInvalidRequestsAndReuse(t *testing.T) {
 	if duplicate.closes.Load() != 1 || duplicate.bytes.Load() != 0 {
 		t.Fatal("duplicate reader custody")
 	}
-	oversize := &ownedUpload{Reader: strings.NewReader("private")}
-	parts := make([]MultipartPart, 1025)
-	parts[0], parts[1024] = MultipartReader("a", oversize), MultipartReader("b", oversize)
-	_ = multipartUpload(&StreamingMultipart{Parts: parts}).close()
-	if oversize.closes.Load() != 1 || oversize.bytes.Load() != 0 {
-		t.Fatal("oversized request duplicated reader Close")
-	}
 	// A failed competing request must not close the reader owned by the first.
 	active := &ownedUpload{Reader: strings.NewReader("a")}
 	shared := &StreamingMultipart{Parts: []MultipartPart{MultipartReader("a", active)}}
@@ -65,6 +58,34 @@ func TestMultipartReaderCustodyOnInvalidRequestsAndReuse(t *testing.T) {
 	_ = first.close()
 	if active.closes.Load() != 1 {
 		t.Fatal("first request lost custody")
+	}
+}
+
+func TestOversizedMultipartLeavesReadersWithCaller(t *testing.T) {
+	source := &ownedUpload{Reader: strings.NewReader("private")}
+	part := MultipartReader("file", source)
+	parts := make([]MultipartPart, 1025)
+	parts[0], parts[1024] = part, MultipartReader("alias", source)
+	form := &StreamingMultipart{Boundary: "bound", MaximumBytes: 4096, Parts: parts}
+	owner := multipartUpload(form)
+	if err := owner.prepare(context.Background(), 0); kind(err) != "multipart_too_many_parts" {
+		t.Fatalf("count rejection: %v", err)
+	}
+	_ = owner.close()
+	if source.closes.Load() != 0 || source.bytes.Load() != 0 || part.reader.claimed.Load() || parts[1024].reader.claimed.Load() {
+		t.Fatal("count rejection took reader custody")
+	}
+	if len(owner.multipart.parts) != 0 || len(owner.multipart.sources) != 0 {
+		t.Fatal("count rejection retained the rejected collection")
+	}
+	if _, err := (&Client{}).Do(nil, Request{Multipart: form}); kind(err) != "invalid_context" {
+		t.Fatal(err)
+	}
+	if source.closes.Load() != 0 || source.bytes.Load() != 0 || part.reader.claimed.Load() {
+		t.Fatal("early request error took oversized reader custody")
+	}
+	if err := source.Close(); err != nil || source.closes.Load() != 1 {
+		t.Fatalf("caller cleanup: %v", err)
 	}
 }
 

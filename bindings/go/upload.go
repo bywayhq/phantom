@@ -35,10 +35,13 @@ func (u *uploadLifetime) close() error {
 			u.cancel()
 		}
 		if u.source != nil {
-			_ = u.source.Close()
+			err := u.source.Close()
+			if u.multipart != nil {
+				u.closeError = err
+			}
 		}
 		if u.multipart != nil {
-			u.closeError = u.multipart.close()
+			u.closeError = errors.Join(u.closeError, u.multipart.close())
 			if u.closeError != nil {
 				u.remember(u.closeError)
 			}

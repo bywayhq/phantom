@@ -28,6 +28,20 @@ func TestMultipartValidationKeepsRedactedCloseFailure(t *testing.T) {
 	}
 }
 
+func TestConflictingMultipartRetainsBothUploadCleanupFailures(t *testing.T) {
+	firstCause := errors.New("private ordinary cleanup")
+	secondCause := errors.New("private multipart cleanup")
+	first := &multipartCloseFailure{ownedUpload: ownedUpload{Reader: strings.NewReader("unread")}, failure: firstCause}
+	second := &multipartCloseFailure{ownedUpload: ownedUpload{Reader: strings.NewReader("unread")}, failure: secondCause}
+	_, err := (&Client{}).Do(context.Background(), Request{Upload: first, Multipart: &StreamingMultipart{Parts: []MultipartPart{MultipartReader("file", second)}}})
+	if kind(err) != "invalid_multipart" || !errors.Is(err, firstCause) || !errors.Is(err, secondCause) || strings.Contains(err.Error(), "private") {
+		t.Fatalf("conflict cleanup: %v", err)
+	}
+	if first.closes.Load() != 1 || second.closes.Load() != 1 || first.bytes.Load() != 0 || second.bytes.Load() != 0 {
+		t.Fatal("conflict reader custody")
+	}
+}
+
 func TestMultipartReaderCloseFailureStopsBeforeNextPart(t *testing.T) {
 	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.Copy(io.Discard, r.Body) }))
 	defer peer.Close()

@@ -110,7 +110,14 @@ func TestStreamingMultipartPreflightDoesNotSpendBudget(t *testing.T) {
 			if err == nil {
 				t.Fatal("invalid multipart accepted")
 			}
-			waitUploadClosed(t, &source.closes)
+			if test == "too many" {
+				if source.closes.Load() != 0 {
+					t.Fatal("count rejection took reader custody")
+				}
+				_ = source.Close()
+			} else {
+				waitUploadClosed(t, &source.closes)
+			}
 			if source.bytes.Load() != 0 {
 				t.Fatal("invalid request read source")
 			}
