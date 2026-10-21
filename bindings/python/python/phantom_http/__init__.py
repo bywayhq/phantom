@@ -1180,7 +1180,7 @@ class AsyncClient:
 
 
 class Response:
-    """Synchronous access to an asynchronous response."""
+    """Synchronous response with an owned body."""
 
     def __init__(self, client: Client, response: AsyncResponse) -> None:
         self._client = client
@@ -1270,7 +1270,7 @@ class Response:
 
 
 class Client:
-    """A same-thread sync wrapper above AsyncClient, with one reusable loop."""
+    """Synchronous client. Use from its creating thread outside a running event loop."""
 
     def __init__(
         self,

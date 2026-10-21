@@ -86,9 +86,8 @@ func (d *DiagnosticDuration) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-// RequestTimeline is a coherent copy of retained core observations. Outcome is
-// not_started, pending, response_head, failed or cancelled and describes send
-// only. Response-head completion does not imply response-body completion.
+// RequestTimeline is a coherent copy of retained observations. Outcome describes
+// sending the request; response-head completion does not imply body completion.
 type RequestTimeline struct {
 	Outcome          TimelineOutcome     `json:"outcome"`
 	SendElapsed      *DiagnosticDuration `json:"send_elapsed"`
@@ -100,10 +99,7 @@ type RequestTimeline struct {
 // RequestTiming records one observed phase, in start order. Intervals can
 // overlap and must not be added together. Missing phases are unobserved, not
 // zero-duration operations. IDs include omitted events; admission starts at one.
-// Phase is attempt_admission, pool_admission, connection_acquisition,
-// connection_use, resolution_wait, tcp_connect, tls_handshake, quic_handshake,
-// send_response_head or response_body. Outcome is pending, completed, failed,
-// interrupted, abandoned, cached or early_data. Protocol is nil, h1, h2 or h3.
+// Protocol is nil, h1, h2 or h3.
 type RequestTiming struct {
 	ID         uint64              `json:"id"`
 	Hop        uint64              `json:"hop"`
@@ -118,8 +114,7 @@ type RequestTiming struct {
 
 // RequestConnection describes the connection selected by an origin attempt.
 // Reused means earlier HTTP dispatch, independently of TLS session resumption.
-// EndpointScope is unavailable, tcp_socket or quic_endpoint. A peer can be a
-// proxy; QUIC local addresses can contain an unspecified IP.
+// A peer can be a proxy; QUIC local addresses can contain an unspecified IP.
 type RequestConnection struct {
 	Reused        bool               `json:"reused"`
 	EndpointScope EndpointScope      `json:"endpoint_scope"`
@@ -129,8 +124,8 @@ type RequestConnection struct {
 	ProxyTLS      TLSConnectionState `json:"proxy_tls"`
 }
 
-// TLSConnectionState distinguishes not_used, unavailable, pending and
-// established. Only established carries Info. Pending can occur with early data.
+// TLSConnectionState carries Info only for an established handshake.
+// Pending can occur with early data.
 type TLSConnectionState struct {
 	State TLSState           `json:"state"`
 	Info  *TLSConnectionInfo `json:"info"`

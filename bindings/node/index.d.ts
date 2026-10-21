@@ -216,9 +216,13 @@ export class Response implements AsyncIterable<Buffer> {
   readonly decodedContentCodings: readonly ContentCoding[];
   readonly redirectHistory: RedirectHistory | null;
   readonly headers: Header[];
+  /** Reads up to 1–65,536 bytes (default 65,536); returns null at EOF. */
   read(maximumBytes?: number): Promise<Buffer | null>;
+  /** Collects the remaining body; exceeding the limit closes it and fails. */
   bytes(maximumBytes: number): Promise<Buffer>;
+  /** Decodes the remaining body as strict UTF-8 within the byte limit. */
   text(maximumBytes: number): Promise<string>;
+  /** Parses the remaining body within the byte limit; validate the returned value. */
   json(maximumBytes: number): Promise<unknown>;
   close(): void;
   [Symbol.asyncIterator](): AsyncIterator<Buffer>;
