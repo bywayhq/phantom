@@ -74,9 +74,14 @@ fn unsupported() -> napi::Error {
 }
 
 fn integer(value: u128) -> BigInt {
+    let mut words = vec![value as u64];
+    let high = (value >> 64) as u64;
+    if high != 0 {
+        words.push(high);
+    }
     BigInt {
         sign_bit: false,
-        words: vec![value as u64, (value >> 64) as u64],
+        words,
     }
 }
 
