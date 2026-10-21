@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stream ordered Go multipart fields and readers with explicit boundaries and
+  encoded-byte limits. Preserve upload cleanup errors after early responses.
+
 - Remove the client benchmark harness and its benchmark-dependent release checks.
 
 - Retain response trailers in wire order after body decoding and response
