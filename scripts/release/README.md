@@ -122,6 +122,6 @@ must contain that exact commit in their checked registry archive. The script
 repairs missing team ownership before moving on. A version from a different
 commit stops the run; do not overwrite it or silently skip it.
 
-After a successful publish and install check, create the `v0.2.0` tag at the
-release commit and retain the workflow evidence. A failed partial release
-remains partial until every planned version and owner is verified.
+After a successful publish and install check, tag the release commit with `v`
+followed by its workspace version and retain the workflow evidence. A failed
+partial release remains partial until every planned version and owner is verified.

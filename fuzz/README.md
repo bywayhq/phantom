@@ -9,7 +9,7 @@ WebSocket engines.
 
 | Target | Parser | Entry point |
 | --- | --- | --- |
-| `client_hello` | Test-kit TLS ClientHello summary | `phantom_testkit::tls` |
+| `client_hello` | TLS ClientHello capture and profile-import decoder | `phantom_testkit::tls` re-export of `phantom_profile::client_hello` |
 | `http2_frame` | Test-kit HTTP/2 frame capture | `phantom_testkit::http2` |
 | `quic_transport_parameters` | Quinn transport parameters (production) | `TransportParameters::read` |
 | `http1_response` | HTTP/1.1 response heads and bodies (production) | `Http1Connection::connect` and `send_get` over an in-memory origin |
@@ -21,8 +21,9 @@ WebSocket engines.
 | `https_record` | DNS responses and HTTPS record RDATA (production) | `dns::https_answers_from_message` and `HttpsRecord::from_rdata` |
 | `ech_config_list` | An HTTPS record's `ECHConfigList` (production) | `dns::EchConfigList::parse` |
 
-`client_hello` and `http2_frame` decode test-kit captures, not the bytes a
-peer sends Phantom; they check the evidence tooling, not a peer-facing parser.
+`client_hello` covers the decoder shared by captures and profile imports. It
+does not parse live TLS handshakes. `http2_frame` covers test-kit captures,
+not the HTTP/2 engine used for requests.
 
 ## Run a target
 
