@@ -222,6 +222,34 @@ def copied_tests(destination, native_package=None):
                 1,
             ),
         ),
+        "prepared-bodies-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "request-controls-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "session-snapshot-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "upload-pump.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "content-decoding.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
@@ -368,6 +396,10 @@ def public_checks(
                 "tests/diagnostics-http2.test.cjs",
                 "tests/diagnostics-facade.test.cjs",
                 "tests/transfer-facade.test.cjs",
+                "tests/prepared-bodies-facade.test.cjs",
+                "tests/request-controls-facade.test.cjs",
+                "tests/session-snapshot-facade.test.cjs",
+                "tests/upload-pump.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",
                 "tests/retries.test.cjs",

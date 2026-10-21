@@ -218,6 +218,15 @@ class NodeArtifactTests(unittest.TestCase):
         diagnostics = (destination / "diagnostics-facade.test.cjs").read_text()
         self.assertIn("require.resolve('@byway/phantom')", diagnostics)
         self.assertNotIn("path.resolve(__dirname, '../index.cjs')", diagnostics)
+        for name in (
+            "prepared-bodies-facade",
+            "request-controls-facade",
+            "session-snapshot-facade",
+            "upload-pump",
+        ):
+            copied = (destination / f"{name}.test.cjs").read_text()
+            self.assertIn("require.resolve('@byway/phantom')", copied)
+            self.assertNotIn("path.resolve(__dirname, '../index.cjs')", copied)
         fixtures = artifact.ROOT / "bindings/node/tests/fixtures"
         for source in fixtures.iterdir():
             self.assertEqual(
@@ -280,6 +289,10 @@ class NodeArtifactTests(unittest.TestCase):
             "diagnostics",
             "diagnostics-http2",
             "diagnostics-facade",
+            "prepared-bodies-facade",
+            "request-controls-facade",
+            "session-snapshot-facade",
+            "upload-pump",
             "content-decoding",
             "redirects",
             "retries",
