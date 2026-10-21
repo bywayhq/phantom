@@ -182,10 +182,18 @@ func TestDiagnosticsRetainCancelledAndFailedSends(t *testing.T) {
 	for _, cancelSend := range []bool{false, true} {
 		t.Run(map[bool]string{false: "failure", true: "cancel"}[cancelSend], func(t *testing.T) {
 			received := make(chan struct{})
+			peerCancelled := make(chan struct{})
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// net/http observes disconnects after the request body reaches EOF.
+				if _, err := io.Copy(io.Discard, r.Body); err != nil {
+					t.Errorf("read diagnostic request: %v", err)
+					close(received)
+					return
+				}
 				close(received)
 				if cancelSend {
 					<-r.Context().Done()
+					close(peerCancelled)
 					return
 				}
 				connection, _, err := w.(http.Hijacker).Hijack()
@@ -194,6 +202,7 @@ func TestDiagnosticsRetainCancelledAndFailedSends(t *testing.T) {
 				}
 			}))
 			defer server.Close()
+			defer server.CloseClientConnections()
 			client := newClient(t)
 			owner := newDiagnostics(t, 128)
 			ctx, cancel := context.WithCancel(context.Background())
@@ -216,8 +225,20 @@ func TestDiagnosticsRetainCancelledAndFailedSends(t *testing.T) {
 				cancel()
 				want = TimelineCancelled
 			}
-			if err := <-done; err == nil {
-				t.Fatal("send unexpectedly succeeded")
+			select {
+			case err := <-done:
+				if err == nil {
+					t.Fatal("send unexpectedly succeeded")
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("failed or cancelled send did not settle")
+			}
+			if cancelSend {
+				select {
+				case <-peerCancelled:
+				case <-time.After(5 * time.Second):
+					t.Fatal("cancelled request kept its peer connection open")
+				}
 			}
 			deadline := time.Now().Add(5 * time.Second)
 			for {
