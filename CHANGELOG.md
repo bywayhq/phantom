@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Reject malformed HTTP/3 response fields and reset only the affected stream.
+- Reject malformed HTTP/3 response fields, invalid content lengths and DATA
+  on bodyless responses. Reset only the affected stream.
 
 - Breaking: `ResponseReadErrorKind::Json` has a different numeric discriminant
   after adding response error variants. Migrate: update Rust dependencies to
