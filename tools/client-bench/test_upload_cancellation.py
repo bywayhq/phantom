@@ -1,6 +1,5 @@
 """Zero-window upload cancellation is an explicit, event-triggered scenario."""
 
-import asyncio
 import json
 import subprocess
 import sys
@@ -9,7 +8,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import curl_cffi_client as adapter
 from client_result import validate_result
 from run import accepted, one
 from workload_config import effective_config, validate_cancellation
@@ -31,12 +29,25 @@ def config():
 
 
 def raw(c):
-    sample = adapter.sample(0) | {"cancelled": True, "complete_ns": 3}
-    sibling = adapter.sample(1) | {
+    sample = {
+        "id": 0,
+        "scheduled_ns": 0,
+        "started_ns": 0,
+        "application_wait_ns": 0,
+        "build_ns": 0,
+        "head_ns": None,
+        "first_byte_ns": None,
+        "complete_ns": 3,
+        "bytes": 0,
+        "cancelled": True,
+        "error": None,
+    }
+    sibling = sample | {
+        "id": 1,
         "bytes": 2,
         "head_ns": 1,
         "first_byte_ns": 2,
-        "complete_ns": 3,
+        "cancelled": False,
     }
     return {
         "config": c,
@@ -65,7 +76,6 @@ class ContractTests(unittest.TestCase):
     def test_strict_stage_and_two_operation_configuration(self):
         c = config()
         validate_cancellation(c)
-        self.assertEqual(adapter.configuration(c), c)
         for change in (
             {"cancel_stage": "setup"},
             {"protocol": "h3"},
@@ -179,52 +189,6 @@ else:
             )
             self.assertEqual(receipt["peer_event"], "upload_headers")
             self.assertEqual(receipt["client_command"], "cancel-upload")
-
-
-class AdapterTests(unittest.IsolatedAsyncioTestCase):
-    async def test_public_task_cancellation_drops_only_selected_pending_post(self):
-        headers = asyncio.Event()
-        dropped = asyncio.Event()
-        requests = []
-
-        class Response:
-            status_code, http_version = 200, 2
-
-            async def aiter_content(self):
-                yield b"ZZ"
-
-            async def aclose(self):
-                pass
-
-        class Session:
-            async def request(self, method, url, **kwargs):
-                requests.append((method, url, kwargs))
-                if method == "POST":
-                    headers.set()
-                    try:
-                        await asyncio.Future()
-                    finally:
-                        dropped.set()
-                return Response()
-
-        async def control(command):
-            self.assertEqual(command, "cancel-upload")
-            await headers.wait()
-
-        c, shared = config(), Session()
-        records = [adapter.sample(0), adapter.sample(1)]
-        with patch.object(adapter, "control", control):
-            await adapter.run_workers(
-                c, ["https://127.0.0.1:1/"], shared, None, 2, records
-            )
-        self.assertTrue(dropped.is_set())
-        self.assertTrue(records[0]["cancelled"])
-        self.assertEqual(records[1]["bytes"], 2)
-        self.assertEqual([item[0] for item in requests], ["GET", "POST"])
-        post = next(item for item in requests if item[0] == "POST")
-        self.assertEqual(post[1], "https://127.0.0.1:1/?cancel=1")
-        self.assertEqual(post[2]["data"], b"U" * 65536)
-        self.assertNotIn("data", next(item for item in requests if item[0] == "GET")[2])
 
 
 if __name__ == "__main__":

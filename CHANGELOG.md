@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove the external-client benchmark adapters and their CI workflow.
+
 - Export and restore encrypted Python, Go and Node.js session snapshots with
   explicit receiving routes, typed errors and fresh connection pools.
 

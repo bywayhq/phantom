@@ -1,4 +1,4 @@
-"""Reject unpinned adapters before producing comparison measurements."""
+"""Reject unpinned adapters before producing benchmark measurements."""
 
 import json
 import sys
@@ -16,8 +16,8 @@ class ClientCommandTests(unittest.TestCase):
         adapter.write_text("# adapter\n", encoding="utf-8")
         executable = Path(sys.executable).resolve()
         descriptor = {
-            "name": "curl_cffi",
-            "version": "0.16.3",
+            "name": "phantom-python",
+            "version": "0.2.0",
             "command": [str(executable), str(adapter)],
             "artifacts": [
                 {"path": str(path), "sha256": sha(path)}

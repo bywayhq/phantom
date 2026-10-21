@@ -48,7 +48,7 @@ bodies, gzip decoding and server delays. The default matrix has three
 repetitions. Increase repetitions and phase lengths for a decision about a
 small difference. Short cold runs have few observations beyond p99.
 
-## Use another client executable
+## Workloads and binding adapters
 
 Set `method: "POST"` and `upload_bytes` to send an in-memory upload, up to
 16 MiB per request. The default remains a body-free GET. Each operation
@@ -64,8 +64,7 @@ Set `redirects` to 1, 2 or 3 for same-origin GET redirect chains with
 the configured payload. It counts every origin request and redirect response.
 Reported requests/s counts completed logical requests, including the whole
 chain within the application deadline. Cross-origin redirects are outside this
-workload. The httpcloak adapter uses its buffered redirect API and reports
-response-head timing as unavailable.
+workload.
 
 `route: "connect"` uses the controlled HTTP CONNECT proxy for HTTP/1.1 or
 HTTP/2. Set `proxy_auth: true` to require random per-run Basic credentials.
@@ -75,15 +74,11 @@ connection for them. Every origin connection must match a verified tunnel. Origi
 peers reject `Proxy-Authorization`. Counters distinguish accepted tunnels from
 407 challenges, including warmup. These runs cover Basic authentication;
 NTLM, Negotiate, HTTPS proxy transport and authenticated SOCKS are outside this
-workload. Libraries can differ in preemptive or challenge-driven behavior.
-httpcloak requires `consume: "collect"` for HTTP/1.1 CONNECT, with head timing
-unavailable because its buffered API is required for that protocol.
+workload.
 
 `--binary` owns the independent peer. By default it also runs Phantom.
-Pass `--client PATH` to run another adapter against that same peer. The
-comparison set is Phantom, wreq, curl_cffi and httpcloak. Each adapter documents
-its supported workloads and measurement limits. Their availability alone does
-not establish parity.
+Pass `--client PATH` to measure a Phantom binding against that same peer.
+Keep its runtime and binding overhead in the result.
 
 Public-binding adapters are `phantom_python_client.py`,
 `phantom_node_client.cjs` and [phantom-go](phantom-go/README.md). They cover
@@ -100,8 +95,8 @@ The descriptor has exactly four fields:
 
 ```json
 {
-  "name": "curl_cffi",
-  "version": "0.16.3",
+  "name": "phantom-python",
+  "version": "0.2.0",
   "command": ["/absolute/python", "/absolute/adapter.py"],
   "artifacts": [
     {"path": "/absolute/python", "sha256": "<64 lowercase hex digits>"},
@@ -265,8 +260,8 @@ Expected teardown behavior remains in the separate final peer log/counters.
 
 The peer records transport disconnects after all HTTP/2 response tasks finish
 separately from interrupted responses. It also records HTTP/3 application code
-zero after completed responses. That code is used by httpcloak's explicit close
-API and remains distinct from HTTP/3 `H3_NO_ERROR` and QUIC transport `NO_ERROR`.
+zero after completed responses, distinct from HTTP/3 `H3_NO_ERROR` and QUIC
+transport `NO_ERROR`.
 Other application errors and failed response tasks still reject the trial.
 
 Connection setup and internal pool admission are included in head latency.
@@ -289,7 +284,7 @@ in the other cases.
 
 ## Body cancellation
 
-Use `cancellation.json` for a correctness comparison on HTTP/1.1, HTTP/2 and
+Use `cancellation.json` for cancellation checks on HTTP/1.1, HTTP/2 and
 HTTP/3. Each client warms one connection, then closes even-numbered response
 bodies after the configured byte prefix. Odd-numbered requests consume their
 full bodies.
@@ -315,13 +310,6 @@ This workload covers body abandonment through each public response API.
 Setup cancellation and streaming uploads need separate workloads.
 Cancellation runs are diagnostic checks, not a speed comparison.
 
-The pinned curl_cffi adapter calls public `Response.aclose()`. In 0.16.3,
-that method waits for the transfer task instead of resetting the stream.
-The peer therefore rejects its cancellation trials when every body finishes.
-Those results describe draining, not successful transport cancellation.
-The pinned wreq adapter rejects HTTP/3 before warmup. Select its H1/H2 cases
-explicitly; a rejected protocol is not a passing cancellation control.
-
 ### Upload cancellation
 
 Use `upload-cancellation.json` for one known-length POST and one body-free
@@ -342,7 +330,4 @@ control for bounded in-memory uploads, not a streaming-upload or timing claim.
 
 ## Next
 
-- [Run the curl_cffi adapter](curl-cffi.md).
-- [Run the wreq adapter](wreq/README.md).
-- [Run the httpcloak adapter](httpcloak/README.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).
