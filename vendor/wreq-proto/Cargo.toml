@@ -86,7 +86,7 @@ version = "1.4.0"
 version = "1.0.1"
 
 [dependencies.http2]
-version = "=0.5.20-phantom.19"
+version = "=0.5.20-phantom.20"
 package = "phantom-http2"
 path = "../http2"
 features = ["unstable"]
