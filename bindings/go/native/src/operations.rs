@@ -21,6 +21,7 @@ use std::{
 };
 use tokio::sync::{Notify, oneshot};
 
+mod diagnostics;
 pub(super) mod session;
 mod transfer;
 
@@ -73,6 +74,15 @@ enum Command {
     TransferSnapshot {
         transfer: u64,
     },
+    NewDiagnostics {
+        maximum: usize,
+    },
+    ReleaseDiagnostics {
+        diagnostics: u64,
+    },
+    DiagnosticsSnapshot {
+        diagnostics: u64,
+    },
     CookieSet {
         client: u64,
         url: String,
@@ -109,6 +119,7 @@ enum Command {
         expect_continue_nanoseconds: Option<u64>,
         budget: Option<u64>,
         transfer: Option<u64>,
+        diagnostics: Option<u64>,
         #[serde(default)]
         timeouts: Timeouts,
         #[serde(default)]
@@ -324,6 +335,7 @@ struct State {
     clients: HashMap<u64, NativeClient>,
     budgets: HashMap<u64, HttpAttemptBudget>,
     transfers: HashMap<u64, TransferControl>,
+    diagnostics: HashMap<u64, std::sync::Arc<diagnostics::Owner>>,
     bodies: HashMap<u64, std::sync::Arc<BodyOwner>>,
     streams: HashMap<u64, std::sync::Arc<Upload>>,
     operations: HashMap<u64, Operation>,
@@ -337,6 +349,7 @@ impl Default for State {
             clients: HashMap::new(),
             budgets: HashMap::new(),
             transfers: HashMap::new(),
+            diagnostics: HashMap::new(),
             bodies: HashMap::new(),
             streams: HashMap::new(),
             operations: HashMap::new(),
@@ -848,9 +861,25 @@ fn terminal_error(id: u64, kind: &str) -> Vec<u8> {
 }
 
 pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
+    let command: Command = match serde_json::from_slice(input) {
+        Ok(command) => command,
+        Err(_) => return failure(Failure::new("invalid_command")),
+    };
+    if let Command::DiagnosticsSnapshot { diagnostics } = command {
+        let result = (|| {
+            let owner = global()?
+                .lock()
+                .diagnostics
+                .get(&diagnostics)
+                .cloned()
+                .ok_or_else(|| Failure::new("invalid_handle"))?;
+            // Copy/encode outside the HTTP registry lock. The observer retains
+            // shared certificate bytes and survives a concurrent handle close.
+            owner.reply()
+        })();
+        return result.unwrap_or_else(failure);
+    }
     encode((|| {
-        let command: Command =
-            serde_json::from_slice(input).map_err(|_| Failure::new("invalid_command"))?;
         if matches!(command, Command::Identity) {
             return Ok(native_identity());
         }
@@ -885,6 +914,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 command,
                 Command::ReleaseClient { .. }
                     | Command::ReleaseBudget { .. }
+                    | Command::ReleaseDiagnostics { .. }
                     | Command::CloseBody { .. }
                     | Command::CloseUpload { .. }
                     | Command::Cancel { .. }
@@ -956,6 +986,20 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     .ok_or_else(|| Failure::new("invalid_handle"))?;
                 Ok(transfer::snapshot(control))
             }
+            Command::NewDiagnostics { maximum } => {
+                let owner = diagnostics::Owner::new(maximum)?;
+                if state.diagnostics.len() >= MAX_HANDLES {
+                    return Err(Failure::new("capacity"));
+                }
+                let id = state.id()?;
+                state.diagnostics.insert(id, std::sync::Arc::new(owner));
+                Ok(json!({"id": id}))
+            }
+            Command::ReleaseDiagnostics { diagnostics } => {
+                state.diagnostics.remove(&diagnostics);
+                Ok(json!({}))
+            }
+            Command::DiagnosticsSnapshot { .. } => Err(Failure::new("internal")),
             Command::CookieSet { client, url, value } => {
                 state
                     .clients
@@ -1084,6 +1128,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 expect_continue_nanoseconds,
                 budget,
                 transfer,
+                diagnostics,
                 timeouts,
                 content_decoding,
                 redirect_policy,
@@ -1151,6 +1196,13 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                         .get(&id)
                         .ok_or_else(|| Failure::new("invalid_handle"))?;
                     request = request.transfer_control(control.clone());
+                }
+                if let Some(id) = diagnostics {
+                    state
+                        .diagnostics
+                        .get(&id)
+                        .ok_or_else(|| Failure::new("invalid_handle"))?
+                        .attach(&mut request)?;
                 }
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;

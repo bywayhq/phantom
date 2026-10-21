@@ -156,6 +156,8 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	firstRequest := Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/held"}
+	diagnostics := newDiagnostics(t, 128)
+	firstRequest.Diagnostics = diagnostics
 	var transfer *TransferControl
 	if cause == http2CancelDecodedLimit {
 		firstRequest.ContentDecoding = AdvertisedDecoding(0)
@@ -259,6 +261,22 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	}
 	if accepted.Load() != 1 {
 		t.Fatal("connection was replaced")
+	}
+	observed := timeline(t, diagnostics)
+	if observed.Outcome != TimelineResponseHead {
+		t.Fatalf("body cancellation changed the send outcome: %s", observed.Outcome)
+	}
+	found := false
+	for _, event := range observed.Events {
+		if event.Connection != nil {
+			found = true
+			if event.Protocol == nil || *event.Protocol != "h2" || event.Connection.OriginTLS.State != TLSNotUsed {
+				t.Fatalf("cleartext H2 connection facts: %+v", event)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("H2 connection use was not observed")
 	}
 }
 

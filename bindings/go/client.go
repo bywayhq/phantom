@@ -83,8 +83,11 @@ type Request struct {
 	Budget       *AttemptBudget
 	// TransferControl shares body-byte caps, pacing and counters. Nil disables it.
 	TransferControl *TransferControl
-	Timeout         time.Duration
-	Timeouts        Timeouts
+	// Diagnostics observes one logical request, including redirects and replays.
+	// The owner is single-use and remains readable after send failure/cancellation.
+	Diagnostics *RequestDiagnostics
+	Timeout     time.Duration
+	Timeouts    Timeouts
 	// ContentDecoding is opt-in and uses the request's own Accept-Encoding fields.
 	ContentDecoding ContentDecoding
 	// RedirectPolicy replaces the client policy. Nil inherits; an empty value disables.
@@ -346,6 +349,13 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if transfer != nil {
 		command["transfer"] = transfer
 	}
+	if request.Diagnostics != nil {
+		value := request.Diagnostics.id.Load()
+		if value == 0 {
+			return nil, &Error{Kind: "invalid_handle"}
+		}
+		command["diagnostics"] = value
+	}
 	if prepared != nil {
 		command["prepared_body"] = prepared
 	}
@@ -382,6 +392,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	})
 	runtime.KeepAlive(request.Budget)
 	runtime.KeepAlive(request.TransferControl)
+	runtime.KeepAlive(request.Diagnostics)
 	runtime.KeepAlive(request.PreparedBody)
 	runtime.KeepAlive(c)
 	if err != nil {

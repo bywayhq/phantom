@@ -140,6 +140,13 @@ active after an early response.
 
 ## Cancellation and state
 
+Pass `NewRequestDiagnostics(128)` through `Request.Diagnostics` and retain the
+owner to call `Snapshot()`, including after send failure. Each owner is single-use.
+Snapshots distinguish response headers from body completion and keep unavailable
+phases absent. Timings are exact monotonic offsets, with connection and TLS facts
+on connection-use events. Oversized snapshots fail explicitly; `Close` releases
+the observer handle without cancelling the request.
+
 Keep `ctx` alive through body EOF or close. Cancelling it interrupts setup,
 uploads and later reads without cancelling another multiplexed response.
 Errors from context cancellation are Go's context errors.
