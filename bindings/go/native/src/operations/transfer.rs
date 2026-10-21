@@ -54,7 +54,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn limits_reject_invalid_wire_values_and_zero_rates() {
+    fn limits_reject_invalid_wire_values_and_zero_rates() -> Result<(), serde_json::Error> {
         for input in [
             r#"{"upload_bytes":-1}"#,
             r#"{"download_bytes":18446744073709551616}"#,
@@ -68,16 +68,17 @@ mod tests {
             r#"{"upload_bytes_per_second":0}"#,
             r#"{"download_bytes_per_second":0}"#,
         ] {
-            let limits: Limits = serde_json::from_str(input).expect("valid JSON fields");
+            let limits: Limits = serde_json::from_str(input)?;
             assert_eq!(
-                limits.control().expect_err("zero rate").kind,
-                "invalid_transfer_limits"
+                limits.control().err().map(|failure| failure.kind),
+                Some("invalid_transfer_limits")
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn zero_caps_and_exact_u64_max_are_valid() -> Result<(), serde_json::Error> {
+    fn zero_caps_and_exact_u64_max_are_valid() -> Result<(), Box<dyn std::error::Error>> {
         for input in [
             "{}",
             r#"{"upload_bytes":0,"download_bytes":0}"#,
@@ -85,7 +86,7 @@ mod tests {
         ] {
             let control = serde_json::from_str::<Limits>(input)?
                 .control()
-                .expect("valid limits");
+                .map_err(|failure| failure.kind)?;
             assert_eq!(snapshot(&control)["upload_reserved_bytes"], 0);
             assert_eq!(snapshot(&control)["download_reserved_bytes"], 0);
         }
