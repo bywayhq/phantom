@@ -434,14 +434,40 @@ async fn cancellation_after_negotiation_starts_closes_the_proxy() -> TestResult<
         ))?))
         .build()?;
     let operation: TestResult<()> = match tokio::time::timeout(Duration::from_secs(5), async {
-        let request = client.get(HttpProtocol::Http1, "http://origin.socks4.test/")?.send();
+        let request = client
+            .get(HttpProtocol::Http1, "http://origin.socks4.test/")?
+            .send();
         tokio::pin!(request);
         tokio::select! {
-            result = &mut request => return Err(format!("request completed before cancellation: {result:?}").into()),
+            result = &mut request => match result {
+                Ok(_) => return Err("request succeeded before cancellation".into()),
+                Err(error) => {
+                    eprintln!("request failed before cancellation: {error:?}");
+                    let mut source = std::error::Error::source(&error);
+                    while let Some(cause) = source {
+                        if let Some(socks) = cause.downcast_ref::<Socks4Error>() {
+                            eprintln!(
+                                "SOCKS4 cause: kind={:?}, reply_status={:?}, reply_version={:?}",
+                                socks.kind(), socks.reply_status(), socks.reply_version(),
+                            );
+                        }
+                        if let Some(io) = cause.downcast_ref::<io::Error>() {
+                            eprintln!(
+                                "I/O cause: kind={:?}, raw_os_error={:?}",
+                                io.kind(), io.raw_os_error(),
+                            );
+                        }
+                        source = cause.source();
+                    }
+                    return Err(error.into());
+                }
+            },
             result = received => result?,
         }
         Ok(())
-    }).await {
+    })
+    .await
+    {
         Ok(result) => result,
         Err(error) => Err(error.into()),
     };
