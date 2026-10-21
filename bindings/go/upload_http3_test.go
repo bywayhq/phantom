@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"os"
@@ -128,7 +131,21 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 		RootDER []byte `json:"root_der"`
 	}
 	read("ready.json", &ready)
-	client, err := New(Config{Profile: profile, Protocol: "h3", AdditionalRootsDER: [][]byte{ready.RootDER}, Timeout: 10 * time.Second})
+	// The generated CA is trust material; pins identify the actual leaf SPKI.
+	certificatePEM, err := os.ReadFile(filepath.Join(directory, "server.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, _ := pem.Decode(certificatePEM)
+	if block == nil || block.Type != "CERTIFICATE" {
+		t.Fatal("missing peer leaf certificate")
+	}
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pin := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
+	client, err := New(Config{Profile: profile, Protocol: "h3", AdditionalRootsDER: [][]byte{ready.RootDER}, ServerSPKIPins: [][32]byte{{1}, pin}, Timeout: 10 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,7 @@ use crate::policy::{RedirectPolicy, RequestPolicy};
 use crate::timeouts::Timeouts;
 use phantom::{
     Client, HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, Route,
+    ServerSpkiPins,
 };
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,8 @@ pub(super) struct Config {
     additional_roots_der: Vec<Vec<u8>>,
     #[serde(default)]
     proxy_additional_roots_der: Vec<Vec<u8>>,
+    server_spki_pins: Option<Vec<[u8; 32]>>,
+    proxy_server_spki_pins: Option<Vec<[u8; 32]>>,
     cookies: bool,
     #[serde(default)]
     timeouts: Timeouts,
@@ -178,6 +181,16 @@ impl NativeClient {
         for root in config.proxy_additional_roots_der {
             builder = builder.add_proxy_root_certificate_der(root);
         }
+        if let Some(digests) = config.server_spki_pins {
+            let pins = ServerSpkiPins::new(digests)
+                .map_err(|_| Failure::new("invalid_server_spki_pins"))?;
+            builder = builder.server_spki_pins(pins);
+        }
+        if let Some(digests) = config.proxy_server_spki_pins {
+            let pins = ServerSpkiPins::new(digests)
+                .map_err(|_| Failure::new("invalid_proxy_server_spki_pins"))?;
+            builder = builder.proxy_server_spki_pins(pins);
+        }
         if config.cookies {
             builder = builder.cookies();
         }
@@ -226,6 +239,39 @@ impl NativeClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_pin_policies_reject_empty_and_oversized_supplied_sets()
+    -> Result<(), serde_json::Error> {
+        for (field, kind) in [
+            ("server_spki_pins", "invalid_server_spki_pins"),
+            ("proxy_server_spki_pins", "invalid_proxy_server_spki_pins"),
+        ] {
+            for count in [0, 33] {
+                let mut value = serde_json::json!({
+                    "profile": "chrome/154.0.8037.97/windows-11-26200/r1",
+                    "protocol": "h1",
+                    "cookies": false,
+                });
+                value[field] = serde_json::json!(vec![[0_u8; 32]; count]);
+                let config: Config = serde_json::from_value(value)?;
+                assert_eq!(
+                    NativeClient::new(config).err().map(|error| error.kind),
+                    Some(kind)
+                );
+            }
+            for length in [31, 33] {
+                let mut value = serde_json::json!({
+                    "profile": "chrome/154.0.8037.97/windows-11-26200/r1",
+                    "protocol": "h1",
+                    "cookies": false,
+                });
+                value[field] = serde_json::json!([vec![0_u8; length]]);
+                assert!(serde_json::from_value::<Config>(value).is_err());
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn sharing_flags_match_core_and_reject_unknown_fields() -> Result<(), serde_json::Error> {

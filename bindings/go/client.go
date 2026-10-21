@@ -28,7 +28,14 @@ type Config struct {
 	// HTTPS-proxy trust separately. Certificates must be DER encoded.
 	AdditionalRootsDER      [][]byte
 	ProxyAdditionalRootsDER [][]byte
-	DisableCookies          bool
+	// ServerSPKIPins accepts any of 1..32 SHA-256 leaf DER SubjectPublicKeyInfo
+	// digests, in addition to normal certificate and hostname verification.
+	// Nil disables pinning; a non-nil empty slice is invalid. Cleartext origins fail.
+	ServerSPKIPins [][32]byte
+	// ProxyServerSPKIPins applies the same policy to HTTPS-proxy TLS separately.
+	// Direct routes remain usable; plaintext proxy routes fail before I/O.
+	ProxyServerSPKIPins [][32]byte
+	DisableCookies      bool
 	// Timeout retains the original total timeout. Do not combine it with Timeouts.Total.
 	Timeout  time.Duration
 	Timeouts Timeouts
@@ -126,6 +133,12 @@ func New(config Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.ServerSPKIPins != nil && (len(config.ServerSPKIPins) == 0 || len(config.ServerSPKIPins) > 32) {
+		return nil, &Error{Kind: "invalid_server_spki_pins"}
+	}
+	if config.ProxyServerSPKIPins != nil && (len(config.ProxyServerSPKIPins) == 0 || len(config.ProxyServerSPKIPins) > 32) {
+		return nil, &Error{Kind: "invalid_proxy_server_spki_pins"}
+	}
 	// Bound newly exposed data before expanding DER bytes into JSON arrays.
 	size := 0
 	values := []string{config.Profile, config.Protocol, config.Context, config.Proxy, config.BaseURL}
@@ -175,10 +188,12 @@ func New(config Config) (*Client, error) {
 		Credentials     *ProxyCredentials `json:"proxy_credentials,omitempty"`
 		Roots           [][]uint16        `json:"additional_roots_der"`
 		ProxyRoots      [][]uint16        `json:"proxy_additional_roots_der"`
+		ServerPins      [][32]byte        `json:"server_spki_pins,omitempty"`
+		ProxyPins       [][32]byte        `json:"proxy_server_spki_pins,omitempty"`
 		Timeouts        wireTimeouts      `json:"timeouts"`
 		RedirectPolicy  RedirectPolicy    `json:"redirect_policy"`
 		RetryPolicy     wireRetryPolicy   `json:"retry_policy"`
-	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, timeouts, config.RedirectPolicy, retries}
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, timeouts, config.RedirectPolicy, retries}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err
