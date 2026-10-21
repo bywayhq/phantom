@@ -6,6 +6,7 @@ mod client;
 mod configuration;
 mod error;
 mod profile;
+mod request_fields;
 mod response;
 mod runtime;
 mod session;

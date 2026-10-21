@@ -133,3 +133,9 @@ def invalid_transfer(client: Client) -> None:
     limits = TransferLimits()
     limits.download_bytes = 1  # E: misc
     control.snapshot().upload_body_bytes = 1  # E: misc
+
+
+async def invalid_body_controls(client: AsyncClient, sync: Client, url: str) -> None:
+    await client.request("POST", url, trailers={"x": "value"})  # E: dict-item
+    sync.request("POST", url, trailers=[("x", 1)])  # E: list-item
+    await client.request("POST", url, expect_continue_ms=0.5)  # E: arg-type

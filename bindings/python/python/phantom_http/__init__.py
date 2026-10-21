@@ -85,6 +85,44 @@ class BodyLimitExceeded(Error):
     """Body collection exceeded the caller's bound."""
 
 
+def _request_fields(
+    headers: _Headers, trailers: _Headers
+) -> tuple[list[tuple[str, bytes, bool]], list[tuple[str, bytes, bool]]]:
+    remaining = 65536
+    count = 0
+    result: list[list[tuple[str, bytes, bool]]] = []
+    for fields in (headers, trailers):
+        ordered = []
+        for field in fields:
+            count += 1
+            if count > 256:
+                raise ValueError("headers and trailers exceed 256 fields")
+            if isinstance(field, Header):
+                name, value, sensitive = field.name, field.value, field.sensitive
+            else:
+                name, value = field
+                sensitive = False
+            if not isinstance(name, str):
+                raise TypeError("header and trailer names must be str")
+            if not isinstance(value, (str, bytes)):
+                raise TypeError("header and trailer values must be str or bytes")
+            if len(name) + len(value) > remaining:
+                raise ValueError("headers and trailers exceed 65536 bytes")
+            remaining -= len(name.encode("utf-8")) + len(value)
+            if remaining < 0:
+                raise ValueError("headers and trailers exceed 65536 bytes")
+            if isinstance(value, str):
+                try:
+                    value = value.encode("latin-1")
+                except UnicodeEncodeError:
+                    raise ValueError(
+                        "header text must fit Latin-1; supply bytes explicitly"
+                    ) from None
+            ordered.append((name, value, sensitive))
+        result.append(ordered)
+    return result[0], result[1]
+
+
 class UploadError(Error):
     """Producer or cleanup failure; original exceptions require explicit inspection."""
 
@@ -675,6 +713,8 @@ class AsyncClient:
         url: str,
         *,
         headers: _Headers = (),
+        trailers: _Headers = (),
+        expect_continue_ms: int | None = None,
         body: bytes | AsyncIterable[bytes] | None = None,
         body_length: int | None = None,
         upload: _UploadPath | None = None,
@@ -720,23 +760,14 @@ class AsyncClient:
         if producer and not isinstance(body, AsyncIterable):
             raise TypeError("AsyncClient body must be bytes or AsyncIterable[bytes]")
         _upload.length(body_length, producer)
-        ordered = []
-        for field in headers:
-            if isinstance(field, Header):
-                name, value, sensitive = field.name, field.value, field.sensitive
-            else:
-                name, value = field
-                sensitive = False
-            if isinstance(value, str):
-                try:
-                    value = value.encode("latin-1")
-                except UnicodeEncodeError:
-                    raise ValueError(
-                        "header text must fit Latin-1; supply bytes explicitly"
-                    ) from None
-            if not isinstance(value, bytes):
-                raise TypeError("header values must be str or bytes")
-            ordered.append((name, value, sensitive))
+        ordered, ordered_trailers = _request_fields(headers, trailers)
+        if expect_continue_ms is not None:
+            if type(expect_continue_ms) is not int:
+                raise TypeError("expect_continue_ms must be an integer")
+            if not 0 <= expect_continue_ms <= 2**64 - 1:
+                raise ValueError(
+                    "expect_continue_ms must fit an unsigned 64-bit integer"
+                )
         pump = (
             _upload.Upload(cast(AsyncIterable[bytes], body), body_length)
             if producer
@@ -762,7 +793,17 @@ class AsyncClient:
                 redirect_history_limit,
                 None if retry_policy is None else retry_policy._native_fields(),
             )
-            if transfer_control is not None:
+            if ordered_trailers or expect_continue_ms is not None:
+                operation = self._native.request(
+                    *arguments,
+                    producer=None if pump is None else pump.native,
+                    transfer_control=None
+                    if transfer_control is None
+                    else transfer_control._native,
+                    trailers=ordered_trailers,
+                    expect_continue_ms=expect_continue_ms,
+                )
+            elif transfer_control is not None:
                 operation = self._native.request(
                     *arguments,
                     producer=None if pump is None else pump.native,
@@ -1058,6 +1099,8 @@ class Client:
         url: str,
         *,
         headers: _Headers = (),
+        trailers: _Headers = (),
+        expect_continue_ms: int | None = None,
         body: bytes | Iterable[bytes] | None = None,
         body_length: int | None = None,
         upload: _UploadPath | None = None,
@@ -1084,6 +1127,8 @@ class Client:
                     method,
                     url,
                     headers=headers,
+                    trailers=trailers,
+                    expect_continue_ms=expect_continue_ms,
                     body=source,
                     body_length=body_length,
                     upload=upload,

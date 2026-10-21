@@ -187,6 +187,8 @@ class SignatureTests(unittest.TestCase):
                 budget = object()
                 request = {
                     "headers": fields,
+                    "trailers": (),
+                    "expect_continue_ms": None,
                     "body": b"bytes",
                     "body_length": None,
                     "upload": None,
@@ -226,6 +228,8 @@ class SignatureTests(unittest.TestCase):
                             if explicit
                             else {
                                 "headers": (),
+                                "trailers": (),
+                                "expect_continue_ms": None,
                                 "body": None,
                                 "body_length": None,
                                 "upload": None,

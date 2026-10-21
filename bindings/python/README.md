@@ -88,6 +88,12 @@ Set `body_length=N` for a known length. Checks cover demanded bytes and observed
 EOF; unread suffixes are not validated. The total deadline includes file setup
 and remains active after an early response.
 
+Set `trailers=(Header("X-Final", b"value"), ...)` for ordered static trailers;
+HTTP/2 and HTTP/3 names must be lowercase. `expect_continue_ms=1000` opts into
+100-continue; `None` disables it and zero is a zero wait. The wait spends the
+request's head/total deadlines. Headers and trailers share a 256-field/64-KiB
+input bound; core trailer restrictions also apply.
+
 Use `await response.aclose()` to wait for cooperative producer cleanup.
 Noncooperative cleanup can time out and remains owned for a later close.
 `Error.original` and `.cleanup_error` expose upload failures explicitly;

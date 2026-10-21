@@ -249,3 +249,15 @@ async def transfer_async(
     snapshot: TransferSnapshot = control.snapshot()
     _exact_count: int = snapshot.download_encoded_bytes
     return snapshot
+
+
+async def request_body_controls(client: AsyncClient, sync: Client, url: str) -> None:
+    fields = (Header("x-repeat", b"one", sensitive=True), ("x-repeat", "two"))
+    response = await client.request(
+        "POST", url, body=b"data", trailers=fields, expect_continue_ms=0
+    )
+    await response.aclose()
+    with sync.request(
+        "POST", url, body=b"data", trailers=fields, expect_continue_ms=1000
+    ):
+        pass

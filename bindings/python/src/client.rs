@@ -1,12 +1,15 @@
 use crate::{
-    configuration, error, profile,
+    configuration, error, profile, request_fields,
     response::NativeResponse,
     runtime, session,
     transfer::NativeTransferControl,
     upload::{FileBody, NativeUpload},
 };
-use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
-use pyo3::{prelude::*, types::PyBytes};
+use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, SessionSharing};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyList},
+};
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
@@ -221,14 +224,14 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
         py: Python<'py>,
         method: &str,
         url: &str,
-        headers: Vec<(String, Vec<u8>, bool)>,
+        headers: &Bound<'py, PyList>,
         body: Option<Vec<u8>>,
         upload: Option<PathBuf>,
         budget: Option<PyRef<'_, AttemptBudget>>,
@@ -240,6 +243,8 @@ impl NativeClient {
         retry_policy: Option<configuration::RetryFields>,
         producer: Option<PyRef<'_, NativeUpload>>,
         transfer_control: Option<PyRef<'_, NativeTransferControl>>,
+        trailers: Option<&Bound<'py, PyList>>,
+        expect_continue_ms: Option<Bound<'_, PyAny>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
@@ -259,19 +264,11 @@ impl NativeClient {
             _ => return Err(error::input("invalid_protocol")),
         }
         .map_err(error::request)?;
-        request = request.headers(
-            headers
-                .into_iter()
-                .map(|(name, value, sensitive)| {
-                    let header = RequestHeader::new(name, value);
-                    if sensitive {
-                        header.sensitive()
-                    } else {
-                        header
-                    }
-                })
-                .collect(),
-        );
+        let (headers, trailers) = request_fields::headers(headers, trailers)?;
+        request = request.headers(headers).trailers(trailers);
+        if let Some(wait) = request_fields::expect_wait(expect_continue_ms)? {
+            request = request.expect_continue(wait);
+        }
         if let Some(budget) = budget {
             request = request.attempt_budget(budget.inner.clone());
         }

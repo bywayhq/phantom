@@ -97,8 +97,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def server():
+def server(handler=Handler):
     peer = Peer()
+    peer.RequestHandlerClass = handler
     thread = threading.Thread(target=peer.serve_forever, daemon=True)
     thread.start()
     try:
