@@ -1,0 +1,183 @@
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+index fbd89bc5c..782b3233b 100644
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -1233,4 +1233,178 @@ mod tests {
+             Err(HeaderError::PseudoAfterRegularField)
+         );
+     }
++
++    #[test]
++    fn rejects_duplicate_status_pseudo_headers() {
++        for second in ["200", "404"] {
++            assert!(
++                Header::try_from(vec![
++                    HeaderField::new(":status", "200"),
++                    HeaderField::new(":status", second),
++                ])
++                .is_err(),
++                "accepted a second :status with value {second}"
++            );
++        }
++    }
++
++    #[test]
++    fn rejects_duplicate_request_pseudo_headers() {
++        for (name, first, other) in [
++            (":method", "CONNECT", "GET"),
++            (":scheme", "https", "http"),
++            (":authority", "example.test", "other.test"),
++            (":path", "/", "/other"),
++            (":protocol", "websocket", "connect-udp"),
++        ] {
++            for second in [first, other] {
++                let mut fields = extended_connect_fields();
++                fields.push(HeaderField::new(name, second));
++
++                assert!(
++                    Header::try_from(fields).is_err(),
++                    "accepted a second {name} with value {second}"
++                );
++            }
++        }
++    }
++
++    #[test]
++    fn rejects_request_pseudo_headers_in_responses() {
++        for field in extended_connect_fields() {
++            let result = Header::try_from(vec![HeaderField::new(":status", "200"), field])
++                .and_then(Header::into_response_parts);
++
++            assert!(
++                result.is_err(),
++                "accepted a request pseudo-header in a response"
++            );
++        }
++    }
++
++    #[test]
++    fn rejects_status_pseudo_header_in_requests() {
++        let mut fields = extended_connect_fields();
++        fields.push(HeaderField::new(":status", "200"));
++
++        assert!(Header::try_from(fields)
++            .and_then(Header::into_request_parts)
++            .is_err());
++    }
++
++    #[test]
++    fn rejects_connection_specific_fields_in_every_message_context() {
++        for (name, value) in [
++            ("connection", "close"),
++            ("proxy-connection", "keep-alive"),
++            ("keep-alive", "timeout=5"),
++            ("transfer-encoding", "chunked"),
++            ("upgrade", "websocket"),
++        ] {
++            let mut request = extended_connect_fields();
++            request.push(HeaderField::new(name, value));
++            assert!(
++                Header::try_from(request)
++                    .and_then(Header::into_request_parts)
++                    .is_err(),
++                "accepted {name} in a request"
++            );
++
++            assert!(
++                Header::try_from(vec![
++                    HeaderField::new(":status", "200"),
++                    HeaderField::new(name, value),
++                ])
++                .and_then(Header::into_response_parts)
++                .is_err(),
++                "accepted {name} in a response"
++            );
++
++            assert!(
++                Header::try_from(vec![HeaderField::new(name, value)])
++                    .and_then(Header::into_trailer_parts)
++                    .is_err(),
++                "accepted {name} in trailers"
++            );
++        }
++    }
++
++    #[test]
++    fn rejects_te_outside_request_headers() {
++        assert!(Header::try_from(vec![
++            HeaderField::new(":status", "200"),
++            HeaderField::new("te", "trailers"),
++        ])
++        .and_then(Header::into_response_parts)
++        .is_err());
++
++        assert!(Header::try_from(vec![HeaderField::new("te", "trailers")])
++            .and_then(Header::into_trailer_parts)
++            .is_err());
++    }
++
++    #[test]
++    fn rejects_te_values_other_than_trailers() {
++        for value in ["", "gzip", "trailers, gzip"] {
++            let mut request = extended_connect_fields();
++            request.push(HeaderField::new("te", value));
++
++            assert!(
++                Header::try_from(request)
++                    .and_then(Header::into_request_parts)
++                    .is_err(),
++                "accepted TE value {value:?}"
++            );
++        }
++    }
++
++    #[test]
++    fn accepts_te_trailers_in_request_headers() -> Result<(), HeaderError> {
++        let mut fields = extended_connect_fields();
++        fields.push(HeaderField::new("te", "trailers"));
++
++        let request = Header::try_from(fields)?.into_request_parts()?;
++
++        assert_eq!(request.method, Method::CONNECT);
++        assert_eq!(request.protocol, Some(Protocol::WEBSOCKET));
++        assert_eq!(request.headers["te"], "trailers");
++        Ok(())
++    }
++
++    #[test]
++    fn accepts_duplicate_ordinary_trailers_in_received_order() -> Result<(), HeaderError> {
++        let (fields, ordered) = Header::try_from(vec![
++            HeaderField::new("x-repeat", "first"),
++            HeaderField::new("x-middle", "between"),
++            HeaderField::new("x-repeat", "second"),
++        ])?
++        .into_trailer_parts()?;
++
++        assert_eq!(fields.get_all("x-repeat").iter().count(), 2);
++        let observed = ordered
++            .unwrap()
++            .into_inner()
++            .into_iter()
++            .map(|(name, value)| (name.to_string(), value.as_bytes().to_vec()))
++            .collect::<Vec<_>>();
++        assert_eq!(
++            observed,
++            [
++                ("x-repeat".into(), b"first".to_vec()),
++                ("x-middle".into(), b"between".to_vec()),
++                ("x-repeat".into(), b"second".to_vec()),
++            ]
++        );
++        Ok(())
++    }
++
++    fn extended_connect_fields() -> Vec<HeaderField> {
++        vec![
++            HeaderField::new(":method", "CONNECT"),
++            HeaderField::new(":scheme", "https"),
++            HeaderField::new(":authority", "example.test"),
++            HeaderField::new(":path", "/"),
++            HeaderField::new(":protocol", "websocket"),
++        ]
++    }
+ }

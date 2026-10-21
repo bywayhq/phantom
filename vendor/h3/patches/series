@@ -25,5 +25,6 @@ peer-field-section-tests.patch
 test-sockets.patch
 ordered-received-request-headers.patch
 received-trailers.patch
+received-field-validation.patch
 supported-rust-version.patch
 publish-identity.patch
