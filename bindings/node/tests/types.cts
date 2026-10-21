@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ProfileValue, type RequestTimeline } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -262,3 +262,16 @@ async function preparedBodies(client: Client): Promise<void> {
   await PreparedBody.form([]);
 }
 void preparedBodies;
+
+async function diagnostics(client: Client): Promise<void> {
+  const trace = new RequestDiagnostics({maximumEvents: 128});
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', diagnostics: trace});
+  const snapshot: RequestTimeline | null = trace.snapshot();
+  const elapsed: bigint | null | undefined = snapshot?.sendElapsedNs;
+  // @ts-expect-error Capacity is an exact integer, never text.
+  new RequestDiagnostics({maximumEvents: '128'});
+  // @ts-expect-error A native observer cannot be replaced with a plain object.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', diagnostics: {}});
+  void elapsed;
+}
+void diagnostics;

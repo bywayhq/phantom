@@ -5,6 +5,7 @@ mod error;
 mod prepared_body;
 mod profile;
 mod request;
+mod request_diagnostics;
 mod response;
 mod retry;
 mod session;
@@ -16,11 +17,13 @@ mod upload;
 mod ffi;
 
 pub use ffi::{
-    ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, FormField,
-    MultipartField, NativeAttemptBudget, NativeCancellation, NativeClient, NativeEnvironment,
-    NativeImportedProfile, NativePreparedBody, NativeProfile, NativeResponse,
-    NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
-    RedirectPolicyOptions, RequestOptions, RetryPolicyOptions, SessionRouteOptions,
-    StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo, WireHeader, prepared_form,
-    prepared_multipart, profile_catalog, profile_ids, profile_import_json,
+    ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, DiagnosticConnectionInfo,
+    DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo, DiagnosticTlsState, FileUpload,
+    FormField, MultipartField, NativeAttemptBudget, NativeCancellation, NativeClient,
+    NativeEnvironment, NativeImportedProfile, NativePreparedBody, NativeProfile,
+    NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload,
+    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    RetryPolicyOptions, SessionRouteOptions, StatusRetryOptions, TransferLimitsOptions,
+    TransferSnapshotInfo, WireHeader, prepared_form, prepared_multipart, profile_catalog,
+    profile_ids, profile_import_json,
 };

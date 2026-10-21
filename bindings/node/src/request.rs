@@ -53,6 +53,7 @@ pub(crate) enum BodyInput {
 pub(crate) struct RequestControls {
     pub(crate) attempt_budget: Option<HttpAttemptBudget>,
     pub(crate) transfer_control: Option<TransferControl>,
+    pub(crate) diagnostics: Option<Arc<crate::request_diagnostics::Diagnostics>>,
     pub(crate) trailers: Vec<RequestHeader>,
 }
 
@@ -183,6 +184,9 @@ impl Prepared {
         if let Some(upload) = upload {
             builder = builder.streaming_body(upload.body()?);
             exchange.upload(upload);
+        }
+        if let Some(diagnostics) = controls.diagnostics {
+            diagnostics.attach(&mut builder)?;
         }
         Ok(Self {
             builder,

@@ -164,6 +164,8 @@ export interface RedirectHistory {
   readonly omittedHops: number;
 }
 export interface RequestOptions {
+  /** Single-use live observer; keep it to inspect failed/cancelled sends. */
+  diagnostics?: RequestDiagnostics;
   method: string;
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
   context: RequestContext;
@@ -230,3 +232,58 @@ export class Client {
   [Symbol.asyncDispose](): Promise<void>;
 }
 export function profiles(): string[];
+
+export type RequestTimelineOutcome = 'not_started' | 'pending' | 'response_head' | 'failed' | 'cancelled';
+export type RequestTimingPhase = 'attempt_admission' | 'pool_admission' | 'connection_acquisition'
+  | 'connection_use' | 'resolution_wait' | 'tcp_connect' | 'tls_handshake' | 'quic_handshake'
+  | 'send_response_head' | 'response_body';
+export type RequestTimingOutcome = 'pending' | 'completed' | 'failed' | 'interrupted' | 'abandoned' | 'cached' | 'early_data';
+export interface TLSConnectionInfo {
+  readonly peerVerified: boolean;
+  readonly versionId: number | null;
+  readonly cipherSuiteId: number | null;
+  /** Owned bytes; snapshot records are frozen, Buffer contents remain editable. */
+  readonly alpn: Buffer | null;
+  readonly sessionResumed: boolean;
+  /** Available leaf-first DER, not a constructed trust chain; null means unavailable. */
+  readonly peerCertificatesDer: readonly Buffer[] | null;
+}
+export type TLSConnectionState = Readonly<{state: 'not_used' | 'unavailable' | 'pending'; info: null}>
+  | Readonly<{state: 'established'; info: TLSConnectionInfo}>;
+export interface RequestConnection {
+  /** Earlier HTTP dispatch on this connection, separate from TLS resumption. */
+  readonly reused: boolean;
+  readonly endpointScope: 'unavailable' | 'tcp_socket' | 'quic_endpoint';
+  readonly localAddress: string | null;
+  /** May identify a proxy rather than the origin. */
+  readonly peerAddress: string | null;
+  readonly originTls: TLSConnectionState;
+  readonly proxyTls: TLSConnectionState;
+}
+export interface RequestTiming {
+  readonly id: bigint;
+  readonly hop: bigint;
+  readonly admission: bigint | null;
+  readonly protocol: 'h1' | 'h2' | 'h3' | null;
+  readonly phase: RequestTimingPhase;
+  readonly startedNs: bigint;
+  readonly finishedNs: bigint | null;
+  readonly outcome: RequestTimingOutcome;
+  readonly connection: RequestConnection | null;
+}
+export interface RequestTimeline {
+  /** Send outcome only: response_head does not mean the body completed. */
+  readonly outcome: RequestTimelineOutcome;
+  readonly sendElapsedNs: bigint | null;
+  /** Start order; intervals can overlap. Missing phases are unobserved, not zero. */
+  readonly events: readonly RequestTiming[];
+  readonly droppedEvents: bigint;
+  /** Admission does not prove bytes were sent. */
+  readonly admittedAttempts: bigint;
+}
+export class RequestDiagnostics {
+  private readonly _owner: never;
+  constructor(options?: {maximumEvents?: number | bigint});
+  /** Null before core attachment. Copies do not clear events; binary/record copies are capped at 16 MiB. */
+  snapshot(): RequestTimeline | null;
+}

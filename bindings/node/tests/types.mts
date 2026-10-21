@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PreparedBody, Profile } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, PreparedBody, Profile, RequestDiagnostics, type RequestTimeline } from '../index.mjs';
 
 function compactProfiles(base: Profile, bytes: Uint8Array): void {
   const imported = Profile.importClientHello(bytes, {base});
@@ -79,3 +79,27 @@ async function preparedBodies(): Promise<void> {
   void mediaType;
 }
 void preparedBodies;
+
+async function diagnostics(client: Client): Promise<void> {
+  const trace = new RequestDiagnostics({maximumEvents: 128n});
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', diagnostics: trace});
+  const snapshot: RequestTimeline | null = trace.snapshot();
+  if (snapshot) {
+    const elapsed: bigint | null = snapshot.sendElapsedNs;
+    // @ts-expect-error Snapshot counters are exact bigint, never number.
+    const rounded: number = snapshot.admittedAttempts;
+    // @ts-expect-error Event records are immutable.
+    snapshot.events[0]!.outcome = 'completed';
+    const state = snapshot.events[0]!.connection?.originTls;
+    if (state?.state === 'established') {
+      const verified: boolean = state.info.peerVerified;
+      void verified;
+    }
+    void elapsed; void rounded;
+  }
+  // @ts-expect-error Capacity does not accept booleans.
+  new RequestDiagnostics({maximumEvents: true});
+  // @ts-expect-error A plain snapshot is not an observer owner.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', diagnostics: {snapshot() {return null;}}});
+}
+void diagnostics;

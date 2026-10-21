@@ -10,6 +10,7 @@ const offsetOf = Object.getOwnPropertyDescriptor(typedArray, 'byteOffset').get;
 const lengthOf = Object.getOwnPropertyDescriptor(typedArray, 'byteLength').get;
 const budgetHandles = new WeakMap();
 const transferHandles = new WeakMap();
+const diagnosticsHandles = new WeakMap();
 const profileHandles = new WeakMap();
 const preparedHandles = new WeakMap();
 const preparedToken = {};
@@ -433,6 +434,48 @@ class AttemptBudget {
   }
 }
 
+function diagnosticRecord(value, label) {
+  return Object.freeze(Object.defineProperty(value, inspect.custom, {
+    value: () => `${label} { details omitted }`,
+  }));
+}
+
+function diagnosticTls(value) {
+  const info = value.info;
+  return diagnosticRecord({state: value.state, info: info == null ? null : diagnosticRecord({
+    ...info, versionId: info.versionId ?? null, cipherSuiteId: info.cipherSuiteId ?? null,
+    alpn: info.alpn ?? null,
+    peerCertificatesDer: info.peerCertificatesDer == null ? null : Object.freeze(info.peerCertificatesDer),
+  }, 'TLSConnectionInfo')}, 'TLSConnectionState');
+}
+
+class RequestDiagnostics {
+  constructor(options = {}) {
+    const copy = policyFields(options, ['maximumEvents']);
+    const maximum = copy.maximumEvents === undefined ? 128n : positiveCount(copy.maximumEvents);
+    try { diagnosticsHandles.set(this, new native.NativeRequestDiagnostics(maximum)); }
+    catch (error) { throw translated(error); }
+    Object.freeze(this);
+  }
+  snapshot() {
+    const handle = diagnosticsHandles.get(this);
+    if (handle === undefined) throw new PhantomError('InvalidArgument', 'receiver must be RequestDiagnostics');
+    let snapshot;
+    try { snapshot = handle.snapshot(); } catch (error) { throw translated(error); }
+    if (snapshot == null) return null;
+    return diagnosticRecord({...snapshot, sendElapsedNs: snapshot.sendElapsedNs ?? null,
+      events: Object.freeze(snapshot.events.map((event) => diagnosticRecord({...event,
+        admission: event.admission ?? null, protocol: event.protocol ?? null,
+        finishedNs: event.finishedNs ?? null,
+        connection: event.connection == null ? null : diagnosticRecord({...event.connection,
+          localAddress: event.connection.localAddress ?? null, peerAddress: event.connection.peerAddress ?? null,
+          originTls: diagnosticTls(event.connection.originTls), proxyTls: diagnosticTls(event.connection.proxyTls),
+        }, 'RequestConnection'),
+      }, 'RequestTiming'))),
+    }, 'RequestTimeline');
+  }
+}
+
 class TransferControl {
   constructor(limits = {}) {
     const copy = policyFields(limits, ['uploadBytes', 'downloadBytes', 'uploadBytesPerSecond', 'downloadBytesPerSecond']);
@@ -765,6 +808,9 @@ class Client {
       if (options.attemptBudget !== undefined && budget === undefined) throw new PhantomError('InvalidArgument', 'attemptBudget must be an AttemptBudget');
       const transfer = options.transferControl === undefined ? undefined : transferHandles.get(options.transferControl);
       if (options.transferControl !== undefined && transfer === undefined) throw new PhantomError('InvalidArgument', 'transferControl must be a TransferControl');
+      const diagnostics = options.diagnostics === undefined ? undefined : diagnosticsHandles.get(options.diagnostics);
+      if (options.diagnostics !== undefined && diagnostics === undefined) throw new PhantomError('InvalidArgument', 'diagnostics must be RequestDiagnostics');
+      const extra = diagnostics === undefined ? [] : [diagnostics];
       const pending = this.#native.request({
         url, method: options.method, protocol: options.protocol, context: options.context,
         ...fields, expectContinueMs: continueWait,
@@ -776,7 +822,7 @@ class Client {
         retryPolicy: retryPolicy(options.retryPolicy),
         redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
           : positiveCount(options.redirectHistoryLimit),
-      }, cancellation, budget, upload, transfer);
+      }, cancellation, budget, upload, transfer, ...extra);
       if (upload) {
         producer = {error: undefined};
         this.#trackUpload(iterator, upload, producer);
@@ -921,4 +967,4 @@ function uploadOperation(operation) {
   }
 }
 
-module.exports = { AttemptBudget, Client, PhantomError, PreparedBody, Profile, Response, TransferControl, profiles: () => native.profileIds() };
+module.exports = { AttemptBudget, Client, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, TransferControl, profiles: () => native.profileIds() };

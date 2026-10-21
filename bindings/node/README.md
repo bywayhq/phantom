@@ -180,6 +180,14 @@ with at most 128 open clients; closed clients remain charged until their work
 settles. `PhantomError.code` identifies failures, with `protocol` and
 `timeoutPhase` when known. Messages omit inputs, credentials and file paths.
 
+Attach `diagnostics: new RequestDiagnostics({maximumEvents: 128})` and keep the
+owner to call `snapshot()` after failures or cancellation. Import it from the
+package. Snapshots are `null` before attachment; `response_head` is send success,
+not body completion. Events retain order, exact bigint nanoseconds, explicit
+pending/unavailable facts and dropped counts. Frozen records contain owned,
+editable ALPN/DER buffers; copied records/bytes are capped at 16 MiB. Missing
+phases are unobserved. The owner is single-use and does not enable secret logs.
+
 ## Edit a profile
 
 ```js
