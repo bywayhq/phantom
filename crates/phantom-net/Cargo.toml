@@ -32,8 +32,8 @@ http2 = { workspace = true, features = ["unstable"] }
 http-body = "1.1.0"
 http-body-util = "0.1.3"
 httparse = "1.10.1"
-phantom-profile = { version = "=0.2.0", path = "../phantom-profile" }
-phantom-quic-btls = { version = "=0.2.0", path = "../phantom-quic-btls" }
+phantom-profile = { version = "=0.3.0", path = "../phantom-profile" }
+phantom-quic-btls = { version = "=0.3.0", path = "../phantom-quic-btls" }
 quinn.workspace = true
 socket2 = { version = "0.6.5", features = ["all"] }
 tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync", "time"] }
@@ -80,8 +80,8 @@ cc = "=1.8.0"
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
-phantom-quic-btls = { version = "=0.2.0", path = "../phantom-quic-btls", features = ["server"] }
-phantom-testkit = { version = "=0.2.0", path = "../phantom-testkit" }
+phantom-quic-btls = { version = "=0.3.0", path = "../phantom-quic-btls", features = ["server"] }
+phantom-testkit = { version = "=0.3.0", path = "../phantom-testkit" }
 quinn = { workspace = true, features = ["rustls-ring"] }
 quinn-proto.workspace = true
 rcgen = "=0.14.10"

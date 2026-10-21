@@ -1101,7 +1101,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "brotli",
  "bytes",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-net"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "brotli",
  "bytes",
@@ -1181,11 +1181,11 @@ dependencies = [
 
 [[package]]
 name = "phantom-profile"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "phantom-quic-btls"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "foreign-types",
@@ -1236,7 +1236,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-testkit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "phantom-profile",
  "tokio",

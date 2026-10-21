@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Breaking: `ResponseReadErrorKind::Json` has a different numeric discriminant
+  after adding response error variants. Migrate: update Rust dependencies to
+  0.3 and match named variants instead of persisting or comparing numeric casts.
+
 - Connect Python, Go and Node.js clients through fixed Unix-domain sockets.
 
 - Configure native connection pool retention, active and waiting requests,
