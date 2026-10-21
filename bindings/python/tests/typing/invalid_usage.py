@@ -192,16 +192,18 @@ def invalid_client_certificates() -> None:
 
 
 def invalid_received_trailers(response: Response) -> None:
-    from phantom_http import ResponseTrailer, ResponseTrailers
+    from phantom_http import ResponseHeader, ResponseTrailers
 
     response.trailers = ResponseTrailers("pending", None)  # E: misc
     response.trailers.state = "unavailable"  # E: misc
     ResponseTrailers("future", None)  # E: arg-type
-    ResponseTrailer("x", "text", False)  # E: arg-type
+    ResponseHeader("x", "text", False)  # E: arg-type
+    response.headers[0].sensitive = False  # E: misc
+    response.headers.append(ResponseHeader("x", b"value", False))  # E: attr-defined
     fields = response.trailers.headers
     if fields is not None:
         fields[0].sensitive = False  # E: misc
-        fields.append(ResponseTrailer("x", b"value", False))  # E: attr-defined
+        fields.append(ResponseHeader("x", b"value", False))  # E: attr-defined
 
 
 def invalid_streaming_multipart(client: Client) -> None:

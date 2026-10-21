@@ -128,7 +128,10 @@ class SyncDecodingTests(unittest.TestCase):
                         "GET", server.url, headers=fields, content_decoding=policy
                     ) as response:
                         self.assertEqual(response.status, 200)
-                        wire = {name.lower(): value for name, value in response.headers}
+                        wire = {
+                            field.name.lower(): field.value
+                            for field in response.headers
+                        }
                         self.assertEqual(wire["content-encoding"], b"gzip")
                         self.assertEqual(
                             wire["content-length"],

@@ -52,6 +52,9 @@ receipt for source, checksums and tested hosts. Windows needs the x64 Visual C++
 v14 runtime at least as recent as the recorded build tools; runtime DLLs are
 not bundled. Keep the included notices when redistributing.
 
+`Response.Headers` preserves ordered names, raw bytes and retained `Sensitive` markers.
+A false marker does not establish absence when a protocol decoder does not retain it.
+
 ## Build from source
 
 Source builds require Go 1.26, Rust 1.88+ and the repository's

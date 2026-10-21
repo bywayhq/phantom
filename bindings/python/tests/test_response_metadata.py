@@ -3,7 +3,7 @@
 import types
 import unittest
 
-from phantom_http import AsyncClient, AsyncResponse, Client, Response
+from phantom_http import AsyncClient, AsyncResponse, Client, Response, ResponseHeader
 from test_client import OPTIONS, server
 
 
@@ -11,7 +11,7 @@ class MetadataFacadeTests(unittest.TestCase):
     def test_sync_and_async_properties_forward_actual_values_without_mutating_headers(
         self,
     ):
-        headers = [("x-duplicate", b"one"), ("x-duplicate", b"two")]
+        headers = [("x-duplicate", b"one", False), ("x-duplicate", b"two", True)]
         native = types.SimpleNamespace(
             status=200,
             protocol="h2",
@@ -26,7 +26,10 @@ class MetadataFacadeTests(unittest.TestCase):
             self.assertEqual(response.url, native.url)
             self.assertEqual(response.redirects_followed, 2)
             self.assertEqual(response.connection_setup_retries, 3)
-            self.assertIs(response.headers, headers)
+            self.assertEqual(
+                response.headers,
+                tuple(ResponseHeader(*field) for field in headers),
+            )
             with self.assertRaises(AttributeError):
                 response.url = "different"
             with self.assertRaises(AttributeError):

@@ -28,7 +28,7 @@ pub(crate) const MAXIMUM_HEADER_BYTES: usize = 64 * 1024;
 
 pub(crate) struct ResponseHead {
     pub(crate) status: u32,
-    pub(crate) headers: Vec<(String, Vec<u8>)>,
+    pub(crate) headers: Vec<(String, Vec<u8>, bool)>,
     pub(crate) protocol: String,
     pub(crate) url: String,
     pub(crate) redirects: u32,
@@ -293,7 +293,13 @@ impl Prepared {
                 .get::<phantom::OrderedResponseHeaders>()
                 .ok_or_else(|| failure("Internal", "response header order is unavailable"))?
                 .iter()
-                .map(|header| (header.name().to_owned(), header.value().to_vec()))
+                .map(|header| {
+                    (
+                        header.name().to_owned(),
+                        header.value().to_vec(),
+                        header.is_sensitive(),
+                    )
+                })
                 .collect();
             exchange.attach(response.into_body())?;
             Ok((

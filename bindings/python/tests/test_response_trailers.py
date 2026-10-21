@@ -10,7 +10,7 @@ from phantom_http import (
     ContentDecoding,
     DecodeError,
     Error,
-    ResponseTrailer,
+    ResponseHeader,
     ResponseTrailers,
 )
 from test_client import OPTIONS
@@ -19,9 +19,9 @@ from test_uploads import server
 
 FIELDS = b"X-A: first\r\nx-b: \x80middle\r\nx-a: last\r\n\r\n"
 EXPECTED = (
-    ResponseTrailer("X-A", b"first", False),
-    ResponseTrailer("x-b", b"\x80middle", False),
-    ResponseTrailer("x-a", b"last", False),
+    ResponseHeader("X-A", b"first", False),
+    ResponseHeader("x-b", b"\x80middle", False),
+    ResponseHeader("x-a", b"last", False),
 )
 HEAD = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
 

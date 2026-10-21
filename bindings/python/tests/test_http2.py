@@ -15,7 +15,7 @@ from phantom_http import (
     BodyLimitExceeded,
     ContentDecoding,
     Header,
-    ResponseTrailer,
+    ResponseHeader,
     ResponseTrailers,
     Trust,
 )
@@ -260,7 +260,7 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(await other, b"hello")
                 expected = tuple(
-                    ResponseTrailer(name.decode("ascii"), value, False)
+                    ResponseHeader(name.decode("ascii"), value, False)
                     for name, value in (trailers or ())
                 )
                 self.assertEqual(

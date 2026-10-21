@@ -147,3 +147,16 @@ function responseTrailers(response: Response): void {
   response.trailers = {state: 'pending', headers: null};
 }
 void responseTrailers;
+
+function receivedHead(response: Response): void {
+  const sensitive: boolean = response.headers[0]!.sensitive;
+  const bytes: Buffer = response.headers[0]!.value;
+  // @ts-expect-error Received markers are required booleans.
+  const wrong: typeof response.headers[number] = {name: 'x', value: Buffer.alloc(0)};
+  // @ts-expect-error Received headers are immutable ordered records.
+  response.headers[0]!.sensitive = false;
+  // @ts-expect-error Received header list is immutable.
+  response.headers.push({name: 'x', value: Buffer.alloc(0), sensitive: false});
+  void sensitive; void bytes; void wrong;
+}
+void receivedHead;

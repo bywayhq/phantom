@@ -38,6 +38,30 @@ class Native:
 
 
 class TrailerFacadeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_head_records_share_the_trailer_type_without_reading(self):
+        native = Native()
+        native.headers = [
+            ("X-A", b"first", False),
+            ("x-b", b"\x80", True),
+            ("x-a", b"last", False),
+        ]
+        response = FACADE.AsyncResponse(native)
+        sync = FACADE.Response(None, response)
+        expected = tuple(FACADE.ResponseHeader(*field) for field in native.headers)
+        for owner in (response, sync):
+            self.assertEqual(owner.headers, expected)
+            self.assertTrue(owner.headers[1].sensitive)
+            with self.assertRaises(dataclasses.FrozenInstanceError):
+                owner.headers[1].sensitive = False
+        self.assertNotIn("first", repr(response.headers))
+        native.headers.clear()
+        self.assertEqual(response.headers, expected)
+        self.assertEqual(native.reads, 0)
+        await response.read(max_bytes=1)
+        self.assertEqual(type(response.trailers.headers[0]), type(response.headers[0]))
+        response.close()
+        self.assertEqual(sync.headers, expected)
+
     async def test_properties_do_not_poll_and_preserve_owned_order_bytes_and_marker(
         self,
     ):

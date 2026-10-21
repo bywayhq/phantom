@@ -665,7 +665,7 @@ fn response_head(
         .map(|field| Header {
             name: field.name().to_owned(),
             value: field.value().to_vec(),
-            sensitive: false,
+            sensitive: field.is_sensitive(),
         })
         .collect();
     let protocol = match response.version() {

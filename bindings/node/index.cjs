@@ -815,7 +815,8 @@ class Response {
         omittedHops: history.omittedHops,
       }, inspect.custom, {value: () => 'RedirectHistory { URLs redacted }'})), enumerable: true,
     });
-    this.headers = response.headers.map(({ name, value }) => ({ name, value }));
+    this.headers = Object.freeze(response.headers.map(({name, value, sensitive}) =>
+      Object.freeze({name, value, sensitive})));
   }
   get trailers() {
     try {

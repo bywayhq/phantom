@@ -196,7 +196,7 @@ pub(super) struct NativeResponse {
     decoded_content_codings: Vec<String>,
     #[pyo3(get)]
     redirect_history: Option<RedirectHistoryFields>,
-    headers: Vec<(String, Vec<u8>)>,
+    headers: Vec<(String, Vec<u8>, bool)>,
     owner: Arc<BodyOwner>,
 }
 
@@ -216,7 +216,13 @@ impl NativeResponse {
             .map(|fields| {
                 fields
                     .iter()
-                    .map(|field| (field.name().to_owned(), field.value().to_vec()))
+                    .map(|field| {
+                        (
+                            field.name().to_owned(),
+                            field.value().to_vec(),
+                            field.is_sensitive(),
+                        )
+                    })
                     .collect()
             })
             .ok_or_else(|| error::input("ordered_headers_unavailable"))?;
@@ -317,10 +323,10 @@ impl NativeResponse {
 #[pymethods]
 impl NativeResponse {
     #[getter]
-    fn headers<'py>(&self, py: Python<'py>) -> Vec<(String, Bound<'py, PyBytes>)> {
+    fn headers<'py>(&self, py: Python<'py>) -> Vec<(String, Bound<'py, PyBytes>, bool)> {
         self.headers
             .iter()
-            .map(|(name, value)| (name.clone(), PyBytes::new(py, value)))
+            .map(|(name, value, sensitive)| (name.clone(), PyBytes::new(py, value), *sensitive))
             .collect()
     }
 

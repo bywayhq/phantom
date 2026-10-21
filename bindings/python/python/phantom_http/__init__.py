@@ -842,7 +842,7 @@ class RedirectHistory:
 
 
 @dataclass(frozen=True)
-class ResponseTrailer:
+class ResponseHeader:
     """One ordered received field with an owned byte value."""
 
     name: str
@@ -856,7 +856,7 @@ class ResponseTrailers:
     """Non-draining snapshot; only complete has fields, possibly an empty tuple."""
 
     state: Literal["pending", "unavailable", "complete"]
-    headers: tuple[ResponseTrailer, ...] | None
+    headers: tuple[ResponseHeader, ...] | None
 
 
 class AsyncResponse:
@@ -869,7 +869,7 @@ class AsyncResponse:
         self._upload = upload
         self.status = native.status
         self.protocol = native.protocol
-        self.headers = native.headers
+        self.headers = tuple(ResponseHeader(*field) for field in native.headers)
 
     @property
     def url(self) -> str:
@@ -908,7 +908,7 @@ class AsyncResponse:
             cast(Literal["pending", "unavailable", "complete"], state),
             None
             if headers is None
-            else tuple(ResponseTrailer(*field) for field in headers),
+            else tuple(ResponseHeader(*field) for field in headers),
         )
 
     @property

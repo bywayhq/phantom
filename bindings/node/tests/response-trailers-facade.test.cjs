@@ -57,6 +57,25 @@ test('trailer access never polls and returns detached frozen ordered snapshots',
   assert.equal(counts().reads, 1);
 });
 
+test('head fields preserve actual markers, raw values and order without polling', () => {
+  const {Response} = facade(); const original = body(Response);
+  original.native.headers = [
+    {name: 'X-A', value: Buffer.from('first'), sensitive: false},
+    {name: 'x-b', value: Buffer.from([0x80]), sensitive: true},
+    {name: 'x-a', value: Buffer.from('last'), sensitive: false},
+  ];
+  const response = new Response(original.native, () => {}, {});
+  assert.deepEqual(response.headers, original.native.headers);
+  assert.ok(Object.isFrozen(response.headers) && Object.isFrozen(response.headers[0]));
+  assert.equal(response.headers[1].sensitive, true);
+  assert.throws(() => { response.headers[1].sensitive = false; }, TypeError);
+  original.native.headers.pop();
+  assert.equal(response.headers.length, 3);
+  response.close();
+  assert.equal(response.headers[1].sensitive, true);
+  assert.deepEqual(original.counts(), {reads: 0, snapshots: 0});
+});
+
 test('post-EOF text and JSON failures retain completion while abandonment remains unavailable', async () => {
   const {Response} = facade();
   for (const [method, bytes, expected] of [['text', Buffer.from([0xff]), 'TextDecode'], ['json', Buffer.from('!'), 'JsonDecode']]) {

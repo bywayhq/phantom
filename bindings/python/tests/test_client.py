@@ -228,12 +228,13 @@ class SyncTests(unittest.TestCase):
                 self.assertEqual(response.read(max_bytes=5), b"hello")
                 self.assertEqual(
                     [
-                        value
-                        for name, value in response.headers
-                        if name.lower() == "x-duplicate"
+                        field.value
+                        for field in response.headers
+                        if field.name.lower() == "x-duplicate"
                     ],
                     [b"one", b"two"],
                 )
+                self.assertTrue(all(not field.sensitive for field in response.headers))
             self.assertEqual(client.cookies.for_url(url), "seen=yes")
             with client.request("GET", url + "/again", budget=budget) as response:
                 self.assertEqual(b"".join(response.iter_bytes(2)), b"hello")

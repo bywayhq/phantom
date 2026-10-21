@@ -66,6 +66,7 @@ test('reuses connections and preserves ordered duplicate byte fields and owned u
   const response = await pending;
   assert.deepEqual(await response.bytes(3), Buffer.from([0, 255, 1]));
   const ordered = response.headers.filter(({ name }) => name.startsWith('X-'));
+  assert.ok(ordered.every(({sensitive}) => sensitive === false));
   assert.deepEqual(ordered.map(({ name, value }) => [name, value.toString()]), [['X-First', 'one'], ['X-Dup', 'a'], ['X-Last', 'z'], ['X-Dup', 'b']]);
   assert.equal(observed[0].body.toString(), 'original');
   const index = observed[0].headers.indexOf('X-Dup');

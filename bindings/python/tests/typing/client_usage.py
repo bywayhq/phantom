@@ -25,6 +25,7 @@ from phantom_http import (
     RedirectHistory,
     RedirectPolicy,
     Response,
+    ResponseHeader,
     RetryPolicy,
     SessionSharing,
     StatusRetry,
@@ -93,7 +94,7 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
             _setup_retries: int = response.connection_setup_retries
             _codings: tuple[str, ...] = response.decoded_content_codings
             _history: RedirectHistory | None = response.redirect_history
-            _fields: list[tuple[str, bytes]] = response.headers
+            _fields: tuple[ResponseHeader, ...] = response.headers
             collected: bytes = response.read(max_bytes=1_000_000)
         with client.request("POST", url, body=b"bytes") as streamed:
             chunks: Generator[bytes, None, None] = streamed.iter_bytes(8192)
@@ -332,12 +333,12 @@ def mutually_authenticated_clients(chain: bytes, key: bytes, der: bytes) -> None
 
 
 def received_trailers(sync: Response, asynchronous: AsyncResponse) -> None:
-    from phantom_http import ResponseTrailer, ResponseTrailers
+    from phantom_http import ResponseHeader, ResponseTrailers
 
     for response in (sync, asynchronous):
         snapshot: ResponseTrailers = response.trailers
         if snapshot.headers is not None:
-            fields: tuple[ResponseTrailer, ...] = snapshot.headers
+            fields: tuple[ResponseHeader, ...] = snapshot.headers
             for field in fields:
                 name: str = field.name
                 value: bytes = field.value

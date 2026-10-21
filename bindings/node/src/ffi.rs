@@ -1771,7 +1771,7 @@ pub struct ResponseTrailersInfo {
 #[napi]
 pub struct NativeResponse {
     status: u32,
-    headers: Vec<(String, Vec<u8>)>,
+    headers: Vec<(String, Vec<u8>, bool)>,
     protocol: String,
     url: String,
     redirects: u32,
@@ -1841,10 +1841,10 @@ impl NativeResponse {
     pub fn headers(&self) -> Vec<WireHeader> {
         self.headers
             .iter()
-            .map(|(name, value)| WireHeader {
+            .map(|(name, value, sensitive)| WireHeader {
                 name: name.clone(),
                 value: value.clone().into(),
-                sensitive: None,
+                sensitive: Some(*sensitive),
             })
             .collect()
     }
