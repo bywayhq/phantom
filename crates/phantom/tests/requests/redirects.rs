@@ -376,7 +376,6 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
                 .send_response(
                     Response::builder()
                         .status(StatusCode::NO_CONTENT)
-                        .header("content-length", "0")
                         .body(())?,
                 )
                 .await?;
