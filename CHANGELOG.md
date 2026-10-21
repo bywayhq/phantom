@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Pin origin and HTTPS-proxy leaf public keys separately in Python, Go and
+  Node.js while retaining certificate-chain and hostname verification.
+
 - Accept the current audited Linux Python wheels and binding workflow artifacts
   when promoting verified prebuilt releases.
 

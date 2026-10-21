@@ -195,6 +195,7 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer.test.cjs",
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
+            "server-pins.test.cjs",
             "diagnostics.test.cjs",
             "diagnostics-http2.test.cjs",
             "transfer-http2.test.cjs",
@@ -222,6 +223,7 @@ class NodeArtifactTests(unittest.TestCase):
             "prepared-bodies-facade",
             "request-controls-facade",
             "session-snapshot-facade",
+            "server-pins-facade",
             "upload-pump",
         ):
             copied = (destination / f"{name}.test.cjs").read_text()
@@ -286,6 +288,8 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer",
             "transfer-http2",
             "transfer-facade",
+            "server-pins",
+            "server-pins-facade",
             "diagnostics",
             "diagnostics-http2",
             "diagnostics-facade",
