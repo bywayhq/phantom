@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use napi::Result;
-use phantom::{Client, HttpProxy, Route, SessionSharing, Socks5Proxy};
+use phantom::{Client, HttpProxy, Route, SessionSharing, Socks4Proxy, Socks5Proxy};
 use tokio::sync::Semaphore;
 
 use crate::{error::failure, ffi::ClientOptions, profile::ProfileState, response::Exchange};
@@ -111,6 +111,7 @@ impl ClientState {
             options.proxy.as_deref(),
             options.proxy_username.as_deref(),
             options.proxy_password.as_deref(),
+            options.proxy_user_id.as_deref(),
         )?);
         if let Some(network) = options.network {
             builder = crate::network::apply(builder, network)?;
@@ -231,7 +232,22 @@ pub(crate) fn route(
     proxy: Option<&str>,
     username: Option<&str>,
     password: Option<&str>,
+    user_id: Option<&str>,
 ) -> Result<Route> {
+    let socks4 = kind == "proxy"
+        && proxy.is_some_and(|uri| uri.starts_with("socks4://") || uri.starts_with("socks4a://"));
+    if socks4 && (username.is_some() || password.is_some()) {
+        return Err(failure(
+            "InvalidProxy",
+            "SOCKS4 uses proxyUserId and does not support password credentials",
+        ));
+    }
+    if user_id.is_some() && !socks4 {
+        return Err(failure(
+            "InvalidProxy",
+            "proxyUserId requires a SOCKS4 or SOCKS4a proxy",
+        ));
+    }
     if username.is_some() != password.is_some() || (kind == "direct" && username.is_some()) {
         return Err(failure(
             "InvalidProxy",
@@ -260,9 +276,19 @@ pub(crate) fn route(
             }
             Ok(Route::socks5(proxy))
         }
+        ("proxy", Some(uri)) if socks4 => {
+            let mut proxy = Socks4Proxy::new(uri)
+                .map_err(|_| failure("InvalidProxy", "invalid SOCKS4 proxy configuration"))?;
+            if let Some(user_id) = user_id {
+                proxy = proxy
+                    .with_user_id(user_id)
+                    .map_err(|_| failure("InvalidProxy", "invalid SOCKS4 user ID"))?;
+            }
+            Ok(Route::socks4(proxy))
+        }
         _ => Err(failure(
             "InvalidProxy",
-            "choose direct without a proxy, or an explicit HTTP/SOCKS5 proxy URI",
+            "choose direct without a proxy, or an explicit HTTP/SOCKS proxy URI",
         )),
     }
 }
@@ -284,6 +310,88 @@ impl Drop for Shutdown {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn socks4_routes_preserve_dns_mode_and_bound_redacted_user_ids() -> Result<()> {
+        for (scheme, mode) in [
+            ("socks4", phantom::Socks4DnsMode::Local),
+            ("socks4a", phantom::Socks4DnsMode::Remote),
+        ] {
+            for user_id in [None, Some(""), Some("private-user")] {
+                let value = route(
+                    "proxy",
+                    Some(&format!("{scheme}://127.0.0.1:1080")),
+                    None,
+                    None,
+                    user_id,
+                )?;
+                assert!(!format!("{value:?}").contains("private-user"));
+                let Route::Socks4(proxy) = value else {
+                    return Err(failure("TestRoute", "SOCKS4 route was not retained"));
+                };
+                assert_eq!(proxy.dns_mode(), mode);
+            }
+        }
+        let maximum = format!("{}a", "é".repeat(127));
+        assert!(
+            route(
+                "proxy",
+                Some("socks4a://127.0.0.1:1080"),
+                None,
+                None,
+                Some(&maximum)
+            )
+            .is_ok()
+        );
+        for value in ["private\0user".to_owned(), "é".repeat(128)] {
+            let error = route(
+                "proxy",
+                Some("socks4a://127.0.0.1:1080"),
+                None,
+                None,
+                Some(&value),
+            )
+            .err()
+            .ok_or_else(|| failure("TestRoute", "invalid user ID accepted"))?;
+            assert!(error.reason.contains("PHANTOM:InvalidProxy:"));
+            assert!(!error.reason.contains(&value));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn socks4_passwords_and_user_ids_on_other_routes_are_rejected() {
+        for (username, password) in [
+            (Some("private-user"), None),
+            (None, Some("private-password")),
+            (Some("private-user"), Some("private-password")),
+        ] {
+            assert!(
+                route(
+                    "proxy",
+                    Some("socks4://127.0.0.1:1080"),
+                    username,
+                    password,
+                    None
+                )
+                .is_err()
+            );
+        }
+        for (kind, uri) in [
+            ("direct", None),
+            ("proxy", Some("http://127.0.0.1:8080")),
+            ("proxy", Some("socks5://127.0.0.1:1080")),
+        ] {
+            assert!(route(kind, uri, None, None, Some("private-user")).is_err());
+        }
+        for uri in [
+            "socks4://private-user@127.0.0.1:1080",
+            "socks4a://127.0.0.1:1080/private",
+            "socks4://127.0.0.1:1080/?private=1",
+        ] {
+            assert!(route("proxy", Some(uri), None, None, None).is_err());
+        }
+    }
     use crate::response::Pending;
 
     #[test]

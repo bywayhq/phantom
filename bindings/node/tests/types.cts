@@ -56,6 +56,10 @@ async function checkpoints(client: Client, key: Uint8Array): Promise<void> {
   await client.restoreSession(bytes, key, {signal: new AbortController().signal});
 }
 void checkpoints;
+const socks4 = new Client({profile: 'exact', route: 'proxy', proxy: 'socks4a://127.0.0.1:1080', proxyUserId: 'user'});
+void socks4;
+// @ts-expect-error SOCKS4 user IDs are strings, never byte buffers.
+new Client({profile: 'exact', route: 'proxy', proxy: 'socks4://127.0.0.1:1080', proxyUserId: Buffer.from('user')});
 const phase = (error: PhantomError): string | undefined => error.timeoutPhase;
 const protocol = (error: PhantomError): string | undefined => error.protocol;
 void phase; void protocol;

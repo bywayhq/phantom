@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Route Node.js requests through SOCKS4/4a proxies with explicit user IDs.
+
 - Allow compatible URL dependency versions so downstream applications can use
   patched forks.
 
@@ -9,7 +11,6 @@
 
 - Configure ordered hostname overrides, local source addresses and network
   interfaces in Python, Go and Node.js. Preserve the hostname for TLS and HTTP.
-
 
 - Retain received header sensitivity in Python, Go and Node.js.
   Migrate: Python response headers are `ResponseHeader` records with `name`,

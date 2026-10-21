@@ -124,8 +124,10 @@ zero phase timers can race ready work. Errors expose `timeoutPhase`.
 `baseUrl` joins relative URLs. `additionalRoots` extends origin trust;
 `additionalProxyRoots` separately extends HTTPS-proxy trust. Both use DER and
 retain certificate verification. Each allows sixteen certificates up to 1 MiB
-each. `route: 'proxy'` accepts HTTP(S) and SOCKS5
-URIs, with optional paired `proxyUsername`/`proxyPassword`. HTTP credentials
+each. `route: 'proxy'` accepts HTTP(S), SOCKS4/4a and SOCKS5/5h URIs.
+Use paired `proxyUsername`/`proxyPassword` for HTTP or SOCKS5, or `proxyUserId`
+for SOCKS4 (up to 255 UTF-8 bytes without NUL; no password support). SOCKS4
+resolves targets locally; SOCKS4a sends target names to the proxy. HTTP credentials
 use Basic authentication. Proxy environment variables are ignored.
 
 Use `network: {hostOverrides: [{host: 'localhost', addresses: ['127.0.0.1']}],

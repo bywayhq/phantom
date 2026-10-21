@@ -150,12 +150,14 @@ pub struct ClientOptions {
     pub profile: Option<String>,
     /// Either direct or proxy.
     pub route: String,
-    /// Explicit HTTP, HTTPS or SOCKS5 proxy URI.
+    /// Explicit HTTP, HTTPS, SOCKS4(a) or SOCKS5(h) proxy URI.
     pub proxy: Option<String>,
     /// Explicit proxy username, supplied together with proxyPassword.
     pub proxy_username: Option<String>,
     /// Explicit proxy password, never included in errors.
     pub proxy_password: Option<String>,
+    /// SOCKS4 identification string; no password negotiation is supported.
+    pub proxy_user_id: Option<String>,
     /// Enables the native cookie jar.
     pub cookies: Option<bool>,
     /// Maximum concurrent requests and unfinished bodies, from 1 to 1024.
@@ -227,12 +229,14 @@ pub struct SessionSharingOptions {
 pub struct SessionRouteOptions {
     /// Either direct or proxy.
     pub route: String,
-    /// Explicit HTTP, HTTPS or SOCKS5 proxy URI.
+    /// Explicit HTTP, HTTPS, SOCKS4(a) or SOCKS5(h) proxy URI.
     pub proxy: Option<String>,
     /// Optional paired proxy username.
     pub proxy_username: Option<String>,
     /// Optional paired proxy password, omitted from formatting.
     pub proxy_password: Option<String>,
+    /// Optional SOCKS4 identification string, omitted from formatting.
+    pub proxy_user_id: Option<String>,
 }
 
 impl fmt::Debug for SessionRouteOptions {
@@ -652,6 +656,7 @@ impl NativeEnvironment {
                     route.proxy.as_deref(),
                     route.proxy_username.as_deref(),
                     route.proxy_password.as_deref(),
+                    route.proxy_user_id.as_deref(),
                 )
             })
             .collect::<Result<Vec<_>>>()?;

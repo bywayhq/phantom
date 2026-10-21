@@ -127,6 +127,8 @@ export interface ClientOptions {
   proxy?: string;
   proxyUsername?: string;
   proxyPassword?: string;
+  /** SOCKS4/4a only: at most 255 UTF-8 bytes, no NUL. Empty is allowed; passwords are unsupported. */
+  proxyUserId?: string;
   cookies?: boolean;
   maximumActiveRequests?: number;
   additionalRoots?: Uint8Array[];
@@ -171,7 +173,7 @@ export interface SessionSharing {
 }
 /** Ticket validation only; these routes do not change later request routing. */
 export type SessionRoute = Readonly<{route: 'direct'}> | Readonly<{
-  route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string;
+  route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string; proxyUserId?: string;
 }>;
 export interface RestoreSessionOptions { readonly receivingRoutes?: readonly SessionRoute[]; }
 export type ContentDecoding = Readonly<{mode: 'none'}>

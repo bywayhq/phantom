@@ -502,9 +502,10 @@ function receivingRoutes(options) {
   for (let index = 0; index < routes.length; index++) {
     const field = Object.getOwnPropertyDescriptor(routes, String(index));
     if (!field || !Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', 'receivingRoutes must contain data entries');
-    const route = policyFields(field.value, ['route', 'proxy', 'proxyUsername', 'proxyPassword']);
+    const route = policyFields(field.value, ['route', 'proxy', 'proxyUsername', 'proxyPassword', 'proxyUserId']);
+    if (route.proxyUserId !== undefined) route.proxyUserId = socks4UserId(route.proxyUserId);
     if (route.route === 'direct') {
-      if (route.proxy !== undefined || route.proxyUsername !== undefined || route.proxyPassword !== undefined) throw new PhantomError('InvalidArgument', 'a direct receiving route cannot include a proxy');
+      if (route.proxy !== undefined || route.proxyUsername !== undefined || route.proxyPassword !== undefined || route.proxyUserId !== undefined) throw new PhantomError('InvalidArgument', 'a direct receiving route cannot include a proxy');
     } else if (route.route !== 'proxy' || typeof route.proxy !== 'string'
       || (route.proxyUsername !== undefined && typeof route.proxyUsername !== 'string')
       || (route.proxyPassword !== undefined && typeof route.proxyPassword !== 'string')
@@ -514,6 +515,14 @@ function receivingRoutes(options) {
     result.push(route);
   }
   return result;
+}
+
+function socks4UserId(value) {
+  if (typeof value !== 'string' || value.length > 255 || !value.isWellFormed()
+    || value.includes('\0') || Buffer.byteLength(value) > 255) {
+    throw new PhantomError('InvalidProxy', 'proxyUserId must be at most 255 UTF-8 bytes without NUL');
+  }
+  return value;
 }
 
 function policyFields(value, names) {
@@ -974,6 +983,9 @@ class Client {
       const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
       const certificates = clientCertificates(options);
       const network = networkOptions(options);
+      const userId = Object.getOwnPropertyDescriptor(options, 'proxyUserId');
+      if (userId && !Object.hasOwn(userId, 'value')) throw new PhantomError('InvalidArgument', 'proxyUserId must be a data field');
+      const proxyUserId = userId?.value === undefined ? undefined : socks4UserId(userId.value);
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
         ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
@@ -984,6 +996,7 @@ class Client {
         redirectPolicy: redirectPolicy(options.redirectPolicy),
         retryPolicy: retryPolicy(options.retryPolicy),
         network,
+        proxyUserId,
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }
