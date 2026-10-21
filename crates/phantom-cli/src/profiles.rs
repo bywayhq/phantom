@@ -75,9 +75,23 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
                 .await;
             }
             let metadata = definition.metadata();
+            let identity = match metadata.identity() {
+                catalog::ProfileIdentity::Observed { .. } => json!({"kind": "observed"}),
+                catalog::ProfileIdentity::Peer {
+                    project,
+                    source_revision,
+                    recipe,
+                    release,
+                } => json!({
+                    "kind": "peer", "project": project, "source_revision": source_revision,
+                    "recipe": recipe, "release": release
+                }),
+                _ => return Err(CliError::operation("unsupported catalog identity")),
+            };
             let document = json!({
                 "selector": definition.selector(),
                 "id": definition.id().as_str(), "browser_build": metadata.build(),
+                "identity": identity, "advertised_version": metadata.version(),
                 "platform_release": metadata.platform_release(), "architecture": metadata.architecture(),
                 "revision": metadata.revision(),
                 "settings": describe_profile(&profile).map_err(CliError::operation)?,

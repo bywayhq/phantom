@@ -36,7 +36,7 @@ For selection by name, use [`catalog::profile`](crate::profile::catalog::profile
 
 ```rust
 let definition = phantom::profile::catalog::profile("chrome-154-windows")?;
-assert_eq!(definition.metadata().build(), "154.0.8037.97");
+assert_eq!(definition.metadata().build(), Some("154.0.8037.97"));
 # Ok::<(), phantom::profile::catalog::CatalogError>(())
 ```
 

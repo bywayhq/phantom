@@ -138,7 +138,7 @@ class CatalogDeclarationTests(unittest.TestCase):
             "chrome--154",
             "-chrome",
             "chrome-",
-            "Ã©",
+            "é",
             "x" * 65,
         ):
             with self.subTest(value=value):

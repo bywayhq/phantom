@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add `curl-safari-26-macos`, a pinned curl-impersonate Safari preset for TLS,
+  HTTP/2 and navigation headers. Catalog descriptions distinguish peer presets
+  from browser observations and expose the upstream project and revision.
+
+- Breaking: catalog identities distinguish observed browsers from peer presets.
+  Migrate: `ProfileMetadata::build`, `platform_release` and `environment` return
+  `Option`; use `version()` for the advertised version and `identity()` for its
+  origin. Catalog source declarations use schema 2 with `metadata.identity`.
+
 - Select compiled profiles by fixed short names such as `chrome-154-windows`
   in Rust and the CLI. Full identifiers remain accepted; inspection retains the
   exact browser build, platform and recipe revision.

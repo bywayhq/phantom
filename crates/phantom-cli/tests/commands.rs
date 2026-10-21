@@ -157,6 +157,7 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
     assert_eq!(description["selector"], PROFILE);
     assert_eq!(description["id"], PROFILE_ID);
     assert_eq!(description["browser_build"], "154.0.8037.97");
+    assert_eq!(description["identity"]["kind"], "observed");
     assert_eq!(description["platform_release"], "windows-11-26200");
     assert_eq!(description["revision"], 1);
 
@@ -167,6 +168,28 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
     assert_eq!(
         String::from_utf8(missing.stderr)?.trim(),
         "phantom: unknown profile identifier"
+    );
+    Ok(())
+}
+
+#[test]
+fn peer_description_keeps_source_identity_separate_from_browser_observations() -> TestResult {
+    let description = command()
+        .args(["profiles", "describe", "curl-safari-26-macos"])
+        .output()?;
+    success(&description);
+    let description: serde_json::Value = serde_json::from_slice(&description.stdout)?;
+    assert_eq!(description["id"], "peer/curl-impersonate/safari2601/r1");
+    assert!(description["browser_build"].is_null());
+    assert!(description["platform_release"].is_null());
+    assert!(description["architecture"].is_null());
+    assert_eq!(description["advertised_version"], "26.0.1");
+    assert_eq!(description["identity"]["kind"], "peer");
+    assert_eq!(description["identity"]["project"], "curl-impersonate");
+    assert_eq!(description["identity"]["recipe"], "safari2601");
+    assert_eq!(
+        description["identity"]["source_revision"],
+        "6e8f87760a4dd96771e96fc9d55440dcd8845243"
     );
     Ok(())
 }
