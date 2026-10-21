@@ -22,7 +22,7 @@ KEY = b"checkpoint-test-key-not-a-secret"
 
 
 class ClientIdentities:
-    """Two independent clientAuth keys; the existing fixture is serverAuth only."""
+    """Two independently issued clientAuth leaves with separate trusted CAs."""
 
     def __init__(self):
         if shutil.which("openssl") is None:
@@ -32,12 +32,53 @@ class ClientIdentities:
         )
         self.directory = Path(self.temporary.name)
         try:
+            config = self.directory / "request.cnf"
+            config.write_text(
+                "[req]\n"
+                "distinguished_name=subject\n"
+                "[subject]\n"
+                "[ca]\n"
+                "basicConstraints=critical,CA:TRUE,pathlen:0\n"
+                "keyUsage=critical,keyCertSign,cRLSign\n"
+                "subjectKeyIdentifier=hash\n"
+                "[client]\n"
+                "basicConstraints=critical,CA:FALSE\n"
+                "keyUsage=critical,digitalSignature\n"
+                "extendedKeyUsage=clientAuth\n"
+                "subjectKeyIdentifier=hash\n"
+                "authorityKeyIdentifier=keyid,issuer\n",
+                encoding="ascii",
+            )
             for name in ("a", "b"):
-                subprocess.run(
+                for arguments in (
                     [
-                        "openssl",
                         "req",
+                        "-config",
+                        str(config),
+                        "-sha256",
                         "-x509",
+                        "-newkey",
+                        "ec",
+                        "-pkeyopt",
+                        "ec_paramgen_curve:P-256",
+                        "-nodes",
+                        "-keyout",
+                        str(self.directory / f"{name}-ca.key"),
+                        "-out",
+                        self.ca_path(name),
+                        "-subj",
+                        f"/CN=client-{name}-ca",
+                        "-days",
+                        "1",
+                        "-extensions",
+                        "ca",
+                    ],
+                    [
+                        "req",
+                        "-config",
+                        str(config),
+                        "-sha256",
+                        "-new",
                         "-newkey",
                         "ec",
                         "-pkeyopt",
@@ -46,25 +87,44 @@ class ClientIdentities:
                         "-keyout",
                         str(self.directory / f"{name}.key"),
                         "-out",
-                        str(self.directory / f"{name}.pem"),
+                        str(self.directory / f"{name}.csr"),
                         "-subj",
                         f"/CN=client-{name}",
+                    ],
+                    [
+                        "x509",
+                        "-req",
+                        "-in",
+                        str(self.directory / f"{name}.csr"),
+                        "-CA",
+                        self.ca_path(name),
+                        "-CAkey",
+                        str(self.directory / f"{name}-ca.key"),
+                        "-set_serial",
+                        "1",
+                        "-sha256",
                         "-days",
                         "1",
-                        "-addext",
-                        "basicConstraints=critical,CA:FALSE",
-                        "-addext",
-                        "keyUsage=critical,digitalSignature",
-                        "-addext",
-                        "extendedKeyUsage=clientAuth",
+                        "-extfile",
+                        str(config),
+                        "-extensions",
+                        "client",
+                        "-out",
+                        str(self.directory / f"{name}.pem"),
                     ],
-                    capture_output=True,
-                    check=True,
-                    timeout=10,
-                )
+                ):
+                    subprocess.run(
+                        ["openssl", *arguments],
+                        capture_output=True,
+                        check=True,
+                        timeout=10,
+                    )
         except BaseException:
             self.close()
             raise
+
+    def ca_path(self, name):
+        return str(self.directory / f"{name}-ca.pem")
 
     def pem(self, name):
         return (self.directory / f"{name}.pem").read_bytes()
@@ -126,7 +186,7 @@ class ClientCertificateTests(unittest.TestCase):
         identities = self.identities
         a = ClientCertificate.from_pem(identities.pem("a"), identities.key("a"))
         b = ClientCertificate.from_der((identities.der("b"),), identities.der_key("b"))
-        with peer(tls=True, client_ca=str(identities.directory / "b.pem")) as server:
+        with peer(tls=True, client_ca=identities.ca_path("b")) as server:
             with Client(
                 profile=PROFILE,
                 protocol="h1",
@@ -161,7 +221,7 @@ class ClientCertificateTests(unittest.TestCase):
         ):
             with (
                 self.subTest(options=tuple(options)),
-                peer(tls=True, client_ca=str(identities.directory / "b.pem")) as server,
+                peer(tls=True, client_ca=identities.ca_path("b")) as server,
             ):
                 # TLS 1.3 rejection may arrive after the response-head future.
                 with (
@@ -205,7 +265,7 @@ class ClientCertificateTests(unittest.TestCase):
         certificate = ClientCertificate.from_pem(
             identities.pem("a"), identities.key("a")
         )
-        with peer(tls=True, client_ca=str(identities.directory / "a.pem")) as server:
+        with peer(tls=True, client_ca=identities.ca_path("a")) as server:
             with (
                 Client(
                     profile=PROFILE,
@@ -247,9 +307,7 @@ class AsyncClientCertificateTests(unittest.IsolatedAsyncioTestCase):
             certificate = ClientCertificate.from_der(
                 (identities.der("a"),), identities.der_key("a")
             )
-            with H2Peer(
-                tls=True, client_ca=str(identities.directory / "a.pem")
-            ) as server:
+            with H2Peer(tls=True, client_ca=identities.ca_path("a")) as server:
                 async with AsyncClient(
                     profile=PROFILE,
                     protocol="h2",
