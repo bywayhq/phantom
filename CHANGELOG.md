@@ -4,8 +4,9 @@
 
 - Remove the external-client benchmark adapters and their CI workflow.
 
-- Expose shared Go body-byte caps, pacing and coherent transfer counters.
-  Attached requests retain their control after its caller handle closes.
+- Expose shared Python, Go and Node.js body-byte caps, pacing and coherent
+  transfer counters. Attached Go requests retain their control after its
+  caller handle closes.
 
 - Export and restore encrypted Python, Go and Node.js session snapshots with
   explicit receiving routes, typed errors and fresh connection pools.

@@ -192,6 +192,8 @@ class NodeArtifactTests(unittest.TestCase):
             "configuration.test.cjs",
             "profiles.test.cjs",
             "session-sharing.test.cjs",
+            "transfer.test.cjs",
+            "transfer-http2.test.cjs",
             "content-decoding.test.cjs",
             "redirects.test.cjs",
             "retries.test.cjs",
@@ -206,6 +208,9 @@ class NodeArtifactTests(unittest.TestCase):
         loader = (destination / "native-loader.test.cjs").read_text()
         self.assertIn("require.resolve('@byway/phantom')", loader)
         self.assertNotIn("path.join(__dirname, '../index.cjs')", loader)
+        transfer = (destination / "transfer-facade.test.cjs").read_text()
+        self.assertIn("require.resolve('@byway/phantom')", transfer)
+        self.assertNotIn("path.resolve(__dirname, '../index.cjs')", transfer)
         fixtures = artifact.ROOT / "bindings/node/tests/fixtures"
         for source in fixtures.iterdir():
             self.assertEqual(
@@ -262,6 +267,9 @@ class NodeArtifactTests(unittest.TestCase):
         for name in (
             "compact-profiles",
             "session-sharing",
+            "transfer",
+            "transfer-http2",
+            "transfer-facade",
             "content-decoding",
             "redirects",
             "retries",

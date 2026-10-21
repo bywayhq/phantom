@@ -196,6 +196,15 @@ def copied_tests(destination, native_package=None):
         "session-snapshots.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "transfer.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "transfer-http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "transfer-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "content-decoding.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
@@ -333,6 +342,9 @@ def public_checks(
                 "tests/compact-profiles.test.cjs",
                 "tests/session-sharing.test.cjs",
                 "tests/session-snapshots.test.cjs",
+                "tests/transfer.test.cjs",
+                "tests/transfer-http2.test.cjs",
+                "tests/transfer-facade.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",
                 "tests/retries.test.cjs",
