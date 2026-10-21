@@ -9,6 +9,9 @@
   `phantom profiles describe <selector>` to read the full `id`. Catalog authors
   must add a unique, fixed `selector` to each profile declaration.
 
+- Flush queued HTTP/3 frames before accepting another write or sending FIN.
+  Preserve buffered data when a write future is cancelled and then resumed.
+
 ## 0.3.0 - 2026-10-21
 
 - Reject malformed HTTP/3 response fields, invalid content lengths and DATA
