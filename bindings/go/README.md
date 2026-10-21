@@ -269,8 +269,14 @@ Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each 
 native custody until responses close. Metadata limits are 64 KiB per command,
 256 response fields/32 KiB and 256 KiB per encoded reply.
 
-Pinning/client certificates, custom connectors and CONNECT-UDP are not
-exposed yet.
+`ParseClientCertificatePEM(chain, key)` or `ParseClientCertificateDER(chain, key)`
+creates an immutable origin identity from bytes, without file I/O. Set
+`Config.ClientCertificate` and optional ordered `ClientCertificatesFor` overrides;
+normal server verification remains enabled. Close the owner after constructing
+clients; their identities remain valid. Parsing allows 8 MiB aggregate input,
+1..256 DER certificates and 64 open owners; configuration allows 256 origin
+mappings within its 64 KiB command. Keys must be unencrypted. Outer proxy mTLS,
+custom connectors and CONNECT-UDP are not exposed.
 
 ## Next
 

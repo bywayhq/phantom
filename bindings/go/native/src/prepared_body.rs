@@ -19,7 +19,7 @@ pub(super) struct Span {
 }
 
 impl Span {
-    fn bytes<'a>(&self, input: &'a [u8]) -> Result<&'a [u8], Failure> {
+    pub(super) fn bytes<'a>(&self, input: &'a [u8]) -> Result<&'a [u8], Failure> {
         let end = self
             .offset
             .checked_add(self.length)

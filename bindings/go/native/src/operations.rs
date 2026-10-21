@@ -1,5 +1,6 @@
 use crate::{
     client::{Config, Header, NativeClient, SessionSharing},
+    client_certificate,
     error::Failure,
     policy::{ContentDecoding, RedirectHistory, RedirectPolicy, RequestPolicy, coding_name},
     prepared_body,
@@ -36,6 +37,14 @@ const MAX_HANDLES: usize = 64;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Command {
     Identity,
+    ParseClientCertificate {
+        format: client_certificate::Format,
+        certificate_chain: Vec<prepared_body::Span>,
+        private_key: prepared_body::Span,
+    },
+    ReleaseClientCertificate {
+        certificate: u64,
+    },
     PrepareBody {
         encoding: prepared_body::Encoding,
         maximum: usize,
@@ -885,6 +894,16 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         }
         // Preparation owns CPU work and needs neither an HTTP runtime nor its lock.
         let command = match command {
+            Command::ParseClientCertificate {
+                format,
+                certificate_chain,
+                private_key,
+            } => {
+                return client_certificate::parse(format, certificate_chain, private_key, bytes);
+            }
+            Command::ReleaseClientCertificate { certificate } => {
+                return client_certificate::release(certificate);
+            }
             Command::PrepareBody { encoding, maximum } => {
                 return prepared_body::prepare(encoding, bytes, maximum);
             }
@@ -925,9 +944,10 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         }
         match command {
             Command::Identity => Ok(native_identity()),
-            Command::PrepareBody { .. } | Command::ReleasePreparedBody { .. } => {
-                Err(Failure::new("internal"))
-            }
+            Command::PrepareBody { .. }
+            | Command::ReleasePreparedBody { .. }
+            | Command::ParseClientCertificate { .. }
+            | Command::ReleaseClientCertificate { .. } => Err(Failure::new("internal")),
             Command::NewClient { config } => {
                 if state.clients.len() >= MAX_HANDLES {
                     return Err(Failure::new("capacity"));

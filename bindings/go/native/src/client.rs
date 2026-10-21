@@ -24,6 +24,9 @@ pub(super) struct Config {
     proxy_additional_roots_der: Vec<Vec<u8>>,
     server_spki_pins: Option<Vec<[u8; 32]>>,
     proxy_server_spki_pins: Option<Vec<[u8; 32]>>,
+    client_certificate: Option<u64>,
+    #[serde(default)]
+    client_certificates_for: Vec<CertificateOrigin>,
     cookies: bool,
     #[serde(default)]
     timeouts: Timeouts,
@@ -31,6 +34,13 @@ pub(super) struct Config {
     redirect_policy: RedirectPolicy,
     #[serde(default)]
     retry_policy: crate::retry::RetryPolicy,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CertificateOrigin {
+    origin: String,
+    certificate: u64,
 }
 
 #[derive(Deserialize)]
@@ -158,6 +168,9 @@ impl NativeClient {
     }
 
     pub(super) fn new(config: Config) -> Result<Self, Failure> {
+        if config.client_certificates_for.len() > 256 {
+            return Err(Failure::new("input_limit"));
+        }
         if !matches!(config.protocol.as_str(), "h1" | "h2" | "h3" | "negotiated") {
             return Err(Failure::new("invalid_protocol"));
         }
@@ -193,6 +206,15 @@ impl NativeClient {
         }
         if config.cookies {
             builder = builder.cookies();
+        }
+        if let Some(id) = config.client_certificate {
+            builder = builder.client_certificate(crate::client_certificate::get(id)?);
+        }
+        for mapping in config.client_certificates_for {
+            builder = builder.client_certificate_for(
+                &mapping.origin,
+                crate::client_certificate::get(mapping.certificate)?,
+            );
         }
         builder = builder
             .request_timeouts(config.timeouts.defaults())

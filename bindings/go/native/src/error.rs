@@ -20,6 +20,11 @@ impl Failure {
 
 impl From<phantom::BuildError> for Failure {
     fn from(error: phantom::BuildError) -> Self {
+        if let Some(cause) = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<phantom::ClientCertificateError>())
+        {
+            return crate::client_certificate::failure(cause);
+        }
         Self::new(match error.kind() {
             phantom::BuildErrorKind::InvalidBaseUrl => "invalid_base_url",
             phantom::BuildErrorKind::TrustStore => "invalid_trust_store",
