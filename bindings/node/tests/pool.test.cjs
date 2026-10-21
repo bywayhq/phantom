@@ -53,7 +53,9 @@ test('native pool admission caps active bodies and cancellation releases a waiti
     pool: {maxConcurrentHttp1RequestsPerOrigin: 2, maxPendingHttp1RequestsPerOrigin: 1}});
   const held = [], controller = new AbortController();
   try {
-    for (let index = 0; index < 2; index++) held.push(await client.request(url + '/held', options));
+    for (let index = 0; index < 2; index++) held.push(await client.request(url + '/held', {
+      ...options, timeoutMs: undefined, timeouts: {connectMs: 10000, responseHeadMs: 10000, totalMs: null},
+    }));
     await assert.rejects(client.request(url + '/blocked', {...options, timeouts: {poolAdmissionMs: 0}}),
       {code: 'Timeout', timeoutPhase: 'poolAdmission'});
     const diagnostics = new RequestDiagnostics();
