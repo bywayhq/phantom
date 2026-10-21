@@ -1071,11 +1071,9 @@ fn client_certificates(
     })
 }
 
-fn certificate_inputs(
-    env: &Env,
-    chain: Vec<Buffer>,
-    key: Buffer,
-) -> Result<(Vec<Vec<u8>>, Zeroizing<Vec<u8>>)> {
+type CertificateInputs = (Vec<Vec<u8>>, Zeroizing<Vec<u8>>);
+
+fn certificate_inputs(env: &Env, chain: Vec<Buffer>, key: Buffer) -> Result<CertificateInputs> {
     use crate::client_certificate::{MAXIMUM_BYTES, size};
     // Validate actual backing and all extents before allocating any byte copy.
     // These pointers stay in this synchronous Env call, with no JS or await.
