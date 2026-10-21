@@ -3,13 +3,14 @@ package phantom
 import (
 	"net/netip"
 	"slices"
+	"strings"
 	"unicode/utf8"
 )
 
 // NetworkOptions selects addresses without changing request hosts, TLS names or
 // certificate verification. Nil Config.Network and an empty value use defaults.
 // Overrides, their addresses and local addresses together allow 1024 entries;
-// their UTF-8 representation and Interface share the 64 KiB config input limit.
+// their UTF-8 representation, Interface and UnixSocket share the 64 KiB limit.
 type NetworkOptions struct {
 	HostOverrides []HostOverride
 	// LocalAddresses bind sockets to these addresses. The last of each family
@@ -19,7 +20,15 @@ type NetworkOptions struct {
 	// Interface binds outgoing sockets to this interface; empty leaves it unset.
 	// Availability and permissions are checked by the operating system on connect.
 	Interface string
+	// UnixSocket opens direct HTTP/1 or HTTP/2 connections through this path on
+	// Unix. The URL still supplies HTTP authority and verified TLS identity.
+	// Nil omits the option; an empty path is invalid. It cannot be combined with
+	// host overrides, source bindings or proxies, and checkpoints are unsupported.
+	UnixSocket *string
 }
+
+func (NetworkOptions) String() string   { return "phantom.NetworkOptions([redacted])" }
+func (NetworkOptions) GoString() string { return "phantom.NetworkOptions([redacted])" }
 
 // HostOverride retains ordered addresses for a name resolved by this client.
 // Core normalizes names; the last duplicate wins. An empty Addresses slice
@@ -33,6 +42,7 @@ type wireNetworkOptions struct {
 	HostOverrides  []wireHostOverride `json:"host_overrides,omitempty"`
 	LocalAddresses []netip.Addr       `json:"local_addresses,omitempty"`
 	Interface      string             `json:"interface,omitempty"`
+	UnixSocket     *string            `json:"unix_socket,omitempty"`
 }
 
 type wireHostOverride struct {
@@ -76,6 +86,14 @@ func networkInputSize(input *NetworkOptions) (int, error) {
 	if err := text(input.Interface); err != nil {
 		return 0, err
 	}
+	if input.UnixSocket != nil {
+		if err := text(*input.UnixSocket); err != nil {
+			return 0, err
+		}
+		if *input.UnixSocket == "" || strings.ContainsRune(*input.UnixSocket, 0) {
+			return 0, &Error{Kind: "invalid_network_options"}
+		}
+	}
 	for _, override := range input.HostOverrides {
 		if err := text(override.Host); err != nil {
 			return 0, err
@@ -101,6 +119,10 @@ func networkWire(input *NetworkOptions) *wireNetworkOptions {
 	result := &wireNetworkOptions{Interface: input.Interface,
 		LocalAddresses: slices.Clone(input.LocalAddresses),
 		HostOverrides:  make([]wireHostOverride, len(input.HostOverrides))}
+	if input.UnixSocket != nil {
+		path := strings.Clone(*input.UnixSocket)
+		result.UnixSocket = &path
+	}
 	for index, override := range input.HostOverrides {
 		// An empty address list is a meaningful override, so encode [] not null.
 		addresses := make([]netip.Addr, len(override.Addresses))

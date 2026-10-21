@@ -84,6 +84,17 @@ const networkHost = "network.phantom.invalid"
 // The peer's only DNS SAN is the logical name, independently of its socket IP.
 func networkTLSPeer(t *testing.T, h2 bool, handler http.Handler) *httptest.Server {
 	t.Helper()
+	peer := httptest.NewUnstartedServer(handler)
+	peer.EnableHTTP2 = h2
+	peer.TLS = networkTLSConfig(t)
+	peer.Config.ErrorLog = log.New(io.Discard, "", 0)
+	peer.StartTLS()
+	t.Cleanup(peer.Close)
+	return peer
+}
+
+func networkTLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -96,13 +107,36 @@ func networkTLSPeer(t *testing.T, h2 bool, handler http.Handler) *httptest.Serve
 	if err != nil {
 		t.Fatal(err)
 	}
-	peer := httptest.NewUnstartedServer(handler)
-	peer.EnableHTTP2 = h2
-	peer.TLS = &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
-	peer.Config.ErrorLog = log.New(io.Discard, "", 0)
-	peer.StartTLS()
-	t.Cleanup(peer.Close)
-	return peer
+	return &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
+}
+
+func TestUnixSocketInputAndOwnedWireBeforeNative(t *testing.T) {
+	for _, path := range []string{"", "private\x00socket", string([]byte{255})} {
+		_, err := New(Config{Network: &NetworkOptions{UnixSocket: &path}})
+		if kind(err) != "invalid_network_options" || strings.Contains(fmt.Sprint(err), "private") {
+			t.Fatalf("invalid socket path before native: %v", err)
+		}
+	}
+	path := strings.Repeat("é", 32768)
+	if size, err := networkInputSize(&NetworkOptions{UnixSocket: &path}); err != nil || size != 65536 {
+		t.Fatalf("exact path byte bound: %d %v", size, err)
+	}
+	if _, err := networkInputSize(&NetworkOptions{UnixSocket: &path, Interface: "x"}); kind(err) != "input_limit" {
+		t.Fatalf("combined path bound: %v", err)
+	}
+	path = "/private/original.sock"
+	input := NetworkOptions{UnixSocket: &path}
+	wire := networkWire(&input)
+	path = "/private/changed.sock"
+	data, err := json.Marshal(wire)
+	if err != nil || string(data) != `{"unix_socket":"/private/original.sock"}` {
+		t.Fatalf("owned socket path: %s %v", data, err)
+	}
+	for _, text := range []string{fmt.Sprint(input), fmt.Sprintf("%+v", &input), fmt.Sprintf("%#v", input)} {
+		if strings.Contains(text, "private") || strings.Contains(text, "sock") {
+			t.Fatalf("path leaked in formatting: %s", text)
+		}
+	}
 }
 
 func TestNetworkOverridesPreserveVerifiedHostSourceAndFork(t *testing.T) {

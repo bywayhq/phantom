@@ -16,6 +16,7 @@ pub(super) struct NetworkOptions {
     host_overrides: Vec<HostOverride>,
     local_addresses: Vec<String>,
     interface: Option<String>,
+    unix_socket: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -40,14 +41,33 @@ impl NetworkOptions {
             entries += entry.addresses.len();
         }
         let mut bytes = MAX_BYTES;
-        for value in self.interface.iter().chain(&self.local_addresses).chain(
-            self.host_overrides
-                .iter()
-                .flat_map(|entry| std::iter::once(&entry.host).chain(&entry.addresses)),
-        ) {
+        for value in self
+            .interface
+            .iter()
+            .chain(&self.unix_socket)
+            .chain(&self.local_addresses)
+            .chain(
+                self.host_overrides
+                    .iter()
+                    .flat_map(|entry| std::iter::once(&entry.host).chain(&entry.addresses)),
+            )
+        {
             bytes = bytes
                 .checked_sub(value.len())
                 .ok_or_else(|| Failure::new("input_limit"))?;
+        }
+        if let Some(path) = self.unix_socket {
+            if path.is_empty() || path.contains('\0') {
+                return Err(Failure::new("invalid_network_options"));
+            }
+            #[cfg(unix)]
+            {
+                builder = builder.tcp_connector(phantom::TcpConnector::unix_socket(path));
+            }
+            #[cfg(not(unix))]
+            {
+                return Err(Failure::new("unsupported_platform"));
+            }
         }
         for entry in self.host_overrides {
             let addresses = entry
@@ -92,9 +112,37 @@ mod tests {
             serde_json::json!({"host_overrides": [{"host": "example.invalid", "addresses": [], "unknown": 1}]}),
             serde_json::json!({"local_addresses": [1]}),
             serde_json::json!({"interface": false}),
+            serde_json::json!({"unix_socket": 1}),
         ] {
             assert!(serde_json::from_value::<NetworkOptions>(value).is_err());
         }
+    }
+
+    #[test]
+    fn native_unix_socket_checks_path_and_shared_byte_bound() {
+        for path in ["", "private\0socket"] {
+            assert_eq!(
+                apply(serde_json::json!({"unix_socket": path}))
+                    .err()
+                    .map(|error| error.kind),
+                Some("invalid_network_options")
+            );
+        }
+        assert_eq!(
+            apply(serde_json::json!({"unix_socket": "é".repeat(32768), "interface": "x"}))
+                .err()
+                .map(|error| error.kind),
+            Some("input_limit")
+        );
+        let result = apply(serde_json::json!({"unix_socket": "é".repeat(32768)}));
+        #[cfg(unix)]
+        assert!(result.is_ok());
+        #[cfg(not(unix))]
+        assert_eq!(
+            result.err().map(|error| error.kind),
+            Some("unsupported_platform")
+        );
+        assert!(apply(serde_json::json!({})).is_ok());
     }
 
     #[test]

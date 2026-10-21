@@ -202,6 +202,10 @@ and HTTPS-proxy trust while retaining certificate verification.
 `LocalAddresses` and an optional `Interface`. Overrides retain the original
 host for TLS and HTTP; the last duplicate wins, and an empty address list fails
 resolution. Source bindings never fall back to unbound sockets of another family.
+On Unix, set `NetworkOptions.UnixSocket` to a socket path for direct HTTP/1 or
+HTTP/2, retaining the URL's HTTP and verified TLS identity. Use an absolute path;
+host overrides, source bindings, proxies, HTTP/3 and session checkpoints are
+unsupported with this transport. Windows returns `unsupported_platform`.
 `ServerSPKIPins` and `ProxyServerSPKIPins` add separate origin/proxy policies.
 Supply one to 32 `[32]byte` SHA-256 digests of the leaf DER SubjectPublicKeyInfo;
 normal certificate and hostname verification still apply. Nil omits a policy;
