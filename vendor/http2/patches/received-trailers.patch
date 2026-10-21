@@ -5,7 +5,7 @@ diff --git a/src/share.rs b/src/share.rs
  #[must_use = "streams do nothing unless polled"]
  pub struct RecvStream {
      inner: FlowControl,
-+    ordered_trailers: Option<OrderedHeaders>,
++    ordered_trailers: Option<Box<OrderedHeaders>>,
  }
 
  /// A handle to release window capacity to a remote stream.
@@ -40,7 +40,7 @@ diff --git a/src/share.rs b/src/share.rs
 -            Some(Ok(map)) => Poll::Ready(Ok(Some(map))),
 -            Some(Err(e)) => Poll::Ready(Err(e.into())),
 +            Some(Ok((map, ordered))) => {
-+                self.ordered_trailers = ordered;
++                self.ordered_trailers = ordered.map(Box::new);
 +                Poll::Ready(Ok(Some(map)))
 +            }
 +            Some(Err(e)) => Poll::Ready(Err(e)),
@@ -61,7 +61,7 @@ diff --git a/src/share.rs b/src/share.rs
 +    /// response has passed any higher-level validation.
 +    #[must_use]
 +    pub fn take_ordered_trailers(&mut self) -> Option<OrderedHeaders> {
-+        let ordered = self.ordered_trailers.take();
++        let ordered = self.ordered_trailers.take().map(|fields| *fields);
 +        if self.is_end_stream() {
 +            ordered
 +        } else {

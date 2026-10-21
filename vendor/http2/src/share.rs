@@ -138,7 +138,7 @@ impl From<StreamId> for u32 {
 #[must_use = "streams do nothing unless polled"]
 pub struct RecvStream {
     inner: FlowControl,
-    ordered_trailers: Option<OrderedHeaders>,
+    ordered_trailers: Option<Box<OrderedHeaders>>,
 }
 
 /// A handle to release window capacity to a remote stream.
@@ -452,7 +452,7 @@ impl RecvStream {
         self.ordered_trailers = None;
         match ready!(self.inner.inner.poll_trailers(cx)) {
             Some(Ok((map, ordered))) => {
-                self.ordered_trailers = ordered;
+                self.ordered_trailers = ordered.map(Box::new);
                 Poll::Ready(Ok(Some(map)))
             }
             Some(Err(e)) => Poll::Ready(Err(e)),
@@ -473,7 +473,7 @@ impl RecvStream {
     /// response has passed any higher-level validation.
     #[must_use]
     pub fn take_ordered_trailers(&mut self) -> Option<OrderedHeaders> {
-        let ordered = self.ordered_trailers.take();
+        let ordered = self.ordered_trailers.take().map(|fields| *fields);
         if self.is_end_stream() {
             ordered
         } else {

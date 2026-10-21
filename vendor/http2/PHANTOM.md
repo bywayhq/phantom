@@ -88,6 +88,9 @@ retains lowercase names, duplicate interleaving and byte values; the decoder
 does not retain inbound HPACK never-indexed flags. This handoff does not assert
 higher-level response completion or integrity.
 
+The receive handle boxes this metadata to stay within the body handle size
+budget; allocation occurs only when a trailer list arrives.
+
 The patch also rejects a trailer block marked over the existing decoded
 header-list limit before queueing it. Previously the receive path could
 publish the decoder's retained prefix as a successful trailer map. The
