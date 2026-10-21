@@ -73,13 +73,12 @@ The check serves
 the new archives from a temporary loopback registry with no publishing
 endpoint. The downstream
 consumer fetches those archives, builds minimal and full features, and
-checks the resolved sources. It also runs the existing public-client peers
-over TLS HTTP/1, HTTP/2, and HTTP/3, with Chrome and Firefox settings and
-cold and reused clients. These short runs check operation, not performance.
+checks the resolved sources. The CLI installs from the same archives and
+runs its installation checks.
 
 The release workflow repeats archive installation on Windows, macOS, and
 Linux with the current compiler and Rust 1.88. Keep its logs, archive
-checksums, registry index, consumer lockfile, and protocol results.
+checksums, registry index, and consumer lockfile.
 `--allow-dirty` is available for local preparation. Its archives are not
 the final release artifacts.
 
