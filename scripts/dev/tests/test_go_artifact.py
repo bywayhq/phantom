@@ -252,6 +252,20 @@ class GoArtifactTests(unittest.TestCase):
 
     def test_failed_installation_retains_archive_without_verified_promotion(self):
         tools = artifact.artifact_tools()
+        version = "0.0.0"
+        source = self.root / "source"
+        module = source / "bindings/go"
+        for name, data in self.module_files().items():
+            destination = module / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+        (module / "version.go").write_text(
+            f'package phantom\nconst nativePackageVersion = "{version}"\n'
+        )
+        (module / "README.md").write_text("fixture module")
+        for name in ("LICENSE-MIT", "LICENSE-APACHE"):
+            shutil.copyfile(module / name, source / name)
+        (source / "Cargo.lock").write_text("fixture lock")
         library = self.root / "phantom_go.dll"
         library.write_bytes(b"native bytes")
         records = self.records(library.name)
@@ -269,7 +283,9 @@ class GoArtifactTests(unittest.TestCase):
                 if args[:2] == ["git", "rev-parse"]:
                     return b"fixed-source"
                 if args[:2] == ["cargo", "metadata"]:
-                    return b'{"packages":[{"name":"phantom-go","version":"0.2.0"}]}'
+                    return json.dumps(
+                        {"packages": [{"name": "phantom-go", "version": version}]}
+                    ).encode()
                 if args[:2] == ["cargo", "build"]:
                     return raw
                 return str(directory).encode()
@@ -280,6 +296,7 @@ class GoArtifactTests(unittest.TestCase):
             return []
 
         with (
+            patch.object(artifact, "ROOT", source),
             patch.object(tools, "Commands", Commands),
             patch.object(tools, "host_identity", return_value={}),
             patch.object(tools, "copy_notices", notices),

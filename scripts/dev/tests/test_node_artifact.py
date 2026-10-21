@@ -431,6 +431,20 @@ class NodeArtifactTests(unittest.TestCase):
         )
 
     def test_failed_installation_preserves_candidate_without_verified_artifact(self):
+        version = "0.0.0"
+        filename = f"byway-phantom-{version}.tgz"
+        source = self.directory / "source"
+        node = source / "bindings/node"
+        package = json.loads((artifact.ROOT / "bindings/node/package.json").read_text())
+        package["version"] = version
+        for name in artifact.SOURCES:
+            destination = node / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text("fixture source")
+        write_json(node / "package.json", package)
+        (node / "package-lock.json").write_text("fixture npm lock")
+        for name in ("Cargo.lock", "LICENSE-MIT", "LICENSE-APACHE"):
+            (source / name).write_text("fixture " + name)
         binary = self.directory / "phantom_node.dll"
         binary.write_bytes(b"owned native bytes")
         output = self.directory / "output"
@@ -450,12 +464,12 @@ class NodeArtifactTests(unittest.TestCase):
                     return str(directory).encode()
                 if args[:2] == ["cargo", "metadata"]:
                     return json.dumps(
-                        {"packages": [{"name": "phantom-node", "version": "0.2.0"}]}
+                        {"packages": [{"name": "phantom-node", "version": version}]}
                     ).encode()
                 if args[:2] == ["cargo", "build"]:
                     return "\n".join(map(json.dumps, records)).encode()
                 if "pack" in args:
-                    archive = output / "candidate/byway-phantom-0.2.0.tgz"
+                    archive = output / "candidate" / filename
                     staging = options["cwd"]
                     with tarfile.open(archive, "w:gz") as tar:
                         for path in staging.rglob("*"):
@@ -464,7 +478,7 @@ class NodeArtifactTests(unittest.TestCase):
                                     path,
                                     "package/" + path.relative_to(staging).as_posix(),
                                 )
-                    return b'[{"filename":"byway-phantom-0.2.0.tgz"}]'
+                    return json.dumps([{"filename": filename}]).encode()
                 return b"toolchain"
 
         def notices(_metadata, _packages, destination):
@@ -486,6 +500,7 @@ class NodeArtifactTests(unittest.TestCase):
             target=TARGET, node22=Path("node22"), node24=Path("node24"), output=output
         )
         with (
+            patch.object(artifact, "ROOT", source),
             patch.object(artifact, "artifact_tools", return_value=tools),
             patch.object(
                 artifact, "runtime", return_value=(Path("node"), Path("npm-cli.js"), {})
@@ -499,11 +514,11 @@ class NodeArtifactTests(unittest.TestCase):
             self.assertRaisesRegex(ValueError, "Worker control failed"),
         ):
             artifact.verify(args)
-        self.assertTrue((output / "candidate/byway-phantom-0.2.0.tgz").is_file())
+        self.assertTrue((output / "candidate" / filename).is_file())
         self.assertFalse((output / "verified").exists())
         self.assertEqual(binary.read_bytes(), b"owned native bytes")
         artifact.inspect_archive(
-            output / "candidate/byway-phantom-0.2.0.tgz", output / "staging", self.tools
+            output / "candidate" / filename, output / "staging", self.tools
         )
 
 
