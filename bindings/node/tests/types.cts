@@ -235,3 +235,15 @@ async function transfers(client: Client): Promise<void> {
   void uploaded; void downloaded; void rounded;
 }
 void transfers;
+
+async function requestControls(client: Client): Promise<void> {
+  const options = {method: 'POST', protocol: 'http1' as const, context: 'raw' as const,
+    body: Buffer.from('data'), trailers: [{name: 'X-Result', value: Buffer.from('done'), sensitive: true}]};
+  await client.request('https://example.com/', {...options, expectContinueMs: 0});
+  await client.request('https://example.com/', {...options, expectContinueMs: 5000n});
+  // @ts-expect-error Waits are exact integer values, not strings.
+  await client.request('https://example.com/', {...options, expectContinueMs: '5000'});
+  // @ts-expect-error Trailer values are bytes, not strings.
+  await client.request('https://example.com/', {...options, trailers: [{name: 'x', value: 'done'}]});
+}
+void requestControls;

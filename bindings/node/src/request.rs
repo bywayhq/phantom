@@ -52,6 +52,7 @@ pub(crate) enum BodyInput {
 pub(crate) struct RequestControls {
     pub(crate) attempt_budget: Option<HttpAttemptBudget>,
     pub(crate) transfer_control: Option<TransferControl>,
+    pub(crate) trailers: Vec<RequestHeader>,
 }
 
 impl Prepared {
@@ -92,7 +93,12 @@ impl Prepared {
             None => client.core.request_negotiated(method, &options.url),
         }
         .map_err(request)?
-        .headers(headers);
+        .headers(headers)
+        .trailers(controls.trailers);
+        if let Some(milliseconds) = options.expect_continue_ms {
+            let wait = expect_continue_wait(milliseconds, started)?;
+            builder = builder.expect_continue(wait);
+        }
         if let Some(policy) = options.content_decoding {
             builder = builder.content_decoding(policy.policy()?);
         }
@@ -299,6 +305,25 @@ impl Prepared {
     }
 }
 
+fn expect_continue_wait(
+    value: napi::bindgen_prelude::BigInt,
+    started: Instant,
+) -> Result<Duration> {
+    let milliseconds = match (value.sign_bit, value.words.as_slice()) {
+        (false, []) => 0,
+        (false, [value]) => *value,
+        _ => return Err(failure("InvalidArgument", "expectContinueMs must fit u64")),
+    };
+    let wait = Duration::from_millis(milliseconds);
+    started.checked_add(wait).ok_or_else(|| {
+        failure(
+            "InvalidTimeout",
+            "expectContinueMs cannot be represented by the clock",
+        )
+    })?;
+    Ok(wait)
+}
+
 struct FileBody {
     file: tokio::fs::File,
     remaining: u64,
@@ -348,6 +373,51 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn continue_wait_accepts_zero_and_rejects_signed_or_overwide_native_inputs() -> Result<()> {
+        use napi::bindgen_prelude::BigInt;
+
+        let started = Instant::now();
+        for words in [Vec::new(), vec![0]] {
+            assert_eq!(
+                expect_continue_wait(
+                    BigInt {
+                        sign_bit: false,
+                        words
+                    },
+                    started
+                )?,
+                Duration::ZERO
+            );
+        }
+        assert_eq!(
+            expect_continue_wait(
+                BigInt {
+                    sign_bit: false,
+                    words: vec![17]
+                },
+                started
+            )?,
+            Duration::from_millis(17)
+        );
+        for value in [
+            BigInt {
+                sign_bit: true,
+                words: vec![1],
+            },
+            BigInt {
+                sign_bit: false,
+                words: vec![0, 1],
+            },
+        ] {
+            let Some(error) = expect_continue_wait(value, started).err() else {
+                return Err(failure("Test", "invalid native continue wait succeeded"));
+            };
+            assert!(error.reason.contains("expectContinueMs"));
+        }
+        Ok(())
+    }
 
     struct TestFile(std::path::PathBuf);
 

@@ -155,6 +155,10 @@ export interface RequestOptions {
   protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
   context: RequestContext;
   headers?: Header[];
+  /** Ordered static trailers; H2/H3 names must be lowercase. Sent only after successful body completion. */
+  trailers?: Header[];
+  /** Opt-in 100-continue wait in exact nonnegative milliseconds, including zero. */
+  expectContinueMs?: number | bigint;
   /** Async iterables are one-shot, pulled with native backpressure. */
   body?: Uint8Array | AsyncIterable<Uint8Array>;
   /** Optional exact byte length. Only demanded bytes are checked; an early response can leave an unread suffix. */

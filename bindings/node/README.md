@@ -156,7 +156,13 @@ Upload errors expose caller failures through `cause` and `cleanupError`;
 automatic formatting omits their text. Cleanup errors may settle later and
 are reported by `close()`.
 
-Request headers allow 256 entries/64 KiB. Additional roots allow sixteen
+Use `trailers` for ordered static fields sent after a successful body; H2/H3
+names must be lowercase. `expectContinueMs` opts into waiting for 100 Continue
+before sending a body, including a zero wait. It accepts exact nonnegative
+safe integer numbers or u64 `bigint`; the wait counts toward existing deadlines.
+A final response before the wait ends sends no upload bytes; producer cleanup
+stays cooperative.
+Headers and trailers together allow 256 entries/64 KiB. Additional roots allow sixteen
 certificates up to 1 MiB each.
 
 `maximumActiveRequests` counts requests plus unfinished bodies: default 32,

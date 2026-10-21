@@ -426,6 +426,10 @@ pub struct RequestOptions {
     pub context: String,
     /// Ordered duplicate fields.
     pub headers: Option<Vec<WireHeader>>,
+    /// Ordered static fields emitted after successful body completion.
+    pub trailers: Option<Vec<WireHeader>>,
+    /// Optional nonnegative wait before sending a body without 100 Continue.
+    pub expect_continue_ms: Option<BigInt>,
     /// Replayable byte upload, limited to 16 MiB.
     pub body: Option<Buffer>,
     /// One-shot file upload instead of bytes.
@@ -1004,24 +1008,33 @@ impl NativeClient {
     ) -> Result<AsyncBlock<NativeResponse>> {
         let started = Instant::now();
         let fields = options.headers.take().unwrap_or_default();
-        if fields.len() > 256 {
-            return Err(failure("InputLimit", "too many request headers"));
+        let trailer_fields = options.trailers.take().unwrap_or_default();
+        if fields.len().saturating_add(trailer_fields.len()) > 256 {
+            return Err(failure(
+                "InputLimit",
+                "headers and trailers exceed 256 fields",
+            ));
         }
         let mut remaining = MAXIMUM_HEADER_BYTES;
-        let mut headers = Vec::with_capacity(fields.len());
-        for field in fields {
-            remaining = remaining
-                .checked_sub(field.name.len())
-                .ok_or_else(|| failure("InputLimit", "request headers exceed the binding limit"))?;
-            let value = copy_buffer(&env, field.value, remaining)?;
-            remaining -= value.len();
-            let header = phantom::RequestHeader::new(field.name, value);
-            headers.push(if field.sensitive.unwrap_or(false) {
-                header.sensitive()
-            } else {
-                header
-            });
-        }
+        let mut copy_fields = |fields: Vec<WireHeader>| -> Result<Vec<phantom::RequestHeader>> {
+            let mut copied = Vec::with_capacity(fields.len());
+            for field in fields {
+                remaining = remaining.checked_sub(field.name.len()).ok_or_else(|| {
+                    failure("InputLimit", "headers and trailers exceed 65536 bytes")
+                })?;
+                let value = copy_buffer(&env, field.value, remaining)?;
+                remaining -= value.len();
+                let header = phantom::RequestHeader::new(field.name, value);
+                copied.push(if field.sensitive.unwrap_or(false) {
+                    header.sensitive()
+                } else {
+                    header
+                });
+            }
+            Ok(copied)
+        };
+        let headers = copy_fields(fields)?;
+        let trailers = copy_fields(trailer_fields)?;
         let body = options
             .body
             .take()
@@ -1050,6 +1063,7 @@ impl NativeClient {
             RequestControls {
                 attempt_budget: budget.map(|budget| budget.budget.clone()),
                 transfer_control: transfer.map(|transfer| transfer.control.clone()),
+                trailers,
             },
         )?;
         if let Some(upload) = upload {

@@ -121,6 +121,37 @@ function bytes(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(backing, apply(offsetOf, value, []), apply(lengthOf, value, []));
 }
 
+function requestFields(headers, trailers) {
+  for (const [name, fields] of [['headers', headers], ['trailers', trailers]]) {
+    if (fields !== undefined && (!Array.isArray(fields) || types.isProxy(fields))) {
+      throw new PhantomError('InvalidArgument', `${name} must be an ordered array`);
+    }
+  }
+  if ((headers?.length ?? 0) + (trailers?.length ?? 0) > 256) {
+    throw new PhantomError('InputLimit', 'headers and trailers exceed 256 fields');
+  }
+  let remaining = 65536;
+  const copy = (fields, name) => fields?.map((header) => {
+    const field = name === 'headers' ? {...header, value: bytes(header.value)}
+      : policyFields(header, ['name', 'value', 'sensitive']);
+    if (typeof field.name !== 'string' || (field.sensitive !== undefined && typeof field.sensitive !== 'boolean')) {
+      throw new PhantomError('InvalidArgument', `${name} entries require a string name and optional boolean sensitive`);
+    }
+    field.value = bytes(field.value);
+    remaining -= Buffer.byteLength(field.name, 'utf8') + apply(lengthOf, field.value, []);
+    if (remaining < 0) throw new PhantomError('InputLimit', 'headers and trailers exceed 65536 bytes');
+    return field;
+  });
+  return {headers: copy(headers, 'headers'), trailers: copy(trailers, 'trailers')};
+}
+
+function expectContinue(value) {
+  if (value === undefined) return undefined;
+  if ((typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+    || (typeof value === 'bigint' && value >= 0n && value <= 0xffffffffffffffffn)) return BigInt(value);
+  throw new PhantomError('InvalidArgument', 'expectContinueMs must be an exact nonnegative u64 integer');
+}
+
 function phaseTimeouts(value) {
   if (value === undefined) return undefined;
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -614,6 +645,8 @@ class Client {
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
       if (options.file) integer(options.file.maximumBytes, 'maximumBytes');
+      const fields = requestFields(options.headers, options.trailers);
+      const continueWait = expectContinue(options.expectContinueMs);
       const streaming = options.body !== undefined && !types.isUint8Array(options.body);
       if (options.file !== undefined && options.body !== undefined) throw new PhantomError('InvalidArgument', 'choose body or file');
       if (options.bodyLength !== undefined && (options.body === undefined || options.file !== undefined)) {
@@ -638,7 +671,7 @@ class Client {
       if (options.transferControl !== undefined && transfer === undefined) throw new PhantomError('InvalidArgument', 'transferControl must be a TransferControl');
       const pending = this.#native.request({
         url, method: options.method, protocol: options.protocol, context: options.context,
-        headers: options.headers?.map((header) => ({ ...header, value: bytes(header.value) })),
+        ...fields, expectContinueMs: continueWait,
         body: byteBody,
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
         contentDecoding: contentDecoding(options.contentDecoding),

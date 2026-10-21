@@ -60,3 +60,11 @@ void checkpoints;
 const transfer = new TransferControl({downloadBytes: 0n});
 const transferred: bigint = transfer.snapshot().downloadEncodedBytes;
 void transferred;
+
+async function requestControls(client: Client): Promise<void> {
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http2', context: 'raw',
+    trailers: [{name: 'x-check', value: new Uint8Array(), sensitive: false}], expectContinueMs: 0n});
+  // @ts-expect-error Waits do not accept booleans.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', expectContinueMs: true});
+}
+void requestControls;
