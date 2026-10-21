@@ -40,7 +40,7 @@ impl Span {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum Data {
-    Reader,
+    Reader {},
     Text { data: Span },
     Bytes { data: Span },
 }
@@ -95,7 +95,7 @@ impl Multipart {
                     data.bytes(input)?;
                     StreamingMultipartPart::bytes(&part.name, Bytes::new())
                 }
-                Data::Reader => StreamingMultipartPart::bytes(&part.name, Bytes::new()),
+                Data::Reader {} => StreamingMultipartPart::bytes(&part.name, Bytes::new()),
             }
             .map_err(failure)?;
             metadata.push(with_metadata(part, field)?);
@@ -103,7 +103,7 @@ impl Multipart {
         StreamingMultipartBody::new(boundary, metadata, maximum).map_err(failure)?;
         let sources = parts
             .iter()
-            .map(|part| matches!(part.source, Data::Reader).then(|| Upload::new(client, None)))
+            .map(|part| matches!(part.source, Data::Reader {}).then(|| Upload::new(client, None)))
             .collect();
         let readers = Arc::new(Readers {
             sources,
@@ -114,7 +114,7 @@ impl Multipart {
         let mut fields = Vec::with_capacity(parts.len());
         for (index, part) in parts.iter().enumerate() {
             let field = match &part.source {
-                Data::Reader => {
+                Data::Reader {} => {
                     let source = readers.sources[index]
                         .as_ref()
                         .ok_or_else(|| Failure::new("internal"))?;
