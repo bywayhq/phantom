@@ -4,7 +4,7 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
-  /** Core profile-document or session checkpoint category. */
+  /** Core profile-document, prepared-body or session checkpoint category. */
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
@@ -77,6 +77,19 @@ export class TransferControl {
   snapshot(): Readonly<TransferSnapshot>;
 }
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
+export interface PreparedBodyOptions { readonly maximumBytes: number | bigint; }
+export interface MultipartBodyOptions extends PreparedBodyOptions { readonly boundary: string; }
+export type MultipartPart = Readonly<{name: string; filename?: string; contentType?: string} & (
+  {text: string; bytes?: never} | {bytes: Uint8Array; text?: never}
+)>;
+/** Immutable, replayable bytes encoded by the native core, with no generated boundary. */
+export class PreparedBody {
+  private constructor();
+  static form(pairs: readonly (readonly [string, string])[], options: PreparedBodyOptions): Promise<PreparedBody>;
+  static multipart(parts: readonly MultipartPart[], options: MultipartBodyOptions): Promise<PreparedBody>;
+  readonly contentType: string;
+  readonly byteLength: bigint;
+}
 /**
  * Omit to inherit; null disables. Total zero rejects before sending;
  * other zero phase timers can race ready work.
@@ -159,8 +172,8 @@ export interface RequestOptions {
   trailers?: Header[];
   /** Opt-in 100-continue wait in exact nonnegative milliseconds, including zero. */
   expectContinueMs?: number | bigint;
-  /** Async iterables are one-shot, pulled with native backpressure. */
-  body?: Uint8Array | AsyncIterable<Uint8Array>;
+  /** Prepared bodies are reusable; async iterables are one-shot and pulled with native backpressure. */
+  body?: Uint8Array | AsyncIterable<Uint8Array> | PreparedBody;
   /** Optional exact byte length. Only demanded bytes are checked; an early response can leave an unread suffix. */
   bodyLength?: number | bigint;
   file?: { path: string; maximumBytes: number };

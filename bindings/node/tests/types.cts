@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, PhantomError, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, PhantomError, PreparedBody, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -247,3 +247,18 @@ async function requestControls(client: Client): Promise<void> {
   await client.request('https://example.com/', {...options, trailers: [{name: 'x', value: 'done'}]});
 }
 void requestControls;
+
+async function preparedBodies(client: Client): Promise<void> {
+  const body = await PreparedBody.form([['tag', 'first'], ['tag', 'last']] as const, {maximumBytes: 1024n});
+  const length: bigint = body.byteLength;
+  await client.request('https://example.com/', {method: 'POST', protocol: 'http1', context: 'raw', body,
+    headers: [{name: 'Content-Type', value: Buffer.from(body.contentType)}], bodyLength: length});
+  await PreparedBody.multipart([{name: 'x', text: 'text'}, {name: 'x', bytes: new Uint8Array(), filename: 'file'}], {boundary: 'explicit', maximumBytes: 4096});
+  // @ts-expect-error Prepared bodies have read-only metadata.
+  body.byteLength = 1n;
+  // @ts-expect-error Multipart requires exactly one payload mode.
+  await PreparedBody.multipart([{name: 'x', text: 'x', bytes: Buffer.alloc(0)}], {boundary: 'x', maximumBytes: 128});
+  // @ts-expect-error Encoded output maximum is required.
+  await PreparedBody.form([]);
+}
+void preparedBodies;

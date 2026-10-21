@@ -11,6 +11,8 @@ const lengthOf = Object.getOwnPropertyDescriptor(typedArray, 'byteLength').get;
 const budgetHandles = new WeakMap();
 const transferHandles = new WeakMap();
 const profileHandles = new WeakMap();
+const preparedHandles = new WeakMap();
+const preparedToken = {};
 const profileToken = {};
 const clientToken = {};
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
@@ -71,6 +73,8 @@ const environment = new native.NativeEnvironment();
 
 function translated(error) {
   if (error instanceof PhantomError) return error;
+  const prepared = /^PHANTOM_PREPARED:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
+  if (prepared) return new PhantomError('PreparedBody', prepared[2], undefined, undefined, prepared[1]);
   const snapshot = /^PHANTOM_SNAPSHOT:([A-Za-z0-9_]+):([\s\S]*)$/.exec(error?.message ?? '');
   if (snapshot) return new PhantomError('SessionSnapshot', snapshot[2], undefined, undefined, snapshot[1]);
   const profile = /^PHANTOM_PROFILE:(ProfileImport|ProfileExport):([A-Za-z0-9_]+):([^:]*):([\s\S]*)$/.exec(error?.message ?? '');
@@ -150,6 +154,94 @@ function expectContinue(value) {
   if ((typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
     || (typeof value === 'bigint' && value >= 0n && value <= 0xffffffffffffffffn)) return BigInt(value);
   throw new PhantomError('InvalidArgument', 'expectContinueMs must be an exact nonnegative u64 integer');
+}
+
+function preparedFailure(kind) {
+  return new PhantomError('PreparedBody', 'request body preparation failed', undefined, undefined, kind);
+}
+
+function preparedOptions(options, multipart) {
+  const fields = policyFields(options, multipart ? ['boundary', 'maximumBytes'] : ['maximumBytes']);
+  const value = fields.maximumBytes;
+  if (!((typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+    || (typeof value === 'bigint' && value >= 0n && value <= 0xffffffffffffffffn))) {
+    throw new PhantomError('InvalidArgument', 'maximumBytes must be an exact nonnegative u64 integer');
+  }
+  if (multipart && typeof fields.boundary !== 'string') throw new PhantomError('InvalidArgument', 'boundary must be a string');
+  return {...fields, maximumBytes: BigInt(value)};
+}
+
+function preparedArray(value) {
+  if (!Array.isArray(value) || types.isProxy(value)) throw new PhantomError('InvalidArgument', 'body fields must be an ordered array');
+  // Reject accessors before reading entries; sparse arrays are not field lists.
+  for (let index = 0; index < value.length; index++) {
+    if (!Object.hasOwn(Object.getOwnPropertyDescriptor(value, String(index)) ?? {}, 'value')) {
+      throw new PhantomError('InvalidArgument', 'body fields must contain data entries');
+    }
+  }
+}
+
+class PreparedBody {
+  constructor(handle, token) {
+    if (token !== preparedToken) throw new PhantomError('InvalidArgument', 'use a PreparedBody factory');
+    preparedHandles.set(this, handle);
+    Object.defineProperties(this, {
+      contentType: {value: handle.contentType, enumerable: true},
+      byteLength: {value: handle.byteLength, enumerable: true},
+      [inspect.custom]: {value: () => `PreparedBody { byteLength: ${handle.byteLength}n }`},
+    });
+    Object.freeze(this);
+  }
+  static async form(pairs, options) {
+    try {
+      const {maximumBytes} = preparedOptions(options, false);
+      if (!Array.isArray(pairs) || types.isProxy(pairs)) throw new PhantomError('InvalidArgument', 'form pairs must be an ordered array');
+      if (BigInt(pairs.length) > maximumBytes) throw preparedFailure('too_large');
+      preparedArray(pairs);
+      let remaining = maximumBytes;
+      const fields = [];
+      for (let index = 0; index < pairs.length; index++) {
+        const pair = pairs[index];
+        if (!Array.isArray(pair) || types.isProxy(pair) || pair.length !== 2) throw new PhantomError('InvalidArgument', 'form pairs require two strings');
+        preparedArray(pair);
+        const name = pair[0], value = pair[1];
+        if (typeof name !== 'string' || typeof value !== 'string') throw new PhantomError('InvalidArgument', 'form pairs require two strings');
+        remaining -= BigInt(Buffer.byteLength(name) + Buffer.byteLength(value) + 1);
+        if (remaining < 0n) throw preparedFailure('too_large');
+        fields.push({name, value});
+      }
+      return new PreparedBody(await native.preparedForm(fields, maximumBytes), preparedToken);
+    } catch (error) { throw translated(error); }
+  }
+  static async multipart(parts, options) {
+    try {
+      const {boundary, maximumBytes} = preparedOptions(options, true);
+      if (!Array.isArray(parts) || types.isProxy(parts)) throw new PhantomError('InvalidArgument', 'multipart parts must be an ordered array');
+      if (parts.length > 1024) throw preparedFailure('too_many_parts');
+      preparedArray(parts);
+      let remaining = maximumBytes - BigInt(Buffer.byteLength(boundary));
+      const fields = [];
+      for (let index = 0; index < parts.length; index++) {
+        const part = policyFields(parts[index], ['name', 'text', 'bytes', 'filename', 'contentType']);
+        if (typeof part.name !== 'string' || (part.text === undefined) === (part.bytes === undefined)
+          || (part.text !== undefined && typeof part.text !== 'string')) {
+          throw new PhantomError('InvalidArgument', 'multipart part requires a string name and exactly one text or bytes field');
+        }
+        for (const field of ['name', 'filename', 'contentType']) {
+          if (part[field] === undefined && field !== 'name') continue;
+          if (typeof part[field] !== 'string') throw new PhantomError('InvalidArgument', `multipart ${field} must be a string`);
+          const count = Buffer.byteLength(part[field]);
+          if (count > 4096) throw preparedFailure('too_large');
+          remaining -= BigInt(count);
+        }
+        if (part.bytes !== undefined) part.bytes = bytes(part.bytes);
+        remaining -= BigInt(part.text === undefined ? apply(lengthOf, part.bytes, []) : Buffer.byteLength(part.text));
+        if (remaining < 0n) throw preparedFailure('too_large');
+        fields.push(part);
+      }
+      return new PreparedBody(await native.preparedMultipart(boundary, fields, maximumBytes), preparedToken);
+    } catch (error) { throw translated(error); }
+  }
 }
 
 function phaseTimeouts(value) {
@@ -647,13 +739,17 @@ class Client {
       if (options.file) integer(options.file.maximumBytes, 'maximumBytes');
       const fields = requestFields(options.headers, options.trailers);
       const continueWait = expectContinue(options.expectContinueMs);
-      const streaming = options.body !== undefined && !types.isUint8Array(options.body);
+      const prepared = options.body === undefined ? undefined : preparedHandles.get(options.body);
+      const streaming = options.body !== undefined && prepared === undefined && !types.isUint8Array(options.body);
       if (options.file !== undefined && options.body !== undefined) throw new PhantomError('InvalidArgument', 'choose body or file');
       if (options.bodyLength !== undefined && (options.body === undefined || options.file !== undefined)) {
         throw new PhantomError('InvalidArgument', 'bodyLength requires a body');
       }
       const length = options.bodyLength === undefined ? undefined : uploadLength(options.bodyLength);
-      const byteBody = options.body === undefined || streaming ? undefined : bytes(options.body);
+      if (prepared !== undefined && length !== undefined && prepared.byteLength !== length) {
+        throw new PhantomError('UploadLength', 'body does not match bodyLength');
+      }
+      const byteBody = options.body === undefined || streaming || prepared !== undefined ? undefined : bytes(options.body);
       if (byteBody !== undefined && length !== undefined && BigInt(apply(lengthOf, byteBody, [])) !== length) {
         throw new PhantomError('UploadLength', 'body does not match bodyLength');
       }
@@ -673,6 +769,7 @@ class Client {
         url, method: options.method, protocol: options.protocol, context: options.context,
         ...fields, expectContinueMs: continueWait,
         body: byteBody,
+        preparedBody: prepared,
         file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
         contentDecoding: contentDecoding(options.contentDecoding),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
@@ -824,4 +921,4 @@ function uploadOperation(operation) {
   }
 }
 
-module.exports = { AttemptBudget, Client, PhantomError, Profile, Response, TransferControl, profiles: () => native.profileIds() };
+module.exports = { AttemptBudget, Client, PhantomError, PreparedBody, Profile, Response, TransferControl, profiles: () => native.profileIds() };

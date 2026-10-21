@@ -2,6 +2,7 @@
 
 mod client;
 mod error;
+mod prepared_body;
 mod profile;
 mod request;
 mod response;
@@ -15,10 +16,11 @@ mod upload;
 mod ffi;
 
 pub use ffi::{
-    ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, NativeAttemptBudget,
-    NativeCancellation, NativeClient, NativeEnvironment, NativeImportedProfile, NativeProfile,
-    NativeResponse, NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
+    ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, FormField,
+    MultipartField, NativeAttemptBudget, NativeCancellation, NativeClient, NativeEnvironment,
+    NativeImportedProfile, NativePreparedBody, NativeProfile, NativeResponse,
+    NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
     RedirectPolicyOptions, RequestOptions, RetryPolicyOptions, SessionRouteOptions,
-    StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo, WireHeader, profile_catalog,
-    profile_ids, profile_import_json,
+    StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo, WireHeader, prepared_form,
+    prepared_multipart, profile_catalog, profile_ids, profile_import_json,
 };

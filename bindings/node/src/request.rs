@@ -46,6 +46,7 @@ pub(crate) struct Prepared {
 
 pub(crate) enum BodyInput {
     Bytes(Vec<u8>),
+    Prepared(phantom::PreparedRequestBody),
     Stream(Arc<crate::upload::Upload>),
 }
 
@@ -117,10 +118,14 @@ impl Prepared {
         if body.is_some() && options.file.is_some() {
             return Err(failure(
                 "InvalidBody",
-                "choose one byte, file or streaming body",
+                "choose one byte, prepared, file or streaming body",
             ));
         }
         let upload = match body {
+            Some(BodyInput::Prepared(body)) => {
+                builder = builder.prepared_body(body);
+                None
+            }
             Some(BodyInput::Bytes(body)) => {
                 builder = builder.body(body);
                 None

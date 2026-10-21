@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, Profile } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, PreparedBody, Profile } from '../index.mjs';
 
 function compactProfiles(base: Profile, bytes: Uint8Array): void {
   const imported = Profile.importClientHello(bytes, {base});
@@ -68,3 +68,14 @@ async function requestControls(client: Client): Promise<void> {
   await client.request('https://example.com/', {method: 'GET', protocol: 'http1', context: 'raw', expectContinueMs: true});
 }
 void requestControls;
+
+async function preparedBodies(): Promise<void> {
+  const body: PreparedBody = await PreparedBody.multipart([{name: 'x', text: 'value'}], {boundary: 'caller', maximumBytes: 256n});
+  const mediaType: string = body.contentType;
+  // @ts-expect-error Boundaries are explicit, never generated.
+  await PreparedBody.multipart([], {maximumBytes: 128});
+  // @ts-expect-error Form values are strings without coercion.
+  await PreparedBody.form([['x', 1]], {maximumBytes: 128});
+  void mediaType;
+}
+void preparedBodies;

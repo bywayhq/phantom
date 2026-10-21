@@ -165,6 +165,14 @@ stays cooperative.
 Headers and trailers together allow 256 entries/64 KiB. Additional roots allow sixteen
 certificates up to 1 MiB each.
 
+`await PreparedBody.form(orderedPairs, {maximumBytes})` and
+`await PreparedBody.multipart(parts, {boundary, maximumBytes})` prepare reusable
+native bodies. Multipart parts use `{name, text}` or `{name, bytes}`, with optional
+`filename` and `contentType`. Pass the frozen owner as `body` and put its exact
+`contentType` in your ordered headers or a profile's caller slot. `byteLength` is
+always bigint; the encoded limit includes multipart framing. Encoding runs on
+native CPU workers and is not preemptible. Files and streaming parts are separate.
+
 `maximumActiveRequests` counts requests plus unfinished bodies: default 32,
 range 1..1024. Full admission returns `Capacity`. Each Worker has an environment
 with at most 128 open clients; closed clients remain charged until their work
