@@ -1,0 +1,563 @@
+diff --git a/src/body.rs b/src/body.rs
+index 4e30374..e7c8c71 100644
+--- a/src/body.rs
++++ b/src/body.rs
+@@ -22,7 +22,7 @@ mod incoming;
+ mod length;
+ mod watch;
+
+-pub use self::incoming::Incoming;
++pub use self::incoming::{Incoming, ReceivedTrailers};
+ pub(crate) use self::{incoming::Sender, length::DecodedLength};
+
+ fn _assert_send_sync() {
+diff --git a/src/body/incoming.rs b/src/body/incoming.rs
+index 9513114..2d3acf3 100644
+--- a/src/body/incoming.rs
++++ b/src/body/incoming.rs
+@@ -8,7 +8,7 @@ use std::{
+ use bytes::Bytes;
+ use futures_channel::{mpsc, oneshot};
+ use futures_util::{stream::FusedStream, Stream};
+-use http::HeaderMap;
++use http::{HeaderMap, HeaderValue};
+ use http_body::{Body, Frame, SizeHint};
+
+ use super::{watch, DecodedLength};
+@@ -23,11 +23,41 @@ pub struct Incoming {
+     kind: Kind,
+ }
+
++/// HTTP/1 trailer fields in parsed wire order, including duplicate names.
++///
++/// Names retain their received spelling and values contain parsed field bytes.
++/// This is not the raw trailer block, including whitespace or framing.
++#[derive(Clone, PartialEq)]
++pub struct ReceivedTrailers {
++    fields: Vec<(String, HeaderValue)>,
++}
++
++impl ReceivedTrailers {
++    pub(crate) fn new(fields: Vec<(String, HeaderValue)>) -> Self {
++        Self { fields }
++    }
++
++    /// Borrows the fields in their received order.
++    pub fn as_slice(&self) -> &[(String, HeaderValue)] {
++        &self.fields
++    }
++}
++
++impl fmt::Debug for ReceivedTrailers {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        formatter
++            .debug_struct("ReceivedTrailers")
++            .field("count", &self.fields.len())
++            .finish()
++    }
++}
++
+ enum Kind {
+     H1 {
+         want_tx: watch::Sender,
+         data_rx: mpsc::Receiver<Result<Bytes, Error>>,
+-        trailers_rx: oneshot::Receiver<HeaderMap>,
++        trailers_rx: oneshot::Receiver<(HeaderMap, Option<ReceivedTrailers>)>,
++        received_trailers: Option<Box<ReceivedTrailers>>,
+         content_length: DecodedLength,
+     },
+     H2 {
+@@ -56,12 +86,26 @@ enum Kind {
+ pub(crate) struct Sender {
+     want_rx: watch::Receiver,
+     data_tx: mpsc::Sender<Result<Bytes, Error>>,
+-    trailers_tx: Option<oneshot::Sender<HeaderMap>>,
++    trailers_tx: Option<oneshot::Sender<(HeaderMap, Option<ReceivedTrailers>)>>,
+ }
+
+ // ===== impl Incoming =====
+
+ impl Incoming {
++    /// Takes the parsed fields belonging to the last yielded HTTP/1 trailer frame.
++    ///
++    /// Returns `None` before that frame, after the fields have been taken, or
++    /// for HTTP/2 bodies. This does not drive the body or establish successful
++    /// completion of any higher-level decoding or authentication.
++    pub fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
++        match &mut self.kind {
++            Kind::H1 {
++                received_trailers, ..
++            } => received_trailers.take().map(|fields| *fields),
++            _ => None,
++        }
++    }
++
+     #[inline]
+     pub(crate) fn empty() -> Incoming {
+         Incoming { kind: Kind::Empty }
+@@ -85,6 +129,7 @@ impl Incoming {
+                     want_tx,
+                     data_rx,
+                     trailers_rx,
++                    received_trailers: None,
+                     content_length,
+                 },
+             },
+@@ -126,6 +171,7 @@ impl Body for Incoming {
+                 ref want_tx,
+                 ref mut data_rx,
+                 ref mut trailers_rx,
++                ref mut received_trailers,
+                 ref mut content_length,
+             } => {
+                 want_tx.ready();
+@@ -139,7 +185,10 @@ impl Body for Incoming {
+
+                 // check trailers after data is terminated
+                 match ready!(Pin::new(trailers_rx).poll(cx)) {
+-                    Ok(t) => Poll::Ready(Some(Ok(Frame::trailers(t)))),
++                    Ok((trailers, received)) => {
++                        *received_trailers = received.map(Box::new);
++                        Poll::Ready(Some(Ok(Frame::trailers(trailers))))
++                    }
+                     Err(_) => Poll::Ready(None),
+                 }
+             }
+@@ -258,12 +307,16 @@ impl Sender {
+     /// Returns `Err(HeaderMap)` if the channel could not (currently) accept
+     /// another `HeaderMap`.
+     #[inline]
+-    pub(crate) fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), Option<HeaderMap>> {
++    pub(crate) fn send_trailers(
++        &mut self,
++        trailers: HeaderMap,
++        received: Option<ReceivedTrailers>,
++    ) -> Result<(), Option<HeaderMap>> {
+         self.trailers_tx
+             .take()
+             .ok_or(None)?
+-            .send(trailers)
+-            .map_err(Some)
++            .send((trailers, received))
++            .map_err(|(trailers, _)| Some(trailers))
+     }
+
+     /// Send an error on this channel, which will cause the body stream to end with an error.
+@@ -307,7 +360,8 @@ mod tests {
+         // the size by too much.
+
+         let body_size = mem::size_of::<Incoming>();
+-        let body_expected_size = mem::size_of::<u64>() * 5;
++        // One optional pointer retains the last received HTTP/1 trailer list.
++        let body_expected_size = mem::size_of::<u64>() * 6;
+         assert!(
+             body_size <= body_expected_size,
+             "Body size = {body_size} <= {body_expected_size}",
+diff --git a/src/conn/http1.rs b/src/conn/http1.rs
+index 8677512..3b9a8b5 100644
+--- a/src/conn/http1.rs
++++ b/src/conn/http1.rs
+@@ -347,3 +347,167 @@ mod upgrades {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod received_trailers_tests {
++    use std::{error::Error as StdError, time::Duration};
++
++    use bytes::Bytes;
++    use http::{HeaderMap, Request};
++    use http_body_util::{BodyExt, Empty};
++    use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
++
++    use super::Builder;
++    use crate::body::ReceivedTrailers;
++
++    type TestError = Box<dyn StdError + Send + Sync>;
++
++    async fn read_head(peer: &mut DuplexStream) -> Result<(), TestError> {
++        let mut head = Vec::new();
++        while !head.ends_with(b"\r\n\r\n") {
++            if head.len() >= 4096 {
++                return Err("request head exceeded peer limit".into());
++            }
++            head.push(peer.read_u8().await?);
++        }
++        Ok(())
++    }
++
++    async fn exchange(
++        trailers: &[u8],
++        fragmented: bool,
++    ) -> Result<(HeaderMap, Option<ReceivedTrailers>), TestError> {
++        tokio::time::timeout(Duration::from_secs(5), async {
++            let (client_io, mut peer_io) = tokio::io::duplex(1024);
++            let (mut sender, connection) = Builder::default()
++                .handshake::<_, Empty<Bytes>>(client_io)
++                .await?;
++            let peer = async {
++                read_head(&mut peer_io).await?;
++                let mut wire =
++                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nz\r\n0\r\n"
++                        .to_vec();
++                wire.extend_from_slice(trailers);
++                wire.extend_from_slice(b"\r\n");
++                for chunk in wire.chunks(if fragmented { 1 } else { wire.len() }) {
++                    peer_io.write_all(chunk).await?;
++                    if fragmented {
++                        tokio::task::yield_now().await;
++                    }
++                }
++                read_head(&mut peer_io).await?;
++                peer_io
++                    .write_all(
++                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
++                    )
++                    .await?;
++                peer_io.shutdown().await?;
++                Ok::<_, TestError>(())
++            };
++            let client = async {
++                let request = Request::builder()
++                    .uri("/")
++                    .header("host", "localhost")
++                    .body(Empty::new())?;
++                let response = sender
++                    .try_send_request(request)
++                    .await
++                    .map_err(|error| error.into_error())?;
++                let mut body = response.into_body();
++                assert!(body.take_received_trailers().is_none());
++                let mut data = Vec::new();
++                let mut semantic = HeaderMap::new();
++                let mut received = None;
++                while let Some(frame) = body.frame().await {
++                    match frame?.into_data() {
++                        Ok(bytes) => {
++                            assert!(received.is_none());
++                            data.extend_from_slice(&bytes);
++                            assert!(body.take_received_trailers().is_none());
++                        }
++                        Err(frame) => {
++                            semantic = frame.into_trailers().map_err(|_| "unexpected frame")?;
++                            received = body.take_received_trailers();
++                            assert!(received.is_some());
++                            assert!(body.take_received_trailers().is_none());
++                        }
++                    }
++                }
++                assert_eq!(data, b"z");
++                assert!(body.take_received_trailers().is_none());
++                sender.ready().await?;
++                let request = Request::builder()
++                    .uri("/reuse")
++                    .header("host", "localhost")
++                    .body(Empty::new())?;
++                let mut body = sender
++                    .try_send_request(request)
++                    .await
++                    .map_err(|error| error.into_error())?
++                    .into_body();
++                assert!(body.take_received_trailers().is_none());
++                let mut reused = Vec::new();
++                while let Some(frame) = body.frame().await {
++                    let bytes = frame?
++                        .into_data()
++                        .map_err(|_| "unexpected reuse trailers")?;
++                    reused.extend_from_slice(&bytes);
++                }
++                assert_eq!(reused, b"ok");
++                assert!(body.take_received_trailers().is_none());
++                Ok::<_, TestError>((semantic, received))
++            };
++            let (_, result, ()) = tokio::try_join!(
++                async { connection.await.map_err(TestError::from) },
++                client,
++                peer,
++            )?;
++            Ok(result)
++        })
++        .await?
++    }
++
++    #[tokio::test]
++    async fn received_trailers_retain_order_spelling_bytes_and_connection_reuse(
++    ) -> Result<(), TestError> {
++        for fragmented in [false, true] {
++            let (semantic, received) = exchange(
++                b"X-A: first\r\nx-b: \xffmiddle\r\nx-a: last\r\n",
++                fragmented,
++            )
++            .await?;
++            assert_eq!(
++                semantic
++                    .get_all("x-a")
++                    .iter()
++                    .map(|v| v.as_bytes())
++                    .collect::<Vec<_>>(),
++                [b"first".as_slice(), b"last".as_slice()]
++            );
++            assert_eq!(semantic["x-b"].as_bytes(), b"\xffmiddle");
++            let received = received.ok_or("missing parsed trailer fields")?;
++            assert_eq!(
++                received
++                    .as_slice()
++                    .iter()
++                    .map(|(name, value)| (name.as_str(), value.as_bytes()))
++                    .collect::<Vec<_>>(),
++                [
++                    ("X-A", b"first".as_slice()),
++                    ("x-b", b"\xffmiddle".as_slice()),
++                    ("x-a", b"last".as_slice())
++                ]
++            );
++            assert_eq!(format!("{received:?}"), "ReceivedTrailers { count: 3 }");
++        }
++        Ok(())
++    }
++
++    #[tokio::test]
++    async fn absent_trailers_do_not_publish_metadata_or_cross_requests() -> Result<(), TestError> {
++        let (semantic, received) = exchange(b"", false).await?;
++        assert!(semantic.is_empty());
++        assert!(received.is_none());
++        Ok(())
++    }
++}
+diff --git a/src/proto/http1/conn.rs b/src/proto/http1/conn.rs
+index 47f7f32..042d0e2 100644
+--- a/src/proto/http1/conn.rs
++++ b/src/proto/http1/conn.rs
+@@ -20,7 +20,7 @@ use super::{
+     Decoder, Encode, Http1Transaction, ParseContext, Wants,
+ };
+ use crate::{
+-    body::DecodedLength,
++    body::{DecodedLength, ReceivedTrailers},
+     ext::OnInformational,
+     proto::{headers, BodyLength, MessageHead},
+     upgrade, Error, Result,
+@@ -36,6 +36,7 @@ use crate::{
+ pub(crate) struct Conn<I, B, T> {
+     io: Buffered<I, EncodedBuf<B>>,
+     state: State,
++    received_trailers: Option<ReceivedTrailers>,
+     _marker: PhantomData<fn(T)>,
+ }
+
+@@ -48,6 +49,7 @@ where
+     pub(crate) fn new(io: I) -> Conn<I, B, T> {
+         Conn {
+             io: Buffered::new(io),
++            received_trailers: None,
+             state: State {
+                 allow_half_close: false,
+                 cached_headers: None,
+@@ -167,6 +169,7 @@ where
+         cx: &mut Context<'_>,
+     ) -> Poll<Option<Result<(MessageHead<T::Incoming>, DecodedLength, Wants)>>> {
+         debug_assert!(self.can_read_head());
++        self.received_trailers = None;
+         trace!("Conn::read_head");
+
+         let msg = match self.io.parse::<T>(
+@@ -270,6 +273,10 @@ where
+         }
+     }
+
++    pub(super) fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
++        self.received_trailers.take()
++    }
++
+     pub(super) fn poll_read_body(
+         &mut self,
+         cx: &mut Context<'_>,
+@@ -303,6 +310,7 @@ where
+                             };
+                             (reading, Poll::Ready(maybe_frame))
+                         } else if frame.is_trailers() {
++                            self.received_trailers = decoder.take_received_trailers();
+                             debug!("incoming body completed with trailers");
+                             (Reading::KeepAlive, Poll::Ready(Some(Ok(frame))))
+                         } else {
+diff --git a/src/proto/http1/decode.rs b/src/proto/http1/decode.rs
+index b79badd..c3f4d96 100644
+--- a/src/proto/http1/decode.rs
++++ b/src/proto/http1/decode.rs
+@@ -10,7 +10,7 @@ use http_body::Frame;
+
+ use self::Kind::{Chunked, Eof, Length};
+ use super::{io::MemRead, role::DEFAULT_MAX_HEADERS, DecodedLength};
+-use crate::error::chunk_size_line_too_large;
++use crate::{body::ReceivedTrailers, error::chunk_size_line_too_large};
+
+ /// Maximum amount of bytes allowed in chunked extensions.
+ ///
+@@ -29,6 +29,7 @@ const TRAILER_LIMIT: usize = 1024 * 16;
+ #[derive(Clone, PartialEq)]
+ pub(crate) struct Decoder {
+     kind: Kind,
++    received_trailers: Option<ReceivedTrailers>,
+ }
+
+ #[derive(Debug, Clone, PartialEq)]
+@@ -102,6 +103,7 @@ impl Decoder {
+     fn length(x: u64) -> Decoder {
+         Decoder {
+             kind: Kind::Length(x),
++            received_trailers: None,
+         }
+     }
+
+@@ -109,6 +111,7 @@ impl Decoder {
+     fn eof() -> Decoder {
+         Decoder {
+             kind: Kind::Eof(false),
++            received_trailers: None,
+         }
+     }
+
+@@ -119,6 +122,7 @@ impl Decoder {
+         h1_max_chunk_size_line_bytes: Option<usize>,
+     ) -> Decoder {
+         Decoder {
++            received_trailers: None,
+             kind: Kind::Chunked {
+                 state: ChunkedState::new(),
+                 chunk_len: 0,
+@@ -163,6 +167,10 @@ impl Decoder {
+         )
+     }
+
++    pub(super) fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
++        self.received_trailers.take()
++    }
++
+     pub(crate) fn decode<R: MemRead>(
+         &mut self,
+         cx: &mut Context<'_>,
+@@ -238,7 +246,8 @@ impl Decoder {
+                                 &mut trailers_buf.take().expect("Trailer is None"),
+                                 *trailers_cnt,
+                             ) {
+-                                Ok(headers) => {
++                                Ok((headers, received)) => {
++                                    self.received_trailers = Some(received);
+                                     return Poll::Ready(Ok(Frame::trailers(headers)));
+                                 }
+                                 Err(e) => {
+@@ -725,12 +734,17 @@ impl ChunkedState {
+ }
+
+ // TODO: disallow Transfer-Encoding, Content-Length, Trailer, etc in trailers ??
+-fn decode_trailers(buf: &mut BytesMut, count: usize) -> Result<HeaderMap, io::Error> {
++fn decode_trailers(
++    buf: &mut BytesMut,
++    count: usize,
++) -> Result<(HeaderMap, ReceivedTrailers), io::Error> {
+     let mut trailers = HeaderMap::new();
+     let mut headers = vec![httparse::EMPTY_HEADER; count];
+     let res = httparse::parse_headers(buf, &mut headers);
+     match res {
+         Ok(httparse::Status::Complete((_, headers))) => {
++            // The chunked decoder has enforced field-count and byte limits.
++            let mut received = Vec::with_capacity(headers.len());
+             for header in headers.iter() {
+                 use std::convert::TryFrom;
+                 let name = match HeaderName::try_from(header.name) {
+@@ -753,10 +767,16 @@ fn decode_trailers(buf: &mut BytesMut, count: usize) -> Result<HeaderMap, io::Er
+                     }
+                 };
+
+-                trailers.insert(name, value);
++                received.push((header.name.to_owned(), value.clone()));
++                trailers.try_append(name, value).map_err(|_| {
++                    io::Error::new(
++                        io::ErrorKind::InvalidData,
++                        "trailer field capacity exceeded",
++                    )
++                })?;
+             }
+
+-            Ok(trailers)
++            Ok((trailers, ReceivedTrailers::new(received)))
+         }
+         Ok(httparse::Status::Partial) => Err(io::Error::new(
+             io::ErrorKind::InvalidInput,
+@@ -1212,7 +1232,7 @@ mod tests {
+         buf.extend_from_slice(
+             b"Expires: Wed, 21 Oct 2015 07:28:00 GMT\r\nX-Stream-Error: failed to decode\r\n\r\n",
+         );
+-        let headers = decode_trailers(&mut buf, 2).expect("decode_trailers");
++        let (headers, _) = decode_trailers(&mut buf, 2).expect("decode_trailers");
+         assert_eq!(headers.len(), 2);
+         assert_eq!(
+             headers.get("Expires").unwrap(),
+@@ -1311,4 +1331,52 @@ mod tests {
+             .expect_err("trailers over limit");
+         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+     }
++
++    #[tokio::test]
++    async fn received_trailers_preserve_existing_byte_and_count_boundaries(
++    ) -> Result<(), Box<dyn StdError>> {
++        // The serialized trailer block is eight bytes: "X: a\r\n\r\n".
++        // Existing policy rejects reaching the configured byte limit.
++        for (maximum_bytes, succeeds) in [(9, true), (8, false)] {
++            let mut input = &b"0\r\nX: a\r\n\r\n"[..];
++            let mut decoder = Decoder::chunked(Some(2), Some(maximum_bytes), None);
++            let result = decoder.decode_fut(&mut input).await;
++            assert_eq!(result.is_ok(), succeeds);
++            if succeeds {
++                let fields = result?.into_trailers().map_err(|_| "missing trailers")?;
++                assert_eq!(fields["x"], "a");
++                let received = decoder.take_received_trailers().ok_or("missing metadata")?;
++                assert_eq!(received.as_slice()[0].0, "X");
++            } else {
++                assert_eq!(
++                    result.err().ok_or("missing limit error")?.kind(),
++                    io::ErrorKind::InvalidData
++                );
++                assert!(decoder.take_received_trailers().is_none());
++            }
++        }
++        // Existing policy rejects a block whose field count reaches the limit.
++        for (maximum_count, succeeds) in [(2, true), (1, false)] {
++            let mut input = &b"0\r\nX: a\r\n\r\n"[..];
++            let mut decoder = Decoder::chunked(Some(maximum_count), None, None);
++            assert_eq!(decoder.decode_fut(&mut input).await.is_ok(), succeeds);
++            assert_eq!(decoder.take_received_trailers().is_some(), succeeds);
++        }
++        Ok(())
++    }
++
++    #[tokio::test]
++    async fn invalid_or_truncated_trailers_publish_no_metadata() {
++        for input in [
++            b"0\r\nBad Name: x\r\n\r\n".as_slice(),
++            b"0\r\nX: a\x00\r\n\r\n",
++            b"0\r\nX: a\r\n",
++            b"0\r\nX: a\r",
++        ] {
++            let mut input = input;
++            let mut decoder = Decoder::chunked(None, None, None);
++            assert!(decoder.decode_fut(&mut input).await.is_err());
++            assert!(decoder.take_received_trailers().is_none());
++        }
++    }
+ }
+diff --git a/src/proto/http1/dispatch.rs b/src/proto/http1/dispatch.rs
+index 30367e5..785cd8d 100644
+--- a/src/proto/http1/dispatch.rs
++++ b/src/proto/http1/dispatch.rs
+@@ -241,7 +241,8 @@ where
+                             } else if frame.is_trailers() {
+                                 let trailers =
+                                     frame.into_trailers().unwrap_or_else(|_| unreachable!());
+-                                match body.send_trailers(trailers) {
++                                let received = self.conn.take_received_trailers();
++                                match body.send_trailers(trailers, received) {
+                                     Ok(()) => {
+                                         self.body_tx.set(body);
+                                     }

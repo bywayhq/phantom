@@ -20,7 +20,7 @@ use super::{
     Decoder, Encode, Http1Transaction, ParseContext, Wants,
 };
 use crate::{
-    body::DecodedLength,
+    body::{DecodedLength, ReceivedTrailers},
     ext::OnInformational,
     proto::{headers, BodyLength, MessageHead},
     upgrade, Error, Result,
@@ -36,6 +36,7 @@ use crate::{
 pub(crate) struct Conn<I, B, T> {
     io: Buffered<I, EncodedBuf<B>>,
     state: State,
+    received_trailers: Option<ReceivedTrailers>,
     _marker: PhantomData<fn(T)>,
 }
 
@@ -48,6 +49,7 @@ where
     pub(crate) fn new(io: I) -> Conn<I, B, T> {
         Conn {
             io: Buffered::new(io),
+            received_trailers: None,
             state: State {
                 allow_half_close: false,
                 cached_headers: None,
@@ -167,6 +169,7 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<(MessageHead<T::Incoming>, DecodedLength, Wants)>>> {
         debug_assert!(self.can_read_head());
+        self.received_trailers = None;
         trace!("Conn::read_head");
 
         let msg = match self.io.parse::<T>(
@@ -270,6 +273,10 @@ where
         }
     }
 
+    pub(super) fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
+        self.received_trailers.take()
+    }
+
     pub(super) fn poll_read_body(
         &mut self,
         cx: &mut Context<'_>,
@@ -303,6 +310,7 @@ where
                             };
                             (reading, Poll::Ready(maybe_frame))
                         } else if frame.is_trailers() {
+                            self.received_trailers = decoder.take_received_trailers();
                             debug!("incoming body completed with trailers");
                             (Reading::KeepAlive, Poll::Ready(Some(Ok(frame))))
                         } else {

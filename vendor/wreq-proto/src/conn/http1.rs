@@ -347,3 +347,167 @@ mod upgrades {
         }
     }
 }
+
+#[cfg(test)]
+mod received_trailers_tests {
+    use std::{error::Error as StdError, time::Duration};
+
+    use bytes::Bytes;
+    use http::{HeaderMap, Request};
+    use http_body_util::{BodyExt, Empty};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
+
+    use super::Builder;
+    use crate::body::ReceivedTrailers;
+
+    type TestError = Box<dyn StdError + Send + Sync>;
+
+    async fn read_head(peer: &mut DuplexStream) -> Result<(), TestError> {
+        let mut head = Vec::new();
+        while !head.ends_with(b"\r\n\r\n") {
+            if head.len() >= 4096 {
+                return Err("request head exceeded peer limit".into());
+            }
+            head.push(peer.read_u8().await?);
+        }
+        Ok(())
+    }
+
+    async fn exchange(
+        trailers: &[u8],
+        fragmented: bool,
+    ) -> Result<(HeaderMap, Option<ReceivedTrailers>), TestError> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let (client_io, mut peer_io) = tokio::io::duplex(1024);
+            let (mut sender, connection) = Builder::default()
+                .handshake::<_, Empty<Bytes>>(client_io)
+                .await?;
+            let peer = async {
+                read_head(&mut peer_io).await?;
+                let mut wire =
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nz\r\n0\r\n"
+                        .to_vec();
+                wire.extend_from_slice(trailers);
+                wire.extend_from_slice(b"\r\n");
+                for chunk in wire.chunks(if fragmented { 1 } else { wire.len() }) {
+                    peer_io.write_all(chunk).await?;
+                    if fragmented {
+                        tokio::task::yield_now().await;
+                    }
+                }
+                read_head(&mut peer_io).await?;
+                peer_io
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+                    )
+                    .await?;
+                peer_io.shutdown().await?;
+                Ok::<_, TestError>(())
+            };
+            let client = async {
+                let request = Request::builder()
+                    .uri("/")
+                    .header("host", "localhost")
+                    .body(Empty::new())?;
+                let response = sender
+                    .try_send_request(request)
+                    .await
+                    .map_err(|error| error.into_error())?;
+                let mut body = response.into_body();
+                assert!(body.take_received_trailers().is_none());
+                let mut data = Vec::new();
+                let mut semantic = HeaderMap::new();
+                let mut received = None;
+                while let Some(frame) = body.frame().await {
+                    match frame?.into_data() {
+                        Ok(bytes) => {
+                            assert!(received.is_none());
+                            data.extend_from_slice(&bytes);
+                            assert!(body.take_received_trailers().is_none());
+                        }
+                        Err(frame) => {
+                            semantic = frame.into_trailers().map_err(|_| "unexpected frame")?;
+                            received = body.take_received_trailers();
+                            assert!(received.is_some());
+                            assert!(body.take_received_trailers().is_none());
+                        }
+                    }
+                }
+                assert_eq!(data, b"z");
+                assert!(body.take_received_trailers().is_none());
+                sender.ready().await?;
+                let request = Request::builder()
+                    .uri("/reuse")
+                    .header("host", "localhost")
+                    .body(Empty::new())?;
+                let mut body = sender
+                    .try_send_request(request)
+                    .await
+                    .map_err(|error| error.into_error())?
+                    .into_body();
+                assert!(body.take_received_trailers().is_none());
+                let mut reused = Vec::new();
+                while let Some(frame) = body.frame().await {
+                    let bytes = frame?
+                        .into_data()
+                        .map_err(|_| "unexpected reuse trailers")?;
+                    reused.extend_from_slice(&bytes);
+                }
+                assert_eq!(reused, b"ok");
+                assert!(body.take_received_trailers().is_none());
+                Ok::<_, TestError>((semantic, received))
+            };
+            let (_, result, ()) = tokio::try_join!(
+                async { connection.await.map_err(TestError::from) },
+                client,
+                peer,
+            )?;
+            Ok(result)
+        })
+        .await?
+    }
+
+    #[tokio::test]
+    async fn received_trailers_retain_order_spelling_bytes_and_connection_reuse(
+    ) -> Result<(), TestError> {
+        for fragmented in [false, true] {
+            let (semantic, received) = exchange(
+                b"X-A: first\r\nx-b: \xffmiddle\r\nx-a: last\r\n",
+                fragmented,
+            )
+            .await?;
+            assert_eq!(
+                semantic
+                    .get_all("x-a")
+                    .iter()
+                    .map(|v| v.as_bytes())
+                    .collect::<Vec<_>>(),
+                [b"first".as_slice(), b"last".as_slice()]
+            );
+            assert_eq!(semantic["x-b"].as_bytes(), b"\xffmiddle");
+            let received = received.ok_or("missing parsed trailer fields")?;
+            assert_eq!(
+                received
+                    .as_slice()
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_bytes()))
+                    .collect::<Vec<_>>(),
+                [
+                    ("X-A", b"first".as_slice()),
+                    ("x-b", b"\xffmiddle".as_slice()),
+                    ("x-a", b"last".as_slice())
+                ]
+            );
+            assert_eq!(format!("{received:?}"), "ReceivedTrailers { count: 3 }");
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn absent_trailers_do_not_publish_metadata_or_cross_requests() -> Result<(), TestError> {
+        let (semantic, received) = exchange(b"", false).await?;
+        assert!(semantic.is_empty());
+        assert!(received.is_none());
+        Ok(())
+    }
+}

@@ -241,7 +241,8 @@ where
                             } else if frame.is_trailers() {
                                 let trailers =
                                     frame.into_trailers().unwrap_or_else(|_| unreachable!());
-                                match body.send_trailers(trailers) {
+                                let received = self.conn.take_received_trailers();
+                                match body.send_trailers(trailers, received) {
                                     Ok(()) => {
                                         self.body_tx.set(body);
                                     }

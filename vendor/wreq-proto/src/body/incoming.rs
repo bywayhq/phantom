@@ -8,7 +8,7 @@ use std::{
 use bytes::Bytes;
 use futures_channel::{mpsc, oneshot};
 use futures_util::{stream::FusedStream, Stream};
-use http::HeaderMap;
+use http::{HeaderMap, HeaderValue};
 use http_body::{Body, Frame, SizeHint};
 
 use super::{watch, DecodedLength};
@@ -23,11 +23,41 @@ pub struct Incoming {
     kind: Kind,
 }
 
+/// HTTP/1 trailer fields in parsed wire order, including duplicate names.
+///
+/// Names retain their received spelling and values contain parsed field bytes.
+/// This is not the raw trailer block, including whitespace or framing.
+#[derive(Clone, PartialEq)]
+pub struct ReceivedTrailers {
+    fields: Vec<(String, HeaderValue)>,
+}
+
+impl ReceivedTrailers {
+    pub(crate) fn new(fields: Vec<(String, HeaderValue)>) -> Self {
+        Self { fields }
+    }
+
+    /// Borrows the fields in their received order.
+    pub fn as_slice(&self) -> &[(String, HeaderValue)] {
+        &self.fields
+    }
+}
+
+impl fmt::Debug for ReceivedTrailers {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ReceivedTrailers")
+            .field("count", &self.fields.len())
+            .finish()
+    }
+}
+
 enum Kind {
     H1 {
         want_tx: watch::Sender,
         data_rx: mpsc::Receiver<Result<Bytes, Error>>,
-        trailers_rx: oneshot::Receiver<HeaderMap>,
+        trailers_rx: oneshot::Receiver<(HeaderMap, Option<ReceivedTrailers>)>,
+        received_trailers: Option<Box<ReceivedTrailers>>,
         content_length: DecodedLength,
     },
     H2 {
@@ -56,12 +86,26 @@ enum Kind {
 pub(crate) struct Sender {
     want_rx: watch::Receiver,
     data_tx: mpsc::Sender<Result<Bytes, Error>>,
-    trailers_tx: Option<oneshot::Sender<HeaderMap>>,
+    trailers_tx: Option<oneshot::Sender<(HeaderMap, Option<ReceivedTrailers>)>>,
 }
 
 // ===== impl Incoming =====
 
 impl Incoming {
+    /// Takes the parsed fields belonging to the last yielded HTTP/1 trailer frame.
+    ///
+    /// Returns `None` before that frame, after the fields have been taken, or
+    /// for HTTP/2 bodies. This does not drive the body or establish successful
+    /// completion of any higher-level decoding or authentication.
+    pub fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
+        match &mut self.kind {
+            Kind::H1 {
+                received_trailers, ..
+            } => received_trailers.take().map(|fields| *fields),
+            _ => None,
+        }
+    }
+
     #[inline]
     pub(crate) fn empty() -> Incoming {
         Incoming { kind: Kind::Empty }
@@ -85,6 +129,7 @@ impl Incoming {
                     want_tx,
                     data_rx,
                     trailers_rx,
+                    received_trailers: None,
                     content_length,
                 },
             },
@@ -126,6 +171,7 @@ impl Body for Incoming {
                 ref want_tx,
                 ref mut data_rx,
                 ref mut trailers_rx,
+                ref mut received_trailers,
                 ref mut content_length,
             } => {
                 want_tx.ready();
@@ -139,7 +185,10 @@ impl Body for Incoming {
 
                 // check trailers after data is terminated
                 match ready!(Pin::new(trailers_rx).poll(cx)) {
-                    Ok(t) => Poll::Ready(Some(Ok(Frame::trailers(t)))),
+                    Ok((trailers, received)) => {
+                        *received_trailers = received.map(Box::new);
+                        Poll::Ready(Some(Ok(Frame::trailers(trailers))))
+                    }
                     Err(_) => Poll::Ready(None),
                 }
             }
@@ -258,12 +307,16 @@ impl Sender {
     /// Returns `Err(HeaderMap)` if the channel could not (currently) accept
     /// another `HeaderMap`.
     #[inline]
-    pub(crate) fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), Option<HeaderMap>> {
+    pub(crate) fn send_trailers(
+        &mut self,
+        trailers: HeaderMap,
+        received: Option<ReceivedTrailers>,
+    ) -> Result<(), Option<HeaderMap>> {
         self.trailers_tx
             .take()
             .ok_or(None)?
-            .send(trailers)
-            .map_err(Some)
+            .send((trailers, received))
+            .map_err(|(trailers, _)| Some(trailers))
     }
 
     /// Send an error on this channel, which will cause the body stream to end with an error.
@@ -307,7 +360,8 @@ mod tests {
         // the size by too much.
 
         let body_size = mem::size_of::<Incoming>();
-        let body_expected_size = mem::size_of::<u64>() * 5;
+        // One optional pointer retains the last received HTTP/1 trailer list.
+        let body_expected_size = mem::size_of::<u64>() * 6;
         assert!(
             body_size <= body_expected_size,
             "Body size = {body_size} <= {body_expected_size}",

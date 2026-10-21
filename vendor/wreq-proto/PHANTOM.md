@@ -74,6 +74,13 @@ streaming body. Callers remain responsible for validating trailer semantics and
 multiplicity before the callback runs. The canonical delta is
 `patches/ordered-request-trailers.patch`.
 
+`received-trailers.patch` appends semantic HTTP/1 trailer values instead of
+replacing duplicates, and carries parsed field spelling and global order through
+the existing decoder and body channel. `Incoming::take_received_trailers` moves
+the bounded fields associated with the last yielded HTTP/1 trailer frame; it
+neither polls the body nor certifies higher-level decoding or authentication.
+The standard trailer frame and existing receive limits remain unchanged.
+
 ## Refreshing the vendor copy
 
 Download the reviewed crates.io archive into an isolated directory and verify
@@ -99,6 +106,9 @@ candidate="$refresh_dir/wreq-proto-$wreq_proto_version"
 # The published archive uses CRLF. Normalize only the patched Rust sources so
 # the canonical patch remains narrow and deterministic.
 for source in \
+  src/body.rs \
+  src/body/incoming.rs \
+  src/proto/http1/dispatch.rs \
   src/error.rs \
   src/proto/http1.rs \
   src/proto/http2.rs \

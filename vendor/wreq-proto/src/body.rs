@@ -22,7 +22,7 @@ mod incoming;
 mod length;
 mod watch;
 
-pub use self::incoming::Incoming;
+pub use self::incoming::{Incoming, ReceivedTrailers};
 pub(crate) use self::{incoming::Sender, length::DecodedLength};
 
 fn _assert_send_sync() {

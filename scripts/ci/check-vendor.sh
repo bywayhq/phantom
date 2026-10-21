@@ -139,6 +139,9 @@ check_wreq_proto_patch_replay() {
   # The published archive uses CRLF. Normalize the patched Rust sources
   # before replay so the canonical patch stays reviewable and deterministic.
   for source in \
+    src/body.rs \
+    src/body/incoming.rs \
+    src/proto/http1/dispatch.rs \
     src/error.rs \
     src/proto/http1.rs \
     src/proto/http2.rs \

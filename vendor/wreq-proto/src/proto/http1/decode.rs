@@ -10,7 +10,7 @@ use http_body::Frame;
 
 use self::Kind::{Chunked, Eof, Length};
 use super::{io::MemRead, role::DEFAULT_MAX_HEADERS, DecodedLength};
-use crate::error::chunk_size_line_too_large;
+use crate::{body::ReceivedTrailers, error::chunk_size_line_too_large};
 
 /// Maximum amount of bytes allowed in chunked extensions.
 ///
@@ -29,6 +29,7 @@ const TRAILER_LIMIT: usize = 1024 * 16;
 #[derive(Clone, PartialEq)]
 pub(crate) struct Decoder {
     kind: Kind,
+    received_trailers: Option<ReceivedTrailers>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,6 +103,7 @@ impl Decoder {
     fn length(x: u64) -> Decoder {
         Decoder {
             kind: Kind::Length(x),
+            received_trailers: None,
         }
     }
 
@@ -109,6 +111,7 @@ impl Decoder {
     fn eof() -> Decoder {
         Decoder {
             kind: Kind::Eof(false),
+            received_trailers: None,
         }
     }
 
@@ -119,6 +122,7 @@ impl Decoder {
         h1_max_chunk_size_line_bytes: Option<usize>,
     ) -> Decoder {
         Decoder {
+            received_trailers: None,
             kind: Kind::Chunked {
                 state: ChunkedState::new(),
                 chunk_len: 0,
@@ -161,6 +165,10 @@ impl Decoder {
                 }
                 | Eof(true)
         )
+    }
+
+    pub(super) fn take_received_trailers(&mut self) -> Option<ReceivedTrailers> {
+        self.received_trailers.take()
     }
 
     pub(crate) fn decode<R: MemRead>(
@@ -238,7 +246,8 @@ impl Decoder {
                                 &mut trailers_buf.take().expect("Trailer is None"),
                                 *trailers_cnt,
                             ) {
-                                Ok(headers) => {
+                                Ok((headers, received)) => {
+                                    self.received_trailers = Some(received);
                                     return Poll::Ready(Ok(Frame::trailers(headers)));
                                 }
                                 Err(e) => {
@@ -725,12 +734,17 @@ impl ChunkedState {
 }
 
 // TODO: disallow Transfer-Encoding, Content-Length, Trailer, etc in trailers ??
-fn decode_trailers(buf: &mut BytesMut, count: usize) -> Result<HeaderMap, io::Error> {
+fn decode_trailers(
+    buf: &mut BytesMut,
+    count: usize,
+) -> Result<(HeaderMap, ReceivedTrailers), io::Error> {
     let mut trailers = HeaderMap::new();
     let mut headers = vec![httparse::EMPTY_HEADER; count];
     let res = httparse::parse_headers(buf, &mut headers);
     match res {
         Ok(httparse::Status::Complete((_, headers))) => {
+            // The chunked decoder has enforced field-count and byte limits.
+            let mut received = Vec::with_capacity(headers.len());
             for header in headers.iter() {
                 use std::convert::TryFrom;
                 let name = match HeaderName::try_from(header.name) {
@@ -753,10 +767,16 @@ fn decode_trailers(buf: &mut BytesMut, count: usize) -> Result<HeaderMap, io::Er
                     }
                 };
 
-                trailers.insert(name, value);
+                received.push((header.name.to_owned(), value.clone()));
+                trailers.try_append(name, value).map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "trailer field capacity exceeded",
+                    )
+                })?;
             }
 
-            Ok(trailers)
+            Ok((trailers, ReceivedTrailers::new(received)))
         }
         Ok(httparse::Status::Partial) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -1212,7 +1232,7 @@ mod tests {
         buf.extend_from_slice(
             b"Expires: Wed, 21 Oct 2015 07:28:00 GMT\r\nX-Stream-Error: failed to decode\r\n\r\n",
         );
-        let headers = decode_trailers(&mut buf, 2).expect("decode_trailers");
+        let (headers, _) = decode_trailers(&mut buf, 2).expect("decode_trailers");
         assert_eq!(headers.len(), 2);
         assert_eq!(
             headers.get("Expires").unwrap(),
@@ -1310,5 +1330,53 @@ mod tests {
             .await
             .expect_err("trailers over limit");
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test]
+    async fn received_trailers_preserve_existing_byte_and_count_boundaries(
+    ) -> Result<(), Box<dyn StdError>> {
+        // The serialized trailer block is eight bytes: "X: a\r\n\r\n".
+        // Existing policy rejects reaching the configured byte limit.
+        for (maximum_bytes, succeeds) in [(9, true), (8, false)] {
+            let mut input = &b"0\r\nX: a\r\n\r\n"[..];
+            let mut decoder = Decoder::chunked(Some(2), Some(maximum_bytes), None);
+            let result = decoder.decode_fut(&mut input).await;
+            assert_eq!(result.is_ok(), succeeds);
+            if succeeds {
+                let fields = result?.into_trailers().map_err(|_| "missing trailers")?;
+                assert_eq!(fields["x"], "a");
+                let received = decoder.take_received_trailers().ok_or("missing metadata")?;
+                assert_eq!(received.as_slice()[0].0, "X");
+            } else {
+                assert_eq!(
+                    result.err().ok_or("missing limit error")?.kind(),
+                    io::ErrorKind::InvalidData
+                );
+                assert!(decoder.take_received_trailers().is_none());
+            }
+        }
+        // Existing policy rejects a block whose field count reaches the limit.
+        for (maximum_count, succeeds) in [(2, true), (1, false)] {
+            let mut input = &b"0\r\nX: a\r\n\r\n"[..];
+            let mut decoder = Decoder::chunked(Some(maximum_count), None, None);
+            assert_eq!(decoder.decode_fut(&mut input).await.is_ok(), succeeds);
+            assert_eq!(decoder.take_received_trailers().is_some(), succeeds);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn invalid_or_truncated_trailers_publish_no_metadata() {
+        for input in [
+            b"0\r\nBad Name: x\r\n\r\n".as_slice(),
+            b"0\r\nX: a\x00\r\n\r\n",
+            b"0\r\nX: a\r\n",
+            b"0\r\nX: a\r",
+        ] {
+            let mut input = input;
+            let mut decoder = Decoder::chunked(None, None, None);
+            assert!(decoder.decode_fut(&mut input).await.is_err());
+            assert!(decoder.take_received_trailers().is_none());
+        }
     }
 }

@@ -1,4 +1,5 @@
 chunk-size-line-limit.patch
 ordered-request-trailers.patch
 h2-io-error-causes.patch
+received-trailers.patch
 publish-identity.patch
