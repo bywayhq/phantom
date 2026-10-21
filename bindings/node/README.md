@@ -129,7 +129,8 @@ learned state. Clear DNS, hints, alternatives or tickets with `clearDnsCache`,
 
 Attach a shared `new TransferControl({downloadBytes: 1_000_000n,
 downloadBytesPerSecond: 100_000n})` through request `transferControl` for native
-body-byte caps, pacing and `snapshot()` counters. Limits accept safe integer
+body-byte caps, pacing and `snapshot()` counters. Download caps and rates count
+encoded body bytes. Limits accept safe integer
 numbers or `bigint` within u64; zero caps are valid, rates must be positive. The five
 counters are always `bigint`. Reservations include cancelled paced chunks;
 resends count again. Encoded/decoded body counts exclude transport overhead,

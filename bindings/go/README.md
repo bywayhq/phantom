@@ -95,8 +95,9 @@ values retain template placement rules; use lowercase caller names for H2/H3.
 `Request.Trailers` retains the same order and spelling after the body. H1 uses
 chunked coding; H2/H3 names must be lowercase. `Request.ExpectContinue` opts into
 waiting for `100 Continue` after sending the head. Supply a nonnegative
-`*time.Duration`; nil disables it, and zero sends without waiting. An early final
-response suppresses body transmission. Existing upload prefetch can still occur.
+`*time.Duration`; nil disables it, and zero sends without waiting. A final
+response received while waiting suppresses body transmission. Existing upload
+prefetch can still occur.
 Response headers retain received order and bytes. HTTP error statuses remain
 responses; inspect `Status` before consuming the body.
 
