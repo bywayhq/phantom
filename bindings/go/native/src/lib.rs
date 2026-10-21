@@ -6,6 +6,7 @@ mod error;
 mod ffi;
 mod operations;
 mod policy;
+mod prepared_body;
 mod profile;
 mod retry;
 mod session;

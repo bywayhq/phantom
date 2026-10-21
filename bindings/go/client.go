@@ -69,6 +69,9 @@ type Request struct {
 	// body data. Nil disables it; zero sends without waiting. Core deadlines apply.
 	ExpectContinue *time.Duration
 	Body           []byte
+	// PreparedBody sends a reusable native form or multipart encoding. It cannot
+	// be combined with Body, Upload or UploadLength. Content-Type placement is explicit.
+	PreparedBody *PreparedBody
 	// Upload transfers a one-shot source to Do, which closes it exactly once,
 	// including on validation failure. Read may run concurrently with Close;
 	// Close must unblock Read. It cannot be combined with Body.
@@ -220,6 +223,17 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if (request.Upload != nil && request.Body != nil) || (request.Upload == nil && request.UploadLength != nil) {
 		return nil, &Error{Kind: "invalid_upload"}
 	}
+	var prepared *uint64
+	if request.PreparedBody != nil {
+		if request.Body != nil || request.Upload != nil || request.UploadLength != nil {
+			return nil, &Error{Kind: "invalid_prepared_body"}
+		}
+		id := request.PreparedBody.id.Load()
+		if id == 0 {
+			return nil, &Error{Kind: "invalid_handle"}
+		}
+		prepared = &id
+	}
 	if ctx == nil {
 		return nil, &Error{Kind: "invalid_context"}
 	}
@@ -332,6 +346,9 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if transfer != nil {
 		command["transfer"] = transfer
 	}
+	if prepared != nil {
+		command["prepared_body"] = prepared
+	}
 	if upload != nil {
 		if err := upload.prepare(ctx, c.id.Load()); err != nil {
 			return nil, err
@@ -365,6 +382,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	})
 	runtime.KeepAlive(request.Budget)
 	runtime.KeepAlive(request.TransferControl)
+	runtime.KeepAlive(request.PreparedBody)
 	runtime.KeepAlive(c)
 	if err != nil {
 		if response != nil {

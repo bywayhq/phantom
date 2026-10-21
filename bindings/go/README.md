@@ -121,6 +121,14 @@ up to 64 KiB at a time. Content stays encoded unless you set
 EOF, read errors and `Close` release the native body. Concurrent reads are
 serialized. Byte uploads use replayable `Request.Body`, limited to 8 MiB.
 
+Use `PrepareForm(fields, maximumBytes)` for ordered form fields, or
+`PrepareMultipart(parts, boundary, maximumBytes)` for text and byte parts.
+Set `Request.PreparedBody` and place its `ContentType()` in your headers,
+unless your template provides a matching slot. Duplicate fields stay ordered.
+Close the prepared body after use; attached requests retain their bytes.
+Prepared bodies keep the 8 MiB body and 64 KiB metadata-command limits.
+At most 64 prepared bodies may be open; `Close` releases that capacity.
+
 For larger uploads, set `Request.Upload` to an `io.ReadCloser`, such as an open
 file. `Do` takes ownership and closes it once, including on validation failure.
 Its `Close` must unblock a concurrent `Read`. Set `UploadLength` for an exact

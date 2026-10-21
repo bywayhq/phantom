@@ -2,6 +2,7 @@ use crate::{
     client::{Config, Header, NativeClient, SessionSharing},
     error::Failure,
     policy::{ContentDecoding, RedirectHistory, RedirectPolicy, RequestPolicy, coding_name},
+    prepared_body,
     timeouts::Timeouts,
     upload::Upload,
 };
@@ -34,6 +35,13 @@ const MAX_HANDLES: usize = 64;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Command {
     Identity,
+    PrepareBody {
+        encoding: prepared_body::Encoding,
+        maximum: usize,
+    },
+    ReleasePreparedBody {
+        prepared_body: u64,
+    },
     NewClient {
         config: Config,
     },
@@ -109,6 +117,7 @@ enum Command {
         redirect_history_limit: Option<u64>,
         retry_policy: Option<crate::retry::RetryPolicy>,
         has_body: bool,
+        prepared_body: Option<u64>,
         upload: Option<u64>,
     },
     Read {
@@ -845,6 +854,30 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         if matches!(command, Command::Identity) {
             return Ok(native_identity());
         }
+        // Preparation owns CPU work and needs neither an HTTP runtime nor its lock.
+        let command = match command {
+            Command::PrepareBody { encoding, maximum } => {
+                return prepared_body::prepare(encoding, bytes, maximum);
+            }
+            Command::ReleasePreparedBody { prepared_body } => {
+                return prepared_body::release(prepared_body);
+            }
+            command => command,
+        };
+        let prepared = match &command {
+            Command::Request {
+                prepared_body: Some(id),
+                has_body,
+                upload,
+                ..
+            } => {
+                if *has_body || upload.is_some() || !bytes.is_empty() {
+                    return Err(Failure::new("invalid_prepared_body"));
+                }
+                Some(prepared_body::get(*id)?)
+            }
+            _ => None,
+        };
         let global = global()?;
         let mut state = global.lock();
         if state.failed
@@ -862,6 +895,9 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         }
         match command {
             Command::Identity => Ok(native_identity()),
+            Command::PrepareBody { .. } | Command::ReleasePreparedBody { .. } => {
+                Err(Failure::new("internal"))
+            }
             Command::NewClient { config } => {
                 if state.clients.len() >= MAX_HANDLES {
                     return Err(Failure::new("capacity"));
@@ -1054,6 +1090,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 redirect_history_limit,
                 retry_policy,
                 has_body,
+                prepared_body: _,
                 upload,
             } => {
                 if trailers.len() > 256 || headers.len() > 256 - trailers.len() {
@@ -1142,6 +1179,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                             return Err(error);
                         }
                     }
+                } else if let Some(body) = prepared {
+                    request = request.prepared_body(body);
                 } else if has_body {
                     request = request.body(bytes.to_vec());
                 }
