@@ -1,10 +1,10 @@
 //! Every connector's TCP connect path applies its profile socket options.
 //!
-//! Each peer accepts and immediately closes, so the protocol step after the
-//! TCP connect fails; the sockets are read back when they connect.
+//! Each peer closes after the client's first byte or EOF, so a reset cannot
+//! race TCP connect completion. Sockets are read back when they connect.
 
 use phantom_profile::{TcpSettings, browser::chrome};
-use tokio::{net::TcpListener, task::JoinHandle};
+use tokio::{io::AsyncReadExt, net::TcpListener, task::JoinHandle};
 
 use super::{TestResult, chromium_like, sets_random_port};
 use crate::{
@@ -29,8 +29,11 @@ impl ClosingPeer {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let port = listener.local_addr()?.port();
         let task = tokio::spawn(async move {
-            while let Ok((stream, _)) = listener.accept().await {
-                drop(stream);
+            while let Ok((mut stream, _)) = listener.accept().await {
+                // Protocol openings write only after the client records its socket.
+                // Plaintext openings instead drop their connection without writing.
+                let mut byte = [0];
+                let _ = stream.read(&mut byte).await; // EOF and reset both finish this peer.
             }
         });
         Ok(Self { port, task })
@@ -141,7 +144,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
         .await;
     assert_profiled("direct TLS", &observed::take());
 
-    let _ = connector
+    let plaintext_error = connector
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Plaintext {
                 tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
@@ -151,8 +154,14 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
                 family: None,
             },
         ))
-        .await;
-    assert_profiled("direct plaintext", &observed::take());
+        .await
+        .err();
+    let sockets = observed::take();
+    assert!(
+        !sockets.is_empty(),
+        "direct plaintext opened no TCP connection: {plaintext_error:?}"
+    );
+    assert_profiled("direct plaintext", &sockets);
 
     let _ = connector
         .connect(crate::route::Http1Route::Forward(
