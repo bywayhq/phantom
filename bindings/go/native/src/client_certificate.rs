@@ -131,9 +131,9 @@ mod tests {
     fn real_identity_outlives_release_and_direct_inputs_stay_bounded()
     -> Result<(), Box<dyn std::error::Error>> {
         let pem = include_bytes!("../../../python/tests/fixtures/certificate.pem");
-        let key = include_bytes!("../../../python/tests/fixtures/key.pem");
-        let input = [pem.as_slice(), key.as_slice()].concat();
-        let fields = spans(&[pem.len(), key.len()])?;
+        let key_pem = include_bytes!("../../../python/tests/fixtures/key.pem");
+        let input = [pem.as_slice(), key_pem.as_slice()].concat();
+        let fields = spans(&[pem.len(), key_pem.len()])?;
         let mut fields = fields.into_iter();
         let cert = fields.next().ok_or("certificate span missing")?;
         let key = fields.next().ok_or("key span missing")?;
@@ -157,11 +157,24 @@ mod tests {
         );
         let key: Span = serde_json::from_value(json!({"offset":0,"length":0}))?;
         assert!(parse(Format::Der, spans(&[0; 257])?, key, &[]).is_err());
-        let cause = ClientCertificate::from_pem(b"private input", b"private input")
-            .err()
-            .ok_or("expected parse failure")?;
-        assert_eq!(failure(&cause).kind, "client_certificate_certificate");
-        assert!(!format!("{:?}", failure(&cause)).contains("private input"));
+        for (chain, key, kind) in [
+            (
+                b"private input".as_slice(),
+                key_pem.as_slice(),
+                "client_certificate_certificate",
+            ),
+            (
+                pem.as_slice(),
+                b"private input".as_slice(),
+                "client_certificate_private_key",
+            ),
+        ] {
+            let cause = ClientCertificate::from_pem(chain, key)
+                .err()
+                .ok_or("expected parse failure")?;
+            assert_eq!(failure(&cause).kind, kind);
+            assert!(!format!("{:?}", failure(&cause)).contains("private input"));
+        }
         Ok(())
     }
 }
