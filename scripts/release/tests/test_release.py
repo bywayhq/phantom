@@ -198,7 +198,7 @@ class ReleaseChecks(unittest.TestCase):
         workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
             "workspace"
         ]
-        for alias in ("http2", "wreq-proto"):
+        for alias in ("http2", "wreq-proto", "h3", "h3-datagram", "h3-quinn"):
             with self.subTest(alias=alias):
                 dependency = workspace["dependencies"][alias].copy()
                 manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
@@ -287,6 +287,9 @@ class ReleaseChecks(unittest.TestCase):
                 "phantom-tokio-btls",
                 "phantom-http2",
                 "phantom-wreq-proto",
+                "phantom-h3",
+                "phantom-h3-datagram",
+                "phantom-h3-quinn",
                 "phantom-testkit",
                 "phantom-profile",
                 "phantom-quic-btls",
