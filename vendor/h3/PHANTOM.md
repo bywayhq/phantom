@@ -36,9 +36,9 @@ engine minimum or proof that every isolated core feature needs Rust 1.88.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.17`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.17`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.17`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.18`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.18`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.18`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -61,7 +61,7 @@ in the root `Cargo.toml` and in every renamed dependent.
 ## Why this patch exists
 
 The current identity pins the Quinn forks at `0.11.12-phantom.6` and
-`0.11.18-phantom.6`. This dependency refresh changes no HTTP/3 Rust source.
+`0.11.18-phantom.6`.
 
 Upstream builds the outbound SETTINGS frame from individual builder fields in
 library-defined order. It also generates its own GREASE entry and always emits
@@ -501,6 +501,20 @@ the tracked standalone-workspace `Cargo.lock` are packaging metadata and are
 deliberately excluded from those patches. The lockfile is force-added because
 the upstream snapshot ignores workspace lockfiles; vendor CI still requires it
 with `--locked` so dependency resolution remains reproducible.
+
+## Received field validation
+
+`received-field-validation.patch` rejects duplicate pseudo-headers, pseudo-headers
+in the wrong request or response context, and connection-specific fields.
+TE is accepted only in request headers with the trailers value. These checks
+apply to decoded peer field sections under RFC 9114 sections 4.2 and 4.3.
+Failures follow the existing `H3_MESSAGE_ERROR` stream-error path. Ordinary
+field order, duplicate values and sensitivity markers remain unchanged.
+
+Parser regressions cover both identical and conflicting duplicate pseudo-headers,
+all supported pseudo-header contexts, prohibited names and TE restrictions.
+A bounded raw QPACK exchange checks malformed response errors, cancellation of
+only that response stream, and successful ordered trailers on an active sibling.
 
 ## Refreshing the vendor copy
 

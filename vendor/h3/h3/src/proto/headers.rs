@@ -129,6 +129,12 @@ impl Header {
     }
 
     pub fn into_request_parts(self) -> Result<RequestParts, HeaderError> {
+        if self.pseudo.status.is_some() {
+            return Err(HeaderError::InvalidHeaderName(
+                "response pseudo-header in request".into(),
+            ));
+        }
+
         let mut uri = Uri::builder();
 
         if let Some(path) = self.pseudo.path {
@@ -178,6 +184,20 @@ impl Header {
     pub fn into_response_parts(
         self,
     ) -> Result<(StatusCode, HeaderMap, Option<OrderedHeaders>), HeaderError> {
+        if self.pseudo.method.is_some()
+            || self.pseudo.scheme.is_some()
+            || self.pseudo.authority.is_some()
+            || self.pseudo.path.is_some()
+            || self.pseudo.protocol.is_some()
+        {
+            return Err(HeaderError::InvalidHeaderName(
+                "request pseudo-header in response".into(),
+            ));
+        }
+        if self.fields.contains_key(header::TE) {
+            return Err(HeaderError::invalid_name("te"));
+        }
+
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.2
         //= type=implication
         //# For responses, a single ":status" pseudo-header field is defined that
@@ -197,6 +217,10 @@ impl Header {
         if self.pseudo.len() != 0 {
             return Err(HeaderError::PseudoInTrailers);
         }
+        if self.fields.contains_key(header::TE) {
+            return Err(HeaderError::invalid_name("te"));
+        }
+
         let ordered = self.ordered_fields.take().map(OrderedHeaders::new);
         Ok((self.into_fields(), ordered))
     }
@@ -333,6 +357,22 @@ impl TryFrom<Vec<HeaderField>> for Header {
 
         for field in headers.into_iter() {
             let (name, value, sensitive) = field.into_parts();
+            let duplicate = match name.as_ref() {
+                b":method" => pseudo.method.is_some(),
+                b":scheme" => pseudo.scheme.is_some(),
+                b":authority" => pseudo.authority.is_some(),
+                b":path" => pseudo.path.is_some(),
+                b":status" => pseudo.status.is_some(),
+                b":protocol" => pseudo.protocol.is_some(),
+                _ => false,
+            };
+            if duplicate {
+                return Err(HeaderError::InvalidHeaderName(format!(
+                    "duplicate pseudo-header {}",
+                    String::from_utf8_lossy(&name)
+                )));
+            }
+
             match Field::parse(name, value)? {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
                 //# Any request or response that contains a
@@ -427,6 +467,20 @@ impl Field {
         //# treated as malformed.
 
         if name[0] != b':' {
+            if matches!(
+                name,
+                b"connection"
+                    | b"proxy-connection"
+                    | b"keep-alive"
+                    | b"transfer-encoding"
+                    | b"upgrade"
+            ) {
+                return Err(HeaderError::invalid_name(name));
+            }
+            if name == b"te" && !value.as_ref().eq_ignore_ascii_case(b"trailers") {
+                return Err(HeaderError::invalid_value(name, value));
+            }
+
             return Ok(Field::Header((
                 HeaderName::from_lowercase(name).map_err(|_| HeaderError::invalid_name(name))?,
                 HeaderValue::from_bytes(value.as_ref())

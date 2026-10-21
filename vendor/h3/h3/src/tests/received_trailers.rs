@@ -316,6 +316,46 @@ async fn decoded_trailer_limit_is_inclusive_and_does_not_publish_a_prefix() {
 }
 
 #[tokio::test]
+async fn malformed_response_fields_reset_only_the_affected_stream() {
+    bounded(async {
+        let mut harness = Harness::new(1024).await;
+        // Independent static/literal QPACK sections: duplicate status, request
+        // method in a response, Connection, and response TE.
+        for fields in [
+            &b"\x00\x00\xd9\xd9"[..],
+            &b"\x00\x00\xd9\xd1"[..],
+            &b"\x00\x00\xd9\x27\x03connection\x05close"[..],
+            &b"\x00\x00\xd9\x22te\x08trailers"[..],
+        ] {
+            let (mut stream, mut peer) = harness.open().await;
+            let (mut sibling, mut sibling_peer) = harness.open().await;
+            peer.response
+                .write_all(&[1, fields.len() as u8])
+                .await
+                .unwrap();
+            peer.response.write_all(fields).await.unwrap();
+
+            assert!(matches!(
+                stream.recv_response().await,
+                Err(StreamError::StreamError {
+                    code: Code::H3_MESSAGE_ERROR,
+                    ..
+                })
+            ));
+            assert_eq!(
+                peer.response.stopped().await.unwrap().unwrap().into_inner(),
+                Code::H3_MESSAGE_ERROR.value()
+            );
+
+            write_trailers(&mut sibling_peer, INTERLEAVED).await;
+            receive(&mut sibling).await;
+            assert_interleaved(sibling.take_ordered_trailers().unwrap());
+        }
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn pseudo_headers_in_trailers_fail_without_order_and_preserve_a_sibling() {
     bounded(async {
         let mut harness = Harness::new(1024).await;

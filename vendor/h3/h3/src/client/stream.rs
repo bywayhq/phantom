@@ -176,7 +176,7 @@ where
         //# accept a malformed response.
         let (status, headers, ordered_headers) = match Header::try_from(fields)
             .map_err(|_e| {
-                self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
+                self.inner.stop_sending(Code::H3_MESSAGE_ERROR);
                 StreamError::StreamError {
                     code: Code::H3_MESSAGE_ERROR,
                     reason: "Received malformed header".to_string(),
@@ -184,7 +184,7 @@ where
             })
             .and_then(|header| {
                 header.into_response_parts().map_err(|_e| {
-                    self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
+                    self.inner.stop_sending(Code::H3_MESSAGE_ERROR);
                     StreamError::StreamError {
                         code: Code::H3_MESSAGE_ERROR,
                         reason: "Received malformed header".to_string(),
