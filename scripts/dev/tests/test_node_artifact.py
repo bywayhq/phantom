@@ -196,6 +196,7 @@ class NodeArtifactTests(unittest.TestCase):
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
             "multipart.test.cjs",
+            "response-headers.test.cjs",
             "response-trailers.test.cjs",
             "server-pins.test.cjs",
             "client-certificates.test.cjs",

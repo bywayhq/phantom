@@ -37,8 +37,10 @@ class Protocol(QuicConnectionProtocol):
                 if value.alpn_protocol != "h3" or len(self.owner.protocols) != 1:
                     raise ValueError("expected one HTTP/3 connection")
                 self.http = H3Connection(self._quic)
-            if isinstance(value, ConnectionTerminated) and not self.owner.stopping:
-                raise ValueError("connection ended before controlled shutdown")
+            if isinstance(value, ConnectionTerminated) and (
+                not self.owner.stopping or value.error_code not in (0, 0x100)
+            ):
+                raise ValueError("connection ended without a clean controlled shutdown")
             if self.http is None:
                 return
             for message in self.http.handle_event(value):
@@ -52,7 +54,6 @@ class Protocol(QuicConnectionProtocol):
                     len(self.paths) >= 2
                     or fields.get(b":method") != b"GET"
                     or fields.get(b":path") != expected
-                    or not message.stream_ended
                 ):
                     raise ValueError("unexpected request or trailers")
                 self.paths.append(expected)

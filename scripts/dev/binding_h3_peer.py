@@ -1,4 +1,4 @@
-"""Stage the concrete HTTP/3 upload peer and its isolated pinned runtime."""
+"""Stage the HTTP/3 binding peers and their isolated pinned runtime."""
 
 import argparse
 import json
@@ -8,7 +8,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-PEER_FILES = ("binding_upload_h3.py", "aioquic_versions.py", "loopback_tls.py")
+PEER_FILES = (
+    "binding_upload_h3.py",
+    "binding_headers_h3.py",
+    "aioquic_versions.py",
+    "loopback_tls.py",
+)
 
 
 def peer_environment(root, directory, environment=None):
@@ -53,6 +58,7 @@ def peer_environment(root, directory, environment=None):
         shutil.copyfile(source, peer / name)
     environment["PHANTOM_H3_PEER_PYTHON"] = str(python)
     environment["PHANTOM_H3_PEER_SCRIPT"] = str(peer / PEER_FILES[0])
+    environment["PHANTOM_HEADER_H3_PEER_SCRIPT"] = str(peer / "binding_headers_h3.py")
     return environment
 
 

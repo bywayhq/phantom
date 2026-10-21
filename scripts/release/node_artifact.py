@@ -205,6 +205,9 @@ def copied_tests(destination, native_package=None):
             ("require('..')", "require('@byway/phantom')", 1),
         ),
         "multipart.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "response-headers.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "multipart-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -430,6 +433,7 @@ def public_checks(
                 "tests/request-controls.test.cjs",
                 "tests/prepared-bodies.test.cjs",
                 "tests/multipart.test.cjs",
+                "tests/response-headers.test.cjs",
                 "tests/multipart-facade.test.cjs",
                 "tests/response-trailers.test.cjs",
                 "tests/response-trailers-facade.test.cjs",

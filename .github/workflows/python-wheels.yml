@@ -14,6 +14,7 @@ on:
       - scripts/dev/check_python_binding.py
       - scripts/dev/binding_h3_peer.py
       - scripts/conformance/binding_upload_h3.py
+      - scripts/conformance/binding_headers_h3.py
       - scripts/conformance/aioquic_versions.py
       - scripts/conformance/loopback_tls.py
       - scripts/dev/tests/test_python_binding*.py

@@ -18,6 +18,7 @@ on:
       - scripts/dev/with-cargo-lock.sh
       - scripts/dev/binding_h3_peer.py
       - scripts/conformance/binding_upload_h3.py
+      - scripts/conformance/binding_headers_h3.py
       - scripts/conformance/aioquic_versions.py
       - scripts/conformance/loopback_tls.py
       - .github/workflows/go-artifacts.yml

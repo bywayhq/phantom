@@ -27,10 +27,11 @@ class H3PeerEnvironmentTests(unittest.TestCase):
     def identity(self, version=(3, 12, 10), aioquic="1.3.0"):
         return json.dumps({"python": version, "aioquic": aioquic}).encode()
 
-    def test_exact_three_files_are_staged_with_an_independent_runtime(self):
+    def test_binding_peers_are_staged_with_an_independent_runtime(self):
         environment = {
             "PHANTOM_H3_PEER_PYTHON": str(self.python),
             "PHANTOM_H3_PEER_SCRIPT": "stale-script",
+            "PHANTOM_HEADER_H3_PEER_SCRIPT": "stale-header-script",
             "PHANTOM_GO_LIBRARY": "retained-library",
         }
         with patch.object(
@@ -53,6 +54,13 @@ class H3PeerEnvironmentTests(unittest.TestCase):
             result["PHANTOM_H3_PEER_SCRIPT"], str(staging / "binding_upload_h3.py")
         )
         self.assertEqual(environment["PHANTOM_H3_PEER_SCRIPT"], "stale-script")
+        self.assertEqual(
+            result["PHANTOM_HEADER_H3_PEER_SCRIPT"],
+            str(staging / "binding_headers_h3.py"),
+        )
+        self.assertEqual(
+            environment["PHANTOM_HEADER_H3_PEER_SCRIPT"], "stale-header-script"
+        )
 
     def test_unsupported_runtime_fails_before_exposing_peer_files(self):
         for version, aioquic in (((3, 12, 2), "1.3.0"), ((3, 12, 10), "1.2.0")):
