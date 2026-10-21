@@ -19,11 +19,12 @@ const profile = process.platform === 'win32' ? 'chrome/154.0.8037.97/windows-11-
 const options = {method: 'POST', protocol: 'http1', context: 'raw', timeoutMs: 5000};
 const code = (name) => (error) => error instanceof PhantomError && error.code === name;
 
-async function peer(t, handler) {
+async function peer(t, handler, observe) {
   const server = http.createServer(handler);
   const sockets = new Set();
   server.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   server.on('clientError', (_, socket) => socket.destroy());
+  observe?.(server);
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => server.close(resolve)); });
   return `http://127.0.0.1:${server.address().port}`;
@@ -61,7 +62,35 @@ test('HTTP/1 streams known and unknown lengths without whole-body materializatio
 });
 
 test('zero declared length does not pull and demanded mismatches fail without exposing source text', {timeout: 30000}, async (t) => {
-  const url = await peer(t, (request, response) => { request.resume(); request.on('end', () => response.end('ok')); });
+  const events = [], sockets = [], socketIds = new WeakMap();
+  const started = performance.now(); let omittedEvents = 0;
+  const record = (event, fields = {}) => {
+    if (events.length < 64) events.push({atMs: Math.round((performance.now() - started) * 1000) / 1000, event, ...fields});
+    else omittedEvents++;
+  };
+  const context = (mismatch) => JSON.stringify({mismatch, events, omittedEvents,
+    sockets: sockets.map((socket, index) => ({id: index + 1, destroyed: socket.destroyed,
+      bytesRead: socket.bytesRead, bytesWritten: socket.bytesWritten}))});
+  const url = await peer(t, (request, response) => {
+    const socket = socketIds.get(request.socket); let received = 0;
+    record('request-head', {socket, declaredBytes: Number(request.headers['content-length'])});
+    request.on('data', (chunk) => { received += chunk.length; });
+    request.on('aborted', () => record('request-aborted', {socket, received}));
+    request.on('error', (error) => record('request-error', {socket, received, code: error.code}));
+    request.on('end', () => { record('request-end', {socket, received}); response.end('ok'); });
+    request.on('close', () => record('request-close', {socket, received, complete: request.complete}));
+    request.resume();
+  }, (server) => {
+    server.on('connection', (socket) => {
+      if (sockets.length >= 8) return;
+      const id = sockets.push(socket); socketIds.set(socket, id);
+      record('socket-open', {socket: id});
+      socket.on('close', (hadError) => record('socket-close', {socket: id, hadError,
+        bytesRead: socket.bytesRead, bytesWritten: socket.bytesWritten}));
+    });
+    server.on('clientError', (error, socket) => record('client-error', {socket: socketIds.get(socket),
+      code: error.code, bytesRead: socket.bytesRead, bytesWritten: socket.bytesWritten}));
+  });
   const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
   let pulls = 0, returns = 0;
   const source = { [Symbol.asyncIterator]() { return this; }, async next() { pulls++; return {done: false, value: Buffer.from('extra')}; }, async return() { returns++; return {done: true}; } };
@@ -70,9 +99,20 @@ test('zero declared length does not pull and demanded mismatches fail without ex
   await client.close();
   assert.equal(pulls, 0); assert.equal(returns, 1);
   const other = new Client({profile, route: 'direct'}); t.after(() => other.close());
-  for (const [length, bytes] of [[10, 'short'], [1, 'long']]) {
-    async function* mismatch() { yield Buffer.from(bytes); }
-    await assert.rejects(other.request(url, {...options, body: mismatch(), bodyLength: length}), code('UploadLength'));
+  for (const [label, length, bytes] of [['short', 10, 'short'], ['long', 1, 'long']]) {
+    async function* mismatch() {
+      try {
+        record('source-yield', {mismatch: label, bytes: Buffer.byteLength(bytes)});
+        yield Buffer.from(bytes);
+        record('source-eof', {mismatch: label});
+      } finally { record('source-closed', {mismatch: label}); }
+    }
+    record('request-start', {mismatch: label, declaredBytes: length});
+    await assert.rejects(other.request(url, {...options, body: mismatch(), bodyLength: length}), (error) => {
+      record('request-rejected', {mismatch: label, code: error.code, protocol: error.protocol});
+      assert.equal(code('UploadLength')(error), true, context(label));
+      return true;
+    }, `${label} demanded upload length mismatch`);
   }
   const sourceError = new Error('secret-source-value');
   async function* broken() { throw sourceError; }
