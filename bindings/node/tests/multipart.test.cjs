@@ -83,7 +83,7 @@ test('multipart preflight keeps budgets and unclaimed sources; one-shot replay n
   await client.close(); assert.equal(stream.closes, 1); assert.deepEqual(sent, ['/redirect']); assert.equal(budget.remaining, 1);
 });
 
-test('HTTP/1 multipart rejects explicit length after admission without sending request bytes', {timeout: 30000}, async (t) => {
+test('HTTP/1 multipart rejects explicit length before admission without sending request bytes', {timeout: 30000}, async (t) => {
   const sockets = new Set(), errors = []; let received = 0;
   const server = net.createServer((socket) => {
     sockets.add(socket); socket.on('data', (data) => {received += data.length;});
@@ -99,7 +99,7 @@ test('HTTP/1 multipart rejects explicit length after admission without sending r
     multipart: {boundary: 'b', maximumBytes: 4096, parts: [{name: 'x', stream}]}, attemptBudget: budget,
   }), (error) => error instanceof PhantomError && error.code === 'Http1');
   await client.close(); await new Promise((resolve) => server.close(resolve));
-  assert.equal(budget.remaining, 1); assert.equal(received, 0); assert.deepEqual(errors, []);
+  assert.equal(budget.remaining, 2); assert.equal(received, 0); assert.deepEqual(errors, []);
   await stream.closed; assert.equal(stream.closes, 1);
 });
 
