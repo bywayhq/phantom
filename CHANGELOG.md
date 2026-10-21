@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh repository metadata before building Linux Python wheels.
+
 - Configure ordered hostname overrides, local source addresses and network
   interfaces in Python, Go and Node.js. Preserve the hostname for TLS and HTTP.
 
