@@ -39,7 +39,7 @@ socket2 = { version = "0.6.5", features = ["all"] }
 tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync", "time"] }
 tokio-socks = { version = "=0.5.3", default-features = false, features = ["tokio"] }
 tracing = "0.1.41"
-url = "=2.5.8"
+url = "^2.5.8"
 webpki-root-certs = "1.0.10"
 wreq-proto.workspace = true
 zeroize.workspace = true
