@@ -78,7 +78,7 @@ def candidate(family, target):
         if family == "python":
             platform = {
                 "Windows": "win_amd64",
-                "Linux": "linux_x86_64",
+                "Linux": "manylinux_2_28_x86_64",
                 "Darwin": "macosx_11_0_arm64",
             }[system]
             filename = f"phantom_http-{VERSION}-cp310-abi3-{platform}.whl"
@@ -230,6 +230,97 @@ class FakeGitHub:
 class PromotionTests(unittest.TestCase):
     def run_promotion(self, api, root, *, publish=False):
         return promotion.promote(api, f"v{VERSION}", RUNS, root, publish=publish)
+
+    def test_current_source_and_registry_artifacts_are_allowed_but_not_promoted(self):
+        api = FakeGitHub()
+        additional = {
+            "python": (
+                "phantom-python-source",
+                "phantom-python-source-logs",
+                "phantom-python-registry-candidates",
+            ),
+            "node": (
+                "phantom-npm-registry-assembly",
+                "phantom-npm-registry-assembly-logs",
+                *(f"phantom-npm-registry-installation-{t}" for t in promotion.TARGETS),
+            ),
+        }
+        for family, names in additional.items():
+            for offset, name in enumerate(names, 1000):
+                api.artifacts[RUNS[family]].append({"id": offset, "name": name})
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = self.run_promotion(api, Path(directory))
+            self.assertEqual(len(manifest["candidates"]), 12)
+            self.assertIn("manylinux_2_28_x86_64", manifest["compatibility"])
+        for family in additional:
+            with self.subTest(family=family, mode="unknown"):
+                invalid = copy.deepcopy(api)
+                invalid.artifacts[RUNS[family]].append(
+                    {"id": 2000, "name": "phantom-unrecognized-registry-artifact"}
+                )
+                with self.assertRaisesRegex(ValueError, "incomplete or unexpected"):
+                    promotion.checked_run(invalid, family, RUNS[family], REVISION)
+            with self.subTest(family=family, mode="duplicate"):
+                invalid = copy.deepcopy(api)
+                invalid.artifacts[RUNS[family]].append(
+                    copy.deepcopy(invalid.artifacts[RUNS[family]][-1])
+                )
+                with self.assertRaisesRegex(ValueError, "duplicate candidate artifact"):
+                    promotion.checked_run(invalid, family, RUNS[family], REVISION)
+
+    def test_python_linux_wheel_requires_exact_manylinux_baseline_and_tag(self):
+        target = "x86_64-unknown-linux-gnu"
+        filename, payload, receipt = candidate("python", target)
+        self.assertEqual(
+            filename, f"phantom_http-{VERSION}-cp310-abi3-manylinux_2_28_x86_64.whl"
+        )
+        promotion.validate_receipt(
+            "python",
+            target,
+            VERSION,
+            REVISION,
+            LOCK,
+            NPM_LOCK,
+            receipt,
+            filename,
+            hashed(payload),
+        )
+        for platform in (
+            "linux_x86_64",
+            "manylinux_2_17_x86_64",
+            "manylinux_2_28_aarch64",
+        ):
+            with self.subTest(platform=platform):
+                invalid = copy.deepcopy(receipt)
+                invalid["wheel"]["tags"] = [f"cp310-abi3-{platform}"]
+                with self.assertRaisesRegex(
+                    ValueError, "Python wheel filename differs"
+                ):
+                    promotion.validate_receipt(
+                        "python",
+                        target,
+                        VERSION,
+                        REVISION,
+                        LOCK,
+                        NPM_LOCK,
+                        invalid,
+                        f"phantom_http-{VERSION}-cp310-abi3-{platform}.whl",
+                        hashed(payload),
+                    )
+        invalid = copy.deepcopy(receipt)
+        invalid["wheel"]["tags"] = ["cp310-abi3-linux_x86_64"]
+        with self.assertRaisesRegex(ValueError, "Python wheel tags differ"):
+            promotion.validate_receipt(
+                "python",
+                target,
+                VERSION,
+                REVISION,
+                LOCK,
+                NPM_LOCK,
+                invalid,
+                filename,
+                hashed(payload),
+            )
 
     def test_default_validation_preserves_all_twelve_payloads_and_receipt_bytes(self):
         api = FakeGitHub()

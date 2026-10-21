@@ -216,6 +216,18 @@ def checked_run(api, family, run_id, revision):
     selected = {}
     expected = {f"phantom-{family}-{target}" for target in TARGETS}
     allowed = expected | {f"phantom-{family}-logs-{target}" for target in TARGETS}
+    if family == "python":
+        allowed |= {
+            "phantom-python-source",
+            "phantom-python-source-logs",
+            "phantom-python-registry-candidates",
+        }
+    elif family == "node":
+        allowed |= {
+            "phantom-npm-registry-assembly",
+            "phantom-npm-registry-assembly-logs",
+            *(f"phantom-npm-registry-installation-{target}" for target in TARGETS),
+        }
     require(
         set(names) <= allowed and expected <= set(names),
         "candidate platform artifacts are incomplete or unexpected",
@@ -339,7 +351,7 @@ def validate_receipt(
         )
         platform = {
             "Windows": "win_amd64",
-            "Linux": "linux_x86_64",
+            "Linux": "manylinux_2_28_x86_64",
             "Darwin": r"macosx_[0-9]+_[0-9]+_arm64",
         }[system]
         require(
@@ -624,7 +636,7 @@ def promote(api, tag, runs, output, *, publish=False):
         "cargo_lock_sha256": hashlib.sha256(lock).hexdigest(),
         "npm_lock_sha256": hashlib.sha256(npm_lock).hexdigest(),
         "candidates": candidates,
-        "compatibility": "Only the native hosts and runtimes recorded in the unchanged candidate receipts were tested. No older OS/libc, manylinux, or registry publication claim.",
+        "compatibility": "Python Linux wheels carry the audited manylinux_2_28_x86_64 tag. Other compatibility is limited to the hosts and runtimes recorded in the unchanged candidate receipts; no older OS/libc or registry publication claim.",
     }
     manifest_path = ready / manifest_name
     manifest_path.write_text(
