@@ -85,9 +85,9 @@ async fn ordered_trailers_are_pending_until_actual_outer_eof() -> TestResult {
             .trailers_ref()
             .is_some()
     );
-    assert!(body.is_end_stream());
     assert_eq!(body.trailers(), &ResponseTrailers::Pending);
     assert!(body.frame().await.is_none());
+    assert!(body.is_end_stream());
     assert_eq!(
         fields(body.trailers())?,
         vec![
@@ -107,6 +107,7 @@ async fn empty_completion_and_abandonment_remain_distinct() -> TestResult {
     let mut body = wire_response(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_vec())
         .await?
         .into_body();
+    assert!(body.is_end_stream());
     assert_eq!(body.trailers(), &ResponseTrailers::Pending);
     assert!(body.frame().await.is_none());
     assert!(fields(&body.into_trailers())?.is_empty());
