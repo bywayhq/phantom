@@ -206,6 +206,14 @@ def copied_tests(destination, native_package=None):
         ),
         "multipart.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "socks4.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "pool.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "pool-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "socks4-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -451,6 +459,8 @@ def public_checks(
                 "tests/multipart.test.cjs",
                 "tests/response-headers.test.cjs",
                 "tests/socks4.test.cjs",
+                "tests/pool.test.cjs",
+                "tests/pool-facade.test.cjs",
                 "tests/socks4-facade.test.cjs",
                 "tests/network.test.cjs",
                 "tests/network-facade.test.cjs",

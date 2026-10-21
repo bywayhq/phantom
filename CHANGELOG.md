@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Configure native connection pool retention, active and waiting requests,
+  connection counts and negotiated setup waits in Python, Go and Node.js.
+
 - Route Node.js requests through SOCKS4/4a proxies with explicit user IDs.
 
 - Allow compatible URL dependency versions so downstream applications can use
