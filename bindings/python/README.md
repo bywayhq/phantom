@@ -192,6 +192,12 @@ source families never fall back to an unbound socket. Import both types from
 `phantom_http`. Overrides are ordered: the last matching host wins; an empty
 address tuple blocks resolution. Network settings share 1024 entries and 64 KiB.
 
+On Linux and macOS, `NetworkOptions(unix_socket="/run/service.sock")` opens
+direct H1/H2 connections through that path while retaining the request URL's
+authority and TLS verification. Forks retain it; encrypted checkpoints, proxies,
+H3 and DNS/source overrides cannot be combined with it. TCP profile options do
+not apply. Windows returns a typed unsupported-platform error.
+
 Pass `pool=PoolOptions(max_concurrent_http1_requests_per_origin=2)` to tune
 operational pool limits. Import `PoolOptions` from `phantom_http`; omitted
 fields retain core defaults. Counts apply per pool key (origin and route),

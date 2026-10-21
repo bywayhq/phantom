@@ -16,6 +16,7 @@ pub(super) struct Network {
     overrides: Vec<(String, Vec<IpAddr>)>,
     locals: Vec<IpAddr>,
     interface: Option<String>,
+    unix_socket: Option<String>,
 }
 
 fn text<'py>(value: &'py Bound<'_, PyAny>, kind: &'static str) -> PyResult<&'py str> {
@@ -50,7 +51,7 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         return Ok(Network::default());
     };
     let fields = tuple(value)?;
-    if fields.len() != 3 {
+    if !matches!(fields.len(), 3 | 4) {
         return Err(error::input("invalid_network"));
     }
     let overrides = fields.get_item(0)?;
@@ -58,6 +59,11 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
     let locals = fields.get_item(1)?;
     let locals = tuple(&locals)?;
     let interface = fields.get_item(2)?;
+    let unix_socket = if fields.len() == 4 {
+        Some(fields.get_item(3)?)
+    } else {
+        None
+    };
     let mut count = overrides.len().saturating_add(locals.len());
     if count > MAXIMUM_ENTRIES {
         return Err(error::input("network_limit"));
@@ -85,6 +91,13 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
     }
     if !interface.is_none() {
         account(&interface, &mut remaining, "invalid_network_interface")?;
+    }
+    if let Some(path) = &unix_socket {
+        account(path, &mut remaining, "invalid_unix_socket")?;
+        let path = text(path, "invalid_unix_socket")?;
+        if path.is_empty() || path.contains('\0') {
+            return Err(error::input("invalid_unix_socket"));
+        }
     }
     let overrides = overrides
         .iter()
@@ -120,11 +133,15 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         overrides,
         locals,
         interface,
+        unix_socket: unix_socket
+            .as_ref()
+            .map(|path| text(path, "invalid_unix_socket").map(str::to_owned))
+            .transpose()?,
     })
 }
 
 impl Network {
-    pub(super) fn apply(self, mut builder: ClientBuilder) -> ClientBuilder {
+    pub(super) fn apply(self, mut builder: ClientBuilder) -> PyResult<ClientBuilder> {
         for (host, addresses) in self.overrides {
             builder = builder.resolve(&host, addresses);
         }
@@ -134,7 +151,18 @@ impl Network {
         if let Some(interface) = self.interface {
             builder = builder.interface(&interface);
         }
-        builder
+        if let Some(path) = self.unix_socket {
+            #[cfg(unix)]
+            {
+                builder = builder.tcp_connector(phantom::TcpConnector::unix_socket(path));
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = path;
+                return Err(error::input("unsupported_platform"));
+            }
+        }
+        Ok(builder)
     }
 }
 #[cfg(test)]
@@ -153,7 +181,12 @@ mod tests {
             )?;
             for source in [
                 c"([], (), None)",
-                c"((('host', ('127.0.0.1',)),), (), None, None)",
+                c"((), (), None, None)",
+                c"((), (), None, '')",
+                c"((), (), None, 'private\\x00path')",
+                c"((), (), None, 'private\\ud800')",
+                c"((), (), 'x', 'é' * 32768)",
+                c"((), (), None, Lying('private'))",
                 c"((('', ()) ,) * 1025, (), None)",
                 c"((('', ('',) * 1023),), ('',), None)",
                 c"((), (), 'é' * 32769)",
@@ -180,6 +213,23 @@ mod tests {
             assert_eq!(owned.locals.len(), 1);
             let boundary = py.eval(c"((), (), 'é' * 32768)", None, None)?;
             assert!(parse(Some(&boundary)).is_ok());
+            let path = py.eval(c"((), (), None, '/private/socket')", None, None)?;
+            let owned = parse(Some(&path))?;
+            assert_eq!(owned.unix_socket.as_deref(), Some("/private/socket"));
+            let builder =
+                phantom::Client::builder(phantom::profile::browser::chrome::v154_windows());
+            #[cfg(unix)]
+            assert!(owned.apply(builder)?.build().is_ok());
+            #[cfg(not(unix))]
+            {
+                let failure = owned
+                    .apply(builder)
+                    .err()
+                    .ok_or_else(|| error::input("test_expected_platform_error"))?;
+                let args: (String, String, Option<String>, Option<String>) =
+                    failure.value(py).getattr("args")?.extract()?;
+                assert_eq!(args.1, "unsupported_platform");
+            }
             Ok(())
         })
     }

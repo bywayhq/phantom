@@ -48,6 +48,8 @@ def headers() -> Generator[tuple[str, str | bytes], None, None]:
 def synchronous(profile: str, url: str, upload: Path) -> bytes:
     budget = AttemptBudget(10)
     _remaining: int = budget.remaining
+    socket_network = NetworkOptions(unix_socket="/run/service.sock")
+    _socket_path: str | None = socket_network.unix_socket
     budget.try_admit()
     with Client(
         profile=profile,

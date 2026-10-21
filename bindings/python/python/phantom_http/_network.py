@@ -3,9 +3,13 @@
 from dataclasses import dataclass, field
 from typing import TypeAlias
 
-_NetworkFields: TypeAlias = tuple[
+_NetworkDefaults: TypeAlias = tuple[
     tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
 ]
+_NetworkFields: TypeAlias = (
+    _NetworkDefaults
+    | tuple[tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str]
+)
 
 
 def _text_size(value: str, remaining: int, name: str) -> int:
@@ -45,11 +49,16 @@ class NetworkOptions:
 
     Entries share a 1024 count and 65536 UTF-8 byte bound. The last override
     for a normalized host, and the last source address per family, win.
+    unix_socket connects direct H1/H2 through a fixed Unix pathname, retaining
+    URL authority and TLS verification. TCP recipes, proxies, H3, source/DNS
+    overrides and encrypted session checkpoints are unavailable with it.
+    Paths are used verbatim; the library does not create or remove them.
     """
 
     host_overrides: tuple[HostOverride, ...] = field(default=(), repr=False)
     local_addresses: tuple[str, ...] = field(default=(), repr=False)
     interface: str | None = field(default=None, repr=False)
+    unix_socket: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._native_fields()
@@ -77,9 +86,16 @@ class NetworkOptions:
         for address in self.local_addresses:
             remaining = _text_size(address, remaining, "local_addresses")
         if self.interface is not None:
-            _text_size(self.interface, remaining, "interface")
-        return (
+            remaining = _text_size(self.interface, remaining, "interface")
+        if self.unix_socket is not None:
+            _text_size(self.unix_socket, remaining, "unix_socket")
+            if not self.unix_socket or "\x00" in self.unix_socket:
+                raise ValueError("unix_socket must be a nonempty pathname without NUL")
+        fields: _NetworkDefaults = (
             tuple((item.host, item.addresses) for item in self.host_overrides),
             self.local_addresses,
             self.interface,
         )
+        if self.unix_socket is not None:
+            return (*fields, self.unix_socket)
+        return fields

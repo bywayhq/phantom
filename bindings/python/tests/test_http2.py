@@ -25,9 +25,23 @@ PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
 
 class H2Peer:
-    def __init__(self, *, overflow_body=b"a", tls=False, client_ca=None, trailers=None):
-        self.listener = socket.socket()
-        self.listener.bind(("127.0.0.1", 0))
+    def __init__(
+        self,
+        *,
+        overflow_body=b"a",
+        tls=False,
+        client_ca=None,
+        trailers=None,
+        socket_path=None,
+    ):
+        self.listener = (
+            socket.socket(socket.AF_UNIX)
+            if socket_path is not None
+            else socket.socket()
+        )
+        self.listener.bind(
+            str(socket_path) if socket_path is not None else ("127.0.0.1", 0)
+        )
         self.listener.listen()
         self.listener.settimeout(8)
         self.tls = None
@@ -40,7 +54,11 @@ class H2Peer:
             self.tls.set_alpn_protocols(["h2"])
         self.client_certificate = None
         self.url = (
-            f"{'https' if tls else 'http'}://127.0.0.1:{self.listener.getsockname()[1]}"
+            f"{'https' if tls else 'http'}://localhost"
+            if socket_path is not None
+            else (
+                f"{'https' if tls else 'http'}://127.0.0.1:{self.listener.getsockname()[1]}"
+            )
         )
         self.reset = threading.Event()
         self.error = None

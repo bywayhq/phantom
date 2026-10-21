@@ -194,7 +194,7 @@ impl NativeClient {
             builder = builder.cookies();
         }
         let client = pool
-            .apply(network.apply(builder))
+            .apply(network.apply(builder)?)
             .build()
             .map_err(client_certificate::build_error)?;
         Ok(Self {

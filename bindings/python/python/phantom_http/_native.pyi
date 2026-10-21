@@ -225,6 +225,9 @@ class NativeClient:
         network: tuple[
             tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
         ]
+        | tuple[
+            tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str
+        ]
         | None = None,
         pool: tuple[int | float | None, ...] | None = None,
     ) -> None: ...

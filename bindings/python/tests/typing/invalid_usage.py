@@ -228,6 +228,8 @@ NetworkOptions(local_addresses=(123,))  # E: arg-type
 NetworkOptions(interface=123)  # E: arg-type
 NetworkOptions(())  # E: misc
 NetworkOptions().interface = "lo"  # E: misc
+NetworkOptions(unix_socket=123)  # E: arg-type
+NetworkOptions().unix_socket = "/other"  # E: misc
 Client(profile="exact", protocol="h1", network={})  # E: arg-type
 
 

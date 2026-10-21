@@ -107,6 +107,43 @@ class NetworkFacadeTests(unittest.TestCase):
                 FACADE.AsyncClient(profile="exact", protocol="h1", network=value)
             native.assert_not_called()
 
+    def test_unix_path_is_owned_frozen_redacted_and_shares_the_byte_bound(self):
+        options = FACADE.NetworkOptions
+        network = options(unix_socket="/private/é.sock")
+        self.assertEqual(network._native_fields(), ((), (), None, "/private/é.sock"))
+        self.assertNotIn("private", repr(network))
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            network.unix_socket = "/other"
+        options(interface="x", unix_socket="é" * 32767 + "x")
+        with self.assertRaises(ValueError):
+            options(interface="x", unix_socket="é" * 32768)
+        for path in (
+            "",
+            "private\x00path",
+            "private\ud800",
+            123,
+            LyingString("private"),
+        ):
+            with (
+                self.subTest(kind=type(path)),
+                self.assertRaises((TypeError, ValueError)) as caught,
+            ):
+                options(unix_socket=path)
+            self.assertNotIn("private", str(caught.exception))
+        calls = []
+
+        def native(*args, **kwargs):
+            calls.append(kwargs)
+            return types.SimpleNamespace(cookies=object())
+
+        with patch.object(FACADE._native, "NativeClient", native, create=True):
+            FACADE.AsyncClient(profile="exact", protocol="h1", network=network)
+            self.assertEqual(calls[0]["network"], network._native_fields())
+            object.__setattr__(network, "unix_socket", "private\x00path")
+            with self.assertRaises(ValueError):
+                FACADE.AsyncClient(profile="exact", protocol="h1", network=network)
+            self.assertEqual(len(calls), 1)
+
 
 class NetworkPublicTests(unittest.TestCase):
     def test_verified_tls_keeps_logical_host_and_source_across_fork_and_restore(self):
