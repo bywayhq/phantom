@@ -52,117 +52,119 @@ async function read(client, url, overrides = {}) {
   try {assert.equal(await response.text(2), 'ok');} finally {response.close();}
 }
 
-test('Unix HTTP keeps logical authority, connection reuse and independent fork pools', {skip: !unix, timeout: 30000}, async (t) => {
-  const records = [];
-  const socketPath = await peer(t, http.createServer((request, response) => {
-    records.push({socket: request.socket, host: request.headers.host, path: request.url}); response.end('ok');
-  }));
-  const client = new Client({profile, route: 'direct', cookies: true, network: {unixSocket: socketPath}});
-  const key = Buffer.alloc(32, 7);
-  try {
-    await read(client, 'http://unresolved.invalid:4567/one');
-    await read(client, 'http://unresolved.invalid:4567/two');
-    assert.equal(records[0].socket, records[1].socket);
-    assert.deepEqual(records.map(({host, path}) => [host, path]), [
-      ['unresolved.invalid:4567', '/one'], ['unresolved.invalid:4567', '/two'],
-    ]);
-    const fork = client.fork();
-    try {
-      await read(fork, 'http://unresolved.invalid:4567/fork');
-      assert.notEqual(records[0].socket, records[2].socket);
-      await client.close();
-      await read(fork, 'http://unresolved.invalid:4567/after-close');
-      assert.equal(records[2].socket, records[3].socket);
-      await assert.rejects(fork.exportSession(key), snapshotUnsupported);
-      const ordinary = new Client({profile, route: 'direct', cookies: true});
-      try {
-        const snapshot = await ordinary.exportSession(key);
-        await assert.rejects(fork.restoreSession(snapshot, key), snapshotUnsupported);
-      } finally {await ordinary.close();}
-    } finally {await fork.close();}
-  } finally {await client.close();}
-});
-
-test('Unix TLS retains verified URL identity for HTTP/1, HTTP/2 and ALPN', {skip: !unix, timeout: 60000}, async (t) => {
-  const tls = await material(t);
-  for (const protocol of ['http1', 'http2', 'negotiated']) {
+if (unix) {
+  test('Unix HTTP keeps logical authority, connection reuse and independent fork pools', {timeout: 30000}, async (t) => {
     const records = [];
-    const handler = (request, response) => {
-      records.push({version: request.httpVersionMajor, host: request.headers.host ?? request.headers[':authority'],
-        sni: request.socket.servername}); response.end('ok');
-    };
-    const server = protocol === 'http1'
-      ? https.createServer({key: tls.key, cert: tls.cert, ALPNProtocols: ['http/1.1']}, handler)
-      : http2.createSecureServer({key: tls.key, cert: tls.cert}, handler);
+    const socketPath = await peer(t, http.createServer((request, response) => {
+      records.push({socket: request.socket, host: request.headers.host, path: request.url}); response.end('ok');
+    }));
+    const client = new Client({profile, route: 'direct', cookies: true, network: {unixSocket: socketPath}});
+    const key = Buffer.alloc(32, 7);
+    try {
+      await read(client, 'http://unresolved.invalid:4567/one');
+      await read(client, 'http://unresolved.invalid:4567/two');
+      assert.equal(records[0].socket, records[1].socket);
+      assert.deepEqual(records.map(({host, path}) => [host, path]), [
+        ['unresolved.invalid:4567', '/one'], ['unresolved.invalid:4567', '/two'],
+      ]);
+      const fork = client.fork();
+      try {
+        await read(fork, 'http://unresolved.invalid:4567/fork');
+        assert.notEqual(records[0].socket, records[2].socket);
+        await client.close();
+        await read(fork, 'http://unresolved.invalid:4567/after-close');
+        assert.equal(records[2].socket, records[3].socket);
+        await assert.rejects(fork.exportSession(key), snapshotUnsupported);
+        const ordinary = new Client({profile, route: 'direct', cookies: true});
+        try {
+          const snapshot = await ordinary.exportSession(key);
+          await assert.rejects(fork.restoreSession(snapshot, key), snapshotUnsupported);
+        } finally {await ordinary.close();}
+      } finally {await fork.close();}
+    } finally {await client.close();}
+  });
+
+  test('Unix TLS retains verified URL identity for HTTP/1, HTTP/2 and ALPN', {timeout: 60000}, async (t) => {
+    const tls = await material(t);
+    for (const protocol of ['http1', 'http2', 'negotiated']) {
+      const records = [];
+      const handler = (request, response) => {
+        records.push({version: request.httpVersionMajor, host: request.headers.host ?? request.headers[':authority'],
+          sni: request.socket.servername}); response.end('ok');
+      };
+      const server = protocol === 'http1'
+        ? https.createServer({key: tls.key, cert: tls.cert, ALPNProtocols: ['http/1.1']}, handler)
+        : http2.createSecureServer({key: tls.key, cert: tls.cert}, handler);
+      const socketPath = await peer(t, server);
+      const client = new Client({profile, route: 'direct', additionalRoots: [tls.root], network: {unixSocket: socketPath}});
+      try {
+        await read(client, 'https://phantom.invalid:4567/', {protocol});
+        assert.deepEqual(records, [{version: protocol === 'http1' ? 1 : 2, host: 'phantom.invalid:4567', sni: 'phantom.invalid'}]);
+        await assert.rejects(read(client, 'https://wrong.invalid:4567/', {protocol}), code('Tls'));
+        assert.equal(records.length, 1);
+      } finally {await client.close();}
+      const untrusted = new Client({profile, route: 'direct', network: {unixSocket: socketPath}});
+      try {await assert.rejects(read(untrusted, 'https://phantom.invalid:4567/', {protocol}), code('Tls'));}
+      finally {await untrusted.close();}
+    }
+  });
+
+  test('Unix HTTP/2 cancellation leaves the sibling and connection usable', {timeout: 30000}, async (t) => {
+    const tls = await material(t), sessions = [], controller = new AbortController();
+    let arrived, heldStream;
+    const pendingArrival = new Promise((resolve) => {arrived = resolve;});
+    const server = http2.createSecureServer({key: tls.key, cert: tls.cert});
+    server.on('stream', (stream, headers) => {
+      sessions.push(stream.session); stream.on('error', () => {});
+      if (headers[':path'] === '/pending') {arrived(); return;}
+      stream.respond({':status': 200, 'content-length': '2'});
+      if (headers[':path'] === '/held') {heldStream = stream; stream.write('a');} else stream.end('ok');
+    });
     const socketPath = await peer(t, server);
     const client = new Client({profile, route: 'direct', additionalRoots: [tls.root], network: {unixSocket: socketPath}});
+    const request = {...options, protocol: 'http2'};
+    let held;
     try {
-      await read(client, 'https://phantom.invalid:4567/', {protocol});
-      assert.deepEqual(records, [{version: protocol === 'http1' ? 1 : 2, host: 'phantom.invalid:4567', sni: 'phantom.invalid'}]);
-      await assert.rejects(read(client, 'https://wrong.invalid:4567/', {protocol}), code('Tls'));
-      assert.equal(records.length, 1);
-    } finally {await client.close();}
-    const untrusted = new Client({profile, route: 'direct', network: {unixSocket: socketPath}});
-    try {await assert.rejects(read(untrusted, 'https://phantom.invalid:4567/', {protocol}), code('Tls'));}
-    finally {await untrusted.close();}
-  }
-});
-
-test('Unix HTTP/2 cancellation leaves the sibling and connection usable', {skip: !unix, timeout: 30000}, async (t) => {
-  const tls = await material(t), sessions = [], controller = new AbortController();
-  let arrived, heldStream;
-  const pendingArrival = new Promise((resolve) => {arrived = resolve;});
-  const server = http2.createSecureServer({key: tls.key, cert: tls.cert});
-  server.on('stream', (stream, headers) => {
-    sessions.push(stream.session); stream.on('error', () => {});
-    if (headers[':path'] === '/pending') {arrived(); return;}
-    stream.respond({':status': 200, 'content-length': '2'});
-    if (headers[':path'] === '/held') {heldStream = stream; stream.write('a');} else stream.end('ok');
+      held = await client.request('https://phantom.invalid/held', {...request, timeoutMs: undefined,
+        timeouts: {connectMs: 10000, responseHeadMs: 10000, totalMs: null}});
+      const pending = client.request('https://phantom.invalid/pending', {...request, signal: controller.signal});
+      const rejected = assert.rejects(pending, code('Cancelled'));
+      await pendingArrival; controller.abort(); await rejected;
+      assert.equal((await held.read(1)).toString(), 'a');
+      heldStream.end('b');
+      assert.equal((await held.read(1)).toString(), 'b');
+      assert.equal(await held.read(1), null);
+      await read(client, 'https://phantom.invalid/healthy', {protocol: 'http2'});
+      held.close();
+      await read(client, 'https://phantom.invalid/reused', {protocol: 'http2'});
+      assert.equal(sessions.length, 4); assert(sessions.every((session) => session === sessions[0]));
+    } finally {controller.abort(); held?.close(); await client.close();}
   });
-  const socketPath = await peer(t, server);
-  const client = new Client({profile, route: 'direct', additionalRoots: [tls.root], network: {unixSocket: socketPath}});
-  const request = {...options, protocol: 'http2'};
-  let held;
-  try {
-    held = await client.request('https://phantom.invalid/held', {...request, timeoutMs: undefined,
-      timeouts: {connectMs: 10000, responseHeadMs: 10000, totalMs: null}});
-    const pending = client.request('https://phantom.invalid/pending', {...request, signal: controller.signal});
-    const rejected = assert.rejects(pending, code('Cancelled'));
-    await pendingArrival; controller.abort(); await rejected;
-    assert.equal((await held.read(1)).toString(), 'a');
-    heldStream.end('b');
-    assert.equal((await held.read(1)).toString(), 'b');
-    assert.equal(await held.read(1), null);
-    await read(client, 'https://phantom.invalid/healthy', {protocol: 'http2'});
-    held.close();
-    await read(client, 'https://phantom.invalid/reused', {protocol: 'http2'});
-    assert.equal(sessions.length, 4); assert(sessions.every((session) => session === sessions[0]));
-  } finally {controller.abort(); held?.close(); await client.close();}
-});
 
-test('Unix transport rejects conflicting policies and HTTP/3 without opening a socket', {skip: !unix, timeout: 15000}, async (t) => {
-  let hits = 0, connections = 0;
-  const server = http.createServer((_request, response) => {hits++; response.end('ok');});
-  server.on('connection', () => {connections++;});
-  const socketPath = await peer(t, server);
-  for (const network of [{unixSocket: socketPath, localAddresses: ['127.0.0.1']},
-    {unixSocket: socketPath, interface: 'lo'},
-    {unixSocket: socketPath, hostOverrides: [{host: 'phantom.invalid', addresses: ['127.0.0.1']}]}]) {
-    assert.throws(() => new Client({profile, route: 'direct', network}), code('InvalidPolicy'));
-  }
-  assert.throws(() => new Client({profile, route: 'proxy', proxy: 'http://127.0.0.1:80', network: {unixSocket: socketPath}}), code('InvalidPolicy'));
-  const client = new Client({profile, route: 'direct', network: {unixSocket: socketPath}});
-  try {await assert.rejects(client.request('https://phantom.invalid/', {...options, protocol: 'http3'}), code('ProtocolUnavailable'));}
-  finally {await client.close();}
-  assert.equal(hits, 0); assert.equal(connections, 0);
-  const missing = new Client({profile, route: 'direct', network: {unixSocket: socketPath + '-absent'}});
-  try {await assert.rejects(read(missing, 'http://unresolved.invalid/'), code('Connect'));}
-  finally {await missing.close();}
-  assert.equal(hits, 0);
-});
-
-test('Windows rejects explicit Unix socket configuration with a typed redacted error', {skip: unix}, () => {
-  assert.throws(() => new Client({profile, route: 'direct', network: {unixSocket: 'private-path'}}), (error) => {
-    assert(code('UnsupportedPlatform')(error)); assert(!String(error).includes('private-path')); return true;
+  test('Unix transport rejects conflicting policies and HTTP/3 without opening a socket', {timeout: 15000}, async (t) => {
+    let hits = 0, connections = 0;
+    const server = http.createServer((_request, response) => {hits++; response.end('ok');});
+    server.on('connection', () => {connections++;});
+    const socketPath = await peer(t, server);
+    for (const network of [{unixSocket: socketPath, localAddresses: ['127.0.0.1']},
+      {unixSocket: socketPath, interface: 'lo'},
+      {unixSocket: socketPath, hostOverrides: [{host: 'phantom.invalid', addresses: ['127.0.0.1']}]}]) {
+      assert.throws(() => new Client({profile, route: 'direct', network}), code('InvalidPolicy'));
+    }
+    assert.throws(() => new Client({profile, route: 'proxy', proxy: 'http://127.0.0.1:80', network: {unixSocket: socketPath}}), code('InvalidPolicy'));
+    const client = new Client({profile, route: 'direct', network: {unixSocket: socketPath}});
+    try {await assert.rejects(client.request('https://phantom.invalid/', {...options, protocol: 'http3'}), code('ProtocolUnavailable'));}
+    finally {await client.close();}
+    assert.equal(hits, 0); assert.equal(connections, 0);
+    const missing = new Client({profile, route: 'direct', network: {unixSocket: socketPath + '-absent'}});
+    try {await assert.rejects(read(missing, 'http://unresolved.invalid/'), code('Connect'));}
+    finally {await missing.close();}
+    assert.equal(hits, 0);
   });
-});
+} else {
+  test('Windows rejects explicit Unix socket configuration with a typed redacted error', () => {
+    assert.throws(() => new Client({profile, route: 'direct', network: {unixSocket: 'private-path'}}), (error) => {
+      assert(code('UnsupportedPlatform')(error)); assert(!String(error).includes('private-path')); return true;
+    });
+  });
+}
