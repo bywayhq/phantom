@@ -10,6 +10,7 @@ use super::{
 pub(super) static PROFILES: &[ProfileDefinition] = &[
     ProfileDefinition {
         id: ProfileId("brave/153.1.95.104/android-17-pixel7-emulator/r1"),
+        selector: "brave-153-android",
         metadata: ProfileMetadata {
             browser: Browser::Brave,
             build: "153.1.95.104",
@@ -246,6 +247,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("brave/154.1.96.59/windows-11-26200/r1"),
+        selector: "brave-154-windows",
         metadata: ProfileMetadata {
             browser: Browser::Brave,
             build: "154.1.96.59",
@@ -552,6 +554,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.57/android-17-pixel7-emulator/r1"),
+        selector: "chrome-154-android",
         metadata: ProfileMetadata {
             browser: Browser::Chrome,
             build: "154.0.8037.57",
@@ -773,6 +776,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.95/macos-15.5-arm64/r1"),
+        selector: "chrome-154-macos",
         metadata: ProfileMetadata {
             browser: Browser::Chrome,
             build: "154.0.8037.95",
@@ -1015,6 +1019,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.97/windows-11-26200/r1"),
+        selector: "chrome-154-windows",
         metadata: ProfileMetadata {
             browser: Browser::Chrome,
             build: "154.0.8037.97",
@@ -1288,6 +1293,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("edge/153.0.4234.48/windows-11-26200/r1"),
+        selector: "edge-153-windows",
         metadata: ProfileMetadata {
             browser: Browser::Edge,
             build: "153.0.4234.48",
@@ -1529,6 +1535,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("edge/153.0.4234.49/android-17-pixel7-emulator/r1"),
+        selector: "edge-153-android",
         metadata: ProfileMetadata {
             browser: Browser::Edge,
             build: "153.0.4234.49",
@@ -1770,6 +1777,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("edge/154.0.4258.48/windows-11-26200/r1"),
+        selector: "edge-154-windows",
         metadata: ProfileMetadata {
             browser: Browser::Edge,
             build: "154.0.4258.48",
@@ -2091,6 +2099,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("firefox/156.0.1/android-35-emulator/r1"),
+        selector: "firefox-156-android",
         metadata: ProfileMetadata {
             browser: Browser::Firefox,
             build: "156.0.1",
@@ -2245,6 +2254,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("firefox/157.0/windows-11-26200/r1"),
+        selector: "firefox-157-windows",
         metadata: ProfileMetadata {
             browser: Browser::Firefox,
             build: "157.0",
@@ -2488,6 +2498,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("opera/102.1.5206.90382/android-17-pixel7-emulator/r1"),
+        selector: "opera-102-android",
         metadata: ProfileMetadata {
             browser: Browser::Opera,
             build: "102.1.5206.90382",
@@ -2637,6 +2648,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
     },
     ProfileDefinition {
         id: ProfileId("opera/136.0.6008.52/windows-11-26200/r1"),
+        selector: "opera-136-windows",
         metadata: ProfileMetadata {
             browser: Browser::Opera,
             build: "136.0.6008.52",

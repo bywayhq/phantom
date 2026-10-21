@@ -18,6 +18,10 @@ constructor documents its included settings and generic defaults.
 Component functions keep custom layering available. `*_tcp_tls` supplies TLS
 for HTTP/1.1 and HTTP/2. `*_quic_tls` supplies TLS for QUIC and HTTP/3.
 The `catalog` module lists exact browser builds, platforms, and layer coverage.
+Select by a fixed short name with `catalog::profile("chrome-154-windows")`,
+or pass its full ID. `selector()` returns the short name; `id()` and
+`metadata()` retain the exact build, platform and recipe revision. Selection
+never follows updates or chooses your host's platform.
 
 Brave's version labels use the Chromium major. `v154_windows` describes
 Brave 1.96.59, and `v153_android` describes Brave 1.95.104.

@@ -112,6 +112,9 @@ class CatalogDeclarationTests(unittest.TestCase):
         entry["metadata"].update(build="999.0.1", revision=2)
         metadata = entry["metadata"]
         entry["target"] = metadata["browser"] + metadata["platform"] + "999"
+        entry["selector"] = (
+            f"{metadata['browser'].lower()}-999-{metadata['platform'].lower()}"
+        )
         entry["id"] = (
             f"{metadata['browser'].lower()}/{metadata['build']}/"
             f"{metadata['platform_release']}/r2"
@@ -125,6 +128,51 @@ class CatalogDeclarationTests(unittest.TestCase):
         self.assertIn(entry["id"], generator.generate(profiles))
         added = next(p for p in profiles if p["id"] == entry["id"])
         self.assertEqual(added["metadata"]["revision"], 2)
+
+    def test_selectors_are_explicit_bounded_names_and_unique_across_identifiers(self):
+        for value in (
+            "",
+            "Chrome-154",
+            "chrome/latest",
+            "chrome--154",
+            "-chrome",
+            "chrome-",
+            "é",
+            "x" * 65,
+        ):
+            with self.subTest(value=value):
+                document = copy.deepcopy(self.document)
+                document["profiles"][0]["selector"] = value
+                with self.assertRaisesRegex(
+                    generator.DeclarationError, "profile selector"
+                ):
+                    generator.validate(document)
+        document = copy.deepcopy(self.document)
+        del document["profiles"][0]["selector"]
+        self.reject(document)
+        document = copy.deepcopy(self.document)
+        document["profiles"][1]["selector"] = document["profiles"][0]["selector"]
+        with self.assertRaisesRegex(
+            generator.DeclarationError, "duplicate profile selector"
+        ):
+            generator.validate(document)
+        for earlier_id in (True, False):
+            document = copy.deepcopy(self.document)
+            first, second = document["profiles"][:2]
+            if earlier_id:
+                second["selector"] = first["id"]
+            else:
+                second["id"] = first["selector"]
+            with self.assertRaisesRegex(generator.DeclarationError, "conflicts with"):
+                generator.validate(document)
+
+    def test_selector_generation_retains_declared_name_and_identifier_order(self):
+        document = copy.deepcopy(self.document)
+        document["profiles"][0]["selector"] = "x" * 64
+        profiles = generator.validate(document)
+        self.assertEqual(profiles[0]["selector"], "x" * 64)
+        self.assertIn('selector: "' + "x" * 64 + '",', generator.generate(profiles))
+        self.assertEqual([p["id"] for p in profiles], sorted(p["id"] for p in profiles))
 
     def test_targets_require_matching_identity_and_unique_public_names(self):
         for field, value in (

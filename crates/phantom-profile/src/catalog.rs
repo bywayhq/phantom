@@ -7,7 +7,7 @@
 //! ```
 //! use phantom_profile::catalog::{profile, ProfileLayer};
 //!
-//! let definition = profile("chrome/154.0.8037.97/windows-11-26200/r1")?;
+//! let definition = profile("chrome-154-windows")?;
 //! let settings = definition.instantiate(&[ProfileLayer::Http2, ProfileLayer::Http3])?;
 //! assert!(settings.http3().is_some());
 //! # Ok::<(), phantom_profile::catalog::CatalogError>(())
@@ -310,6 +310,7 @@ pub enum RequestTemplateKind {
 #[derive(Clone, Debug)]
 pub struct ProfileDefinition {
     id: ProfileId,
+    selector: &'static str,
     metadata: ProfileMetadata,
     layers: &'static [LayerEvidence],
     composition: &'static connection_profile_values::ConnectionProfileDefinition,
@@ -321,6 +322,15 @@ impl ProfileDefinition {
     #[must_use]
     pub const fn id(&self) -> ProfileId {
         self.id
+    }
+
+    /// Returns this recipe revision's fixed short selection name.
+    ///
+    /// The name selects the same definition as [`Self::id`]. It does not
+    /// follow browser updates or choose the current host's platform.
+    #[must_use]
+    pub const fn selector(&self) -> &'static str {
+        self.selector
     }
 
     /// Returns browser and platform metadata.
@@ -392,7 +402,7 @@ impl ProfileDefinition {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CatalogError {
-    /// No definition has the supplied exact identifier.
+    /// No definition has the supplied selector or exact identifier.
     UnknownProfile,
     /// The selected definition does not configure the required layer.
     UnavailableLayer {
@@ -435,16 +445,23 @@ pub fn profiles() -> &'static [ProfileDefinition] {
     generated::PROFILES
 }
 
-/// Looks up one exact recipe revision, without aliases or version fallback.
+/// Looks up a recipe by its fixed short selector or exact identifier.
+///
+/// Both names return the same immutable definition. Selection is case-sensitive
+/// and never chooses another version, revision or host platform.
 ///
 /// # Errors
 ///
 /// Returns [`CatalogError::UnknownProfile`] for any unknown identifier.
-pub fn profile(id: &str) -> Result<&'static ProfileDefinition, CatalogError> {
-    let index = profiles()
-        .binary_search_by_key(&id, |entry| entry.id.as_str())
-        .map_err(|_| CatalogError::UnknownProfile)?;
-    profiles().get(index).ok_or(CatalogError::UnknownProfile)
+pub fn profile(name: &str) -> Result<&'static ProfileDefinition, CatalogError> {
+    if let Ok(index) = profiles().binary_search_by_key(&name, |entry| entry.id.as_str()) {
+        return profiles().get(index).ok_or(CatalogError::UnknownProfile);
+    }
+
+    profiles()
+        .iter()
+        .find(|entry| entry.selector == name)
+        .ok_or(CatalogError::UnknownProfile)
 }
 
 #[derive(Debug)]

@@ -84,12 +84,21 @@ def validate(document, repo=REPO):
         raise DeclarationError("profile count is outside declaration limits")
 
     ids = set()
+    selectors = set()
     targets = set()
     validated = []
     for entry in profiles:
         keys(
             entry,
-            ("id", "target", "metadata", "layers", "templates", "composition"),
+            (
+                "id",
+                "selector",
+                "target",
+                "metadata",
+                "layers",
+                "templates",
+                "composition",
+            ),
             "profile",
         )
         entry = dict(entry)
@@ -98,7 +107,23 @@ def validate(document, repo=REPO):
             raise DeclarationError("invalid profile identifier")
         if identifier in ids:
             raise DeclarationError(f"duplicate profile identifier: {identifier}")
+        if identifier in selectors:
+            raise DeclarationError(
+                f"profile identifier conflicts with selector: {identifier}"
+            )
         ids.add(identifier)
+        selector = text(entry["selector"], "profile selector")
+        if selector in selectors:
+            raise DeclarationError(f"duplicate profile selector: {selector}")
+        if selector in ids:
+            raise DeclarationError(
+                f"profile selector conflicts with identifier: {selector}"
+            )
+        if len(selector) > 64 or not re.fullmatch(
+            r"[a-z0-9]+(?:-[a-z0-9]+)*", selector
+        ):
+            raise DeclarationError(f"{identifier}: invalid profile selector")
+        selectors.add(selector)
         templates = entry["templates"]
         if not isinstance(templates, dict) or not set(templates) <= set(REQUEST_KINDS):
             raise DeclarationError(
@@ -287,6 +312,7 @@ def generate(profiles):
             [
                 "    ProfileDefinition {",
                 f"        id: ProfileId({rust_string(entry['id'])}),",
+                f"        selector: {rust_string(entry['selector'])},",
                 "        metadata: ProfileMetadata {",
                 f"            browser: Browser::{metadata['browser']},",
                 f"            build: {rust_string(metadata['build'])},",

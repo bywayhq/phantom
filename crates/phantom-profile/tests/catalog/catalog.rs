@@ -16,6 +16,12 @@ type ProfileFactory = fn() -> ClientProfile;
 #[test]
 fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestResult {
     for unknown in [
+        "chrome-154",
+        "chrome-latest-windows",
+        "chrome-154-linux",
+        "chrome-156-windows",
+        "chrome-154-windows-r2",
+        "Chrome-154-windows",
         "chrome/latest/windows",
         "chrome/154.0.8037.58/windows-11-26200/r1",
         "chrome/154.0.8037.97/macos-15.5-arm64/r1",
@@ -37,6 +43,70 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
     for definition in profiles() {
         let selected = profile(definition.id().as_str())?;
         assert!(std::ptr::eq(selected, definition));
+    }
+    Ok(())
+}
+
+#[test]
+fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
+    let mappings = [
+        (
+            "brave-153-android",
+            "brave/153.1.95.104/android-17-pixel7-emulator/r1",
+        ),
+        ("brave-154-windows", "brave/154.1.96.59/windows-11-26200/r1"),
+        (
+            "chrome-154-android",
+            "chrome/154.0.8037.57/android-17-pixel7-emulator/r1",
+        ),
+        (
+            "chrome-154-macos",
+            "chrome/154.0.8037.95/macos-15.5-arm64/r1",
+        ),
+        (
+            "chrome-154-windows",
+            "chrome/154.0.8037.97/windows-11-26200/r1",
+        ),
+        ("edge-153-windows", "edge/153.0.4234.48/windows-11-26200/r1"),
+        (
+            "edge-153-android",
+            "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
+        ),
+        ("edge-154-windows", "edge/154.0.4258.48/windows-11-26200/r1"),
+        (
+            "firefox-156-android",
+            "firefox/156.0.1/android-35-emulator/r1",
+        ),
+        ("firefox-157-windows", "firefox/157.0/windows-11-26200/r1"),
+        (
+            "opera-102-android",
+            "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
+        ),
+        (
+            "opera-136-windows",
+            "opera/136.0.6008.52/windows-11-26200/r1",
+        ),
+    ];
+    assert_eq!(profiles().len(), mappings.len());
+    for (selector, identifier) in mappings {
+        let selected = profile(selector)?;
+        assert_eq!(selected.selector(), selector);
+        assert_eq!(selected.id().as_str(), identifier);
+        assert!(std::ptr::eq(selected, profile(identifier)?));
+    }
+    for definition in profiles() {
+        assert_eq!(
+            profiles()
+                .iter()
+                .filter(|entry| entry.selector() == definition.selector())
+                .count(),
+            1
+        );
+        assert!(
+            profiles()
+                .iter()
+                .all(|entry| entry.id().as_str() != definition.selector())
+        );
     }
     Ok(())
 }
