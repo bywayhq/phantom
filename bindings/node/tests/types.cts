@@ -1,4 +1,4 @@
-import { AttemptBudget, Client, PhantomError, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, PhantomError, Profile, Response, profiles, type ProfileValue } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -216,3 +216,22 @@ function uploadErrorDetails(failure: PhantomError): void {
   void original; void cleanup;
 }
 void uploadErrorDetails;
+
+async function transfers(client: Client): Promise<void> {
+  const control = new TransferControl({uploadBytes: 0, downloadBytes: 18446744073709551615n,
+    uploadBytesPerSecond: 1, downloadBytesPerSecond: 1n});
+  const counts = control.snapshot();
+  const uploaded: bigint = counts.uploadBodyBytes;
+  const downloaded: bigint = counts.downloadDecodedBytes;
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', transferControl: control});
+  // @ts-expect-error Counters are read-only.
+  counts.downloadEncodedBytes = 0n;
+  // @ts-expect-error Counters are always bigint, never an imprecise number.
+  const rounded: number = counts.uploadReservedBytes;
+  // @ts-expect-error Limits are exact integer values, not strings.
+  new TransferControl({downloadBytes: '1'});
+  // @ts-expect-error A native owner is required.
+  await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw', transferControl: {}});
+  void uploaded; void downloaded; void rounded;
+}
+void transfers;

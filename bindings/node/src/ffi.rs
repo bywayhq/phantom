@@ -10,7 +10,7 @@ use crate::{
     client::{ClientState, Environment},
     error::failure,
     profile::{MAXIMUM_PROFILE_BYTES, ProfileState},
-    request::{MAXIMUM_HEADER_BYTES, MAXIMUM_INPUT_BYTES, Prepared},
+    request::{MAXIMUM_HEADER_BYTES, MAXIMUM_INPUT_BYTES, Prepared, RequestControls},
     response::Exchange,
     session,
 };
@@ -725,6 +725,70 @@ impl NativeAttemptBudget {
     }
 }
 
+/// Immutable optional shared body-byte caps and rates.
+#[derive(Debug)]
+#[napi(object)]
+pub struct TransferLimitsOptions {
+    /// Shared upload cap, including zero.
+    pub upload_bytes: Option<BigInt>,
+    /// Shared encoded response-body cap, including zero.
+    pub download_bytes: Option<BigInt>,
+    /// Positive upload body bytes per second.
+    pub upload_bytes_per_second: Option<BigInt>,
+    /// Positive encoded response-body bytes per second.
+    pub download_bytes_per_second: Option<BigInt>,
+}
+
+/// Coherent core counters, without JavaScript number conversion.
+#[napi(object)]
+pub struct TransferSnapshotInfo {
+    /// Accepted upload quota, including cancelled paced chunks.
+    pub upload_reserved_bytes: BigInt,
+    /// Request body bytes passed to protocol writers, including resends.
+    pub upload_body_bytes: BigInt,
+    /// Accepted encoded response quota, including cancelled paced chunks.
+    pub download_reserved_bytes: BigInt,
+    /// Encoded response bytes delivered by the control.
+    pub download_encoded_bytes: BigInt,
+    /// Core decoded frames delivered to the binding, including buffered remainders.
+    pub download_decoded_bytes: BigInt,
+}
+
+/// Shared native transfer state, retained by attached requests independently.
+#[derive(Debug)]
+#[napi]
+pub struct NativeTransferControl {
+    control: phantom::TransferControl,
+}
+
+#[napi]
+impl NativeTransferControl {
+    /// Creates fresh state from immutable exact limits.
+    #[napi(constructor)]
+    pub fn new(options: TransferLimitsOptions) -> Result<Self> {
+        Ok(Self {
+            control: phantom::TransferControl::new(crate::transfer::limits(options)?),
+        })
+    }
+
+    /// Reads all counters under the core's single lock.
+    #[napi]
+    pub fn snapshot(&self) -> TransferSnapshotInfo {
+        let counts = self.control.snapshot();
+        let integer = |value| BigInt {
+            sign_bit: false,
+            words: vec![value],
+        };
+        TransferSnapshotInfo {
+            upload_reserved_bytes: integer(counts.upload_reserved_bytes),
+            upload_body_bytes: integer(counts.upload_body_bytes),
+            download_reserved_bytes: integer(counts.download_reserved_bytes),
+            download_encoded_bytes: integer(counts.download_encoded_bytes),
+            download_decoded_bytes: integer(counts.download_decoded_bytes),
+        }
+    }
+}
+
 /// One request's native cancellation and body owner.
 #[derive(Debug)]
 #[napi]
@@ -934,6 +998,7 @@ impl NativeClient {
         cancellation: &NativeCancellation,
         budget: Option<&NativeAttemptBudget>,
         upload: Option<&NativeUpload>,
+        transfer: Option<&NativeTransferControl>,
     ) -> Result<AsyncBlock<NativeResponse>> {
         let started = Instant::now();
         let fields = options.headers.take().unwrap_or_default();
@@ -980,7 +1045,10 @@ impl NativeClient {
             body,
             started,
             Arc::clone(&cancellation.exchange),
-            budget.map(|budget| budget.budget.clone()),
+            RequestControls {
+                attempt_budget: budget.map(|budget| budget.budget.clone()),
+                transfer_control: transfer.map(|transfer| transfer.control.clone()),
+            },
         )?;
         if let Some(upload) = upload {
             *upload.owner.lock().unwrap_or_else(PoisonError::into_inner) =

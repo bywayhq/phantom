@@ -9,6 +9,7 @@ const backingOf = Object.getOwnPropertyDescriptor(typedArray, 'buffer').get;
 const offsetOf = Object.getOwnPropertyDescriptor(typedArray, 'byteOffset').get;
 const lengthOf = Object.getOwnPropertyDescriptor(typedArray, 'byteLength').get;
 const budgetHandles = new WeakMap();
+const transferHandles = new WeakMap();
 const profileHandles = new WeakMap();
 const profileToken = {};
 const clientToken = {};
@@ -305,6 +306,31 @@ class AttemptBudget {
   get remaining() { return budgetHandles.get(this).remaining; }
   tryAdmit() {
     try { budgetHandles.get(this).tryAdmit(); }
+    catch (error) { throw translated(error); }
+  }
+}
+
+class TransferControl {
+  constructor(limits = {}) {
+    const copy = policyFields(limits, ['uploadBytes', 'downloadBytes', 'uploadBytesPerSecond', 'downloadBytesPerSecond']);
+    const options = {};
+    for (const [name, value] of Object.entries(copy)) {
+      if (value === undefined) continue;
+      const minimum = name.endsWith('PerSecond') ? 1n : 0n;
+      const exact = typeof value === 'number' && Number.isSafeInteger(value) ? BigInt(value) : value;
+      if (typeof exact !== 'bigint' || exact < minimum || exact > 0xffffffffffffffffn) {
+        throw new PhantomError('InvalidArgument', 'transfer limits must be exact u64 values and rates must be positive');
+      }
+      options[name] = exact;
+    }
+    try { transferHandles.set(this, new native.NativeTransferControl(options)); }
+    catch (error) { throw translated(error); }
+    Object.freeze(this);
+  }
+  snapshot() {
+    const handle = transferHandles.get(this);
+    if (handle === undefined) throw new PhantomError('InvalidArgument', 'receiver must be a TransferControl');
+    try { return Object.freeze(handle.snapshot()); }
     catch (error) { throw translated(error); }
   }
 }
@@ -608,6 +634,8 @@ class Client {
       if (signal?.aborted) abort();
       const budget = options.attemptBudget === undefined ? undefined : budgetHandles.get(options.attemptBudget);
       if (options.attemptBudget !== undefined && budget === undefined) throw new PhantomError('InvalidArgument', 'attemptBudget must be an AttemptBudget');
+      const transfer = options.transferControl === undefined ? undefined : transferHandles.get(options.transferControl);
+      if (options.transferControl !== undefined && transfer === undefined) throw new PhantomError('InvalidArgument', 'transferControl must be a TransferControl');
       const pending = this.#native.request({
         url, method: options.method, protocol: options.protocol, context: options.context,
         headers: options.headers?.map((header) => ({ ...header, value: bytes(header.value) })),
@@ -618,7 +646,7 @@ class Client {
         retryPolicy: retryPolicy(options.retryPolicy),
         redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
           : positiveCount(options.redirectHistoryLimit),
-      }, cancellation, budget, upload);
+      }, cancellation, budget, upload, transfer);
       if (upload) {
         producer = {error: undefined};
         this.#trackUpload(iterator, upload, producer);
@@ -763,4 +791,4 @@ function uploadOperation(operation) {
   }
 }
 
-module.exports = { AttemptBudget, Client, PhantomError, Profile, Response, profiles: () => native.profileIds() };
+module.exports = { AttemptBudget, Client, PhantomError, Profile, Response, TransferControl, profiles: () => native.profileIds() };

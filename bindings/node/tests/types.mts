@@ -1,4 +1,4 @@
-import { AttemptBudget, Client, Profile } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, Profile } from '../index.mjs';
 
 function compactProfiles(base: Profile, bytes: Uint8Array): void {
   const imported = Profile.importClientHello(bytes, {base});
@@ -56,3 +56,7 @@ async function checkpoints(client: Client, key: Buffer): Promise<void> {
   await client.restoreSession('checkpoint', key);
 }
 void checkpoints;
+
+const transfer = new TransferControl({downloadBytes: 0n});
+const transferred: bigint = transfer.snapshot().downloadEncodedBytes;
+void transferred;

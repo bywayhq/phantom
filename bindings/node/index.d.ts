@@ -55,6 +55,27 @@ export class AttemptBudget {
   /** Charges an attempt outside Phantom; exhaustion throws AttemptBudgetExhausted. */
   tryAdmit(): void;
 }
+/** Immutable shared body-byte caps and rates; omission leaves a direction unlimited. */
+export interface TransferLimits {
+  readonly uploadBytes?: number | bigint;
+  readonly downloadBytes?: number | bigint;
+  readonly uploadBytesPerSecond?: number | bigint;
+  readonly downloadBytesPerSecond?: number | bigint;
+}
+export interface TransferSnapshot {
+  readonly uploadReservedBytes: bigint;
+  readonly uploadBodyBytes: bigint;
+  readonly downloadReservedBytes: bigint;
+  readonly downloadEncodedBytes: bigint;
+  /** Core frames delivered to the binding; can include a buffered unread remainder. */
+  readonly downloadDecodedBytes: bigint;
+}
+export class TransferControl {
+  /** Exact unsigned u64 caps (zero allowed); rates must be positive. */
+  constructor(limits?: TransferLimits);
+  /** Coherent frozen counters across all attached requests and attempts. */
+  snapshot(): Readonly<TransferSnapshot>;
+}
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
 /**
  * Omit to inherit; null disables. Total zero rejects before sending;
@@ -143,6 +164,7 @@ export interface RequestOptions {
   timeouts?: Timeouts;
   signal?: AbortSignal;
   attemptBudget?: AttemptBudget;
+  transferControl?: TransferControl;
   contentDecoding?: ContentDecoding;
   redirectPolicy?: RedirectPolicy;
   retryPolicy?: RetryPolicy;

@@ -11,7 +11,9 @@ use std::{
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use napi::Result;
-use phantom::{HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader};
+use phantom::{
+    HttpAttemptBudget, HttpProtocol, Method, RequestBuilder, RequestHeader, TransferControl,
+};
 use tokio::io::{AsyncRead, ReadBuf};
 
 use crate::{
@@ -47,6 +49,11 @@ pub(crate) enum BodyInput {
     Stream(Arc<crate::upload::Upload>),
 }
 
+pub(crate) struct RequestControls {
+    pub(crate) attempt_budget: Option<HttpAttemptBudget>,
+    pub(crate) transfer_control: Option<TransferControl>,
+}
+
 impl Prepared {
     pub(crate) fn new(
         client: &Arc<ClientState>,
@@ -55,7 +62,7 @@ impl Prepared {
         body: Option<BodyInput>,
         started: Instant,
         exchange: Arc<Exchange>,
-        budget: Option<HttpAttemptBudget>,
+        controls: RequestControls,
     ) -> Result<Self> {
         if client.is_closed() {
             return Err(failure("ClientClosed", "client is closed"));
@@ -127,8 +134,11 @@ impl Prepared {
                 "file path must contain 1..4096 UTF-8 bytes",
             ));
         }
-        if let Some(budget) = budget {
+        if let Some(budget) = controls.attempt_budget {
             builder = builder.attempt_budget(budget);
+        }
+        if let Some(control) = controls.transfer_control {
+            builder = builder.transfer_control(control);
         }
         let timeouts = options.timeouts.unwrap_or_default();
         if options.timeout_ms.is_some() && timeouts.total.is_some() {

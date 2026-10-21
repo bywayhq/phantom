@@ -127,6 +127,14 @@ learned state. Clear DNS, hints, alternatives or tickets with `clearDnsCache`,
 `clearClientHints`, `clearAltSvc` and `clearSessionTickets`.
 `clearAltSvcRacingHistory()` resets racing decisions while retaining alternatives.
 
+Attach a shared `new TransferControl({downloadBytes: 1_000_000n,
+downloadBytesPerSecond: 100_000n})` through request `transferControl` for native
+body-byte caps, pacing and `snapshot()` counters. Limits accept safe integer
+numbers or `bigint` within u64; zero caps are valid, rates must be positive. The five
+counters are always `bigint`. Reservations include cancelled paced chunks;
+resends count again. Encoded/decoded body counts exclude transport overhead,
+and decoded counts can include the binding's buffered unread remainder.
+
 Attach one `AttemptBudget` to concurrent requests through `attemptBudget`.
 It counts initial origin attempts and resends. Counts accept safe integer
 numbers or `bigint` within the native platform's range. `remaining` returns a

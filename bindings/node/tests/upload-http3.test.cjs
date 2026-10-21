@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
 const {test} = require('node:test');
-const {Client, PhantomError} = require('..');
+const {Client, PhantomError, TransferControl} = require('..');
 
 async function bounded(promise, label, milliseconds = 10000) {
   let timer;
@@ -72,7 +72,8 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     const warm = await client.request(ready.url + '/warm', options);
     assert.equal(await warm.text(2), 'ok');
     const controller = new AbortController();
-    selected = await client.request(ready.url + '/upload', {...options, method: 'POST', body: source, signal: controller.signal});
+    const transfer = new TransferControl({uploadBytes: 1024});
+    selected = await client.request(ready.url + '/upload', {...options, method: 'POST', body: source, signal: controller.signal, transferControl: transfer});
     assert.equal((await selected.read(1)).toString(), 'a');
     await bounded(pending, 'producer was not pending');
     healthy = await client.request(ready.url + '/healthy', options);
@@ -90,6 +91,9 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     assert.equal(result.connections, 1);
     assert.equal(result.protocol, 'h3');
     assert.equal(result.upload_bytes, 1024);
+    assert.equal(transfer.snapshot().uploadBodyBytes, 1024n);
+    assert.equal(transfer.snapshot().downloadEncodedBytes, 1n);
+    assert.equal(transfer.snapshot().downloadDecodedBytes, 1n);
     assert.deepEqual(result.cancellations, {reset_stream: 0x10c, stop_sending: 0x10c});
     assert.equal(result.healthy_released, true);
     assert.equal(new Set(Object.values(result.streams)).size, 4);
