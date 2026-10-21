@@ -740,6 +740,7 @@ pub struct TransferLimitsOptions {
 }
 
 /// Coherent core counters, without JavaScript number conversion.
+#[derive(Debug)]
 #[napi(object)]
 pub struct TransferSnapshotInfo {
     /// Accepted upload quota, including cancelled paced chunks.
@@ -772,6 +773,7 @@ impl NativeTransferControl {
     }
 
     /// Reads all counters under the core's single lock.
+    #[must_use]
     #[napi]
     pub fn snapshot(&self) -> TransferSnapshotInfo {
         let counts = self.control.snapshot();
