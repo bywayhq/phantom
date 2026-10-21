@@ -4,6 +4,10 @@
 
 - Remove the external-client benchmark adapters and their CI workflow.
 
+- Send ordered request trailers and opt into `100-continue` waits from
+  Python, Go and Node.js. Each attempt keeps the existing deadline and
+  replay rules.
+
 - Expose shared Python, Go and Node.js body-byte caps, pacing and coherent
   transfer counters. Attached Go requests retain their control after its
   caller handle closes.

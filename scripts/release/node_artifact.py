@@ -198,6 +198,9 @@ def copied_tests(destination, native_package=None):
         ),
         "transfer.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "transfer-http2.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "request-controls.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "transfer-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -344,6 +347,7 @@ def public_checks(
                 "tests/session-snapshots.test.cjs",
                 "tests/transfer.test.cjs",
                 "tests/transfer-http2.test.cjs",
+                "tests/request-controls.test.cjs",
                 "tests/transfer-facade.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",
