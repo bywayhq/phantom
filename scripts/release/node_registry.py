@@ -405,8 +405,30 @@ def registry_fixture(packages, directory):
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
-            requests.append({"path": self.path, "status": 405})
-            self.send_error(405)
+            # Consume at most 64 KiB before closing so unread bytes cannot reset
+            # the connection and discard the read-only fixture's 405.
+            lengths = self.headers.get_all("Content-Length", [])
+            status, length = 405, 0
+            if "Transfer-Encoding" in self.headers or len(lengths) > 1:
+                status = 400
+            elif lengths:
+                value = lengths[0].strip(" \t")
+                if not value.isascii() or not value.isdecimal():
+                    status = 400
+                else:
+                    value = value.lstrip("0") or "0"
+                    if len(value) > 5 or int(value) > 65536:
+                        status = 413
+                    else:
+                        length = int(value)
+            if status == 405 and length:
+                try:
+                    if len(self.rfile.read(length)) != length:
+                        status = 400
+                except TimeoutError:
+                    status = 408
+            requests.append({"path": self.path, "status": status})
+            self.send_error(status)
 
         def do_GET(self):
             path = unquote(urlsplit(self.path).path)

@@ -3,17 +3,21 @@
 import base64
 import copy
 import hashlib
+import http.client
 import importlib.util
 import io
 import json
 import os
+import socket
 import tarfile
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 SPEC = importlib.util.spec_from_file_location(
@@ -335,6 +339,126 @@ class RegistryAssemblyTests(unittest.TestCase):
                 self.assertEqual(caught.exception.code, status)
                 caught.exception.close()
         self.assertEqual(len(requests), 11)
+
+    def test_fixture_consumes_split_post_body_before_returning_complete_405(self):
+        output = self.assembly_flow(fail_pack=False)
+        manifest = registry.read_assembly(output, REVISION, node, promotion)
+        ready = threading.Event()
+        operations, consumed = [], bytearray()
+        original_setup = registry.http.server.BaseHTTPRequestHandler.setup
+        original_error = registry.http.server.BaseHTTPRequestHandler.send_error
+
+        def setup(handler):
+            original_setup(handler)
+            reader = handler.rfile
+
+            def read(length):
+                operations.append(("read", length))
+                ready.set()
+                raw = reader.read(length)
+                consumed.extend(raw)
+                return raw
+
+            handler.rfile = SimpleNamespace(
+                read=read, readline=reader.readline, close=reader.close
+            )
+
+        def send_error(handler, status, *args, **kwargs):
+            operations.append(("response", status, bytes(consumed)))
+            ready.set()
+            return original_error(handler, status, *args, **kwargs)
+
+        with (
+            patch.object(registry.http.server.BaseHTTPRequestHandler, "setup", setup),
+            patch.object(
+                registry.http.server.BaseHTTPRequestHandler, "send_error", send_error
+            ),
+            registry.registry_fixture(manifest["packages"], output) as (
+                address,
+                requests,
+            ),
+        ):
+            address = urlsplit(address)
+            with socket.create_connection(
+                (address.hostname, address.port), timeout=2
+            ) as peer:
+                peer.sendall(
+                    b"POST /@byway/phantom HTTP/1.1\r\n"
+                    b"Host: localhost\r\nContent-Length: 2\r\n\r\n"
+                )
+                self.assertTrue(ready.wait(2), "fixture neither read nor responded")
+                # The two body writes are independent of the handler's read boundaries.
+                peer.sendall(b"n")
+                peer.sendall(b"o")
+                with http.client.HTTPResponse(peer) as response:
+                    response.begin()
+                    self.assertEqual(response.status, 405)
+                    self.assertTrue(response.read())
+            self.assertEqual(operations, [("read", 2), ("response", 405, b"no")])
+            self.assertEqual(requests, [{"path": "/@byway/phantom", "status": 405}])
+
+    def test_fixture_bounds_rejected_post_framing_before_reading(self):
+        output = self.assembly_flow(fail_pack=False)
+        manifest = registry.read_assembly(output, REVISION, node, promotion)
+        handlers = []
+        original_init = registry.http.server.HTTPServer.__init__
+
+        def server_init(server, address, handler):
+            handlers.append(handler)
+            original_init(server, address, handler)
+
+        with (
+            patch.object(registry.http.server.HTTPServer, "__init__", server_init),
+            registry.registry_fixture(manifest["packages"], output),
+        ):
+            handler_type = handlers[0]
+
+        for headers, body, status, expected_read in (
+            ([], b"", 405, None),
+            ([("Content-Length", "0")], b"", 405, None),
+            ([("Content-Length", "000002")], b"no", 405, 2),
+            ([("Content-Length", "65536")], b"a" * 65536, 405, 65536),
+            ([("Content-Length", "65537")], b"", 413, None),
+            ([("Content-Length", "9" * 5000)], b"", 413, None),
+            ([("Content-Length", "+2")], b"", 400, None),
+            ([("Content-Length", "-1")], b"", 400, None),
+            ([("Content-Length", "1.0")], b"", 400, None),
+            ([("Content-Length", "\u00a02")], b"", 400, None),
+            ([("Content-Length", "")], b"", 400, None),
+            ([("Content-Length", "\u0662")], b"", 400, None),
+            ([("Content-Length", "2"), ("Content-Length", "2")], b"", 400, None),
+            ([("Transfer-Encoding", "chunked")], b"", 400, None),
+            (
+                [("Transfer-Encoding", "identity"), ("Content-Length", "2")],
+                b"",
+                400,
+                None,
+            ),
+            ([("Content-Length", "2")], b"n", 400, 2),
+        ):
+            with self.subTest(headers=headers):
+                handler = object.__new__(handler_type)
+                handler.headers = http.client.HTTPMessage()
+                for name, value in headers:
+                    handler.headers.add_header(name, value)
+                handler.path = "/@byway/phantom"
+                reader = io.BytesIO(body)
+                handler.rfile = SimpleNamespace(read=Mock(wraps=reader.read))
+                handler.send_error = Mock()
+                handler.do_POST()
+                handler.send_error.assert_called_once_with(status)
+                if expected_read is None:
+                    handler.rfile.read.assert_not_called()
+                else:
+                    handler.rfile.read.assert_called_once_with(expected_read)
+
+        handler.headers = http.client.HTTPMessage()
+        handler.headers.add_header("Content-Length", "2")
+        handler.rfile = SimpleNamespace(read=Mock(side_effect=TimeoutError))
+        handler.send_error = Mock()
+        handler.do_POST()
+        handler.send_error.assert_called_once_with(408)
+        handler.rfile.read.assert_called_once_with(2)
 
     def test_assembly_input_tampering_and_incompatible_installed_packages_fail(self):
         output = self.assembly_flow(fail_pack=False)
