@@ -92,7 +92,7 @@ func TestOversizedMultipartLeavesReadersWithCaller(t *testing.T) {
 func TestStreamingMultipartUsesCoreEncodingAndUnknownLength(t *testing.T) {
 	expected := "--fixture\r\nContent-Disposition: form-data; name=\"tag\"\r\n\r\nfirst\r\nsecond\r\n" +
 		"--fixture\r\nContent-Disposition: form-data; name=\"tag\"; filename=\"a%22.bin\"\r\nContent-Type: application/x-custom\r\n\r\na\x00b\r\n" +
-		"--fixture\r\nContent-Disposition: form-data; name=\"file\"; filename=\"stream.bin\"\r\nContent-Type: application/octet-stream\r\n\r\nstreamed\r\n--fixture--\r\n"
+		"--fixture\r\nContent-Disposition: form-data; name=\"file%0D%0Aname\"; filename=\"stream.bin\"\r\nContent-Type: application/octet-stream\r\n\r\nstreamed\r\n--fixture--\r\n"
 	observed := make(chan error, 1)
 	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := io.ReadAll(io.LimitReader(r.Body, int64(len(expected)+1)))
@@ -106,7 +106,7 @@ func TestStreamingMultipartUsesCoreEncodingAndUnknownLength(t *testing.T) {
 	defer peer.Close()
 	source := &ownedUpload{Reader: strings.NewReader("streamed")}
 	form := &StreamingMultipart{Boundary: "fixture", MaximumBytes: uint64(len(expected)), Parts: []MultipartPart{
-		MultipartText("tag", "first\nsecond"), MultipartBytes("tag", []byte{'a', 0, 'b'}).WithFilename("a\".bin").WithContentType("application/x-custom"), MultipartReader("file", source).WithFilename("stream.bin"),
+		MultipartText("tag", "first\nsecond"), MultipartBytes("tag", []byte{'a', 0, 'b'}).WithFilename("a\".bin").WithContentType("application/x-custom"), MultipartReader("file\r\nname", source).WithFilename("stream.bin"),
 	}}
 	contentType, err := form.ContentType()
 	if err != nil {

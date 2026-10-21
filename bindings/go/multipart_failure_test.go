@@ -91,7 +91,7 @@ func TestStreamingMultipartPreflightDoesNotSpendBudget(t *testing.T) {
 			case "prepared conflict":
 				request.PreparedBody = &PreparedBody{}
 			case "bad name":
-				form.Parts[0].name = "bad\r\nname"
+				form.Parts[0].name = "bad\x00name"
 			case "bad boundary":
 				form.Boundary = "bad\r\nboundary"
 			case "length":
