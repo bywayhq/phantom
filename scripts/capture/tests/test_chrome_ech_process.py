@@ -7,7 +7,7 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from scripts.capture import chrome_ech
 from scripts.capture.browser_failures import BrowserLaunchFailures
@@ -55,6 +55,19 @@ class EchProcessTests(unittest.TestCase):
     def capture(self, script: str, **options) -> str:
         command = [sys.executable, "-c", script]
         with patch.object(chrome_ech, "capture_arguments", return_value=command):
+            return chrome_ech.capture(options.pop("run", RUN), **options)
+
+    def capture_ready(self, owner, **options) -> str:
+        def acquire(_command, *, stdout, stderr):
+            def start():
+                stderr.write((READY + "\n").encode("ascii"))
+                stderr.flush()
+                return True
+
+            owner.start.side_effect = start
+            return owner
+
+        with patch.object(chrome_ech, "ProcessContainer", side_effect=acquire):
             return chrome_ech.capture(options.pop("run", RUN), **options)
 
     def assert_stopped(self) -> None:
@@ -202,6 +215,8 @@ class EchProcessTests(unittest.TestCase):
     def test_failed_server_and_browser_cleanup_keep_both_original_failures(
         self,
     ) -> None:
+        owner = Mock(spec=("start", "poll", "close"))
+        owner.poll.return_value = 3
         cleanup = OSError("browser cleanup failed")
         browser = BrowserOwner(chrome_ech.launch_plan(RUN), chrome_ech.URL)
         self.browser.return_value.__exit__.side_effect = lambda *details: (
@@ -211,16 +226,14 @@ class EchProcessTests(unittest.TestCase):
             patch.object(browser, "_cleanup", return_value=(cleanup,)),
             self.assertRaises(BrowserLaunchFailures) as raised,
         ):
-            self.capture(
-                f"import sys; print({READY!r}, file=sys.stderr, flush=True); "
-                "raise SystemExit(3)"
-            )
+            self.capture_ready(owner)
         self.assertIsInstance(raised.exception.primary, RuntimeError)
         self.assertEqual(
             str(raised.exception.primary), "capture server failed with exit code 3"
         )
         self.assertIs(raised.exception.cleanup[0], cleanup)
-        self.assert_stopped()
+        owner.start.assert_called_once_with()
+        owner.close.assert_called_once_with()
 
     def test_observer_setup_failure_stops_the_already_acquired_container(self) -> None:
         failure = OSError("observer setup failed")
@@ -267,13 +280,13 @@ class EchProcessTests(unittest.TestCase):
         )
 
     def test_mismatched_server_template_fails_before_browser_launch(self) -> None:
+        owner = Mock(spec=("start", "poll", "close"))
+        owner.poll.return_value = 0
         with self.assertRaisesRegex(RuntimeError, "server listens"):
-            self.capture(
-                f"import sys; print({READY!r}, file=sys.stderr, flush=True)",
-                run=replace(RUN, doh_port=6),
-            )
+            self.capture_ready(owner, run=replace(RUN, doh_port=6))
         self.browser.assert_not_called()
-        self.assert_stopped()
+        owner.start.assert_called_once_with()
+        owner.close.assert_called_once_with()
 
     def test_cleanup_failure_keeps_original_failure_and_owner(self) -> None:
         primary = OSError("browser launch failed")
