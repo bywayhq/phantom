@@ -5,6 +5,7 @@ mod client_certificate;
 mod error;
 #[allow(unsafe_code)]
 mod ffi;
+mod multipart;
 mod operations;
 mod policy;
 mod prepared_body;

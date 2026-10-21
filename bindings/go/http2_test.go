@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ const (
 	http2CancelTransferLimit
 	http2CancelTransferPacing
 	http2CancelTransferTotal
+	http2CancelMultipart
 )
 
 func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
@@ -30,6 +32,7 @@ func TestHTTP2CancellationPreservesOtherStreamsAndConnection(t *testing.T) {
 	t.Run("transfer limit", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferLimit) })
 	t.Run("transfer pacing", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferPacing) })
 	t.Run("transfer total timeout", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelTransferTotal) })
+	t.Run("multipart upload", func(t *testing.T) { http2CancellationPreservesOtherStreams(t, http2CancelMultipart) })
 }
 
 func http2CancellationPreservesOtherStreams(t *testing.T, cause http2CancellationCause) {
@@ -172,6 +175,15 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	firstRequest := Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/held"}
+	var multipartSource *gatedUpload
+	var unstarted *ownedUpload
+	if cause == http2CancelMultipart {
+		multipartSource = newGatedUpload()
+		unstarted = &ownedUpload{Reader: strings.NewReader("unread")}
+		firstRequest.Method = "POST"
+		firstRequest.Headers = []Header{{Name: "content-type", Value: []byte("multipart/form-data; boundary=held")}}
+		firstRequest.Multipart = &StreamingMultipart{Boundary: "held", MaximumBytes: 4096, Parts: []MultipartPart{MultipartReader("active", multipartSource), MultipartReader("later", unstarted)}}
+	}
 	diagnostics := newDiagnostics(t, 128)
 	firstRequest.Diagnostics = diagnostics
 	var transfer *TransferControl
@@ -192,12 +204,19 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 		t.Fatal(err)
 	}
 	buffer := make([]byte, 1)
+	if multipartSource != nil {
+		select {
+		case <-multipartSource.started:
+		case <-time.After(3 * time.Second):
+			t.Fatal("multipart source was not demanded")
+		}
+	}
 	if cause == http2CancelContext {
 		if n, err := first.Body.Read(buffer); n != 1 || err != nil {
 			t.Fatalf("held read %d: %v", n, err)
 		}
 	}
-	second, err := client.Do(context.Background(), Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/live"})
+	second, err := client.Do(context.Background(), Request{Method: "GET", URL: "http://" + listener.Addr().String() + "/live", Timeouts: Timeouts{Total: Timeout{Mode: TimeoutDisabled}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,6 +280,13 @@ func http2CancellationPreservesOtherStreams(t *testing.T, cause http2Cancellatio
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("no stream CANCEL")
+	}
+	if multipartSource != nil {
+		waitUploadClosed(t, &multipartSource.closes)
+		waitUploadClosed(t, &unstarted.closes)
+		if unstarted.bytes.Load() != 0 {
+			t.Fatal("cancelled multipart polled next source")
+		}
 	}
 	if data, err := second.Body.ReadAll(5); err != nil || string(data) != "hello" {
 		t.Fatalf("independent body %q: %v", data, err)

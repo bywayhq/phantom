@@ -3,6 +3,7 @@ package phantom
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"runtime"
 	"sync"
@@ -41,11 +42,10 @@ type bodyLifetime struct {
 func (owner *bodyLifetime) close() error {
 	owner.trailers.settle(ResponseTrailers{State: TrailersUnavailable}, nil)
 	if owner.closed.Swap(true) {
-		return nil
+		return owner.upload.wrap(owner.upload.close())
 	}
 	err := control("close_body", "body", owner.id)
-	owner.upload.close()
-	return err
+	return owner.upload.wrap(errors.Join(err, owner.upload.close()))
 }
 
 // Body implements io.ReadCloser. Reads are serialized; Close can interrupt a read.
@@ -80,10 +80,10 @@ func (body *Body) Read(output []byte) (int, error) {
 	}
 	if err := body.ctx.Err(); err != nil {
 		_ = body.Close()
-		return 0, err
+		return 0, body.owner.upload.wrap(err)
 	}
 	if body.owner.closed.Load() {
-		return 0, &Error{Kind: "body_closed"}
+		return 0, body.owner.upload.wrap(&Error{Kind: "body_closed"})
 	}
 	maximum := min(len(output), maxChunk)
 	var bytes []byte
@@ -120,19 +120,27 @@ func (body *Body) Read(output []byte) (int, error) {
 		// Publish only after perform's context and acknowledgement checks succeed.
 		body.owner.trailers.settle(trailers, nil)
 		body.eof.Store(true)
-		_ = body.Close()
+		if err := body.Close(); err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	}
 	return copy(output, bytes), nil
 }
 
 // ReadAll collects at most maximum bytes and closes the body in all cases.
-func (body *Body) ReadAll(maximum int) ([]byte, error) {
-	defer body.Close()
+func (body *Body) ReadAll(maximum int) (result []byte, err error) {
+	defer func() {
+		closeErr := body.Close()
+		if err != nil {
+			err = body.owner.upload.wrap(err)
+		} else if closeErr != nil {
+			result, err = nil, closeErr
+		}
+	}()
 	if maximum < 0 {
 		return nil, &Error{Kind: "invalid_body_limit"}
 	}
-	var result []byte
 	buffer := make([]byte, maxChunk)
 	for {
 		size := min(len(buffer), maximum-len(result))

@@ -10,14 +10,17 @@ import (
 // FormField is one UTF-8 field. Its position and duplicate names are retained.
 type FormField struct{ Name, Value string }
 
-// MultipartPart is a text or byte field. Constructors retain byte slices until
-// PrepareMultipart returns; callers must not mutate them during preparation.
+// MultipartPart is an ordered text, byte or streaming reader field. Byte slices
+// are borrowed until PrepareMultipart or Do preparation returns. PrepareMultipart
+// rejects readers without taking custody; Request.Multipart takes their custody.
 type MultipartPart struct {
 	name        string
 	text        *string
 	data        []byte
 	filename    *string
 	contentType *string
+	reader      *multipartSource
+	streaming   bool
 }
 
 // MultipartText creates a field whose line endings are normalized to CRLF.
@@ -37,7 +40,7 @@ func (p MultipartPart) WithFilename(value string) MultipartPart {
 }
 
 // WithContentType returns a part with an explicit token/token media type.
-// Invalid syntax is reported by PrepareMultipart without echoing the value.
+// Invalid syntax is reported during preparation without echoing the value.
 func (p MultipartPart) WithContentType(value string) MultipartPart {
 	p.contentType = &value
 	return p
@@ -90,6 +93,11 @@ func PrepareForm(fields []FormField, maximumBytes uint64) (*PreparedBody, error)
 // Body bytes are capped at 8 MiB and metadata commands at 64 KiB. Preparation
 // copies the result into native ownership; later source mutations are harmless.
 func PrepareMultipart(parts []MultipartPart, boundary string, maximumBytes uint64) (*PreparedBody, error) {
+	for _, part := range parts {
+		if part.streaming {
+			return nil, &Error{Kind: "invalid_prepared_body"}
+		}
+	}
 	if len(parts) > 1024 {
 		return nil, &Error{Kind: "prepared_body_too_many_parts"}
 	}

@@ -28,6 +28,8 @@ struct Chunk {
 
 pub(super) struct Upload {
     pub(super) client: u64,
+    pub(super) multipart: Option<crate::multipart::Multipart>,
+    _buffer: Option<crate::operations::UploadPermit>,
     length: Option<u64>,
     sender: mpsc::Sender<Chunk>,
     receiver: Mutex<Option<mpsc::Receiver<Chunk>>>,
@@ -37,9 +39,20 @@ pub(super) struct Upload {
 }
 impl Upload {
     pub(super) fn new(client: u64, length: Option<u64>) -> Arc<Self> {
+        Self::with_multipart(client, length, None, None)
+    }
+
+    pub(super) fn with_multipart(
+        client: u64,
+        length: Option<u64>,
+        multipart: Option<crate::multipart::Multipart>,
+        buffer: Option<crate::operations::UploadPermit>,
+    ) -> Arc<Self> {
         let (sender, receiver) = mpsc::channel(1);
         Arc::new(Self {
             client,
+            multipart,
+            _buffer: buffer,
             length,
             sender,
             receiver: Mutex::new(Some(receiver)),
@@ -50,6 +63,9 @@ impl Upload {
     }
 
     pub(super) fn body(self: &Arc<Self>) -> Result<UploadBody, Failure> {
+        if self.multipart.is_some() {
+            return Err(Failure::new("invalid_upload"));
+        }
         if self.state.load(Ordering::SeqCst) != OPEN {
             return Err(Failure::new("upload_closed"));
         }
@@ -72,6 +88,9 @@ impl Upload {
             .state
             .compare_exchange(OPEN, CLOSED, Ordering::SeqCst, Ordering::SeqCst);
         self.changed.notify_waiters();
+        if let Some(multipart) = &self.multipart {
+            multipart.close();
+        }
         if let Ok(mut reader) = self.reader.lock()
             && let Some(waker) = reader.take()
         {
@@ -134,6 +153,30 @@ impl Upload {
     // A write completes only when the transport polls its frame. The Go reader
     // cannot fill an unbounded queue while a peer stops consuming its upload.
     pub(super) async fn write(&self, bytes: Bytes, end: Option<bool>) -> Result<(), Failure> {
+        match &self.multipart {
+            Some(multipart) => {
+                if self.state.load(Ordering::SeqCst) != OPEN {
+                    return Err(Failure::new("upload_closed"));
+                }
+                multipart.active()?.write_single(bytes, end).await
+            }
+            None => self.write_single(bytes, end).await,
+        }
+    }
+
+    pub(super) async fn next_part(&self) -> Result<usize, Failure> {
+        let multipart = self
+            .multipart
+            .as_ref()
+            .ok_or_else(|| Failure::new("invalid_multipart"))?;
+        tokio::select! {
+            biased;
+            () = self.closed() => Err(Failure::new("upload_closed")),
+            result = multipart.next() => result,
+        }
+    }
+
+    async fn write_single(&self, bytes: Bytes, end: Option<bool>) -> Result<(), Failure> {
         let payload = match end {
             Some(true) => Payload::Failed,
             Some(false) => Payload::End,

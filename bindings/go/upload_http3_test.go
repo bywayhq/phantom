@@ -53,6 +53,14 @@ func (source *h3PendingUpload) Close() error {
 }
 
 func TestHTTP3UploadCancellation(t *testing.T) {
+	http3UploadCancellation(t, false)
+}
+
+func TestHTTP3MultipartCancellation(t *testing.T) {
+	http3UploadCancellation(t, true)
+}
+
+func http3UploadCancellation(t *testing.T, multipart bool) {
 	python, script := os.Getenv("PHANTOM_H3_PEER_PYTHON"), os.Getenv("PHANTOM_H3_PEER_SCRIPT")
 	if python == "" || script == "" {
 		t.Fatal("independent HTTP/3 peer paths are required")
@@ -61,6 +69,9 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
 	defer stop()
 	command := exec.CommandContext(ctx, python, script, "--directory", directory)
+	if multipart {
+		command.Args = append(command.Args, "--multipart")
+	}
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	input, err := command.StdinPipe()
@@ -175,9 +186,19 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 	}
 	checkBody(request("/warm"), "ok")
 	source := &h3PendingUpload{pending: make(chan struct{}), closed: make(chan struct{})}
+	var unstarted *ownedUpload
+	selectedRequest := Request{Method: "POST", URL: ready.URL + "/upload", Upload: source}
+	uploadBytes := 1024
+	if multipart {
+		unstarted = &ownedUpload{Reader: bytes.NewReader([]byte("unread"))}
+		selectedRequest.Upload = nil
+		selectedRequest.Headers = []Header{{Name: "content-type", Value: []byte("multipart/form-data; boundary=binding-h3")}}
+		selectedRequest.Multipart = &StreamingMultipart{Boundary: "binding-h3", MaximumBytes: 4096, Parts: []MultipartPart{MultipartReader("file", source), MultipartReader("later", unstarted)}}
+		uploadBytes += len("--binding-h3\r\nContent-Disposition: form-data; name=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n")
+	}
 	selectedContext, cancel := context.WithCancel(ctx)
 	defer cancel()
-	selected, err := client.Do(selectedContext, Request{Method: "POST", URL: ready.URL + "/upload", Upload: source})
+	selected, err := client.Do(selectedContext, selectedRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,6 +230,12 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 	if source.reads.Load() != 2 || source.closes.Load() != 1 {
 		t.Fatalf("producer reads=%d closes=%d", source.reads.Load(), source.closes.Load())
 	}
+	if unstarted != nil {
+		waitUploadClosed(t, &unstarted.closes)
+		if unstarted.bytes.Load() != 0 {
+			t.Fatal("cancelled multipart read later source")
+		}
+	}
 	checkBody(request("/reuse"), "ok")
 	await("complete")
 	var result struct {
@@ -224,7 +251,7 @@ func TestHTTP3UploadCancellation(t *testing.T) {
 	for _, stream := range result.Streams {
 		streams[stream] = true
 	}
-	if result.Protocol != "h3" || result.Connections != 1 || len(streams) != 4 || result.UploadBytes != 1024 ||
+	if result.Protocol != "h3" || result.Connections != 1 || len(streams) != 4 || result.UploadBytes != uploadBytes ||
 		len(result.Cancellations) != 2 || result.Cancellations["reset_stream"] != 0x10c || result.Cancellations["stop_sending"] != 0x10c || !result.Released {
 		t.Fatalf("unexpected HTTP/3 receipt: %+v", result)
 	}

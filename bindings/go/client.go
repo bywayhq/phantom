@@ -83,6 +83,9 @@ type Request struct {
 	// PreparedBody sends a reusable native form or multipart encoding. It cannot
 	// be combined with Body, Upload or UploadLength. Content-Type placement is explicit.
 	PreparedBody *PreparedBody
+	// Multipart streams ordered fields using core framing and one reader at a
+	// time. It cannot be combined with Body, Upload, UploadLength or PreparedBody.
+	Multipart *StreamingMultipart
 	// Upload transfers a one-shot source to Do, which closes it exactly once,
 	// including on validation failure. Read may run concurrently with Close;
 	// Close must unblock Read. It cannot be combined with Body.
@@ -237,7 +240,7 @@ func clientFromReply(value json.RawMessage) (*Client, error) {
 
 // Do returns the response head and an owned pull-driven body. Keep ctx valid until
 // EOF or Body.Close; cancelling it also closes a body already returned to you.
-func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
+func (c *Client) Do(ctx context.Context, request Request) (response *Response, err error) {
 	var upload *uploadLifetime
 	if request.Upload != nil {
 		upload = &uploadLifetime{source: request.Upload}
@@ -246,12 +249,26 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 			upload.length = &length
 		}
 	}
+	if request.Multipart != nil {
+		multipart := multipartUpload(request.Multipart)
+		if upload == nil {
+			upload = multipart
+		} else {
+			upload.multipart = multipart.multipart
+		}
+	}
 	transferred := false
 	defer func() {
 		if !transferred {
-			upload.close()
+			_ = upload.close()
+			if upload != nil && upload.multipart != nil && err != nil {
+				err = upload.wrap(err)
+			}
 		}
 	}()
+	if multipartConflict(request) {
+		return nil, &Error{Kind: "invalid_multipart"}
+	}
 	if (request.Upload != nil && request.Body != nil) || (request.Upload == nil && request.UploadLength != nil) {
 		return nil, &Error{Kind: "invalid_upload"}
 	}
@@ -394,7 +411,6 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		command["upload"] = upload.id
 	}
-	var response *Response
 	err = performStarted(ctx, command, request.Body, upload.start, func(event completion) error {
 		var head struct {
 			Body                   uint64           `json:"body"`
@@ -428,6 +444,7 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		if response != nil {
 			_ = response.Body.Close()
 		}
+		upload.close()
 		return nil, upload.wrap(err)
 	}
 	transferred = true

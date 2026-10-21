@@ -8,27 +8,37 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from aioquic.h3.events import DataReceived
 from aioquic.quic.events import ConnectionTerminated, StopSendingReceived, StreamReset
 
-from scripts.conformance.binding_upload_h3 import Peer, UploadProtocol
+from scripts.conformance.binding_upload_h3 import MULTIPART_PREFIX, Peer, UploadProtocol
 
 
 class HTTP:
     def __init__(self):
         self.sent = []
+        self.events = []
+        self.headers = []
+
+    def send_headers(self, stream, fields):
+        self.headers.append((stream, fields))
 
     def send_data(self, stream, data, *, end_stream):
         self.sent.append((stream, data, end_stream))
 
     def handle_event(self, _event):
-        return []
+        return self.events
 
 
 class UploadOracleTests(unittest.TestCase):
     def protocol(self, directory):
         protocol = object.__new__(UploadProtocol)
         protocol.owner = SimpleNamespace(
-            protocols=[protocol], stopping=False, directory=Path(directory)
+            protocols=[protocol],
+            stopping=False,
+            directory=Path(directory),
+            expected_upload=b"U" * 1024,
+            multipart=False,
         )
         protocol.http = HTTP()
         protocol.requests = {"/warm": 0, "/upload": 4, "/healthy": 8}
@@ -38,6 +48,34 @@ class UploadOracleTests(unittest.TestCase):
         protocol.resets = {}
         protocol.transmit = lambda: None
         return protocol
+
+    def test_multipart_mode_requires_exact_framing_and_pending_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            protocol = self.protocol(directory)
+            protocol.live = False
+            protocol.healthy = None
+            protocol.upload_bytes = 0
+            protocol.owner.multipart = True
+            protocol.owner.expected_upload = MULTIPART_PREFIX + b"U" * 1024
+            for chunk in (MULTIPART_PREFIX[:17], MULTIPART_PREFIX[17:], b"U" * 1024):
+                protocol.http.events = [
+                    DataReceived(data=chunk, stream_id=4, stream_ended=False)
+                ]
+                protocol.receive(object())
+            self.assertEqual(protocol.upload_bytes, len(MULTIPART_PREFIX) + 1024)
+            self.assertEqual(protocol.http.headers, [(4, [(b":status", b"200")])])
+            protocol.http.events = [
+                DataReceived(
+                    data=b"--binding-h3--\r\n", stream_id=4, stream_ended=False
+                )
+            ]
+            with self.assertRaises(ValueError):
+                protocol.receive(object())
+            protocol.http.events = [
+                DataReceived(data=b"", stream_id=4, stream_ended=True)
+            ]
+            with self.assertRaises(ValueError):
+                protocol.receive(object())
 
     def test_both_remote_cancellation_directions_release_only_the_healthy_stream(self):
         with (

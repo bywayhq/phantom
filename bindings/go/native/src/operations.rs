@@ -109,6 +109,18 @@ enum Command {
         client: u64,
         length: Option<u64>,
     },
+    MultipartContentType {
+        boundary: String,
+    },
+    NewMultipart {
+        client: u64,
+        boundary: String,
+        parts: Vec<crate::multipart::Part>,
+        maximum: usize,
+    },
+    WaitUploadPart {
+        upload: u64,
+    },
     WriteUpload {
         upload: u64,
         end: Option<bool>,
@@ -216,7 +228,7 @@ fn encode(result: Result<Value, Failure>) -> Vec<u8> {
     }
 }
 
-struct UploadPermit {
+pub(super) struct UploadPermit {
     bytes: usize,
     counter: &'static AtomicUsize,
 }
@@ -281,7 +293,13 @@ impl ReadLease {
                 let Some(frame) = stream.body.frame().await else {
                     return Ok::<Option<Bytes>, Failure>(None);
                 };
-                if let Ok(data) = frame.map_err(Failure::from)?.into_data() {
+                if let Ok(data) = frame
+                    .map_err(|error| {
+                        crate::multipart::request_failure(&error)
+                            .unwrap_or_else(|| Failure::from(error))
+                    })?
+                    .into_data()
+                {
                     stream.pending = data;
                 }
             }
@@ -329,6 +347,7 @@ enum Target {
     Maintenance(u64),
     UploadWrite(u64),
     UploadWait(u64),
+    UploadPart(u64),
     Session(u64),
 }
 struct Operation {
@@ -404,8 +423,11 @@ impl State {
     }
     fn reserve(&mut self, target: Target) -> Result<(u64, oneshot::Receiver<()>), Failure> {
         match target {
-            Target::UploadWrite(upload) | Target::UploadWait(upload) => {
-                // Each bounded upload owns one writer and one terminal waiter.
+            Target::UploadWrite(upload)
+            | Target::UploadWait(upload)
+            | Target::UploadPart(upload) => {
+                // Each bounded upload owns one writer, one terminal waiter
+                // and, for multipart, one current-part demand waiter.
                 // They do not reduce ordinary request/read admission capacity.
                 if self
                     .operations
@@ -415,6 +437,7 @@ impl State {
                             (target, op.target),
                             (Target::UploadWrite(_), Target::UploadWrite(_))
                                 | (Target::UploadWait(_), Target::UploadWait(_))
+                                | (Target::UploadPart(_), Target::UploadPart(_))
                         )
                     })
                     .count()
@@ -428,6 +451,7 @@ impl State {
                     .any(|op| match (target, op.target) {
                         (Target::UploadWrite(_), Target::UploadWrite(id))
                         | (Target::UploadWait(_), Target::UploadWait(id)) => id == upload,
+                        (Target::UploadPart(_), Target::UploadPart(id)) => id == upload,
                         _ => false,
                     })
                 {
@@ -459,7 +483,10 @@ impl State {
                     .filter(|op| {
                         !matches!(
                             op.target,
-                            Target::Shutdown(_) | Target::UploadWrite(_) | Target::UploadWait(_)
+                            Target::Shutdown(_)
+                                | Target::UploadWrite(_)
+                                | Target::UploadWait(_)
+                                | Target::UploadPart(_)
                         )
                     })
                     .count()
@@ -523,7 +550,9 @@ impl State {
                     Some(*id)
                 }
                 Target::Read(body) if bodies.contains(&body) => Some(*id),
-                Target::UploadWrite(upload) | Target::UploadWait(upload)
+                Target::UploadWrite(upload)
+                | Target::UploadWait(upload)
+                | Target::UploadPart(upload)
                     if uploads.contains(&upload) =>
                 {
                     Some(*id)
@@ -679,6 +708,7 @@ enum Outcome {
     Head(Head),
     Read(ReadResult),
     Complete,
+    Part(usize),
 }
 
 enum ReadResult {
@@ -821,6 +851,7 @@ impl Global {
                 }
             }
             Ok(Outcome::Complete) => Ok(json!({})),
+            Ok(Outcome::Part(index)) => Ok(json!({"part":index})),
             Err(error) => {
                 if let Some(Operation {
                     target: Target::Read(body),
@@ -913,6 +944,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
             return Ok(native_identity());
         }
         // Preparation owns CPU work and needs neither an HTTP runtime nor its lock.
+        let mut multipart = None;
+        let mut multipart_buffer = None;
         let command = match command {
             Command::ParseClientCertificate {
                 format,
@@ -923,6 +956,25 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
             }
             Command::ReleaseClientCertificate { certificate } => {
                 return client_certificate::release(certificate);
+            }
+            Command::MultipartContentType { boundary } => {
+                return crate::multipart::content_type(&boundary)
+                    .map(|content_type| json!({"content_type": content_type}));
+            }
+            Command::NewMultipart {
+                client,
+                boundary,
+                parts,
+                maximum,
+            } => {
+                multipart_buffer = Some(global()?.upload(bytes.len())?);
+                multipart = Some(crate::multipart::Multipart::new(
+                    client, &boundary, parts, bytes, maximum,
+                )?);
+                Command::NewUpload {
+                    client,
+                    length: None,
+                }
             }
             Command::PrepareBody { encoding, maximum } => {
                 return prepared_body::prepare(encoding, bytes, maximum);
@@ -967,7 +1019,9 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
             Command::PrepareBody { .. }
             | Command::ReleasePreparedBody { .. }
             | Command::ParseClientCertificate { .. }
-            | Command::ReleaseClientCertificate { .. } => Err(Failure::new("internal")),
+            | Command::ReleaseClientCertificate { .. }
+            | Command::MultipartContentType { .. }
+            | Command::NewMultipart { .. } => Err(Failure::new("internal")),
             Command::NewClient { config } => {
                 if state.clients.len() >= MAX_HANDLES {
                     return Err(Failure::new("capacity"));
@@ -1078,7 +1132,10 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                     return Err(Failure::new("capacity"));
                 }
                 let id = state.id()?;
-                state.streams.insert(id, Upload::new(client, length));
+                state.streams.insert(
+                    id,
+                    Upload::with_multipart(client, length, multipart, multipart_buffer),
+                );
                 Ok(json!({"id": id}))
             }
             Command::WriteUpload { upload, end } => {
@@ -1111,6 +1168,19 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 global.spawn(id, cancel, async move {
                     owner.closed().await;
                     Ok(Outcome::Complete)
+                });
+                Ok(json!({"operation": id}))
+            }
+            Command::WaitUploadPart { upload } => {
+                let owner = state
+                    .streams
+                    .get(&upload)
+                    .cloned()
+                    .ok_or_else(|| Failure::new("upload_closed"))?;
+                let (id, cancel) = state.reserve(Target::UploadPart(upload))?;
+                drop(state);
+                global.spawn(id, cancel, async move {
+                    owner.next_part().await.map(Outcome::Part)
                 });
                 Ok(json!({"operation": id}))
             }
@@ -1248,6 +1318,10 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 let (id, cancel) = state.reserve(Target::Request(client))?;
                 let mut stream_upload = None;
                 if let Some(upload) = upload {
+                    enum Streaming {
+                        Single(crate::upload::UploadBody),
+                        Multipart(phantom::StreamingMultipartBody),
+                    }
                     let body = (|| {
                         if has_body || !bytes.is_empty() {
                             return Err(Failure::new("invalid_upload"));
@@ -1259,13 +1333,17 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                         if owner.client != client {
                             return Err(Failure::new("invalid_upload"));
                         }
-                        let body = owner.body()?;
                         owner.deadline(global.runtime.handle(), total)?;
                         stream_upload = Some(std::sync::Arc::clone(owner));
-                        Ok(body)
+                        if let Some(multipart) = &owner.multipart {
+                            Ok(Streaming::Multipart(multipart.take_body(owner)?))
+                        } else {
+                            Ok(Streaming::Single(owner.body()?))
+                        }
                     })();
                     match body {
-                        Ok(body) => request = request.streaming_body(body),
+                        Ok(Streaming::Multipart(body)) => request = request.multipart_body(body),
+                        Ok(Streaming::Single(body)) => request = request.streaming_body(body),
                         Err(error) => {
                             state.operations.remove(&id);
                             return Err(error);
@@ -1279,9 +1357,13 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 drop(state);
                 global.spawn(id, cancel, async move {
                     let response = request.send().await.map_err(|error| {
-                        let failure = Failure::from(error);
+                        let failure = crate::multipart::request_failure(&error)
+                            .unwrap_or_else(|| Failure::from(error));
                         match &stream_upload {
-                            Some(upload) => upload.failure(failure),
+                            Some(upload) => {
+                                upload.close();
+                                upload.failure(failure)
+                            }
                             None => failure,
                         }
                     })?;

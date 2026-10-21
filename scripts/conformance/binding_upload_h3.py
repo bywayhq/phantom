@@ -28,6 +28,10 @@ except ImportError:  # direct installed fixture execution
 
 LIMIT_SECONDS = 20
 CANCELLED = 0x10C
+MULTIPART_PREFIX = (
+    b'--binding-h3\r\nContent-Disposition: form-data; name="file"\r\n'
+    b"Content-Type: application/octet-stream\r\n\r\n"
+)
 
 
 def event(name):
@@ -96,12 +100,11 @@ class UploadProtocol(QuicConnectionProtocol):
                     continue
                 if message.stream_ended:
                     raise ValueError("unexpected request DATA or completed upload")
-                self.upload_bytes += len(message.data)
-                if self.upload_bytes > 1024 or message.data.count(b"U") != len(
-                    message.data
-                ):
+                end = self.upload_bytes + len(message.data)
+                if message.data != self.owner.expected_upload[self.upload_bytes : end]:
                     raise ValueError("unexpected upload payload")
-                if self.upload_bytes == 1024:
+                self.upload_bytes = end
+                if self.upload_bytes == len(self.owner.expected_upload):
                     self.http.send_headers(self.selected, [(b":status", b"200")])
                     self.http.send_data(self.selected, b"a", end_stream=False)
                     self.transmit()
@@ -125,6 +128,10 @@ class UploadProtocol(QuicConnectionProtocol):
                     "selected upload must have an unfinished unknown length"
                 )
             self.selected = message.stream_id
+            if self.owner.multipart and fields.get(b"content-type") != (
+                b"multipart/form-data; boundary=binding-h3"
+            ):
+                raise ValueError("unexpected multipart content type")
             return
         if path == b"/healthy":
             self.healthy = message.stream_id
@@ -140,7 +147,11 @@ class UploadProtocol(QuicConnectionProtocol):
             event("complete")
 
     def publish_live(self):
-        if not self.live and self.upload_bytes == 1024 and self.healthy is not None:
+        if (
+            not self.live
+            and self.upload_bytes == len(self.owner.expected_upload)
+            and self.healthy is not None
+        ):
             self.live = True
             event("live")
 
@@ -156,11 +167,13 @@ class UploadProtocol(QuicConnectionProtocol):
 
 
 class Peer:
-    def __init__(self, directory):
+    def __init__(self, directory, multipart=False):
         self.directory = directory
         self.protocols = []
         self.failure = asyncio.get_running_loop().create_future()
         self.stopping = False
+        self.multipart = multipart
+        self.expected_upload = (MULTIPART_PREFIX if multipart else b"") + b"U" * 1024
 
     def fail(self, error):
         if not self.failure.done():
@@ -170,10 +183,10 @@ class Peer:
         self.fail(context.get("exception") or RuntimeError("peer callback failed"))
 
 
-async def run(directory):
+async def run(directory, multipart=False):
     directory.mkdir(exist_ok=True)
     certificate = generate_loopback_certificate(directory)
-    owner = Peer(directory)
+    owner = Peer(directory, multipart)
     configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
     configuration.load_cert_chain(
         certificate.certificate_pem, certificate.private_key_pem
@@ -234,9 +247,10 @@ async def run(directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--multipart", action="store_true")
     args = parser.parse_args()
     try:
-        asyncio.run(run(args.directory))
+        asyncio.run(run(args.directory, args.multipart))
     except Exception as error:
         write_json(
             args.directory / "error.json",
