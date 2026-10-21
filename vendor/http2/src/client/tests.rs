@@ -2581,3 +2581,5 @@ mod io_causes;
 mod initial_stream_window;
 
 mod completed_response_reset;
+
+mod received_trailers;

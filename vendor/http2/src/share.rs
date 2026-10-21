@@ -138,6 +138,7 @@ impl From<StreamId> for u32 {
 #[must_use = "streams do nothing unless polled"]
 pub struct RecvStream {
     inner: FlowControl,
+    ordered_trailers: Option<OrderedHeaders>,
 }
 
 /// A handle to release window capacity to a remote stream.
@@ -421,7 +422,10 @@ impl StreamId {
 
 impl RecvStream {
     pub(crate) fn new(inner: FlowControl) -> Self {
-        RecvStream { inner }
+        RecvStream {
+            inner,
+            ordered_trailers: None,
+        }
     }
 
     /// Get the next data frame.
@@ -436,7 +440,8 @@ impl RecvStream {
 
     /// Poll for the next data frame.
     pub fn poll_data(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, crate::Error>>> {
-        self.inner.inner.poll_data(cx).map_err(Into::into)
+        self.ordered_trailers = None;
+        self.inner.inner.poll_data(cx)
     }
 
     #[doc(hidden)]
@@ -444,10 +449,35 @@ impl RecvStream {
         &mut self,
         cx: &mut Context,
     ) -> Poll<Result<Option<HeaderMap>, crate::Error>> {
+        self.ordered_trailers = None;
         match ready!(self.inner.inner.poll_trailers(cx)) {
-            Some(Ok(map)) => Poll::Ready(Ok(Some(map))),
-            Some(Err(e)) => Poll::Ready(Err(e.into())),
+            Some(Ok((map, ordered))) => {
+                self.ordered_trailers = ordered;
+                Poll::Ready(Ok(Some(map)))
+            }
+            Some(Err(e)) => Poll::Ready(Err(e)),
             None => Poll::Ready(Ok(None)),
+        }
+    }
+
+    /// Takes the decoded field order matching the last delivered trailers.
+    ///
+    /// Call immediately after `trailers` or `poll_trailers` returns `Some`.
+    /// The next data or trailer poll clears this value, as does taking it.
+    /// Failed or reset receive states do not expose ordered metadata. A
+    /// completed response retained after a remote `NO_ERROR` reset remains
+    /// readable under the existing receive rules.
+    ///
+    /// Pseudo-headers are excluded. This is the existing HPACK decoder's
+    /// ordinary-field order and byte values, not evidence that the entire
+    /// response has passed any higher-level validation.
+    #[must_use]
+    pub fn take_ordered_trailers(&mut self) -> Option<OrderedHeaders> {
+        let ordered = self.ordered_trailers.take();
+        if self.is_end_stream() {
+            ordered
+        } else {
+            None
         }
     }
 

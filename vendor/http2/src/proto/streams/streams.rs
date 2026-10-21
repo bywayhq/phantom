@@ -1673,11 +1673,12 @@ impl OpaqueStreamRef {
         me.actions.recv.is_end_stream(&stream)
     }
 
-    pub fn poll_data(&mut self, cx: &Context) -> Poll<Option<Result<Bytes, proto::Error>>> {
+    pub fn poll_data(&mut self, cx: &Context) -> Poll<Option<Result<Bytes, crate::Error>>> {
         let mut me = self.inner.lock();
         let me = &mut *me;
 
         let mut stream = me.store.resolve(self.key);
+        let local_limit = stream.local_limit;
 
         me.actions
             .recv
@@ -1689,18 +1690,25 @@ impl OpaqueStreamRef {
                     }
                     Some(Ok(data.payload))
                 }
-                Some(Err(err)) => Some(Err(err)),
+                Some(Err(err)) => Some(Err(crate::Error::from_stream_reset(err, local_limit))),
                 None => None,
             })
     }
 
-    pub fn poll_trailers(&mut self, cx: &Context) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
+    pub fn poll_trailers(
+        &mut self,
+        cx: &Context,
+    ) -> Poll<Option<Result<(HeaderMap, Option<OrderedHeaders>), crate::Error>>> {
         let mut me = self.inner.lock();
         let me = &mut *me;
 
         let mut stream = me.store.resolve(self.key);
+        let local_limit = stream.local_limit;
 
-        me.actions.recv.poll_trailers(cx, &mut stream)
+        me.actions
+            .recv
+            .poll_trailers(cx, &mut stream)
+            .map_err(|err| crate::Error::from_stream_reset(err, local_limit))
     }
 
     pub(crate) fn available_recv_capacity(&self) -> isize {

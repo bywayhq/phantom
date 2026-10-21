@@ -79,6 +79,24 @@ received requests and responses. Informational responses retain the same
 sidecar. Pseudo-headers remain represented by the existing semantic fields and
 are not included in the ordered ordinary-field list.
 
+`received-trailers.patch` moves the same decoded order through the trailer
+receive queue. `RecvStream::take_ordered_trailers` takes the metadata matching
+the last successfully delivered trailer map; the next DATA or trailer poll
+clears it. Receive failures and cancellation do not expose it, while the
+existing completed-response `NO_ERROR` exception remains intact. The list
+retains lowercase names, duplicate interleaving and byte values; the decoder
+does not retain inbound HPACK never-indexed flags. This handoff does not assert
+higher-level response completion or integrity.
+
+The patch also rejects a trailer block marked over the existing decoded
+header-list limit before queueing it. Previously the receive path could
+publish the decoder's retained prefix as a successful trailer map. The
+existing `>=` ceiling and `PROTOCOL_ERROR` reset remain the policy, and body
+polls preserve the same typed header-list-limit cause as response-head polls.
+Raw HPACK regressions cover split blocks, duplicate order, byte values,
+stream-local lifetime, limit boundaries, reset/cancel and malformed or
+truncated input, without changing the ordinary trailer-map API.
+
 The real-client regression also exposed an upstream idle-close race: dropping
 the final stream can queue an implicit reset while removing the last stream
 reference. The connection now polls the open state before starting its idle

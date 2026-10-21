@@ -416,6 +416,17 @@ impl Headers {
         &self.header_block.fields
     }
 
+    pub(crate) fn into_fields_with_order(
+        mut self,
+    ) -> (HeaderMap, Option<crate::ext::OrderedHeaders>) {
+        let ordered = self
+            .header_block
+            .ordered_fields
+            .take()
+            .map(crate::ext::OrderedHeaders::new);
+        (self.into_fields(), ordered)
+    }
+
     pub fn into_fields(self) -> HeaderMap {
         self.header_block.fields
     }

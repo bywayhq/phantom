@@ -29,4 +29,5 @@ idle-ping-retirement.patch
 initial-stream-window.patch
 completed-response-reset-tests.patch
 completed-response-reset.patch
+received-trailers.patch
 publish-identity.patch

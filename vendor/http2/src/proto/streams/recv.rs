@@ -76,7 +76,7 @@ const MAX_QUEUED_ALTSVC_FRAMES: usize = 16;
 pub(super) enum Event {
     Headers(peer::PollMessage),
     Data(DataEvent),
-    Trailers(HeaderMap),
+    Trailers(HeaderMap, Option<crate::ext::OrderedHeaders>),
     InformationalHeaders(peer::PollMessage),
 }
 
@@ -495,6 +495,11 @@ impl Recv {
         frame: frame::Headers,
         stream: &mut store::Ptr,
     ) -> Result<(), Error> {
+        if frame.is_over_size() {
+            stream.local_limit = Some(crate::error::LocalLimit::HeaderListSize);
+            return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
+        }
+
         // Transition the state
         stream.state.recv_close()?;
 
@@ -503,12 +508,12 @@ impl Recv {
             return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
         }
 
-        let trailers = frame.into_fields();
+        let (trailers, ordered) = frame.into_fields_with_order();
 
         // Push the frame onto the stream's recv buffer
         stream
             .pending_recv
-            .push_back(&mut self.buffer, Event::Trailers(trailers));
+            .push_back(&mut self.buffer, Event::Trailers(trailers, ordered));
         stream.notify_recv();
 
         Ok(())
@@ -1313,9 +1318,9 @@ impl Recv {
         &mut self,
         cx: &Context,
         stream: &mut Stream,
-    ) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
+    ) -> Poll<Option<Result<(HeaderMap, Option<crate::ext::OrderedHeaders>), proto::Error>>> {
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Trailers(trailers)) => Poll::Ready(Some(Ok(trailers))),
+            Some(Event::Trailers(trailers, ordered)) => Poll::Ready(Some(Ok((trailers, ordered)))),
             Some(event) => {
                 // Frame is not trailers.. not ready to poll trailers yet.
                 stream.pending_recv.push_front(&mut self.buffer, event);
