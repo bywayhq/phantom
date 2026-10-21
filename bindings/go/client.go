@@ -296,7 +296,10 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		}
 		transfer = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "transfer": transfer, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
+	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
+	if transfer != nil {
+		command["transfer"] = transfer
+	}
 	if upload != nil {
 		if err := upload.prepare(ctx, c.id.Load()); err != nil {
 			return nil, err
