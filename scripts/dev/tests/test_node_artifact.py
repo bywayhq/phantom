@@ -195,6 +195,7 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer.test.cjs",
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
+            "response-trailers.test.cjs",
             "server-pins.test.cjs",
             "client-certificates.test.cjs",
             "diagnostics.test.cjs",
@@ -226,6 +227,9 @@ class NodeArtifactTests(unittest.TestCase):
         diagnostics = (destination / "diagnostics-facade.test.cjs").read_text()
         self.assertIn("require.resolve('@byway/phantom')", diagnostics)
         self.assertNotIn("path.resolve(__dirname, '../index.cjs')", diagnostics)
+        trailers = (destination / "response-trailers-facade.test.cjs").read_text()
+        self.assertIn("require.resolve('@byway/phantom')", trailers)
+        self.assertNotIn("path.resolve(__dirname, '../index.cjs')", trailers)
         for name in (
             "prepared-bodies-facade",
             "request-controls-facade",

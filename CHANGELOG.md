@@ -5,7 +5,8 @@
 - Remove the client benchmark harness and its benchmark-dependent release checks.
 
 - Retain response trailers in wire order after body decoding and response
-  authentication complete. Reject oversized HTTP/2 trailers and HTTP/3
+  authentication complete. Expose non-draining trailer snapshots in Python,
+  Go and Node.js. Reject oversized HTTP/2 trailers and HTTP/3
   trailer pseudo-headers instead of returning incomplete or invalid fields.
 
 - Reuse parsed PEM or DER client certificates in Python, Go and Node.js with
