@@ -383,6 +383,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked peer_field_section_limit
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked tests::received_trailers
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked tests::socket
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack::
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack_
