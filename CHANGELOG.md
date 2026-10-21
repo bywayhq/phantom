@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Accept the current audited Linux Python wheels and binding workflow artifacts
+  when promoting verified prebuilt releases.
+
 - Observe live request diagnostics from Python, Go and Node.js, including
   failed sends, separate response-body completion and connection/TLS facts.
 
