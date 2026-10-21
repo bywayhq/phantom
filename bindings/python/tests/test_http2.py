@@ -3,24 +3,33 @@
 import asyncio
 import gzip
 import socket
+import ssl
 import threading
 import unittest
 
 import h2.config
 import h2.connection
 import h2.events
-from phantom_http import AsyncClient, BodyLimitExceeded, ContentDecoding, Header
+from phantom_http import AsyncClient, BodyLimitExceeded, ContentDecoding, Header, Trust
+from test_settings_transport import FIXTURES, ROOT, spki_pin
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
 
 class H2Peer:
-    def __init__(self, *, overflow_body=b"a"):
+    def __init__(self, *, overflow_body=b"a", tls=False):
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
         self.listener.settimeout(8)
-        self.url = f"http://127.0.0.1:{self.listener.getsockname()[1]}"
+        self.tls = None
+        if tls:
+            self.tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            self.tls.load_cert_chain(FIXTURES / "certificate.pem", FIXTURES / "key.pem")
+            self.tls.set_alpn_protocols(["h2"])
+        self.url = (
+            f"{'https' if tls else 'http'}://127.0.0.1:{self.listener.getsockname()[1]}"
+        )
         self.reset = threading.Event()
         self.error = None
         self.requests = []
@@ -46,6 +55,10 @@ class H2Peer:
     def run(self):
         try:
             stream, _ = self.listener.accept()
+            stream.setblocking(True)
+            stream.settimeout(8)
+            if self.tls is not None:
+                stream = self.tls.wrap_socket(stream, server_side=True)
             with stream:
                 stream.settimeout(8)
                 connection = h2.connection.H2Connection(
@@ -100,6 +113,23 @@ class H2Peer:
 
 
 class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_tls_pin_rotation_preserves_verified_h2_and_connection_reuse(self):
+        pin = spki_pin(FIXTURES / "certificate.pem")
+        with H2Peer(tls=True) as peer:
+            async with AsyncClient(
+                profile=PROFILE,
+                protocol="h2",
+                context="raw",
+                timeout_ms=5000,
+                trust=Trust(roots=(ROOT,), server_spki_pins=(bytes(32), pin)),
+            ) as client:
+                for path in ("/first", "/second", "/third"):
+                    response = await client.request("GET", peer.url + path)
+                    self.assertEqual(response.protocol, "h2")
+                    self.assertEqual(await response.read(max_bytes=5), b"hello")
+            self.assertEqual(len(peer.requests), 3)
+        self.assertFalse(peer.premature_close)
+
     async def test_sensitive_header_never_indexes_and_duplicate_order_is_preserved(
         self,
     ):

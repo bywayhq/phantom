@@ -186,6 +186,8 @@ class NativeClient:
         timeouts: list[tuple[str, float | None]] | None = None,
         redirect_maximum_hops: int | None = None,
         retry_policy: _RetryFields | None = None,
+        server_spki_pins: tuple[bytes, ...] | None = None,
+        proxy_server_spki_pins: tuple[bytes, ...] | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...

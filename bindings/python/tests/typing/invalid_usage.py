@@ -169,3 +169,7 @@ def invalid_diagnostics(client: Client) -> None:
         snapshot.admitted_attempts = 0  # E: misc
         snapshot.events[0].started_ns = 0  # E: misc
         snapshot.events.append(snapshot.events[0])  # E: attr-defined
+
+
+Trust(server_spki_pins=[bytes(32)])  # E: arg-type
+Trust(proxy_server_spki_pins=("private",))  # E: arg-type

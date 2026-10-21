@@ -8,7 +8,7 @@ import weakref
 from unittest.mock import patch
 
 import phantom_http
-from phantom_http import AsyncClient, Client, Proxy, SessionSnapshotError
+from phantom_http import AsyncClient, Client, Proxy, SessionSnapshotError, Trust
 from test_client import OPTIONS, server
 
 KEY = b"checkpoint-test-key-not-a-secret"
@@ -142,6 +142,22 @@ class SnapshotSyncFacadeTests(unittest.TestCase):
 
 
 class SnapshotTests(unittest.TestCase):
+    def test_even_empty_checkpoint_rejects_changed_origin_or_proxy_pin_policy(self):
+        for field in ("server_spki_pins", "proxy_server_spki_pins"):
+            with (
+                self.subTest(field=field),
+                Client(**OPTIONS, trust=Trust(**{field: (bytes(32),)})) as source,
+            ):
+                snapshot = source.export_session(KEY)
+                with source.restore_session(snapshot, KEY) as child:
+                    self.assertFalse(child.is_closed)
+                for trust in (Trust(), Trust(**{field: (bytes([1]) * 32,)})):
+                    with Client(**OPTIONS, trust=trust) as recipient:
+                        with self.assertRaises(SessionSnapshotError) as caught:
+                            recipient.restore_session(snapshot, KEY)
+                        self.assertEqual(caught.exception.kind, "incompatible")
+                        self.assertFalse(recipient.is_closed)
+
     def test_cookie_checkpoint_private_pools_source_retention_and_close(self):
         with (
             server() as (origin, url),

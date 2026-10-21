@@ -1,6 +1,9 @@
 use crate::error;
 use phantom::{RequestTimeoutOverrides, RequestTimeouts, Route, TimeoutOverride};
-use pyo3::prelude::*;
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyTuple},
+};
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
@@ -15,6 +18,29 @@ pub(super) type RetryFields = (
     Option<usize>,
     bool,
 );
+
+pub(super) fn server_pins(
+    value: Option<&Bound<'_, PyAny>>,
+    kind: &'static str,
+) -> PyResult<Option<phantom::ServerSpkiPins>> {
+    let Some(value) = value else { return Ok(None) };
+    let values = value.cast::<PyTuple>().map_err(|_| error::input(kind))?;
+    if !(1..=32).contains(&values.len()) {
+        return Err(error::input(kind));
+    }
+    let mut digests = Vec::with_capacity(values.len());
+    for value in values.iter() {
+        let bytes = value.cast::<PyBytes>().map_err(|_| error::input(kind))?;
+        let digest = bytes
+            .as_bytes()
+            .try_into()
+            .map_err(|_| error::input(kind))?;
+        digests.push(digest);
+    }
+    phantom::ServerSpkiPins::new(digests)
+        .map(Some)
+        .map_err(|_| error::input(kind))
+}
 
 fn retry_duration(seconds: f64) -> PyResult<Duration> {
     Duration::try_from_secs_f64(seconds).map_err(|_| error::input("invalid_retry_duration"))
@@ -178,6 +204,49 @@ pub(super) fn client_timeouts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_pin_boundary_rejects_invalid_shapes_and_keeps_core_canonicalization() -> PyResult<()>
+    {
+        Python::initialize();
+        Python::attach(|py| {
+            assert!(server_pins(None, "invalid_server_spki_pins")?.is_none());
+            let kind = "invalid_server_spki_pins";
+            for expression in [
+                "[]",
+                "()",
+                "(b'x' * 32,) * 33",
+                "(b'x',)",
+                "(bytearray(32),)",
+                "('private',)",
+            ] {
+                let code = std::ffi::CString::new(expression)
+                    .map_err(|_| error::input("test_expression"))?;
+                let value = py.eval(&code, None, None)?;
+                let error = server_pins(Some(&value), kind)
+                    .err()
+                    .ok_or_else(|| error::input("test_expected_pin_error"))?;
+                let fields: (String, String, Option<String>, Option<String>) =
+                    error.value(py).getattr("args")?.extract()?;
+                assert_eq!(fields, ("input".into(), kind.into(), None, None));
+                assert!(!error.to_string().contains("private"));
+            }
+            let value = PyTuple::new(
+                py,
+                [
+                    PyBytes::new(py, &[2; 32]),
+                    PyBytes::new(py, &[1; 32]),
+                    PyBytes::new(py, &[2; 32]),
+                ],
+            )?;
+            let pins = server_pins(Some(value.as_any()), kind)?
+                .ok_or_else(|| error::input("test_missing_pins"))?;
+            assert_eq!(pins.sha256_digests(), &[[1; 32], [2; 32]]);
+            let value = PyTuple::new(py, (0..32).map(|_| PyBytes::new(py, &[1; 32])))?;
+            assert!(server_pins(Some(value.as_any()), "invalid_proxy_server_spki_pins")?.is_some());
+            Ok(())
+        })
+    }
 
     #[test]
     fn retry_fields_preserve_every_core_class_and_schedule() -> PyResult<()> {

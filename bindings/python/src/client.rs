@@ -120,7 +120,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -137,7 +137,13 @@ impl NativeClient {
         timeouts: Option<configuration::TimeoutFields>,
         redirect_maximum_hops: Option<usize>,
         retry_policy: Option<configuration::RetryFields>,
+        server_spki_pins: Option<&Bound<'_, PyAny>>,
+        proxy_server_spki_pins: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
+        let server_spki_pins =
+            configuration::server_pins(server_spki_pins, "invalid_server_spki_pins")?;
+        let proxy_server_spki_pins =
+            configuration::server_pins(proxy_server_spki_pins, "invalid_proxy_server_spki_pins")?;
         runtime::initialize()?;
         if !matches!(protocol, "h1" | "h2" | "h3" | "negotiated") {
             return Err(error::input("invalid_protocol"));
@@ -156,6 +162,12 @@ impl NativeClient {
             builder = builder
                 .base_url(base_url)
                 .map_err(|_| error::input("invalid_base_url"))?;
+        }
+        if let Some(pins) = server_spki_pins {
+            builder = builder.server_spki_pins(pins);
+        }
+        if let Some(pins) = proxy_server_spki_pins {
+            builder = builder.proxy_server_spki_pins(pins);
         }
         for root in roots {
             builder = builder.add_root_certificate_der(root);

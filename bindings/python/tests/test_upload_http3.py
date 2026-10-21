@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from phantom_http import AsyncClient, Trust
+from test_settings_transport import spki_pin
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
@@ -60,7 +61,13 @@ class HTTP3UploadTests(unittest.IsolatedAsyncioTestCase):
                     protocol="h3",
                     context="raw",
                     timeout_ms=10000,
-                    trust=Trust(roots=(bytes(ready["root_der"]),)),
+                    trust=Trust(
+                        roots=(bytes(ready["root_der"]),),
+                        server_spki_pins=(
+                            bytes(32),
+                            spki_pin(directory / "server.pem"),
+                        ),
+                    ),
                 ) as client:
                     warm = await client.request("GET", ready["url"] + "/warm")
                     self.assertEqual(await warm.read(max_bytes=2), b"ok")

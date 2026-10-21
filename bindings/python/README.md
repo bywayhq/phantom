@@ -144,6 +144,11 @@ accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. Use
 `Proxy(uri, username="user", password="secret")` for HTTP Basic or SOCKS5 auth;
 credentials belong outside the URI. `Trust(roots=(der,), proxy_roots=(der,))`
 adds separate origin/proxy roots while retaining certificate verification.
+`Trust(server_spki_pins=(digest,), proxy_server_spki_pins=(digest,))` adds
+optional origin/proxy pin policies: one to 32 supplied SHA-256 digests of the
+leaf's DER SubjectPublicKeyInfo, each exactly 32 bytes. Pins supplement verified
+trust; `None` omits a policy, and an empty tuple is invalid. A proxy pin requires
+TLS when a proxy is used; direct routes remain usable.
 
 `base_url="https://example.com/api/"` resolves `"child"` to `/api/child`;
 `"/child"` starts at the origin root. Cookies are enabled by default. Use

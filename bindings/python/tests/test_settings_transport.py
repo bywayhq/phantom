@@ -2,9 +2,11 @@
 
 import asyncio
 import contextlib
+import hashlib
 import http.server
 import socket
 import ssl
+import subprocess
 import sys
 import threading
 import time
@@ -27,6 +29,24 @@ from phantom_http import (
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 FIXTURES = Path(__file__).with_name("fixtures")
 ROOT = (FIXTURES / "certificate.der").read_bytes()
+
+
+def spki_pin(certificate):
+    """Hash the independently parsed leaf DER SPKI, never the whole certificate."""
+    public = subprocess.run(
+        ["openssl", "x509", "-in", str(certificate), "-pubkey", "-noout"],
+        capture_output=True,
+        check=True,
+        timeout=5,
+    ).stdout
+    der = subprocess.run(
+        ["openssl", "pkey", "-pubin", "-outform", "DER"],
+        input=public,
+        capture_output=True,
+        check=True,
+        timeout=5,
+    ).stdout
+    return hashlib.sha256(der).digest()
 
 
 class SettingsPeer(http.server.ThreadingHTTPServer):
@@ -314,6 +334,93 @@ class ClientSettingsTests(unittest.TestCase):
         with self.assertRaises(Error) as failure:
             Client(profile=PROFILE, protocol="h1", trust=Trust(roots=(b"not DER",)))
         self.assertEqual(failure.exception.kind, "invalid_client_configuration")
+
+    def test_origin_pins_supplement_verified_trust_and_survive_fork(self):
+        pin = spki_pin(FIXTURES / "certificate.pem")
+        with peer(tls=True) as server:
+            for trust in (
+                Trust(server_spki_pins=(pin,)),
+                Trust(roots=(ROOT,), server_spki_pins=(bytes(32),)),
+            ):
+                with (
+                    Client(
+                        profile=PROFILE,
+                        protocol="h1",
+                        context="raw",
+                        trust=trust,
+                        timeout_ms=2000,
+                    ) as client,
+                    client.fork() as child,
+                ):
+                    for caller in (client, child):
+                        with self.assertRaises(Error) as caught:
+                            caller.request("GET", server.url)
+                        self.assertEqual(caught.exception.kind, "tls")
+            self.assertEqual(server.requests, [])
+            trust = Trust(roots=(ROOT,), server_spki_pins=(bytes(32), pin, pin))
+            with Client(
+                profile=PROFILE,
+                protocol="h1",
+                context="raw",
+                trust=trust,
+                timeout_ms=2000,
+            ) as source:
+                child = source.fork()
+                try:
+                    source.close()
+                    with child.request("GET", server.url) as response:
+                        self.assertEqual(response.read(max_bytes=5), b"hello")
+                finally:
+                    child.close()
+            self.assertEqual(len(server.requests), 1)
+        with (
+            peer() as server,
+            Client(profile=PROFILE, protocol="h1", trust=trust) as client,
+        ):
+            with self.assertRaises(Error) as caught:
+                client.request("GET", server.url)
+            self.assertEqual(caught.exception.kind, "server_pin_policy")
+            self.assertEqual(server.requests, [])
+
+    def test_proxy_pins_are_distinct_from_origin_pins_and_require_tls_proxy(self):
+        pin = spki_pin(FIXTURES / "certificate.pem")
+        with peer(tls=True, basic_auth=True) as server:
+            for roots, pins in (((), (pin,)), ((ROOT,), (bytes(32),))):
+                with Client(
+                    profile=PROFILE,
+                    protocol="h1",
+                    proxy=Proxy(server.url, "user", "pass"),
+                    trust=Trust(proxy_roots=roots, proxy_server_spki_pins=pins),
+                    timeout_ms=2000,
+                ) as client:
+                    with self.assertRaises(Error) as caught:
+                        client.request("GET", "http://origin.invalid/path")
+                    self.assertEqual(caught.exception.kind, "proxy")
+            self.assertEqual(server.requests, [])
+            with (
+                Client(
+                    profile=PROFILE,
+                    protocol="h1",
+                    proxy=Proxy(server.url, "user", "pass"),
+                    trust=Trust(proxy_roots=(ROOT,), proxy_server_spki_pins=(pin,)),
+                    timeout_ms=2000,
+                ) as client,
+                client.request("GET", "http://origin.invalid/path") as response,
+            ):
+                self.assertEqual(response.read(max_bytes=5), b"hello")
+            self.assertEqual(len(server.requests), 1)
+        with peer() as server:
+            for proxy in (server.url, server.url.replace("http://", "socks5h://")):
+                with Client(
+                    profile=PROFILE,
+                    protocol="h1",
+                    proxy=proxy,
+                    trust=Trust(proxy_server_spki_pins=(pin,)),
+                ) as client:
+                    with self.assertRaises(Error) as caught:
+                        client.request("GET", "http://origin.invalid/path")
+                    self.assertEqual(caught.exception.kind, "server_pin_policy")
+            self.assertEqual(server.requests, [])
 
     def test_https_proxy_roots_and_basic_auth_are_separate_from_origin_roots(self):
         with peer(tls=True, basic_auth=True) as server:

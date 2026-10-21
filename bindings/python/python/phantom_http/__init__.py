@@ -787,6 +787,16 @@ class AsyncClient:
             None if timeouts is None else timeouts._native_fields(),
             None if redirect_policy is None else redirect_policy.maximum_hops,
             None if retry_policy is None else retry_policy._native_fields(),
+            **(
+                {"server_spki_pins": roots.server_spki_pins}
+                if roots.server_spki_pins is not None
+                else {}
+            ),
+            **(
+                {"proxy_server_spki_pins": roots.proxy_server_spki_pins}
+                if roots.proxy_server_spki_pins is not None
+                else {}
+            ),
         )
         self.cookies = Cookies(self._native.cookies)
         self._uploads: set[_upload.Upload] = set()

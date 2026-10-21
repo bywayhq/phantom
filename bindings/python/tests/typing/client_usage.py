@@ -308,3 +308,9 @@ async def diagnostics_usage(client: AsyncClient, sync: Client) -> None:
                     print(certificates, elapsed, started)
     with sync.request("GET", "/", diagnostics=RequestDiagnostics(1)):
         pass
+
+
+def pinned_clients(pin: bytes) -> None:
+    trust = Trust(server_spki_pins=(pin,), proxy_server_spki_pins=(pin,))
+    with Client(profile="exact", protocol="h1", trust=trust):
+        pass

@@ -104,10 +104,12 @@ class Proxy:
 
 @dataclass(frozen=True, kw_only=True)
 class Trust:
-    """Additional DER origin/proxy roots; certificate verification stays enabled."""
+    """DER roots and optional leaf DER-SPKI SHA-256 pins, with verification enabled."""
 
     roots: tuple[bytes, ...] = field(default=(), repr=False)
     proxy_roots: tuple[bytes, ...] = field(default=(), repr=False)
+    server_spki_pins: tuple[bytes, ...] | None = field(default=None, repr=False)
+    proxy_server_spki_pins: tuple[bytes, ...] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         for name, values in (("roots", self.roots), ("proxy_roots", self.proxy_roots)):
@@ -115,6 +117,20 @@ class Trust:
                 not isinstance(value, bytes) for value in values
             ):
                 raise TypeError(f"{name} must be a tuple of DER bytes")
+        for name, pins in (
+            ("server_spki_pins", self.server_spki_pins),
+            ("proxy_server_spki_pins", self.proxy_server_spki_pins),
+        ):
+            if pins is None:
+                continue
+            if not isinstance(pins, tuple):
+                raise TypeError(f"{name} must be a tuple of 32-byte digests")
+            if not 1 <= len(pins) <= 32:
+                raise ValueError(f"{name} requires one to 32 supplied digests")
+            if any(not isinstance(value, bytes) for value in pins):
+                raise TypeError(f"{name} must be a tuple of 32-byte digests")
+            if any(len(value) != 32 for value in pins):
+                raise ValueError(f"{name} digests must contain exactly 32 bytes")
 
 
 @dataclass(frozen=True, kw_only=True)
