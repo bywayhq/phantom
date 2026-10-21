@@ -43,7 +43,9 @@ async function listen(t, server) {
   const sockets = new Set();
   server.on('connection', (socket) => {sockets.add(socket); socket.on('close', () => sockets.delete(socket));});
   // Negative authentication controls deliberately terminate handshakes.
-  server.on('tlsClientError', () => {});
+  server.on('tlsClientError', (error) => t.diagnostic(JSON.stringify({
+    peerTlsError: error.code, reason: error.reason,
+  })));
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(async () => {for (const socket of sockets) socket.destroy(); await new Promise((resolve) => server.close(resolve));});
   return `https://127.0.0.1:${server.address().port}`;
@@ -71,6 +73,20 @@ test('PEM and DER parse preserve typed redacted causes and copy byte inputs befo
   assert.equal(inspect(owner, {showHidden: true}), 'ClientCertificate {}');
   const server = https.createServer(tls(a.pem), (_request, response) => response.end('ok'));
   const url = await listen(t, server);
+  // Check the generated clientAuth trust independently of the native client.
+  await new Promise((resolve, reject) => {
+    const request = https.get(url, {ca: fixture('certificate.pem'), cert: a.pem, key: a.key, agent: false}, (response) => {
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('error', reject);
+      response.on('end', () => {
+        try {assert.equal(response.statusCode, 200); assert.equal(Buffer.concat(chunks).toString(), 'ok'); resolve();}
+        catch (error) {reject(error);}
+      });
+    });
+    request.setTimeout(10000, () => request.destroy(new Error('independent clientAuth peer timed out')));
+    request.on('error', reject);
+  });
   await send(client(t, {clientCertificate: owner}), url);
   const esm = await import('../index.mjs'); assert.equal(esm.ClientCertificate, ClientCertificate);
 });
