@@ -1,7 +1,6 @@
 --- a/h3/src/tests/mod.rs
 +++ b/h3/src/tests/mod.rs
-@@ -11,2 +11,3 @@
- 
+@@ -12 +12,2 @@
 +mod buffered_write;
  mod connection;
 --- /dev/null

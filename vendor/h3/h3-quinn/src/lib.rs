@@ -491,10 +491,9 @@ where
     }
 
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
-    fn poll_finish(
-        &mut self,
-        _cx: &mut task::Context<'_>,
-    ) -> Poll<Result<(), StreamErrorIncoming>> {
+    fn poll_finish(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
+        // FIN must follow every byte already accepted by send_data.
+        ready!(self.poll_ready(cx))?;
         Poll::Ready(
             self.stream
                 .finish()

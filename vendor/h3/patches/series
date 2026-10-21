@@ -27,5 +27,6 @@ ordered-received-request-headers.patch
 received-trailers.patch
 received-field-validation.patch
 buffered-write-tests.patch
+buffered-write-finish.patch
 supported-rust-version.patch
 publish-identity.patch

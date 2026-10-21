@@ -457,6 +457,18 @@ after ALPS omitted it remains accepted. Default builder behavior is unchanged.
 `patches/extended-connect-readiness.patch` contains the engine and
 regression-test delta for this seam.
 
+## Buffered writes and graceful FIN
+
+`buffered-write-finish.patch` backports upstream
+[`14a14224242862de31e780a7907fe8839b893fd6`](https://github.com/hyperium/h3/commit/14a14224242862de31e780a7907fe8839b893fd6).
+A new frame first drains bytes retained by a cancelled write. The Quinn
+adapter also drains queued bytes before sending FIN. Neither change rolls
+back bytes already written or changes explicit stream resets.
+
+`buffered-write-tests.patch` covers cancellation before and after byte
+progress, typed readiness errors, literal queued frame bytes before FIN, and
+an explicit reset with a healthy sibling on the same QUIC connection.
+
 ## Poll-driven request DATA
 
 Upstream sends request DATA only through `async fn send_data`, which borrows

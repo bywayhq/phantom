@@ -34,6 +34,9 @@ where
     D: Into<WriteBuf<B>>,
     B: Buf,
 {
+    // A cancelled write can leave a partial frame in the transport. Drain it
+    // before queuing another frame; cancellation does not roll back bytes.
+    future::poll_fn(|cx| stream.poll_ready(cx)).await?;
     stream.send_data(data)?;
     future::poll_fn(|cx| stream.poll_ready(cx)).await?;
 

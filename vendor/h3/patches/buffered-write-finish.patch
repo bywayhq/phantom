@@ -1,0 +1,20 @@
+--- a/h3/src/stream.rs
++++ b/h3/src/stream.rs
+@@ -36,2 +36,5 @@
+ {
++    // A cancelled write can leave a partial frame in the transport. Drain it
++    // before queuing another frame; cancellation does not roll back bytes.
++    future::poll_fn(|cx| stream.poll_ready(cx)).await?;
+     stream.send_data(data)?;
+--- a/h3-quinn/src/lib.rs
++++ b/h3-quinn/src/lib.rs
+@@ -493,6 +493,5 @@
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+-    fn poll_finish(
+-        &mut self,
+-        _cx: &mut task::Context<'_>,
+-    ) -> Poll<Result<(), StreamErrorIncoming>> {
++    fn poll_finish(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
++        // FIN must follow every byte already accepted by send_data.
++        ready!(self.poll_ready(cx))?;
+         Poll::Ready(
