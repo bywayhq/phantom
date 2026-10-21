@@ -97,8 +97,27 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
 	done := make(chan error, 1)
+	bodyConsumed := make(chan struct{})
+	var client *Client
+	defer func() {
+		if client != nil {
+			if err := client.Close(); err != nil {
+				t.Error(err)
+			}
+		}
+		if err := listener.Close(); err != nil {
+			t.Error(err)
+		}
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(8 * time.Second):
+			t.Error("H2 peer did not settle")
+		}
+	}()
 	go func() {
 		done <- func() error {
 			connection, err := listener.Accept()
@@ -106,7 +125,9 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 				return err
 			}
 			defer connection.Close()
-			_ = connection.SetDeadline(time.Now().Add(8 * time.Second))
+			if err := connection.SetDeadline(time.Now().Add(8 * time.Second)); err != nil {
+				return err
+			}
 			preface := make([]byte, 24)
 			if _, err := io.ReadFull(connection, preface); err != nil {
 				return err
@@ -128,9 +149,17 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 			}
 			var block []byte
 			var requestStream uint32
+			responseSent := false
 			for {
 				header := make([]byte, 9)
 				if _, err := io.ReadFull(connection, header); err != nil {
+					if err == io.EOF && responseSent {
+						select {
+						case <-bodyConsumed:
+							return nil
+						default:
+						}
+					}
 					return err
 				}
 				length := int(header[0])<<16 | int(header[1])<<8 | int(header[2])
@@ -146,6 +175,14 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 					if err := writeFrame(4, 1, 0, nil); err != nil {
 						return err
 					}
+				}
+				if header[3] == 6 && header[4]&1 == 0 {
+					if err := writeFrame(6, 1, 0, data); err != nil {
+						return err
+					}
+				}
+				if responseSent {
+					continue
 				}
 				if header[3] != 1 && header[3] != 9 {
 					continue
@@ -184,15 +221,19 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 				if err := writeFrame(1, 4, requestStream, []byte{0x88}); err != nil {
 					return err
 				}
-				return writeFrame(0, 1, requestStream, []byte("ok"))
+				if err := writeFrame(0, 1, requestStream, []byte("ok")); err != nil {
+					return err
+				}
+				// Drain control frames until the caller consumes the body and closes
+				// the client; closing here can reset unread response bytes on Windows.
+				responseSent = true
 			}
 		}()
 	}()
-	client, err := New(Config{Profile: profile, Protocol: "h2", Timeout: 5 * time.Second})
+	client, err = New(Config{Profile: profile, Protocol: "h2", Timeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
 	response, err := client.Do(context.Background(), Request{Method: "GET", URL: "http://" + listener.Addr().String(), Headers: []Header{
 		{Name: "x-secret-flag", Value: []byte{255}, Sensitive: true},
 		{Name: "x-public-flag", Value: []byte{254}},
@@ -203,7 +244,5 @@ func TestSensitiveHeaderUsesHTTP2NeverIndexedLiteral(t *testing.T) {
 	if data, err := response.Body.ReadAll(2); err != nil || string(data) != "ok" {
 		t.Fatalf("H2 body %q: %v", data, err)
 	}
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
+	close(bodyConsumed)
 }
