@@ -46,8 +46,8 @@ test('network overrides retain verified TLS identity, per-origin pools and sourc
     const handler = (request, response) => {
       assert.equal(request.httpVersionMajor, protocol === 'http1' ? 1 : 2);
       records.push({host: request.headers.host ?? request.headers[':authority'],
-        sni: request.socket.servername, source: request.socket.remoteAddress, socket: request.socket});
-      sockets.add(request.socket); response.end('ok');
+        sni: request.socket.servername, source: request.socket.remoteAddress, connection: protocol === 'http1' ? request.socket : request.stream.session});
+      sockets.add(protocol === 'http1' ? request.socket : request.stream.session); response.end('ok');
     };
     const server = protocol === 'http1'
       ? https.createServer({key: tls.key, cert: tls.cert, ALPNProtocols: ['http/1.1']}, handler)
@@ -64,7 +64,7 @@ test('network overrides retain verified TLS identity, per-origin pools and sourc
         try {assert.equal(await response.text(2), 'ok');} finally {response.close();}
       }
       const seen = records.slice(start);
-      assert.equal(seen[0].socket, seen[1].socket); assert.notEqual(seen[1].socket, seen[2].socket);
+      assert.equal(seen[0].connection, seen[1].connection); assert.notEqual(seen[1].connection, seen[2].connection);
       for (const [index, host] of ['phantom.invalid', 'phantom.invalid', 'other.invalid'].entries()) {
         assert.equal(seen[index].host, `${host}:${port}`); assert.equal(seen[index].sni, host);
         assert.equal(seen[index].source, '127.0.0.1');

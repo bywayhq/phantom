@@ -229,7 +229,7 @@ func TestNetworkEmptyOverrideAndIncompatibleSourceNeverConnect(t *testing.T) {
 	}{
 		{"empty last duplicate", NetworkOptions{HostOverrides: []HostOverride{
 			{Host: networkHost, Addresses: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, {Host: strings.ToUpper(networkHost)},
-		}}, "resolve"},
+		}}, "connect"},
 		{"incompatible source", NetworkOptions{HostOverrides: []HostOverride{{Host: networkHost, Addresses: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}}, LocalAddresses: []netip.Addr{netip.MustParseAddr("::1")}}, "connect"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
