@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers } from '../index.cjs';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -304,8 +304,8 @@ async function clientIdentities(chain: Uint8Array, key: Uint8Array): Promise<voi
 }
 void clientIdentities;
 
-function responseTrailers(response: import('../index.js').Response): void {
-  const trailers: import('../index.js').ResponseTrailers = response.trailers;
+function responseTrailers(response: Response): void {
+  const trailers: ResponseTrailers = response.trailers;
   if (trailers.state === 'complete') {
     const bytes: Buffer | undefined = trailers.headers[0]?.value;
     // @ts-expect-error Retained field order is immutable.
