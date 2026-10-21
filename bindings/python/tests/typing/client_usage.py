@@ -376,3 +376,16 @@ async def streaming_multipart_usage(client: AsyncClient, sync: Client) -> None:
         "POST", "/", body=file_body, headers=[("Content-Type", file_body.content_type)]
     ) as reply:
         reply.read(max_bytes=0)
+
+
+def operational_pools() -> None:
+    from phantom_http import PoolOptions
+
+    pool = PoolOptions(
+        max_concurrent_http1_requests_per_origin=2,
+        max_pending_http2_requests_per_origin=10,
+        max_http3_connections_per_origin=8,
+        negotiated_setup_wait_limit=0.3,
+    )
+    Client(profile="exact", protocol="h1", pool=pool)
+    AsyncClient(profile="exact", protocol="h2", pool=pool)

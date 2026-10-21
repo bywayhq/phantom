@@ -56,6 +56,8 @@ from ._native import NativeProfile as _NativeProfile
 from ._network import HostOverride as HostOverride
 from ._network import NetworkOptions as NetworkOptions
 from ._network import _NetworkFields
+from ._pool import PoolOptions as PoolOptions
+from ._pool import _PoolFields
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
@@ -80,6 +82,7 @@ class _DiagnosticsFields(TypedDict, total=False):
 
 class _ClientFields(TypedDict, total=False):
     network: _NetworkFields
+    pool: _PoolFields
     server_spki_pins: tuple[bytes, ...]
     proxy_server_spki_pins: tuple[bytes, ...]
     client_certificate: _native.NativeClientCertificate
@@ -1055,7 +1058,11 @@ class AsyncClient:
         client_certificate: ClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
         network: NetworkOptions | None = None,
+        pool: PoolOptions | None = None,
     ) -> None:
+        if pool is not None and type(pool) is not PoolOptions:
+            raise TypeError("pool must be PoolOptions")
+        pool_fields = None if pool is None else pool._native_fields()
         if network is not None and type(network) is not NetworkOptions:
             raise TypeError("network must be NetworkOptions")
         network_fields = None if network is None else network._native_fields()
@@ -1084,6 +1091,8 @@ class AsyncClient:
             client_fields["server_spki_pins"] = roots.server_spki_pins
         if roots.proxy_server_spki_pins is not None:
             client_fields["proxy_server_spki_pins"] = roots.proxy_server_spki_pins
+        if pool_fields is not None:
+            client_fields["pool"] = pool_fields
         if network_fields is not None:
             client_fields["network"] = network_fields
         self._native = _call(
@@ -1580,6 +1589,7 @@ class Client:
         client_certificate: ClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
         network: NetworkOptions | None = None,
+        pool: PoolOptions | None = None,
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -1598,6 +1608,7 @@ class Client:
             client_certificate=client_certificate,
             client_certificates_for=client_certificates_for,
             network=network,
+            pool=pool,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies

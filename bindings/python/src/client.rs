@@ -2,7 +2,7 @@ use crate::{
     client_certificate::{self, NativeClientCertificate},
     configuration,
     diagnostics::NativeRequestDiagnostics,
-    error, network,
+    error, network, pool,
     prepared_body::NativePreparedBody,
     profile, request_fields,
     response::NativeResponse,
@@ -122,7 +122,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None, client_certificate=None, client_certificates_for=None, network=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None, client_certificate=None, client_certificates_for=None, network=None, pool=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -144,8 +144,10 @@ impl NativeClient {
         client_certificate: Option<PyRef<'_, NativeClientCertificate>>,
         client_certificates_for: Option<&Bound<'_, PyAny>>,
         network: Option<&Bound<'_, PyAny>>,
+        pool: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let network = network::parse(network)?;
+        let pool = pool::parse(pool)?;
         let client_certificates_for = client_certificate::origins(client_certificates_for)?;
         let server_spki_pins =
             configuration::server_pins(server_spki_pins, "invalid_server_spki_pins")?;
@@ -191,8 +193,8 @@ impl NativeClient {
         if cookies {
             builder = builder.cookies();
         }
-        let client = network
-            .apply(builder)
+        let client = pool
+            .apply(network.apply(builder))
             .build()
             .map_err(client_certificate::build_error)?;
         Ok(Self {

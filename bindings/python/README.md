@@ -192,6 +192,12 @@ source families never fall back to an unbound socket. Import both types from
 `phantom_http`. Overrides are ordered: the last matching host wins; an empty
 address tuple blocks resolution. Network settings share 1024 entries and 64 KiB.
 
+Pass `pool=PoolOptions(max_concurrent_http1_requests_per_origin=2)` to tune
+operational pool limits. Import `PoolOptions` from `phantom_http`; omitted
+fields retain core defaults. Counts apply per pool key (origin and route),
+retention counts entries, and `negotiated_setup_wait_limit` is seconds. These
+limits are separate from profile wire settings and binding admission.
+
 ## Budgets and deadlines
 
 Attach one `AttemptBudget(maximum)` as `budget` across requests and clients.

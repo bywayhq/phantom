@@ -229,3 +229,13 @@ NetworkOptions(interface=123)  # E: arg-type
 NetworkOptions(())  # E: misc
 NetworkOptions().interface = "lo"  # E: misc
 Client(profile="exact", protocol="h1", network={})  # E: arg-type
+
+
+def invalid_pools() -> None:
+    from phantom_http import PoolOptions
+
+    PoolOptions(1)  # E: misc
+    PoolOptions(max_retained_http1_connections=1.5)  # E: arg-type
+    PoolOptions(negotiated_setup_wait_limit="private")  # E: arg-type
+    PoolOptions().max_http2_connections_per_origin = 2  # E: misc
+    Client(profile="exact", protocol="h1", pool={})  # E: arg-type

@@ -172,6 +172,7 @@ class SignatureTests(unittest.TestCase):
                     "client_certificate": None,
                     "client_certificates_for": (),
                     "network": None,
+                    "pool": None,
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -187,6 +188,9 @@ class SignatureTests(unittest.TestCase):
                     "retry_policy": None,
                     "client_certificate": object(),
                     "client_certificates_for": (("https://origin.invalid", object()),),
+                    "pool": phantom_http.PoolOptions(
+                        max_http2_connections_per_origin=2
+                    ),
                     "network": phantom_http.NetworkOptions(
                         local_addresses=("127.0.0.1",)
                     ),

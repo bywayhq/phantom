@@ -8,6 +8,7 @@ mod configuration;
 mod diagnostics;
 mod error;
 mod network;
+mod pool;
 mod prepared_body;
 mod profile;
 mod request_fields;

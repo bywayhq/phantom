@@ -226,6 +226,7 @@ class NativeClient:
             tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
         ]
         | None = None,
+        pool: tuple[int | float | None, ...] | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...
