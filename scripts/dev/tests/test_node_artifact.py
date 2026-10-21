@@ -197,6 +197,7 @@ class NodeArtifactTests(unittest.TestCase):
             "prepared-bodies.test.cjs",
             "multipart.test.cjs",
             "response-headers.test.cjs",
+            "network.test.cjs",
             "response-trailers.test.cjs",
             "server-pins.test.cjs",
             "client-certificates.test.cjs",
@@ -235,6 +236,7 @@ class NodeArtifactTests(unittest.TestCase):
         for name in (
             "prepared-bodies-facade",
             "multipart-facade",
+            "network-facade",
             "request-controls-facade",
             "session-snapshot-facade",
             "server-pins-facade",
@@ -299,6 +301,7 @@ class NodeArtifactTests(unittest.TestCase):
         self.assertIn("tests/pipeline.test.cjs", peer)
         for name in (
             "compact-profiles",
+            "network",
             "session-sharing",
             "transfer",
             "transfer-http2",
@@ -313,6 +316,7 @@ class NodeArtifactTests(unittest.TestCase):
             "prepared-bodies-facade",
             "multipart",
             "multipart-facade",
+            "network-facade",
             "request-controls-facade",
             "session-snapshot-facade",
             "upload-pump",

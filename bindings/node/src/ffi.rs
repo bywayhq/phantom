@@ -180,6 +180,30 @@ pub struct ClientOptions {
     pub redirect_policy: Option<RedirectPolicyOptions>,
     /// Caller-enabled retry classes and scheduling; absence keeps them disabled.
     pub retry_policy: Option<RetryPolicyOptions>,
+    /// Ordered local resolution overrides and source socket selection.
+    pub network: Option<NetworkOptions>,
+}
+
+/// One logical hostname's ordered replacement addresses.
+#[derive(Debug)]
+#[napi(object)]
+pub struct HostOverrideOptions {
+    /// A domain name; core URL normalization and validation apply.
+    pub host: String,
+    /// Unscoped IP literals; an empty list intentionally fails local resolution.
+    pub addresses: Vec<String>,
+}
+
+/// Optional client network configuration, independent of the browser profile.
+#[derive(Debug)]
+#[napi(object)]
+pub struct NetworkOptions {
+    /// Ordered overrides; the last canonical matching hostname wins.
+    pub host_overrides: Option<Vec<HostOverrideOptions>>,
+    /// Ordered source IPs; the last address of each family wins.
+    pub local_addresses: Option<Vec<String>>,
+    /// OS interface name, validated and applied by the core.
+    pub interface: Option<String>,
 }
 
 /// Native state categories selected by the JavaScript facade.

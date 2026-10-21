@@ -112,6 +112,9 @@ impl ClientState {
             options.proxy_username.as_deref(),
             options.proxy_password.as_deref(),
         )?);
+        if let Some(network) = options.network {
+            builder = crate::network::apply(builder, network)?;
+        }
         if let Some(policy) = options.redirect_policy {
             builder = builder.redirect_policy(policy.policy()?);
         }

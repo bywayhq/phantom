@@ -128,6 +128,14 @@ each. `route: 'proxy'` accepts HTTP(S) and SOCKS5
 URIs, with optional paired `proxyUsername`/`proxyPassword`. HTTP credentials
 use Basic authentication. Proxy environment variables are ignored.
 
+Use `network: {hostOverrides: [{host: 'localhost', addresses: ['127.0.0.1']}],
+localAddresses: ['127.0.0.1']}` to override local DNS and choose a source address.
+TLS names and HTTP authority stay unchanged. Later overrides replace earlier
+ones for the same hostname or address family. An empty address list makes that
+name fail local resolution. Proxy-resolved targets ignore these overrides.
+`network.interface` selects an OS interface; DNS queries are not source-bound.
+Network settings allow 1024 combined records/addresses and 65,536 UTF-8 bytes.
+
 `serverSpkiPins` and `proxyServerSpkiPins` independently restrict origin and
 HTTPS-proxy TLS to accepted leaf keys, while retaining chain and hostname
 verification. Each takes 1..32 supplied `Uint8Array` values of exactly 32 bytes:

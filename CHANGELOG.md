@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Configure ordered hostname overrides, local source addresses and network
+  interfaces in Python, Go and Node.js. Preserve the hostname for TLS and HTTP.
+
 - Retain received header sensitivity in Python, Go and Node.js.
   Migrate: Python response headers are `ResponseHeader` records with `name`,
   `value` and `sensitive` fields instead of name/value pairs. Rename Python

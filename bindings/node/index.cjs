@@ -163,7 +163,7 @@ function certificateFailure(kind) {
   return new PhantomError('ClientCertificate', 'client certificate configuration failed', undefined, undefined, kind);
 }
 
-function certificateArray(input, maximum, name) {
+function orderedDataArray(input, maximum, name) {
   if (!Array.isArray(input) || types.isProxy(input) || input.length > maximum
     || Reflect.ownKeys(input).length !== input.length + 1) {
     throw new PhantomError('InvalidArgument', `${name} must be a bounded ordered data array`);
@@ -201,7 +201,7 @@ class ClientCertificate {
     try {
       if (Array.isArray(certificateChain) && !types.isProxy(certificateChain)
         && (certificateChain.length === 0 || certificateChain.length > 256)) throw certificateFailure('invalid_chain_count');
-      const chain = certificateArray(certificateChain, 256, 'certificateChain');
+      const chain = orderedDataArray(certificateChain, 256, 'certificateChain');
       const key = bytes(privateKey), inputs = chain.map(bytes);
       let total = apply(lengthOf, key, []);
       for (const input of inputs) total += apply(lengthOf, input, []);
@@ -221,11 +221,11 @@ function clientCertificates(options) {
   const defaultOwner = field('clientCertificate'), origins = field('clientCertificatesFor');
   const result = {clientCertificate: defaultOwner === undefined ? undefined : certificateHandle(defaultOwner)};
   if (origins === undefined) return result;
-  const input = certificateArray(origins, 256, 'clientCertificatesFor');
+  const input = orderedDataArray(origins, 256, 'clientCertificatesFor');
   let total = 0;
   const pairs = [];
   for (const value of input) {
-    const pair = certificateArray(value, 2, 'clientCertificatesFor pair');
+    const pair = orderedDataArray(value, 2, 'clientCertificatesFor pair');
     if (pair.length !== 2 || typeof pair[0] !== 'string') throw new PhantomError('InvalidArgument', 'clientCertificatesFor requires origin and certificate pairs');
     const count = Buffer.byteLength(pair[0]);
     total += count;
@@ -234,6 +234,49 @@ function clientCertificates(options) {
   }
   result.clientCertificatesFor = pairs;
   return result;
+}
+
+function networkOptions(options) {
+  const field = Object.getOwnPropertyDescriptor(options, 'network');
+  if (field === undefined) return undefined;
+  if (!Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', 'network must be a data field');
+  if (field.value === undefined) return undefined;
+  const fields = (value, names) => {
+    if (value === null || typeof value !== 'object' || types.isProxy(value)
+      || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+      throw new PhantomError('InvalidArgument', 'network settings must be data objects');
+    }
+    const result = Object.getOwnPropertyDescriptors(value);
+    for (const key of Reflect.ownKeys(result)) {
+      if (!names.includes(key) || !Object.hasOwn(result[key], 'value')) {
+        throw new PhantomError('InvalidArgument', 'network settings contain an unknown or executable field');
+      }
+    }
+    return result;
+  };
+  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface']);
+  let remainingBytes = 65536, remainingEntries = 1024;
+  const string = (value) => {
+    if (typeof value !== 'string') throw new PhantomError('InvalidArgument', 'network fields require strings');
+    if (value.length > remainingBytes) throw new PhantomError('InputLimit', 'network configuration exceeds its byte limit');
+    remainingBytes -= Buffer.byteLength(value);
+    if (remainingBytes < 0) throw new PhantomError('InputLimit', 'network configuration exceeds its byte limit');
+    return value;
+  };
+  const array = (value) => {
+    const result = orderedDataArray(value, remainingEntries, 'network entries');
+    remainingEntries -= result.length;
+    return result;
+  };
+  const hostOverrides = array(input.hostOverrides?.value === undefined ? [] : input.hostOverrides.value).map((value) => {
+    const entry = fields(value, ['host', 'addresses']);
+    const host = string(entry.host?.value);
+    const addresses = Object.freeze(array(entry.addresses?.value).map(string));
+    return Object.freeze({host, addresses});
+  });
+  const localAddresses = array(input.localAddresses?.value === undefined ? [] : input.localAddresses.value).map(string);
+  const interfaceName = input.interface?.value === undefined ? undefined : string(input.interface.value);
+  return Object.freeze({hostOverrides: Object.freeze(hostOverrides), localAddresses: Object.freeze(localAddresses), interface: interfaceName});
 }
 
 function requestFields(headers, trailers) {
@@ -930,6 +973,7 @@ class Client {
       const serverSpkiPins = clientPins(options, 'serverSpkiPins');
       const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
       const certificates = clientCertificates(options);
+      const network = networkOptions(options);
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
         ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
@@ -939,6 +983,7 @@ class Client {
         timeouts: phaseTimeouts(options.timeouts),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
         retryPolicy: retryPolicy(options.retryPolicy),
+        network,
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }

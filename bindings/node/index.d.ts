@@ -143,6 +143,23 @@ export interface ClientOptions {
   timeouts?: Timeouts;
   redirectPolicy?: RedirectPolicy;
   retryPolicy?: RetryPolicy;
+  /** Copied during construction; omitted settings use OS/core defaults. */
+  readonly network?: NetworkOptions;
+}
+/** A domain override affects local resolution, retaining TLS identity and HTTP authority. */
+export interface HostOverride {
+  readonly host: string;
+  /** Ordered unscoped IP literals. Empty intentionally fails local resolution. */
+  readonly addresses: readonly string[];
+}
+/** At most 1024 combined records/addresses and 65536 UTF-8 bytes. */
+export interface NetworkOptions {
+  /** Last core-canonical hostname wins; proxy-owned target resolution is unchanged. */
+  readonly hostOverrides?: readonly HostOverride[];
+  /** Last IP of each family wins; a single family excludes the other with no unbound fallback. */
+  readonly localAddresses?: readonly string[];
+  /** OS interface name; resolver queries are not source-bound. */
+  readonly interface?: string;
 }
 /** Selected live state only; pools and cancellation stay independent. */
 export interface SessionSharing {

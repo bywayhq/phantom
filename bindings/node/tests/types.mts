@@ -160,3 +160,14 @@ function receivedHead(response: Response): void {
   void sensitive; void bytes; void wrong;
 }
 void receivedHead;
+
+function networkConfiguration(): void {
+  new Client({profile: 'exact', route: 'direct', network: {
+    hostOverrides: [{host: 'example.invalid', addresses: ['127.0.0.1', '::1']}],
+    localAddresses: ['127.0.0.1'], interface: 'lo',
+  }});
+  // @ts-expect-error addresses are IP strings, not port-bearing objects
+  new Client({profile: 'exact', route: 'direct', network: {localAddresses: [{address: '::1'}]}});
+  // @ts-expect-error unknown network policies are not accepted
+  new Client({profile: 'exact', route: 'direct', network: {fallbackToUnbound: true}});
+}

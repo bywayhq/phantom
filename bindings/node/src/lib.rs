@@ -4,6 +4,7 @@ mod client;
 mod client_certificate;
 mod error;
 mod multipart;
+mod network;
 mod prepared_body;
 mod profile;
 mod request;
@@ -22,12 +23,13 @@ mod ffi;
 pub use ffi::{
     ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions, ContentDecodingOptions,
     DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
-    DiagnosticTlsState, FileUpload, FormField, MultipartField, NativeAttemptBudget,
-    NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
-    NativeImportedProfile, NativePreparedBody, NativeProfile, NativeRequestDiagnostics,
-    NativeResponse, NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
-    RedirectPolicyOptions, RequestOptions, ResponseTrailersInfo, RetryPolicyOptions,
-    SessionRouteOptions, StatusRetryOptions, StreamingMultipartField, TransferLimitsOptions,
-    TransferSnapshotInfo, WireHeader, client_certificate_der, client_certificate_pem,
-    prepared_form, prepared_multipart, profile_catalog, profile_ids, profile_import_json,
+    DiagnosticTlsState, FileUpload, FormField, HostOverrideOptions, MultipartField,
+    NativeAttemptBudget, NativeCancellation, NativeClient, NativeClientCertificate,
+    NativeEnvironment, NativeImportedProfile, NativePreparedBody, NativeProfile,
+    NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload, NetworkOptions,
+    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, StatusRetryOptions,
+    StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo, WireHeader,
+    client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
+    profile_catalog, profile_ids, profile_import_json,
 };
