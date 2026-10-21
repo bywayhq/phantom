@@ -329,3 +329,17 @@ def mutually_authenticated_clients(chain: bytes, key: bytes, der: bytes) -> None
     ):
         pass
     AsyncClient(profile="exact", protocol="h2", client_certificate=parsed)
+
+
+def received_trailers(sync: Response, asynchronous: AsyncResponse) -> None:
+    from phantom_http import ResponseTrailer, ResponseTrailers
+
+    for response in (sync, asynchronous):
+        snapshot: ResponseTrailers = response.trailers
+        if snapshot.headers is not None:
+            fields: tuple[ResponseTrailer, ...] = snapshot.headers
+            for field in fields:
+                name: str = field.name
+                value: bytes = field.value
+                marker: bool = field.sensitive
+                print(name, value, marker)

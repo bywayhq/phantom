@@ -68,7 +68,11 @@ Reads pull data on demand. `await response.read_chunk(maximum)` returns bytes
 or `None` at EOF on async responses. Its limit is 1 byte through 1 MiB.
 `read(max_bytes=N)`, `text(max_bytes=N)` and
 `json(max_bytes=N)` consume the remaining body. Overflow closes the response.
-Trailers are not exposed.
+`response.trailers` never reads the body. Its immutable snapshot is `pending`,
+`unavailable` after failure or abandonment, or `complete` after validated EOF.
+Complete `headers` contain ordered `ResponseTrailer` names, raw bytes and retained
+compression markers; an empty tuple means no fields. Completion survives later
+close and text/JSON parse errors.
 
 Content stays encoded unless you pass request-only
 `content_decoding=ContentDecoding.advertised(N)` and an `Accept-Encoding` header.

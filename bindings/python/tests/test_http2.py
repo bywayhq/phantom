@@ -10,14 +10,22 @@ import unittest
 import h2.config
 import h2.connection
 import h2.events
-from phantom_http import AsyncClient, BodyLimitExceeded, ContentDecoding, Header, Trust
+from phantom_http import (
+    AsyncClient,
+    BodyLimitExceeded,
+    ContentDecoding,
+    Header,
+    ResponseTrailer,
+    ResponseTrailers,
+    Trust,
+)
 from test_settings_transport import FIXTURES, ROOT, spki_pin
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
 
 class H2Peer:
-    def __init__(self, *, overflow_body=b"a", tls=False, client_ca=None):
+    def __init__(self, *, overflow_body=b"a", tls=False, client_ca=None, trailers=None):
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -42,6 +50,7 @@ class H2Peer:
         self.reset_stream = None
         self.premature_close = False
         self.overflow_body = overflow_body
+        self.trailers = trailers
         self.worker = threading.Thread(target=self.run, daemon=True)
 
     def __enter__(self):
@@ -98,14 +107,26 @@ class H2Peer:
                                     )
                             else:
                                 connection.send_data(
-                                    event.stream_id, b"hello", end_stream=True
+                                    event.stream_id,
+                                    b"hello",
+                                    end_stream=self.trailers is None,
                                 )
+                                if self.trailers is not None:
+                                    connection.send_headers(
+                                        event.stream_id, self.trailers, end_stream=True
+                                    )
                         elif isinstance(event, h2.events.StreamReset):
                             self.reset_code = event.error_code
                             self.reset_stream = event.stream_id
                             self.reset.set()
                             if healthy is not None:
-                                connection.send_data(healthy, b"hello", end_stream=True)
+                                connection.send_data(
+                                    healthy, b"hello", end_stream=self.trailers is None
+                                )
+                                if self.trailers is not None:
+                                    connection.send_headers(
+                                        healthy, self.trailers, end_stream=True
+                                    )
                         elif isinstance(event, h2.events.ConnectionTerminated):
                             self.premature_close = len(self.requests) != 3
                             return
@@ -179,8 +200,15 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
     async def test_decoded_stream_limit_keeps_other_stream_and_connection(self):
         await self.check_body_isolation("decoded")
 
-    async def check_body_isolation(self, operation):
-        with H2Peer() as peer:
+    async def test_trailers_only_complete_for_live_sibling_after_selected_cancellation(
+        self,
+    ):
+        await self.check_body_isolation(
+            "collect", [(b"x-a", b"first"), (b"x-b", b"\x80middle"), (b"x-a", b"last")]
+        )
+
+    async def check_body_isolation(self, operation, trailers=None):
+        with H2Peer(trailers=trailers) as peer:
             async with AsyncClient(
                 profile=PROFILE, protocol="h2", timeout_ms=5000
             ) as client:
@@ -202,6 +230,8 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
                 if operation not in ("overflow", "decoded"):
                     self.assertEqual(await stalled.read_chunk(), b"a")
                 healthy = await client.request("GET", peer.url + "/healthy")
+                self.assertEqual(stalled.trailers, ResponseTrailers("pending", None))
+                self.assertEqual(healthy.trailers, ResponseTrailers("pending", None))
                 other = asyncio.create_task(healthy.read(max_bytes=5))
                 if operation in ("overflow", "decoded"):
                     with self.assertRaises(BodyLimitExceeded):
@@ -225,9 +255,24 @@ class MultiplexingTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(peer.reset_code, 8)  # HTTP/2 CANCEL
                 self.assertEqual(peer.reset_stream, peer.requests[0][0])
                 self.assertIsNone(await stalled.read_chunk())
+                self.assertEqual(
+                    stalled.trailers, ResponseTrailers("unavailable", None)
+                )
                 self.assertEqual(await other, b"hello")
+                expected = tuple(
+                    ResponseTrailer(name.decode("ascii"), value, False)
+                    for name, value in (trailers or ())
+                )
+                self.assertEqual(
+                    healthy.trailers, ResponseTrailers("complete", expected)
+                )
+                await healthy.aclose()
+                self.assertEqual(healthy.trailers.state, "complete")
                 reused = await client.request("GET", peer.url + "/reuse")
                 self.assertEqual(await reused.read(max_bytes=5), b"hello")
+                self.assertEqual(
+                    reused.trailers, ResponseTrailers("complete", expected)
+                )
                 self.assertEqual(
                     [path for _, path in peer.requests],
                     [path.encode(), b"/healthy", b"/reuse"],

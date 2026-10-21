@@ -1,9 +1,9 @@
 use crate::{error, upload::Producer};
 use http_body_util::BodyExt;
-use phantom::{Bytes, ResponseBody};
+use phantom::{Bytes, ResponseBody, ResponseTrailers};
 use pyo3::{exceptions::PyMemoryError, prelude::*, types::PyBytes};
 use std::sync::{
-    Arc, Mutex,
+    Arc, Mutex, PoisonError,
     atomic::{AtomicBool, AtomicU8, Ordering},
 };
 use tokio::sync::Notify;
@@ -18,6 +18,7 @@ struct Stream {
 }
 struct BodyOwner {
     stream: Mutex<Option<Stream>>,
+    trailers: Mutex<ResponseTrailers>,
     busy: AtomicBool,
     state: AtomicU8,
     changed: Notify,
@@ -28,6 +29,11 @@ struct BodyOwner {
 
 impl BodyOwner {
     fn close(&self, expired: bool) {
+        self.finish(expired, ResponseTrailers::Unavailable);
+    }
+
+    fn finish(&self, expired: bool, trailers: ResponseTrailers) -> bool {
+        let mut retained = self.trailers.lock().unwrap_or_else(PoisonError::into_inner);
         if self
             .state
             .compare_exchange(
@@ -38,8 +44,10 @@ impl BodyOwner {
             )
             .is_err()
         {
-            return;
+            return false;
         }
+        *retained = trailers;
+        drop(retained);
         if let Ok(mut stream) = self.stream.lock() {
             stream.take();
         }
@@ -54,6 +62,7 @@ impl BodyOwner {
         {
             task.abort();
         }
+        true
     }
     fn closed_error(&self) -> PyErr {
         if self.state.load(Ordering::SeqCst) == EXPIRED {
@@ -108,6 +117,18 @@ impl ReadLease {
         Ok(lease)
     }
 
+    fn complete(mut self) -> PyResult<()> {
+        let stream = self
+            .stream
+            .take()
+            .ok_or_else(|| error::input("body_state"))?;
+        if !self.owner.finish(false, stream.body.into_trailers()) {
+            return Err(self.owner.closed_error());
+        }
+        self.finished = true;
+        Ok(())
+    }
+
     fn restore(mut self) -> PyResult<()> {
         let mut slot = self
             .owner
@@ -153,6 +174,8 @@ fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseIn
         ))
     })
 }
+
+type TrailerFields<'py> = (String, Option<Vec<(String, Bound<'py, PyBytes>, bool)>>);
 
 type RedirectHopFields = (String, String, String, String, u16);
 type RedirectHistoryFields = (Vec<RedirectHopFields>, usize);
@@ -251,6 +274,7 @@ impl NativeResponse {
                     body: response.into_body(),
                     pending: Bytes::new(),
                 })),
+                trailers: Mutex::new(ResponseTrailers::Pending),
                 busy: AtomicBool::new(false),
                 state: AtomicU8::new(OPEN),
                 changed: Notify::new(),
@@ -300,6 +324,36 @@ impl NativeResponse {
             .collect()
     }
 
+    #[getter]
+    fn trailers<'py>(&self, py: Python<'py>) -> PyResult<TrailerFields<'py>> {
+        let retained = self
+            .owner
+            .trailers
+            .lock()
+            .map_err(|_| error::input("body_state"))?;
+        let (state, headers) = match &*retained {
+            ResponseTrailers::Pending => ("pending", None),
+            ResponseTrailers::Unavailable => ("unavailable", None),
+            ResponseTrailers::Complete(fields) => (
+                "complete",
+                Some(
+                    fields
+                        .iter()
+                        .map(|field| {
+                            (
+                                field.name().to_owned(),
+                                PyBytes::new(py, field.value()),
+                                field.is_sensitive(),
+                            )
+                        })
+                        .collect(),
+                ),
+            ),
+            _ => return Err(error::input("unsupported_response_trailers")),
+        };
+        Ok((state.to_owned(), headers))
+    }
+
     fn close(&self) -> PyResult<()> {
         self.owner.close(false);
         Ok(())
@@ -342,6 +396,7 @@ impl NativeResponse {
                 result = next => result?,
             };
             let Some(bytes) = bytes else {
+                lease.complete()?;
                 return Ok(None);
             };
             lease.restore()?;
@@ -376,11 +431,13 @@ impl NativeResponse {
                 }
                 Ok(output)
             };
-            tokio::select! {
+            let output = tokio::select! {
                 biased;
                 () = &mut changed => Err(owner.closed_error()),
                 result = collect => result,
-            }
+            }?;
+            lease.complete()?;
+            Ok(output)
         })
     }
 }
@@ -401,6 +458,7 @@ mod tests {
         for (expired, expected) in [(false, super::CLOSED), (true, super::EXPIRED)] {
             let owner = super::BodyOwner {
                 stream: std::sync::Mutex::new(None),
+                trailers: std::sync::Mutex::new(phantom::ResponseTrailers::Pending),
                 busy: std::sync::atomic::AtomicBool::new(false),
                 state: std::sync::atomic::AtomicU8::new(super::OPEN),
                 changed: tokio::sync::Notify::new(),

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from phantom_http import AsyncClient, Trust
+from phantom_http import AsyncClient, ResponseTrailers, Trust
 from test_settings_transport import spki_pin
 
 PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
@@ -71,20 +71,28 @@ class HTTP3UploadTests(unittest.IsolatedAsyncioTestCase):
                 ) as client:
                     warm = await client.request("GET", ready["url"] + "/warm")
                     self.assertEqual(await warm.read(max_bytes=2), b"ok")
+                    self.assertEqual(warm.trailers, ResponseTrailers("complete", ()))
                     selected = await client.request(
                         "POST", ready["url"] + "/upload", body=source()
                     )
                     try:
                         self.assertEqual(await selected.read_chunk(1), b"a")
+                        self.assertEqual(selected.trailers.state, "pending")
                         await asyncio.wait_for(pending.wait(), 5)
                         healthy = await client.request("GET", ready["url"] + "/healthy")
                         try:
                             await event("live")
                             await selected.aclose()
+                            self.assertEqual(
+                                selected.trailers, ResponseTrailers("unavailable", None)
+                            )
                             await asyncio.wait_for(closed.wait(), 5)
                             await event("cancelled")
                             self.assertEqual(
                                 await healthy.read(max_bytes=7), b"healthy"
+                            )
+                            self.assertEqual(
+                                healthy.trailers, ResponseTrailers("complete", ())
                             )
                         finally:
                             await healthy.aclose()

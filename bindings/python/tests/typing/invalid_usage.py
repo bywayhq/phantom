@@ -11,6 +11,7 @@ from phantom_http import (
     Profile,
     Proxy,
     RedirectPolicy,
+    Response,
     RetryPolicy,
     SessionSharing,
     StatusRetry,
@@ -188,3 +189,16 @@ def invalid_client_certificates() -> None:
         client_certificates_for=(("https://example", b"key"),),  # E: arg-type
     )
     certificate._native = certificate._native  # E: misc
+
+
+def invalid_received_trailers(response: Response) -> None:
+    from phantom_http import ResponseTrailer, ResponseTrailers
+
+    response.trailers = ResponseTrailers("pending", None)  # E: misc
+    response.trailers.state = "unavailable"  # E: misc
+    ResponseTrailers("future", None)  # E: arg-type
+    ResponseTrailer("x", "text", False)  # E: arg-type
+    fields = response.trailers.headers
+    if fields is not None:
+        fields[0].sensitive = False  # E: misc
+        fields.append(ResponseTrailer("x", b"value", False))  # E: attr-defined

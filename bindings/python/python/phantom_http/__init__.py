@@ -683,6 +683,24 @@ class RedirectHistory:
     omitted_hops: int
 
 
+@dataclass(frozen=True)
+class ResponseTrailer:
+    """One ordered received field with an owned byte value."""
+
+    name: str
+    value: bytes = _field(repr=False)
+    # False does not establish absence when a decoder does not retain markers.
+    sensitive: bool
+
+
+@dataclass(frozen=True)
+class ResponseTrailers:
+    """Non-draining snapshot; only complete has fields, possibly an empty tuple."""
+
+    state: Literal["pending", "unavailable", "complete"]
+    headers: tuple[ResponseTrailer, ...] | None
+
+
 class AsyncResponse:
     """An owned response body. Close it when you stop reading."""
 
@@ -721,6 +739,19 @@ class AsyncResponse:
     def decoded_content_codings(self) -> tuple[str, ...]:
         """Recorded application order; this does not imply body completion."""
         return tuple(self._native.decoded_content_codings)
+
+    @property
+    def trailers(self) -> ResponseTrailers:
+        """Retained fields after validated EOF, without reading the body."""
+        state, headers = _call(lambda: self._native.trailers)
+        if state not in ("pending", "unavailable", "complete"):
+            raise Error("response", "unsupported_response_trailers")
+        return ResponseTrailers(
+            cast(Literal["pending", "unavailable", "complete"], state),
+            None
+            if headers is None
+            else tuple(ResponseTrailer(*field) for field in headers),
+        )
 
     @property
     def status_code(self) -> int:
@@ -1208,6 +1239,10 @@ class Response:
     @property
     def decoded_content_codings(self) -> tuple[str, ...]:
         return self._response.decoded_content_codings
+
+    @property
+    def trailers(self) -> ResponseTrailers:
+        return self._response.trailers
 
     @property
     def status_code(self) -> int:
