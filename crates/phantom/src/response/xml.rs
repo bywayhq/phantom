@@ -20,7 +20,8 @@ const MAXIMUM_DEPTH: usize = 128;
 /// Enable the `xml` feature. Uses [`response_bytes`] for collection, byte limits
 /// and cleanup. The limit counts decoded bytes when content decoding is enabled.
 /// This helper does not check the status, require a Content-Type, choose an HTTP
-/// charset, or enable content decoding. Trailers and partial data are discarded.
+/// charset, or enable content decoding. Completed trailers remain in response
+/// extensions; partial data is discarded.
 ///
 /// Accepts one XML document with at most 128 element levels, an optional UTF-8
 /// byte-order mark, and an absent or UTF-8 XML encoding declaration. DOCTYPE

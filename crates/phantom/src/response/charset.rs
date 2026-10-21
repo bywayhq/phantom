@@ -25,8 +25,9 @@ mod content_type;
 /// when a BOM is present. No HTML declarations or other content are inspected.
 /// Malformed byte sequences fail without replacement characters.
 ///
-/// Uses [`response_bytes`] for input collection and body cleanup. Trailers and
-/// partial data are discarded. Dropping the future drops its owned body.
+/// Uses [`response_bytes`] for input collection and body cleanup. Completed
+/// trailers remain in the response extensions; partial data is discarded.
+/// Dropping the future drops its owned body.
 /// This helper does not check the HTTP status or enable content decoding.
 ///
 /// ```no_run
@@ -55,8 +56,8 @@ pub async fn response_text_with_charset(
     let encoding = match declared_encoding(response.headers()) {
         Ok(encoding) => encoding,
         Err(error) => {
-            let (parts, body) = response.into_parts();
-            drop(body);
+            let (mut parts, body) = response.into_parts();
+            parts.extensions.insert(body.into_trailers());
             return Err(read_error(parts, error));
         }
     };

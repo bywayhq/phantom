@@ -81,8 +81,8 @@ pub use response::response_text_with_charset;
 #[cfg(feature = "xml")]
 pub use response::response_xml;
 pub use response::{
-    ResponseInfo, ResponseReadError, ResponseReadErrorKind, StatusError, error_for_status,
-    response_bytes, response_text,
+    ResponseInfo, ResponseReadError, ResponseReadErrorKind, ResponseTrailers, StatusError,
+    error_for_status, response_bytes, response_text,
 };
 pub use retry::{RetryPolicy, StatusRetry, StatusRetryError};
 pub use route::{

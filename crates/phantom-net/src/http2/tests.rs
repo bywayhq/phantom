@@ -168,6 +168,7 @@ mod request_validation;
 mod request_wire;
 mod reset_churn;
 mod response_body;
+mod response_trailers;
 mod shutdown_controls;
 mod stream_limit;
 

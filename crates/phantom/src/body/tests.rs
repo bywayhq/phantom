@@ -24,6 +24,8 @@ use crate::{
     timeout::TimeoutBudget,
 };
 
+mod trailers;
+
 #[tokio::test(start_paused = true)]
 async fn stacked_header_work_yields_then_observes_the_total_deadline()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -70,6 +72,8 @@ async fn stacked_header_work_yields_then_observes_the_total_deadline()
         timeouts: None,
         content: None,
         held_trailers: None,
+        staged_trailers: None,
+        trailers: crate::ResponseTrailers::Pending,
         origin: None,
         proxy_authentication: None,
     };
@@ -263,6 +267,8 @@ fn gzip_body_at_work_quota(
         timeouts: None,
         content: None,
         held_trailers: None,
+        staged_trailers: None,
+        trailers: crate::ResponseTrailers::Pending,
         origin: None,
         proxy_authentication: None,
     };

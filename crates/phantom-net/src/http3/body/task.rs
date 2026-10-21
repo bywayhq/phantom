@@ -28,6 +28,7 @@ const BODY_DEMAND_CAPACITY: usize = 1;
 
 pub(super) enum BodyEvent {
     Frame(Frame<Bytes>),
+    Trailers(HeaderMap, Option<crate::OrderedResponseHeaders>),
     End,
     Error(Http3Error),
     TaskError(JoinError),
@@ -235,9 +236,12 @@ async fn run(
                         // A complete response ends the exchange; dropping `send`
                         // resets any unfinished upload (RFC 9114 section 4.1).
                         Receive::Value(Ok(Some(trailers))) => {
-                            let _ = events
-                                .send(BodyEvent::Frame(Frame::trailers(trailers)))
-                                .await;
+                            let ordered = recv.take_ordered_trailers().map(|fields| {
+                                crate::OrderedResponseHeaders::from_normalized_fields(
+                                    fields.as_slice(),
+                                )
+                            });
+                            let _ = events.send(BodyEvent::Trailers(trailers, ordered)).await;
                             finish(send, recv, &connection, DriverSignal::Complete);
                             return;
                         }

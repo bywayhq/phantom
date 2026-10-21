@@ -724,4 +724,5 @@ mod qpack;
 mod quic;
 mod remembered_settings;
 mod request;
+mod response_trailers;
 mod resumption;

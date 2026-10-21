@@ -16,7 +16,7 @@ use phantom_net::{
 };
 
 use crate::{
-    HttpProtocol, RequestError,
+    HttpProtocol, OrderedResponseHeaders, RequestError, ResponseTrailers,
     authority::RequestOrigin,
     content_coding::{ContentDecoder, Pump},
     timeout::{ResponseTimeouts, TimeoutBudget},
@@ -84,6 +84,8 @@ pub struct ResponseBody {
     timeouts: Option<ResponseTimeouts>,
     content: Option<ContentState>,
     held_trailers: Option<HeaderMap>,
+    staged_trailers: Option<OrderedResponseHeaders>,
+    trailers: ResponseTrailers,
     origin: Option<RequestOrigin>,
     proxy_authentication: Option<(DigestResponseAuthentication, HttpProtocol)>,
     transfer: Option<Box<phantom_net::TransferStream>>,
@@ -105,6 +107,28 @@ enum ResponseBodyInner {
 }
 
 impl ResponseBody {
+    /// Returns retained trailers without reading the body.
+    ///
+    /// Completion requires an actual end-of-body poll after content decoding
+    /// and proxy response authentication. A final DATA or trailer frame alone
+    /// does not establish completion. Values remain owned by this body.
+    #[must_use]
+    pub const fn trailers(&self) -> &ResponseTrailers {
+        &self.trailers
+    }
+
+    /// Consumes this body and returns its retained trailers.
+    ///
+    /// An unfinished body is abandoned and returns [`ResponseTrailers::Unavailable`].
+    /// This method never reads or drains the body.
+    #[must_use]
+    pub fn into_trailers(mut self) -> ResponseTrailers {
+        match std::mem::replace(&mut self.trailers, ResponseTrailers::Unavailable) {
+            ResponseTrailers::Pending => ResponseTrailers::Unavailable,
+            trailers => trailers,
+        }
+    }
+
     pub(crate) fn apply_transfer(&mut self, control: crate::TransferControl) {
         if self.transfer.is_none() {
             self.transfer = Some(Box::new(phantom_net::TransferStream::new(
@@ -132,6 +156,13 @@ impl ResponseBody {
     /// the data exceeds `maximum_bytes`, or any frame error listed on
     /// [`ResponseBody`].
     pub async fn collect_with_limit(mut self, maximum_bytes: usize) -> Result<Bytes, RequestError> {
+        self.collect_remaining_with_limit(maximum_bytes).await
+    }
+
+    pub(crate) async fn collect_remaining_with_limit(
+        &mut self,
+        maximum_bytes: usize,
+    ) -> Result<Bytes, RequestError> {
         let mut collected = BytesMut::new();
         let mut length = 0usize;
 
@@ -203,6 +234,8 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            staged_trailers: None,
+            trailers: ResponseTrailers::Pending,
             origin: None,
             proxy_authentication: None,
         }
@@ -228,6 +261,8 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            staged_trailers: None,
+            trailers: ResponseTrailers::Pending,
             origin: None,
             proxy_authentication: None,
         }
@@ -253,6 +288,8 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            staged_trailers: None,
+            trailers: ResponseTrailers::Pending,
             origin: None,
             proxy_authentication: None,
         }
@@ -289,6 +326,12 @@ impl ResponseBody {
 
     /// Drops the wire body so the selected protocol cancels an incomplete stream.
     fn close(&mut self) {
+        self.trailers = ResponseTrailers::Unavailable;
+        self.staged_trailers.take();
+        self.clear_stream();
+    }
+
+    fn clear_stream(&mut self) {
         self.inner.take();
         self.transfer.take();
         self.timeouts.take();
@@ -416,7 +459,7 @@ impl ResponseBody {
 
         let trailers = self.held_trailers.take();
         let proxy_authentication = self.proxy_authentication.take();
-        self.close();
+        self.clear_stream();
         self.proxy_authentication = proxy_authentication;
         Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))))
     }
@@ -483,6 +526,17 @@ impl ResponseBody {
         };
         match result {
             Poll::Ready(Some(Ok(frame))) => {
+                if frame.trailers_ref().is_some() {
+                    self.staged_trailers = match self.inner.as_mut() {
+                        Some(ResponseBodyInner::Http1(body)) => body.take_received_trailers(),
+                        Some(ResponseBodyInner::Http2(body)) => body.take_received_trailers(),
+                        Some(ResponseBodyInner::Http3(body)) => body.take_received_trailers(),
+                        None => None,
+                    };
+                    if self.staged_trailers.is_none() {
+                        self.trailers = ResponseTrailers::Unavailable;
+                    }
+                }
                 if let Some(timeouts) = self.timeouts.as_mut() {
                     // Ready data can satisfy the idle limit, but cannot
                     // extend the fixed deadline while waiting in a buffer.
@@ -596,6 +650,11 @@ impl ResponseBody {
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
         let this = self;
         let frame = this.poll_frame_inner(context);
+        if matches!(frame, Poll::Ready(None)) && matches!(this.trailers, ResponseTrailers::Pending)
+        {
+            this.trailers =
+                ResponseTrailers::Complete(this.staged_trailers.take().unwrap_or_default());
+        }
         if let Poll::Ready(Some(Ok(frame))) = &frame
             && let Some(data) = frame.data_ref()
             && let Some(transfer) = &this.transfer

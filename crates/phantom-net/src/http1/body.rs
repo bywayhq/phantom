@@ -7,6 +7,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::{OrderedResponseHeaders, ResponseHeader};
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
@@ -30,6 +31,22 @@ pub struct Http1Body {
 }
 
 impl Http1Body {
+    /// Takes ordered fields from the last yielded trailer frame without polling.
+    ///
+    /// This does not validate higher-level content decoding or authentication.
+    #[doc(hidden)]
+    pub fn take_received_trailers(&mut self) -> Option<OrderedResponseHeaders> {
+        self.incoming.take_received_trailers().map(|trailers| {
+            OrderedResponseHeaders::new(
+                trailers
+                    .as_slice()
+                    .iter()
+                    .map(|(name, value)| ResponseHeader::from_parts(name, value.as_bytes(), false))
+                    .collect(),
+            )
+        })
+    }
+
     pub(super) fn new(incoming: Incoming, mut lease: ConnectionLease, reusable: bool) -> Self {
         let finished = incoming.is_end_stream();
         let mut trace = BodyTrace::new();

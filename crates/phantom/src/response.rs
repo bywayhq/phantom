@@ -3,7 +3,24 @@ use std::{error::Error as StdError, fmt, str::Utf8Error};
 use bytes::Bytes;
 use http::{Response, StatusCode, Uri};
 
-use crate::{ContentCoding, HttpProtocol, RequestError, ResponseBody};
+use crate::{ContentCoding, HttpProtocol, OrderedResponseHeaders, RequestError, ResponseBody};
+
+/// Retained trailers after the response body has been fully validated.
+///
+/// [`ResponseBody::trailers`] does not read the body. Collection helpers store
+/// this value in the response's extensions, including on parse failures.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ResponseTrailers {
+    /// The body has not reached its validated end.
+    #[default]
+    Pending,
+    /// The body failed, was abandoned, or lacked ordered trailer metadata.
+    Unavailable,
+    /// The wire body, content decoder and response authentication completed.
+    /// An empty list means no trailer fields were received.
+    Complete(OrderedResponseHeaders),
+}
 
 #[cfg(feature = "charset")]
 mod charset;
@@ -98,8 +115,9 @@ impl StdError for StatusError {}
 /// Collects at most `maximum_bytes` of response data while keeping its metadata.
 ///
 /// The limit counts decoded bytes when you enabled content decoding. Status,
-/// headers, version and extensions pass through unchanged, including on errors.
-/// Trailers are consumed and discarded. This helper does not check the status.
+/// headers, version and extensions are retained, including on errors.
+/// [`ResponseTrailers`] is stored in the extensions after the read. This helper
+/// does not check the status.
 /// Dropping its future cancels the read and drops the body.
 ///
 /// # Errors
@@ -111,8 +129,10 @@ pub async fn response_bytes(
     response: Response<ResponseBody>,
     maximum_bytes: usize,
 ) -> Result<Response<Bytes>, ResponseReadError> {
-    let (parts, body) = response.into_parts();
-    match body.collect_with_limit(maximum_bytes).await {
+    let (mut parts, mut body) = response.into_parts();
+    let result = body.collect_remaining_with_limit(maximum_bytes).await;
+    parts.extensions.insert(body.into_trailers());
+    match result {
         Ok(bytes) => Ok(Response::from_parts(parts, bytes)),
         Err(error) => Err(ResponseReadError {
             response: Box::new(Response::from_parts(parts, ())),

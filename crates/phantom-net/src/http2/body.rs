@@ -8,6 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::OrderedResponseHeaders;
 use ::http2::{Reason, RecvStream, SendStream};
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
@@ -35,10 +36,18 @@ pub struct Http2Body {
     lease: Option<ConnectionLease>,
     stream_guard: Option<Box<dyn Any + Send + Sync>>,
     finished: bool,
+    received_trailers: Option<OrderedResponseHeaders>,
     trace: BodyTrace,
 }
 
 impl Http2Body {
+    /// Takes ordered fields from the last yielded trailer frame without polling.
+    /// This does not establish higher-level body completion.
+    #[doc(hidden)]
+    pub fn take_received_trailers(&mut self) -> Option<OrderedResponseHeaders> {
+        self.received_trailers.take()
+    }
+
     pub(super) fn new(
         incoming: RecvStream,
         reset: SendStream<Bytes>,
@@ -79,6 +88,7 @@ impl Http2Body {
             lease: (!finished).then_some(lease),
             stream_guard: None,
             finished,
+            received_trailers: None,
             trace,
         }
     }
@@ -158,6 +168,9 @@ impl Http2Body {
             }
             Poll::Ready(None) => match incoming.poll_trailers(context) {
                 Poll::Ready(Ok(Some(trailers))) => {
+                    self.received_trailers = incoming.take_ordered_trailers().map(|ordered| {
+                        OrderedResponseHeaders::from_normalized_fields(ordered.as_slice())
+                    });
                     record_read(self.lease.as_ref());
                     self.finished = true;
                     self.finish_stream();

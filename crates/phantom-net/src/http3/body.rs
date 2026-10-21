@@ -4,6 +4,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::OrderedResponseHeaders;
 use bytes::Bytes;
 use http_body::{Body, Frame, SizeHint};
 use tracing::{Dispatch, Span, debug, debug_span, dispatcher};
@@ -29,6 +30,7 @@ pub(super) fn defer_datagram_abort(
 pub struct Http3Body {
     task: BodyTask,
     done: bool,
+    received_trailers: Option<OrderedResponseHeaders>,
     trace: BodyTrace,
 }
 
@@ -53,8 +55,16 @@ impl Http3Body {
         Self {
             task,
             done: false,
+            received_trailers: None,
             trace,
         }
+    }
+
+    /// Takes ordered fields from the last yielded trailer frame without polling.
+    /// This does not establish higher-level body completion.
+    #[doc(hidden)]
+    pub fn take_received_trailers(&mut self) -> Option<OrderedResponseHeaders> {
+        self.received_trailers.take()
     }
 
     /// Retains a value until the response stream has completed its cleanup.
@@ -84,6 +94,11 @@ impl Http3Body {
         }
 
         match self.task.poll_event(context) {
+            Poll::Ready(Some(BodyEvent::Trailers(trailers, ordered))) => {
+                self.received_trailers = ordered;
+                self.finish("complete");
+                Poll::Ready(Some(Ok(Frame::trailers(trailers))))
+            }
             Poll::Ready(Some(BodyEvent::Frame(frame))) => {
                 if let Some(data) = frame.data_ref() {
                     self.trace.add_bytes(data.len());
