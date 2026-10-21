@@ -22,17 +22,24 @@ const checkpointKey = Buffer.alloc(32, 7);
 function identities(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'phantom-node-mtls-'));
   t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  // OpenSSL 1.1.1 appends -addext to host-configured extensions.
+  const config = path.join(directory, 'request.cnf');
+  fs.writeFileSync(config, '[req]\ndistinguished_name=subject\n[subject]\n');
   const result = {};
   for (const name of ['a', 'b']) {
     const keyPath = path.join(directory, `${name}.key`), certPath = path.join(directory, `${name}.pem`);
-    const run = spawnSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256',
+    const run = spawnSync('openssl', ['req', '-config', config, '-sha256', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256',
       '-nodes', '-keyout', keyPath, '-out', certPath, '-subj', `/CN=client-${name}`, '-days', '1',
       '-addext', 'basicConstraints=critical,CA:FALSE', '-addext', 'keyUsage=critical,digitalSignature',
       '-addext', 'extendedKeyUsage=clientAuth'], {timeout: 10000, windowsHide: true});
     assert.equal(run.error, undefined, 'OpenSSL must be available for clientAuth fixtures');
     assert.equal(run.status, 0, 'OpenSSL clientAuth fixture generation must succeed');
     const pem = fs.readFileSync(certPath), key = fs.readFileSync(keyPath);
-    result[name] = {pem, key, der: new X509Certificate(pem).raw,
+    const certificate = new X509Certificate(pem);
+    assert.equal(certificate.ca, false);
+    assert.deepEqual(certificate.keyUsage, ['1.3.6.1.5.5.7.3.2']);
+    assert(certificate.verify(certificate.publicKey));
+    result[name] = {pem, key, der: certificate.raw,
       keyDer: createPrivateKey(key).export({format: 'der', type: 'pkcs8'})};
   }
   return result;
