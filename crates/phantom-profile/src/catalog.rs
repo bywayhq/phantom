@@ -67,6 +67,8 @@ pub enum Browser {
     Firefox,
     /// Opera.
     Opera,
+    /// Apple Safari.
+    Safari,
 }
 
 /// The operating system described by a recipe.
@@ -81,6 +83,8 @@ pub enum ProfilePlatform {
     Linux,
     /// Android.
     Android,
+    /// iOS.
+    Ios,
 }
 
 /// The environment used for retained observations.
@@ -95,15 +99,43 @@ pub enum CaptureEnvironment {
     PhysicalDevice,
 }
 
-/// Browser and platform information for one recipe revision.
+/// The origin of a recipe's identity.
+///
+/// A peer preset names an external implementation. Its advertised browser
+/// version and platform do not establish observations of that browser.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ProfileIdentity {
+    /// A recipe with retained browser observations.
+    Observed {
+        /// Advertised browser build; individual layers can use older evidence.
+        build: &'static str,
+        /// Recorded operating-system release or capture target.
+        platform_release: &'static str,
+        /// Observed host or emulator architecture, when established.
+        architecture: Option<&'static str>,
+        /// Environment used for the browser observations.
+        environment: CaptureEnvironment,
+    },
+    /// A preset ported from a pinned external client.
+    Peer {
+        /// Upstream project name.
+        project: &'static str,
+        /// Exact upstream source commit.
+        source_revision: &'static str,
+        /// Upstream preset name.
+        recipe: &'static str,
+        /// Browser version advertised by that preset.
+        release: &'static str,
+    },
+}
+
+/// Browser target and provenance for one recipe revision.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProfileMetadata {
     browser: Browser,
-    build: &'static str,
     platform: ProfilePlatform,
-    platform_release: &'static str,
-    architecture: Option<&'static str>,
-    environment: CaptureEnvironment,
+    identity: ProfileIdentity,
     revision: u32,
 }
 
@@ -114,13 +146,31 @@ impl ProfileMetadata {
         self.browser
     }
 
-    /// Returns the advertised browser build selected by this recipe.
+    /// Returns the advertised browser version or peer preset release.
+    #[must_use]
+    pub const fn version(&self) -> &'static str {
+        match self.identity {
+            ProfileIdentity::Observed { build, .. } => build,
+            ProfileIdentity::Peer { release, .. } => release,
+        }
+    }
+
+    /// Returns the recipe's observed-browser or external-client identity.
+    #[must_use]
+    pub const fn identity(&self) -> ProfileIdentity {
+        self.identity
+    }
+
+    /// Returns the browser build for an observed recipe, or `None` for a peer.
     ///
     /// Individual layers can be backed by different builds. Inspect their
     /// evidence instead of attributing this build to every setting.
     #[must_use]
-    pub const fn build(&self) -> &'static str {
-        self.build
+    pub const fn build(&self) -> Option<&'static str> {
+        match self.identity {
+            ProfileIdentity::Observed { build, .. } => Some(build),
+            ProfileIdentity::Peer { .. } => None,
+        }
     }
 
     /// Returns the recipe's platform, independent of the compilation host.
@@ -129,10 +179,15 @@ impl ProfileMetadata {
         self.platform
     }
 
-    /// Returns the recorded operating-system release or capture target.
+    /// Returns the recorded OS release or capture target, absent for peers.
     #[must_use]
-    pub const fn platform_release(&self) -> &'static str {
-        self.platform_release
+    pub const fn platform_release(&self) -> Option<&'static str> {
+        match self.identity {
+            ProfileIdentity::Observed {
+                platform_release, ..
+            } => Some(platform_release),
+            ProfileIdentity::Peer { .. } => None,
+        }
     }
 
     /// Returns the observed host or emulator architecture, when established.
@@ -140,13 +195,19 @@ impl ProfileMetadata {
     /// This is not inferred from the `User-Agent` or client hints.
     #[must_use]
     pub const fn architecture(&self) -> Option<&'static str> {
-        self.architecture
+        match self.identity {
+            ProfileIdentity::Observed { architecture, .. } => architecture,
+            ProfileIdentity::Peer { .. } => None,
+        }
     }
 
-    /// Returns the capture environment.
+    /// Returns the browser capture environment, absent for peers.
     #[must_use]
-    pub const fn environment(&self) -> CaptureEnvironment {
-        self.environment
+    pub const fn environment(&self) -> Option<CaptureEnvironment> {
+        match self.identity {
+            ProfileIdentity::Observed { environment, .. } => Some(environment),
+            ProfileIdentity::Peer { .. } => None,
+        }
     }
 
     /// Returns the settings revision included in the catalog identifier.
@@ -214,6 +275,10 @@ pub enum EvidenceKind {
     Reused,
     /// The implementation and its citations; not independent browser evidence.
     Recipe,
+    /// A pinned external client's source, not browser source.
+    ExternalSource,
+    /// A retained external-client execution, not a browser capture.
+    PeerCapture,
 }
 
 /// One retained reference, with its own browser or upstream build.
@@ -273,7 +338,7 @@ impl LayerEvidence {
         self.references
     }
 
-    /// Returns the fields checked against retained browser observations.
+    /// Returns the fields checked against retained browser or peer observations.
     ///
     /// Source-derived policies are references, not captured fields. An empty
     /// slice therefore need not mean the configuration lacks source support.

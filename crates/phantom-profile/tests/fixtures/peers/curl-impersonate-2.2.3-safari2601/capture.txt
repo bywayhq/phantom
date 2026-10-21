@@ -1,0 +1,7 @@
+format=phantom-peer-capture-v1
+client_version=2.2.3
+peer_project=curl-impersonate
+peer_source_revision=6e8f87760a4dd96771e96fc9d55440dcd8845243
+peer_recipe=safari2601
+
+Three independent native executable processes; raw bytes and analysis in run-1 through run-3.

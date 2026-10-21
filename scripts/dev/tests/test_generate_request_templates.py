@@ -60,12 +60,13 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 21)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 25)
+        self.assertEqual(len(templates), 22)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 26)
         original = [
             row
             for row in profiles
             if row["target"] not in ("EdgeWindows153", "ChromeMacos154")
+            and row["metadata"]["identity"]["kind"] == "Observed"
         ]
         count = sum(
             len(templates[identifier][name] or [])

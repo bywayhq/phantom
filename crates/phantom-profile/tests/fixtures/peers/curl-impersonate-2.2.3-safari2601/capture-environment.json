@@ -1,0 +1,15 @@
+{
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "openssl": "OpenSSL 3.0.13 30 Jan 2024",
+  "packages": {
+    "h2": "4.4.1",
+    "hpack": "4.2.0",
+    "cryptography": "50.0.1"
+  },
+  "peer_sha256": "e42b6db3df5e9bc88fedb6e887f9283d99de9acace08140054691313b976d70b",
+  "capture_source_sha256": {
+    "scripts/capture/http2_session.py": "de4413233b6bd6f080011be9f26990e82ffb6227067fbafc11dae36564e6c53a",
+    "scripts/capture/http2_analysis.py": "d973061e26e0007a5e0b79971ff13614df3e9910f449fbb10ee0a0549ba83fb2"
+  }
+}

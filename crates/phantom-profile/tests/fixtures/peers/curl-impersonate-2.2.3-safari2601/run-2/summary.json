@@ -1,0 +1,416 @@
+{
+  "hello_length": 1537,
+  "cipher_suites": [
+    "GREASE",
+    4866,
+    4867,
+    4865,
+    49196,
+    49195,
+    52393,
+    49200,
+    49199,
+    52392,
+    49162,
+    49161,
+    49172,
+    49171,
+    157,
+    156,
+    53,
+    47,
+    49160,
+    49170,
+    10
+  ],
+  "extension_order": [
+    "GREASE",
+    0,
+    23,
+    65281,
+    10,
+    11,
+    16,
+    5,
+    13,
+    18,
+    51,
+    45,
+    43,
+    27,
+    "GREASE"
+  ],
+  "extension_lengths": [
+    [
+      "GREASE",
+      0
+    ],
+    [
+      0,
+      24
+    ],
+    [
+      23,
+      0
+    ],
+    [
+      65281,
+      1
+    ],
+    [
+      10,
+      14
+    ],
+    [
+      11,
+      2
+    ],
+    [
+      16,
+      14
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      13,
+      22
+    ],
+    [
+      18,
+      0
+    ],
+    [
+      51,
+      1263
+    ],
+    [
+      45,
+      2
+    ],
+    [
+      43,
+      7
+    ],
+    [
+      27,
+      3
+    ],
+    [
+      "GREASE",
+      1
+    ]
+  ],
+  "groups": [
+    "GREASE",
+    4588,
+    29,
+    23,
+    24,
+    25
+  ],
+  "signatures": [
+    1027,
+    2052,
+    1025,
+    1283,
+    2053,
+    2053,
+    1281,
+    2054,
+    1537,
+    513
+  ],
+  "key_shares": [
+    [
+      "GREASE",
+      1
+    ],
+    [
+      4588,
+      1216
+    ],
+    [
+      29,
+      32
+    ]
+  ],
+  "alpn_offer": [
+    "h2",
+    "http/1.1"
+  ],
+  "client_frames": [
+    {
+      "direction": "client",
+      "type": "SETTINGS",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "settings:2=0;3=100;4=2097152;9=1"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "WINDOW_UPDATE",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "increment:10420225"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "HEADERS",
+      "flags": 5,
+      "stream_id": 1,
+      "details": [
+        "block_length:277"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "SETTINGS",
+      "flags": 1,
+      "stream_id": 0,
+      "details": []
+    },
+    {
+      "direction": "client",
+      "type": "HEADERS",
+      "flags": 5,
+      "stream_id": 3,
+      "details": [
+        "block_length:28"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "GOAWAY",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "last_stream:0,error:NO_ERROR",
+        "debug_length:9"
+      ]
+    }
+  ],
+  "headers": [
+    {
+      "stream_id": 1,
+      "flags": 5,
+      "priority": null,
+      "block_length": 277,
+      "fields": [
+        {
+          "name": ":method",
+          "value": "GET",
+          "representation": "indexed",
+          "index": 2,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":scheme",
+          "value": "https",
+          "representation": "indexed",
+          "index": 7,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":authority",
+          "value": "server.phantom.test:34537",
+          "representation": "incremental",
+          "index": 1,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": ":path",
+          "value": "/ws.html?run=peer-2",
+          "representation": "without-indexing",
+          "index": 4,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": "sec-fetch-dest",
+          "value": "document",
+          "representation": "incremental",
+          "index": 0,
+          "name_huffman": true,
+          "value_huffman": true
+        },
+        {
+          "name": "user-agent",
+          "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0.1 Safari/605.1.15",
+          "representation": "incremental",
+          "index": 58,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": "accept",
+          "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "representation": "incremental",
+          "index": 19,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": "sec-fetch-site",
+          "value": "none",
+          "representation": "incremental",
+          "index": 0,
+          "name_huffman": true,
+          "value_huffman": true
+        },
+        {
+          "name": "sec-fetch-mode",
+          "value": "navigate",
+          "representation": "incremental",
+          "index": 0,
+          "name_huffman": true,
+          "value_huffman": true
+        },
+        {
+          "name": "accept-language",
+          "value": "en-US,en;q=0.9",
+          "representation": "incremental",
+          "index": 17,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": "priority",
+          "value": "u=0, i",
+          "representation": "incremental",
+          "index": 0,
+          "name_huffman": true,
+          "value_huffman": true
+        },
+        {
+          "name": "accept-encoding",
+          "value": "gzip, deflate, br",
+          "representation": "incremental",
+          "index": 16,
+          "name_huffman": null,
+          "value_huffman": true
+        }
+      ]
+    },
+    {
+      "stream_id": 3,
+      "flags": 5,
+      "priority": null,
+      "block_length": 28,
+      "fields": [
+        {
+          "name": "",
+          "value": "",
+          "representation": "size-update",
+          "index": 4096,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":method",
+          "value": "GET",
+          "representation": "indexed",
+          "index": 2,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":scheme",
+          "value": "https",
+          "representation": "indexed",
+          "index": 7,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":authority",
+          "value": "server.phantom.test:34537",
+          "representation": "indexed",
+          "index": 70,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": ":path",
+          "value": "/done?run=peer-2",
+          "representation": "without-indexing",
+          "index": 4,
+          "name_huffman": null,
+          "value_huffman": true
+        },
+        {
+          "name": "sec-fetch-dest",
+          "value": "document",
+          "representation": "indexed",
+          "index": 69,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "user-agent",
+          "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0.1 Safari/605.1.15",
+          "representation": "indexed",
+          "index": 68,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "accept",
+          "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "representation": "indexed",
+          "index": 67,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "sec-fetch-site",
+          "value": "none",
+          "representation": "indexed",
+          "index": 66,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "sec-fetch-mode",
+          "value": "navigate",
+          "representation": "indexed",
+          "index": 65,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "accept-language",
+          "value": "en-US,en;q=0.9",
+          "representation": "indexed",
+          "index": 64,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "priority",
+          "value": "u=0, i",
+          "representation": "indexed",
+          "index": 63,
+          "name_huffman": null,
+          "value_huffman": null
+        },
+        {
+          "name": "accept-encoding",
+          "value": "gzip, deflate, br",
+          "representation": "indexed",
+          "index": 62,
+          "name_huffman": null,
+          "value_huffman": null
+        }
+      ]
+    }
+  ]
+}

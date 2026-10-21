@@ -1,0 +1,368 @@
+14:53:49.216020 * [DNS] added server.phantom.test:34537:127.0.0.1 to cache
+14:53:49.220191 * Hostname server.phantom.test was found in DNS cache
+14:53:49.220193 * Host server.phantom.test:34537 was resolved.
+14:53:49.220194 * IPv6: (none)
+14:53:49.220201 * IPv4: 127.0.0.1
+14:53:49.220214 *   Trying 127.0.0.1:34537...
+14:53:49.224900 * Cipher selection: TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:TLS_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_CBC_SHA:TLS_RSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:TLS_RSA_WITH_3DES_EDE_CBC_SHA
+14:53:49.226432 * ALPN: curl offers h2,http/1.1
+14:53:49.229013 => Send SSL data, 5 bytes (0x5)
+0000: 16 03 01 06 01                                  .....
+14:53:49.229294 * TLSv1.2 (OUT), TLS handshake, Client hello (1):
+14:53:49.229295 => Send SSL data, 1537 bytes (0x601)
+0000: 01 00 05 fd 03 03 cb f8 6a b5 e6 44 97 59 17 d4 ........j..D.Y..
+0010: d8 cf 51 0c 86 5c e0 3c fc 52 0e 95 95 f6 51 9a ..Q..\.<.R....Q.
+0020: 63 42 c4 42 88 d5 20 58 02 35 87 e0 02 a3 c7 00 cB.B.. X.5......
+0030: 86 d5 d3 ff e3 08 99 31 63 a8 f7 23 05 78 c6 0d .......1c..#.x..
+0040: f0 bc 5b c9 33 c2 ac 00 2a da da 13 02 13 03 13 ..[.3...*.......
+0050: 01 c0 2c c0 2b cc a9 c0 30 c0 2f cc a8 c0 0a c0 ..,.+...0./.....
+0060: 09 c0 14 c0 13 00 9d 00 9c 00 35 00 2f c0 08 c0 ..........5./...
+0070: 12 00 0a 01 00 05 8a fa fa 00 00 00 00 00 18 00 ................
+0080: 16 00 00 13 73 65 72 76 65 72 2e 70 68 61 6e 74 ....server.phant
+0090: 6f 6d 2e 74 65 73 74 00 17 00 00 ff 01 00 01 00 om.test.........
+00a0: 00 0a 00 0e 00 0c 1a 1a 11 ec 00 1d 00 17 00 18 ................
+00b0: 00 19 00 0b 00 02 01 00 00 10 00 0e 00 0c 02 68 ...............h
+00c0: 32 08 68 74 74 70 2f 31 2e 31 00 05 00 05 01 00 2.http/1.1......
+00d0: 00 00 00 00 0d 00 16 00 14 04 03 08 04 04 01 05 ................
+00e0: 03 08 05 08 05 05 01 08 06 06 01 02 01 00 12 00 ................
+00f0: 00 00 33 04 ef 04 ed 1a 1a 00 01 00 11 ec 04 c0 ..3.............
+0100: 9f 5b 2e 5f f8 3f f0 53 04 5c 42 61 16 e4 06 e0 .[._.?.S.\Ba....
+0110: 77 08 9a 02 8e 5f 2b 42 76 d5 22 a0 a5 31 a9 18 w...._+Bv."..1..
+0120: 41 d9 f0 bd 8a 0c 17 50 9c 61 81 51 0f 8d db 61 A......P.a.Q...a
+0130: 40 b2 cc 6e ac 23 91 b0 27 fc 54 02 45 3c 5c 84 @..n.#..'.T.E<\.
+0140: 02 6e a3 54 b7 84 b3 aa f1 b5 42 30 24 b2 89 91 .n.T......B0$...
+0150: 04 ab 85 27 ab 97 65 62 e7 b6 05 c1 1b 79 54 bd ...'..eb.....yT.
+0160: ab e5 04 0c 0a 4d fa 57 79 01 89 73 56 e9 1a c5 .....M.Wy..sV...
+0170: 1a 93 f6 f7 79 94 55 20 23 fa ae 61 76 a6 54 16 ....y.U #..av.T.
+0180: 50 c2 d0 00 1d e0 7d 0f f8 0a 8f 62 6a b7 91 bd P.....}....bj...
+0190: 30 e4 46 83 32 95 aa d4 90 3b 11 0f ae a9 3e 96 0.F.2....;....>.
+01a0: fb c3 28 81 5b 29 97 59 5e e5 9f 1e b2 1d af 00 ..(.[).Y^.......
+01b0: 16 0b 39 4f 4e 98 86 1e 2a a4 f9 84 99 8c 2c a5 ..9ON...*.....,.
+01c0: ca 20 07 0d e6 8e 93 88 0d 67 89 9a 6a 11 b4 9c . .......g..j...
+01d0: 04 a1 e4 62 be 01 9a 75 12 c7 c6 56 18 4f f2 a8 ...b...u...V.O..
+01e0: ae c7 37 1e d0 20 62 05 d0 be 80 aa 28 a8 cb 7c ..7.. b.....(..|
+01f0: d1 94 7f 99 45 7f cd a9 ae 23 58 08 bd 3a 3f a2 ....E....#X..:?.
+0200: f0 5c da db 8f 9c 11 4a 6e 76 aa 03 7b 0e 27 56 .\.....Jnv..{.'V
+0210: 02 9e 62 28 d4 35 07 87 79 6c e5 59 43 f9 43 41 ..b(.5..yl.YC.CA
+0220: e9 a2 b0 da 81 71 87 7b 5c 9b c1 c7 90 79 20 51 .....q.{\....y Q
+0230: bb 9e 9a 6b b5 13 f9 ba d0 ac 6c 50 fa 47 de 92 ...k......lP.G..
+0240: 05 20 07 70 8b 9a 46 e6 23 c9 22 35 08 a3 78 b0 . .p..F.#."5..x.
+0250: ef 5b 69 93 30 3b 83 2c 15 af 5a 6d b1 d7 65 64 .[i.0;.,..Zm..ed
+0260: 08 73 1f 40 92 d1 2b 93 87 9b 0e 25 40 6c cd 3b .s.@..+....%@l.;
+0270: 5b c3 f8 b8 b2 c1 78 17 c8 7b fe 30 46 dd b0 5a [.....x..{.0F..Z
+0280: 8c 81 c1 f8 b5 cb 0d f8 a4 02 58 59 f6 ac 99 8d ..........XY....
+0290: 38 39 6c 9b 4a d3 51 75 5c 0a 00 75 46 5b 05 dc 89l.J.Qu\..uF[..
+02a0: 8f 94 08 54 b8 e4 77 48 3a 33 6c 62 14 47 fb 98 ...T..wH:3lb.G..
+02b0: a6 eb 3b 01 77 36 1c 86 85 a4 c6 0c be 87 b2 22 ..;.w6........."
+02c0: 0c ca 68 45 8d 1d d0 25 ef 1c a3 96 29 cd 99 2b ..hE...%....)..+
+02d0: 63 b4 5a 7e e4 13 b3 bd 09 b0 2c e0 1e 67 9a 86 c.Z~......,..g..
+02e0: 67 86 a0 07 d3 ca 17 48 8b a2 f0 55 71 6c 80 2a g......H...Uql.*
+02f0: e5 32 0a 93 41 72 04 89 12 99 5b 7c e8 be 95 da .2..Ar....[|....
+0300: a7 2b 26 45 33 59 b9 c3 73 23 fe 30 7a 46 a1 8f .+&E3Y..s#.0zF..
+0310: 75 e4 78 87 75 87 98 6b b0 11 56 92 c6 06 57 4e u.x.u..k..V...WN
+0320: c6 0b 89 73 2c 72 5c bf d6 50 4b cd e1 2d 75 4b ...s,r\..PK..-uK
+0330: 56 d5 f8 1f 6e 0b 2f 6f 7a 03 23 61 69 a0 37 23 V...n./oz.#ai.7#
+0340: 4e 76 91 91 b8 97 ab 2a b1 c9 49 93 e6 66 9f 40 Nv.....*..I..f.@
+0350: 8c 9f d9 0b 85 c3 44 c6 af 32 19 5f 68 00 86 ab ......D..2._h...
+0360: 7e af 02 72 63 18 4c 50 45 3d 94 ac 94 85 28 84 ~..rc.LPE=....(.
+0370: ba ec be 6e da 34 5b e3 3a c4 69 af 6f eb ba d5 ...n.4[.:.i.o...
+0380: 77 07 e1 66 c1 e1 02 86 19 a4 25 10 fa 9b e6 80 w..f......%.....
+0390: 78 d4 2a cc 2f d3 9d c0 ab 46 26 e3 49 10 51 73 x.*./....F&.I.Qs
+03a0: ff 23 65 c3 36 b0 f9 56 24 65 2a 05 0a db 62 9d .#e.6..V$e*...b.
+03b0: f8 9f 37 d8 03 8a b9 30 53 2b 64 7b 39 b8 5d 84 ..7....0S+d{9.].
+03c0: 10 e9 38 35 83 eb ba 7b 77 a1 9f f5 76 a1 e7 09 ..85...{w...v...
+03d0: db 33 5e 43 c2 b7 11 a9 27 93 16 b6 38 c5 c7 05 .3^C....'...8...
+03e0: 27 5a 3b 76 22 17 43 11 ea 33 7a 05 fc 17 8f f3 'Z;v".C..3z.....
+03f0: 8b f7 1c 07 cf 4a 6f 5f 41 4e 22 f5 2a 86 cb 82 .....Jo_AN".*...
+0400: c1 33 6f 92 f5 28 2f 3b 90 ef ec 49 73 fa 62 60 .3o..(/;...Is.b`
+0410: ea 39 05 a1 cd a1 87 50 f7 92 b1 1e e1 78 20 f3 .9.....P.....x .
+0420: 30 d2 cc b3 37 ec 5b 05 d7 5e 46 1b 91 23 01 5f 0...7.[..^F..#._
+0430: ed 67 8b 16 97 52 38 e2 4b c0 66 28 87 83 70 f0 .g...R8.K.f(..p.
+0440: 9c 80 b5 7c c1 7d 94 08 b4 ac 3e d0 d3 22 20 c7 ...|.}....>.." .
+0450: 3c 31 bb 82 d3 7b 0c 65 62 8d 53 27 0d b2 73 89 <1...{.eb.S'..s.
+0460: 0c 56 81 b3 da 89 5f b6 bb d5 2c 6d 2e e3 5a f8 .V...._...,m..Z.
+0470: 85 03 f4 01 1d 09 46 37 cf e0 09 31 c8 5d 67 c8 ......F7...1.]g.
+0480: 02 8d 29 95 b2 41 4e 72 cb 17 1e 77 83 1d 04 1f ..)..ANr...w....
+0490: 1a 9b c6 2b 89 23 5d 86 b1 6b 35 21 1b 1b b0 f2 ...+.#]..k5!....
+04a0: 58 18 b3 c7 a7 f1 56 14 44 20 c3 9e 48 30 d9 d7 X.....V.D ..H0..
+04b0: 08 c4 a8 49 c3 e2 79 9f 4a 51 a5 a8 5c 10 37 c5 ...I..y.JQ..\.7.
+04c0: c2 d1 1f a8 2c 9e 25 ac 97 48 19 61 e2 d9 24 8f ....,.%..H.a..$.
+04d0: 9c c9 ea 1a 46 f8 b8 5f b4 51 3f 45 d3 28 e3 c9 ....F.._.Q?E.(..
+04e0: 35 82 f1 60 48 f0 0b 21 a0 09 94 77 b6 53 69 98 5..`H..!...w.Si.
+04f0: 47 a2 aa ba e1 98 84 f7 cb 71 c0 67 70 a2 5e 3a G........q.gp.^:
+0500: 64 ba c2 bb 8a dd 71 cb 89 26 cd 19 e0 41 55 59 d.....q..&...AUY
+0510: cf 8d cb 0e 5c 31 48 1d d0 ab 59 fb 94 48 d0 38 ....\1H...Y..H.8
+0520: e8 d0 62 25 fb be b0 85 c3 66 86 95 aa 8b 1c 3a ..b%.....f.....:
+0530: 09 33 38 20 93 53 25 44 8a 15 a2 22 21 a4 67 fa .38 .S%D..."!.g.
+0540: 0c ae 78 05 fb f3 4b 89 a1 ab 3b 27 3b 2a 47 58 ..x...K...;';*GX
+0550: 7b 37 3d d0 61 83 c6 71 15 42 a8 b4 55 ec 17 3a {7=.a..q.B..U..:
+0560: 6c 4f b4 4b 76 a8 8a 70 72 12 1d 6b 28 74 68 82 lO.Kv..pr..k(th.
+0570: b8 3a 5c 84 9d 76 73 18 12 b4 7f 92 07 54 ea 2f .:\..vs......T./
+0580: e0 ac 06 13 99 30 16 07 8c c9 e8 f1 86 00 da 19 .....0..........
+0590: 19 8f 75 bd 87 11 af 64 25 91 71 87 4e 14 58 7d ..u....d%.q.N.X}
+05a0: b7 3d 49 43 24 b9 3e 60 ca db cb 3a 2c f0 f6 d4 .=IC$.>`...:,...
+05b0: 2e c1 4a 7e af 1d 2d 44 a4 19 14 36 fa 0c 03 58 ..J~..-D...6...X
+05c0: 00 1d 00 20 fe be 9e 2b bb 42 86 33 e0 a0 21 b0 ... ...+.B.3..!.
+05d0: 23 cd 5a ae 37 92 c2 03 31 9d 67 d8 9c 58 2d 79 #.Z.7...1.g..X-y
+05e0: cd 91 e4 28 00 2d 00 02 01 01 00 2b 00 07 06 aa ...(.-.....+....
+05f0: aa 03 04 03 03 00 1b 00 03 02 00 01 9a 9a 00 01 ................
+0600: 00                                              .
+14:53:49.229852 * SSL Trust Anchors:
+14:53:49.234064 *   CAfile: /mnt/c/code/phantom-worktrees/rust-release-audit/target/tmp/nonbinding-safari-peer-capture-v223/run-2/certificate.pem
+14:53:49.234066 *   CApath: /etc/ssl/certs
+14:53:49.234157 <= Recv SSL data, 5 bytes (0x5)
+0000: 16 03 03 00 7a                                  ....z
+14:53:49.234318 * TLSv1.2 (IN), TLS handshake, Server hello (2):
+14:53:49.234319 <= Recv SSL data, 122 bytes (0x7a)
+0000: 02 00 00 76 03 03 3a 78 75 8f 65 c7 18 ae 22 25 ...v..:xu.e..."%
+0010: 48 21 43 6a 3f 6e 7b d7 f2 b6 ff 99 79 bc d2 7a H!Cj?n{.....y..z
+0020: 5f 00 89 e6 0d 9e 20 58 02 35 87 e0 02 a3 c7 00 _..... X.5......
+0030: 86 d5 d3 ff e3 08 99 31 63 a8 f7 23 05 78 c6 0d .......1c..#.x..
+0040: f0 bc 5b c9 33 c2 ac 13 02 00 00 2e 00 2b 00 02 ..[.3........+..
+0050: 03 04 00 33 00 24 00 1d 00 20 26 7e 11 5c 49 94 ...3.$... &~.\I.
+0060: 6b 03 08 b6 8a 7b 3d 86 41 4b 4b 10 0e 6a 0c 6c k....{=.AKK..j.l
+0070: db 7f a2 fd c0 22 62 6f fb 77                   ....."bo.w
+14:53:49.234475 => Send SSL data, 5 bytes (0x5)
+0000: 14 03 03 00 01                                  .....
+14:53:49.234654 * TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+14:53:49.234655 => Send SSL data, 1 bytes (0x1)
+0000: 01                                              .
+14:53:49.235534 <= Recv SSL data, 5 bytes (0x5)
+0000: 14 03 03 00 01                                  .....
+14:53:49.235751 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 20                                  .... 
+14:53:49.235944 * TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+14:53:49.235946 <= Recv SSL data, 15 bytes (0xf)
+0000: 08 00 00 0b 00 09 00 10 00 05 00 03 02 68 32    .............h2
+14:53:49.236416 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 01 a4                                  .....
+14:53:49.236634 * TLSv1.3 (IN), TLS handshake, Certificate (11):
+14:53:49.236635 <= Recv SSL data, 403 bytes (0x193)
+0000: 0b 00 01 8f 00 00 01 8b 00 01 86 30 82 01 82 30 ...........0...0
+0010: 82 01 29 a0 03 02 01 02 02 14 74 ef 3e 82 e5 64 ..).......t.>..d
+0020: 92 d2 4d a5 54 9e 1b f0 26 c6 af cb fc 53 30 0a ..M.T...&....S0.
+0030: 06 08 2a 86 48 ce 3d 04 03 02 30 1e 31 1c 30 1a ..*.H.=...0.1.0.
+0040: 06 03 55 04 03 0c 13 73 65 72 76 65 72 2e 70 68 ..U....server.ph
+0050: 61 6e 74 6f 6d 2e 74 65 73 74 30 1e 17 0d 32 36 antom.test0...26
+0060: 31 30 32 31 32 30 35 33 34 39 5a 17 0d 32 36 31 1021205349Z..261
+0070: 30 32 33 32 31 35 33 34 39 5a 30 1e 31 1c 30 1a 023215349Z0.1.0.
+0080: 06 03 55 04 03 0c 13 73 65 72 76 65 72 2e 70 68 ..U....server.ph
+0090: 61 6e 74 6f 6d 2e 74 65 73 74 30 59 30 13 06 07 antom.test0Y0...
+00a0: 2a 86 48 ce 3d 02 01 06 08 2a 86 48 ce 3d 03 01 *.H.=....*.H.=..
+00b0: 07 03 42 00 04 9a e2 7e 29 40 0e 18 f9 d4 c9 57 ..B....~)@.....W
+00c0: a3 48 cc ef 63 e5 80 c9 10 fb 82 7d b0 bb ef 2d .H..c......}...-
+00d0: ce b9 6e 91 df be 86 8e 1b 39 78 e4 c5 cd 01 f2 ..n......9x.....
+00e0: a8 1b 76 94 24 ea 92 07 0e 9c b1 05 43 3e 4b 39 ..v.$.......C>K9
+00f0: 4b 9d 6d 7c f5 a3 45 30 43 30 1e 06 03 55 1d 11 K.m|..E0C0...U..
+0100: 04 17 30 15 82 13 73 65 72 76 65 72 2e 70 68 61 ..0...server.pha
+0110: 6e 74 6f 6d 2e 74 65 73 74 30 0c 06 03 55 1d 13 ntom.test0...U..
+0120: 01 01 ff 04 02 30 00 30 13 06 03 55 1d 25 04 0c .....0.0...U.%..
+0130: 30 0a 06 08 2b 06 01 05 05 07 03 01 30 0a 06 08 0...+.......0...
+0140: 2a 86 48 ce 3d 04 03 02 03 47 00 30 44 02 20 71 *.H.=....G.0D. q
+0150: ff 3e 0b e7 c2 9d 1c ba 1f 49 45 fb 97 de 9e 4c .>.......IE....L
+0160: 77 9c 6a ee 5b 01 11 32 b3 e2 e8 1d c3 07 4a 02 w.j.[..2......J.
+0170: 20 46 f7 9e a1 53 d8 c9 ac 40 89 09 8a f6 4a 34  F...S...@....J4
+0180: ef dd 60 81 ac 2d 67 1d ba 44 77 45 fc ad 04 d7 ..`..-g..DwE....
+0190: bc 00 00                                        ...
+14:53:49.236813 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 60                                  ....`
+14:53:49.237091 * TLSv1.3 (IN), TLS handshake, CERT verify (15):
+14:53:49.237093 <= Recv SSL data, 79 bytes (0x4f)
+0000: 0f 00 00 4b 04 03 00 47 30 45 02 20 0f 3c e8 59 ...K...G0E. .<.Y
+0010: ad a1 7b 80 b1 f2 e1 d7 90 0a 51 62 6b 22 2e a2 ..{.......Qbk"..
+0020: d5 d0 c4 7d d3 e4 18 35 42 5c 14 b1 02 21 00 be ...}...5B\...!..
+0030: e2 f2 90 e6 c3 36 40 e1 21 68 a0 5c 37 b9 71 4d .....6@.!h.\7.qM
+0040: 31 95 d1 fe aa 19 02 e2 55 b3 c1 09 72 8a 7e    1.......U...r.~
+14:53:49.237628 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 45                                  ....E
+14:53:49.237799 * TLSv1.3 (IN), TLS handshake, Finished (20):
+14:53:49.237800 <= Recv SSL data, 52 bytes (0x34)
+0000: 14 00 00 30 ef 65 50 8d f9 87 46 67 e6 5b ed b5 ...0.eP...Fg.[..
+0010: 51 0e 27 c3 b8 3d ad 96 e5 9e 96 71 b5 0e 9f 88 Q.'..=.....q....
+0020: da 8b e2 4e 15 cc f1 8d 9a a9 02 7b 2c 61 1f 4d ...N.......{,a.M
+0030: 93 40 da 34                                     .@.4
+14:53:49.237945 * TLSv1.3 (OUT), TLS handshake, Finished (20):
+14:53:49.237946 => Send SSL data, 52 bytes (0x34)
+0000: 14 00 00 30 78 cd ac d2 24 3f ea 02 94 54 64 a3 ...0x...$?...Td.
+0010: ba 53 06 b2 59 b2 40 d3 a3 80 bf ea 7e 63 1e d2 .S..Y.@.....~c..
+0020: 16 4d 11 12 7b 2b 81 91 83 57 f5 28 5a d5 27 f9 .M..{+...W.(Z.'.
+0030: aa 2f 23 6b                                     ./#k
+14:53:49.238070 => Send SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 45                                  ....E
+14:53:49.238259 * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / [blank] / UNDEF
+14:53:49.238261 * ALPN: server accepted h2
+14:53:49.238263 * Server certificate:
+14:53:49.238268 *   subject: CN=server.phantom.test
+14:53:49.238277 *   start date: Oct 21 20:53:49 2026 GMT
+14:53:49.238278 *   expire date: Oct 23 21:53:49 2026 GMT
+14:53:49.238279 *   issuer: CN=server.phantom.test
+14:53:49.238284 *   subjectAltName: "server.phantom.test" matches cert's "server.phantom.test"
+14:53:49.238285 * OpenSSL verify result: 0
+14:53:49.238286 * SSL certificate verified via OpenSSL.
+14:53:49.239347 * Established connection to server.phantom.test (127.0.0.1 port 34537) from 127.0.0.1 port 47196 
+14:53:49.239577 * using HTTP/2
+14:53:49.239609 * [HTTP/2] [1] OPENED stream for https://server.phantom.test:34537/ws.html?run=peer-2
+14:53:49.239610 * [HTTP/2] [1] [:method: GET]
+14:53:49.239610 * [HTTP/2] [1] [:scheme: https]
+14:53:49.239611 * [HTTP/2] [1] [:authority: server.phantom.test:34537]
+14:53:49.239611 * [HTTP/2] [1] [:path: /ws.html?run=peer-2]
+14:53:49.239612 * [HTTP/2] [1] [sec-fetch-dest: document]
+14:53:49.239612 * [HTTP/2] [1] [user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0.1 Safari/605.1.15]
+14:53:49.239613 * [HTTP/2] [1] [accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8]
+14:53:49.239614 * [HTTP/2] [1] [sec-fetch-site: none]
+14:53:49.239614 * [HTTP/2] [1] [sec-fetch-mode: navigate]
+14:53:49.239615 * [HTTP/2] [1] [accept-language: en-US,en;q=0.9]
+14:53:49.239615 * [HTTP/2] [1] [priority: u=0, i]
+14:53:49.239615 * [HTTP/2] [1] [accept-encoding: gzip, deflate, br]
+14:53:49.239635 => Send SSL data, 5 bytes (0x5)
+0000: 17 03 03 01 75                                  ....u
+14:53:49.239894 => Send header, 434 bytes (0x1b2)
+0000: 47 45 54 20 2f 77 73 2e 68 74 6d 6c 3f 72 75 6e GET /ws.html?run
+0010: 3d 70 65 65 72 2d 32 20 48 54 54 50 2f 32 0d 0a =peer-2 HTTP/2..
+0020: 48 6f 73 74 3a 20 73 65 72 76 65 72 2e 70 68 61 Host: server.pha
+0030: 6e 74 6f 6d 2e 74 65 73 74 3a 33 34 35 33 37 0d ntom.test:34537.
+0040: 0a 73 65 63 2d 66 65 74 63 68 2d 64 65 73 74 3a .sec-fetch-dest:
+0050: 20 64 6f 63 75 6d 65 6e 74 0d 0a 75 73 65 72 2d  document..user-
+0060: 61 67 65 6e 74 3a 20 4d 6f 7a 69 6c 6c 61 2f 35 agent: Mozilla/5
+0070: 2e 30 20 28 4d 61 63 69 6e 74 6f 73 68 3b 20 49 .0 (Macintosh; I
+0080: 6e 74 65 6c 20 4d 61 63 20 4f 53 20 58 20 31 30 ntel Mac OS X 10
+0090: 5f 31 35 5f 37 29 20 41 70 70 6c 65 57 65 62 4b _15_7) AppleWebK
+00a0: 69 74 2f 36 30 35 2e 31 2e 31 35 20 28 4b 48 54 it/605.1.15 (KHT
+00b0: 4d 4c 2c 20 6c 69 6b 65 20 47 65 63 6b 6f 29 20 ML, like Gecko) 
+00c0: 56 65 72 73 69 6f 6e 2f 32 36 2e 30 2e 31 20 53 Version/26.0.1 S
+00d0: 61 66 61 72 69 2f 36 30 35 2e 31 2e 31 35 0d 0a afari/605.1.15..
+00e0: 61 63 63 65 70 74 3a 20 74 65 78 74 2f 68 74 6d accept: text/htm
+00f0: 6c 2c 61 70 70 6c 69 63 61 74 69 6f 6e 2f 78 68 l,application/xh
+0100: 74 6d 6c 2b 78 6d 6c 2c 61 70 70 6c 69 63 61 74 tml+xml,applicat
+0110: 69 6f 6e 2f 78 6d 6c 3b 71 3d 30 2e 39 2c 2a 2f ion/xml;q=0.9,*/
+0120: 2a 3b 71 3d 30 2e 38 0d 0a 73 65 63 2d 66 65 74 *;q=0.8..sec-fet
+0130: 63 68 2d 73 69 74 65 3a 20 6e 6f 6e 65 0d 0a 73 ch-site: none..s
+0140: 65 63 2d 66 65 74 63 68 2d 6d 6f 64 65 3a 20 6e ec-fetch-mode: n
+0150: 61 76 69 67 61 74 65 0d 0a 61 63 63 65 70 74 2d avigate..accept-
+0160: 6c 61 6e 67 75 61 67 65 3a 20 65 6e 2d 55 53 2c language: en-US,
+0170: 65 6e 3b 71 3d 30 2e 39 0d 0a 70 72 69 6f 72 69 en;q=0.9..priori
+0180: 74 79 3a 20 75 3d 30 2c 20 69 0d 0a 61 63 63 65 ty: u=0, i..acce
+0190: 70 74 2d 65 6e 63 6f 64 69 6e 67 3a 20 67 7a 69 pt-encoding: gzi
+01a0: 70 2c 20 64 65 66 6c 61 74 65 2c 20 62 72 0d 0a p, deflate, br..
+01b0: 0d 0a                                           ..
+14:53:49.240132 * Request completely sent off
+14:53:49.240153 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 fa                                  .....
+14:53:49.240364 * TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+14:53:49.240365 <= Recv SSL data, 233 bytes (0xe9)
+0000: 04 00 00 e5 00 00 1c 20 39 50 40 66 08 00 00 00 ....... 9P@f....
+0010: 00 00 00 00 00 00 d0 35 a2 e7 67 1b 53 fe c9 4e .......5..g.S..N
+0020: b0 7b a1 3a 31 2b 77 c6 01 9b ca 65 45 b0 7d bf .{.:1+w....eE.}.
+0030: 39 79 f3 59 a7 40 83 89 de 64 22 91 23 47 5b 99 9y.Y.@...d".#G[.
+0040: 0d 97 6c 27 ae b9 e6 7d 37 0c 56 fe 3a da be 60 ..l'...}7.V.:..`
+0050: d3 49 00 7f de 6a 06 fd 02 08 d9 a5 9f 30 64 cd .I...j.......0d.
+0060: 8e a0 75 15 be 97 51 9b 51 26 f0 96 30 8b 7f 35 ..u...Q.Q&..0..5
+0070: d1 02 84 e0 7a da af 40 1c 27 e6 85 78 04 74 cd ....z..@.'..x.t.
+0080: 41 77 31 b1 5e b7 44 36 1a 55 2c d8 4e 52 db 1d Aw1.^.D6.U,.NR..
+0090: ef b4 b4 8d c7 9a 8c c5 30 ad bb 6f e7 ca 48 c1 ........0..o..H.
+00a0: 90 7c 43 52 4f ba 76 ab 43 5c 71 b1 5c 69 77 3d .|CRO.v.C\q.\iw=
+00b0: bf 94 56 ec 18 6a 53 94 61 f8 53 92 d8 2d a1 bd ..V..jS.a.S..-..
+00c0: f2 bf 3f 77 be 51 71 9c 44 38 3d eb 89 22 36 1e ..?w.Qq.D8=.."6.
+00d0: 1c 0b 48 61 97 22 cd 12 7e 4d fc 3b 85 21 ce b7 ..Ha."..~M.;.!..
+00e0: 26 6b da 2e d6 39 12 00 00                      &k...9...
+14:53:49.240595 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 fa                                  .....
+14:53:49.240801 * TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+14:53:49.240802 <= Recv SSL data, 233 bytes (0xe9)
+0000: 04 00 00 e5 00 00 1c 20 c7 d9 a5 d4 08 00 00 00 ....... ........
+0010: 00 00 00 00 01 00 d0 35 a2 e7 67 1b 53 fe c9 4e .......5..g.S..N
+0020: b0 7b a1 3a 31 2b 77 6c f9 47 5d c4 17 8d 01 1f .{.:1+wl.G].....
+0030: 70 a6 40 4e 3f 72 94 19 9a d1 52 06 4d 41 9c 56 p.@N?r....R.MA.V
+0040: 26 65 dc 50 a6 3e a0 b9 cd 76 74 c5 b9 fb 12 16 &e.P.>...vt.....
+0050: 97 c3 d3 1a 8e a5 f8 cf 99 da 2a af 07 37 b0 56 ..........*..7.V
+0060: 41 30 37 de 3e aa 52 0b 94 73 da db e9 4d 71 f0 A07.>.R..s...Mq.
+0070: d0 c7 9f 4e 98 99 4b 89 84 ce 7d 25 b6 13 07 07 ...N..K...}%....
+0080: 31 0f f8 38 6a 6f dc 06 d5 d4 88 80 dd f6 09 90 1..8jo..........
+0090: c8 6c 12 f0 e6 d4 ec a8 ab 89 d1 7d 51 89 2a 10 .l.........}Q.*.
+00a0: b9 f8 93 68 1b fb 6c 95 cf 83 e5 dd fe f2 01 19 ...h..l.........
+00b0: ea e3 7f bb 8b 52 d3 d8 a5 a9 f3 94 8d 3b 4a 07 .....R.......;J.
+00c0: 4a 09 b3 4f 5d 59 a3 d3 f5 85 d8 a1 61 e7 f7 3f J..O]Y......a..?
+00d0: d8 12 ab 88 97 48 1d 2f 4d 3b d5 6e e6 0e 99 1a .....H./M;.n....
+00e0: 82 84 ce 3c e5 05 7a 00 00                      ...<..z..
+14:53:49.241031 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 3e                                  ....>
+14:53:49.241161 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 63                                  ....c
+14:53:49.241318 <= Recv header, 13 bytes (0xd)
+0000: 48 54 54 50 2f 32 20 32 30 30 20 0d 0a          HTTP/2 200 ..
+14:53:49.241520 <= Recv header, 40 bytes (0x28)
+0000: 63 6f 6e 74 65 6e 74 2d 74 79 70 65 3a 20 74 65 content-type: te
+0010: 78 74 2f 68 74 6d 6c 3b 20 63 68 61 72 73 65 74 xt/html; charset
+0020: 3d 75 74 66 2d 38 0d 0a                         =utf-8..
+14:53:49.241738 <= Recv header, 20 bytes (0x14)
+0000: 63 6f 6e 74 65 6e 74 2d 6c 65 6e 67 74 68 3a 20 content-length: 
+0010: 31 33 0d 0a                                     13..
+14:53:49.241877 <= Recv header, 25 bytes (0x19)
+0000: 63 61 63 68 65 2d 63 6f 6e 74 72 6f 6c 3a 20 6e cache-control: n
+0010: 6f 2d 73 74 6f 72 65 0d 0a                      o-store..
+14:53:49.242012 <= Recv header, 2 bytes (0x2)
+0000: 0d 0a                                           ..
+14:53:49.242198 <= Recv data, 13 bytes (0xd)
+0000: 70 65 65 72 20 63 61 70 74 75 72 65 0a          peer capture.
+14:53:49.253066 => Send SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 1a                                  .....
+14:53:49.253283 <= Recv data, 0 bytes (0x0)
+14:53:49.253535 * Connection #0 to host server.phantom.test:34537 left intact
+14:53:49.254121 * RESOLVE server.phantom.test:34537 - old addresses discarded
+14:53:49.254124 * [DNS] added server.phantom.test:34537:127.0.0.1 to cache
+14:53:49.254138 * Reusing existing https: connection with host server.phantom.test
+14:53:49.254207 * [HTTP/2] [3] OPENED stream for https://server.phantom.test:34537/done?run=peer-2
+14:53:49.254209 * [HTTP/2] [3] [:method: GET]
+14:53:49.254209 * [HTTP/2] [3] [:scheme: https]
+14:53:49.254210 * [HTTP/2] [3] [:authority: server.phantom.test:34537]
+14:53:49.254210 * [HTTP/2] [3] [:path: /done?run=peer-2]
+14:53:49.254210 * [HTTP/2] [3] [sec-fetch-dest: document]
+14:53:49.254211 * [HTTP/2] [3] [user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0.1 Safari/605.1.15]
+14:53:49.254212 * [HTTP/2] [3] [accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8]
+14:53:49.254212 * [HTTP/2] [3] [sec-fetch-site: none]
+14:53:49.254213 * [HTTP/2] [3] [sec-fetch-mode: navigate]
+14:53:49.254213 * [HTTP/2] [3] [accept-language: en-US,en;q=0.9]
+14:53:49.254213 * [HTTP/2] [3] [priority: u=0, i]
+14:53:49.254214 * [HTTP/2] [3] [accept-encoding: gzip, deflate, br]
+14:53:49.254224 => Send SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 36                                  ....6
+14:53:49.254431 => Send header, 431 bytes (0x1af)
+0000: 47 45 54 20 2f 64 6f 6e 65 3f 72 75 6e 3d 70 65 GET /done?run=pe
+0010: 65 72 2d 32 20 48 54 54 50 2f 32 0d 0a 48 6f 73 er-2 HTTP/2..Hos
+0020: 74 3a 20 73 65 72 76 65 72 2e 70 68 61 6e 74 6f t: server.phanto
+0030: 6d 2e 74 65 73 74 3a 33 34 35 33 37 0d 0a 73 65 m.test:34537..se
+0040: 63 2d 66 65 74 63 68 2d 64 65 73 74 3a 20 64 6f c-fetch-dest: do
+0050: 63 75 6d 65 6e 74 0d 0a 75 73 65 72 2d 61 67 65 cument..user-age
+0060: 6e 74 3a 20 4d 6f 7a 69 6c 6c 61 2f 35 2e 30 20 nt: Mozilla/5.0 
+0070: 28 4d 61 63 69 6e 74 6f 73 68 3b 20 49 6e 74 65 (Macintosh; Inte
+0080: 6c 20 4d 61 63 20 4f 53 20 58 20 31 30 5f 31 35 l Mac OS X 10_15
+0090: 5f 37 29 20 41 70 70 6c 65 57 65 62 4b 69 74 2f _7) AppleWebKit/
+00a0: 36 30 35 2e 31 2e 31 35 20 28 4b 48 54 4d 4c 2c 605.1.15 (KHTML,
+00b0: 20 6c 69 6b 65 20 47 65 63 6b 6f 29 20 56 65 72  like Gecko) Ver
+00c0: 73 69 6f 6e 2f 32 36 2e 30 2e 31 20 53 61 66 61 sion/26.0.1 Safa
+00d0: 72 69 2f 36 30 35 2e 31 2e 31 35 0d 0a 61 63 63 ri/605.1.15..acc
+00e0: 65 70 74 3a 20 74 65 78 74 2f 68 74 6d 6c 2c 61 ept: text/html,a
+00f0: 70 70 6c 69 63 61 74 69 6f 6e 2f 78 68 74 6d 6c pplication/xhtml
+0100: 2b 78 6d 6c 2c 61 70 70 6c 69 63 61 74 69 6f 6e +xml,application
+0110: 2f 78 6d 6c 3b 71 3d 30 2e 39 2c 2a 2f 2a 3b 71 /xml;q=0.9,*/*;q
+0120: 3d 30 2e 38 0d 0a 73 65 63 2d 66 65 74 63 68 2d =0.8..sec-fetch-
+0130: 73 69 74 65 3a 20 6e 6f 6e 65 0d 0a 73 65 63 2d site: none..sec-
+0140: 66 65 74 63 68 2d 6d 6f 64 65 3a 20 6e 61 76 69 fetch-mode: navi
+0150: 67 61 74 65 0d 0a 61 63 63 65 70 74 2d 6c 61 6e gate..accept-lan
+0160: 67 75 61 67 65 3a 20 65 6e 2d 55 53 2c 65 6e 3b guage: en-US,en;
+0170: 71 3d 30 2e 39 0d 0a 70 72 69 6f 72 69 74 79 3a q=0.9..priority:
+0180: 20 75 3d 30 2c 20 69 0d 0a 61 63 63 65 70 74 2d  u=0, i..accept-
+0190: 65 6e 63 6f 64 69 6e 67 3a 20 67 7a 69 70 2c 20 encoding: gzip, 
+01a0: 64 65 66 6c 61 74 65 2c 20 62 72 0d 0a 0d 0a    deflate, br....
+14:53:49.254659 * Request completely sent off
+14:53:49.254773 <= Recv SSL data, 5 bytes (0x5)
+0000: 17 03 03 00 1f                                  .....
+14:53:49.254943 <= Recv header, 13 bytes (0xd)
+0000: 48 54 54 50 2f 32 20 32 30 34 20 0d 0a          HTTP/2 204 ..
+14:53:49.255090 <= Recv header, 25 bytes (0x19)
+0000: 63 61 63 68 65 2d 63 6f 6e 74 72 6f 6c 3a 20 6e cache-control: n
+0010: 6f 2d 73 74 6f 72 65 0d 0a                      o-store..
+14:53:49.255261 <= Recv header, 2 bytes (0x2)
+0000: 0d 0a                                           ..
+14:53:49.255400 <= Recv data, 0 bytes (0x0)
+14:53:49.255648 * Connection #0 to host server.phantom.test:34537 left intact

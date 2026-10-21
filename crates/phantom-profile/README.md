@@ -23,6 +23,13 @@ or pass its full ID. `selector()` returns the short name; `id()` and
 `metadata()` retain the exact build, platform and recipe revision. Selection
 never follows updates or chooses your host's platform.
 
+`curl-safari-26-macos` ports curl-impersonate 2.2.3's Safari preset for TLS,
+HTTP/2 and its navigation template. It describes that external client, not a
+Safari browser capture. `metadata().identity()` identifies the pinned source;
+`version()` returns its advertised Safari version. Browser build, OS release
+and capture environment are absent for peer presets. Require layers when you
+instantiate a definition to reject missing settings rather than use defaults.
+
 Brave's version labels use the Chromium major. `v154_windows` describes
 Brave 1.96.59, and `v153_android` describes Brave 1.95.104.
 

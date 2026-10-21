@@ -1,0 +1,31 @@
+{
+  "project": "curl-impersonate",
+  "release": "2.2.3",
+  "source_revision": "6e8f87760a4dd96771e96fc9d55440dcd8845243",
+  "recipe": "safari2601",
+  "advertised_browser_release": "26.0.1",
+  "release_url": "https://github.com/lexiforest/curl-impersonate/releases/tag/v2.2.3",
+  "asset_url": "https://github.com/lexiforest/curl-impersonate/releases/download/v2.2.3/curl-impersonate-v2.2.3.x86_64-linux-gnu.tar.gz",
+  "archive_sha256": "ca7c8aae49e33260d3a2400db16c7737aaf04692d606a843502056b42990f989",
+  "executable_sha256": "e42b6db3df5e9bc88fedb6e887f9283d99de9acace08140054691313b976d70b",
+  "source_files": [
+    {
+      "url": "https://github.com/lexiforest/curl-impersonate/blob/6e8f87760a4dd96771e96fc9d55440dcd8845243/patches/curl.patch",
+      "sha256": "b198abcd1e7ad065d5fc1d9d68ce99226ebc89bc7e1fa23c6aa9304b7e265bf1"
+    },
+    {
+      "url": "https://github.com/lexiforest/curl-impersonate/blob/6e8f87760a4dd96771e96fc9d55440dcd8845243/patches/boringssl.patch",
+      "sha256": "c8852fe2814b8f75d150af9c5c2edc6e2fc42b53b6329e2c01699377fe44c795"
+    },
+    {
+      "url": "https://github.com/lexiforest/curl-impersonate/blob/6e8f87760a4dd96771e96fc9d55440dcd8845243/tests/signatures/safari_26.0.1_macOS.yaml",
+      "sha256": "c4cefebbba0487030826bdd53c7825ee0cefcc21ea9983d5f7fc966fc7c855d1"
+    },
+    {
+      "url": "https://github.com/lexiforest/curl-impersonate/blob/6e8f87760a4dd96771e96fc9d55440dcd8845243/LICENSE",
+      "sha256": "c25fc35eb1692c95fa1406efca2f08cc14afda2c71d5cb1ae44da60358d1787b"
+    }
+  ],
+  "capture_repository": "https://github.com/bywayhq/phantom",
+  "capture_checkout": "6c5e9603175a53718833878aa15620a98c4ec1a7"
+}

@@ -74,6 +74,7 @@ class CompositionDeclarationTests(unittest.TestCase):
             entry
             for entry in profiles
             if entry["target"] not in ("EdgeWindows153", "ChromeMacos154")
+            and entry["metadata"]["identity"]["kind"] == "Observed"
         ]
         self.assertEqual(len(original), 10)
         pairs = [value for entry in original for value in entry["composition"].values()]
@@ -211,7 +212,7 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 12)
+        self.assertEqual(generated.count("static "), 13)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
         self,

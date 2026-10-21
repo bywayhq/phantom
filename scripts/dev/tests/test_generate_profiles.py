@@ -43,7 +43,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         profile = next(
             p for p in self.document["profiles"] if p["target"] == "ChromeMacos154"
         )
-        self.assertEqual(profile["metadata"]["environment"], "Desktop")
+        self.assertEqual(profile["metadata"]["identity"]["environment"], "Desktop")
         self.assertEqual(profile["composition"]["Tcp"], "chromium_154_macos_tcp")
         layers = {layer["layer"]: layer for layer in profile["layers"]}
         self.assertEqual(layers["Tcp"]["verified_fields"], [])
@@ -53,7 +53,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         for name in ("Udp", "Dns"):
             self.assertEqual(layers[name]["support"], "Unavailable")
             self.assertIsNone(profile["composition"][name])
-        profile["metadata"]["environment"] = "Emulator"
+        profile["metadata"]["identity"]["environment"] = "Emulator"
         self.reject(self.document)
 
     def test_generation_is_independent_of_record_and_layer_object_order(self):
@@ -109,15 +109,16 @@ class CatalogDeclarationTests(unittest.TestCase):
 
     def test_new_version_needs_no_python_target_or_metadata_registration(self):
         entry = copy.deepcopy(self.document["profiles"][0])
-        entry["metadata"].update(build="999.0.1", revision=2)
+        entry["metadata"]["identity"]["build"] = "999.0.1"
+        entry["metadata"]["revision"] = 2
         metadata = entry["metadata"]
         entry["target"] = metadata["browser"] + metadata["platform"] + "999"
         entry["selector"] = (
             f"{metadata['browser'].lower()}-999-{metadata['platform'].lower()}"
         )
         entry["id"] = (
-            f"{metadata['browser'].lower()}/{metadata['build']}/"
-            f"{metadata['platform_release']}/r2"
+            f"{metadata['browser'].lower()}/{metadata['identity']['build']}/"
+            f"{metadata['identity']['platform_release']}/r2"
         )
         # Reusing older components does not relabel their retained observations.
         self.document["profiles"].append(entry)
@@ -137,7 +138,7 @@ class CatalogDeclarationTests(unittest.TestCase):
             "chrome--154",
             "-chrome",
             "chrome-",
-            "é",
+            "Ã©",
             "x" * 65,
         ):
             with self.subTest(value=value):
@@ -181,7 +182,8 @@ class CatalogDeclarationTests(unittest.TestCase):
             ("platform", "Windows"),
         ):
             document = copy.deepcopy(self.document)
-            document["profiles"][0]["metadata"][field] = value
+            metadata = document["profiles"][0]["metadata"]
+            (metadata["identity"] if field == "build" else metadata)[field] = value
             with self.subTest(field=field):
                 self.reject(document)
         for field, value in (
@@ -191,7 +193,8 @@ class CatalogDeclarationTests(unittest.TestCase):
             ("build", "01.2"),
         ):
             document = copy.deepcopy(self.document)
-            document["profiles"][0]["metadata"][field] = value
+            metadata = document["profiles"][0]["metadata"]
+            (metadata["identity"] if field == "build" else metadata)[field] = value
             with self.subTest(field=field, value=value):
                 self.reject(document)
         document = copy.deepcopy(self.document)
@@ -253,9 +256,9 @@ class CatalogDeclarationTests(unittest.TestCase):
         )
         layer = next(layer for layer in chrome["layers"] if layer["layer"] == "TcpTls")
         capture = next(ref for ref in layer["references"] if ref["kind"] == "Capture")
-        self.assertEqual(chrome["metadata"]["build"], "154.0.8037.97")
+        self.assertEqual(chrome["metadata"]["identity"]["build"], "154.0.8037.97")
         self.assertEqual(capture["build"], "154.0.8037.58")
-        capture["build"] = chrome["metadata"]["build"]
+        capture["build"] = chrome["metadata"]["identity"]["build"]
         with self.assertRaisesRegex(generator.DeclarationError, "retained metadata"):
             generator.validate(self.document)
 
@@ -267,7 +270,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         new = next(entry for entry in profiles if entry["target"] == "EdgeWindows154")
         self.assertEqual(old["id"], "edge/153.0.4234.48/windows-11-26200/r1")
         self.assertEqual(new["id"], "edge/154.0.4258.48/windows-11-26200/r1")
-        self.assertIsNone(old["metadata"]["architecture"])
+        self.assertIsNone(old["metadata"]["identity"]["architecture"])
         supplied = {
             layer["layer"]
             for layer in old["layers"]
@@ -327,7 +330,9 @@ class CatalogDeclarationTests(unittest.TestCase):
             entry = next(
                 row for row in document["profiles"] if row["target"] == "EdgeWindows153"
             )
-            entry["metadata"][field] = value
+            (entry["metadata"]["identity"] if field == "build" else entry["metadata"])[
+                field
+            ] = value
             with self.subTest(field=field):
                 self.reject(document)
         document = copy.deepcopy(self.document)
@@ -349,9 +354,10 @@ class CatalogDeclarationTests(unittest.TestCase):
         )
         layer = next(layer for layer in brave["layers"] if layer["layer"] == "Http2")
         self.assertEqual(
-            brave["metadata"]["platform_release"], "android-17-pixel7-emulator"
+            brave["metadata"]["identity"]["platform_release"],
+            "android-17-pixel7-emulator",
         )
-        self.assertIsNone(brave["metadata"]["architecture"])
+        self.assertIsNone(brave["metadata"]["identity"]["architecture"])
         self.assertEqual(layer["verified_fields"], [])
         capture = next(ref for ref in layer["references"] if ref["kind"] == "Capture")
         self.assertEqual(

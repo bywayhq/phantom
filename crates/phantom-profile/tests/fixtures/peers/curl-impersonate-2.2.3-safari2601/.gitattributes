@@ -1,0 +1,3 @@
+* -text
+*.trace -whitespace
+upstream-signature.yaml -whitespace

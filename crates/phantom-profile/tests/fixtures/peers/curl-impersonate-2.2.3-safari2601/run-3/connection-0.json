@@ -1,0 +1,572 @@
+{
+  "protocol": "h2",
+  "alpn": "h2",
+  "failure": null,
+  "hello_complete": true,
+  "server_name": "server.phantom.test",
+  "alpn_offer": [
+    "h2",
+    "http/1.1"
+  ],
+  "received": 428,
+  "sent": 141,
+  "client_chunk_lengths": [
+    356,
+    9,
+    37,
+    26
+  ],
+  "analysis": {
+    "frames": [
+      {
+        "direction": "server",
+        "received": 0.043828279999956976,
+        "frame_type": 4,
+        "flags": 0,
+        "stream_id": 0,
+        "payload": {
+          "hex": "00010000100000040000ffff000500004000000800000001000300000064000600010000"
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.0450066149999202,
+        "frame_type": 4,
+        "flags": 0,
+        "stream_id": 0,
+        "payload": {
+          "hex": "000200000000000300000064000400200000000900000001"
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.0450066149999202,
+        "frame_type": 8,
+        "flags": 0,
+        "stream_id": 0,
+        "payload": {
+          "hex": "009f0001"
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.0450066149999202,
+        "frame_type": 1,
+        "flags": 5,
+        "stream_id": 1,
+        "payload": {
+          "hex": "82874192416cee5b17ae71d493d2ba4a84dc65b75c7f048f63c2179d34d1fe596d505652d8b33f408a4148b4a549275a42a13f8690e4b692d49f7adad07f66a281b0dae053fad0321aa49d13fda992a49685340c8a6adca7e28104416e277fb521aeba0bc8b1e63258700dae15c2da9fd66c7bf467fa5283752a988a4ea7fed4e25b1063d4c09c5c0b854dc39476198700dae15c2dff53b0497ca589d34d1f43aeba0c41a4c7a98f33a69a3fdf9a68fa1d75d0620d263d4c79a68fbed00177febe58f9fbed00177b408a4148b4a549275906497f83a8f517408a4148b4a549275a93c85f86a87dcd30d25f518b2d4b70ddf45abefb4005df4086aec31ec327d785b6007d286f508d9bd9abfa5242cb40d25fa523b3"
+        }
+      },
+      {
+        "direction": "server",
+        "received": 0.04552073199999995,
+        "frame_type": 4,
+        "flags": 1,
+        "stream_id": 0,
+        "payload": {
+          "hex": ""
+        }
+      },
+      {
+        "direction": "server",
+        "received": 0.04552073199999995,
+        "frame_type": 1,
+        "flags": 4,
+        "stream_id": 1,
+        "payload": {
+          "hex": "885f92497ca589d34d1f6a1271d882a60b532acf7f5c820b3f5886a8eb2127b0bf"
+        }
+      },
+      {
+        "direction": "server",
+        "received": 0.04552073199999995,
+        "frame_type": 0,
+        "flags": 0,
+        "stream_id": 1,
+        "payload": {
+          "hex": "7065657220636170747572650a"
+        }
+      },
+      {
+        "direction": "server",
+        "received": 0.04552073199999995,
+        "frame_type": 0,
+        "flags": 1,
+        "stream_id": 1,
+        "payload": {
+          "hex": ""
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.04900697999994463,
+        "frame_type": 4,
+        "flags": 1,
+        "stream_id": 0,
+        "payload": {
+          "hex": ""
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.050310107999962383,
+        "frame_type": 1,
+        "flags": 5,
+        "stream_id": 3,
+        "payload": {
+          "hex": "3fe11f8287c6048c6243d45ff2cb6a82b296c599c5c4c3c2c1c0bfbe"
+        }
+      },
+      {
+        "direction": "server",
+        "received": 0.0506836149999117,
+        "frame_type": 1,
+        "flags": 5,
+        "stream_id": 3,
+        "payload": {
+          "hex": "895c8107bf"
+        }
+      },
+      {
+        "direction": "client",
+        "received": 0.05356189799999811,
+        "frame_type": 7,
+        "flags": 0,
+        "stream_id": 0,
+        "payload": {
+          "hex": "000000000000000073687574646f776e00"
+        }
+      }
+    ],
+    "client_headers": [
+      {
+        "stream_id": 1,
+        "flags": 5,
+        "priority": null,
+        "continuation_count": 0,
+        "block": {
+          "hex": "82874192416cee5b17ae71d493d2ba4a84dc65b75c7f048f63c2179d34d1fe596d505652d8b33f408a4148b4a549275a42a13f8690e4b692d49f7adad07f66a281b0dae053fad0321aa49d13fda992a49685340c8a6adca7e28104416e277fb521aeba0bc8b1e63258700dae15c2da9fd66c7bf467fa5283752a988a4ea7fed4e25b1063d4c09c5c0b854dc39476198700dae15c2dff53b0497ca589d34d1f43aeba0c41a4c7a98f33a69a3fdf9a68fa1d75d0620d263d4c79a68fbed00177febe58f9fbed00177b408a4148b4a549275906497f83a8f517408a4148b4a549275a93c85f86a87dcd30d25f518b2d4b70ddf45abefb4005df4086aec31ec327d785b6007d286f508d9bd9abfa5242cb40d25fa523b3"
+        },
+        "fields": [
+          {
+            "representation": "indexed",
+            "index": 2,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "3a6d6574686f64"
+            },
+            "value": {
+              "hex": "474554"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 7,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "3a736368656d65"
+            },
+            "value": {
+              "hex": "6874747073"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 1,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "3a617574686f72697479"
+            },
+            "value": {
+              "hex": "7365727665722e7068616e746f6d2e746573743a3335373639"
+            }
+          },
+          {
+            "representation": "without-indexing",
+            "index": 4,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "3a70617468"
+            },
+            "value": {
+              "hex": "2f77732e68746d6c3f72756e3d706565722d33"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 0,
+            "name_huffman": true,
+            "value_huffman": true,
+            "name": {
+              "hex": "7365632d66657463682d64657374"
+            },
+            "value": {
+              "hex": "646f63756d656e74"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 58,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "757365722d6167656e74"
+            },
+            "value": {
+              "hex": "4d6f7a696c6c612f352e3020284d6163696e746f73683b20496e74656c204d6163204f5320582031305f31355f3729204170706c655765624b69742f3630352e312e313520284b48544d4c2c206c696b65204765636b6f292056657273696f6e2f32362e302e31205361666172692f3630352e312e3135"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 19,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "616363657074"
+            },
+            "value": {
+              "hex": "746578742f68746d6c2c6170706c69636174696f6e2f7868746d6c2b786d6c2c6170706c69636174696f6e2f786d6c3b713d302e392c2a2f2a3b713d302e38"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 0,
+            "name_huffman": true,
+            "value_huffman": true,
+            "name": {
+              "hex": "7365632d66657463682d73697465"
+            },
+            "value": {
+              "hex": "6e6f6e65"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 0,
+            "name_huffman": true,
+            "value_huffman": true,
+            "name": {
+              "hex": "7365632d66657463682d6d6f6465"
+            },
+            "value": {
+              "hex": "6e61766967617465"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 17,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "6163636570742d6c616e6775616765"
+            },
+            "value": {
+              "hex": "656e2d55532c656e3b713d302e39"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 0,
+            "name_huffman": true,
+            "value_huffman": true,
+            "name": {
+              "hex": "7072696f72697479"
+            },
+            "value": {
+              "hex": "753d302c2069"
+            }
+          },
+          {
+            "representation": "incremental",
+            "index": 16,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "6163636570742d656e636f64696e67"
+            },
+            "value": {
+              "hex": "677a69702c206465666c6174652c206272"
+            }
+          }
+        ]
+      },
+      {
+        "stream_id": 3,
+        "flags": 5,
+        "priority": null,
+        "continuation_count": 0,
+        "block": {
+          "hex": "3fe11f8287c6048c6243d45ff2cb6a82b296c599c5c4c3c2c1c0bfbe"
+        },
+        "fields": [
+          {
+            "representation": "size-update",
+            "index": 4096,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": null,
+            "value": null
+          },
+          {
+            "representation": "indexed",
+            "index": 2,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "3a6d6574686f64"
+            },
+            "value": {
+              "hex": "474554"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 7,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "3a736368656d65"
+            },
+            "value": {
+              "hex": "6874747073"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 70,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "3a617574686f72697479"
+            },
+            "value": {
+              "hex": "7365727665722e7068616e746f6d2e746573743a3335373639"
+            }
+          },
+          {
+            "representation": "without-indexing",
+            "index": 4,
+            "name_huffman": null,
+            "value_huffman": true,
+            "name": {
+              "hex": "3a70617468"
+            },
+            "value": {
+              "hex": "2f646f6e653f72756e3d706565722d33"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 69,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "7365632d66657463682d64657374"
+            },
+            "value": {
+              "hex": "646f63756d656e74"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 68,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "757365722d6167656e74"
+            },
+            "value": {
+              "hex": "4d6f7a696c6c612f352e3020284d6163696e746f73683b20496e74656c204d6163204f5320582031305f31355f3729204170706c655765624b69742f3630352e312e313520284b48544d4c2c206c696b65204765636b6f292056657273696f6e2f32362e302e31205361666172692f3630352e312e3135"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 67,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "616363657074"
+            },
+            "value": {
+              "hex": "746578742f68746d6c2c6170706c69636174696f6e2f7868746d6c2b786d6c2c6170706c69636174696f6e2f786d6c3b713d302e392c2a2f2a3b713d302e38"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 66,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "7365632d66657463682d73697465"
+            },
+            "value": {
+              "hex": "6e6f6e65"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 65,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "7365632d66657463682d6d6f6465"
+            },
+            "value": {
+              "hex": "6e61766967617465"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 64,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "6163636570742d6c616e6775616765"
+            },
+            "value": {
+              "hex": "656e2d55532c656e3b713d302e39"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 63,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "7072696f72697479"
+            },
+            "value": {
+              "hex": "753d302c2069"
+            }
+          },
+          {
+            "representation": "indexed",
+            "index": 62,
+            "name_huffman": null,
+            "value_huffman": null,
+            "name": {
+              "hex": "6163636570742d656e636f64696e67"
+            },
+            "value": {
+              "hex": "677a69702c206465666c6174652c206272"
+            }
+          }
+        ]
+      }
+    ],
+    "stream_data": {},
+    "client_trailing": 0
+  },
+  "frame_details": [
+    {
+      "direction": "server",
+      "type": "SETTINGS",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "settings:1=4096;4=65535;5=16384;8=1;3=100;6=65536"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "SETTINGS",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "settings:2=0;3=100;4=2097152;9=1"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "WINDOW_UPDATE",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "increment:10420225"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "HEADERS",
+      "flags": 5,
+      "stream_id": 1,
+      "details": [
+        "block_length:277"
+      ]
+    },
+    {
+      "direction": "server",
+      "type": "SETTINGS",
+      "flags": 1,
+      "stream_id": 0,
+      "details": []
+    },
+    {
+      "direction": "server",
+      "type": "HEADERS",
+      "flags": 4,
+      "stream_id": 1,
+      "details": [
+        "block_length:33"
+      ]
+    },
+    {
+      "direction": "server",
+      "type": "DATA",
+      "flags": 0,
+      "stream_id": 1,
+      "details": [
+        "data_length:13"
+      ]
+    },
+    {
+      "direction": "server",
+      "type": "DATA",
+      "flags": 1,
+      "stream_id": 1,
+      "details": [
+        "data_length:0"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "SETTINGS",
+      "flags": 1,
+      "stream_id": 0,
+      "details": []
+    },
+    {
+      "direction": "client",
+      "type": "HEADERS",
+      "flags": 5,
+      "stream_id": 3,
+      "details": [
+        "block_length:28"
+      ]
+    },
+    {
+      "direction": "server",
+      "type": "HEADERS",
+      "flags": 5,
+      "stream_id": 3,
+      "details": [
+        "block_length:5"
+      ]
+    },
+    {
+      "direction": "client",
+      "type": "GOAWAY",
+      "flags": 0,
+      "stream_id": 0,
+      "details": [
+        "last_stream:0,error:NO_ERROR",
+        "debug_length:9"
+      ]
+    }
+  ]
+}

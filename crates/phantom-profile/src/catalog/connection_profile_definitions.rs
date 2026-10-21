@@ -12,6 +12,7 @@ pub(super) enum TlsComponent {
     Chromium154AndroidTcp,
     Chromium154Quic,
     Chromium154Tcp,
+    CurlSafari2601,
     Edge153AndroidQuic,
     Edge153AndroidTcp,
     Edge154Quic,
@@ -36,6 +37,7 @@ impl TlsComponent {
             Self::Chromium154AndroidTcp => crate::tls::components::chromium_154_android_tcp_tls(),
             Self::Chromium154Quic => crate::tls::components::chromium_154_quic_tls(),
             Self::Chromium154Tcp => crate::tls::components::chromium_154_tcp_tls(),
+            Self::CurlSafari2601 => crate::tls::components::curl_safari2601_tls(),
             Self::Edge153AndroidQuic => crate::tls::components::edge_153_android_quic_tls(),
             Self::Edge153AndroidTcp => crate::tls::components::edge_153_android_tcp_tls(),
             Self::Edge154Quic => crate::tls::components::edge_154_quic_tls(),
@@ -126,6 +128,7 @@ impl Http1Component {
 #[rustfmt::skip]
 pub(super) enum Http2Component {
     Chromium154,
+    CurlSafari2601,
     Firefox157,
 }
 
@@ -134,6 +137,7 @@ impl Http2Component {
     pub(super) fn create(self) -> crate::Http2Settings {
         match self {
             Self::Chromium154 => super::http2_components::chromium_154_http2(),
+            Self::CurlSafari2601 => super::http2_components::curl_safari2601_http2(),
             Self::Firefox157 => super::http2_components::firefox_157_http2(),
         }
     }
@@ -504,4 +508,19 @@ pub(super) static OPERAWINDOWS136: ConnectionProfileDefinition = ConnectionProfi
     websocket: Some(WebSocketComponent::Chromium154),
     proxy_connect: Some(ProxyConnectComponent::Chromium154),
     cookie_placement: Some(CookieComponent::Chromium154),
+};
+
+#[rustfmt::skip]
+pub(super) static PEERCURLIMPERSONATESAFARI2601: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::CurlSafari2601,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::CurlSafari2601),
+    http3: None,
+    client_hints: None,
+    websocket: None,
+    proxy_connect: None,
+    cookie_placement: None,
 };

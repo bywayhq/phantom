@@ -2,7 +2,7 @@
 
 use phantom_profile::{
     RequestField, RequestTemplate, browser,
-    catalog::{CatalogError, RequestTemplateKind, profile, profiles},
+    catalog::{CatalogError, ProfileIdentity, RequestTemplateKind, profile, profiles},
 };
 
 mod originals;
@@ -160,6 +160,12 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
     let mut supported = 0;
     let mut unsupported = 0;
     for definition in profiles() {
+        if !matches!(
+            definition.metadata().identity(),
+            ProfileIdentity::Observed { .. }
+        ) {
+            continue;
+        }
         for kind in KINDS {
             let found = expected
                 .iter()

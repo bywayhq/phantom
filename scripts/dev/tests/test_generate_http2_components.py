@@ -38,7 +38,8 @@ class Http2ComponentTests(unittest.TestCase):
         for component in self.document["components"]:
             values = component["values"]
             for field in ("hpack", "streams", "headers_priority"):
-                values[field] = dict(reversed(values[field].items()))
+                if values[field] is not None:
+                    values[field] = dict(reversed(values[field].items()))
             component["values"] = dict(reversed(values.items()))
         self.assertEqual(
             generator.generate_components(self.resolve(), "http2-components.json"),

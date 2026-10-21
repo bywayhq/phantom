@@ -17,7 +17,7 @@ fn macos_selects_its_own_tcp_policy_and_reports_uncaptured_layers() -> TestResul
     assert_eq!(definition.metadata().platform(), ProfilePlatform::Macos);
     assert_eq!(
         definition.metadata().environment(),
-        CaptureEnvironment::Desktop
+        Some(CaptureEnvironment::Desktop)
     );
     assert_eq!(definition.metadata().architecture(), Some("arm64"));
     let selected = definition.instantiate(&[ProfileLayer::Tcp, ProfileLayer::ClientHints])?;

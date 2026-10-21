@@ -51,6 +51,10 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
 fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
     let mappings = [
         (
+            "curl-safari-26-macos",
+            "peer/curl-impersonate/safari2601/r1",
+        ),
+        (
             "brave-153-android",
             "brave/153.1.95.104/android-17-pixel7-emulator/r1",
         ),
@@ -159,7 +163,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::opera::v102_android,
         ),
     ];
-    assert_eq!(profiles().len(), factories.len() + 1);
+    assert_eq!(profiles().len(), factories.len() + 2);
 
     for &(id, factory) in factories {
         let definition = profile(id)?;
@@ -188,7 +192,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
                 ProfileLayer::ProxyConnect => selected.proxy_connect().is_some(),
                 // Android factories leave generic cookie placement in place.
                 ProfileLayer::CookiePlacement => {
-                    definition.metadata().environment() == CaptureEnvironment::Desktop
+                    definition.metadata().environment() == Some(CaptureEnvironment::Desktop)
                 }
                 _ => panic!("new layer needs an independent availability control"),
             };
@@ -241,7 +245,7 @@ fn intentional_absence_and_unavailable_support_remain_distinct() -> TestResult {
 fn layer_evidence_preserves_different_builds_and_unknown_host_architecture() -> TestResult {
     let chrome = profile("chrome/154.0.8037.97/windows-11-26200/r1")?;
     assert_eq!(chrome.metadata().browser(), Browser::Chrome);
-    assert_eq!(chrome.metadata().build(), "154.0.8037.97");
+    assert_eq!(chrome.metadata().build(), Some("154.0.8037.97"));
     assert_eq!(chrome.metadata().architecture(), None);
 
     let captured_build = |layer| -> TestResult<&'static str> {
