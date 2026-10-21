@@ -15,6 +15,7 @@ pub(crate) fn apply(mut builder: ClientBuilder, options: NetworkOptions) -> Resu
     let locals = options.local_addresses.unwrap_or_default();
     let mut entries = overrides.len().saturating_add(locals.len());
     let mut bytes = options.interface.as_ref().map_or(0, String::len);
+    bytes = bytes.saturating_add(options.unix_socket.as_ref().map_or(0, String::len));
     for entry in &overrides {
         entries = entries.saturating_add(entry.addresses.len());
         bytes = bytes.saturating_add(entry.host.len());
@@ -45,6 +46,25 @@ pub(crate) fn apply(mut builder: ClientBuilder, options: NetworkOptions) -> Resu
     }
     if let Some(name) = options.interface {
         builder = builder.interface(&name);
+    }
+    if let Some(path) = options.unix_socket {
+        if path.is_empty() || path.contains('\0') {
+            return Err(failure(
+                "InvalidConfiguration",
+                "unixSocket must be a nonempty UTF-8 pathname without NUL",
+            ));
+        }
+        #[cfg(unix)]
+        {
+            builder = builder.tcp_connector(phantom::TcpConnector::unix_socket(path));
+        }
+        #[cfg(not(unix))]
+        {
+            return Err(failure(
+                "UnsupportedPlatform",
+                "unixSocket requires a Unix host",
+            ));
+        }
     }
     Ok(builder)
 }
@@ -77,6 +97,7 @@ mod tests {
             }]),
             local_addresses: None,
             interface: None,
+            unix_socket: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -88,6 +109,7 @@ mod tests {
             }]),
             local_addresses: None,
             interface: None,
+            unix_socket: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -100,5 +122,56 @@ mod tests {
             assert!(error.is_some_and(|error| error.reason
                 == "PHANTOM:InvalidConfiguration:network address must be an unscoped IP literal"));
         }
+    }
+
+    fn socket_options(path: &str) -> NetworkOptions {
+        NetworkOptions {
+            host_overrides: None,
+            local_addresses: None,
+            interface: None,
+            unix_socket: Some(path.into()),
+        }
+    }
+
+    #[test]
+    fn native_unix_paths_are_bounded_and_invalid_values_are_redacted() {
+        for path in ["", "private\0path"] {
+            let error = apply(builder(), socket_options(path)).err();
+            assert!(error.is_some_and(|error| error.reason
+                == "PHANTOM:InvalidConfiguration:unixSocket must be a nonempty UTF-8 pathname without NUL"));
+        }
+        let mut options = socket_options(&"x".repeat(MAXIMUM_BYTES));
+        options.interface = Some("x".into());
+        assert!(
+            apply(builder(), options)
+                .err()
+                .is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:"))
+        );
+        assert!(!format!("{:?}", socket_options("private-path")).contains("private-path"));
+    }
+
+    #[cfg(not(unix))]
+    #[test]
+    fn native_unix_socket_rejects_unsupported_hosts_before_construction() {
+        let error = apply(builder(), socket_options("private-path")).err();
+        assert!(
+            error.is_some_and(|error| error.reason
+                == "PHANTOM:UnsupportedPlatform:unixSocket requires a Unix host")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_unix_socket_preserves_core_policy_conflicts() -> Result<()> {
+        let mut options = socket_options("/not-opened.sock");
+        options.local_addresses = Some(vec!["127.0.0.1".into()]);
+        let result = apply(builder(), options)?.build();
+        assert!(result.is_err());
+        assert!(
+            apply(builder(), socket_options("/not-opened.sock"))?
+                .build()
+                .is_ok()
+        );
+        Ok(())
     }
 }

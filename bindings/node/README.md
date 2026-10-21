@@ -138,6 +138,11 @@ name fail local resolution. Proxy-resolved targets ignore these overrides.
 `network.interface` selects an OS interface; DNS queries are not source-bound.
 Network settings allow 1024 combined records/addresses and 65,536 UTF-8 bytes.
 
+On Unix, `network: {unixSocket: '/run/service.sock'}` sends direct HTTP/1 or
+HTTP/2 through that socket. The URL still supplies HTTP authority and TLS
+identity. Paths are used as supplied. Source/DNS overrides, proxies, discovery
+and encrypted session checkpoints are unsupported with this transport.
+
 `serverSpkiPins` and `proxyServerSpkiPins` independently restrict origin and
 HTTPS-proxy TLS to accepted leaf keys, while retaining chain and hostname
 verification. Each takes 1..32 supplied `Uint8Array` values of exactly 32 bytes:

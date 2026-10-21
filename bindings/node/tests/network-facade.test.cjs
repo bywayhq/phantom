@@ -68,3 +68,26 @@ test('network entry and UTF-8 limits apply to aggregate data before native const
   }
   assert.equal(calls.length, 2);
 });
+
+test('Unix socket paths are copied without expansion and share the network byte budget', () => {
+  const {Client, calls} = facade();
+  const network = {unixSocket: '~/socket.sock'};
+  new Client({profile: 'exact', route: 'direct', network});
+  network.unixSocket = 'changed';
+  assert.equal(calls[0].network.unixSocket, '~/socket.sock');
+  assert(Object.isFrozen(calls[0].network));
+  new Client({profile: 'exact', route: 'direct', network: {unixSocket: 'x'.repeat(65536)}});
+  for (const unixSocket of ['', null, Buffer.from('/socket'), '\ud800', 'private\0path']) {
+    assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {unixSocket}}), (error) => {
+      assert.equal(error.code, 'InvalidArgument'); assert(!String(error).includes('private')); return true;
+    });
+  }
+  assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {
+    unixSocket: 'x'.repeat(65536), interface: 'x',
+  }}), {code: 'InputLimit'});
+  let getters = 0;
+  assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {
+    get unixSocket() {getters++; return '/socket';},
+  }}), {code: 'InvalidArgument'});
+  assert.equal(getters, 0); assert.equal(calls.length, 2);
+});

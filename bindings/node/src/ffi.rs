@@ -229,7 +229,6 @@ pub struct HostOverrideOptions {
 }
 
 /// Optional client network configuration, independent of the browser profile.
-#[derive(Debug)]
 #[napi(object)]
 pub struct NetworkOptions {
     /// Ordered overrides; the last canonical matching hostname wins.
@@ -238,6 +237,20 @@ pub struct NetworkOptions {
     pub local_addresses: Option<Vec<String>>,
     /// OS interface name, validated and applied by the core.
     pub interface: Option<String>,
+    /// Fixed UTF-8 Unix socket path; omitted from Debug output.
+    pub unix_socket: Option<String>,
+}
+
+impl std::fmt::Debug for NetworkOptions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NetworkOptions")
+            .field("host_overrides", &self.host_overrides)
+            .field("local_addresses", &self.local_addresses)
+            .field("interface", &self.interface)
+            .field("unix_socket_configured", &self.unix_socket.is_some())
+            .finish()
+    }
 }
 
 /// Native state categories selected by the JavaScript facade.

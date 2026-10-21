@@ -369,6 +369,9 @@ function receivedHead(response: Response): void {
 void receivedHead;
 
 function networkConfiguration(): void {
+  new Client({profile: 'exact', route: 'direct', network: {unixSocket: '/run/service.sock'}});
+  // @ts-expect-error Unix socket paths are text, not buffers
+  new Client({profile: 'exact', route: 'direct', network: {unixSocket: Buffer.from('/socket')}});
   new Client({profile: 'exact', route: 'direct', network: {
     hostOverrides: [{host: 'example.invalid', addresses: ['127.0.0.1', '::1']}],
     localAddresses: ['127.0.0.1'], interface: 'lo',

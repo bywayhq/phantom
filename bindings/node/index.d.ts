@@ -191,6 +191,9 @@ export interface NetworkOptions {
   readonly localAddresses?: readonly string[];
   /** OS interface name; resolver queries are not source-bound. */
   readonly interface?: string;
+  /** Fixed UTF-8 Unix socket path. Direct H1/H2 only; URL authority and TLS identity stay unchanged.
+   * Unsupported on Windows and with host/source overrides, proxies, discovery or encrypted session checkpoints. */
+  readonly unixSocket?: string;
 }
 /** Selected live state only; pools and cancellation stay independent. */
 export interface SessionSharing {
