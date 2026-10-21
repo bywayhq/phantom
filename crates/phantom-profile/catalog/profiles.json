@@ -3098,7 +3098,8 @@
           ],
           "limitations": [
             "Only two sequential GETs per fresh connection were captured",
-            "Cookie splitting and other HPACK input classes are source-derived, not captured"
+            "Cookie splitting and other HPACK input classes are source-derived, not captured",
+            "SETTINGS processing order and shutdown GOAWAY differ from retained peer runs"
           ]
         }
       ],

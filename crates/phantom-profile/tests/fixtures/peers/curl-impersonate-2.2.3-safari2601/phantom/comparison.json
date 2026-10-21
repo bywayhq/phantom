@@ -1,0 +1,395 @@
+{
+  "run-1": {
+    "tls_shape_equal": true,
+    "phantom_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        1,
+        5,
+        3
+      ]
+    ],
+    "peer_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        1,
+        5,
+        3
+      ],
+      [
+        7,
+        0,
+        0
+      ]
+    ],
+    "phantom_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ]
+    ],
+    "peer_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        7,
+        0,
+        "000000000000000073687574646f776e00"
+      ]
+    ],
+    "blocks": [
+      {
+        "stream_id": 1,
+        "phantom_size_updates": [
+          4096
+        ],
+        "peer_size_updates": [],
+        "other_fields_and_representations_equal": true
+      },
+      {
+        "stream_id": 3,
+        "phantom_size_updates": [],
+        "peer_size_updates": [
+          4096
+        ],
+        "other_fields_and_representations_equal": true
+      }
+    ],
+    "phantom_hpack_lengths": [
+      280,
+      25
+    ],
+    "peer_hpack_lengths": [
+      277,
+      28
+    ],
+    "reused_raw_equal_after_peer_size_update_removed": true,
+    "stdout": "selector=curl-safari-26-macos id=peer/curl-impersonate/safari2601/r1\nrequest=1 protocol=h2 status=200 bytes=13\nrequest=2 protocol=h2 status=204 bytes=0\n",
+    "stderr": "",
+    "exit": "0"
+  },
+  "run-2": {
+    "tls_shape_equal": true,
+    "phantom_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        1,
+        5,
+        3
+      ]
+    ],
+    "peer_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        1,
+        5,
+        3
+      ],
+      [
+        7,
+        0,
+        0
+      ]
+    ],
+    "phantom_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ]
+    ],
+    "peer_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        7,
+        0,
+        "000000000000000073687574646f776e00"
+      ]
+    ],
+    "blocks": [
+      {
+        "stream_id": 1,
+        "phantom_size_updates": [
+          4096
+        ],
+        "peer_size_updates": [],
+        "other_fields_and_representations_equal": true
+      },
+      {
+        "stream_id": 3,
+        "phantom_size_updates": [],
+        "peer_size_updates": [
+          4096
+        ],
+        "other_fields_and_representations_equal": true
+      }
+    ],
+    "phantom_hpack_lengths": [
+      280,
+      25
+    ],
+    "peer_hpack_lengths": [
+      277,
+      28
+    ],
+    "reused_raw_equal_after_peer_size_update_removed": true,
+    "stdout": "selector=curl-safari-26-macos id=peer/curl-impersonate/safari2601/r1\nrequest=1 protocol=h2 status=200 bytes=13\nrequest=2 protocol=h2 status=204 bytes=0\n",
+    "stderr": "",
+    "exit": "0"
+  },
+  "run-3": {
+    "tls_shape_equal": true,
+    "phantom_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        1,
+        5,
+        3
+      ]
+    ],
+    "peer_frame_order": [
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        1,
+        5,
+        1
+      ],
+      [
+        4,
+        1,
+        0
+      ],
+      [
+        1,
+        5,
+        3
+      ],
+      [
+        7,
+        0,
+        0
+      ]
+    ],
+    "phantom_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ]
+    ],
+    "peer_nonheaders": [
+      [
+        4,
+        0,
+        "000200000000000300000064000400200000000900000001"
+      ],
+      [
+        8,
+        0,
+        "009f0001"
+      ],
+      [
+        4,
+        1,
+        ""
+      ],
+      [
+        7,
+        0,
+        "000000000000000073687574646f776e00"
+      ]
+    ],
+    "blocks": [
+      {
+        "stream_id": 1,
+        "phantom_size_updates": [
+          4096
+        ],
+        "peer_size_updates": [],
+        "other_fields_and_representations_equal": true
+      },
+      {
+        "stream_id": 3,
+        "phantom_size_updates": [],
+        "peer_size_updates": [
+          4096
+        ],
+        "other_fields_and_representations_equal": true
+      }
+    ],
+    "phantom_hpack_lengths": [
+      280,
+      25
+    ],
+    "peer_hpack_lengths": [
+      277,
+      28
+    ],
+    "reused_raw_equal_after_peer_size_update_removed": true,
+    "stdout": "selector=curl-safari-26-macos id=peer/curl-impersonate/safari2601/r1\nrequest=1 protocol=h2 status=200 bytes=13\nrequest=2 protocol=h2 status=204 bytes=0\n",
+    "stderr": "",
+    "exit": "0"
+  }
+}

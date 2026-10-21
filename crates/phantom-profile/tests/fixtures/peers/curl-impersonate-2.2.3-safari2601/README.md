@@ -40,11 +40,13 @@ a table-size update to 4096 after the server states the default size.
 The upstream signature's ACK precedes HEADERS; these executions send the first
 HEADERS before ACK. Do not require that scheduling order across directions.
 
-Profile tests check numeric TLS values against the raw ClientHellos and check
-the HTTP/2 preface and navigation template. They do not prove emitted Phantom
-bytes. Transport comparison must exercise these retained inputs independently
-before claiming that emitted TLS and HTTP/2 match. Cookie splitting and HPACK
-behavior for other input classes remain source-derived rather than captured.
+Profile tests check numeric TLS values against the raw ClientHellos, the
+HTTP/2 preface and navigation template. `phantom/` retains three public-client
+runs, their source/build identities and raw streams. TLS shapes, ordered settings
+and request fields match the peer. SETTINGS processing occurred earlier, moving
+the 4096 table-size update to the first request. Shutdown GOAWAY also differs.
+These runs do not establish identical frame scheduling or connection shutdown.
+Cookie splitting and other HPACK input classes remain source-derived.
 
 ## Next
 

@@ -1,0 +1,77 @@
+use std::{error::Error, net::Ipv4Addr, path::PathBuf, time::Duration};
+
+use phantom::{
+    Client, HttpProtocol, RequestTimeouts, ResponseInfo,
+    profile::catalog::{self, ProfileLayer, RequestTemplateKind},
+};
+
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+fn main() -> Result<()> {
+    let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    if args.len() != 4 {
+        return Err("expected DER certificate, two URLs, and output directory".into());
+    }
+    let certificate = std::fs::read(&args[0])?;
+    let urls = [
+        args[1].to_str().ok_or("first URL is not UTF-8")?,
+        args[2].to_str().ok_or("second URL is not UTF-8")?,
+    ];
+    let output = PathBuf::from(&args[3]);
+    let definition = catalog::profile("curl-safari-26-macos")?;
+    let profile = definition
+        .instantiate(&[ProfileLayer::TcpTls, ProfileLayer::Http2])?
+        .with_request_template(definition.request_template(RequestTemplateKind::Navigation)?);
+    let client = Client::builder(profile)
+        .add_root_certificate_der(certificate)
+        .resolve("server.phantom.test", [Ipv4Addr::LOCALHOST.into()])
+        .request_timeouts(
+            RequestTimeouts::new()
+                .connect(Duration::from_secs(5))
+                .total(Duration::from_secs(15)),
+        )
+        .build()?;
+    println!("selector={} id={}", definition.selector(), definition.id());
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            tokio::time::timeout(Duration::from_secs(35), async {
+                for (index, url) in urls.into_iter().enumerate() {
+                    let response = client.get(HttpProtocol::Http2, url)?.send().await?;
+                    let info = response
+                        .extensions()
+                        .get::<ResponseInfo>()
+                        .ok_or("response omitted protocol metadata")?;
+                    if info.protocol() != HttpProtocol::Http2 {
+                        return Err("request did not use exact HTTP/2".into());
+                    }
+                    let expected_status = if index == 0 { 200 } else { 204 };
+                    if response.status().as_u16() != expected_status {
+                        return Err(
+                            format!("unexpected response status: {}", response.status()).into()
+                        );
+                    }
+                    let body = response.into_body().collect_with_limit(1 << 20).await?;
+                    let expected = if index == 0 {
+                        b"peer capture\n".as_slice()
+                    } else {
+                        b""
+                    };
+                    if body.as_ref() != expected {
+                        return Err("response body did not match the independent peer".into());
+                    }
+                    std::fs::write(output.join(format!("response-{}.body", index + 1)), &body)?;
+                    println!(
+                        "request={} protocol=h2 status={expected_status} bytes={}",
+                        index + 1,
+                        body.len()
+                    );
+                }
+                client.shutdown().await;
+                Ok::<_, Box<dyn Error>>(())
+            })
+            .await?
+        })?;
+    Ok(())
+}

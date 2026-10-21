@@ -1,0 +1,95 @@
+{
+  "scope": "Phantom public Rust consumer of the peer preset, not a Safari browser capture or performance result",
+  "identity": {
+    "source_head": "a1d7a1ce426e7fa2eaa4aeb503d539c4763d2ac4",
+    "tracked_status": [],
+    "rustc": [
+      "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "binary: rustc",
+      "commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67",
+      "commit-date: 2026-10-13",
+      "host: x86_64-pc-windows-msvc",
+      "release: 1.99.1",
+      "LLVM version: 23.1.1"
+    ],
+    "binary_profile": "debug (root-built, no performance claim)",
+    "file_sha256": {
+      "scripts/capture/http2_analysis.py": "D973061E26E0007A5E0B79971FF13614DF3E9910F449FBB10EE0A0549BA83FB2",
+      "target/tmp/safari-peer-comparison/capture.py": "2A977904330658C8A793867DA004259D3FD5BC0C726D8362A93C2497A4F39F54",
+      "target/profile-port/debug/safari-peer-public-consumer.exe": "C20CC45334C5A22767D0DFB828CEC292EF093CF4C818786C2EBCA9C3263BE606",
+      "crates/phantom-profile/src/catalog/connection_profile_values.rs": "B837E05CF626C288B0D28B6857943816752CF22813157E63EB0AF6CAF8A86BA8",
+      "crates/phantom-profile/src/catalog/generated.rs": "457EADB21A6FF868108A905AC8F441A179C34A2FA36AA265E5648DC0A501E424",
+      "target/tmp/safari-peer-comparison/consumer/Cargo.toml": "2434E6F3BC1925B07B2E75E5FA23FE10ED6FEE9B032493EC73F69FAB6EC47903",
+      "scripts/capture/http2_session.py": "DE4413233B6BD6F080011BE9F26990E82FFB6227067FBAFC11DAE36564E6C53A",
+      "crates/phantom-profile/src/catalog/connection_profile_definitions.rs": "EA0CA10BE62078892AD8FE60450447C1E6D62140CB17FF6EE1516B46ABE1A88F",
+      "target/tmp/safari-peer-comparison/consumer/Cargo.lock": "2FC859B8631D4E4F38094FF677EF669AA964B67AC17C2CF8550FBBA62DC6C95C",
+      "crates/phantom-profile/src/catalog/request_template_definitions.rs": "02C8ED4D66512E0EE915BDA7224C4E968CB437CA5B23DBCE1E2869B0667FC9F6",
+      "crates/phantom-profile/src/catalog/request_template_values.rs": "052FFE349A57DD46CB0515FFBA9175EB9B5172984945E906BA4157ABB61E2663",
+      "target/tmp/safari-peer-comparison/consumer/src/main.rs": "3B9F44E60467E4F4A3F8B322C690812001D8DDAF195FCF98570523CD88AF538F",
+      "Cargo.lock": "A064D36378539607159AAB962750E0D26E340453379390ACD1F46E6ABBFE14A0"
+    }
+  },
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "executable": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpv1gFps\\Scripts\\python.exe",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "openssl": "OpenSSL 3.0.16 11 Feb 2025",
+    "packages": {
+      "aioquic": "1.3.0",
+      "h2": "4.4.1",
+      "hpack": "4.2.0",
+      "cryptography": "48.0.0"
+    },
+    "consumer_sha256": "c20cc45334c5a22767d0dfb828cec292ef093cf4c818786c2ebca9c3263be606",
+    "source_sha256": {
+      "scripts/capture/http2_session.py": "de4413233b6bd6f080011be9f26990e82ffb6227067fbafc11dae36564e6c53a",
+      "scripts/capture/http2_analysis.py": "d973061e26e0007a5e0b79971ff13614df3e9910f449fbb10ee0a0549ba83fb2",
+      "scripts/capture/quic_resumption.py": "9ea9653ff8faf38ebc292aaf962abdd55793d23353f5169b03d65a961729c531",
+      "scripts/capture/snapshot_compare.py": "c15bc7a982d84d0eff1cf11703717a3305f3343cf0fbd380c658cb07dddca8da",
+      "crates/phantom-profile/src/catalog/generated.rs": "457eadb21a6ff868108a905ac8f441a179c34a2fa36aa265e5648dc0a501e424",
+      "crates/phantom-profile/src/catalog/connection_profile_definitions.rs": "ea0ca10be62078892ad8fe60450447c1e6d62140cb17ff6ee1516b46abe1a88f",
+      "crates/phantom-profile/src/catalog/request_template_definitions.rs": "02c8ed4d66512e0ee915bda7224c4e968cb437ca5b23dbce1e2869b0667fc9f6"
+    },
+    "driver_sha256": "2a977904330658c8a793867da004259d3fd5bc0c726d8362a93c2497a4f39f54",
+    "consumer_source_sha256": "3b9f44e60467e4f4a3f8b322c690812001d8ddaf195fcf98570523cd88af538f"
+  },
+  "workload": {
+    "requests": [
+      "/ws.html?run=peer-N",
+      "/done?run=peer-N"
+    ],
+    "connections_per_process": 1,
+    "streams": [
+      1,
+      3
+    ],
+    "responses": [
+      {
+        "status": 200,
+        "body_hex": "7065657220636170747572650a"
+      },
+      {
+        "status": 204,
+        "body_hex": ""
+      }
+    ],
+    "processes": 3,
+    "process_exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "verification": "per-run throwaway root certificate; server.phantom.test resolved to loopback; exact HTTP/2"
+  },
+  "normalization": [
+    "TLS random/session-ID bytes",
+    "key-exchange bytes with lengths retained",
+    "GREASE code points only, payload bytes exact",
+    "decoded authority port only"
+  ],
+  "differences": [
+    "Phantom processed server SETTINGS before its first request; peer processed them before its second",
+    "HPACK 4096 table-size update moved with SETTINGS processing",
+    "peer emitted a shutdown GOAWAY; this consumer did not"
+  ]
+}

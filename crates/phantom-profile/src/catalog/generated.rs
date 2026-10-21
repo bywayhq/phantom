@@ -3078,7 +3078,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "first and reused navigation header blocks"],
-                limitations: &["Only two sequential GETs per fresh connection were captured", "Cookie splitting and other HPACK input classes are source-derived, not captured"],
+                limitations: &["Only two sequential GETs per fresh connection were captured", "Cookie splitting and other HPACK input classes are source-derived, not captured", "SETTINGS processing order and shutdown GOAWAY differ from retained peer runs"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
