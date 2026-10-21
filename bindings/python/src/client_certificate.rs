@@ -1,12 +1,14 @@
 //! Parsed native identities; no Python key material survives construction.
 
-use crate::error;
+use std::error::Error;
+
 use phantom::{BuildError, ClientCertificate, ClientCertificateError, ClientCertificateErrorKind};
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyBytesMethods, PyTuple, PyTupleMethods},
 };
-use std::error::Error;
+
+use crate::error;
 
 const MAXIMUM_BYTES: usize = 16 * 1024 * 1024;
 const MAXIMUM_CERTIFICATES: usize = 256;

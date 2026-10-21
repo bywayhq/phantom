@@ -205,6 +205,17 @@ def copied_tests(destination, native_package=None):
             ("require('..')", "require('@byway/phantom')", 1),
         ),
         "server-pins.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "client-certificates.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+            ("import('../index.mjs')", "import('@byway/phantom')", 1),
+        ),
+        "client-certificates-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "server-pins-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -402,6 +413,8 @@ def public_checks(
                 "tests/prepared-bodies.test.cjs",
                 "tests/server-pins.test.cjs",
                 "tests/server-pins-facade.test.cjs",
+                "tests/client-certificates.test.cjs",
+                "tests/client-certificates-facade.test.cjs",
                 "tests/diagnostics.test.cjs",
                 "tests/diagnostics-http2.test.cjs",
                 "tests/diagnostics-facade.test.cjs",

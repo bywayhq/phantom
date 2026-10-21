@@ -4,6 +4,9 @@
 
 - Remove the client benchmark harness and its benchmark-dependent release checks.
 
+- Reuse parsed PEM or DER client certificates in Python, Go and Node.js with
+  a default identity and ordered per-origin overrides.
+
 - Pin origin and HTTPS-proxy leaf public keys separately in Python, Go and
   Node.js while retaining certificate-chain and hostname verification.
 

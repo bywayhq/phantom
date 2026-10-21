@@ -196,6 +196,7 @@ class NodeArtifactTests(unittest.TestCase):
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
             "server-pins.test.cjs",
+            "client-certificates.test.cjs",
             "diagnostics.test.cjs",
             "diagnostics-http2.test.cjs",
             "transfer-http2.test.cjs",
@@ -208,6 +209,9 @@ class NodeArtifactTests(unittest.TestCase):
             test = (destination / name).read_text()
             self.assertNotIn("require('..')", test)
             self.assertIn("require('@byway/phantom')", test)
+        certificates = (destination / "client-certificates.test.cjs").read_text()
+        self.assertNotIn("import('../index.mjs')", certificates)
+        self.assertIn("import('@byway/phantom')", certificates)
         for name in ("types.cts", "types.mts"):
             copied = (destination / name).read_text()
             self.assertIn("from '@byway/phantom'", copied)
@@ -227,6 +231,7 @@ class NodeArtifactTests(unittest.TestCase):
             "request-controls-facade",
             "session-snapshot-facade",
             "server-pins-facade",
+            "client-certificates-facade",
             "upload-pump",
         ):
             copied = (destination / f"{name}.test.cjs").read_text()
@@ -293,6 +298,8 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer-facade",
             "server-pins",
             "server-pins-facade",
+            "client-certificates",
+            "client-certificates-facade",
             "diagnostics",
             "diagnostics-http2",
             "diagnostics-facade",
