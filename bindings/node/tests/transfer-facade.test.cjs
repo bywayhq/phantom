@@ -57,7 +57,7 @@ test('invalid or executable limits fail redacted without invoking getters or nat
   }
   for (const field of ['uploadBytes', 'downloadBytes', 'uploadBytesPerSecond', 'downloadBytesPerSecond']) {
     for (const value of [null, true, 'private', -1, -1n, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, 18446744073709551616n]) {
-      assert.throws(() => new TransferControl({[field]: value}), (error) => error.code === 'InvalidArgument' && !String(error).includes('private'));
+      assert.throws(() => new TransferControl({[field]: value}), (error) => error.code === 'InvalidArgument' && error.message.includes(field) && !String(error).includes('private'));
     }
   }
   for (const field of ['uploadBytesPerSecond', 'downloadBytesPerSecond']) {

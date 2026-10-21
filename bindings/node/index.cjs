@@ -319,7 +319,7 @@ class TransferControl {
       const minimum = name.endsWith('PerSecond') ? 1n : 0n;
       const exact = typeof value === 'number' && Number.isSafeInteger(value) ? BigInt(value) : value;
       if (typeof exact !== 'bigint' || exact < minimum || exact > 0xffffffffffffffffn) {
-        throw new PhantomError('InvalidArgument', 'transfer limits must be exact u64 values and rates must be positive');
+        throw new PhantomError('InvalidArgument', `${name} must be an exact u64 ${minimum === 1n ? 'positive rate' : 'byte cap'}`);
       }
       options[name] = exact;
     }
