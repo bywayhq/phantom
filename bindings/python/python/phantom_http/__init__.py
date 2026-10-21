@@ -36,6 +36,9 @@ from ._configuration import Timeouts as Timeouts
 from ._configuration import Trust as Trust
 from ._configuration import _redirect_count
 from ._native import NativeProfile as _NativeProfile
+from ._transfer import TransferControl as TransferControl
+from ._transfer import TransferLimits as TransferLimits
+from ._transfer import TransferSnapshot as TransferSnapshot
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
 _CatalogContext: TypeAlias = Literal["navigation", "fetch"]
@@ -682,6 +685,7 @@ class AsyncClient:
         redirect_policy: RedirectPolicy | None = None,
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
+        transfer_control: TransferControl | None = None,
     ) -> AsyncResponse:
         """Return the response head without collecting its body.
 
@@ -698,6 +702,10 @@ class AsyncClient:
             raise TypeError("content_decoding must be ContentDecoding")
         if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
             raise TypeError("retry_policy must be RetryPolicy")
+        if transfer_control is not None and not isinstance(
+            transfer_control, TransferControl
+        ):
+            raise TypeError("transfer_control must be TransferControl")
         if redirect_policy is not None and not isinstance(
             redirect_policy, RedirectPolicy
         ):
@@ -754,11 +762,18 @@ class AsyncClient:
                 redirect_history_limit,
                 None if retry_policy is None else retry_policy._native_fields(),
             )
-            operation = (
-                self._native.request(*arguments)
-                if pump is None
-                else self._native.request(*arguments, producer=pump.native)
-            )
+            if transfer_control is not None:
+                operation = self._native.request(
+                    *arguments,
+                    producer=None if pump is None else pump.native,
+                    transfer_control=transfer_control._native,
+                )
+            else:
+                operation = (
+                    self._native.request(*arguments)
+                    if pump is None
+                    else self._native.request(*arguments, producer=pump.native)
+                )
             native = await operation
             return AsyncResponse(native, pump)
         except BaseException as error:
@@ -1053,6 +1068,7 @@ class Client:
         redirect_policy: RedirectPolicy | None = None,
         redirect_history_limit: int | None = None,
         retry_policy: RetryPolicy | None = None,
+        transfer_control: TransferControl | None = None,
     ) -> Response:
         if body is not None and not isinstance(body, (bytes, Iterable)):
             raise TypeError("Client body must be bytes or Iterable[bytes]")
@@ -1078,6 +1094,7 @@ class Client:
                     redirect_policy=redirect_policy,
                     redirect_history_limit=redirect_history_limit,
                     retry_policy=retry_policy,
+                    transfer_control=transfer_control,
                 )
             ),
         )

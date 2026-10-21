@@ -179,6 +179,15 @@ checks apply; unsupported state/configuration raises `SessionSnapshotError`.
 No configuration or file I/O is serialized. Already-started CPU work continues
 if the awaiting task is cancelled; an unpublished restored client is discarded.
 
+Use one `TransferControl(limits=TransferLimits(download_bytes=1_000_000))`
+across requests with `transfer_control=control`; both classes are imported from
+`phantom_http`. Optional upload/download caps accept zero; integer
+`upload_bytes_per_second` and `download_bytes_per_second` rates must be positive.
+Downloads count encoded body bytes. `control.snapshot()` returns five exact
+body counters; reserved quota survives cancellation and decoded frames can lead
+the application's buffered cursor. Headers and transport overhead are excluded.
+Caps apply across attempts; failures retain `Error.kind == "transfer"`.
+
 ## Author profiles
 
 ```python

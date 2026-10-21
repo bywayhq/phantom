@@ -15,7 +15,7 @@ PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
 
 
 class H2Peer:
-    def __init__(self):
+    def __init__(self, *, overflow_body=b"a"):
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -28,6 +28,7 @@ class H2Peer:
         self.reset_code = None
         self.reset_stream = None
         self.premature_close = False
+        self.overflow_body = overflow_body
         self.worker = threading.Thread(target=self.run, daemon=True)
 
     def __enter__(self):
@@ -75,7 +76,7 @@ class H2Peer:
                                         overflow,
                                         gzip.compress(b"hello", mtime=0)
                                         if self.requests[0][1] == b"/decode-overflow"
-                                        else b"a",
+                                        else self.overflow_body,
                                     )
                             else:
                                 connection.send_data(

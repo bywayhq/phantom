@@ -2,6 +2,7 @@ use crate::{
     configuration, error, profile,
     response::NativeResponse,
     runtime, session,
+    transfer::NativeTransferControl,
     upload::{FileBody, NativeUpload},
 };
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, RequestHeader, SessionSharing};
@@ -220,7 +221,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -238,6 +239,7 @@ impl NativeClient {
         redirect_history_limit: Option<usize>,
         retry_policy: Option<configuration::RetryFields>,
         producer: Option<PyRef<'_, NativeUpload>>,
+        transfer_control: Option<PyRef<'_, NativeTransferControl>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
@@ -272,6 +274,9 @@ impl NativeClient {
         );
         if let Some(budget) = budget {
             request = request.attempt_budget(budget.inner.clone());
+        }
+        if let Some(control) = transfer_control {
+            request = request.transfer_control(control.inner.clone());
         }
         let overrides = configuration::request_timeouts(timeout_ms, timeouts)?;
         let total = overrides

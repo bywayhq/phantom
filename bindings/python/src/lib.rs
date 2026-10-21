@@ -9,12 +9,14 @@ mod profile;
 mod response;
 mod runtime;
 mod session;
+mod transfer;
 mod upload;
 
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<client::NativeClient>()?;
     module.add_class::<client::AttemptBudget>()?;
+    module.add_class::<transfer::NativeTransferControl>()?;
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
     module.add_class::<upload::NativeUpload>()?;

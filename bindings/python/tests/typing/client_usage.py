@@ -30,6 +30,9 @@ from phantom_http import (
     StatusRetry,
     TimeoutOverrides,
     Timeouts,
+    TransferControl,
+    TransferLimits,
+    TransferSnapshot,
     Trust,
 )
 
@@ -233,3 +236,16 @@ async def upload_async(client: AsyncClient, url: str) -> None:
 
     response = await client.request("POST", url, body=chunks(), body_length=3)
     await response.aclose()
+
+
+async def transfer_async(
+    client: AsyncClient, sync: Client, url: str
+) -> TransferSnapshot:
+    control = TransferControl(limits=TransferLimits(download_bytes=2**64 - 1))
+    response = await client.request("GET", url, transfer_control=control)
+    await response.read(max_bytes=100)
+    with sync.request("POST", url, body=b"data", transfer_control=control) as other:
+        other.read(max_bytes=100)
+    snapshot: TransferSnapshot = control.snapshot()
+    _exact_count: int = snapshot.download_encoded_bytes
+    return snapshot

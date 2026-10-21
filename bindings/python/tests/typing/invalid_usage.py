@@ -16,6 +16,8 @@ from phantom_http import (
     StatusRetry,
     TimeoutOverrides,
     Timeouts,
+    TransferControl,
+    TransferLimits,
     Trust,
 )
 
@@ -120,3 +122,14 @@ def invalid_checkpoints(client: Client) -> None:
     client.export_session("secret")  # E: arg-type
     client.restore_session(bytearray(), b"key")  # E: arg-type
     client.restore_session(b"snapshot", b"key", receiving_routes=[1])  # E: list-item
+
+
+def invalid_transfer(client: Client) -> None:
+    TransferLimits(upload_bytes=0.5)  # E: arg-type
+    TransferControl(limits={})  # E: arg-type
+    client.request("GET", "http://origin.invalid", transfer_control={})  # E: arg-type
+    control = TransferControl()
+    control.limits = TransferLimits()  # E: misc
+    limits = TransferLimits()
+    limits.download_bytes = 1  # E: misc
+    control.snapshot().upload_body_bytes = 1  # E: misc
