@@ -139,3 +139,19 @@ async def invalid_body_controls(client: AsyncClient, sync: Client, url: str) -> 
     await client.request("POST", url, trailers={"x": "value"})  # E: dict-item
     sync.request("POST", url, trailers=[("x", 1)])  # E: list-item
     await client.request("POST", url, expect_continue_ms=0.5)  # E: arg-type
+
+
+def invalid_prepared(client: Client) -> None:
+    from phantom_http import MultipartPart, PreparedBody
+
+    PreparedBody.form([("name", b"bytes")], maximum_bytes=10)  # E: list-item
+    PreparedBody.multipart(
+        [("name", "value")],  # E: list-item
+        boundary="B",
+        maximum_bytes=99,
+    )
+    MultipartPart("name", [b"bytes"])  # E: arg-type
+    body = PreparedBody.form([], maximum_bytes=0)
+    body.length = 1  # E: misc
+    MultipartPart("name", "value").name = "changed"  # E: misc
+    client.request("POST", "/", body=body)

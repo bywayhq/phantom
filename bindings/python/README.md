@@ -94,6 +94,16 @@ HTTP/2 and HTTP/3 names must be lowercase. `expect_continue_ms=1000` opts into
 request's head/total deadlines. Headers and trailers share a 256-field/64-KiB
 input bound; core trailer restrictions also apply.
 
+`PreparedBody.form(pairs, maximum_bytes=N)` encodes ordered UTF-8 pairs.
+`PreparedBody.multipart(parts, boundary="explicit", maximum_bytes=N)` accepts
+ordered `MultipartPart(name, str_or_bytes, filename=None, content_type=None)`
+values. Import these types from `phantom_http`. Both return immutable native
+bodies reusable as `body=prepared` across requests and clients. The cap includes
+encoded framing; multipart text normalizes newlines and byte parts stay exact.
+Declare a Content-Type template slot or supply `("Content-Type",
+prepared.content_type)` in your chosen header position. `prepared.length` is the
+encoded size; `to_bytes()` makes an explicit copy. No files or producers are read.
+
 Use `await response.aclose()` to wait for cooperative producer cleanup.
 Noncooperative cleanup can time out and remains owned for a later close.
 `Error.original` and `.cleanup_error` expose upload failures explicitly;

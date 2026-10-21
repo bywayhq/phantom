@@ -1,5 +1,7 @@
 use crate::{
-    configuration, error, profile, request_fields,
+    configuration, error,
+    prepared_body::NativePreparedBody,
+    profile, request_fields,
     response::NativeResponse,
     runtime, session,
     transfer::NativeTransferControl,
@@ -8,7 +10,7 @@ use crate::{
 use phantom::{Client, HttpAttemptBudget, HttpProtocol, Method, SessionSharing};
 use pyo3::{
     prelude::*,
-    types::{PyBytes, PyList},
+    types::{PyBytes, PyInt, PyList},
 };
 use std::{
     num::NonZeroUsize,
@@ -224,7 +226,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -245,14 +247,33 @@ impl NativeClient {
         transfer_control: Option<PyRef<'_, NativeTransferControl>>,
         trailers: Option<&Bound<'py, PyList>>,
         expect_continue_ms: Option<Bound<'_, PyAny>>,
+        prepared_body: Option<PyRef<'_, NativePreparedBody>>,
+        body_length: Option<Bound<'_, PyAny>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
             + usize::from(upload.is_some())
             + usize::from(producer.is_some())
+            + usize::from(prepared_body.is_some())
             > 1
         {
             return Err(error::input("body_and_upload"));
+        }
+        let body_length = body_length
+            .map(|value| {
+                value
+                    .cast_exact::<PyInt>()
+                    .map_err(|_| error::input("invalid_body_length"))?
+                    .extract::<usize>()
+                    .map_err(|_| error::input("invalid_body_length"))
+            })
+            .transpose()?;
+        if body_length.is_some_and(|length| {
+            prepared_body
+                .as_ref()
+                .is_none_or(|body| body.inner.bytes().len() != length)
+        }) {
+            return Err(error::input("invalid_body_length"));
         }
         let method =
             Method::from_bytes(method.as_bytes()).map_err(|_| error::input("invalid_method"))?;
@@ -313,6 +334,9 @@ impl NativeClient {
         }
         if let Some(body) = body {
             request = request.body(body);
+        }
+        if let Some(body) = prepared_body {
+            request = request.prepared_body(body.inner.clone());
         }
         let producer = producer.map(|value| Arc::clone(&value.inner));
         if let Some(owner) = &producer {

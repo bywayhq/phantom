@@ -19,7 +19,7 @@ from collections.abc import (
 from dataclasses import dataclass
 from dataclasses import field as _field
 from os import PathLike
-from typing import Literal, ParamSpec, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Literal, ParamSpec, TypeAlias, TypeVar, cast
 
 from . import _native, _upload
 from ._configuration import INHERIT as INHERIT
@@ -39,6 +39,9 @@ from ._native import NativeProfile as _NativeProfile
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
+
+if TYPE_CHECKING:
+    from ._native import NativePreparedBody as _NativePreparedBody
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
 _CatalogContext: TypeAlias = Literal["navigation", "fetch"]
@@ -83,6 +86,10 @@ class ClientClosed(Error):
 
 class BodyLimitExceeded(Error):
     """Body collection exceeded the caller's bound."""
+
+
+class PreparedBodyError(Error):
+    """Core preparation failed; kind omits field values and body contents."""
 
 
 def _request_fields(
@@ -217,6 +224,8 @@ def _error(error: _native.NativeError) -> Error:
     )
     if category == "session_snapshot":
         return SessionSnapshotError(category, kind, protocol, phase)
+    if category == "prepared_body":
+        return PreparedBodyError(category, kind, protocol, phase)
     cls = {
         "timeout": TimeoutError,
         "shutdown_timeout": TimeoutError,
@@ -232,6 +241,113 @@ def _call(function: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T
         return function(*args, **kwargs)
     except _native.NativeError as error:
         raise _error(error) from None
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class MultipartPart:
+    """One ordered text/byte field; files and producers are not read implicitly."""
+
+    name: str
+    value: str | bytes
+    filename: str | None = None
+    content_type: str | None = None
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("name", self.name),
+            ("filename", self.filename),
+            ("content_type", self.content_type),
+        ):
+            if value is None and name != "name":
+                continue
+            if not isinstance(value, str):
+                raise TypeError(f"{name} must be str")
+            if len(value) > 4096:
+                raise PreparedBodyError("prepared_body", "too_large")
+        if not isinstance(self.value, (str, bytes)):
+            raise TypeError("multipart value must be str or bytes")
+
+    def __repr__(self) -> str:
+        return "MultipartPart(<redacted>)"
+
+
+def _encoded_maximum(value: int) -> None:
+    if type(value) is not int:
+        raise TypeError("maximum_bytes must be an integer")
+    if not 0 <= value <= sys.maxsize * 2 + 1:
+        raise ValueError("maximum_bytes must fit an unsigned native integer")
+
+
+@dataclass(frozen=True, slots=True, init=False, repr=False, eq=False)
+class PreparedBody:
+    """Immutable native-owned encoded body, reusable across clients and attempts."""
+
+    _native: _NativePreparedBody
+
+    def __init__(self) -> None:
+        raise TypeError("use PreparedBody.form or PreparedBody.multipart")
+
+    @classmethod
+    def _wrap(cls, native: _NativePreparedBody) -> PreparedBody:
+        body = object.__new__(cls)
+        object.__setattr__(body, "_native", native)
+        return body
+
+    @classmethod
+    def form(
+        cls, pairs: Iterable[tuple[str, str]], *, maximum_bytes: int
+    ) -> PreparedBody:
+        """Encode ordered duplicate UTF-8 pairs with an explicit encoded-byte cap."""
+        _encoded_maximum(maximum_bytes)
+        ordered: list[tuple[str, str]] = []
+        for pair in pairs:
+            if len(ordered) >= maximum_bytes:
+                raise PreparedBodyError("prepared_body", "too_large")
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise TypeError("form pairs must be (str, str) tuples")
+            name, value = pair
+            if not isinstance(name, str) or not isinstance(value, str):
+                raise TypeError("form pairs must contain str")
+            ordered.append((name, value))
+        return cls._wrap(_call(_native.NativePreparedBody.form, ordered, maximum_bytes))
+
+    @classmethod
+    def multipart(
+        cls, parts: Iterable[MultipartPart], *, boundary: str, maximum_bytes: int
+    ) -> PreparedBody:
+        """Encode ordered fields; text normalizes CRLF, bytes remain byte-exact."""
+        _encoded_maximum(maximum_bytes)
+        if not isinstance(boundary, str):
+            raise TypeError("boundary must be str")
+        if len(boundary) > 70:
+            raise PreparedBodyError("prepared_body", "invalid_boundary")
+        ordered: list[tuple[str, str | bytes, str | None, str | None]] = []
+        for part in parts:
+            if len(ordered) == 1024:
+                raise PreparedBodyError("prepared_body", "too_many_parts")
+            if not isinstance(part, MultipartPart):
+                raise TypeError("multipart parts must be MultipartPart")
+            ordered.append((part.name, part.value, part.filename, part.content_type))
+        return cls._wrap(
+            _call(
+                _native.NativePreparedBody.multipart, boundary, ordered, maximum_bytes
+            )
+        )
+
+    @property
+    def content_type(self) -> str:
+        return self._native.content_type
+
+    @property
+    def length(self) -> int:
+        return self._native.length
+
+    def to_bytes(self) -> bytes:
+        """Return an explicit copy of the encoded payload."""
+        return self._native.to_bytes()
+
+    def __repr__(self) -> str:
+        return f"PreparedBody(length={self.length})"
 
 
 def _receiving_routes(
@@ -715,7 +831,7 @@ class AsyncClient:
         headers: _Headers = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
-        body: bytes | AsyncIterable[bytes] | None = None,
+        body: bytes | PreparedBody | AsyncIterable[bytes] | None = None,
         body_length: int | None = None,
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
@@ -754,12 +870,19 @@ class AsyncClient:
             _redirect_count(redirect_history_limit, positive=True)
         for active in self._uploads:
             active.check_loop()
-        producer = body is not None and not isinstance(body, bytes)
+        prepared = body if isinstance(body, PreparedBody) else None
+        producer = body is not None and not isinstance(body, (bytes, PreparedBody))
         if body is not None and upload is not None:
             raise ValueError("pass body or upload, not both")
         if producer and not isinstance(body, AsyncIterable):
-            raise TypeError("AsyncClient body must be bytes or AsyncIterable[bytes]")
-        _upload.length(body_length, producer)
+            raise TypeError(
+                "AsyncClient body must be bytes, PreparedBody or AsyncIterable[bytes]"
+            )
+        if prepared is not None and body_length is not None:
+            if type(body_length) is not int or body_length != prepared.length:
+                raise ValueError("body_length must equal the prepared encoded length")
+        else:
+            _upload.length(body_length, producer)
         ordered, ordered_trailers = _request_fields(headers, trailers)
         if expect_continue_ms is not None:
             if type(expect_continue_ms) is not int:
@@ -781,7 +904,7 @@ class AsyncClient:
                 method,
                 url,
                 ordered,
-                None if producer else cast(bytes | None, body),
+                None if producer or prepared is not None else cast(bytes | None, body),
                 upload,
                 None if budget is None else budget._native,
                 timeout_ms,
@@ -793,7 +916,18 @@ class AsyncClient:
                 redirect_history_limit,
                 None if retry_policy is None else retry_policy._native_fields(),
             )
-            if ordered_trailers or expect_continue_ms is not None:
+            if prepared is not None:
+                operation = self._native.request(
+                    *arguments,
+                    prepared_body=prepared._native,
+                    body_length=body_length,
+                    transfer_control=None
+                    if transfer_control is None
+                    else transfer_control._native,
+                    trailers=ordered_trailers,
+                    expect_continue_ms=expect_continue_ms,
+                )
+            elif ordered_trailers or expect_continue_ms is not None:
                 operation = self._native.request(
                     *arguments,
                     producer=None if pump is None else pump.native,
@@ -1101,7 +1235,7 @@ class Client:
         headers: _Headers = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
-        body: bytes | Iterable[bytes] | None = None,
+        body: bytes | PreparedBody | Iterable[bytes] | None = None,
         body_length: int | None = None,
         upload: _UploadPath | None = None,
         budget: AttemptBudget | None = None,
@@ -1113,11 +1247,13 @@ class Client:
         retry_policy: RetryPolicy | None = None,
         transfer_control: TransferControl | None = None,
     ) -> Response:
-        if body is not None and not isinstance(body, (bytes, Iterable)):
-            raise TypeError("Client body must be bytes or Iterable[bytes]")
+        if body is not None and not isinstance(body, (bytes, PreparedBody, Iterable)):
+            raise TypeError(
+                "Client body must be bytes, PreparedBody or Iterable[bytes]"
+            )
         source = (
             _upload.SyncSource(body)
-            if body is not None and not isinstance(body, bytes)
+            if body is not None and not isinstance(body, (bytes, PreparedBody))
             else body
         )
         return Response(

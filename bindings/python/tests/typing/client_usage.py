@@ -261,3 +261,30 @@ async def request_body_controls(client: AsyncClient, sync: Client, url: str) -> 
         "POST", url, body=b"data", trailers=fields, expect_continue_ms=1000
     ):
         pass
+
+
+async def prepared_body_usage(client: AsyncClient, sync: Client) -> None:
+    from phantom_http import MultipartPart, PreparedBody, PreparedBodyError
+
+    body = PreparedBody.form([("tag", "one"), ("tag", "two")], maximum_bytes=1024)
+    part = MultipartPart("field", b"bytes", filename="data.bin")
+    encoded = PreparedBody.multipart([part], boundary="explicit", maximum_bytes=4096)
+    content_type: str = encoded.content_type
+    length: int = encoded.length
+    payload: bytes = encoded.to_bytes()
+    try:
+        response = await client.request(
+            "POST",
+            "/",
+            body=body,
+            body_length=body.length,
+            headers=[("content-type", body.content_type)],
+        )
+        await response.aclose()
+        with sync.request(
+            "POST", "/", body=encoded, headers=[("content-type", content_type)]
+        ) as reply:
+            reply.read(max_bytes=0)
+    except PreparedBodyError as error:
+        kind: str = error.kind
+        print(kind, length, payload)

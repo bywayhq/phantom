@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 mod client;
 mod configuration;
 mod error;
+mod prepared_body;
 mod profile;
 mod request_fields;
 mod response;
@@ -22,6 +23,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<response::NativeResponse>()?;
     module.add_class::<upload::NativeUpload>()?;
     module.add_class::<profile::NativeProfile>()?;
+    module.add_class::<prepared_body::NativePreparedBody>()?;
     module.add(
         "NativeProfileError",
         module.py().get_type::<profile::NativeProfileError>(),
