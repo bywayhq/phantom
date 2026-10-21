@@ -111,6 +111,10 @@ export interface ClientOptions {
   maximumActiveRequests?: number;
   additionalRoots?: Uint8Array[];
   additionalProxyRoots?: Uint8Array[];
+  /** One to 32 raw SHA-256 digests of origin leaf DER SubjectPublicKeyInfo; verification remains required. */
+  readonly serverSpkiPins?: readonly Uint8Array[];
+  /** Independent leaf SPKI restrictions for HTTPS proxies, with normal verification. */
+  readonly proxyServerSpkiPins?: readonly Uint8Array[];
   baseUrl?: string;
   timeouts?: Timeouts;
   redirectPolicy?: RedirectPolicy;

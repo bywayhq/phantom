@@ -119,6 +119,14 @@ retain certificate verification. `route: 'proxy'` accepts HTTP(S) and SOCKS5
 URIs, with optional paired `proxyUsername`/`proxyPassword`. HTTP credentials
 use Basic authentication. Proxy environment variables are ignored.
 
+`serverSpkiPins` and `proxyServerSpkiPins` independently restrict origin and
+HTTPS-proxy TLS to accepted leaf keys, while retaining chain and hostname
+verification. Each takes 1..32 supplied `Uint8Array` values of exactly 32 bytes:
+SHA-256 of the leaf certificate's DER SubjectPublicKeyInfo, not the whole
+certificate or raw key. Inputs are copied during construction. Omit a policy
+to leave it unset; an empty list is invalid. Origin pins reject cleartext
+origins; proxy pins reject plaintext proxy routes but allow direct requests.
+
 Cookies are opt-in with `cookies: true`. Use `setCookie`, `cookieValue` and
 `clearCookies`; matching uses top-level navigation semantics independently of
 header templates. `closeIdleConnections()` closes idle connections;

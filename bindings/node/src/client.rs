@@ -93,6 +93,7 @@ impl ClientState {
         profile: Arc<ProfileState>,
         roots: Vec<Vec<u8>>,
         proxy_roots: Vec<Vec<u8>>,
+        pins: crate::tls::ServerPins,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
         let maximum = options.maximum_active_requests.unwrap_or(32);
@@ -124,6 +125,12 @@ impl ClientState {
         }
         for root in proxy_roots {
             builder = builder.add_proxy_root_certificate_der(root);
+        }
+        if let Some(pins) = pins.origin {
+            builder = builder.server_spki_pins(pins);
+        }
+        if let Some(pins) = pins.proxy {
+            builder = builder.proxy_server_spki_pins(pins);
         }
         if let Some(url) = options.base_url {
             builder = builder.base_url(&url).map_err(|_| {

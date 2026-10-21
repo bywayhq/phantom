@@ -9,6 +9,7 @@ mod request_diagnostics;
 mod response;
 mod retry;
 mod session;
+mod tls;
 mod transfer;
 mod upload;
 

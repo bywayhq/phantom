@@ -154,6 +154,10 @@ pub struct ClientOptions {
     pub additional_roots: Option<Vec<Buffer>>,
     /// Additional trust roots for HTTPS proxy connections.
     pub additional_proxy_roots: Option<Vec<Buffer>>,
+    /// Raw SHA-256 digests of accepted origin leaf DER SubjectPublicKeyInfo.
+    pub server_spki_pins: Option<Vec<Buffer>>,
+    /// Independent raw leaf SPKI digests for HTTPS proxy connections.
+    pub proxy_server_spki_pins: Option<Vec<Buffer>>,
     /// Base HTTP(S) URL for relative request targets.
     pub base_url: Option<String>,
     /// Per-phase defaults; omitted phases retain the Rust defaults.
@@ -531,7 +535,31 @@ impl NativeEnvironment {
         };
         let roots = copy_roots(options.additional_roots.take())?;
         let proxy_roots = copy_roots(options.additional_proxy_roots.take())?;
-        ClientState::build(options, profile, roots, proxy_roots, &self.state)
+        let copy_pins = |input: Option<Vec<Buffer>>, field| {
+            input
+                .map(|input| {
+                    crate::tls::count(input.len(), field)?;
+                    let copied = input
+                        .into_iter()
+                        .map(|pin| {
+                            copy_buffer(&env, pin, 32).map_err(|error| {
+                                if error.reason.starts_with("PHANTOM:InputLimit:") {
+                                    crate::tls::digest_length(field)
+                                } else {
+                                    error
+                                }
+                            })
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    crate::tls::pins(copied, field)
+                })
+                .transpose()
+        };
+        let pins = crate::tls::ServerPins {
+            origin: copy_pins(options.server_spki_pins.take(), "serverSpkiPins")?,
+            proxy: copy_pins(options.proxy_server_spki_pins.take(), "proxyServerSpkiPins")?,
+        };
+        ClientState::build(options, profile, roots, proxy_roots, pins, &self.state)
             .map(|state| NativeClient { state })
     }
 

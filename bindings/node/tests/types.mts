@@ -1,5 +1,11 @@
 import { AttemptBudget, TransferControl, Client, PreparedBody, Profile, RequestDiagnostics, type RequestTimeline } from '../index.mjs';
 
+const pinned = new Client({profile: 'exact', route: 'direct',
+  serverSpkiPins: [new Uint8Array(32)] as const, proxyServerSpkiPins: [Buffer.alloc(32)] as const});
+void pinned;
+// @ts-expect-error Digest contents must be bytes, never numeric lists.
+new Client({profile: 'exact', route: 'direct', serverSpkiPins: [[1, 2, 3]]});
+
 function compactProfiles(base: Profile, bytes: Uint8Array): void {
   const imported = Profile.importClientHello(bytes, {base});
   const profile: Profile = imported.profile;

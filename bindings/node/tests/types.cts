@@ -25,6 +25,18 @@ async function use(): Promise<void> {
   await client.close();
 }
 void use;
+function pinnedClients(): void {
+  const pins: readonly Uint8Array[] = [Buffer.alloc(32)];
+  const options: import('../index.cjs').ClientOptions = {profile: 'exact', route: 'direct', serverSpkiPins: pins, proxyServerSpkiPins: pins};
+  new Client(options);
+  // @ts-expect-error Pin configuration is readonly.
+  options.serverSpkiPins = [];
+  // @ts-expect-error Pins are raw digest bytes, not strings.
+  new Client({...options, serverSpkiPins: ['sha256/base64']});
+  // @ts-expect-error A digest list is required, not one byte buffer.
+  new Client({...options, proxyServerSpkiPins: Buffer.alloc(32)});
+}
+void pinnedClients;
 const code = (error: PhantomError): string => error.code;
 void code;
 async function checkpoints(client: Client, key: Uint8Array): Promise<void> {

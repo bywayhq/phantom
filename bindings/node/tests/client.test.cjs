@@ -619,6 +619,15 @@ test('a live response retains its client across forced garbage collection', asyn
 test('direct native byte inputs reject actual shared or detached backing', async (t) => {
   const native = require('../phantom.node');
   const environment = new native.NativeEnvironment();
+  for (const field of ['serverSpkiPins', 'proxyServerSpkiPins']) {
+    for (const pins of [[], Array(33).fill(Buffer.alloc(32)), [Buffer.alloc(31)], [Buffer.alloc(33)],
+      [Buffer.from(new SharedArrayBuffer(32))]]) {
+      assert.throws(() => environment.client({profile, route: 'direct', [field]: pins}), /PHANTOM:InvalidArgument:/);
+    }
+    const backing = new ArrayBuffer(32), detached = Buffer.from(backing);
+    structuredClone(backing, {transfer: [backing]});
+    assert.throws(() => environment.client({profile, route: 'direct', [field]: [detached]}), /PHANTOM:InvalidArgument:/);
+  }
   const shared = Buffer.from(new SharedArrayBuffer(4));
   Object.defineProperty(shared, 'buffer', {value: new ArrayBuffer(4)});
   assert.throws(() => environment.client({profile, route: 'direct', additionalRoots: [shared]}), /PHANTOM:InvalidArgument:/);

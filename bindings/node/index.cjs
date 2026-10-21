@@ -126,6 +126,32 @@ function bytes(value) {
   return Buffer.isBuffer(value) ? value : Buffer.from(backing, apply(offsetOf, value, []), apply(lengthOf, value, []));
 }
 
+function clientPins(options, name) {
+  if (options === null || typeof options !== 'object' || types.isProxy(options)) {
+    throw new PhantomError('InvalidArgument', 'client options must be a data object');
+  }
+  const field = Object.getOwnPropertyDescriptor(options, name);
+  if (field === undefined) return undefined;
+  if (!Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', `${name} must be a data field`);
+  const input = field.value;
+  if (input === undefined) return undefined;
+  if (!Array.isArray(input) || types.isProxy(input) || input.length < 1 || input.length > 32) {
+    throw new PhantomError('InvalidArgument', `${name} requires one to 32 supplied digests`);
+  }
+  if (Reflect.ownKeys(input).length !== input.length + 1) throw new PhantomError('InvalidArgument', `${name} must contain only digest entries`);
+  const copy = [];
+  for (let index = 0; index < input.length; index++) {
+    const entry = Object.getOwnPropertyDescriptor(input, String(index));
+    if (!entry || !Object.hasOwn(entry, 'value')) throw new PhantomError('InvalidArgument', `${name} entries must be data fields`);
+    let pin;
+    try { pin = bytes(entry.value); }
+    catch { throw new PhantomError('InvalidArgument', `${name} entries must be non-shared Uint8Array values`); }
+    if (apply(lengthOf, pin, []) !== 32) throw new PhantomError('InvalidArgument', `${name} entries must contain exactly 32 bytes`);
+    copy.push(pin);
+  }
+  return copy;
+}
+
 function requestFields(headers, trailers) {
   for (const [name, fields] of [['headers', headers], ['trailers', trailers]]) {
     if (fields !== undefined && (!Array.isArray(fields) || types.isProxy(fields))) {
@@ -738,11 +764,14 @@ class Client {
   constructor(options, token) {
     if (token === clientToken) { this.#native = options; return; }
     try {
+      const serverSpkiPins = clientPins(options, 'serverSpkiPins');
+      const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
         ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
         additionalRoots: options.additionalRoots?.map(bytes),
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
+        serverSpkiPins, proxyServerSpkiPins,
         timeouts: phaseTimeouts(options.timeouts),
         redirectPolicy: redirectPolicy(options.redirectPolicy),
         retryPolicy: retryPolicy(options.retryPolicy),
