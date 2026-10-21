@@ -1676,6 +1676,7 @@ name = "phantom-node"
 version = "0.2.0"
 dependencies = [
  "bytes",
+ "http",
  "http-body",
  "http-body-util",
  "napi",

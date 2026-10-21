@@ -204,6 +204,17 @@ def copied_tests(destination, native_package=None):
         "prepared-bodies.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
+        "diagnostics.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "diagnostics-http2.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
+        "diagnostics-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "transfer-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -353,6 +364,9 @@ def public_checks(
                 "tests/transfer-http2.test.cjs",
                 "tests/request-controls.test.cjs",
                 "tests/prepared-bodies.test.cjs",
+                "tests/diagnostics.test.cjs",
+                "tests/diagnostics-http2.test.cjs",
+                "tests/diagnostics-facade.test.cjs",
                 "tests/transfer-facade.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",

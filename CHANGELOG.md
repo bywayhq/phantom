@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Observe live request diagnostics from Python, Go and Node.js, including
+  failed sends, separate response-body completion and connection/TLS facts.
+
 - Remove the external-client benchmark adapters and their CI workflow.
 
 - Prepare reusable form and multipart bodies in Python, Go and Node.js with

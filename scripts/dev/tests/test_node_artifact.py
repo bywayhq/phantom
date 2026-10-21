@@ -195,6 +195,8 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer.test.cjs",
             "request-controls.test.cjs",
             "prepared-bodies.test.cjs",
+            "diagnostics.test.cjs",
+            "diagnostics-http2.test.cjs",
             "transfer-http2.test.cjs",
             "content-decoding.test.cjs",
             "redirects.test.cjs",
@@ -213,6 +215,9 @@ class NodeArtifactTests(unittest.TestCase):
         transfer = (destination / "transfer-facade.test.cjs").read_text()
         self.assertIn("require.resolve('@byway/phantom')", transfer)
         self.assertNotIn("path.resolve(__dirname, '../index.cjs')", transfer)
+        diagnostics = (destination / "diagnostics-facade.test.cjs").read_text()
+        self.assertIn("require.resolve('@byway/phantom')", diagnostics)
+        self.assertNotIn("path.resolve(__dirname, '../index.cjs')", diagnostics)
         fixtures = artifact.ROOT / "bindings/node/tests/fixtures"
         for source in fixtures.iterdir():
             self.assertEqual(
@@ -272,6 +277,9 @@ class NodeArtifactTests(unittest.TestCase):
             "transfer",
             "transfer-http2",
             "transfer-facade",
+            "diagnostics",
+            "diagnostics-http2",
+            "diagnostics-facade",
             "content-decoding",
             "redirects",
             "retries",
