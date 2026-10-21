@@ -198,6 +198,10 @@ SOCKS5(h). Proxy environment variables are ignored. Set `ProxyCredentials` for
 HTTP Basic or SOCKS5 username/password auth, separately from the URI.
 `AdditionalRootsDER` and `ProxyAdditionalRootsDER` separately extend origin
 and HTTPS-proxy trust while retaining certificate verification.
+`Config.Network` selects ordered `HostOverrides` (host plus `[]netip.Addr`),
+`LocalAddresses` and an optional `Interface`. Overrides retain the original
+host for TLS and HTTP; the last duplicate wins, and an empty address list fails
+resolution. Source bindings never fall back to unbound sockets of another family.
 `ServerSPKIPins` and `ProxyServerSPKIPins` add separate origin/proxy policies.
 Supply one to 32 `[32]byte` SHA-256 digests of the leaf DER SubjectPublicKeyInfo;
 normal certificate and hostname verification still apply. Nil omits a policy;

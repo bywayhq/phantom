@@ -6,6 +6,7 @@ mod error;
 #[allow(unsafe_code)]
 mod ffi;
 mod multipart;
+mod network;
 mod operations;
 mod policy;
 mod prepared_body;

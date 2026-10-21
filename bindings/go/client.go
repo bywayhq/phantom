@@ -24,6 +24,8 @@ type Config struct {
 	ProxyCredentials *ProxyCredentials
 	// BaseURL resolves relative request URLs using the Rust client's URL rules.
 	BaseURL string
+	// Network optionally selects host overrides and outgoing socket bindings.
+	Network *NetworkOptions
 	// AdditionalRootsDER extends origin trust. ProxyAdditionalRootsDER extends
 	// HTTPS-proxy trust separately. Certificates must be DER encoded.
 	AdditionalRootsDER      [][]byte
@@ -121,6 +123,10 @@ type Client struct {
 
 // New creates a client. It performs no request and ignores proxy environment variables.
 func New(config Config) (*Client, error) {
+	size, err := networkInputSize(config.Network)
+	if err != nil {
+		return nil, err
+	}
 	if (config.Profile == "") == (config.ProfileSettings == nil) {
 		return nil, &Error{Kind: "invalid_profile_selection"}
 	}
@@ -153,7 +159,6 @@ func New(config Config) (*Client, error) {
 		return nil, &Error{Kind: "invalid_proxy_server_spki_pins"}
 	}
 	// Bound newly exposed data before expanding DER bytes into JSON arrays.
-	size := 0
 	values := []string{config.Profile, config.Protocol, config.Context, config.Proxy, config.BaseURL}
 	for _, mapping := range config.ClientCertificatesFor {
 		values = append(values, mapping.Origin)
@@ -211,7 +216,8 @@ func New(config Config) (*Client, error) {
 		Timeouts           wireTimeouts            `json:"timeouts"`
 		RedirectPolicy     RedirectPolicy          `json:"redirect_policy"`
 		RetryPolicy        wireRetryPolicy         `json:"retry_policy"`
-	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, config.RedirectPolicy, retries}
+		Network            *wireNetworkOptions     `json:"network,omitempty"`
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, config.RedirectPolicy, retries, networkWire(config.Network)}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err

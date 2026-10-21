@@ -17,6 +17,7 @@ pub(super) struct Config {
     context: Option<String>,
     proxy: Option<String>,
     base_url: Option<String>,
+    network: Option<crate::network::NetworkOptions>,
     proxy_credentials: Option<ProxyCredentials>,
     #[serde(default)]
     additional_roots_der: Vec<Vec<u8>>,
@@ -185,6 +186,9 @@ impl NativeClient {
         };
         let mut builder = Client::builder(profile)
             .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
+        if let Some(network) = config.network {
+            builder = network.apply(builder)?;
+        }
         if let Some(base_url) = config.base_url {
             builder = builder.base_url(&base_url).map_err(Failure::from)?;
         }
