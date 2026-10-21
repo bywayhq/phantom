@@ -51,6 +51,32 @@ fn negative_cause(error: &io::Error) -> TestResult<&AddressNegative> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn publication_keeps_a_fractional_absolute_deadline_and_its_freshness_boundary() -> TestResult
+{
+    let deadline = Instant::now() + Duration::from_millis(60_750) + Duration::from_nanos(123);
+    let answer = AddressAnswer::positive(vec![V4], LONG_TTL)?.with_cache_deadline(deadline);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut config = settings(4, LONG_TTL, None);
+    config.min_record_ttl = LONG_TTL;
+    let cache = typed_cache(&calls, config, move || Ok(answer.clone()));
+
+    let first = cache.lookup_noting_cache(HOST, 443).await?;
+    assert_eq!(first.0, [SocketAddr::new(V4, 443)]);
+    assert!(!first.1);
+    let second = cache.lookup_noting_cache(HOST, 8443).await?;
+    assert_eq!(second.0, [SocketAddr::new(V4, 8443)]);
+    assert!(second.1);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(stored_expiry(&cache)?, deadline);
+    let state = cache.lock();
+    let entry = state.entries.get(HOST).ok_or("published answer missing")?;
+    assert!(entry.is_fresh(deadline - Duration::from_nanos(1)));
+    assert!(!entry.is_fresh(deadline));
+    assert!(!entry.is_fresh(deadline + Duration::from_nanos(1)));
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn typed_addresses_keep_their_dns_deadline_order_duplicates_and_port() -> TestResult {
     let ttl = Duration::from_secs(60);
     let before = Instant::now();

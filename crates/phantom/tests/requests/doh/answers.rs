@@ -35,32 +35,6 @@ async fn http_age_bounds_positive_cache_without_applying_the_record_floor() -> T
 }
 
 #[tokio::test]
-async fn fractional_query_time_survives_cache_publication() -> TestResult<()> {
-    let mut fixture = Fixture::start(DohAddressFamilies::Ipv4Only, LOOKUP, true, false).await?;
-    let primary = async {
-        drive(&mut fixture.peer, &fixture.application, 1, |q| {
-            let mut reply = Reply::dns(q.addresses(&[IPV4], 5)?);
-            reply.delay = Duration::from_millis(1_200);
-            Ok(reply)
-        })
-        .await??;
-        sleep(Duration::from_millis(3_300)).await;
-        drive(&mut fixture.peer, &fixture.application, 0, |_| {
-            Err("fractional lifetime was rounded down".into())
-        })
-        .await??;
-        sleep(Duration::from_millis(1_000)).await;
-        drive(&mut fixture.peer, &fixture.application, 1, |q| {
-            Ok(Reply::dns(q.addresses(&[IPV4], 5)?))
-        })
-        .await??;
-        Ok(())
-    }
-    .await;
-    fixture.finish(primary).await
-}
-
-#[tokio::test]
 async fn terminal_http_age_does_not_age_an_earlier_cname_again() -> TestResult<()> {
     let mut fixture = Fixture::start(DohAddressFamilies::Ipv4Only, LOOKUP, true, false).await?;
     let primary = async {

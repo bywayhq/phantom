@@ -6,8 +6,23 @@ use std::{
 
 use tokio::time::Instant;
 
-use super::{Family, aggregate};
+use super::{Family, aggregate, remaining};
 use crate::AddressNegativeKind;
+
+#[tokio::test(start_paused = true)]
+async fn remaining_dns_lifetime_keeps_fractional_time_at_the_answer_boundary() {
+    let expiry = Instant::now() + Duration::from_secs(5);
+    tokio::time::advance(Duration::from_millis(1_200)).await;
+    assert_eq!(remaining(expiry), Duration::from_millis(3_800));
+    tokio::time::advance(Duration::from_millis(3_300)).await;
+    assert_eq!(remaining(expiry), Duration::from_millis(500));
+    tokio::time::advance(Duration::from_millis(500) - Duration::from_nanos(1)).await;
+    assert_eq!(remaining(expiry), Duration::from_nanos(1));
+    tokio::time::advance(Duration::from_nanos(1)).await;
+    assert_eq!(remaining(expiry), Duration::ZERO);
+    tokio::time::advance(Duration::from_secs(1)).await;
+    assert_eq!(remaining(expiry), Duration::ZERO);
+}
 
 fn positive(addresses: Vec<IpAddr>, expiry: Instant) -> io::Result<Family> {
     Ok(Family::Positive { addresses, expiry })
