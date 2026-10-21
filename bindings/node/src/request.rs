@@ -182,7 +182,11 @@ impl Prepared {
         let pending = Pending::new(Arc::clone(&exchange), Arc::clone(client));
         client.register(&exchange)?;
         if let Some(upload) = upload {
-            builder = builder.streaming_body(upload.body()?);
+            builder = if let Some(multipart) = upload.multipart() {
+                builder.multipart_body(multipart.take_body(&upload)?)
+            } else {
+                builder.streaming_body(upload.body()?)
+            };
             exchange.upload(upload);
         }
         if let Some(diagnostics) = controls.diagnostics {
@@ -333,11 +337,16 @@ fn expect_continue_wait(
     Ok(wait)
 }
 
-struct FileBody {
+pub(crate) struct FileBody {
     file: tokio::fs::File,
     remaining: u64,
 }
 
+impl FileBody {
+    pub(crate) fn new(file: tokio::fs::File, remaining: u64) -> Self {
+        Self { file, remaining }
+    }
+}
 impl Body for FileBody {
     type Data = Bytes;
     type Error = io::Error;

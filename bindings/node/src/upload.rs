@@ -19,6 +19,7 @@ pub(crate) const MAXIMUM_CHUNK: usize = 64 * 1024;
 
 #[derive(Debug)]
 pub(crate) struct Upload {
+    multipart: Mutex<Option<Arc<crate::multipart::Multipart>>>,
     credit: Semaphore,
     sender: Mutex<Option<mpsc::Sender<Bytes>>>,
     receiver: Mutex<Option<mpsc::Receiver<Bytes>>>,
@@ -34,6 +35,7 @@ impl Upload {
     pub(crate) fn new(length: Option<u64>) -> Arc<Self> {
         let (sender, receiver) = mpsc::channel(1);
         Arc::new(Self {
+            multipart: Mutex::new(None),
             credit: Semaphore::new(0),
             sender: Mutex::new(Some(sender)),
             receiver: Mutex::new(Some(receiver)),
@@ -75,7 +77,58 @@ impl Upload {
         })
     }
 
+    pub(crate) fn configure_multipart(
+        &self,
+        multipart: Arc<crate::multipart::Multipart>,
+    ) -> Result<()> {
+        let mut slot = self
+            .multipart
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if slot.is_some()
+            || self.length.is_some()
+            || self
+                .receiver
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_none()
+            || self
+                .exchange
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .upgrade()
+                .is_some()
+        {
+            return Err(failure(
+                "InvalidOperation",
+                "multipart requires an unused unknown-length upload",
+            ));
+        }
+        *slot = Some(multipart);
+        Ok(())
+    }
+    pub(crate) fn multipart(&self) -> Option<Arc<crate::multipart::Multipart>> {
+        self.multipart
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+    pub(crate) async fn next_part(&self) -> Result<Option<u32>> {
+        let multipart = self
+            .multipart()
+            .ok_or_else(|| failure("InvalidOperation", "not a multipart upload"))?;
+        tokio::select! { biased; () = self.stopped() => Ok(None), index = multipart.next() => Ok(Some(index)) }
+    }
     pub(crate) async fn ready(&self) -> bool {
+        if let Some(multipart) = self.multipart() {
+            return match multipart.active() {
+                Ok(child) => child.ready_single().await,
+                Err(_) => false,
+            };
+        }
+        self.ready_single().await
+    }
+    async fn ready_single(&self) -> bool {
         match self.credit.acquire().await {
             Ok(permit) => {
                 permit.forget();
@@ -87,6 +140,9 @@ impl Upload {
     }
 
     pub(crate) fn write(&self, bytes: Vec<u8>) -> Result<()> {
+        if let Some(multipart) = self.multipart() {
+            return multipart.active()?.write(bytes);
+        }
         if bytes.is_empty() || bytes.len() > MAXIMUM_CHUNK {
             return Err(failure(
                 "InvalidUpload",
@@ -113,6 +169,9 @@ impl Upload {
     }
 
     pub(crate) fn end(&self) -> Result<()> {
+        if let Some(multipart) = self.multipart() {
+            return multipart.active()?.end();
+        }
         let written = *self.written.lock().unwrap_or_else(PoisonError::into_inner);
         let mut sender = self.sender.lock().unwrap_or_else(PoisonError::into_inner);
         if sender.is_none() {
@@ -129,12 +188,18 @@ impl Upload {
 
     pub(crate) fn fail(&self) {
         self.failed.store(true, Ordering::Release);
+        if let Some(multipart) = self.multipart() {
+            multipart.fail();
+        }
         self.stop();
     }
     pub(crate) fn failed(&self) -> bool {
         self.failed.load(Ordering::Acquire)
     }
     pub(crate) fn stop(&self) {
+        if let Some(multipart) = self.multipart() {
+            multipart.stop();
+        }
         self.stopped.send_replace(true);
         self.credit.close();
         self.sender

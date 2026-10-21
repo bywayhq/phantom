@@ -3,6 +3,7 @@
 mod client;
 mod client_certificate;
 mod error;
+mod multipart;
 mod prepared_body;
 mod profile;
 mod request;
@@ -26,7 +27,7 @@ pub use ffi::{
     NativeImportedProfile, NativePreparedBody, NativeProfile, NativeRequestDiagnostics,
     NativeResponse, NativeTransferControl, NativeUpload, RedirectHistoryInfo, RedirectHopInfo,
     RedirectPolicyOptions, RequestOptions, ResponseTrailersInfo, RetryPolicyOptions,
-    SessionRouteOptions, StatusRetryOptions, TransferLimitsOptions, TransferSnapshotInfo,
-    WireHeader, client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
-    profile_catalog, profile_ids, profile_import_json,
+    SessionRouteOptions, StatusRetryOptions, StreamingMultipartField, TransferLimitsOptions,
+    TransferSnapshotInfo, WireHeader, client_certificate_der, client_certificate_pem,
+    prepared_form, prepared_multipart, profile_catalog, profile_ids, profile_import_json,
 };

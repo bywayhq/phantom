@@ -1,5 +1,7 @@
 /// <reference types="node" />
 
+import type { Readable } from 'node:stream';
+
 export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
@@ -82,6 +84,17 @@ export interface MultipartBodyOptions extends PreparedBodyOptions { readonly bou
 export type MultipartPart = Readonly<{name: string; filename?: string; contentType?: string} & (
   {text: string; bytes?: never} | {bytes: Uint8Array; text?: never}
 )>;
+/** One part of a request-only, one-shot multipart encoder. */
+export type StreamingMultipartPart = MultipartPart | Readonly<{
+  name: string; filename?: string; contentType?: string;
+} & (
+  {stream: Readable | (AsyncIterableIterator<Uint8Array> & {return(value?: unknown): Promise<IteratorResult<Uint8Array>>}); file?: never; text?: never; bytes?: never}
+  | {file: {readonly path: string; readonly maximumBytes: number}; stream?: never; text?: never; bytes?: never}
+)>;
+export interface StreamingMultipartOptions extends MultipartBodyOptions {
+  /** Ordered duplicate fields; at most 1024, with at most 64 KiB metadata. */
+  readonly parts: readonly StreamingMultipartPart[];
+}
 /** Immutable, replayable bytes encoded by the native core, with no generated boundary. */
 export class PreparedBody {
   private constructor();
@@ -191,6 +204,17 @@ export interface RequestOptions {
   expectContinueMs?: number | bigint;
   /** Prepared bodies are reusable; async iterables are one-shot and pulled with native backpressure. */
   body?: Uint8Array | AsyncIterable<Uint8Array> | PreparedBody;
+  /**
+   * Exclusive with body, bodyLength and file. Core encoded maximum includes framing.
+   * Unknown total length; one-shot, including buffered parts. Only the demanded
+   * stream is pulled, with one native frame (<=64 KiB). Caller-yielded chunks
+   * and Readable internal buffering remain caller-owned. File opens are lazy.
+   * After validation the request owns all streams: direct self-iterators require
+   * return(); Node Readables are destroyed on cleanup. Cleanup is cooperative.
+   * Reuse of a descriptor or repeated source within it is rejected; wrapping the
+   * same source in another descriptor does not transfer a second valid owner.
+   */
+  multipart?: StreamingMultipartOptions;
   /** Optional exact byte length. Only demanded bytes are checked; an early response can leave an unread suffix. */
   bodyLength?: number | bigint;
   file?: { path: string; maximumBytes: number };

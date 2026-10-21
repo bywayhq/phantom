@@ -202,7 +202,24 @@ native bodies. Multipart parts use `{name, text}` or `{name, bytes}`, with optio
 `filename` and `contentType`. Pass the frozen owner as `body` and put its exact
 `contentType` in your ordered headers or a profile's caller slot. `byteLength` is
 always bigint; the encoded limit includes multipart framing. Encoding runs on
-native CPU workers and is not preemptible. Files and streaming parts are separate.
+native CPU workers and is not preemptible.
+
+For one-shot multipart files or streams, use `multipart` instead of `body`:
+
+```js
+const response = await client.request(url, {method: 'POST', protocol: 'http1',
+  context: 'raw', headers: [{name: 'Content-Type', value: Buffer.from('multipart/form-data; boundary=upload')}],
+  multipart: {boundary: 'upload', maximumBytes: 1048576, parts: [
+    {name: 'tag', text: 'first'}, {name: 'tag', text: 'last'},
+    {name: 'file', file: {path: './image.bin', maximumBytes: 900000}, filename: 'image.bin'},
+  ]}});
+```
+
+A `stream` part accepts a closeable async iterator or Node `Readable`. The
+request owns all streams after validation; use each source in one request.
+Only the active part is pulled, and files open on demand. Successful body EOF
+awaits cooperative cleanup; `return()` on an unstarted generator need not run
+its `finally`. Part/count limits and ownership rules are in `RequestOptions`.
 
 ## Capacity and errors
 

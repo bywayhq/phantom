@@ -8,6 +8,9 @@ pub(crate) fn failure(code: &str, message: &str) -> Error {
 }
 
 pub(crate) fn request(error: phantom::RequestError) -> Error {
+    if let Some(error) = crate::multipart::request_error(&error) {
+        return error;
+    }
     let protocol = match error.protocol() {
         Some(phantom::HttpProtocol::Http1) => "http1",
         Some(phantom::HttpProtocol::Http2) => "http2",

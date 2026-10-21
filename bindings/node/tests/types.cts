@@ -1,4 +1,5 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
+import {Readable} from 'node:stream';
 
 async function use(): Promise<void> {
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
@@ -325,3 +326,27 @@ function responseTrailers(response: Response): void {
   response.trailers = {state: 'pending', headers: null};
 }
 void responseTrailers;
+
+
+async function* chunks(): AsyncGenerator<Uint8Array, void, unknown> {yield Buffer.from('x');}
+async function streamingMultipartExample(client: Client): Promise<void> {
+  const parts: readonly StreamingMultipartPart[] = [
+    {name: 'duplicate', text: 'one'}, {name: 'duplicate', bytes: Buffer.alloc(0)},
+    {name: 'upload', stream: chunks(), filename: 'x.bin'},
+    {name: 'stream', stream: Readable.from([Buffer.from('x')])},
+    {name: 'file', file: {path: 'x.bin', maximumBytes: 100}, contentType: 'application/custom'},
+  ];
+  const descriptor: StreamingMultipartOptions = {boundary: 'b', maximumBytes: 1000n, parts};
+  const response = await client.request('https://example.test', {method: 'POST', protocol: 'http2', context: 'raw', multipart: descriptor});
+  await response.bytes(100);
+  // @ts-expect-error One arm per ordered part.
+  const conflicting: StreamingMultipartPart = {name: 'x', text: 'x', stream: chunks()};
+  // @ts-expect-error A mere async iterable has no explicit close ownership.
+  const uncloseable: StreamingMultipartPart = {name: 'x', stream: {[Symbol.asyncIterator]: chunks}};
+  // @ts-expect-error Multipart fields are immutable.
+  descriptor.parts = [];
+  // @ts-expect-error Native file limits use the existing number API.
+  const file: StreamingMultipartPart = {name: 'x', file: {path: 'x', maximumBytes: 1n}};
+  void conflicting; void uncloseable; void file;
+}
+void streamingMultipartExample;

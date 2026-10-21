@@ -11,7 +11,11 @@ pub(crate) fn failure(kind: &str) -> Error {
 }
 
 pub(crate) fn core_error(error: PreparedBodyError) -> Error {
-    let kind = match error.kind() {
+    core_kind(error.kind())
+}
+
+pub(crate) fn core_kind(kind: PreparedBodyErrorKind) -> Error {
+    let kind = match kind {
         PreparedBodyErrorKind::TooLarge => "too_large",
         PreparedBodyErrorKind::Allocation => "allocation",
         PreparedBodyErrorKind::InvalidName => "invalid_name",

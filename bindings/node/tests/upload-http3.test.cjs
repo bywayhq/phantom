@@ -18,12 +18,12 @@ async function bounded(promise, label, milliseconds = 10000) {
   } finally { clearTimeout(timer); }
 }
 
-test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {timeout: 30000}, async () => {
+for (const multipart of [false, true]) test(`HTTP/3 ${multipart ? 'multipart' : 'upload'} abort preserves a live sibling and reuses its connection`, {timeout: 30000}, async () => {
   const python = process.env.PHANTOM_H3_PEER_PYTHON;
   const script = process.env.PHANTOM_H3_PEER_SCRIPT;
   assert.ok(python && script, 'independent HTTP/3 peer paths are required');
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'phantom-node-h3-'));
-  const peer = spawn(python, [script, '--directory', directory], {stdio: ['pipe', 'pipe', 'pipe']});
+  const peer = spawn(python, [script, '--directory', directory, ...(multipart ? ['--multipart'] : [])], {stdio: ['pipe', 'pipe', 'pipe']});
   const lines = readline.createInterface({input: peer.stdout, terminal: false})[Symbol.asyncIterator]();
   let stderr = '', stderrOverflow = false;
   peer.stderr.on('data', (data) => {
@@ -46,7 +46,8 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     return JSON.parse(data.toString());
   }
   let client, selected, healthy;
-  let pulls = 0, returns = 0, release, entered;
+  let pulls = 0, returns = 0, laterPulls = 0, laterReturns = 0, release, entered;
+  const later = {[Symbol.asyncIterator]() {return this;}, async next() {laterPulls++; throw new Error("later source polled");}, async return() {laterReturns++; return {done: true};}};
   const pending = new Promise((resolve) => { entered = resolve; });
   const source = {
     [Symbol.asyncIterator]() { return this; },
@@ -75,8 +76,9 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     warm.close();
     assert.equal(warm.trailers.state, 'complete');
     const controller = new AbortController();
-    const transfer = new TransferControl({uploadBytes: 1024});
-    selected = await client.request(ready.url + '/upload', {...options, method: 'POST', body: source, signal: controller.signal, transferControl: transfer});
+    const prefixBytes = multipart ? Buffer.byteLength('--binding-h3\r\nContent-Disposition: form-data; name="file"\r\nContent-Type: application/octet-stream\r\n\r\n') : 0;
+    const transfer = new TransferControl({uploadBytes: 1024 + prefixBytes});
+    selected = await client.request(ready.url + '/upload', {...options, method: 'POST', ...(multipart ? {multipart: {boundary: 'binding-h3', maximumBytes: 100000, parts: [{name: 'file', stream: source}, {name: 'later', stream: later}]}, headers: [{name: 'content-type', value: Buffer.from('multipart/form-data; boundary=binding-h3')}]} : {body: source}), signal: controller.signal, transferControl: transfer});
     assert.equal((await selected.read(1)).toString(), 'a');
     assert.equal(selected.trailers.state, 'pending');
     await bounded(pending, 'producer was not pending');
@@ -96,8 +98,8 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     const result = await receipt('result.json');
     assert.equal(result.connections, 1);
     assert.equal(result.protocol, 'h3');
-    assert.equal(result.upload_bytes, 1024);
-    assert.equal(transfer.snapshot().uploadBodyBytes, 1024n);
+    assert.equal(result.upload_bytes, 1024 + prefixBytes);
+    assert.equal(transfer.snapshot().uploadBodyBytes, BigInt(1024 + prefixBytes));
     assert.equal(transfer.snapshot().downloadEncodedBytes, 1n);
     assert.equal(transfer.snapshot().downloadDecodedBytes, 1n);
     assert.deepEqual(result.cancellations, {reset_stream: 0x10c, stop_sending: 0x10c});
@@ -107,7 +109,7 @@ test('HTTP/3 upload abort preserves a live sibling and reuses its connection', {
     const stopped = await bounded(exit, 'HTTP/3 peer did not settle', 8000);
     assert.deepEqual(stopped, {code: 0, signal: null}, stderr);
     await client.close();
-    assert.equal(returns, 1);
+    assert.equal(returns, 1); assert.equal(laterPulls, 0); assert.equal(laterReturns, multipart ? 1 : 0);
   } finally {
     const cleanupErrors = [];
     for (const response of [selected, healthy]) {

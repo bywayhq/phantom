@@ -3,6 +3,9 @@
 const { types, TextDecoder, inspect } = require('node:util');
 const { addAbortListener } = require('node:events');
 const { AsyncLocalStorage } = require('node:async_hooks');
+const { Readable } = require('node:stream');
+const { finished } = require('node:stream/promises');
+const multipartClaims = new WeakSet();
 const apply = Reflect.apply;
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype);
 const backingOf = Object.getOwnPropertyDescriptor(typedArray, 'buffer').get;
@@ -350,6 +353,56 @@ class PreparedBody {
       return new PreparedBody(await native.preparedMultipart(boundary, fields, maximumBytes), preparedToken);
     } catch (error) { throw translated(error); }
   }
+}
+
+function multipartOptions(value) {
+  if (value === undefined) return undefined;
+  const options = policyFields(value, ['boundary', 'maximumBytes', 'parts']);
+  const {boundary, maximumBytes} = preparedOptions({boundary: options.boundary, maximumBytes: options.maximumBytes}, true);
+  const parts = options.parts;
+  if (!Array.isArray(parts) || types.isProxy(parts)) throw new PhantomError('InvalidArgument', 'multipart parts must be an ordered array');
+  if (parts.length > 1024) throw preparedFailure('too_many_parts');
+  preparedArray(parts);
+  let metadata = 65536, remaining = maximumBytes;
+  const fields = [], sources = [], identities = new Set();
+  for (const input of parts) {
+    const part = policyFields(input, ['name', 'text', 'bytes', 'stream', 'file', 'filename', 'contentType']);
+    if (['text', 'bytes', 'stream', 'file'].filter((key) => part[key] !== undefined).length !== 1) throw new PhantomError('InvalidArgument', 'multipart part requires one payload');
+    for (const key of ['name', 'filename', 'contentType']) {
+      if (part[key] === undefined && key !== 'name') continue;
+      if (typeof part[key] !== 'string') throw new PhantomError('InvalidArgument', `multipart ${key} must be a string`);
+      const count = Buffer.byteLength(part[key]);
+      metadata -= count;
+      if (count > 4096 || metadata < 0) throw new PhantomError('InputLimit', 'multipart metadata exceeds its limit');
+    }
+    const field = {...part};
+    let source;
+    if (part.text !== undefined) {
+      if (typeof part.text !== 'string') throw new PhantomError('InvalidArgument', 'multipart text must be a string');
+      remaining -= BigInt(Buffer.byteLength(part.text));
+    } else if (part.bytes !== undefined) {
+      field.bytes = bytes(part.bytes); remaining -= BigInt(apply(lengthOf, field.bytes, []));
+    } else if (part.file !== undefined) {
+      const file = policyFields(part.file, ['path', 'maximumBytes']);
+      if (typeof file.path !== 'string' || !file.path.length || Buffer.byteLength(file.path) > 4096) throw new PhantomError('InvalidArgument', 'multipart file requires a bounded path');
+      integer(file.maximumBytes, 'multipart file maximumBytes');
+      metadata -= Buffer.byteLength(file.path);
+      if (metadata < 0) throw new PhantomError('InputLimit', 'multipart metadata exceeds its limit');
+      field.file = file;
+    } else {
+      source = part.stream;
+      if (source === null || typeof source !== 'object' || types.isProxy(source)
+        || (!(source instanceof Readable) && (typeof source.next !== 'function' || typeof source.return !== 'function' || typeof source[Symbol.asyncIterator] !== 'function'))) {
+        throw new PhantomError('InvalidArgument', 'multipart stream must be a Readable or closeable async iterator');
+      }
+      if (identities.has(source)) throw new PhantomError('InvalidArgument', 'multipart sources must be distinct');
+      identities.add(source); field.stream = true;
+    }
+    if (remaining < 0n) throw preparedFailure('too_large');
+    fields.push(field); sources.push(source);
+  }
+  if (multipartClaims.has(value)) throw new PhantomError('InvalidOperation', 'multipart belongs to one request');
+  return {descriptor: value, boundary, maximumBytes, fields, sources};
 }
 
 function phaseTimeouts(value) {
@@ -784,13 +837,22 @@ class Response {
     this.#owner = undefined;
     abandonedResponses.unregister(this);
   }
+  #checkMultipartWait() {
+    if (this.#upload?.multipart && this.#upload.context !== undefined && uploadContext.getStore() === this.#upload.context) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own response');
+  }
+  async #settleMultipart() {
+    if (!this.#upload?.multipart) return;
+    await this.#upload.finished;
+    if (this.#upload.error) throw uploadError(this.#upload.error, this.#upload, true);
+  }
   async read(maximumBytes = 65536) {
+    this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes', 1, 65536);
     if (this.#reading) throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
     this.#reading = true;
     try {
       const part = await this.#native.read(maximumBytes);
-      if (part === null) this.#finished();
+      if (part === null) { this.#finished(); await this.#settleMultipart(); }
       return part;
     } catch (error) {
       this.close();
@@ -798,6 +860,7 @@ class Response {
     } finally { this.#reading = false; }
   }
   async bytes(maximumBytes) {
+    this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes');
     if (this.#reading) {
       this.close();
@@ -807,6 +870,7 @@ class Response {
     try {
       const body = await this.#native.collect(maximumBytes);
       this.#finished();
+      await this.#settleMultipart();
       return body;
     } catch (error) { this.close(); throw uploadError(error, this.#upload); }
     finally { this.#reading = false; }
@@ -840,7 +904,7 @@ class Response {
       [Symbol.asyncIterator]() { return this; },
     };
   }
-  async [Symbol.asyncDispose]() { this.close(); }
+  async [Symbol.asyncDispose]() { this.#checkMultipartWait(); this.close(); await this.#settleMultipart(); }
 }
 
 class Client {
@@ -848,10 +912,13 @@ class Client {
   #uploads = new Set();
   #uploadCleanupError;
   #trackUpload(iterator, upload, outcome) {
-    const pumping = uploadContext.run(this, () => pumpUpload(iterator, upload, outcome));
+    outcome.context = this;
+    const pumping = uploadContext.run(this, () => outcome.multipart ? pumpMultipart(iterator, upload, outcome) : pumpUpload(iterator, upload, outcome));
+    outcome.finished = pumping;
     this.#uploads.add(pumping);
     const settled = () => {
       this.#uploads.delete(pumping);
+      outcome.context = undefined;
       this.#uploadCleanupError ??= outcome.cleanupError;
     };
     pumping.then(settled, settled);
@@ -897,6 +964,7 @@ class Client {
     let upload;
     let producer;
     let iterator;
+    let multipartUpload = false;
     const abort = () => cancellation.cancel();
     const cleanup = () => { upload?.stop(); abortListener?.[Symbol.dispose](); abortListener = undefined; };
     try {
@@ -907,6 +975,8 @@ class Client {
       if (options.file) integer(options.file.maximumBytes, 'maximumBytes');
       const fields = requestFields(options.headers, options.trailers);
       const continueWait = expectContinue(options.expectContinueMs);
+      if (options.multipart !== undefined && (options.body !== undefined || options.file !== undefined || options.bodyLength !== undefined)) throw new PhantomError('InvalidArgument', 'multipart cannot be combined with body, file or bodyLength');
+      const multipart = multipartOptions(options.multipart);
       const prepared = options.body === undefined ? undefined : preparedHandles.get(options.body);
       const streaming = options.body !== undefined && prepared === undefined && !types.isUint8Array(options.body);
       if (options.file !== undefined && options.body !== undefined) throw new PhantomError('InvalidArgument', 'choose body or file');
@@ -935,21 +1005,27 @@ class Client {
       if (options.transferControl !== undefined && transfer === undefined) throw new PhantomError('InvalidArgument', 'transferControl must be a TransferControl');
       const diagnostics = options.diagnostics === undefined ? undefined : diagnosticsHandles.get(options.diagnostics);
       if (options.diagnostics !== undefined && diagnostics === undefined) throw new PhantomError('InvalidArgument', 'diagnostics must be RequestDiagnostics');
+      const policies = {
+        timeouts: phaseTimeouts(options.timeouts), contentDecoding: contentDecoding(options.contentDecoding),
+        redirectPolicy: redirectPolicy(options.redirectPolicy), retryPolicy: retryPolicy(options.retryPolicy),
+        redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined : positiveCount(options.redirectHistoryLimit),
+      };
+      if (multipart) {
+        const candidate = new native.NativeUpload();
+        candidate.configureMultipart(multipart.boundary, multipart.fields, multipart.maximumBytes);
+        multipartClaims.add(multipart.descriptor);
+        upload = candidate; iterator = multipart.sources; multipartUpload = true;
+      }
       const extra = diagnostics === undefined ? [] : [diagnostics];
       const pending = this.#native.request({
         url, method: options.method, protocol: options.protocol, context: options.context,
         ...fields, expectContinueMs: continueWait,
         body: byteBody,
         preparedBody: prepared,
-        file: options.file, timeoutMs: options.timeoutMs, timeouts: phaseTimeouts(options.timeouts),
-        contentDecoding: contentDecoding(options.contentDecoding),
-        redirectPolicy: redirectPolicy(options.redirectPolicy),
-        retryPolicy: retryPolicy(options.retryPolicy),
-        redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined
-          : positiveCount(options.redirectHistoryLimit),
+        file: options.file, timeoutMs: options.timeoutMs, ...policies,
       }, cancellation, budget, upload, transfer, ...extra);
       if (upload) {
-        producer = {error: undefined};
+        producer = {error: undefined, multipart: multipartUpload};
         this.#trackUpload(iterator, upload, producer);
       }
       const response = await pending;
@@ -958,7 +1034,7 @@ class Client {
     } catch (error) {
       cancellation.cancel(); cleanup();
       if (upload && !producer) {
-        producer = {error: undefined};
+        producer = {error: undefined, multipart: multipartUpload};
         this.#trackUpload(iterator, upload, producer);
       }
       throw uploadError(error, producer, true);
@@ -1080,6 +1156,88 @@ async function pumpUpload(iterator, upload, outcome) {
       outcome.error ??= outcome.cleanupError;
       upload.fail();
     } finally { upload.settled(); }
+  }
+}
+
+async function pumpMultipart(sources, upload, outcome) {
+  let terminated = false;
+  const stopped = upload.stopped().then(() => { terminated = true; return {stopped: true}; });
+  const closed = new Set();
+  const cleanupFailures = [];
+  const rememberCleanup = (error) => {
+    cleanupFailures.push(error);
+    outcome.cleanupOriginal = cleanupFailures.length === 1 ? error : new AggregateError([...cleanupFailures], 'multipart cleanup failed');
+    outcome.cleanupError ??= uploadError(new PhantomError('UploadSource', 'multipart cleanup failed'), outcome);
+    outcome.error ??= outcome.cleanupError;
+  };
+  const closeSource = async (source) => {
+    if (source === undefined || closed.has(source)) return;
+    closed.add(source);
+    try {
+      if (source instanceof Readable) {
+        const wasErrored = source.errored;
+        const done = finished(source, {cleanup: true});
+        source.destroy();
+        try { await done; } catch (error) {
+          if (wasErrored || error?.code !== 'ERR_STREAM_PREMATURE_CLOSE') throw error;
+        }
+      } else {
+        const result = await source.return();
+        if (result === null || typeof result !== 'object' || !result.done) throw new PhantomError('UploadSource', 'multipart source did not close');
+      }
+    } catch (error) { rememberCleanup(error); }
+  };
+  try {
+    while (!terminated) {
+      const selected = await Promise.race([upload.nextPart().then((index) => ({index})), stopped]);
+      if (selected.stopped || selected.index === null || selected.index === undefined) return;
+      const source = sources[selected.index];
+      if (source === undefined || closed.has(source)) throw new PhantomError('UploadSource', 'multipart source demand is invalid');
+      let iterator;
+      try {
+        iterator = source[Symbol.asyncIterator]();
+        if (iterator === null || typeof iterator?.next !== 'function' || (!(source instanceof Readable) && iterator !== source)) throw new PhantomError('UploadSource', 'multipart stream must be its own async iterator');
+      } catch (error) { outcome.original = error; outcome.originalPresent = true; throw new PhantomError('UploadSource', 'multipart source failed'); }
+      let credit = false, empties = 0;
+      while (!terminated) {
+        if (!credit && !await upload.ready()) return;
+        if (terminated) return;
+        const next = await Promise.race([Promise.resolve().then(async () => {
+          try {
+            if (terminated) return {stopped: true};
+            const result = await iterator.next();
+            if (result === null || typeof result !== 'object') throw new PhantomError('UploadSource', 'multipart iterator returned an invalid result');
+            return result;
+          } catch (error) { outcome.original = error; outcome.originalPresent = true; throw new PhantomError('UploadSource', 'multipart source failed'); }
+        }), stopped]);
+        if (next.stopped) return;
+        if (next.done) {
+          // A child cannot advance the encoder until its host cleanup settles.
+          await closeSource(source);
+          if (outcome.error) { upload.fail(); return; }
+          if (!uploadOperation(() => upload.end())) return;
+          break;
+        }
+        const chunk = bytes(next.value), length = apply(lengthOf, chunk, []);
+        credit = length === 0;
+        if (credit && ++empties >= 16) { await new Promise((resolve) => setImmediate(resolve)); empties = 0; }
+        else if (!credit) empties = 0;
+        for (let offset = 0; offset < length; offset += 65536) {
+          if (offset && !await upload.ready()) return;
+          const view = Buffer.from(apply(backingOf, chunk, []), apply(offsetOf, chunk, []) + offset, Math.min(65536, length - offset));
+          if (!uploadOperation(() => upload.write(view))) return;
+        }
+      }
+    }
+  } catch (error) {
+    outcome.error = error instanceof PhantomError ? error : new PhantomError('UploadSource', 'multipart source failed');
+    if (!(error instanceof PhantomError)) { outcome.original = error; outcome.originalPresent = true; }
+    outcome.error = uploadError(outcome.error, outcome); upload.fail();
+  } finally {
+    upload.stop();
+    // Begin all terminal closes before awaiting any cooperative source.
+    await Promise.all(sources.map(closeSource));
+    upload.settled();
   }
 }
 
