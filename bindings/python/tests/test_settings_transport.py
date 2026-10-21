@@ -408,7 +408,15 @@ class ClientSettingsTests(unittest.TestCase):
                 client.request("GET", "http://origin.invalid/path") as response,
             ):
                 self.assertEqual(response.read(max_bytes=5), b"hello")
-            self.assertEqual(len(server.requests), 1)
+            self.assertEqual(
+                [row[0] for row in server.requests],
+                ["http://origin.invalid/path", "http://origin.invalid/path"],
+            )
+            self.assertIsNone(dict(server.requests[0][2]).get("Proxy-Authorization"))
+            self.assertEqual(
+                dict(server.requests[1][2])["Proxy-Authorization"], "Basic dXNlcjpwYXNz"
+            )
+            self.assertEqual(server.requests[0][1], server.requests[1][1])
         with peer() as server:
             for proxy in (server.url, server.url.replace("http://", "socks5h://")):
                 with Client(
