@@ -37,9 +37,13 @@ async function send(owner, url, extra = {}) {
 for (const protocol of ['http1', 'http2', 'negotiated']) {
   test(`${protocol} origin pins own bytes and retain pool, refresh and fork policy`, {timeout: 30000}, async (t) => {
     const connections = [];
-    const server = http2.createSecureServer({key: fixture('key.pem'), cert: certificate, allowHTTP1: true}, (request, response) => {
+    const handler = (request, response) => {
+      assert.equal(request.httpVersionMajor, protocol === 'http1' ? 1 : 2);
       connections.push(request.stream?.session ?? request.socket); response.end('ok');
-    });
+    };
+    const server = protocol === 'http1'
+      ? https.createServer({key: fixture('key.pem'), cert: certificate, ALPNProtocols: ['http/1.1']}, handler)
+      : http2.createSecureServer({key: fixture('key.pem'), cert: certificate}, handler);
     server.on('sessionError', () => {});
     const url = await listen(t, server, true);
     const mutable = Buffer.from(pin), pins = [wrong, mutable, mutable];
