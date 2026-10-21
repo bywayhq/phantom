@@ -9,6 +9,7 @@
 #[path = "../../../h3-quinn/src/lib.rs"]
 mod h3_quinn;
 
+mod buffered_write;
 mod connection;
 mod qpack_request;
 mod received_trailers;

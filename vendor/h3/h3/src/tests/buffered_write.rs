@@ -1,0 +1,231 @@
+//! Buffered-write cancellation and graceful FIN regressions.
+
+use std::{
+    cell::RefCell,
+    future::Future,
+    io,
+    pin::pin,
+    rc::Rc,
+    task::{Context, Poll},
+    time::Duration,
+};
+
+use bytes::{Buf, Bytes};
+use futures_util::{future, task::noop_waker_ref};
+
+use crate::{
+    proto::frame::Frame,
+    quic::{ConnectionErrorIncoming, OpenStreams, SendStream, StreamErrorIncoming, StreamId},
+    stream::{self, WriteBuf},
+};
+
+use super::Pair;
+
+#[derive(Default)]
+struct State {
+    credit: usize,
+    bytes: Vec<u8>,
+    enqueued: usize,
+    error: Option<io::Error>,
+}
+
+struct ScriptedSend {
+    state: Rc<RefCell<State>>,
+    writing: Option<WriteBuf<Bytes>>,
+}
+
+impl SendStream<Bytes> for ScriptedSend {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
+        let mut state = self.state.borrow_mut();
+        if let Some(error) = state.error.take() {
+            return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(error))));
+        }
+        if let Some(data) = &mut self.writing {
+            while data.has_remaining() {
+                if state.credit == 0 {
+                    return Poll::Pending;
+                }
+                let count = data.chunk().len().min(state.credit);
+                state.bytes.extend_from_slice(&data.chunk()[..count]);
+                state.credit -= count;
+                data.advance(count);
+            }
+        }
+        self.writing = None;
+        Poll::Ready(Ok(()))
+    }
+
+    fn send_data<T: Into<WriteBuf<Bytes>>>(&mut self, data: T) -> Result<(), StreamErrorIncoming> {
+        if self.writing.is_some() {
+            return Err(StreamErrorIncoming::ConnectionErrorIncoming {
+                connection_error: ConnectionErrorIncoming::InternalError("not ready".into()),
+            });
+        }
+        self.state.borrow_mut().enqueued += 1;
+        self.writing = Some(data.into());
+        Ok(())
+    }
+
+    fn poll_finish(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
+        self.poll_ready(cx)
+    }
+
+    fn reset(&mut self, code: u64) {
+        self.writing = None;
+        assert_eq!(code, 0x10c);
+    }
+
+    fn send_id(&self) -> StreamId {
+        StreamId::try_from(0).expect("request stream zero")
+    }
+}
+
+fn cancelled_write(credit: usize) -> (ScriptedSend, Rc<RefCell<State>>) {
+    let state = Rc::new(RefCell::new(State {
+        credit,
+        ..State::default()
+    }));
+    let mut stream = ScriptedSend {
+        state: Rc::clone(&state),
+        writing: None,
+    };
+    let mut cx = Context::from_waker(noop_waker_ref());
+    {
+        let mut first = pin!(stream::write(
+            &mut stream,
+            Frame::Data(Bytes::from_static(b"abc"))
+        ));
+        assert!(first.as_mut().poll(&mut cx).is_pending());
+    }
+    assert_eq!(state.borrow().bytes.len(), credit);
+    (stream, state)
+}
+
+fn resume_after_cancel(credit: usize) {
+    let (mut stream, state) = cancelled_write(credit);
+    let mut cx = Context::from_waker(noop_waker_ref());
+    let mut next = pin!(stream::write(
+        &mut stream,
+        Frame::Data(Bytes::from_static(b"de"))
+    ));
+    for _ in 0..3 {
+        assert!(next.as_mut().poll(&mut cx).is_pending());
+        assert_eq!(state.borrow().enqueued, 1);
+    }
+    for _ in credit..9 {
+        state.borrow_mut().credit = 1;
+        match next.as_mut().poll(&mut cx) {
+            Poll::Pending => (),
+            Poll::Ready(result) => {
+                result.expect("resumed write");
+                assert_eq!(state.borrow().bytes, b"\x00\x03abc\x00\x02de");
+                assert_eq!(state.borrow().enqueued, 2);
+                return;
+            }
+        }
+    }
+    panic!("write did not finish after its exact byte credits");
+}
+
+#[test]
+fn buffered_write_resumes_after_zero_progress_cancellation() {
+    resume_after_cancel(0);
+}
+
+#[test]
+fn buffered_write_resumes_after_partial_cancellation() {
+    for credit in [1, 2, 3, 4] {
+        resume_after_cancel(credit);
+    }
+}
+
+#[test]
+fn buffered_write_preserves_readiness_error_without_enqueuing() {
+    let (mut stream, state) = cancelled_write(1);
+    state.borrow_mut().error = Some(io::Error::from_raw_os_error(1234));
+    let mut cx = Context::from_waker(noop_waker_ref());
+    let mut next = pin!(stream::write(
+        &mut stream,
+        Frame::Data(Bytes::from_static(b"de"))
+    ));
+    match next.as_mut().poll(&mut cx) {
+        Poll::Ready(Err(StreamErrorIncoming::Unknown(error))) => {
+            assert_eq!(
+                error.downcast_ref::<io::Error>().unwrap().raw_os_error(),
+                Some(1234)
+            );
+        }
+        other => panic!("lost readiness error: {other:?}"),
+    }
+    assert_eq!(state.borrow().enqueued, 1);
+    assert_eq!(state.borrow().bytes, b"\x00");
+}
+
+async fn quinn_queued_frame(reset: bool) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let mut pair = Pair::default();
+        let server = pair.server_inner();
+        let peer = async {
+            let connection = server.accept().await.unwrap().await.unwrap();
+            let (_send, mut recv) = connection.accept_bi().await.unwrap();
+            let selected = recv.read_to_end(10).await;
+            let (_send, mut recv) = connection.accept_bi().await.unwrap();
+            let sibling = recv.read_to_end(5).await.unwrap();
+            (selected, sibling, connection)
+        };
+        let client = async {
+            let mut connection = pair.client().await;
+            let mut send = future::poll_fn(|cx| {
+                <super::h3_quinn::Connection as OpenStreams<Bytes>>::poll_open_bidi(
+                    &mut connection,
+                    cx,
+                )
+            })
+            .await
+            .unwrap();
+            send.send_data(Frame::Data(Bytes::from_static(b"payload")))
+                .unwrap();
+            if reset {
+                send.reset(0x10c);
+            } else {
+                future::poll_fn(|cx| send.poll_finish(cx)).await.unwrap();
+            }
+            let mut sibling = future::poll_fn(|cx| {
+                <super::h3_quinn::Connection as OpenStreams<Bytes>>::poll_open_bidi(
+                    &mut connection,
+                    cx,
+                )
+            })
+            .await
+            .unwrap();
+            sibling
+                .send_data(Frame::Data(Bytes::from_static(b"ok")))
+                .unwrap();
+            future::poll_fn(|cx| sibling.poll_ready(cx)).await.unwrap();
+            future::poll_fn(|cx| sibling.poll_finish(cx)).await.unwrap();
+            (connection, send, sibling)
+        };
+        let ((selected, sibling, _peer_connection), _client_owner) = tokio::join!(peer, client);
+        if reset {
+            assert!(matches!(selected,
+                Err(super::h3_quinn::quinn::ReadToEndError::Read(
+                    super::h3_quinn::quinn::ReadError::Reset(code))) if code.into_inner() == 0x10c
+            ));
+        } else {
+            assert_eq!(selected.unwrap(), b"\x00\x07payload");
+        }
+        assert_eq!(sibling, b"\x00\x02ok");
+    })
+    .await
+    .expect("bounded raw peer completion");
+}
+
+#[tokio::test]
+async fn buffered_write_quinn_fin_flushes_queued_data_without_prior_poll() {
+    quinn_queued_frame(false).await;
+}
+
+#[tokio::test]
+async fn buffered_write_quinn_reset_preserves_code_and_sibling() {
+    quinn_queued_frame(true).await;
+}
