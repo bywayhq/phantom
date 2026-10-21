@@ -96,6 +96,9 @@ enum Command {
         method: String,
         url: String,
         headers: Vec<Header>,
+        #[serde(default)]
+        trailers: Vec<Header>,
+        expect_continue_nanoseconds: Option<u64>,
         budget: Option<u64>,
         transfer: Option<u64>,
         #[serde(default)]
@@ -1041,6 +1044,8 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 method,
                 url,
                 headers,
+                trailers,
+                expect_continue_nanoseconds,
                 budget,
                 transfer,
                 timeouts,
@@ -1051,6 +1056,9 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 has_body,
                 upload,
             } => {
+                if trailers.len() > 256 || headers.len() > 256 - trailers.len() {
+                    return Err(Failure::new("input_limit"));
+                }
                 let budget = budget
                     .map(|id| {
                         state
@@ -1093,6 +1101,13 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                             retries: retry_policy,
                         },
                     )?;
+                if !trailers.is_empty() {
+                    request =
+                        request.trailers(trailers.into_iter().map(Header::into_request).collect());
+                }
+                if let Some(wait) = expect_continue_nanoseconds {
+                    request = request.expect_continue(std::time::Duration::from_nanos(wait));
+                }
                 if let Some(id) = transfer {
                     let control = state
                         .transfers

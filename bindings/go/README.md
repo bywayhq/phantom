@@ -92,6 +92,11 @@ an empty context uses caller headers only.
 Headers are ordered `[]Header` values, including duplicates. Names and byte
 values retain template placement rules; use lowercase caller names for H2/H3.
 `Sensitive` requests never-indexed compression, subject to cookie policy.
+`Request.Trailers` retains the same order and spelling after the body. H1 uses
+chunked coding; H2/H3 names must be lowercase. `Request.ExpectContinue` opts into
+waiting for `100 Continue` after sending the head. Supply a nonnegative
+`*time.Duration`; nil disables it, and zero sends without waiting. An early final
+response suppresses body transmission. Existing upload prefetch can still occur.
 Response headers retain received order and bytes. HTTP error statuses remain
 responses; inspect `Status` before consuming the body.
 

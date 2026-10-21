@@ -62,7 +62,13 @@ type Request struct {
 	Method  string
 	URL     string
 	Headers []Header
-	Body    []byte
+	// Trailers are emitted after the body, in order. HTTP/1 uses chunked coding;
+	// HTTP/2 and HTTP/3 require lowercase names. Invalid framing fails before I/O.
+	Trailers []Header
+	// ExpectContinue waits after sending the head for 100 Continue before sending
+	// body data. Nil disables it; zero sends without waiting. Core deadlines apply.
+	ExpectContinue *time.Duration
+	Body           []byte
 	// Upload transfers a one-shot source to Do, which closes it exactly once,
 	// including on validation failure. Read may run concurrently with Close;
 	// Close must unblock Read. It cannot be combined with Body.
@@ -226,6 +232,15 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 	if len(request.Body) > maxUpload {
 		return nil, &Error{Kind: "upload_limit"}
 	}
+	var expectContinue *uint64
+	if request.ExpectContinue != nil {
+		wait := *request.ExpectContinue
+		if wait < 0 {
+			return nil, &Error{Kind: "invalid_expect_continue"}
+		}
+		nanoseconds := uint64(wait)
+		expectContinue = &nanoseconds
+	}
 	timeouts, err := timeoutsWire(request.Timeouts, request.Timeout)
 	if err != nil {
 		return nil, err
@@ -261,24 +276,35 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		Value     []uint16 `json:"value"`
 		Sensitive bool     `json:"sensitive"`
 	}
-	if len(request.Headers) > 256 {
+	if len(request.Trailers) > 256 || len(request.Headers) > 256-len(request.Trailers) {
 		return nil, &Error{Kind: "input_limit"}
 	}
 	size := len(request.URL) + len(request.Method)
 	if size > 64*1024 {
 		return nil, &Error{Kind: "input_limit"}
 	}
-	headers := make([]wireHeader, 0, len(request.Headers))
-	for _, header := range request.Headers {
-		if len(header.Name) > 64*1024-size || len(header.Value) > 64*1024-size-len(header.Name) {
-			return nil, &Error{Kind: "input_limit"}
+	encodeHeaders := func(input []Header) ([]wireHeader, error) {
+		fields := make([]wireHeader, 0, len(input))
+		for _, header := range input {
+			if len(header.Name) > 64*1024-size || len(header.Value) > 64*1024-size-len(header.Name) {
+				return nil, &Error{Kind: "input_limit"}
+			}
+			size += len(header.Name) + len(header.Value)
+			values := make([]uint16, len(header.Value))
+			for i, value := range header.Value {
+				values[i] = uint16(value)
+			}
+			fields = append(fields, wireHeader{header.Name, values, header.Sensitive})
 		}
-		size += len(header.Name) + len(header.Value)
-		values := make([]uint16, len(header.Value))
-		for i, value := range header.Value {
-			values[i] = uint16(value)
-		}
-		headers = append(headers, wireHeader{header.Name, values, header.Sensitive})
+		return fields, nil
+	}
+	headers, err := encodeHeaders(request.Headers)
+	if err != nil {
+		return nil, err
+	}
+	trailers, err := encodeHeaders(request.Trailers)
+	if err != nil {
+		return nil, err
 	}
 	var budget *uint64
 	if request.Budget != nil {
@@ -297,6 +323,12 @@ func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
 		transfer = &value
 	}
 	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
+	if len(trailers) != 0 {
+		command["trailers"] = trailers
+	}
+	if expectContinue != nil {
+		command["expect_continue_nanoseconds"] = expectContinue
+	}
 	if transfer != nil {
 		command["transfer"] = transfer
 	}

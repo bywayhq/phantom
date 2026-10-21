@@ -46,6 +46,17 @@ pub(super) struct Header {
     pub(super) sensitive: bool,
 }
 
+impl Header {
+    pub(super) fn into_request(self) -> RequestHeader {
+        let field = RequestHeader::new(self.name, self.value);
+        if self.sensitive {
+            field.sensitive()
+        } else {
+            field
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct NativeClient {
     pub(super) client: Client,
@@ -202,19 +213,9 @@ impl NativeClient {
             "negotiated" => self.client.request_negotiated(method, url),
             _ => return Err(Failure::new("invalid_protocol")),
         };
-        let mut request = request.map_err(Failure::from)?.headers(
-            headers
-                .into_iter()
-                .map(|header| {
-                    let field = RequestHeader::new(header.name, header.value);
-                    if header.sensitive {
-                        field.sensitive()
-                    } else {
-                        field
-                    }
-                })
-                .collect(),
-        );
+        let mut request = request
+            .map_err(Failure::from)?
+            .headers(headers.into_iter().map(Header::into_request).collect());
         if let Some(budget) = budget {
             request = request.attempt_budget(budget);
         }
