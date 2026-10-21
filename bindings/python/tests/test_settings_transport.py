@@ -52,7 +52,9 @@ def spki_pin(certificate):
 class SettingsPeer(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, *, tls=False, basic_auth=False, client_ca=None):
+    def __init__(
+        self, *, tls=False, basic_auth=False, client_ca=None, tls_context=None
+    ):
         super().__init__(("127.0.0.1", 0), SettingsHandler)
         self.requests = []
         self.entered = threading.Event()
@@ -62,14 +64,21 @@ class SettingsPeer(http.server.ThreadingHTTPServer):
         self.errors = []
         self.request_workers = []
         self.client_certificates = []
-        if tls:
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            context.load_cert_chain(FIXTURES / "certificate.pem", FIXTURES / "key.pem")
+        if tls or tls_context is not None:
+            context = (
+                ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                if tls_context is None
+                else tls_context
+            )
+            if tls_context is None:
+                context.load_cert_chain(
+                    FIXTURES / "certificate.pem", FIXTURES / "key.pem"
+                )
             if client_ca is not None:
                 context.load_verify_locations(cafile=client_ca)
                 context.verify_mode = ssl.CERT_REQUIRED
             self.socket = context.wrap_socket(self.socket, server_side=True)
-        self.url = f"{'https' if tls else 'http'}://127.0.0.1:{self.server_port}"
+        self.url = f"{'https' if tls or tls_context is not None else 'http'}://127.0.0.1:{self.server_port}"
 
     def get_request(self):
         stream, address = super().get_request()

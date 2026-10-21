@@ -8,6 +8,8 @@ from phantom_http import (
     ConnectionRetry,
     ContentDecoding,
     Header,
+    HostOverride,
+    NetworkOptions,
     Profile,
     Proxy,
     RedirectPolicy,
@@ -218,3 +220,12 @@ def invalid_streaming_multipart(client: Client) -> None:
     body = StreamingMultipartBody([part], boundary="B", maximum_bytes=99)
     body.content_type = "changed"  # E: misc
     client.request("POST", "/", body=[part])  # E: list-item
+
+
+HostOverride("host.invalid", ["127.0.0.1"])  # E: arg-type
+NetworkOptions(host_overrides=[HostOverride("host.invalid")])  # E: arg-type
+NetworkOptions(local_addresses=(123,))  # E: arg-type
+NetworkOptions(interface=123)  # E: arg-type
+NetworkOptions(())  # E: misc
+NetworkOptions().interface = "lo"  # E: misc
+Client(profile="exact", protocol="h1", network={})  # E: arg-type

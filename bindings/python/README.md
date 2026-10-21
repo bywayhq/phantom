@@ -185,6 +185,13 @@ inputs are bounded as described by `ClientCertificate`. Pass it as
 The last matching origin wins; server verification remains enabled. Certificates
 are sent only when requested by an origin, never on the outer proxy TLS hop.
 
+Pass `network=NetworkOptions(host_overrides=(HostOverride("api.example",
+("127.0.0.1",)),), local_addresses=("127.0.0.1",))` to override DNS and bind
+sources while keeping SNI and Host. `interface` binds a named interface; missing
+source families never fall back to an unbound socket. Import both types from
+`phantom_http`. Overrides are ordered: the last matching host wins; an empty
+address tuple blocks resolution. Network settings share 1024 entries and 64 KiB.
+
 ## Budgets and deadlines
 
 Attach one `AttemptBudget(maximum)` as `budget` across requests and clients.

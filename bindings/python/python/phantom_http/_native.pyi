@@ -222,6 +222,10 @@ class NativeClient:
         client_certificate: NativeClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, NativeClientCertificate], ...]
         | None = None,
+        network: tuple[
+            tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
+        ]
+        | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...

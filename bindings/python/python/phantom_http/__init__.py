@@ -53,6 +53,9 @@ from ._diagnostics import RequestTiming as RequestTiming
 from ._diagnostics import TlsConnectionInfo as TlsConnectionInfo
 from ._diagnostics import TlsConnectionState as TlsConnectionState
 from ._native import NativeProfile as _NativeProfile
+from ._network import HostOverride as HostOverride
+from ._network import NetworkOptions as NetworkOptions
+from ._network import _NetworkFields
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
@@ -75,7 +78,10 @@ class _DiagnosticsFields(TypedDict, total=False):
     diagnostics: _native.NativeRequestDiagnostics
 
 
-class _CertificateFields(TypedDict, total=False):
+class _ClientFields(TypedDict, total=False):
+    network: _NetworkFields
+    server_spki_pins: tuple[bytes, ...]
+    proxy_server_spki_pins: tuple[bytes, ...]
     client_certificate: _native.NativeClientCertificate
     client_certificates_for: tuple[tuple[str, _native.NativeClientCertificate], ...]
 
@@ -596,7 +602,7 @@ class ClientCertificate:
 def _certificates(
     default: ClientCertificate | None,
     origins: tuple[tuple[str, ClientCertificate], ...],
-) -> _CertificateFields:
+) -> _ClientFields:
     if default is not None and not isinstance(default, ClientCertificate):
         raise TypeError("client_certificate must be ClientCertificate")
     if not isinstance(origins, tuple):
@@ -623,7 +629,7 @@ def _certificates(
         total += size
         if size > 65536 or total > 16 * 1024 * 1024:
             raise Error("input", "client_certificate_origins_too_large")
-    result: _CertificateFields = {}
+    result: _ClientFields = {}
     if default is not None:
         result["client_certificate"] = default._native
     if origins:
@@ -1048,8 +1054,12 @@ class AsyncClient:
         retry_policy: RetryPolicy | None = None,
         client_certificate: ClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
+        network: NetworkOptions | None = None,
     ) -> None:
-        certificates = _certificates(client_certificate, client_certificates_for)
+        if network is not None and type(network) is not NetworkOptions:
+            raise TypeError("network must be NetworkOptions")
+        network_fields = None if network is None else network._native_fields()
+        client_fields = _certificates(client_certificate, client_certificates_for)
         if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
             raise TypeError("retry_policy must be RetryPolicy")
         if redirect_policy is not None and not isinstance(
@@ -1070,6 +1080,12 @@ class AsyncClient:
             proxy = Proxy(proxy)
         route = proxy
         roots = Trust() if trust is None else trust
+        if roots.server_spki_pins is not None:
+            client_fields["server_spki_pins"] = roots.server_spki_pins
+        if roots.proxy_server_spki_pins is not None:
+            client_fields["proxy_server_spki_pins"] = roots.proxy_server_spki_pins
+        if network_fields is not None:
+            client_fields["network"] = network_fields
         self._native = _call(
             _native.NativeClient,
             profile._native if isinstance(profile, Profile) else profile,
@@ -1086,17 +1102,7 @@ class AsyncClient:
             None if timeouts is None else timeouts._native_fields(),
             None if redirect_policy is None else redirect_policy.maximum_hops,
             None if retry_policy is None else retry_policy._native_fields(),
-            **(
-                {"server_spki_pins": roots.server_spki_pins}
-                if roots.server_spki_pins is not None
-                else {}
-            ),
-            **(
-                {"proxy_server_spki_pins": roots.proxy_server_spki_pins}
-                if roots.proxy_server_spki_pins is not None
-                else {}
-            ),
-            **certificates,
+            **client_fields,
         )
         self.cookies = Cookies(self._native.cookies)
         self._uploads: set[_upload.Upload] = set()
@@ -1573,6 +1579,7 @@ class Client:
         retry_policy: RetryPolicy | None = None,
         client_certificate: ClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, ClientCertificate], ...] = (),
+        network: NetworkOptions | None = None,
     ) -> None:
         self._thread = threading.get_ident()
         self._check_thread_loop()
@@ -1590,6 +1597,7 @@ class Client:
             retry_policy=retry_policy,
             client_certificate=client_certificate,
             client_certificates_for=client_certificates_for,
+            network=network,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies

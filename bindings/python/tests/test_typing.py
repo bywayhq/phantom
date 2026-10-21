@@ -171,6 +171,7 @@ class SignatureTests(unittest.TestCase):
                     "retry_policy": None,
                     "client_certificate": None,
                     "client_certificates_for": (),
+                    "network": None,
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -186,6 +187,9 @@ class SignatureTests(unittest.TestCase):
                     "retry_policy": None,
                     "client_certificate": object(),
                     "client_certificates_for": (("https://origin.invalid", object()),),
+                    "network": phantom_http.NetworkOptions(
+                        local_addresses=("127.0.0.1",)
+                    ),
                 }
                 fields = iter([("X-Duplicate", b"a"), ("X-Duplicate", "b")])
                 budget = object()
