@@ -45,8 +45,6 @@ so it can reuse connections and session state.
 
 ## Learn more
 
-- [Go adapter](bindings/go/README.md): build from source.
-
 - [Getting started](https://docs.rs/phantom-http/latest/phantom/guide/getting_started/index.html)
 - [Browser profiles and request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
 - [Requests and responses](https://docs.rs/phantom-http/latest/phantom/guide/requests_and_responses/index.html)
@@ -54,8 +52,9 @@ so it can reuse connections and session state.
 - [Command-line requests and profile tools](crates/phantom-cli/README.md)
 - [API reference](https://docs.rs/phantom-http/latest/phantom/) and
   [runnable examples](crates/phantom/examples/README.md)
-- [Python sync and async adapter](bindings/python/README.md): build from source.
-- [Node.js and TypeScript adapter](bindings/node/README.md): build from source.
+- Bindings: [Go](bindings/go/README.md),
+  [Node.js and TypeScript](bindings/node/README.md),
+  [Python](bindings/python/README.md)
 
 Phantom is pre-1.0. Commit your lockfile and read the [changelog](CHANGELOG.md)
 when upgrading. For a Git or path dependency, build the docs from that checkout:

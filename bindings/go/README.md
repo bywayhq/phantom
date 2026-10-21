@@ -36,24 +36,23 @@ func fetch(ctx context.Context, client *phantom.Client, url string) ([]byte, err
 }
 ```
 
-This example selects Windows Chrome. Choose your host's profile from the
-[catalog](../../crates/phantom-profile/catalog/profiles.json). For repeated
-requests, keep the client open and call `Do` from any goroutine.
+This example uses Chrome's Windows settings. Choose other profiles from the
+[catalog](../../crates/phantom-profile/catalog/profiles.json). Keep the client
+open for later requests and call `Do` from any goroutine.
 
-## Native installation candidates
+## Install
 
 There are no public module tags or registry releases yet. Download a matching
 candidate from the [installation workflow](../../.github/workflows/go-artifacts.yml).
 Each archive pairs `module/` with `lib/`, licenses and a receipt. Keep that pair
 together and add the local `replace` described in its README.
 
-Candidates cover Windows x64 MSVC, Linux x64 GNU and macOS arm64, tested outside
-the checkout. Receipts identify source, checksums and dependencies; only their
-recorded hosts are verified. Windows needs
-the x64 Visual C++ v14 runtime at least as recent as the receipt's build tools.
-Runtime DLLs are not bundled. Keep the included notices when redistributing.
+Candidates cover Windows x64 MSVC, Linux x64 GNU and macOS arm64. Check the
+receipt for source, checksums and tested hosts. Windows needs the x64 Visual C++
+v14 runtime at least as recent as the recorded build tools; runtime DLLs are
+not bundled. Keep the included notices when redistributing.
 
-## Build and limits
+## Build from source
 
 Source builds require Go 1.26, Rust 1.88+ and the repository's
 [native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
@@ -82,7 +81,7 @@ resources. A mismatch returns `*Error` with `Kind` `native_abi_mismatch` or
 `native_version_mismatch`. Install the matching library and restart the process.
 On Windows, set `PHANTOM_GO_LIBRARY` before the first native operation.
 
-## Requests and streaming
+## Request settings
 
 `Protocol` accepts `h1`, `h2`, `h3` or `negotiated`. Exact protocols fail when
 unsupported by a route. Direct H2 with an HTTP URL uses cleartext prior
@@ -98,6 +97,9 @@ waiting for `100 Continue` after sending the head. Supply a nonnegative
 `*time.Duration`; nil disables it, and zero sends without waiting. A final
 response received while waiting suppresses body transmission. Existing upload
 prefetch can still occur.
+
+## Read a response
+
 Response headers retain received order and bytes. HTTP error statuses remain
 responses; inspect `Status` before consuming the body.
 
@@ -120,7 +122,11 @@ up to 64 KiB at a time. Content stays encoded unless you set
 `Accept-Encoding`. The decoded-stream limit and collection limit are separate.
 `DecodedContentCodings` records the selected chain; headers remain unchanged.
 EOF, read errors and `Close` release the native body. Concurrent reads are
-serialized. Byte uploads use replayable `Request.Body`, limited to 8 MiB.
+serialized.
+
+## Send a body
+
+Byte uploads use replayable `Request.Body`, limited to 8 MiB.
 
 Use `PrepareForm(fields, maximumBytes)` for ordered form fields, or
 `PrepareMultipart(parts, boundary, maximumBytes)` for text and byte parts.
@@ -138,7 +144,7 @@ Streaming uses bounded chunks and cannot be combined with `Body`. A reader is
 one-shot; retries cannot reopen it. Cancellation and the total deadline remain
 active after an early response.
 
-## Cancellation and state
+## Observe a request
 
 Create an observer with `NewRequestDiagnostics(128)` and check its error. Set
 `Request.Diagnostics` and retain the owner to call `Snapshot()`, including after
@@ -147,6 +153,8 @@ Snapshots distinguish response headers from body completion and keep unavailable
 phases absent. Timings are exact monotonic offsets, with connection and TLS facts
 on connection-use events. Oversized snapshots fail explicitly; `Close` releases
 the observer handle without cancelling the request.
+
+## Cancellation and shutdown
 
 Keep `ctx` alive through body EOF or close. Cancelling it interrupts setup,
 uploads and later reads without cancelling another multiplexed response.
@@ -162,6 +170,8 @@ retires pools while active work finishes. Both retain learned state; cancellatio
 can leave some pools unvisited. Use `ClearSessionTickets`, `ClearDNSCache`,
 `ClearClientHints`, `ClearAltSvc` or `ClearAltSvcRacingHistory` to clear state.
 
+## Routing and trust
+
 `Config.BaseURL` joins relative request URLs; a trailing slash appends to its
 directory. Routing is direct unless `Proxy` selects HTTP(S), SOCKS4(a) or
 SOCKS5(h). Proxy environment variables are ignored. Set `ProxyCredentials` for
@@ -174,6 +184,17 @@ normal certificate and hostname verification still apply. Nil omits a policy;
 a non-nil empty slice is invalid. Proxy pins require TLS when a proxy is used,
 while direct routes remain usable.
 
+`ParseClientCertificatePEM(chain, key)` or `ParseClientCertificateDER(chain, key)`
+creates an immutable origin identity from bytes, without file I/O. Set
+`Config.ClientCertificate` and optional ordered `ClientCertificatesFor` overrides;
+normal server verification remains enabled. Close the owner after constructing
+clients; their identities remain valid. Parsing allows 8 MiB aggregate input,
+1..256 DER certificates and 64 open owners; configuration allows 256 origin
+mappings within its 64 KiB command. Keys must be unencrypted. Outer proxy mTLS,
+custom connectors and CONNECT-UDP are not exposed.
+
+## Cookies and checkpoints
+
 Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
 `CookiesForURL` and `ClearCookies`. Matching uses top-level navigation semantics,
 independently of the header template.
@@ -183,11 +204,13 @@ random `[32]byte`. `RestoreSession(ctx, bytes, key, receivingRoutes)` returns
 independent pools using the receiver's compatible settings, never changing it.
 Checkpoints contain enabled cookies, direct Alt-Svc and TLS tickets, within
 32 MiB. Address DNS, client hints and racing history start empty.
-`SessionRoute{}` means direct; its proxy fields follow `Config` rules. Core
-expiry, capacity and isolation checks remain authoritative. `SessionSnapshotError`
+`SessionRoute{}` means direct; its proxy fields follow `Config` rules. Expiry,
+capacity and isolation are checked on restore. `SessionSnapshotError`
 retains the typed core kind and wraps `*Error`; unsupported state is rejected.
 These CPU-only calls cannot be preempted once running; context cancellation
 discards any unpublished result. Configuration and file I/O are not serialized.
+
+## Budgets, deadlines and retries
 
 Create `NewAttemptBudget(maximum)` and attach it as `Request.Budget` across
 clients. Initial origin attempts and internal resends spend it atomically.
@@ -237,7 +260,7 @@ or browser-fidelity claim. `Context: "profile"` selects an attached template;
 close the returned profile owner. JA3/JA4 take raw descriptions, not hashes.
 JA4 requires `JA4Sorted` or `JA4Original`. ClientHello bytes include the
 four-byte handshake header without TLS records; QUIC bytes are extension 57's
-payload. Missing settings come from the base, without a browser-fidelity claim.
+payload. Missing settings come from the explicit base.
 
 ## Fork session state
 
@@ -265,18 +288,9 @@ retains paced reservations and their gaps in the shared schedule.
 
 Process-wide limits are 64 each for clients, budgets, transfer controls,
 response handles and ordinary operations, plus 64 separate shutdown operations.
-Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each and 16 MiB aggregate
-native custody until responses close. Metadata limits are 64 KiB per command,
-256 response fields/32 KiB and 256 KiB per encoded reply.
-
-`ParseClientCertificatePEM(chain, key)` or `ParseClientCertificateDER(chain, key)`
-creates an immutable origin identity from bytes, without file I/O. Set
-`Config.ClientCertificate` and optional ordered `ClientCertificatesFor` overrides;
-normal server verification remains enabled. Close the owner after constructing
-clients; their identities remain valid. Parsing allows 8 MiB aggregate input,
-1..256 DER certificates and 64 open owners; configuration allows 256 origin
-mappings within its 64 KiB command. Keys must be unencrypted. Outer proxy mTLS,
-custom connectors and CONNECT-UDP are not exposed.
+Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each
+and 16 MiB aggregate native custody until responses close. Metadata limits are
+64 KiB per command, 256 response fields/32 KiB and 256 KiB per encoded reply.
 
 ## Next
 

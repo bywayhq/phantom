@@ -14,11 +14,11 @@ with Client(profile=PROFILE, protocol="negotiated", timeout_ms=30_000) as client
         print(response.text(max_bytes=1_000_000))
 ```
 
-This example selects Windows Chrome. Choose a profile for your host from the
-[catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json). Reuse the client
-for subsequent requests.
+This example uses Chrome's Windows settings. Choose other profiles from the
+[catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json)
+and reuse the client for later requests.
 
-## Native wheel candidates
+## Install
 
 Python packages are not published to PyPI yet. Install a matching candidate
 from the [wheel workflow](https://github.com/bywayhq/phantom/blob/main/.github/workflows/python-wheels.yml):
@@ -28,20 +28,21 @@ python -m pip install path/to/file.whl
 ```
 
 Candidates cover Linux x64 GNU (manylinux 2.28), Windows x64 MSVC and macOS arm64.
-All three wheels build from the same source archive and include dependency
-licenses. Receipts identify source, checksums and tested hosts. CPython 3.10 runs
-the full installed suite; 3.15 runs a smaller loopback check of the same wheel.
-Windows needs the x64 Visual C++ v14 runtime at least as recent as the build tools.
+The wheels include dependency licenses and receipts with source, checksums and
+tested hosts. Windows needs the x64 Visual C++ v14 runtime at least as recent as
+the recorded build tools.
 
-For a checkout build, use CPython 3.10+, Rust 1.88+ and the
+## Build from source
+
+Use CPython 3.10+, Rust 1.88+ and the
 [native build tools](https://github.com/bywayhq/phantom/blob/main/crates/phantom/src/docs/getting-started.md#install-the-build-tools).
 From this directory, run `maturin develop` in a virtual environment with
 Maturin 1.15.0. The package includes type hints and `py.typed`.
 
-Source archives also need the native tools and pin their supported Rust compiler
-in `rust-toolchain.toml` (currently 1.99.1). Install one with
-`pip install ./phantom_http-VERSION.tar.gz`. Overriding that compiler is outside
-the archive's verified build and runtime-license coverage.
+To install a source archive, run `pip install ./phantom_http-VERSION.tar.gz`.
+It needs the same native tools and pins Rust 1.99.1 in `rust-toolchain.toml`.
+Overriding that compiler is outside its verified build and runtime-license
+coverage.
 
 ## Streaming and lifetime
 
@@ -80,6 +81,8 @@ Text uses your chosen Python codec and error policy, with UTF-8/strict defaults.
 JSON uses Python's standard decoder. Collection bounds input bytes, not parsed
 objects or parsing time. Parsing runs on your Python thread.
 
+## Send a body
+
 Use `body=b"..."` for replayable bytes or `upload=path` for a one-shot file
 stream. Files use their opened length: growth is excluded and shrinkage fails.
 You can also pass an async iterable of bytes to `AsyncClient`, or an iterable
@@ -113,7 +116,7 @@ Close an unused response or leave its context manager. Concurrent reads fail.
 Cancelling a request interrupts setup/upload; cancelling a read closes that
 response. Other multiplexed streams remain usable. Cleanup may finish later.
 
-## Requests and state
+## Request settings
 
 Protocols are `h1`, `h2`, `h3` and `negotiated` (HTTP/2 or HTTP/1.1). Direct
 `h2` with an HTTP URL uses cleartext prior knowledge. Unknown profiles and
@@ -139,7 +142,11 @@ Responses expose ordered byte-valued headers, `status`, `url`,
 caller-enabled setup retries only. HTTP error statuses remain responses until
 you call `raise_for_status()` for a 4xx or 5xx status.
 
-Routing defaults to direct and ignores proxy environment variables. `proxy`
+## Routing and trust
+
+`base_url="https://example.com/api/"` resolves `"child"` to `/api/child`;
+`"/child"` starts at the origin root. Routing defaults to direct and ignores
+proxy environment variables. `proxy`
 accepts HTTP(S), SOCKS4(a) and SOCKS5(h) URIs. Use
 `Proxy(uri, username="user", password="secret")` for HTTP Basic or SOCKS5 auth;
 credentials belong outside the URI. `Trust(roots=(der,), proxy_roots=(der,))`
@@ -159,11 +166,7 @@ inputs are bounded as described by `ClientCertificate`. Pass it as
 The last matching origin wins; server verification remains enabled. Certificates
 are sent only when requested by an origin, never on the outer proxy TLS hop.
 
-`base_url="https://example.com/api/"` resolves `"child"` to `/api/child`;
-`"/child"` starts at the origin root. Cookies are enabled by default. Use
-`client.cookies.set(url, set_cookie)`, `for_url(url)` and `clear()`;
-`cookies=False` disables storage. Matching uses top-level navigation semantics,
-independently of the selected header template.
+## Budgets and deadlines
 
 Attach one `AttemptBudget(maximum)` as `budget` across requests and clients.
 Origin attempts, including internal resends, spend it atomically. Admissions
@@ -179,6 +182,12 @@ and applies finite nonnegative numbers, including zero. For example,
 `TimeoutOverrides(total=None, read_idle=2)` disables total but limits idle reads.
 Do not combine `timeout_ms` and `timeouts`. Total zero rejects before sending;
 other zero phase timers can race ready work.
+
+## Manage session state
+
+Cookies are enabled by default. Use `client.cookies.set(url, set_cookie)`,
+`for_url(url)` and `clear()`; `cookies=False` disables storage. Matching uses
+top-level navigation semantics, independently of the header template.
 
 `close_idle_connections()` retires idle connections; `refresh_connections()`
 retires pools while active responses finish. Both retain learned state. Clear
@@ -209,6 +218,8 @@ checks apply; unsupported state/configuration raises `SessionSnapshotError`.
 No configuration or file I/O is serialized. Already-started CPU work continues
 if the awaiting task is cancelled; an unpublished restored client is discarded.
 
+## Transfer limits and counters
+
 Use one `TransferControl(limits=TransferLimits(download_bytes=1_000_000))`
 across requests with `transfer_control=control`; both classes are imported from
 `phantom_http`. Optional upload/download caps accept zero; integer
@@ -217,6 +228,15 @@ Downloads count encoded body bytes. `control.snapshot()` returns five exact
 body counters; reserved quota survives cancellation and decoded frames can lead
 the application's buffered cursor. Headers and transport overhead are excluded.
 Caps apply across attempts; failures retain `Error.kind == "transfer"`.
+
+## Observe a request
+
+Pass a fresh `RequestDiagnostics(maximum_events=128)` as `diagnostics=` to
+observe one request. `snapshot()` returns `None` before attachment, then frozen
+records with exact nanosecond timings and available endpoint/TLS/certificate
+facts. Missing values are unobserved; overlapping intervals must not be summed.
+Response-head completion is separate from body completion. The single-use
+observer survives failure or cancellation; capacity omissions are counted.
 
 ## Author profiles
 
@@ -248,14 +268,7 @@ or `import_quic_transport` for partial observations. Each returns an immutable
 JA3/JA4 require raw descriptions, not hashes. JA4 also accepts `format="sorted"`.
 ClientHello input includes its four-byte handshake header, without TLS records;
 QUIC input is extension 57's payload. Missing settings come from the explicit
-base. Successful import does not establish an exact browser match.
-
-Pass a fresh `RequestDiagnostics(maximum_events=128)` as `diagnostics=` to
-observe one request. `snapshot()` returns `None` before attachment, then frozen
-records with exact nanosecond timings and available endpoint/TLS/certificate
-facts. Missing values are unobserved; overlapping intervals must not be summed.
-Response-head completion is separate from body completion. The single-use
-observer survives failure or cancellation; capacity omissions are counted.
+base.
 
 ## Synchronous calls and errors
 

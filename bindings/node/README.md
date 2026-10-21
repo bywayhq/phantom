@@ -20,10 +20,10 @@ try {
 } finally { await client.close(); }
 ```
 
-This example selects Windows Chrome. Inspect `profiles()` for your host's
-profile. Reuse the client for subsequent requests.
+This example uses Chrome's Windows settings. Use `profiles()` to list other
+profiles, and reuse the client for later requests.
 
-## Native package candidates
+## Install
 
 Packages are not published to npm yet. Download a matching candidate from the
 [package workflow](../../.github/workflows/node-packages.yml) and install it:
@@ -32,13 +32,14 @@ Packages are not published to npm yet. Download a matching candidate from the
 npm install ./package.tgz
 ```
 
-Candidates cover Linux x64 GNU, Windows x64 MSVC and macOS arm64. They are
-installed and tested outside the checkout on Node 22 and 24. Each includes
-licenses and source/checksum/dependency receipts. No install downloader runs.
-Only recorded hosts and runtimes are verified. Windows needs the x64 Visual
-C++ v14 runtime at least as recent as the receipt's build tools.
+Candidates cover Linux x64 GNU, Windows x64 MSVC and macOS arm64 on Node 22
+and 24. Each includes licenses and a receipt with source, checksums and tested
+hosts. The native library is included. Windows needs the x64 Visual
+C++ v14 runtime at least as recent as the recorded build tools.
 
-For a source build, install the repository's
+## Build from source
+
+Install the repository's
 [native build tools](../../crates/phantom/src/docs/getting-started.md#install-the-build-tools).
 From the repository root:
 
@@ -99,7 +100,7 @@ Run this while your client is open. Pipeline applies backpressure, closes an
 unfinished iterator on output failure, and imposes no total byte limit. Leaving
 `for await` also closes unfinished responses. Close any unused response.
 
-## Cancellation and client state
+## Cancellation and deadlines
 
 `AbortSignal` interrupts setup, uploads and body reads; it remains attached
 after the response head. Other multiplexed streams remain usable. Pipeline
@@ -113,9 +114,12 @@ time includes upload; total includes body completion. Do not combine
 `timeoutMs` with `timeouts.totalMs`. Total zero rejects before sending; other
 zero phase timers can race ready work. Errors expose `timeoutPhase`.
 
+## Routing and trust
+
 `baseUrl` joins relative URLs. `additionalRoots` extends origin trust;
 `additionalProxyRoots` separately extends HTTPS-proxy trust. Both use DER and
-retain certificate verification. `route: 'proxy'` accepts HTTP(S) and SOCKS5
+retain certificate verification. Each allows sixteen certificates up to 1 MiB
+each. `route: 'proxy'` accepts HTTP(S) and SOCKS5
 URIs, with optional paired `proxyUsername`/`proxyPassword`. HTTP credentials
 use Basic authentication. Proxy environment variables are ignored.
 
@@ -127,6 +131,17 @@ certificate or raw key. Inputs are copied during construction. Omit a policy
 to leave it unset; an empty list is invalid. Origin pins reject cleartext
 origins; proxy pins reject plaintext proxy routes but allow direct requests.
 
+Use `await ClientCertificate.fromPem(chainBytes, keyBytes)` or
+`fromDer([leafDer, ...chainDer], keyDer)` with an unencrypted key. Parsing runs
+off the event loop after copying at most 16 MiB; DER chains allow 1..256 entries.
+Set `clientCertificate` and/or ordered `clientCertificatesFor: [[origin, owner]]`
+on a client; the last canonical matching origin wins. Server verification still
+applies; proxies never receive the identity. Owners are immutable and reusable
+across clients and forks. Checkpoints require matching receiving identities;
+private keys are neither exported nor serialized.
+
+## Cookies and connections
+
 Cookies are opt-in with `cookies: true`. Use `setCookie`, `cookieValue` and
 `clearCookies`; matching uses top-level navigation semantics independently of
 header templates. `closeIdleConnections()` closes idle connections;
@@ -135,12 +150,14 @@ learned state. Clear DNS, hints, alternatives or tickets with `clearDnsCache`,
 `clearClientHints`, `clearAltSvc` and `clearSessionTickets`.
 `clearAltSvcRacingHistory()` resets racing decisions while retaining alternatives.
 
+## Budgets and transfer limits
+
 Attach a shared `new TransferControl({downloadBytes: 1_000_000n,
 downloadBytesPerSecond: 100_000n})` through request `transferControl` for native
 body-byte caps, pacing and `snapshot()` counters. Download caps and rates count
-encoded body bytes. Limits accept safe integer
-numbers or `bigint` within u64; zero caps are valid, rates must be positive. The five
-counters are always `bigint`. Reservations include cancelled paced chunks;
+encoded body bytes. Limits accept safe integer numbers or `bigint` within u64;
+zero caps are valid and rates must be positive. The five counters are `bigint`.
+Reservations include cancelled paced chunks;
 resends count again. Encoded/decoded body counts exclude transport overhead,
 and decoded counts can include the binding's buffered unread remainder.
 
@@ -151,6 +168,8 @@ number through `Number.MAX_SAFE_INTEGER`, then `bigint`. `tryAdmit()` charges
 attempts outside Phantom and throws `AttemptBudgetExhausted` when exhausted;
 Phantom already charges requests carrying that budget. Admissions are not
 refunded, including when no bytes are sent. Setup/proxy negotiation are separate.
+
+## Send a body
 
 Replayable byte uploads are limited to 16 MiB. `file: {path, maximumBytes}`
 streams a regular file once using its initial length; growth is excluded and
@@ -171,8 +190,7 @@ before sending a body, including a zero wait. It accepts exact nonnegative
 safe integer numbers or u64 `bigint`; the wait counts toward existing deadlines.
 A final response before the wait ends sends no upload bytes; producer cleanup
 stays cooperative.
-Headers and trailers together allow 256 entries/64 KiB. Additional roots allow sixteen
-certificates up to 1 MiB each.
+Headers and trailers together allow 256 entries/64 KiB.
 
 `await PreparedBody.form(orderedPairs, {maximumBytes})` and
 `await PreparedBody.multipart(parts, {boundary, maximumBytes})` prepare reusable
@@ -182,19 +200,22 @@ native bodies. Multipart parts use `{name, text}` or `{name, bytes}`, with optio
 always bigint; the encoded limit includes multipart framing. Encoding runs on
 native CPU workers and is not preemptible. Files and streaming parts are separate.
 
+## Capacity and errors
+
 `maximumActiveRequests` counts requests plus unfinished bodies: default 32,
 range 1..1024. Full admission returns `Capacity`. Each Worker has an environment
 with at most 128 open clients; closed clients remain charged until their work
 settles. `PhantomError.code` identifies failures, with `protocol` and
 `timeoutPhase` when known. Messages omit inputs, credentials and file paths.
 
+## Observe a request
+
 Attach `diagnostics: new RequestDiagnostics({maximumEvents: 128})` and keep the
-owner to call `snapshot()` after failures or cancellation. Import it from the
-package. Snapshots are `null` before attachment; `response_head` is send success,
-not body completion. Events retain order, exact bigint nanoseconds, explicit
-pending/unavailable facts and dropped counts. Frozen records contain owned,
-editable ALPN/DER buffers; copied records/bytes are capped at 16 MiB. Missing
-phases are unobserved. The owner is single-use and does not enable secret logs.
+owner to call `snapshot()`, including after failure or cancellation. It returns
+`null` before attachment; `response_head` means send success, not body completion.
+Events retain order, exact bigint nanoseconds and dropped counts. Missing phases
+are unobserved. Frozen records contain owned, editable ALPN/DER buffers, within
+a 16 MiB copy limit. Each owner is single-use and does not enable secret logs.
 
 ## Edit a profile
 
@@ -228,7 +249,7 @@ Partial imports use `Profile.importJa3(text, {base: original})`, `importAkamai`,
 `supplementedFields`. JA3/JA4 require raw descriptions, not hashes; JA4 also
 accepts `format: 'sorted'`. ClientHello bytes include the four-byte handshake
 header without TLS records; QUIC bytes are extension 57's payload. Missing
-settings come from the explicit base. Imports do not establish browser fidelity.
+settings come from the explicit base.
 
 ## Redirects
 
@@ -267,17 +288,6 @@ are limited to 32 MiB. Optional `receivingRoutes` validate request-only ticket
 routes; profile, trust and default route must match. Cookies, direct Alt-Svc and
 TLS tickets use core persistence rules; this is not serialized configuration.
 CPU work runs off the event loop and is not abortable.
-
-## Client certificates
-
-Use `await ClientCertificate.fromPem(chainBytes, keyBytes)` or
-`fromDer([leafDer, ...chainDer], keyDer)` with an unencrypted key. Parsing runs
-off the event loop after copying at most 16 MiB; DER chains allow 1..256 entries.
-Set `clientCertificate` and/or ordered `clientCertificatesFor: [[origin, owner]]`
-on a client; the last canonical matching origin wins. Server verification still
-applies; proxies never receive the identity. Owners are immutable and reusable
-across clients and forks. Checkpoints require matching receiving identities;
-private keys are neither exported nor serialized.
 
 ## Next
 
