@@ -184,6 +184,38 @@ pub struct ClientOptions {
     pub retry_policy: Option<RetryPolicyOptions>,
     /// Ordered local resolution overrides and source socket selection.
     pub network: Option<NetworkOptions>,
+    /// Optional core pool retention, admission and setup-wait overrides.
+    pub pool: Option<PoolOptions>,
+}
+
+/// Pool overrides; omitted fields retain the core or profile setting.
+#[derive(Clone, Debug, Default)]
+#[napi(object)]
+pub struct PoolOptions {
+    /// Retained HTTP/1.1 pool entries, not total live sockets.
+    pub max_retained_http1_connections: Option<f64>,
+    /// Active HTTP/1.1 requests per origin and route.
+    pub max_concurrent_http1_requests_per_origin: Option<f64>,
+    /// Waiting HTTP/1.1 requests per origin and route.
+    pub max_pending_http1_requests_per_origin: Option<f64>,
+    /// Retained HTTP/2 pool entries.
+    pub max_retained_http2_connections: Option<f64>,
+    /// Active HTTP/2 requests across a pool key's connections.
+    pub max_concurrent_http2_requests_per_origin: Option<f64>,
+    /// Waiting HTTP/2 requests per origin and route.
+    pub max_pending_http2_requests_per_origin: Option<f64>,
+    /// Maximum HTTP/2 connections per origin and route.
+    pub max_http2_connections_per_origin: Option<f64>,
+    /// Retained HTTP/3 pool entries.
+    pub max_retained_http3_connections: Option<f64>,
+    /// Active HTTP/3 requests across a pool key's connections.
+    pub max_concurrent_http3_requests_per_origin: Option<f64>,
+    /// Waiting HTTP/3 requests per origin and route.
+    pub max_pending_http3_requests_per_origin: Option<f64>,
+    /// Maximum QUIC connections per transport location; the core caps this at 8.
+    pub max_http3_connections_per_origin: Option<f64>,
+    /// Milliseconds before starting another negotiated TLS setup; zero is valid.
+    pub negotiated_setup_wait_limit_ms: Option<f64>,
 }
 
 /// One logical hostname's ordered replacement addresses.

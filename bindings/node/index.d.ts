@@ -147,6 +147,35 @@ export interface ClientOptions {
   retryPolicy?: RetryPolicy;
   /** Copied during construction; omitted settings use OS/core defaults. */
   readonly network?: NetworkOptions;
+  /** Operational pool overrides; omission retains core/profile defaults. */
+  readonly pool?: PoolOptions;
+}
+/** Positive safe-integer counts. Core limits also apply. */
+export interface PoolOptions {
+  /** Retained HTTP/1.1 pool entries. */
+  readonly maxRetainedHttp1Connections?: number;
+  /** Active HTTP/1.1 requests per origin and route. */
+  readonly maxConcurrentHttp1RequestsPerOrigin?: number;
+  /** Waiting HTTP/1.1 requests per origin and route. */
+  readonly maxPendingHttp1RequestsPerOrigin?: number;
+  /** Retained HTTP/2 pool entries. */
+  readonly maxRetainedHttp2Connections?: number;
+  /** Active HTTP/2 requests across a pool key’s connections. */
+  readonly maxConcurrentHttp2RequestsPerOrigin?: number;
+  /** Waiting HTTP/2 requests per origin and route. */
+  readonly maxPendingHttp2RequestsPerOrigin?: number;
+  /** HTTP/2 connections per origin and route. */
+  readonly maxHttp2ConnectionsPerOrigin?: number;
+  /** Retained HTTP/3 pool entries. */
+  readonly maxRetainedHttp3Connections?: number;
+  /** Active HTTP/3 requests across a pool key’s connections. */
+  readonly maxConcurrentHttp3RequestsPerOrigin?: number;
+  /** Waiting HTTP/3 requests per origin and route. */
+  readonly maxPendingHttp3RequestsPerOrigin?: number;
+  /** QUIC connections per transport location (at most 8). */
+  readonly maxHttp3ConnectionsPerOrigin?: number;
+  /** Safe-integer milliseconds before another negotiated TLS setup; zero is valid. */
+  readonly negotiatedSetupWaitLimitMs?: number;
 }
 /** A domain override affects local resolution, retaining TLS identity and HTTP authority. */
 export interface HostOverride {

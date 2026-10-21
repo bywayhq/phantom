@@ -116,6 +116,9 @@ impl ClientState {
         if let Some(network) = options.network {
             builder = crate::network::apply(builder, network)?;
         }
+        if let Some(pool) = options.pool {
+            builder = crate::pool::apply(builder, pool)?;
+        }
         if let Some(policy) = options.redirect_policy {
             builder = builder.redirect_policy(policy.policy()?);
         }

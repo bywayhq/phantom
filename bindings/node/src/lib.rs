@@ -5,6 +5,7 @@ mod client_certificate;
 mod error;
 mod multipart;
 mod network;
+mod pool;
 mod prepared_body;
 mod profile;
 mod request;
@@ -27,7 +28,7 @@ pub use ffi::{
     NativeAttemptBudget, NativeCancellation, NativeClient, NativeClientCertificate,
     NativeEnvironment, NativeImportedProfile, NativePreparedBody, NativeProfile,
     NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload, NetworkOptions,
-    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    PoolOptions, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
     ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, StatusRetryOptions,
     StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo, WireHeader,
     client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,

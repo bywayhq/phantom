@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type PoolOptions, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
 
 const pinned = new Client({profile: 'exact', route: 'direct',
   serverSpkiPins: [new Uint8Array(32)] as const, proxyServerSpkiPins: [Buffer.alloc(32)] as const});
@@ -171,3 +171,16 @@ function networkConfiguration(): void {
   // @ts-expect-error unknown network policies are not accepted
   new Client({profile: 'exact', route: 'direct', network: {fallbackToUnbound: true}});
 }
+
+const poolLimits: PoolOptions = {
+  maxConcurrentHttp1RequestsPerOrigin: 4, maxPendingHttp1RequestsPerOrigin: 12,
+  maxHttp2ConnectionsPerOrigin: 2, maxHttp3ConnectionsPerOrigin: 2,
+  negotiatedSetupWaitLimitMs: 0,
+};
+new Client({profile: 'exact', route: 'direct', pool: poolLimits});
+// @ts-expect-error Pool fields are immutable.
+poolLimits.maxConcurrentHttp1RequestsPerOrigin = 2;
+// @ts-expect-error Counts use safe numbers, not bigint.
+new Client({profile: 'exact', route: 'direct', pool: {maxRetainedHttp1Connections: 1n}});
+// @ts-expect-error Omit a setup wait to retain defaults; null is not a duration.
+new Client({profile: 'exact', route: 'direct', pool: {negotiatedSetupWaitLimitMs: null}});

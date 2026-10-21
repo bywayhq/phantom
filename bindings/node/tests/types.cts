@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type PoolOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
 import {Readable} from 'node:stream';
 
 async function use(): Promise<void> {
@@ -378,3 +378,16 @@ function networkConfiguration(): void {
   // @ts-expect-error unknown network policies are not accepted
   new Client({profile: 'exact', route: 'direct', network: {fallbackToUnbound: true}});
 }
+
+const poolLimits: PoolOptions = {
+  maxConcurrentHttp1RequestsPerOrigin: 4, maxPendingHttp1RequestsPerOrigin: 12,
+  maxHttp2ConnectionsPerOrigin: 2, maxHttp3ConnectionsPerOrigin: 2,
+  negotiatedSetupWaitLimitMs: 0,
+};
+new Client({profile: 'exact', route: 'direct', pool: poolLimits});
+// @ts-expect-error Pool fields are immutable.
+poolLimits.maxConcurrentHttp1RequestsPerOrigin = 2;
+// @ts-expect-error Counts use safe numbers, not bigint.
+new Client({profile: 'exact', route: 'direct', pool: {maxRetainedHttp1Connections: 1n}});
+// @ts-expect-error Omit a setup wait to retain defaults; null is not a duration.
+new Client({profile: 'exact', route: 'direct', pool: {negotiatedSetupWaitLimitMs: null}});

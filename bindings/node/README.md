@@ -240,6 +240,13 @@ with at most 128 open clients; closed clients remain charged until their work
 settles. `PhantomError.code` identifies failures, with `protocol` and
 `timeoutPhase` when known. Messages omit inputs, credentials and file paths.
 
+Set `pool: {maxConcurrentHttp1RequestsPerOrigin: 4}` to override native pool
+limits. Omitted fields keep the profile/core defaults. Counts are positive
+safe integers; core limits also apply. Retention counts pool entries, rather
+than sockets. `negotiatedSetupWaitLimitMs` accepts zero. Increasing connection
+limits or shortening setup waits can make extra handshakes visible to servers.
+The binding's `maximumActiveRequests` limit remains independent.
+
 ## Observe a request
 
 Attach `diagnostics: new RequestDiagnostics({maximumEvents: 128})` and keep the

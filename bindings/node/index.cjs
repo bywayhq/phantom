@@ -448,6 +448,42 @@ function multipartOptions(value) {
   return {descriptor: value, boundary, maximumBytes, fields, sources};
 }
 
+function poolOptions(options) {
+  const field = Object.getOwnPropertyDescriptor(options, 'pool');
+  if (field === undefined) return undefined;
+  if (!Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', 'pool must be a data field');
+  const value = field.value;
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object' || types.isProxy(value)
+    || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+    throw new PhantomError('InvalidArgument', 'pool settings must be a data object');
+  }
+  const counts = [
+    'maxRetainedHttp1Connections',
+    'maxConcurrentHttp1RequestsPerOrigin',
+    'maxPendingHttp1RequestsPerOrigin',
+    'maxRetainedHttp2Connections',
+    'maxConcurrentHttp2RequestsPerOrigin',
+    'maxPendingHttp2RequestsPerOrigin',
+    'maxHttp2ConnectionsPerOrigin',
+    'maxRetainedHttp3Connections',
+    'maxConcurrentHttp3RequestsPerOrigin',
+    'maxPendingHttp3RequestsPerOrigin',
+    'maxHttp3ConnectionsPerOrigin',
+  ];
+  const result = {};
+  for (const [name, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+    if ((!counts.includes(name) && name !== 'negotiatedSetupWaitLimitMs') || !Object.hasOwn(descriptor, 'value')) {
+      throw new PhantomError('InvalidArgument', 'pool settings contain an unknown or executable field');
+    }
+    if (descriptor.value !== undefined) {
+      result[name] = integer(descriptor.value, name, name === 'negotiatedSetupWaitLimitMs' ? 0 : 1, Number.MAX_SAFE_INTEGER);
+    }
+  }
+  if (Object.getOwnPropertySymbols(value).length !== 0) throw new PhantomError('InvalidArgument', 'pool settings contain an unknown field');
+  return Object.freeze(result);
+}
+
 function phaseTimeouts(value) {
   if (value === undefined) return undefined;
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -986,6 +1022,7 @@ class Client {
       const userId = Object.getOwnPropertyDescriptor(options, 'proxyUserId');
       if (userId && !Object.hasOwn(userId, 'value')) throw new PhantomError('InvalidArgument', 'proxyUserId must be a data field');
       const proxyUserId = userId?.value === undefined ? undefined : socks4UserId(userId.value);
+      const pool = poolOptions(options);
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
       this.#native = environment.client({
         ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
@@ -997,6 +1034,7 @@ class Client {
         retryPolicy: retryPolicy(options.retryPolicy),
         network,
         proxyUserId,
+        pool,
       }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
     } catch (error) { throw translated(error); }
   }
