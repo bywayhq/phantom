@@ -639,12 +639,28 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIs(connection.read_failure, original[0])
                 self.assertFalse(connection.task.done())
 
-                with self.assertRaises(asyncio.CancelledError) as caught:
+                original_abort = connection.writer.transport.abort
+                aborted = asyncio.Event()
+
+                def abort():
+                    original_abort()
+                    if not aborted.is_set():
+                        aborted.set()
+                        connection.task.cancel("cleanup cancellation")
+
+                with (
+                    patch.object(connection.writer.transport, "abort", abort),
+                    self.assertRaises(asyncio.CancelledError) as caught,
+                ):
                     await self.server.stop_connections()
                 self.assertIs(caught.exception, original[0])
+                self.assertTrue(aborted.is_set())
                 self.assertEqual(len(secondary), 1)
                 self.assert_causes(caught.exception, original[0], secondary[0], local)
                 self.assertTrue(connection.task.done())
+                self.assertFalse(self.server.handlers)
+                self.assertFalse(self.server.writers)
+                self.assertFalse(self.server.writer_waits)
         finally:
             release.set()
             self.server.run = None
