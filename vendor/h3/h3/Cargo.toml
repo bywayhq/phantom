@@ -1,6 +1,6 @@
 [package]
 name = "phantom-h3"
-version = "0.0.8-phantom.16"
+version = "0.0.8-phantom.17"
 rust-version = "1.88"
 authors = [
     "Sean McArthur <sean@seanmonstar.com>",
