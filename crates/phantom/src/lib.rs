@@ -194,6 +194,9 @@ pub mod profile {
         WebSocketSettings,
     };
 
+    /// Exact catalog selection, metadata and supported layers.
+    pub use phantom_profile::catalog;
+
     /// Browser recipes and composed profiles grouped by brand and platform.
     pub use phantom_profile::browser;
 }
