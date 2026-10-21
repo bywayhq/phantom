@@ -221,6 +221,26 @@ available while a read is pending, so cancellation retains its chosen HTTP/3
 error code instead of falling through to Quinn's implicit code zero. The read
 remains zero-copy and does not allocate a boxed future per poll.
 
+## Received trailers
+
+`patches/received-trailers.patch` retains the existing QPACK decoder's ordinary
+field sequence when `recv_trailers` / `poll_recv_trailers` returns `Some` after
+stream EOF. Client and server `RequestStream::take_ordered_trailers` move this
+sequence once; call it immediately after that successful receive. The next
+data/trailer receive poll or local stream cancellation clears it. An observed
+connection failure or failed receive prevents publication. Splitting a stream
+moves the sidecar with its receive half.
+
+The semantic `HeaderMap` remains unchanged. The sidecar preserves lowercase
+names, interleaved duplicates, value bytes and decoded never-indexed markers;
+it reuses the already validated, bounded field sequence. Pseudo-headers in
+trailers now fail with `H3_MESSAGE_ERROR`. Existing decoded-size, encoded-section
+and connection QPACK limits and their error paths remain unchanged. Raw QUIC
+peer controls encode independent QPACK literals, including fragmented fields,
+empty sections, cancellation, sibling isolation, malformed sections and the
+inclusive decoded-size boundary. Core consumers still own final body/integrity
+validation before exposing successful response trailers.
+
 ## HTTP/3 application settings
 
 `h3::client::Builder::peer_application_settings` accepts authenticated peer

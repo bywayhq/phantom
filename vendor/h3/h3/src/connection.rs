@@ -1514,6 +1514,8 @@ where
 pub struct RequestStream<S, B> {
     pub(super) stream: FrameStream<S, B>,
     pub(super) trailers: Option<Bytes>,
+    ordered_trailers: Option<crate::ext::OrderedHeaders>,
+    receive_failed: bool,
     pub(super) conn_state: Arc<SharedState>,
     pub(super) max_field_section_size: u64,
     send_grease_frame: bool,
@@ -1532,6 +1534,8 @@ impl<S, B> RequestStream<S, B> {
             conn_state,
             max_field_section_size,
             trailers: None,
+            ordered_trailers: None,
+            receive_failed: false,
             send_grease_frame: grease,
         }
     }
@@ -1613,6 +1617,18 @@ where
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<impl Buf>, StreamError>> {
+        self.ordered_trailers = None;
+        let result = self.poll_recv_data_inner(cx);
+        if matches!(&result, Poll::Ready(Err(_))) {
+            self.receive_failed = true;
+        }
+        result
+    }
+
+    fn poll_recv_data_inner(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<impl Buf>, StreamError>> {
         if !self.stream.has_data() {
             match ready!(self.stream.poll_next(cx)) {
                 Err(frame_stream_error) => {
@@ -1675,6 +1691,18 @@ where
     /// Poll receive trailers.
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn poll_recv_trailers(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
+        self.ordered_trailers = None;
+        let result = self.poll_recv_trailers_inner(cx);
+        if matches!(&result, Poll::Ready(Err(_))) {
+            self.receive_failed = true;
+        }
+        result
+    }
+
+    fn poll_recv_trailers_inner(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
@@ -1768,7 +1796,8 @@ where
             }
         };
 
-        let trailers = Header::try_from(fields)
+        let (trailers, ordered_trailers) = Header::try_from(fields)
+            .and_then(Header::into_trailer_parts)
             .map_err(|_e| {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
                 //# Malformed requests or responses that are
@@ -1781,15 +1810,27 @@ where
                     code: Code::H3_MESSAGE_ERROR,
                     reason: "malformed request".to_string(),
                 }
-            })?
-            .into_fields();
+            })?;
         self.stream.complete_request();
+        if !self.receive_failed {
+            self.ordered_trailers = ordered_trailers;
+        }
         Poll::Ready(Ok(Some(trailers)))
+    }
+
+    pub(crate) fn take_ordered_trailers(&mut self) -> Option<crate::ext::OrderedHeaders> {
+        let ordered = self.ordered_trailers.take();
+        if self.existing_connection_error().is_some() {
+            return None;
+        }
+        ordered
     }
 
     #[allow(missing_docs)]
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn stop_sending(&mut self, err_code: Code) {
+        self.ordered_trailers = None;
+        self.receive_failed = true;
         self.stream.stop_sending(err_code);
     }
 }
@@ -1886,6 +1927,8 @@ where
     /// Stops a stream with an error code
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn stop_stream(&mut self, code: Code) {
+        self.ordered_trailers = None;
+        self.receive_failed = true;
         self.stream.reset(code.into());
     }
 
@@ -1930,6 +1973,8 @@ where
             RequestStream {
                 stream: send,
                 trailers: None,
+                ordered_trailers: None,
+                receive_failed: false,
                 conn_state: self.conn_state.clone(),
                 max_field_section_size: 0,
                 send_grease_frame: self.send_grease_frame,
@@ -1937,6 +1982,8 @@ where
             RequestStream {
                 stream: recv,
                 trailers: self.trailers,
+                ordered_trailers: self.ordered_trailers,
+                receive_failed: self.receive_failed,
                 conn_state: self.conn_state,
                 max_field_section_size: self.max_field_section_size,
                 send_grease_frame: self.send_grease_frame,

@@ -1,0 +1,616 @@
+diff --git a/h3/src/client/stream.rs b/h3/src/client/stream.rs
+--- a/h3/src/client/stream.rs
++++ b/h3/src/client/stream.rs
+@@ -243,6 +243,17 @@
+         res
+     }
+
++    /// Takes the decoded ordinary-field order of the last received trailers.
++    ///
++    /// Call immediately after [`Self::recv_trailers`] or [`Self::poll_recv_trailers`]
++    /// returns `Some`. The value is consumed once and cleared by the next data/trailer receive
++    /// poll or local stream cancellation. Failed receives never publish a value.
++    /// Names are lowercase; values retain QPACK never-indexed markers.
++    #[must_use]
++    pub fn take_ordered_trailers(&mut self) -> Option<crate::ext::OrderedHeaders> {
++        self.inner.take_ordered_trailers()
++    }
++
+     /// Tell the peer to stop sending into the underlying QUIC stream
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn stop_sending(&mut self, error_code: Code) {
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -1514,6 +1514,8 @@
+ pub struct RequestStream<S, B> {
+     pub(super) stream: FrameStream<S, B>,
+     pub(super) trailers: Option<Bytes>,
++    ordered_trailers: Option<crate::ext::OrderedHeaders>,
++    receive_failed: bool,
+     pub(super) conn_state: Arc<SharedState>,
+     pub(super) max_field_section_size: u64,
+     send_grease_frame: bool,
+@@ -1532,6 +1534,8 @@
+             conn_state,
+             max_field_section_size,
+             trailers: None,
++            ordered_trailers: None,
++            receive_failed: false,
+             send_grease_frame: grease,
+         }
+     }
+@@ -1613,6 +1617,18 @@
+         &mut self,
+         cx: &mut Context<'_>,
+     ) -> Poll<Result<Option<impl Buf>, StreamError>> {
++        self.ordered_trailers = None;
++        let result = self.poll_recv_data_inner(cx);
++        if matches!(&result, Poll::Ready(Err(_))) {
++            self.receive_failed = true;
++        }
++        result
++    }
++
++    fn poll_recv_data_inner(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Option<impl Buf>, StreamError>> {
+         if !self.stream.has_data() {
+             match ready!(self.stream.poll_next(cx)) {
+                 Err(frame_stream_error) => {
+@@ -1675,6 +1691,18 @@
+     /// Poll receive trailers.
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn poll_recv_trailers(
++        &mut self,
++        cx: &mut Context<'_>,
++    ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
++        self.ordered_trailers = None;
++        let result = self.poll_recv_trailers_inner(cx);
++        if matches!(&result, Poll::Ready(Err(_))) {
++            self.receive_failed = true;
++        }
++        result
++    }
++
++    fn poll_recv_trailers_inner(
+         &mut self,
+         cx: &mut Context<'_>,
+     ) -> Poll<Result<Option<HeaderMap>, StreamError>> {
+@@ -1768,7 +1796,8 @@
+             }
+         };
+
+-        let trailers = Header::try_from(fields)
++        let (trailers, ordered_trailers) = Header::try_from(fields)
++            .and_then(Header::into_trailer_parts)
+             .map_err(|_e| {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+                 //# Malformed requests or responses that are
+@@ -1781,15 +1810,27 @@
+                     code: Code::H3_MESSAGE_ERROR,
+                     reason: "malformed request".to_string(),
+                 }
+-            })?
+-            .into_fields();
++            })?;
+         self.stream.complete_request();
++        if !self.receive_failed {
++            self.ordered_trailers = ordered_trailers;
++        }
+         Poll::Ready(Ok(Some(trailers)))
++    }
++
++    pub(crate) fn take_ordered_trailers(&mut self) -> Option<crate::ext::OrderedHeaders> {
++        let ordered = self.ordered_trailers.take();
++        if self.existing_connection_error().is_some() {
++            return None;
++        }
++        ordered
+     }
+
+     #[allow(missing_docs)]
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn stop_sending(&mut self, err_code: Code) {
++        self.ordered_trailers = None;
++        self.receive_failed = true;
+         self.stream.stop_sending(err_code);
+     }
+ }
+@@ -1886,6 +1927,8 @@
+     /// Stops a stream with an error code
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn stop_stream(&mut self, code: Code) {
++        self.ordered_trailers = None;
++        self.receive_failed = true;
+         self.stream.reset(code.into());
+     }
+
+@@ -1930,6 +1973,8 @@
+             RequestStream {
+                 stream: send,
+                 trailers: None,
++                ordered_trailers: None,
++                receive_failed: false,
+                 conn_state: self.conn_state.clone(),
+                 max_field_section_size: 0,
+                 send_grease_frame: self.send_grease_frame,
+@@ -1937,6 +1982,8 @@
+             RequestStream {
+                 stream: recv,
+                 trailers: self.trailers,
++                ordered_trailers: self.ordered_trailers,
++                receive_failed: self.receive_failed,
+                 conn_state: self.conn_state,
+                 max_field_section_size: self.max_field_section_size,
+                 send_grease_frame: self.send_grease_frame,
+diff --git a/h3/src/ext.rs b/h3/src/ext.rs
+--- a/h3/src/ext.rs
++++ b/h3/src/ext.rs
+@@ -8,7 +8,8 @@
+ ///
+ /// Store this value in an outgoing message's extensions to control its field order.
+ /// Received requests and responses also carry this value in their extensions
+-/// with the order produced by QPACK decoding. Pseudo-headers are excluded.
++/// with the order produced by QPACK decoding. Received trailers expose it through
++/// the stream's `take_ordered_trailers` method. Pseudo-headers are excluded.
+ /// Outgoing ordered fields must describe the same semantic multimap as the
+ /// request's [`HeaderMap`], including duplicate values and their per-name
+ /// order and sensitivity markers, or the request is rejected. The current
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -189,6 +189,16 @@
+             self.fields,
+             self.ordered_fields.map(OrderedHeaders::new),
+         ))
++    }
++
++    pub(crate) fn into_trailer_parts(
++        mut self,
++    ) -> Result<(HeaderMap, Option<OrderedHeaders>), HeaderError> {
++        if self.pseudo.len() != 0 {
++            return Err(HeaderError::PseudoInTrailers);
++        }
++        let ordered = self.ordered_fields.take().map(OrderedHeaders::new);
++        Ok((self.into_fields(), ordered))
+     }
+
+     pub fn into_fields(self) -> HeaderMap {
+@@ -615,6 +625,7 @@
+     ContradictedOrderedHeaders,
+     InvalidPseudoHeaderOrder,
+     PseudoAfterRegularField,
++    PseudoInTrailers,
+ }
+
+ impl HeaderError {
+@@ -658,6 +669,7 @@
+             HeaderError::InvalidPseudoHeaderOrder => {
+                 write!(f, "pseudo-header order does not match the request")
+             }
++            HeaderError::PseudoInTrailers => write!(f, "pseudo-header field appears in trailers"),
+             HeaderError::PseudoAfterRegularField => {
+                 write!(
+                     f,
+diff --git a/h3/src/server/stream.rs b/h3/src/server/stream.rs
+--- a/h3/src/server/stream.rs
++++ b/h3/src/server/stream.rs
+@@ -99,10 +99,21 @@
+         self.inner.poll_recv_trailers(cx)
+     }
+
++    /// Takes the decoded ordinary-field order of the last received trailers.
++    ///
++    /// Call immediately after [`Self::recv_trailers`] or [`Self::poll_recv_trailers`]
++    /// returns `Some`. The value is consumed once and cleared by the next data/trailer receive
++    /// poll or local stream cancellation. Failed receives never publish a value.
++    /// Names are lowercase; values retain QPACK never-indexed markers.
++    #[must_use]
++    pub fn take_ordered_trailers(&mut self) -> Option<crate::ext::OrderedHeaders> {
++        self.inner.take_ordered_trailers()
++    }
++
+     /// Tell the peer to stop sending into the underlying QUIC stream
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub fn stop_sending(&mut self, error_code: Code) {
+-        self.inner.stream.stop_sending(error_code)
++        self.inner.stop_sending(error_code)
+     }
+
+     /// Returns the underlying stream id
+diff --git a/h3/src/tests/mod.rs b/h3/src/tests/mod.rs
+--- a/h3/src/tests/mod.rs
++++ b/h3/src/tests/mod.rs
+@@ -11,6 +11,7 @@
+
+ mod connection;
+ mod qpack_request;
++mod received_trailers;
+ mod request;
+ mod socket;
+
+diff --git a/h3/src/tests/received_trailers.rs b/h3/src/tests/received_trailers.rs
+new file mode 100644
+--- /dev/null
++++ b/h3/src/tests/received_trailers.rs
+@@ -0,0 +1,378 @@
++use std::{future::Future, time::Duration};
++
++use bytes::Bytes;
++use futures_util::future;
++use http::Request;
++use tokio::task::JoinHandle;
++
++use crate::{
++    client,
++    error::{Code, ConnectionError, StreamError},
++};
++
++use super::{h3_quinn, Pair};
++use h3_quinn::quinn;
++
++const TEST_TIMEOUT: Duration = Duration::from_secs(5);
++// Independently encoded RFC 9204 literals (no Huffman/dynamic references).
++// The middle literal sets N; the last value contains valid non-UTF8 field bytes.
++const INTERLEAVED: &[u8] = b"\x00\x00\x23x-a\x05first\x33x-b\x06middle\x23x-a\x03\x80\xffz";
++const STATUS_200: &[u8] = b"\x01\x03\x00\x00\xd9";
++
++type Stream = client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
++
++struct Peer {
++    response: quinn::SendStream,
++    _request: quinn::RecvStream,
++}
++
++struct Harness {
++    sender: client::SendRequest<h3_quinn::OpenStreams, Bytes>,
++    peer: quinn::Connection,
++    driver: JoinHandle<ConnectionError>,
++    _control: quinn::SendStream,
++    _endpoint: quinn::Endpoint,
++}
++
++impl Harness {
++    async fn new(limit: u64) -> Self {
++        let mut pair = Pair::default();
++        let endpoint = pair.server_inner();
++        let (connection, peer) = tokio::join!(pair.client(), async {
++            endpoint.accept().await.unwrap().await.unwrap()
++        });
++        let mut control = peer.open_uni().await.unwrap();
++        control.write_all(b"\x00\x04\x00").await.unwrap();
++        let (mut driver, sender) = client::builder()
++            .send_grease(false)
++            .max_field_section_size(limit)
++            .build::<_, _, Bytes>(connection)
++            .await
++            .unwrap();
++        let driver = tokio::spawn(async move { future::poll_fn(|cx| driver.poll_close(cx)).await });
++        Self {
++            sender,
++            peer,
++            driver,
++            _control: control,
++            _endpoint: endpoint,
++        }
++    }
++
++    async fn open(&mut self) -> (Stream, Peer) {
++        let mut stream = self
++            .sender
++            .send_request(Request::get("https://localhost/trailers").body(()).unwrap())
++            .await
++            .unwrap();
++        stream.finish().await.unwrap();
++        let (response, request) = self.peer.accept_bi().await.unwrap();
++        (
++            stream,
++            Peer {
++                response,
++                _request: request,
++            },
++        )
++    }
++}
++
++impl Drop for Harness {
++    fn drop(&mut self) {
++        self.driver.abort();
++        self.peer.close(0_u32.into(), b"test complete");
++    }
++}
++
++async fn bounded(test: impl Future<Output = ()>) {
++    tokio::time::timeout(TEST_TIMEOUT, test)
++        .await
++        .expect("trailer exchange stalled");
++}
++
++async fn write_trailers(peer: &mut Peer, fields: &[u8]) {
++    // These test sections are shorter than 64 bytes: frame type/length are one byte.
++    assert!(fields.len() < 64);
++    peer.response.write_all(STATUS_200).await.unwrap();
++    peer.response
++        .write_all(&[1, fields.len() as u8])
++        .await
++        .unwrap();
++    peer.response.write_all(fields).await.unwrap();
++    peer.response.finish().unwrap();
++}
++
++async fn receive(stream: &mut Stream) -> http::HeaderMap {
++    assert_eq!(stream.recv_response().await.unwrap().status(), 200);
++    assert!(stream.recv_data().await.unwrap().is_none());
++    stream.recv_trailers().await.unwrap().expect("trailers")
++}
++
++fn assert_interleaved(ordered: crate::ext::OrderedHeaders) {
++    let actual: Vec<_> = ordered
++        .as_slice()
++        .iter()
++        .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
++        .collect();
++    assert_eq!(
++        actual,
++        vec![
++            ("x-a", &b"first"[..], false),
++            ("x-b", &b"middle"[..], true),
++            ("x-a", &b"\x80\xffz"[..], false),
++        ]
++    );
++}
++
++#[tokio::test]
++async fn received_trailers_retain_qpack_order_duplicates_bytes_and_never_indexed() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut stream, mut peer) = harness.open().await;
++        assert!(stream.take_ordered_trailers().is_none());
++        write_trailers(&mut peer, INTERLEAVED).await;
++        let semantic = receive(&mut stream).await;
++        assert_eq!(
++            semantic
++                .get_all("x-a")
++                .iter()
++                .map(|v| v.as_bytes())
++                .collect::<Vec<_>>(),
++            vec![&b"first"[..], &b"\x80\xffz"[..]]
++        );
++        assert!(semantic["x-b"].is_sensitive());
++        assert_interleaved(stream.take_ordered_trailers().unwrap());
++        assert!(stream.take_ordered_trailers().is_none());
++        assert!(stream.recv_trailers().await.unwrap().is_none());
++        assert!(stream.take_ordered_trailers().is_none());
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn fragmented_trailers_wait_for_fin_and_cancelled_receive_future_can_resume() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut stream, mut peer) = harness.open().await;
++        peer.response.write_all(STATUS_200).await.unwrap();
++        peer.response
++            .write_all(&[1, INTERLEAVED.len() as u8])
++            .await
++            .unwrap();
++        peer.response.write_all(&INTERLEAVED[..7]).await.unwrap();
++        stream.recv_response().await.unwrap();
++        let mut receiving = Box::pin(stream.recv_trailers());
++        future::poll_fn(|cx| {
++            assert!(receiving.as_mut().poll(cx).is_pending());
++            std::task::Poll::Ready(())
++        })
++        .await;
++        drop(receiving);
++        assert!(stream.take_ordered_trailers().is_none());
++        for byte in &INTERLEAVED[7..] {
++            peer.response.write_all(&[*byte]).await.unwrap();
++        }
++        // Complete HEADERS without FIN still cannot publish successful trailers.
++        assert!(stream.recv_data().await.unwrap().is_none());
++        let mut receiving = Box::pin(stream.recv_trailers());
++        future::poll_fn(|cx| {
++            assert!(receiving.as_mut().poll(cx).is_pending());
++            std::task::Poll::Ready(())
++        })
++        .await;
++        drop(receiving);
++        assert!(stream.take_ordered_trailers().is_none());
++        peer.response.finish().unwrap();
++        stream.recv_trailers().await.unwrap().unwrap();
++        assert_interleaved(stream.take_ordered_trailers().unwrap());
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn ordered_trailers_are_stream_local_and_follow_the_receive_half_on_split() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut first, mut first_peer) = harness.open().await;
++        let (mut second, mut second_peer) = harness.open().await;
++        write_trailers(&mut first_peer, INTERLEAVED).await;
++        write_trailers(&mut second_peer, b"\x00\x00").await;
++        receive(&mut first).await;
++        let (_send, mut recv) = first.split();
++        assert_interleaved(recv.take_ordered_trailers().unwrap());
++        assert!(receive(&mut second).await.is_empty());
++        assert!(second
++            .take_ordered_trailers()
++            .unwrap()
++            .as_slice()
++            .is_empty());
++        assert!(recv.take_ordered_trailers().is_none());
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn next_receive_poll_or_local_stop_discards_delivered_trailer_order() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        for action in 0..3 {
++            let (mut stream, mut peer) = harness.open().await;
++            write_trailers(&mut peer, INTERLEAVED).await;
++            receive(&mut stream).await;
++            match action {
++                0 => {
++                    assert!(stream.recv_data().await.unwrap().is_none());
++                }
++                1 => stream.stop_sending(Code::H3_REQUEST_CANCELLED),
++                _ => stream.stop_stream(Code::H3_REQUEST_CANCELLED),
++            }
++            assert!(stream.take_ordered_trailers().is_none());
++        }
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn reset_or_dropped_stream_does_not_publish_order_or_poison_a_sibling() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut failed, mut failed_peer) = harness.open().await;
++        let (mut healthy, mut healthy_peer) = harness.open().await;
++        failed_peer.response.write_all(STATUS_200).await.unwrap();
++        failed_peer
++            .response
++            .write_all(&[1, INTERLEAVED.len() as u8])
++            .await
++            .unwrap();
++        failed_peer.response.write_all(INTERLEAVED).await.unwrap();
++        failed.recv_response().await.unwrap();
++        assert!(failed.recv_data().await.unwrap().is_none());
++        failed_peer
++            .response
++            .reset(quinn::VarInt::try_from(Code::H3_REQUEST_CANCELLED.value()).unwrap())
++            .unwrap();
++        assert!(failed.recv_trailers().await.is_err());
++        assert!(failed.take_ordered_trailers().is_none());
++        drop(failed);
++        let (mut cancelled, mut cancelled_peer) = harness.open().await;
++        cancelled_peer.response.write_all(STATUS_200).await.unwrap();
++        cancelled.recv_response().await.unwrap();
++        cancelled.stop_sending(Code::H3_REQUEST_CANCELLED);
++        assert!(cancelled.take_ordered_trailers().is_none());
++        drop(cancelled);
++        assert_eq!(
++            cancelled_peer
++                .response
++                .stopped()
++                .await
++                .unwrap()
++                .unwrap()
++                .into_inner(),
++            Code::H3_REQUEST_CANCELLED.value()
++        );
++        write_trailers(&mut healthy_peer, INTERLEAVED).await;
++        receive(&mut healthy).await;
++        assert_interleaved(healthy.take_ordered_trailers().unwrap());
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn decoded_trailer_limit_is_inclusive_and_does_not_publish_a_prefix() {
++    bounded(async {
++        // Independent RFC 9204 section accounting: x-a:a = 3+1+32 = 36,
++        // x-b:vvvvvvvvv = 3+9+32 = 44. The two-field section is exactly 80 bytes.
++        let fields = b"\x00\x00\x23x-a\x01a\x23x-b\x09vvvvvvvvv";
++        for limit in [79, 80, 81] {
++            let mut harness = Harness::new(limit).await;
++            let (mut stream, mut peer) = harness.open().await;
++            let (mut sibling, mut sibling_peer) = harness.open().await;
++            write_trailers(&mut peer, fields).await;
++            stream.recv_response().await.unwrap();
++            assert!(stream.recv_data().await.unwrap().is_none());
++            if limit == 79 {
++                assert!(matches!(
++                    stream.recv_trailers().await,
++                    Err(StreamError::HeaderTooBig {
++                        actual_size: 80,
++                        max_size: 79
++                    })
++                ));
++                assert!(stream.take_ordered_trailers().is_none());
++            } else {
++                assert_eq!(stream.recv_trailers().await.unwrap().unwrap().len(), 2);
++                assert_eq!(stream.take_ordered_trailers().unwrap().as_slice().len(), 2);
++            }
++            write_trailers(&mut sibling_peer, b"\x00\x00").await;
++            assert!(receive(&mut sibling).await.is_empty());
++            assert!(sibling
++                .take_ordered_trailers()
++                .unwrap()
++                .as_slice()
++                .is_empty());
++        }
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn pseudo_headers_in_trailers_fail_without_order_and_preserve_a_sibling() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut stream, mut peer) = harness.open().await;
++        let (mut sibling, mut sibling_peer) = harness.open().await;
++        write_trailers(&mut peer, b"\x00\x00\xd9").await;
++        stream.recv_response().await.unwrap();
++        assert!(stream.recv_data().await.unwrap().is_none());
++        assert!(matches!(
++            stream.recv_trailers().await,
++            Err(StreamError::StreamError {
++                code: Code::H3_MESSAGE_ERROR,
++                ..
++            })
++        ));
++        assert!(stream.take_ordered_trailers().is_none());
++        write_trailers(&mut sibling_peer, b"\x00\x00").await;
++        receive(&mut sibling).await;
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn truncated_or_extra_frames_after_trailers_never_publish_order() {
++    bounded(async {
++        // A partial HEADERS payload, DATA after trailers, and truncated QPACK index.
++        for tail in [
++            &b"\x01\x06\x00\x00"[..],
++            &b"\x01\x02\x00\x00\x00\x00"[..],
++            &b"\x01\x03\x00\x00\xff"[..],
++        ] {
++            let mut harness = Harness::new(1024).await;
++            let (mut stream, mut peer) = harness.open().await;
++            peer.response.write_all(STATUS_200).await.unwrap();
++            peer.response.write_all(tail).await.unwrap();
++            peer.response.finish().unwrap();
++            stream.recv_response().await.unwrap();
++            assert!(stream.recv_trailers().await.is_err());
++            assert!(stream.take_ordered_trailers().is_none());
++        }
++    })
++    .await;
++}
++
++#[tokio::test]
++async fn observed_connection_failure_invalidates_delivered_trailer_order() {
++    bounded(async {
++        let mut harness = Harness::new(1024).await;
++        let (mut stream, mut peer) = harness.open().await;
++        write_trailers(&mut peer, INTERLEAVED).await;
++        receive(&mut stream).await;
++        harness.peer.close(
++            quinn::VarInt::try_from(Code::H3_INTERNAL_ERROR.value()).unwrap(),
++            b"test failure",
++        );
++        (&mut harness.driver).await.unwrap();
++        assert!(stream.take_ordered_trailers().is_none());
++    })
++    .await;
++}

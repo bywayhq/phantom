@@ -191,6 +191,16 @@ impl Header {
         ))
     }
 
+    pub(crate) fn into_trailer_parts(
+        mut self,
+    ) -> Result<(HeaderMap, Option<OrderedHeaders>), HeaderError> {
+        if self.pseudo.len() != 0 {
+            return Err(HeaderError::PseudoInTrailers);
+        }
+        let ordered = self.ordered_fields.take().map(OrderedHeaders::new);
+        Ok((self.into_fields(), ordered))
+    }
+
     pub fn into_fields(self) -> HeaderMap {
         self.fields
     }
@@ -615,6 +625,7 @@ pub enum HeaderError {
     ContradictedOrderedHeaders,
     InvalidPseudoHeaderOrder,
     PseudoAfterRegularField,
+    PseudoInTrailers,
 }
 
 impl HeaderError {
@@ -658,6 +669,7 @@ impl fmt::Display for HeaderError {
             HeaderError::InvalidPseudoHeaderOrder => {
                 write!(f, "pseudo-header order does not match the request")
             }
+            HeaderError::PseudoInTrailers => write!(f, "pseudo-header field appears in trailers"),
             HeaderError::PseudoAfterRegularField => {
                 write!(
                     f,

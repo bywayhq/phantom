@@ -8,7 +8,8 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 ///
 /// Store this value in an outgoing message's extensions to control its field order.
 /// Received requests and responses also carry this value in their extensions
-/// with the order produced by QPACK decoding. Pseudo-headers are excluded.
+/// with the order produced by QPACK decoding. Received trailers expose it through
+/// the stream's `take_ordered_trailers` method. Pseudo-headers are excluded.
 /// Outgoing ordered fields must describe the same semantic multimap as the
 /// request's [`HeaderMap`], including duplicate values and their per-name
 /// order and sensitivity markers, or the request is rejected. The current

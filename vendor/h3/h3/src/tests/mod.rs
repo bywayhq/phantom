@@ -11,6 +11,7 @@ mod h3_quinn;
 
 mod connection;
 mod qpack_request;
+mod received_trailers;
 mod request;
 mod socket;
 

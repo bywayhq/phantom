@@ -243,6 +243,17 @@ where
         res
     }
 
+    /// Takes the decoded ordinary-field order of the last received trailers.
+    ///
+    /// Call immediately after [`Self::recv_trailers`] or [`Self::poll_recv_trailers`]
+    /// returns `Some`. The value is consumed once and cleared by the next data/trailer receive
+    /// poll or local stream cancellation. Failed receives never publish a value.
+    /// Names are lowercase; values retain QPACK never-indexed markers.
+    #[must_use]
+    pub fn take_ordered_trailers(&mut self) -> Option<crate::ext::OrderedHeaders> {
+        self.inner.take_ordered_trailers()
+    }
+
     /// Tell the peer to stop sending into the underlying QUIC stream
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub fn stop_sending(&mut self, error_code: Code) {
