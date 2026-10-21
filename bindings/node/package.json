@@ -6,7 +6,7 @@
   "license": "MIT OR Apache-2.0",
   "main": "index.cjs",
   "types": "index.d.ts",
-  "files": ["index.cjs", "index.mjs", "index.d.ts", "index.d.cts", "index.d.mts", "README.md"],
+  "files": ["index.cjs", "index.mjs", "index.d.ts", "index.d.cts", "index.d.mts", "README.md", "lib"],
   "exports": {
     ".": { "types": "./index.d.ts", "import": "./index.mjs", "require": "./index.cjs" }
   },

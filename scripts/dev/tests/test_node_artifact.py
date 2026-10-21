@@ -198,6 +198,7 @@ class NodeArtifactTests(unittest.TestCase):
             "multipart.test.cjs",
             "response-headers.test.cjs",
             "network.test.cjs",
+            "unix-socket.test.cjs",
             "socks4.test.cjs",
             "pool.test.cjs",
             "response-trailers.test.cjs",
@@ -250,6 +251,10 @@ class NodeArtifactTests(unittest.TestCase):
             copied = (destination / f"{name}.test.cjs").read_text()
             self.assertIn("require.resolve('@byway/phantom')", copied)
             self.assertNotIn("path.resolve(__dirname, '../index.cjs')", copied)
+        self.assertEqual(
+            (destination / "load-facade.cjs").read_bytes(),
+            (artifact.ROOT / "bindings/node/tests/load-facade.cjs").read_bytes(),
+        )
         fixtures = artifact.ROOT / "bindings/node/tests/fixtures"
         for source in fixtures.iterdir():
             self.assertEqual(
@@ -306,6 +311,7 @@ class NodeArtifactTests(unittest.TestCase):
         for name in (
             "compact-profiles",
             "network",
+            "unix-socket",
             "socks4",
             "pool",
             "session-sharing",

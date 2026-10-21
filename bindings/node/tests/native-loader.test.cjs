@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../index.cjs'), 'utf8');
+const filename = path.join(__dirname, '../lib/native.cjs');
+const source = fs.readFileSync(filename, 'utf8');
 
 function fixture(options = {}) {
   const calls = [];
@@ -14,9 +15,10 @@ function fixture(options = {}) {
   const requireMock = (id) => {
     calls.push(id);
     if (id === 'node:fs') return {existsSync: () => options.local ?? false};
-    if (id === './package.json') return {version: '0.3.0'};
+    if (id === './errors.cjs') return require(path.join(path.dirname(filename), 'errors.cjs'));
+    if (id === '../package.json') return {version: '0.3.0'};
     if (id === '/native/package.json') return {name, version: options.version ?? '0.3.0'};
-    if (id === './phantom.node' || id === name) {
+    if (id === '../phantom.node' || id === name) {
       if (options.broken) throw cause;
       return addon;
     }
@@ -29,7 +31,7 @@ function fixture(options = {}) {
     return '/native/package.json';
   };
   const run = () => vm.runInNewContext(source, {
-    require: requireMock, module: {exports: {}}, __dirname: '/facade', Buffer,
+    require: requireMock, module: {exports: {}}, __dirname: '/facade/lib', Buffer,
     process: {platform: options.platform ?? 'linux', arch: options.arch ?? 'x64',
       report: {getReport: () => ({header: {glibcVersionRuntime: options.musl ? undefined : '2.39'}})}},
   });
@@ -39,7 +41,7 @@ function fixture(options = {}) {
 test('adjacent developer addon loads without registry lookup or version guessing', () => {
   const f = fixture({local: true, platform: 'other'});
   f.run();
-  assert.ok(f.calls.includes('./phantom.node'));
+  assert.ok(f.calls.includes('../phantom.node'));
   assert.ok(!f.calls.some(id => id.startsWith('@byway/')));
 });
 

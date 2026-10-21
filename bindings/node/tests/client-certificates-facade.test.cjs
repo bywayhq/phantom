@@ -1,8 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const Module = require('node:module');
+const { loadFacade } = require('./load-facade.cjs');
 const {inspect} = require('node:util');
 const {test} = require('node:test');
 
@@ -14,12 +13,7 @@ function facade() {
     clientCertificateDer(chain, key) {const owner = {chain: chain.map((part) => Buffer.from(part)), key: Buffer.from(key)}; calls.push(owner); return Promise.resolve(owner);},
   };
   const filename = path.resolve(__dirname, '../index.cjs');
-  const loaded = new Module(filename, module);
-  loaded.filename = filename; loaded.paths = module.paths;
-  loaded.require = (id) => id === './phantom.node' ? native
-    : id === 'node:fs' ? {...fs, existsSync: (file) => file === path.join(path.dirname(filename), 'phantom.node') || fs.existsSync(file)}
-    : Module.createRequire(filename)(id);
-  loaded._compile(fs.readFileSync(filename, 'utf8'), filename);
+  const loaded = {exports: loadFacade(filename, native)};
   return {...loaded.exports, native, calls, clients};
 }
 

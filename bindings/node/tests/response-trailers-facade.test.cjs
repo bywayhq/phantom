@@ -1,19 +1,13 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const Module = require('node:module');
+const { loadFacade } = require('./load-facade.cjs');
 const {test} = require('node:test');
 
 function facade() {
   const filename = path.resolve(__dirname, '../index.cjs');
-  const loaded = new Module(filename, module);
-  loaded.filename = filename; loaded.paths = module.paths;
-  loaded.require = (id) => id === './phantom.node' ? {NativeEnvironment: class {}}
-    : id === 'node:fs' ? {...fs, existsSync: (file) => file === path.join(path.dirname(filename), 'phantom.node') || fs.existsSync(file)}
-    : Module.createRequire(filename)(id);
-  loaded._compile(fs.readFileSync(filename, 'utf8'), filename);
+  const loaded = {exports: loadFacade(filename, {NativeEnvironment: class {}})};
   return loaded.exports;
 }
 

@@ -1,9 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const Module = require('node:module');
+const { loadFacade } = require('./load-facade.cjs');
 const {test} = require('node:test');
 const {inspect} = require('node:util');
 
@@ -27,12 +26,7 @@ function facade() {
   const owner = {request(...args) { owner.args = args; return Promise.resolve(response); }, async close() { for (const upload of uploads) upload.stop(); }};
   const native = {NativeEnvironment: class { client() { return owner; } }, NativeCancellation: class { cancel() {} }, NativeUpload: Upload};
   const filename = path.resolve(__dirname, '../index.cjs');
-  const loaded = new Module(filename, module);
-  loaded.filename = filename; loaded.paths = module.paths;
-  loaded.require = (id) => id === './phantom.node' ? native
-    : id === 'node:fs' ? {...fs, existsSync: (file) => file === path.join(path.dirname(filename), 'phantom.node') || fs.existsSync(file)}
-    : Module.createRequire(filename)(id);
-  loaded._compile(fs.readFileSync(filename, 'utf8'), filename);
+  const loaded = {exports: loadFacade(filename, native)};
   return {...loaded.exports, uploads, owner, nativeResponse: response};
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));

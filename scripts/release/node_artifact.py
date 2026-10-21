@@ -20,6 +20,20 @@ SOURCES = (
     "index.d.cts",
     "index.d.mts",
     "README.md",
+    "lib/bytes.cjs",
+    "lib/client.cjs",
+    "lib/controls.cjs",
+    "lib/errors.cjs",
+    "lib/native.cjs",
+    "lib/network.cjs",
+    "lib/prepared-body.cjs",
+    "lib/profile.cjs",
+    "lib/request-options.cjs",
+    "lib/response.cjs",
+    "lib/session.cjs",
+    "lib/tls.cjs",
+    "lib/upload.cjs",
+    "lib/validation.cjs",
 )
 TARGETS = {
     "x86_64-pc-windows-msvc": ("win32", "x64", "phantom_node.dll"),
@@ -222,6 +236,7 @@ def copied_tests(destination, native_package=None):
             ),
         ),
         "network.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "unix-socket.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "network-facade.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -323,8 +338,8 @@ def copied_tests(destination, native_package=None):
         "upload-http3.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "native-loader.test.cjs": (
             (
-                "path.join(__dirname, '../index.cjs')",
-                "require.resolve('@byway/phantom')",
+                "path.join(__dirname, '../lib/native.cjs')",
+                "path.join(path.dirname(require.resolve('@byway/phantom')), 'lib/native.cjs')",
                 1,
             ),
         ),
@@ -463,6 +478,7 @@ def public_checks(
                 "tests/pool-facade.test.cjs",
                 "tests/socks4-facade.test.cjs",
                 "tests/network.test.cjs",
+                "tests/unix-socket.test.cjs",
                 "tests/network-facade.test.cjs",
                 "tests/multipart-facade.test.cjs",
                 "tests/response-trailers.test.cjs",
@@ -669,7 +685,9 @@ def verify(args):
         staging / "package.json", package_metadata(source_package, version, args.target)
     )
     for name in SOURCES:
-        shutil.copyfile(ROOT / "bindings/node" / name, staging / name)
+        destination = staging / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / "bindings/node" / name, destination)
     shutil.copyfile(binary, staging / "phantom.node")
     for name in ("LICENSE-MIT", "LICENSE-APACHE"):
         shutil.copyfile(ROOT / name, staging / name)
