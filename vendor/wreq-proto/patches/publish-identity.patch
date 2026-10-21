@@ -9,7 +9,7 @@ index 17b559e..01e6d02 100644
 -name = "wreq-proto"
 -version = "0.2.5"
 +name = "phantom-wreq-proto"
-+version = "0.2.5-phantom.19"
++version = "0.2.5-phantom.20"
  authors = [
      "0x676e67 <gngppz@gmail.com>",
      "Sean McArthur <sean@seanmonstar.com>",

@@ -295,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.19"
+version = "0.2.5-phantom.20"
 dependencies = [
  "bytes",
  "futures-channel",
