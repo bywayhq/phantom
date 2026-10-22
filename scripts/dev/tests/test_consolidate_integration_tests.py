@@ -179,6 +179,26 @@ class ConsolidateTests(CrateTestCase):
         self.consolidate()
         self.assertIn("nothing to move", self.consolidate())
 
+    def test_shared_fixtures_stay_outside_the_test_groups(self) -> None:
+        fixture = "crates/demo/tests/fixtures/peer/client.bin"
+        original = b"\x00\xff\r\n"
+        path = self.root / fixture
+        path.parent.mkdir(parents=True)
+        path.write_bytes(original)
+        self.run_git("add", fixture)
+
+        self.consolidate()
+
+        self.assertEqual(path.read_bytes(), original)
+        self.assertNotIn("mod fixtures;", self.read("crates/demo/tests/only/main.rs"))
+        with mock.patch(__name__ + ".REPO", self.root):
+            RepositoryTests().test_grouped_crates_have_no_top_level_test_files()
+
+            self.write("crates/demo/tests/fixtures/main.rs", "fn main() {}\n")
+            self.run_git("add", "crates/demo/tests/fixtures/main.rs")
+            with self.assertRaises(AssertionError):
+                RepositoryTests().test_grouped_crates_have_no_top_level_test_files()
+
     def test_a_new_file_joins_the_existing_group(self) -> None:
         self.consolidate()
         self.write("crates/demo/tests/late.rs", "#[test]\nfn runs() {}\n")
@@ -393,6 +413,8 @@ class RepositoryTests(unittest.TestCase):
                     for f in tracked
                     if len(Path(f).parts) > depth + 1
                 } - {"support"}
+                if not (tests / "fixtures" / "main.rs").exists():
+                    binaries.discard("fixtures")
                 self.assertEqual(
                     sorted(binaries),
                     sorted(groups),

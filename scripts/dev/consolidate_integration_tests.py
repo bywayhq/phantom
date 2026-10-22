@@ -187,6 +187,8 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "proxy_connect_components",
                 "quic_components",
                 "request_templates",
+                "safari_ios_peer",
+                "safari_peer",
                 "tcp_components",
                 "udp_components",
                 "websocket_components",
