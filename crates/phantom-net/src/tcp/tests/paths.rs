@@ -348,7 +348,7 @@ async fn http2_connect_paths_apply_tcp_settings() -> TestResult {
         .await;
     assert_profiled("HTTP/2 over HTTP CONNECT", &observed::take());
 
-    let _ = connector
+    let error = connector
         .connect(crate::route::Http2Route::Origin(
             crate::route::OriginRoute::Tls {
                 tcp: crate::route::TcpRoute::Socks5 {
@@ -366,8 +366,9 @@ async fn http2_connect_paths_apply_tcp_settings() -> TestResult {
                 setup: crate::route::DirectTlsSetup::Default,
             },
         ))
-        .await;
-    assert_profiled("HTTP/2 over SOCKS5", &observed::take());
+        .await
+        .err();
+    assert_profiled(&format!("HTTP/2 over SOCKS5: {error:?}"), &observed::take());
 
     let negotiated = Http1Or2TlsConnector::from_http2(&connector)?;
     assert_eq!(negotiated.tcp_settings(), Some(&settings));
