@@ -25,6 +25,14 @@ pub use event_source::{SseEventSource, SseHeader, SseRequestBuilder};
 const DEFAULT_MAX_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_EVENT_BYTES: usize = 1024 * 1024;
 
+#[cfg(feature = "fuzzing")]
+type DecodeTrace = (
+    Vec<SseEvent>,
+    Option<SseErrorKind>,
+    String,
+    Option<Duration>,
+);
+
 /// Drives the production incremental decoder without a response body.
 ///
 /// This is a fuzzing seam, not supported API. Positive `chunk_sizes` repeat
@@ -43,15 +51,7 @@ pub fn fuzz_sse_decode(
     input: &[u8],
     chunk_sizes: &[usize],
     limits: SseLimits,
-) -> Result<
-    (
-        Vec<SseEvent>,
-        Option<SseErrorKind>,
-        String,
-        Option<Duration>,
-    ),
-    &'static str,
-> {
+) -> Result<DecodeTrace, &'static str> {
     const MAXIMUM_BYTES: usize = 64 * 1024;
     if input.len() > MAXIMUM_BYTES
         || limits.max_line_bytes() > MAXIMUM_BYTES
