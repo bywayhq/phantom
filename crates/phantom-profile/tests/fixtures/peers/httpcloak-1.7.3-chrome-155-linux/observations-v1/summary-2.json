@@ -1,0 +1,104 @@
+[
+  {
+    "run": "baseline-1",
+    "failures": [],
+    "observations": {
+      "requests": 2,
+      "server_settings": [
+        [
+          1,
+          4096
+        ],
+        [
+          4,
+          65535
+        ],
+        [
+          5,
+          16384
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          3,
+          100
+        ],
+        [
+          6,
+          65536
+        ]
+      ],
+      "blocks": [
+        {
+          "stream": 1,
+          "case": [
+            "first"
+          ],
+          "special_fields": [],
+          "marker_in_table": false
+        },
+        {
+          "stream": 3,
+          "case": [
+            "reused"
+          ],
+          "special_fields": [],
+          "marker_in_table": false
+        }
+      ]
+    }
+  },
+  {
+    "run": "baseline-2",
+    "failures": [],
+    "observations": {
+      "requests": 2,
+      "server_settings": [
+        [
+          1,
+          4096
+        ],
+        [
+          4,
+          65535
+        ],
+        [
+          5,
+          16384
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          3,
+          100
+        ],
+        [
+          6,
+          65536
+        ]
+      ],
+      "blocks": [
+        {
+          "stream": 1,
+          "case": [
+            "first"
+          ],
+          "special_fields": [],
+          "marker_in_table": false
+        },
+        {
+          "stream": 3,
+          "case": [
+            "reused"
+          ],
+          "special_fields": [],
+          "marker_in_table": false
+        }
+      ]
+    }
+  }
+]

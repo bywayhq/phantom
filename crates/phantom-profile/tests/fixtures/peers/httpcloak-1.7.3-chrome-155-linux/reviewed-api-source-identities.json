@@ -1,0 +1,52 @@
+[
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "httpcloak.go",
+    "sha256": "6127bb386e5b48c0c1acce51c9e12c06b05ce4818779250a029e10d35f65137e"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "fingerprint/registry.go",
+    "sha256": "c23312e79840304135d49bbd0b6e117aa3a91f311d403adac005f36c76a537af"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "fingerprint/presets.go",
+    "sha256": "f2efea169c736a8ba1f20d91806778877740f1e106397b9a6c2f1aaeceb77003"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "fingerprint/describe.go",
+    "sha256": "609aadc3640803ec8e07541a7b4a68bbd78654e6de8cabbf232bbcb96aa5b97f"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "fingerprint/embedded.go",
+    "sha256": "3620eec2eda56f4507980670c1cb22cbc48987b3e413b30eb8d7989e197925ea"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "session/session.go",
+    "sha256": "c39d3a4c6e0a73a6f1bf7072ccf2789a5d80914c40aa54a8195f9055916307b8"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "transport/http2_transport.go",
+    "sha256": "ac72c20358116200182ec0ba18f06a62cf9be054c3e6ff8939a35469d11528f9"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "transport/stream.go",
+    "sha256": "5c1dad247a79a9a9fac0e1b4c30f934b4e0a7f2b6e7c7450019c4db01f240029"
+  },
+  {
+    "module": "github.com/sardanioss/httpcloak@v1.7.3",
+    "path": "dns/cache.go",
+    "sha256": "44f240ff135203663743723a51c93482b63b2ce6c6f815611c45d700c8b639cc"
+  },
+  {
+    "module": "github.com/sardanioss/net@v1.2.12",
+    "path": "http2/hpack/encode.go",
+    "sha256": "0f565ad08d6849608e3042dacc2fd80be7b0a6fe4052f87434330ad161bd8974"
+  }
+]

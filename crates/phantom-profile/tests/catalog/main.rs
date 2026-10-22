@@ -3,6 +3,7 @@
 //! Covers exact catalog definitions and original component values.
 
 mod catalog;
+mod chrome_linux_peer;
 mod client_hints_components;
 mod compositions;
 mod constructors;

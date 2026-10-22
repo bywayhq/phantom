@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "preset": {
+    "name": "chrome-155-linux",
+    "tls": {
+      "client_hello": "chrome-146-linux",
+      "psk_client_hello": "chrome-146-linux-psk",
+      "quic_client_hello": "chrome-146-quic",
+      "quic_psk_client_hello": "chrome-146-quic-psk",
+      "signature_algorithms": [
+        2570,
+        2308,
+        2309,
+        2310,
+        1027,
+        2052,
+        1025,
+        1283,
+        2053,
+        1281,
+        2054,
+        1537
+      ],
+      "trust_anchors": [
+        "82df130201",
+        "82df130206",
+        "82df13020d",
+        "82df13020e",
+        "82df13020f",
+        "82df130212",
+        "82df130213",
+        "82df130214",
+        "839a648c9b2d0107",
+        "839a648c9b2d0108",
+        "839a648c9b2d0109",
+        "839a648c9b2d010a",
+        "839a648c9b2d010b",
+        "839a648c9b2d010c",
+        "839a648c9b2d010d",
+        "839a648c9b2d0112",
+        "839a648c9b2d0113",
+        "d6790901",
+        "d6790904",
+        "d6790905",
+        "d6790906",
+        "d6790907",
+        "d6790908",
+        "d679090a",
+        "d679090b",
+        "d679090c",
+        "d679090d",
+        "d679090f"
+      ]
+    },
+    "http2": {
+      "header_table_size": 65536,
+      "enable_push": false,
+      "max_concurrent_streams": 0,
+      "initial_window_size": 6291456,
+      "max_frame_size": 0,
+      "max_header_list_size": 262144,
+      "connection_window_update": 15663105,
+      "stream_weight": 256,
+      "stream_exclusive": true,
+      "no_rfc7540_priorities": false,
+      "settings_order": [
+        1,
+        2,
+        4,
+        6
+      ],
+      "pseudo_order": [
+        ":method",
+        ":authority",
+        ":scheme",
+        ":path"
+      ],
+      "hpack_header_order": [
+        "cache-control",
+        "sec-ch-ua",
+        "sec-ch-ua-arch",
+        "sec-ch-ua-bitness",
+        "sec-ch-ua-full-version-list",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-model",
+        "sec-ch-ua-platform",
+        "sec-ch-ua-platform-version",
+        "sec-ch-ua-wow64",
+        "upgrade-insecure-requests",
+        "user-agent",
+        "content-type",
+        "content-length",
+        "accept",
+        "origin",
+        "sec-fetch-site",
+        "sec-fetch-mode",
+        "sec-fetch-user",
+        "sec-fetch-dest",
+        "referer",
+        "if-none-match",
+        "if-modified-since",
+        "accept-encoding",
+        "accept-language",
+        "cookie",
+        "priority"
+      ],
+      "hpack_header_order_subresource": [
+        "pragma",
+        "cache-control",
+        "origin",
+        "sec-ch-ua-platform",
+        "sec-ch-ua-platform-version",
+        "user-agent",
+        "sec-ch-ua",
+        "sec-ch-ua-arch",
+        "sec-ch-ua-bitness",
+        "sec-ch-ua-full-version-list",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-model",
+        "sec-ch-ua-wow64",
+        "content-type",
+        "content-length",
+        "accept",
+        "sec-fetch-site",
+        "sec-fetch-mode",
+        "sec-fetch-dest",
+        "sec-fetch-storage-access",
+        "referer",
+        "if-none-match",
+        "if-modified-since",
+        "accept-encoding",
+        "accept-language",
+        "cookie",
+        "priority"
+      ],
+      "hpack_indexing_policy": "chrome",
+      "stream_priority_mode": "chrome",
+      "disable_cookie_split": false,
+      "data_frame_max_size": 16375,
+      "preface_ping_idle_ms": 10000,
+      "preface_ping_hang_ms": 10000,
+      "idle_ping_ms": 0,
+      "priority_table": {
+        "audio": {
+          "urgency": 3,
+          "incremental": true,
+          "emit_header": true
+        },
+        "document": {
+          "urgency": 0,
+          "incremental": true,
+          "emit_header": true
+        },
+        "embed": {
+          "urgency": 0,
+          "incremental": true,
+          "emit_header": true
+        },
+        "empty": {
+          "urgency": 1,
+          "incremental": true,
+          "emit_header": true
+        },
+        "font": {
+          "urgency": 1,
+          "incremental": false,
+          "emit_header": true
+        },
+        "iframe": {
+          "urgency": 0,
+          "incremental": true,
+          "emit_header": true
+        },
+        "image": {
+          "urgency": 2,
+          "incremental": true,
+          "emit_header": true
+        },
+        "manifest": {
+          "urgency": 2,
+          "incremental": false,
+          "emit_header": true
+        },
+        "object": {
+          "urgency": 0,
+          "incremental": true,
+          "emit_header": true
+        },
+        "script": {
+          "urgency": 1,
+          "incremental": false,
+          "emit_header": true
+        },
+        "style": {
+          "urgency": 0,
+          "incremental": false,
+          "emit_header": true
+        },
+        "track": {
+          "urgency": 3,
+          "incremental": true,
+          "emit_header": true
+        },
+        "video": {
+          "urgency": 3,
+          "incremental": true,
+          "emit_header": true
+        },
+        "worker": {
+          "urgency": 4,
+          "incremental": true,
+          "emit_header": true
+        }
+      },
+      "priority_model": "chromium",
+      "priority_over_http1": false
+    },
+    "http3": {
+      "qpack_max_table_capacity": 65536,
+      "qpack_blocked_streams": 100,
+      "max_field_section_size": 262144,
+      "enable_datagrams": true,
+      "quic_initial_packet_size": 1250,
+      "quic_max_incoming_streams": 100,
+      "quic_max_incoming_uni_streams": 103,
+      "quic_allow_0rtt": true,
+      "quic_chrome_style_initial": true,
+      "quic_disable_hello_scramble": true,
+      "quic_transport_param_order": "chrome",
+      "quic_connection_id_length": 0,
+      "quic_max_datagram_frame_size": 65536,
+      "max_response_header_bytes": 262144,
+      "send_grease_frames": true
+    },
+    "headers": {
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+      "values": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Priority": "u=0, i",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "sec-ch-ua": "\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Linux\""
+      },
+      "order": [
+        {
+          "key": "sec-ch-ua",
+          "value": "\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\""
+        },
+        {
+          "key": "sec-ch-ua-mobile",
+          "value": "?0"
+        },
+        {
+          "key": "sec-ch-ua-platform",
+          "value": "\"Linux\""
+        },
+        {
+          "key": "upgrade-insecure-requests",
+          "value": "1"
+        },
+        {
+          "key": "user-agent",
+          "value": ""
+        },
+        {
+          "key": "accept",
+          "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        },
+        {
+          "key": "sec-fetch-site",
+          "value": "none"
+        },
+        {
+          "key": "sec-fetch-mode",
+          "value": "navigate"
+        },
+        {
+          "key": "sec-fetch-user",
+          "value": "?1"
+        },
+        {
+          "key": "sec-fetch-dest",
+          "value": "document"
+        },
+        {
+          "key": "accept-encoding",
+          "value": "gzip, deflate, br, zstd"
+        },
+        {
+          "key": "accept-language",
+          "value": "en-US,en;q=0.9"
+        },
+        {
+          "key": "priority",
+          "value": "u=0, i"
+        }
+      ],
+      "image_accept": "image/jxl,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    },
+    "protocols": {
+      "http3": true
+    }
+  }
+}

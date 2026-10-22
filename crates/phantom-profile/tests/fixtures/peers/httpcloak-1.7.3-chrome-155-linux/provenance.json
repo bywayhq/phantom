@@ -1,0 +1,23 @@
+{
+  "project": "httpcloak",
+  "release": "1.7.3",
+  "source_revision": "3a426f92c44af452a249b388a16ae3720097e50a",
+  "recipe": "chrome-155-linux",
+  "advertised_browser_release": "155.0.0.0",
+  "capture_checkout": "fa461b35a3fd6671321a7c22d307d81cc2f9cbc4",
+  "executable_sha256": "1a6aa330a4f568bdb61ba9175d8584f5c0ae5494fc7bf57bf416cd549dcc8274",
+  "scope": "fresh controlled peer TLS/H2/navigation GETs; no browser fidelity or performance claim",
+  "observed_platform": "Linux/amd64 under WSL2; this identifies the consumer, not an observed browser OS",
+  "public_comparison": "pending; catalog preparation alone does not establish Phantom emission parity",
+  "unported": [
+    "source-only 16375-byte upload DATA cap, unexercised by bodyless GETs"
+  ],
+  "limits": [
+    "no TCP/IP, DNS, HTTP1, QUIC/H3, proxy, WebSocket, resource, upload or resumption equivalence",
+    "TLS base ticket storage and HTTP2 idle policies remain unverified",
+    "original prep-only statements are historical; later build/execution receipts establish actual execution"
+  ],
+  "license": "MIT with linked-module notices; HTTP fork omitted LICENSE and references Go BSD text retained separately",
+  "consumer_source_sha256": "ce07eee946b4f323a124a656d134866cdc79a56ab1b658f7d28036df63f149b4",
+  "consumer_vcs_stamp_note": "The Go binary records its containing preparation checkout; that stamp is not the upstream module revision. go.sum and actual linked-module metadata identify dependency sources."
+}

@@ -1,0 +1,7 @@
+format=phantom-peer-capture-v1
+client_version=1.7.3
+peer_project=httpcloak
+peer_source_revision=3a426f92c44af452a249b388a16ae3720097e50a
+peer_recipe=chrome-155-linux
+
+Three baseline and three boundary processes; controlled TLS/H2 GETs only.

@@ -1,0 +1,2 @@
+{"body_bytes":13,"case":"first","protocol":"h2","request":1,"response_header_bytes":73,"response_header_fields":3,"response_headers":{"cache-control":["no-store"],"content-length":["13"],"content-type":["text/html; charset=utf-8"]},"status":200}
+{"body_bytes":0,"case":"reused","protocol":"h2","request":2,"response_header_bytes":36,"response_header_fields":2,"response_headers":{"cache-control":["no-store"],"content-length":["0"]},"status":204}

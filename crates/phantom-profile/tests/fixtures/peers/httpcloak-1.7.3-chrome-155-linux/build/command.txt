@@ -1,0 +1,1 @@
+go build -mod=readonly -p 2 -trimpath -o ../build/peer .

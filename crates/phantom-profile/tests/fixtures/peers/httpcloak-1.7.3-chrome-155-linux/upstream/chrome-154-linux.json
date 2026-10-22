@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "preset": {
+    "name": "chrome-154-linux",
+    "based_on": "chrome-153-linux",
+    "tls": {
+      "trust_anchors": [
+        "82df130201",
+        "82df130206",
+        "82df13020d",
+        "82df13020e",
+        "82df13020f",
+        "82df130212",
+        "82df130213",
+        "82df130214",
+        "839a648c9b2d0107",
+        "839a648c9b2d0108",
+        "839a648c9b2d0109",
+        "839a648c9b2d010a",
+        "839a648c9b2d010b",
+        "839a648c9b2d010c",
+        "839a648c9b2d010d",
+        "839a648c9b2d0112",
+        "839a648c9b2d0113",
+        "d6790901",
+        "d6790904",
+        "d6790905",
+        "d6790906",
+        "d6790907",
+        "d6790908",
+        "d679090a",
+        "d679090b",
+        "d679090c",
+        "d679090d",
+        "d679090f"
+      ],
+      "quic_trust_anchors_shuffle": false
+    },
+    "headers": {
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+      "values": {
+        "sec-ch-ua": "\"Chromium\";v=\"154\", \"Google Chrome\";v=\"154\", \"Not A(Brand\";v=\"99\""
+      },
+      "order": [
+        {
+          "key": "sec-ch-ua",
+          "value": "\"Chromium\";v=\"154\", \"Google Chrome\";v=\"154\", \"Not A(Brand\";v=\"99\""
+        },
+        {
+          "key": "sec-ch-ua-mobile",
+          "value": "?0"
+        },
+        {
+          "key": "sec-ch-ua-platform",
+          "value": "\"Linux\""
+        },
+        {
+          "key": "upgrade-insecure-requests",
+          "value": "1"
+        },
+        {
+          "key": "user-agent",
+          "value": ""
+        },
+        {
+          "key": "accept",
+          "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        },
+        {
+          "key": "sec-fetch-site",
+          "value": "none"
+        },
+        {
+          "key": "sec-fetch-mode",
+          "value": "navigate"
+        },
+        {
+          "key": "sec-fetch-user",
+          "value": "?1"
+        },
+        {
+          "key": "sec-fetch-dest",
+          "value": "document"
+        },
+        {
+          "key": "accept-encoding",
+          "value": "gzip, deflate, br, zstd"
+        },
+        {
+          "key": "accept-language",
+          "value": "en-US,en;q=0.9"
+        },
+        {
+          "key": "priority",
+          "value": "u=0, i"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# License resolution addendum
+
+Appendix to the original sealed handoff. That handoff and all other original 65 payloads remain byte-exact; this separate appendix preserves its SHA-256 seal.
+
+**Result:** the pinned HTTP fork explicitly declares BSD-3-Clause, the same license as net/http. This is supported by its own source, not inferred from similar code. Its v1.2.0 README at commit `a5c3cf6aa4c37ce8865b39c938483e4fd0fc92eb` says “BSD 3-Clause License (same as net/http)”. The cached module README, pinned GitHub blob `d658f947f50f6ed67b6e29a3e58ed8331a413d3b`, and first README commit `63c426a1a50e087dea026aece9a2998315318115` are byte-identical. doc.go retains the Go copyright and BSD reference.
+
+The complete referenced Go BSD-3 text is now retained as `LICENSE_Go_BSD3_referenced_by_http`, fetched from official Go1.24.0 commit `3901409b5d0fb7c85a3e6730a59943cc93b2835c`, blob `2a7cf70da6e498df9c11ab6a5eaa2ddd7af34da4`. SHA-256 is `911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad`; it also matches the previously retained Go1.26.5 license exactly. Retain this full text together with the fork's own README declaration and source copyright notices in any distributed comparison capsule, rather than relabeling it as an original file from the fork's module zip.
+
+**Actual limitation:** v1.2.0 has no LICENSE file. The full seven-commit history to the pin contains no history for that path, so no omitted original file can be recovered from those commits. The initial commit expressly identifies bogdanfinn/fhttp ancestry; the latest fhttp commit preceding that import (`4497f06f6af97080a5cd148c86a230d0eccbb519`) likewise has no root license file. That chronological comparison is context, not proof of the exact imported fhttp revision. We have recovered the explicitly referenced applicable license text, not an absent historical fork file. Separate dependency notices remain separate; no complete future Linux binary dependency inventory is claimed.
+
+All primary API requests/responses, pinned commit/tree/history identities and exact source bytes are retained here. `resolution.json` records the equality checks. No consumer changes were needed after the prior API review; no build, installation, capture or browser launch ran.

@@ -1302,6 +1302,169 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("chrome/155.0.0.0/linux/r1"),
+        selector: "chrome-155-linux",
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            platform: ProfilePlatform::Linux,
+            identity: ProfileIdentity::Peer {
+                project: "httpcloak",
+                source_revision: "3a426f92c44af452a249b388a16ae3720097e50a",
+                recipe: "chrome-155-linux",
+                release: "155.0.0.0",
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::ExternalSource,
+                        location: "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+                        build: "1.7.3",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::PeerCapture,
+                        location: "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+                        build: "1.7.3",
+                    },
+                ],
+                verified_fields: &["fresh cipher, group, key-share and signature order", "extension presence and permutation", "ALPN and ALPS", "certificate compression and fixed trust-anchor IDs"],
+                limitations: &["External-client observations; no Chrome browser capture", "Ticket storage, resumption and early data are not compared"],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::ExternalSource,
+                        location: "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+                        build: "1.7.3",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::PeerCapture,
+                        location: "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+                        build: "1.7.3",
+                    },
+                ],
+                verified_fields: &["SETTINGS order and values", "connection window and HEADERS priority", "first and reused navigation fields", "HPACK full-table insertion boundary and marker retention"],
+                limitations: &["Only sequential bodyless GETs were captured", "Source-only 16375-byte DATA cap is unported and unverified", "Frame scheduling, shutdown and idle policies are not claimed identical"],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::ExternalSource,
+                        location: "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+                        build: "1.7.3",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::PeerCapture,
+                        location: "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+                        build: "1.7.3",
+                    },
+                ],
+                verified_fields: &["caller Cookie crumbs before priority on HTTP/2"],
+                limitations: &["Other placement anchors and protocols are not compared"],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMELINUX155,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_155_LINUX_NAVIGATION },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("edge/153.0.4234.48/windows-11-26200/r1"),
         selector: "edge-153-windows",
         metadata: ProfileMetadata {

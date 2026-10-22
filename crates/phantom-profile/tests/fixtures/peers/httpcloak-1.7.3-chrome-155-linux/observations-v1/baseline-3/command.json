@@ -1,0 +1,8 @@
+[
+  "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/build/peer",
+  "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/observations-v1/baseline-3/certificate.pem",
+  "https://server.phantom.test:40249",
+  "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/observations-v1/baseline-3",
+  "baseline",
+  "baseline-3"
+]

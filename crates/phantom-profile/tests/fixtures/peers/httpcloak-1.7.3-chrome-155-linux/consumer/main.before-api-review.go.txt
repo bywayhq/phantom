@@ -1,0 +1,133 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/sardanioss/httpcloak"
+	"github.com/sardanioss/httpcloak/fingerprint"
+)
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	if os.Getenv("SSLKEYLOGFILE") != "" {
+		return fmt.Errorf("SSLKEYLOGFILE must be unset")
+	}
+	if len(os.Args) != 6 {
+		return fmt.Errorf("usage: peer CERT BASE_URL OUTPUT baseline|boundary RUN_TOKEN")
+	}
+	certificate, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		return fmt.Errorf("read certificate: %w", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(certificate) {
+		return fmt.Errorf("certificate PEM is invalid")
+	}
+	base, err := url.Parse(os.Args[2])
+	if err != nil {
+		return fmt.Errorf("parse origin: %w", err)
+	}
+	if base.Scheme != "https" || base.Hostname() != "server.phantom.test" || base.Port() == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || (base.Path != "" && base.Path != "/") {
+		return fmt.Errorf("origin must be https://server.phantom.test:PORT")
+	}
+	const preset = "chrome-155-linux"
+	p := fingerprint.LookupCustom(preset)
+	if p == nil || p.Name != preset {
+		return fmt.Errorf("exact embedded preset is unavailable")
+	}
+	description, err := fingerprint.Describe(preset)
+	if err != nil {
+		return fmt.Errorf("describe preset: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(os.Args[3], "effective-preset.json"), []byte(description), 0600); err != nil {
+		return err
+	}
+	session := httpcloak.NewSession(preset,
+		httpcloak.WithSessionTimeout(15*time.Second),
+		httpcloak.WithForceHTTP2(),
+		httpcloak.WithTLSConfig(&tls.Config{RootCAs: roots}),
+		httpcloak.WithConnectTo("server.phantom.test", "127.0.0.1"),
+		httpcloak.WithoutRetry(), httpcloak.WithoutRedirects(),
+		httpcloak.WithoutCookieJar(), httpcloak.WithoutConditionalCache(),
+	)
+	defer session.Close()
+	type request struct {
+		label   string
+		headers map[string][]string
+	}
+	requests := []request{{"first", nil}, {"reused", nil}}
+	switch os.Args[4] {
+	case "baseline":
+	case "boundary":
+		// HPACK size includes 32 bytes plus the name and value lengths.
+		// The unchanged peer SETTINGS table size is 4096.
+		field := func(size int) map[string][]string {
+			return map[string][]string{"X-Hpack-Size": {strings.Repeat("x", size-32-len("x-hpack-size"))}}
+		}
+		marker := map[string][]string{"X-Table-Marker": {"retained-marker"}}
+		requests = append(requests,
+			request{"cookie-first", map[string][]string{"Cookie": {"one=alpha; two=beta"}}},
+			request{"cookie-reused", map[string][]string{"Cookie": {"one=alpha; two=beta"}}},
+			request{"above-three-quarters", field(3073)},
+			request{"full-table", field(4096)},
+			request{"marker-before-oversized", marker},
+			request{"oversized", field(4097)},
+			request{"marker-after-oversized", marker},
+		)
+	default:
+		return fmt.Errorf("mode must be baseline or boundary")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	for index, item := range requests {
+		target := *base
+		target.Path = "/ws.html"
+		if index == len(requests)-1 {
+			target.Path = "/done"
+		}
+		target.RawQuery = url.Values{"run": {os.Args[5]}, "case": {item.label}}.Encode()
+		response, err := session.Do(ctx, &httpcloak.Request{Method: "GET", URL: target.String(), Headers: item.headers})
+		if err != nil {
+			return fmt.Errorf("request %d %s: %w", index+1, item.label, err)
+		}
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 4097))
+		closeErr := response.Close()
+		if readErr != nil {
+			return fmt.Errorf("read response %d: %w", index+1, readErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close response %d: %w", index+1, closeErr)
+		}
+		expectedStatus, expectedBody := 200, []byte("peer capture\n")
+		if target.Path == "/done" {
+			expectedStatus, expectedBody = 204, nil
+		}
+		if response.Protocol != "h2" || response.StatusCode != expectedStatus || !bytes.Equal(body, expectedBody) {
+			return fmt.Errorf("response %d: protocol=%s status=%d bytes=%d", index+1, response.Protocol, response.StatusCode, len(body))
+		}
+		if err := os.WriteFile(filepath.Join(os.Args[3], fmt.Sprintf("response-%d.body", index+1)), body, 0600); err != nil {
+			return err
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"request": index + 1, "case": item.label, "protocol": response.Protocol, "status": response.StatusCode, "body_bytes": len(body)}); err != nil {
+			return err
+		}
+	}
+	return nil
+}

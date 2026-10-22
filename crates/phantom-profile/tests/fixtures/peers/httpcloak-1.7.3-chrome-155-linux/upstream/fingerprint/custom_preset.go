@@ -1,0 +1,1542 @@
+package fingerprint
+
+import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"github.com/sardanioss/net/http2/hpack"
+	"os"
+	"strings"
+
+	tls "github.com/sardanioss/utls"
+)
+
+// --- JSON Types ---
+
+// PresetFile is the top-level JSON structure for preset files.
+type PresetFile struct {
+	Version int         `json:"version"`
+	Preset  *PresetSpec `json:"preset,omitempty"`
+	Pool    *PoolSpec   `json:"pool,omitempty"`
+}
+
+// PoolSpec defines a pool of presets for rotation.
+type PoolSpec struct {
+	Name     string       `json:"name"`
+	Strategy string       `json:"strategy"` // "random" or "round-robin"
+	Presets  []PresetSpec `json:"presets"`
+}
+
+// PresetSpec defines a single preset in JSON.
+type PresetSpec struct {
+	Name        string           `json:"name"`
+	BasedOn     string           `json:"based_on,omitempty"`
+	TLS         *TLSSpec         `json:"tls,omitempty"`
+	HTTP2       *HTTP2Spec       `json:"http2,omitempty"`
+	HTTP3       *HTTP3Spec       `json:"http3,omitempty"`
+	Headers     *HeaderSpec      `json:"headers,omitempty"`
+	ClientHints *ClientHintsSpec `json:"client_hints,omitempty"`
+	TCP         *TCPSpec         `json:"tcp,omitempty"`
+	Protocol    *ProtocolSpec    `json:"protocols,omitempty"`
+}
+
+// ClientHintsSpec defines high-entropy UA client hint overrides for a preset.
+// Every field is optional; an omitted field is derived from the sec-ch-ua trio
+// (see Preset.ResolveClientHints) so a preset only needs to spell out what
+// differs from the coherent default. Inherited via based_on like other blocks.
+type ClientHintsSpec struct {
+	FullVersionList string `json:"full_version_list,omitempty"` // sec-ch-ua-full-version-list (exact build from a real capture)
+	PlatformVersion string `json:"platform_version,omitempty"`  // sec-ch-ua-platform-version override
+	Arch            string `json:"arch,omitempty"`              // sec-ch-ua-arch
+	Bitness         string `json:"bitness,omitempty"`           // sec-ch-ua-bitness
+	Model           string `json:"model,omitempty"`             // sec-ch-ua-model
+	Wow64           string `json:"wow64,omitempty"`             // sec-ch-ua-wow64
+}
+
+// TLSSpec defines TLS fingerprint configuration.
+type TLSSpec struct {
+	// RawClientHello is a base64 TLS record (starting 0x16) captured from a real
+	// client, reproduced byte for byte via uTLS Fingerprinter.RawClientHello.
+	//
+	// It exists because JA3 cannot express GREASE. A hello mirrored through
+	// tls.ja3 emits none at all, while the real Chrome hello it came from carries
+	// one GREASE cipher and two GREASE extensions in fixed positions. JA4 and
+	// JA3N both ignore GREASE, so a JA3 mirror reports an exact match on every
+	// reflector while putting different bytes on the wire.
+	//
+	// RawPSKClientHello is the same client captured on a RESUMING connection, so
+	// it carries a pre_shared_key extension. Without it a raw-hello preset can
+	// never resume: a first capture has no ticket, so there is nothing to derive
+	// a PSK-shaped hello from.
+	//
+	// AllowBluntMimicry passes unknown extensions through verbatim instead of
+	// rejecting them. curl needs it for extension 22; without it the load fails
+	// with "unsupported extension 22".
+	RawClientHello       string `json:"raw_client_hello,omitempty"`
+	RawPSKClientHello    string `json:"raw_psk_client_hello,omitempty"`
+	AllowBluntMimicry    *bool  `json:"allow_blunt_mimicry,omitempty"`
+	RawPermuteExtensions *bool  `json:"permute_raw_hello,omitempty"`
+
+	// PSKJA3 is a JA3 captured from a resuming connection, i.e. one whose
+	// extension list contains 41. It is the JA3-mode counterpart of
+	// psk_client_hello, which JA3 mode was forbidden from using.
+	PSKJA3 string `json:"psk_ja3,omitempty"`
+
+	// Mutually exclusive: use client_hello OR ja3 OR raw_client_hello
+	ClientHello        string `json:"client_hello,omitempty"`      // e.g., "chrome-146-windows"
+	PSKClientHello     string `json:"psk_client_hello,omitempty"`  // e.g., "chrome-146-windows-psk"
+	QUICClientHello    string `json:"quic_client_hello,omitempty"` // e.g., "chrome-146-quic"
+	QUICPSKClientHello string `json:"quic_psk_client_hello,omitempty"`
+
+	JA3           string         `json:"ja3,omitempty"` // JA3 string
+	JA3ExtrasSpec *JA3ExtrasSpec `json:"ja3_extras,omitempty"`
+
+	// Individual extension data (supplements client_hello or ja3)
+	SignatureAlgorithms           []uint16 `json:"signature_algorithms,omitempty"`      // TCP (H1/H2) sig-algs override; overrides the ClientHelloID base
+	QUICSignatureAlgorithms       []uint16 `json:"quic_signature_algorithms,omitempty"` // HTTP/3 (QUIC) sig-algs override; separate because a browser's QUIC set can differ (e.g. Chrome 150 sends ML-DSA on TCP only)
+	DelegatedCredentialAlgorithms []uint16 `json:"delegated_credential_algorithms,omitempty"`
+	ALPN                          []string `json:"alpn,omitempty"`
+	CertCompression               []string `json:"cert_compression,omitempty"` // "brotli", "zlib", "zstd"
+
+	// TrustAnchors are hex-encoded trust anchor identifiers for the
+	// trust_anchors extension (0xCA34), which Chrome ships from version 152.
+	// The list is a snapshot of a root store and moves independently of the
+	// browser version, so it lives here rather than in code. Empty means the
+	// extension is not sent.
+	TrustAnchors []string `json:"trust_anchors,omitempty"`
+
+	// QUICTrustAnchorsShuffle reshuffles the trust_anchors list on every QUIC
+	// connection, as Chrome 152 and 153 did. From 154 Chrome sorts the list and
+	// sends it unchanged on both transports, so leave it false there. Inherited
+	// through based_on unless set.
+	QUICTrustAnchorsShuffle *bool `json:"quic_trust_anchors_shuffle,omitempty"`
+
+	PermuteExtensions *bool   `json:"permute_extensions,omitempty"`
+	RecordSizeLimit   *uint16 `json:"record_size_limit,omitempty"`
+	KeyShareCurves    *int    `json:"key_share_curves,omitempty"` // number of curves to send key shares for; nil/0 = 1
+}
+
+// JA3ExtrasSpec is the JSON representation of JA3Extras.
+type JA3ExtrasSpec struct {
+	SignatureAlgorithms           []uint16 `json:"signature_algorithms,omitempty"`
+	DelegatedCredentialAlgorithms []uint16 `json:"delegated_credential_algorithms,omitempty"`
+	ALPN                          []string `json:"alpn,omitempty"`
+	CertCompression               []string `json:"cert_compression,omitempty"`
+	PermuteExtensions             *bool    `json:"permute_extensions,omitempty"`
+	RecordSizeLimit               *uint16  `json:"record_size_limit,omitempty"`
+	KeyShareCurves                *int     `json:"key_share_curves,omitempty"`
+}
+
+// HTTP2Spec defines HTTP/2 fingerprint configuration.
+type HTTP2Spec struct {
+	// Akamai string (parsed first, then individual fields overlay)
+	Akamai string `json:"akamai,omitempty"`
+
+	// Individual SETTINGS fields (overlay on top of akamai if both set)
+	HeaderTableSize        *uint32 `json:"header_table_size,omitempty"`
+	EnablePush             *bool   `json:"enable_push,omitempty"`
+	MaxConcurrentStreams   *uint32 `json:"max_concurrent_streams,omitempty"`
+	InitialWindowSize      *uint32 `json:"initial_window_size,omitempty"`
+	MaxFrameSize           *uint32 `json:"max_frame_size,omitempty"`
+	MaxHeaderListSize      *uint32 `json:"max_header_list_size,omitempty"`
+	ConnectionWindowUpdate *uint32 `json:"connection_window_update,omitempty"`
+	StreamWeight           *uint16 `json:"stream_weight,omitempty"`
+	StreamExclusive        *bool   `json:"stream_exclusive,omitempty"`
+	NoRFC7540Priorities    *bool   `json:"no_rfc7540_priorities,omitempty"`
+
+	// H2 fingerprinting config
+	Settings      []HTTP2SettingSpec `json:"settings,omitempty"`
+	SettingsOrder []uint16           `json:"settings_order,omitempty"`
+	PseudoOrder   []string           `json:"pseudo_order,omitempty"`
+
+	// HPACK config
+	HPACKHeaderOrder            []string `json:"hpack_header_order,omitempty"`
+	HPACKHeaderOrderSubresource []string `json:"hpack_header_order_subresource,omitempty"`
+	HPACKIndexingPolicy         *string  `json:"hpack_indexing_policy,omitempty"` // "chrome","never","always","default"
+	// HPACKRepresentation pins the HPACK representation per header name:
+	// "incremental", "without", "never" or "default". Override layer, empty
+	// for browser profiles, deltas only. See H2FingerprintConfig.
+	HPACKRepresentation map[string]string `json:"hpack_representation,omitempty"`
+
+	HPACKNeverIndex    []string `json:"hpack_never_index,omitempty"`
+	StreamPriorityMode *string  `json:"stream_priority_mode,omitempty"` // "chrome","default"
+	DisableCookieSplit *bool    `json:"disable_cookie_split,omitempty"`
+
+	// DataFrameMaxSize caps the DATA frame payload. Omitted means derive it
+	// from the client family: 16375 for Chrome, the peer's advertised size
+	// otherwise.
+	DataFrameMaxSize *uint32 `json:"data_frame_max_size,omitempty"`
+
+	// PrefacePingIdleMs is how long the peer must have been silent before a
+	// request on that connection carries a PING alongside it. Omitted or 0
+	// sends none. Chrome uses 10000.
+	PrefacePingIdleMs *uint32 `json:"preface_ping_idle_ms,omitempty"`
+	// PrefacePingHangMs is how long to tolerate silence while that ping is
+	// outstanding before closing the connection. Omitted falls back to
+	// PrefacePingIdleMs.
+	PrefacePingHangMs *uint32 `json:"preface_ping_hang_ms,omitempty"`
+	// IdlePingMs enables the periodic health-check PING, which no browser
+	// sends. Omitted or 0 means off, which is what a browser profile wants.
+	IdlePingMs *uint32 `json:"idle_ping_ms,omitempty"`
+
+	// PriorityTable maps sec-fetch-dest values to per-resource priority
+	// settings. When populated, the transport emits a per-request RFC 7540
+	// stream weight (derived from urgency) and RFC 9218 priority: header
+	// for each request based on its sec-fetch-dest. When omitted, the
+	// preset's static StreamWeight / StreamExclusive is used for every
+	// request (legacy single-weight behaviour).
+	PriorityTable map[string]ResourcePrioritySpec `json:"priority_table,omitempty"`
+
+	// PriorityModel is "chromium" or "table"; see
+	// H2FingerprintConfig.PriorityModel. Omitted derives it from
+	// stream_exclusive.
+	PriorityModel *string `json:"priority_model,omitempty"`
+
+	// PriorityOverHTTP1 sends the table's priority header on HTTP/1.1 too;
+	// see Preset.SendsPriorityOverHTTP1. Omitted derives it.
+	PriorityOverHTTP1 *bool `json:"priority_over_http1,omitempty"`
+}
+
+// ResourcePrioritySpec is the JSON shape of fingerprint.ResourcePriority.
+// All three fields are required for a complete entry; partial entries
+// inherit zero values (urgency=0 → highest, incremental=false, emit_header=false)
+// which is rarely what a real preset wants — populate explicitly.
+type ResourcePrioritySpec struct {
+	Urgency     uint8  `json:"urgency"`
+	Incremental bool   `json:"incremental"`
+	EmitHeader  bool   `json:"emit_header"`
+	Weight      uint16 `json:"weight,omitempty"` // 1-256; omitted = from the urgency
+}
+
+// HTTP2SettingSpec represents a single HTTP/2 SETTINGS frame entry.
+type HTTP2SettingSpec struct {
+	ID    uint16 `json:"id"`
+	Value uint32 `json:"value"`
+}
+
+// HTTP3Spec defines HTTP/3 and QUIC fingerprint configuration.
+type HTTP3Spec struct {
+	QPACKMaxTableCapacity     *uint64 `json:"qpack_max_table_capacity,omitempty"`
+	QPACKBlockedStreams       *uint64 `json:"qpack_blocked_streams,omitempty"`
+	MaxFieldSectionSize       *uint64 `json:"max_field_section_size,omitempty"`
+	EnableDatagrams           *bool   `json:"enable_datagrams,omitempty"`
+	QUICInitialPacketSize     *uint16 `json:"quic_initial_packet_size,omitempty"`
+	QUICMaxIncomingStreams    *int64  `json:"quic_max_incoming_streams,omitempty"`
+	QUICMaxIncomingUniStreams *int64  `json:"quic_max_incoming_uni_streams,omitempty"`
+	QUICAllow0RTT             *bool   `json:"quic_allow_0rtt,omitempty"`
+	QUICChromeStyleInitial    *bool   `json:"quic_chrome_style_initial,omitempty"`
+	QUICDisableHelloScramble  *bool   `json:"quic_disable_hello_scramble,omitempty"`
+	QUICTransportParamOrder   *string `json:"quic_transport_param_order,omitempty"` // "chrome","random"
+	QUICConnectionIDLength    *int    `json:"quic_connection_id_length,omitempty"`
+	QUICMaxDatagramFrameSize  *uint64 `json:"quic_max_datagram_frame_size,omitempty"`
+	MaxResponseHeaderBytes    *uint64 `json:"max_response_header_bytes,omitempty"`
+	SendGreaseFrames          *bool   `json:"send_grease_frames,omitempty"`
+
+	// QUICConnectionOptions are four-character QUIC tags concatenated into
+	// google_connection_options (0x3128). Omit for Chrome's default ["ORIG"];
+	// give an empty list to drop the parameter entirely.
+	QUICConnectionOptions *[]string `json:"quic_connection_options,omitempty"`
+
+	// QUIC flow-control windows. These map to quic.Config fields and ultimately
+	// to wire transport parameters initial_max_data (4) and initial_max_stream_data_*
+	// (5/6/7). nil = quic-go default. iOS Chrome / Safari uses larger conn (16 MiB)
+	// + smaller per-stream (2 MiB) than Chrome desktop.
+	QUICInitialStreamReceiveWindow     *uint64 `json:"quic_initial_stream_receive_window,omitempty"`
+	QUICInitialConnectionReceiveWindow *uint64 `json:"quic_initial_connection_receive_window,omitempty"`
+}
+
+// HeaderSpec defines header fingerprint configuration.
+type HeaderSpec struct {
+	UserAgent string            `json:"user_agent,omitempty"`
+	Values    map[string]string `json:"values,omitempty"`
+	Order     []HeaderPairSpec  `json:"order,omitempty"`
+
+	// ImageAccept is the Accept header for image loads. Navigation carries its
+	// Accept in Order, but image requests are built elsewhere and need their
+	// own value, which moves between Chrome versions (155 added image/jxl).
+	ImageAccept string `json:"image_accept,omitempty"`
+}
+
+// HeaderPairSpec is a key-value pair for ordered headers in JSON.
+type HeaderPairSpec struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// TCPSpec defines TCP/IP fingerprint configuration.
+type TCPSpec struct {
+	Platform    string `json:"platform,omitempty"` // "Windows","macOS","Linux" — shorthand
+	TTL         *int   `json:"ttl,omitempty"`
+	MSS         *int   `json:"mss,omitempty"`
+	WindowSize  *int   `json:"window_size,omitempty"`
+	WindowScale *int   `json:"window_scale,omitempty"`
+	DFBit       *bool  `json:"df_bit,omitempty"`
+}
+
+// ProtocolSpec defines protocol support.
+type ProtocolSpec struct {
+	HTTP3 *bool `json:"http3,omitempty"`
+	// Aliases / extra toggles. H3 is an alias for HTTP3. H2=false disables HTTP/2
+	// in auto mode (the preset goes straight to HTTP/1.1). Accepting "h2"/"h3"
+	// matches what users naturally write; previously only "http3" was honored.
+	H3 *bool `json:"h3,omitempty"`
+	H2 *bool `json:"h2,omitempty"`
+}
+
+// --- Loading Functions ---
+
+// LoadPresetFromFile reads and parses a JSON preset file.
+func LoadPresetFromFile(path string) (*PresetFile, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read preset file: %w", err)
+	}
+	return LoadPresetFromJSON(data)
+}
+
+// LoadPresetFromJSON parses JSON bytes into a PresetFile.
+func LoadPresetFromJSON(data []byte) (*PresetFile, error) {
+	var pf PresetFile
+	if err := json.Unmarshal(data, &pf); err != nil {
+		return nil, fmt.Errorf("parse preset JSON: %w", err)
+	}
+	return &pf, nil
+}
+
+// LoadAndBuildPreset is a convenience function: load + build a single preset from a file.
+func LoadAndBuildPreset(path string) (*Preset, error) {
+	pf, err := LoadPresetFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if pf.Preset == nil {
+		return nil, fmt.Errorf("preset file has no 'preset' field")
+	}
+	p, err := BuildPreset(pf.Preset)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateComplete(p); err != nil {
+		return nil, fmt.Errorf("validation: %w", err)
+	}
+	return p, nil
+}
+
+// LoadAndBuildPresetFromJSON is a convenience function: parse JSON + build a single preset.
+func LoadAndBuildPresetFromJSON(data []byte) (*Preset, error) {
+	pf, err := LoadPresetFromJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	if pf.Preset == nil {
+		return nil, fmt.Errorf("preset JSON has no 'preset' field")
+	}
+	p, err := BuildPreset(pf.Preset)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateComplete(p); err != nil {
+		return nil, fmt.Errorf("validation: %w", err)
+	}
+	return p, nil
+}
+
+// --- Core Build ---
+
+// BuildPreset converts a PresetSpec (parsed from JSON) into a Preset.
+// If based_on is set, clones the base preset first and overlays changes.
+func BuildPreset(spec *PresetSpec) (*Preset, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("preset spec is nil")
+	}
+
+	// Inheritance-loop guard: walk the based_on chain and bail if we revisit
+	// a name we've already seen. Each link must resolve to a registered
+	// preset; the chain terminates at a built-in (which has based_on="").
+	if spec.BasedOn != "" && spec.Name != "" {
+		visited := map[string]bool{spec.Name: true}
+		// Climb from spec.BasedOn upward via the registered customPresets
+		// (built-ins have BasedOn="" so the loop terminates at them).
+		// Note: built-ins have no spec, only customPresets carry chains.
+		cur := spec.BasedOn
+		for cur != "" {
+			if visited[cur] {
+				return nil, fmt.Errorf("based_on inheritance loop detected at %q (chain re-enters %q)", cur, cur)
+			}
+			visited[cur] = true
+			if v, ok := customPresets.Load(cur); ok {
+				if cp, ok := v.(*Preset); ok && cp != nil {
+					cur = cp.BasedOn
+					continue
+				}
+			}
+			break // hit a built-in or unknown — chain terminates
+		}
+	}
+
+	// Pre-validate JA3 string format if provided, so users get a clear
+	// error at load time instead of an opaque TLS handshake failure later.
+	if spec.TLS != nil && spec.TLS.JA3 != "" {
+		if _, err := ParseJA3(spec.TLS.JA3, nil); err != nil {
+			return nil, fmt.Errorf("tls.ja3 is not a valid JA3 string: %w", err)
+		}
+	}
+
+	var p *Preset
+
+	// Start from base preset or empty
+	if spec.BasedOn != "" {
+		base := GetStrict(spec.BasedOn)
+		if base == nil {
+			return nil, fmt.Errorf("unknown based_on preset: %q", spec.BasedOn)
+		}
+		p = clonePreset(base)
+	} else {
+		p = &Preset{}
+	}
+
+	// Set name
+	if spec.Name != "" {
+		p.Name = spec.Name
+	}
+	// Track inheritance lineage so future BuildPreset calls can detect loops.
+	p.BasedOn = spec.BasedOn
+
+	// Apply each section
+	if spec.TLS != nil {
+		if err := applyTLS(p, spec.TLS); err != nil {
+			return nil, fmt.Errorf("tls: %w", err)
+		}
+	}
+	if spec.HTTP2 != nil {
+		if err := applyHTTP2(p, spec.HTTP2); err != nil {
+			return nil, fmt.Errorf("http2: %w", err)
+		}
+	}
+	if spec.HTTP3 != nil {
+		applyHTTP3(p, spec.HTTP3)
+	}
+	if spec.Headers != nil {
+		applyHeaders(p, spec.Headers)
+	}
+	if spec.ClientHints != nil {
+		applyClientHintsSpec(p, spec.ClientHints)
+	}
+	if spec.TCP != nil {
+		if err := applyTCP(p, spec.TCP); err != nil {
+			return nil, fmt.Errorf("tcp: %w", err)
+		}
+	}
+	if spec.Protocol != nil {
+		applyProtocols(p, spec.Protocol)
+	}
+
+	if err := validatePreset(p, spec); err != nil {
+		return nil, fmt.Errorf("validation: %w", err)
+	}
+	return p, nil
+}
+
+// validateComplete rejects a preset that built successfully but cannot serve a
+// request. Without based_on the build starts from an empty Preset, so a spec
+// describing only TLS yields a profile with no User-Agent, no header set and
+// no HTTP/2 settings. Nothing used to catch that: the preset registered, the
+// session was created, and the first request fell back to HTTP/1.1 and then
+// sat there until the deadline expired. The caller saw a timeout for what is
+// a static configuration mistake, with no hint that the preset caused it.
+//
+// This runs in the loaders rather than in BuildPreset, because BuildPreset is
+// a builder and a partial preset is a legitimate intermediate there. The
+// loaders are the "here is my finished profile" entry points, and they are
+// what every binding and the C ABI go through.
+//
+// Same reasoning as the JA3 pre-validation in BuildPreset: a clear error at
+// load time beats an opaque failure on the wire later.
+// validateHPACKRepresentation rejects an unknown representation name at load
+// time. Defaulting silently at connection time would make a typo look like the
+// override simply not working, which is the hardest kind of fingerprint bug to
+// notice: the request succeeds and the bytes are wrong.
+func validateHPACKRepresentation(m map[string]string) error {
+	for name, rep := range m {
+		if _, ok := hpack.ParseRepresentation(rep); !ok {
+			return fmt.Errorf("hpack_representation[%q] = %q is not a representation: "+
+				"use incremental, without, never, or default", name, rep)
+		}
+	}
+	return nil
+}
+
+func validateComplete(p *Preset) error {
+	if p.ClientHelloID.Client == "" && p.JA3 == "" && len(p.RawClientHello) == 0 {
+		return fmt.Errorf("preset %q has no TLS fingerprint source: set tls.client_hello, "+
+			"tls.ja3, tls.raw_client_hello, or based_on to inherit one", p.Name)
+	}
+	if p.UserAgent == "" {
+		return fmt.Errorf("preset %q has no user agent: set headers.user_agent, or based_on "+
+			"to inherit a complete header profile", p.Name)
+	}
+	if len(p.HeaderOrder) == 0 && len(p.Headers) == 0 {
+		return fmt.Errorf("preset %q has no headers: set a headers block, or based_on to "+
+			"inherit one. A TLS-only preset cannot serve a request", p.Name)
+	}
+	return nil
+}
+
+// clonePreset performs a deep copy of a Preset.
+func clonePreset(src *Preset) *Preset {
+	dst := *src // shallow copy
+
+	// Deep copy Headers map
+	if src.Headers != nil {
+		dst.Headers = make(map[string]string, len(src.Headers))
+		for k, v := range src.Headers {
+			dst.Headers[k] = v
+		}
+	}
+
+	// Deep copy HeaderOrder slice
+	if src.HeaderOrder != nil {
+		dst.HeaderOrder = make([]HeaderPair, len(src.HeaderOrder))
+		copy(dst.HeaderOrder, src.HeaderOrder)
+	}
+
+	// Deep copy H2Config
+	if src.H2Config != nil {
+		h2 := *src.H2Config
+		if src.H2Config.HPACKHeaderOrder != nil {
+			h2.HPACKHeaderOrder = make([]string, len(src.H2Config.HPACKHeaderOrder))
+			copy(h2.HPACKHeaderOrder, src.H2Config.HPACKHeaderOrder)
+		}
+		if src.H2Config.HPACKHeaderOrderSubresource != nil {
+			h2.HPACKHeaderOrderSubresource = make([]string, len(src.H2Config.HPACKHeaderOrderSubresource))
+			copy(h2.HPACKHeaderOrderSubresource, src.H2Config.HPACKHeaderOrderSubresource)
+		}
+		if src.H2Config.HPACKRepresentation != nil {
+			h2.HPACKRepresentation = make(map[string]string, len(src.H2Config.HPACKRepresentation))
+			for k, v := range src.H2Config.HPACKRepresentation {
+				h2.HPACKRepresentation[k] = v
+			}
+		}
+		if src.H2Config.HPACKNeverIndex != nil {
+			h2.HPACKNeverIndex = make([]string, len(src.H2Config.HPACKNeverIndex))
+			copy(h2.HPACKNeverIndex, src.H2Config.HPACKNeverIndex)
+		}
+		if src.H2Config.SettingsOrder != nil {
+			h2.SettingsOrder = make([]uint16, len(src.H2Config.SettingsOrder))
+			copy(h2.SettingsOrder, src.H2Config.SettingsOrder)
+		}
+		if src.H2Config.PseudoHeaderOrder != nil {
+			h2.PseudoHeaderOrder = make([]string, len(src.H2Config.PseudoHeaderOrder))
+			copy(h2.PseudoHeaderOrder, src.H2Config.PseudoHeaderOrder)
+		}
+		if src.H2Config.DataFrameMaxSize != nil {
+			v := *src.H2Config.DataFrameMaxSize
+			h2.DataFrameMaxSize = &v
+		}
+		if src.H2Config.PrefacePingIdleMs != nil {
+			v := *src.H2Config.PrefacePingIdleMs
+			h2.PrefacePingIdleMs = &v
+		}
+		if src.H2Config.PrefacePingHangMs != nil {
+			v := *src.H2Config.PrefacePingHangMs
+			h2.PrefacePingHangMs = &v
+		}
+		if src.H2Config.IdlePingMs != nil {
+			v := *src.H2Config.IdlePingMs
+			h2.IdlePingMs = &v
+		}
+		if src.H2Config.DisableCookieSplit != nil {
+			v := *src.H2Config.DisableCookieSplit
+			h2.DisableCookieSplit = &v
+		}
+		if src.H2Config.PriorityTable != nil {
+			h2.PriorityTable = make(map[string]ResourcePriority, len(src.H2Config.PriorityTable))
+			for dest, rp := range src.H2Config.PriorityTable {
+				h2.PriorityTable[dest] = rp // ResourcePriority is a value type with no inner pointers
+			}
+		}
+		dst.H2Config = &h2
+	}
+
+	// Deep copy H3Config
+	if src.H3Config != nil {
+		h3 := *src.H3Config
+		if src.H3Config.QPACKMaxTableCapacity != nil {
+			v := *src.H3Config.QPACKMaxTableCapacity
+			h3.QPACKMaxTableCapacity = &v
+		}
+		if src.H3Config.QPACKBlockedStreams != nil {
+			v := *src.H3Config.QPACKBlockedStreams
+			h3.QPACKBlockedStreams = &v
+		}
+		if src.H3Config.MaxFieldSectionSize != nil {
+			v := *src.H3Config.MaxFieldSectionSize
+			h3.MaxFieldSectionSize = &v
+		}
+		if src.H3Config.EnableDatagrams != nil {
+			v := *src.H3Config.EnableDatagrams
+			h3.EnableDatagrams = &v
+		}
+		if src.H3Config.QUICInitialPacketSize != nil {
+			v := *src.H3Config.QUICInitialPacketSize
+			h3.QUICInitialPacketSize = &v
+		}
+		if src.H3Config.QUICMaxIncomingStreams != nil {
+			v := *src.H3Config.QUICMaxIncomingStreams
+			h3.QUICMaxIncomingStreams = &v
+		}
+		if src.H3Config.QUICMaxIncomingUniStreams != nil {
+			v := *src.H3Config.QUICMaxIncomingUniStreams
+			h3.QUICMaxIncomingUniStreams = &v
+		}
+		if src.H3Config.QUICAllow0RTT != nil {
+			v := *src.H3Config.QUICAllow0RTT
+			h3.QUICAllow0RTT = &v
+		}
+		if src.H3Config.QUICChromeStyleInitial != nil {
+			v := *src.H3Config.QUICChromeStyleInitial
+			h3.QUICChromeStyleInitial = &v
+		}
+		if src.H3Config.QUICDisableHelloScramble != nil {
+			v := *src.H3Config.QUICDisableHelloScramble
+			h3.QUICDisableHelloScramble = &v
+		}
+		if src.H3Config.MaxResponseHeaderBytes != nil {
+			v := *src.H3Config.MaxResponseHeaderBytes
+			h3.MaxResponseHeaderBytes = &v
+		}
+		if src.H3Config.QUICConnectionIDLength != nil {
+			v := *src.H3Config.QUICConnectionIDLength
+			h3.QUICConnectionIDLength = &v
+		}
+		if src.H3Config.QUICMaxDatagramFrameSize != nil {
+			v := *src.H3Config.QUICMaxDatagramFrameSize
+			h3.QUICMaxDatagramFrameSize = &v
+		}
+		if src.H3Config.SendGreaseFrames != nil {
+			v := *src.H3Config.SendGreaseFrames
+			h3.SendGreaseFrames = &v
+		}
+		if src.H3Config.QUICConnectionOptions != nil {
+			v := make([]string, len(*src.H3Config.QUICConnectionOptions))
+			copy(v, *src.H3Config.QUICConnectionOptions)
+			h3.QUICConnectionOptions = &v
+		}
+		if src.H3Config.QUICInitialStreamReceiveWindow != nil {
+			v := *src.H3Config.QUICInitialStreamReceiveWindow
+			h3.QUICInitialStreamReceiveWindow = &v
+		}
+		if src.H3Config.QUICInitialConnectionReceiveWindow != nil {
+			v := *src.H3Config.QUICInitialConnectionReceiveWindow
+			h3.QUICInitialConnectionReceiveWindow = &v
+		}
+		dst.H3Config = &h3
+	}
+
+	// Deep copy JA3Extras
+	if src.JA3Extras != nil {
+		extras := *src.JA3Extras
+		if src.JA3Extras.SignatureAlgorithms != nil {
+			extras.SignatureAlgorithms = make([]tls.SignatureScheme, len(src.JA3Extras.SignatureAlgorithms))
+			copy(extras.SignatureAlgorithms, src.JA3Extras.SignatureAlgorithms)
+		}
+		if src.JA3Extras.DelegatedCredentialAlgorithms != nil {
+			extras.DelegatedCredentialAlgorithms = make([]tls.SignatureScheme, len(src.JA3Extras.DelegatedCredentialAlgorithms))
+			copy(extras.DelegatedCredentialAlgorithms, src.JA3Extras.DelegatedCredentialAlgorithms)
+		}
+		if src.JA3Extras.ALPN != nil {
+			extras.ALPN = make([]string, len(src.JA3Extras.ALPN))
+			copy(extras.ALPN, src.JA3Extras.ALPN)
+		}
+		if src.JA3Extras.CertCompAlgs != nil {
+			extras.CertCompAlgs = make([]tls.CertCompressionAlgo, len(src.JA3Extras.CertCompAlgs))
+			copy(extras.CertCompAlgs, src.JA3Extras.CertCompAlgs)
+		}
+		dst.JA3Extras = &extras
+	}
+
+	// Deep copy the sig-algs overrides so a child preset (based_on) inherits them
+	// yet can replace them without mutating the parent's backing array.
+	if src.SignatureAlgorithms != nil {
+		dst.SignatureAlgorithms = make([]tls.SignatureScheme, len(src.SignatureAlgorithms))
+		copy(dst.SignatureAlgorithms, src.SignatureAlgorithms)
+	}
+	if src.QUICSignatureAlgorithms != nil {
+		dst.QUICSignatureAlgorithms = make([]tls.SignatureScheme, len(src.QUICSignatureAlgorithms))
+		copy(dst.QUICSignatureAlgorithms, src.QUICSignatureAlgorithms)
+	}
+	if src.TrustAnchors != nil {
+		dst.TrustAnchors = make([][]byte, len(src.TrustAnchors))
+		for i, ta := range src.TrustAnchors {
+			dst.TrustAnchors[i] = append([]byte(nil), ta...)
+		}
+	}
+
+	return &dst
+}
+
+// --- Apply Functions ---
+
+func applyTLS(p *Preset, spec *TLSSpec) error {
+	// raw_client_hello wins over both other sources. It is the only one that
+	// can carry GREASE, so a preset that has it never wants to fall back.
+	if spec.RawClientHello != "" {
+		blunt := spec.AllowBluntMimicry != nil && *spec.AllowBluntMimicry
+		raw, err := DecodeRawClientHello("tls.raw_client_hello", spec.RawClientHello, blunt)
+		if err != nil {
+			return err
+		}
+		p.RawClientHello = raw
+		p.RawBluntMimicry = blunt
+		// permute_extensions means the same thing here, and is the name someone
+		// reaches for first because it is what the other two TLS modes call it.
+		// It feeds JA3Extras, which the raw path never consults, so accepting it
+		// and doing nothing would be the exact failure this key exists to avoid:
+		// a preset that looks configured and goes on the wire unchanged.
+		// permute_raw_hello wins when both are given.
+		if spec.PermuteExtensions != nil {
+			p.RawPermuteExtensions = *spec.PermuteExtensions
+		}
+		if spec.RawPermuteExtensions != nil {
+			p.RawPermuteExtensions = *spec.RawPermuteExtensions
+		}
+		if spec.RawPSKClientHello != "" {
+			pskRaw, err := DecodeRawClientHello("tls.raw_psk_client_hello", spec.RawPSKClientHello, blunt)
+			if err != nil {
+				return err
+			}
+			p.RawPSKClientHello = pskRaw
+		}
+		// Same reasoning as the JA3 branch below: the captured bytes are the
+		// whole TLS fingerprint, so leaving a ClientHelloID behind would let a
+		// stale inherited identity win at some branch further down.
+		//
+		// The QUIC identities are deliberately NOT cleared. A capture describes
+		// one transport, and which one it describes is a property of the bytes:
+		// a QUIC hello carries quic_transport_parameters and a TCP hello does
+		// not. Clearing them here threw away the only QUIC identity the preset
+		// had, on the strength of a capture that usually says nothing about
+		// QUIC, and the HTTP/3 transport then had nothing to build from and
+		// silently fell back to the QUIC stack's own default hello. Whether the
+		// capture applies to QUIC is decided per transport, in
+		// ResolveQUICClientHelloSpec, which is the only place that knows.
+		p.ClientHelloID = tls.ClientHelloID{}
+		p.PSKClientHelloID = tls.ClientHelloID{}
+		p.JA3 = ""
+		p.PSKJA3 = ""
+		return nil
+	}
+
+	// ja3 and client_hello are mutually exclusive (validated catches both set)
+	if spec.JA3 != "" {
+		p.JA3 = spec.JA3
+		if spec.PSKJA3 != "" {
+			p.PSKJA3 = spec.PSKJA3
+		}
+		// Clear ClientHelloID fields — JA3 takes over TLS fingerprinting.
+		// PSKClientHelloID goes with them, which is correct: a PSK hello built
+		// from a named ClientHelloID would not match the JA3 the rest of the
+		// connection advertises. psk_ja3 is the JA3-mode route to resumption.
+		//
+		// The QUIC identities stay, for the reason given in the raw branch: a
+		// JA3 describes the transport it was captured on, and taking a TCP JA3
+		// as grounds to erase the preset's QUIC identity left HTTP/3 with
+		// nothing to build from.
+		p.ClientHelloID = tls.ClientHelloID{}
+		p.PSKClientHelloID = tls.ClientHelloID{}
+		// Build JA3Extras from the spec
+		if spec.JA3ExtrasSpec != nil {
+			extras, err := buildJA3Extras(spec.JA3ExtrasSpec)
+			if err != nil {
+				return fmt.Errorf("ja3_extras: %w", err)
+			}
+			p.JA3Extras = extras
+		} else {
+			// Check if top-level TLS fields provide extras
+			extras, err := buildJA3ExtrasFromTLS(spec)
+			if err != nil {
+				return fmt.Errorf("ja3 extras: %w", err)
+			}
+			if extras != nil {
+				p.JA3Extras = extras
+			}
+		}
+	} else if spec.ClientHello != "" {
+		// Clear JA3 fields — ClientHelloID takes over TLS fingerprinting
+		p.JA3 = ""
+		p.JA3Extras = nil
+
+		id, err := ResolveClientHelloID(spec.ClientHello)
+		if err != nil {
+			return err
+		}
+		p.ClientHelloID = id
+
+		if spec.PSKClientHello != "" {
+			pskID, err := ResolveClientHelloID(spec.PSKClientHello)
+			if err != nil {
+				return fmt.Errorf("psk: %w", err)
+			}
+			p.PSKClientHelloID = pskID
+		}
+		if spec.QUICClientHello != "" {
+			quicID, err := ResolveClientHelloID(spec.QUICClientHello)
+			if err != nil {
+				return fmt.Errorf("quic: %w", err)
+			}
+			p.QUICClientHelloID = quicID
+		}
+		if spec.QUICPSKClientHello != "" {
+			quicPSKID, err := ResolveClientHelloID(spec.QUICPSKClientHello)
+			if err != nil {
+				return fmt.Errorf("quic_psk: %w", err)
+			}
+			p.QUICPSKClientHelloID = quicPSKID
+		}
+	} else {
+		// Neither JA3 nor ClientHello in this spec — overlay PSK/QUIC hellos
+		// on the inherited base preset (if any of these fields are set).
+		if spec.PSKClientHello != "" {
+			pskID, err := ResolveClientHelloID(spec.PSKClientHello)
+			if err != nil {
+				return fmt.Errorf("psk: %w", err)
+			}
+			p.PSKClientHelloID = pskID
+		}
+		if spec.QUICClientHello != "" {
+			quicID, err := ResolveClientHelloID(spec.QUICClientHello)
+			if err != nil {
+				return fmt.Errorf("quic: %w", err)
+			}
+			p.QUICClientHelloID = quicID
+		}
+		if spec.QUICPSKClientHello != "" {
+			quicPSKID, err := ResolveClientHelloID(spec.QUICPSKClientHello)
+			if err != nil {
+				return fmt.Errorf("quic_psk: %w", err)
+			}
+			p.QUICPSKClientHelloID = quicPSKID
+		}
+	}
+
+	// TCP / QUIC signature_algorithms overrides. These replace the
+	// signature_algorithms extension emitted on the wire on top of the
+	// ClientHelloID base (see Preset.SignatureAlgorithms / QUICSignatureAlgorithms),
+	// so a based_on preset can add sig-algs — e.g. Chrome 150's ML-DSA on TCP —
+	// without re-declaring client_hello. The JA3 path folds its sig-algs into
+	// JA3Extras, so these only apply to the ClientHelloID path.
+	if spec.JA3 == "" {
+		if len(spec.SignatureAlgorithms) > 0 {
+			p.SignatureAlgorithms = uint16sToSchemes(spec.SignatureAlgorithms)
+		}
+		if len(spec.QUICSignatureAlgorithms) > 0 {
+			p.QUICSignatureAlgorithms = uint16sToSchemes(spec.QUICSignatureAlgorithms)
+		}
+	}
+	if spec.QUICTrustAnchorsShuffle != nil {
+		p.QUICTrustAnchorShuffle = *spec.QUICTrustAnchorsShuffle
+	}
+	if spec.TrustAnchors != nil {
+		anchors := make([][]byte, 0, len(spec.TrustAnchors))
+		for _, h := range spec.TrustAnchors {
+			b, err := hex.DecodeString(h)
+			if err != nil {
+				return fmt.Errorf("trust_anchors: %q is not hex: %w", h, err)
+			}
+			if len(b) == 0 || len(b) > 255 {
+				return fmt.Errorf("trust_anchors: %q decodes to %d bytes; each "+
+					"identifier carries a one-byte length so it must be 1 to 255", h, len(b))
+			}
+			anchors = append(anchors, b)
+		}
+		p.TrustAnchors = anchors
+	}
+
+	return nil
+}
+
+// uint16sToSchemes converts JSON sig-alg codepoints to uTLS SignatureScheme
+// values (raw uint16, so post-quantum schemes with no named constant round-trip).
+func uint16sToSchemes(vs []uint16) []tls.SignatureScheme {
+	out := make([]tls.SignatureScheme, len(vs))
+	for i, v := range vs {
+		out[i] = tls.SignatureScheme(v)
+	}
+	return out
+}
+
+func buildJA3Extras(spec *JA3ExtrasSpec) (*JA3Extras, error) {
+	extras := &JA3Extras{}
+
+	if len(spec.SignatureAlgorithms) > 0 {
+		extras.SignatureAlgorithms = make([]tls.SignatureScheme, len(spec.SignatureAlgorithms))
+		for i, v := range spec.SignatureAlgorithms {
+			extras.SignatureAlgorithms[i] = tls.SignatureScheme(v)
+		}
+	}
+	if len(spec.DelegatedCredentialAlgorithms) > 0 {
+		extras.DelegatedCredentialAlgorithms = make([]tls.SignatureScheme, len(spec.DelegatedCredentialAlgorithms))
+		for i, v := range spec.DelegatedCredentialAlgorithms {
+			extras.DelegatedCredentialAlgorithms[i] = tls.SignatureScheme(v)
+		}
+	}
+	if len(spec.ALPN) > 0 {
+		extras.ALPN = make([]string, len(spec.ALPN))
+		copy(extras.ALPN, spec.ALPN)
+	}
+	if len(spec.CertCompression) > 0 {
+		algs, err := parseCertCompAlgs(spec.CertCompression)
+		if err != nil {
+			return nil, err
+		}
+		extras.CertCompAlgs = algs
+	}
+	if spec.PermuteExtensions != nil {
+		extras.PermuteExtensions = *spec.PermuteExtensions
+	}
+	if spec.RecordSizeLimit != nil {
+		extras.RecordSizeLimit = *spec.RecordSizeLimit
+	}
+	if spec.KeyShareCurves != nil {
+		extras.KeyShareCurves = *spec.KeyShareCurves
+	}
+
+	return extras, nil
+}
+
+func buildJA3ExtrasFromTLS(spec *TLSSpec) (*JA3Extras, error) {
+	// Check if any top-level TLS fields are set that would create extras
+	hasSigAlgs := len(spec.SignatureAlgorithms) > 0
+	hasDCAlgs := len(spec.DelegatedCredentialAlgorithms) > 0
+	hasALPN := len(spec.ALPN) > 0
+	hasCertComp := len(spec.CertCompression) > 0
+	hasPermute := spec.PermuteExtensions != nil
+	hasRSL := spec.RecordSizeLimit != nil
+	hasKSC := spec.KeyShareCurves != nil
+
+	if !hasSigAlgs && !hasDCAlgs && !hasALPN && !hasCertComp && !hasPermute && !hasRSL && !hasKSC {
+		return nil, nil
+	}
+
+	extras := &JA3Extras{}
+	if hasSigAlgs {
+		extras.SignatureAlgorithms = make([]tls.SignatureScheme, len(spec.SignatureAlgorithms))
+		for i, v := range spec.SignatureAlgorithms {
+			extras.SignatureAlgorithms[i] = tls.SignatureScheme(v)
+		}
+	}
+	if hasDCAlgs {
+		extras.DelegatedCredentialAlgorithms = make([]tls.SignatureScheme, len(spec.DelegatedCredentialAlgorithms))
+		for i, v := range spec.DelegatedCredentialAlgorithms {
+			extras.DelegatedCredentialAlgorithms[i] = tls.SignatureScheme(v)
+		}
+	}
+	if hasALPN {
+		extras.ALPN = make([]string, len(spec.ALPN))
+		copy(extras.ALPN, spec.ALPN)
+	}
+	if hasCertComp {
+		algs, err := parseCertCompAlgs(spec.CertCompression)
+		if err != nil {
+			return nil, err
+		}
+		extras.CertCompAlgs = algs
+	}
+	if hasPermute {
+		extras.PermuteExtensions = *spec.PermuteExtensions
+	}
+	if hasRSL {
+		extras.RecordSizeLimit = *spec.RecordSizeLimit
+	}
+	if hasKSC {
+		extras.KeyShareCurves = *spec.KeyShareCurves
+	}
+
+	return extras, nil
+}
+
+func parseCertCompAlgs(names []string) ([]tls.CertCompressionAlgo, error) {
+	algs := make([]tls.CertCompressionAlgo, 0, len(names))
+	for _, name := range names {
+		switch name {
+		case "brotli":
+			algs = append(algs, tls.CertCompressionBrotli)
+		case "zlib":
+			algs = append(algs, tls.CertCompressionZlib)
+		case "zstd":
+			algs = append(algs, tls.CertCompressionZstd)
+		default:
+			return nil, fmt.Errorf("unknown cert compression algorithm: %q (valid: brotli, zlib, zstd)", name)
+		}
+	}
+	return algs, nil
+}
+
+func applyHTTP2(p *Preset, spec *HTTP2Spec) error {
+	// Parse akamai shorthand if present, but do NOT apply it yet -- discrete
+	// fields go first so that fields the shorthand doesn't touch keep their
+	// inherited value. We then overlay only the slots the shorthand
+	// explicitly specified. (Issue: the previous order applied akamai first
+	// and let discrete fields overwrite; combined with describe_preset
+	// emitting all discrete fields including zero defaults, an inherited
+	// max_concurrent_streams=0 would clobber a captured akamai 3:1000.)
+	var akamai *AkamaiPresence
+	if spec.Akamai != "" {
+		var err error
+		akamai, err = ParseAkamaiDetailed(spec.Akamai)
+		if err != nil {
+			return fmt.Errorf("akamai: %w", err)
+		}
+	}
+
+	// Individual SETTINGS fields. Skip slots the user-supplied akamai
+	// explicitly covers -- akamai wins for those.
+	if spec.HeaderTableSize != nil && (akamai == nil || !akamai.SeenSettings[1]) {
+		p.HTTP2Settings.HeaderTableSize = *spec.HeaderTableSize
+	}
+	if spec.EnablePush != nil && (akamai == nil || !akamai.SeenSettings[2]) {
+		p.HTTP2Settings.EnablePush = *spec.EnablePush
+	}
+	if spec.MaxConcurrentStreams != nil && (akamai == nil || !akamai.SeenSettings[3]) {
+		p.HTTP2Settings.MaxConcurrentStreams = *spec.MaxConcurrentStreams
+	}
+	if spec.InitialWindowSize != nil && (akamai == nil || !akamai.SeenSettings[4]) {
+		p.HTTP2Settings.InitialWindowSize = *spec.InitialWindowSize
+	}
+	if spec.MaxFrameSize != nil && (akamai == nil || !akamai.SeenSettings[5]) {
+		p.HTTP2Settings.MaxFrameSize = *spec.MaxFrameSize
+	}
+	if spec.MaxHeaderListSize != nil && (akamai == nil || !akamai.SeenSettings[6]) {
+		p.HTTP2Settings.MaxHeaderListSize = *spec.MaxHeaderListSize
+	}
+	if spec.ConnectionWindowUpdate != nil && (akamai == nil || !akamai.HasWindowUpdate) {
+		p.HTTP2Settings.ConnectionWindowUpdate = *spec.ConnectionWindowUpdate
+	}
+	if spec.StreamWeight != nil && (akamai == nil || !akamai.HasStreamWeight) {
+		p.HTTP2Settings.StreamWeight = *spec.StreamWeight
+	}
+	if spec.StreamExclusive != nil && (akamai == nil || !akamai.HasStreamWeight) {
+		p.HTTP2Settings.StreamExclusive = *spec.StreamExclusive
+	}
+	if spec.NoRFC7540Priorities != nil && (akamai == nil || !akamai.SeenSettings[9]) {
+		p.HTTP2Settings.NoRFC7540Priorities = *spec.NoRFC7540Priorities
+	}
+
+	// Now apply the akamai shorthand authoritatively for the slots it specified.
+	if akamai != nil {
+		if akamai.SeenSettings[1] {
+			p.HTTP2Settings.HeaderTableSize = akamai.Settings.HeaderTableSize
+		}
+		if akamai.SeenSettings[2] {
+			p.HTTP2Settings.EnablePush = akamai.Settings.EnablePush
+		}
+		if akamai.SeenSettings[3] {
+			p.HTTP2Settings.MaxConcurrentStreams = akamai.Settings.MaxConcurrentStreams
+		}
+		if akamai.SeenSettings[4] {
+			p.HTTP2Settings.InitialWindowSize = akamai.Settings.InitialWindowSize
+		}
+		if akamai.SeenSettings[5] {
+			p.HTTP2Settings.MaxFrameSize = akamai.Settings.MaxFrameSize
+		}
+		if akamai.SeenSettings[6] {
+			p.HTTP2Settings.MaxHeaderListSize = akamai.Settings.MaxHeaderListSize
+		}
+		if akamai.SeenSettings[9] {
+			p.HTTP2Settings.NoRFC7540Priorities = akamai.Settings.NoRFC7540Priorities
+		}
+		if akamai.HasWindowUpdate {
+			p.HTTP2Settings.ConnectionWindowUpdate = akamai.Settings.ConnectionWindowUpdate
+		}
+		if akamai.HasStreamWeight {
+			p.HTTP2Settings.StreamWeight = akamai.Settings.StreamWeight
+			p.HTTP2Settings.StreamExclusive = akamai.Settings.StreamExclusive
+		}
+		if len(akamai.PseudoOrder) > 0 {
+			if p.H2Config == nil {
+				p.H2Config = &H2FingerprintConfig{}
+			}
+			p.H2Config.PseudoHeaderOrder = akamai.PseudoOrder
+		}
+	}
+
+	// Apply SETTINGS from structured list (overrides akamai/individual if same ID)
+	for _, s := range spec.Settings {
+		switch s.ID {
+		case 1:
+			p.HTTP2Settings.HeaderTableSize = s.Value
+		case 2:
+			p.HTTP2Settings.EnablePush = s.Value != 0
+		case 3:
+			p.HTTP2Settings.MaxConcurrentStreams = s.Value
+		case 4:
+			p.HTTP2Settings.InitialWindowSize = s.Value
+		case 5:
+			p.HTTP2Settings.MaxFrameSize = s.Value
+		case 6:
+			p.HTTP2Settings.MaxHeaderListSize = s.Value
+		case 9:
+			p.HTTP2Settings.NoRFC7540Priorities = s.Value != 0
+		}
+	}
+
+	// H2 fingerprinting config
+	if spec.SettingsOrder != nil || spec.PseudoOrder != nil ||
+		spec.HPACKHeaderOrder != nil || spec.HPACKHeaderOrderSubresource != nil ||
+		spec.HPACKIndexingPolicy != nil ||
+		spec.HPACKNeverIndex != nil || spec.HPACKRepresentation != nil ||
+		spec.StreamPriorityMode != nil ||
+		spec.DisableCookieSplit != nil || spec.PriorityTable != nil ||
+		spec.DataFrameMaxSize != nil || spec.PrefacePingIdleMs != nil ||
+		spec.PrefacePingHangMs != nil || spec.IdlePingMs != nil ||
+		spec.PriorityModel != nil || spec.PriorityOverHTTP1 != nil {
+		if p.H2Config == nil {
+			p.H2Config = &H2FingerprintConfig{}
+		}
+	}
+	if p.H2Config != nil {
+		if spec.SettingsOrder != nil {
+			p.H2Config.SettingsOrder = make([]uint16, len(spec.SettingsOrder))
+			copy(p.H2Config.SettingsOrder, spec.SettingsOrder)
+		}
+		if spec.PseudoOrder != nil && (akamai == nil || len(akamai.PseudoOrder) == 0) {
+			p.H2Config.PseudoHeaderOrder = make([]string, len(spec.PseudoOrder))
+			copy(p.H2Config.PseudoHeaderOrder, spec.PseudoOrder)
+		}
+		if spec.HPACKHeaderOrder != nil {
+			p.H2Config.HPACKHeaderOrder = make([]string, len(spec.HPACKHeaderOrder))
+			copy(p.H2Config.HPACKHeaderOrder, spec.HPACKHeaderOrder)
+		}
+		if spec.HPACKHeaderOrderSubresource != nil {
+			p.H2Config.HPACKHeaderOrderSubresource = make([]string, len(spec.HPACKHeaderOrderSubresource))
+			copy(p.H2Config.HPACKHeaderOrderSubresource, spec.HPACKHeaderOrderSubresource)
+		}
+		if spec.HPACKIndexingPolicy != nil {
+			p.H2Config.HPACKIndexingPolicy = *spec.HPACKIndexingPolicy
+		}
+		if spec.HPACKRepresentation != nil {
+			p.H2Config.HPACKRepresentation = make(map[string]string, len(spec.HPACKRepresentation))
+			for k, v := range spec.HPACKRepresentation {
+				p.H2Config.HPACKRepresentation[k] = v
+			}
+		}
+		if spec.HPACKNeverIndex != nil {
+			p.H2Config.HPACKNeverIndex = make([]string, len(spec.HPACKNeverIndex))
+			copy(p.H2Config.HPACKNeverIndex, spec.HPACKNeverIndex)
+		}
+		if spec.StreamPriorityMode != nil {
+			p.H2Config.StreamPriorityMode = *spec.StreamPriorityMode
+		}
+		if spec.DisableCookieSplit != nil {
+			v := *spec.DisableCookieSplit
+			p.H2Config.DisableCookieSplit = &v
+		}
+		if spec.DataFrameMaxSize != nil {
+			v := *spec.DataFrameMaxSize
+			p.H2Config.DataFrameMaxSize = &v
+		}
+		if spec.PrefacePingIdleMs != nil {
+			v := *spec.PrefacePingIdleMs
+			p.H2Config.PrefacePingIdleMs = &v
+		}
+		if spec.PrefacePingHangMs != nil {
+			v := *spec.PrefacePingHangMs
+			p.H2Config.PrefacePingHangMs = &v
+		}
+		if spec.IdlePingMs != nil {
+			v := *spec.IdlePingMs
+			p.H2Config.IdlePingMs = &v
+		}
+		if spec.PriorityTable != nil {
+			p.H2Config.PriorityTable = make(map[string]ResourcePriority, len(spec.PriorityTable))
+			for dest, rps := range spec.PriorityTable {
+				p.H2Config.PriorityTable[dest] = ResourcePriority{
+					Urgency:     rps.Urgency,
+					Incremental: rps.Incremental,
+					EmitHeader:  rps.EmitHeader,
+					Weight:      rps.Weight,
+				}
+			}
+		}
+		if spec.PriorityModel != nil {
+			p.H2Config.PriorityModel = *spec.PriorityModel
+		}
+		if spec.PriorityOverHTTP1 != nil {
+			v := *spec.PriorityOverHTTP1
+			p.H2Config.PriorityOverHTTP1 = &v
+		}
+	}
+
+	return nil
+}
+
+func applyHTTP3(p *Preset, spec *HTTP3Spec) {
+	if p.H3Config == nil {
+		p.H3Config = &H3FingerprintConfig{}
+	}
+	h3 := p.H3Config
+
+	if spec.QPACKMaxTableCapacity != nil {
+		v := *spec.QPACKMaxTableCapacity
+		h3.QPACKMaxTableCapacity = &v
+	}
+	if spec.QPACKBlockedStreams != nil {
+		v := *spec.QPACKBlockedStreams
+		h3.QPACKBlockedStreams = &v
+	}
+	if spec.MaxFieldSectionSize != nil {
+		v := *spec.MaxFieldSectionSize
+		h3.MaxFieldSectionSize = &v
+	}
+	if spec.EnableDatagrams != nil {
+		v := *spec.EnableDatagrams
+		h3.EnableDatagrams = &v
+	}
+	if spec.QUICInitialPacketSize != nil {
+		v := *spec.QUICInitialPacketSize
+		h3.QUICInitialPacketSize = &v
+	}
+	if spec.QUICMaxIncomingStreams != nil {
+		v := *spec.QUICMaxIncomingStreams
+		h3.QUICMaxIncomingStreams = &v
+	}
+	if spec.QUICMaxIncomingUniStreams != nil {
+		v := *spec.QUICMaxIncomingUniStreams
+		h3.QUICMaxIncomingUniStreams = &v
+	}
+	if spec.QUICAllow0RTT != nil {
+		v := *spec.QUICAllow0RTT
+		h3.QUICAllow0RTT = &v
+	}
+	if spec.QUICChromeStyleInitial != nil {
+		v := *spec.QUICChromeStyleInitial
+		h3.QUICChromeStyleInitial = &v
+	}
+	if spec.QUICDisableHelloScramble != nil {
+		v := *spec.QUICDisableHelloScramble
+		h3.QUICDisableHelloScramble = &v
+	}
+	if spec.QUICTransportParamOrder != nil {
+		h3.QUICTransportParamOrder = *spec.QUICTransportParamOrder
+	}
+	if spec.QUICConnectionIDLength != nil {
+		v := *spec.QUICConnectionIDLength
+		h3.QUICConnectionIDLength = &v
+	}
+	if spec.QUICMaxDatagramFrameSize != nil {
+		v := *spec.QUICMaxDatagramFrameSize
+		h3.QUICMaxDatagramFrameSize = &v
+	}
+	if spec.MaxResponseHeaderBytes != nil {
+		v := *spec.MaxResponseHeaderBytes
+		h3.MaxResponseHeaderBytes = &v
+	}
+	if spec.SendGreaseFrames != nil {
+		v := *spec.SendGreaseFrames
+		h3.SendGreaseFrames = &v
+	}
+	if spec.QUICConnectionOptions != nil {
+		v := make([]string, len(*spec.QUICConnectionOptions))
+		copy(v, *spec.QUICConnectionOptions)
+		h3.QUICConnectionOptions = &v
+	}
+	if spec.QUICInitialStreamReceiveWindow != nil {
+		v := *spec.QUICInitialStreamReceiveWindow
+		h3.QUICInitialStreamReceiveWindow = &v
+	}
+	if spec.QUICInitialConnectionReceiveWindow != nil {
+		v := *spec.QUICInitialConnectionReceiveWindow
+		h3.QUICInitialConnectionReceiveWindow = &v
+	}
+}
+
+func applyHeaders(p *Preset, spec *HeaderSpec) {
+	if spec.UserAgent != "" {
+		p.UserAgent = spec.UserAgent
+	}
+	if spec.ImageAccept != "" {
+		p.ImageAccept = spec.ImageAccept
+	}
+
+	// Merge values into Headers map
+	if len(spec.Values) > 0 {
+		if p.Headers == nil {
+			p.Headers = make(map[string]string)
+		}
+		for k, v := range spec.Values {
+			p.Headers[k] = v
+		}
+	}
+
+	// Convert Order to HeaderOrder
+	if len(spec.Order) > 0 {
+		p.HeaderOrder = make([]HeaderPair, len(spec.Order))
+		for i, hp := range spec.Order {
+			p.HeaderOrder[i] = HeaderPair{Key: hp.Key, Value: hp.Value}
+		}
+	}
+}
+
+// applyClientHintsSpec overlays the spec's high-entropy client hint values onto
+// the preset, leaving unset fields to be derived at resolve time. Called after
+// the base preset has been cloned (based_on inheritance), so a child overrides
+// only the fields it specifies.
+func applyClientHintsSpec(p *Preset, spec *ClientHintsSpec) {
+	if spec.FullVersionList != "" {
+		p.ClientHints.FullVersionList = spec.FullVersionList
+	}
+	if spec.PlatformVersion != "" {
+		p.ClientHints.PlatformVersion = spec.PlatformVersion
+	}
+	if spec.Arch != "" {
+		p.ClientHints.Arch = spec.Arch
+	}
+	if spec.Bitness != "" {
+		p.ClientHints.Bitness = spec.Bitness
+	}
+	if spec.Model != "" {
+		p.ClientHints.Model = spec.Model
+	}
+	if spec.Wow64 != "" {
+		p.ClientHints.Wow64 = spec.Wow64
+	}
+}
+
+func applyTCP(p *Preset, spec *TCPSpec) error {
+	// Platform shorthand first
+	if spec.Platform != "" {
+		switch spec.Platform {
+		case "Windows", "macOS", "Linux":
+			p.TCPFingerprint = PlatformTCPFingerprint(spec.Platform)
+		default:
+			return fmt.Errorf("unknown TCP platform: %q (valid: Windows, macOS, Linux)", spec.Platform)
+		}
+	}
+
+	// Individual fields override platform
+	if spec.TTL != nil {
+		p.TCPFingerprint.TTL = *spec.TTL
+	}
+	if spec.MSS != nil {
+		p.TCPFingerprint.MSS = *spec.MSS
+	}
+	if spec.WindowSize != nil {
+		p.TCPFingerprint.WindowSize = *spec.WindowSize
+	}
+	if spec.WindowScale != nil {
+		p.TCPFingerprint.WindowScale = *spec.WindowScale
+	}
+	if spec.DFBit != nil {
+		p.TCPFingerprint.DFBit = *spec.DFBit
+	}
+	return nil
+}
+
+func applyProtocols(p *Preset, spec *ProtocolSpec) {
+	if spec.HTTP3 != nil {
+		p.SupportHTTP3 = *spec.HTTP3
+	}
+	if spec.H3 != nil { // alias for http3
+		p.SupportHTTP3 = *spec.H3
+	}
+	if spec.H2 != nil {
+		p.DisableHTTP2 = !*spec.H2
+	}
+}
+
+// --- Validation ---
+
+func validatePreset(p *Preset, spec *PresetSpec) error {
+	if spec.HTTP2 != nil {
+		if err := validateHPACKRepresentation(spec.HTTP2.HPACKRepresentation); err != nil {
+			return err
+		}
+	}
+	if spec.TLS != nil {
+		// The three TLS sources are mutually exclusive. Silently preferring one
+		// would leave the author believing the other is in effect.
+		named := 0
+		var which []string
+		for _, src := range []struct {
+			name string
+			set  bool
+		}{
+			{"client_hello", spec.TLS.ClientHello != ""},
+			{"ja3", spec.TLS.JA3 != ""},
+			{"raw_client_hello", spec.TLS.RawClientHello != ""},
+		} {
+			if src.set {
+				named++
+				which = append(which, src.name)
+			}
+		}
+		if named > 1 {
+			return fmt.Errorf("%s are mutually exclusive, pick one", strings.Join(which, " and "))
+		}
+		// A resumption hello is meaningless without the source it resumes.
+		if spec.TLS.RawPSKClientHello != "" && spec.TLS.RawClientHello == "" {
+			return fmt.Errorf("raw_psk_client_hello requires raw_client_hello")
+		}
+		if spec.TLS.PSKJA3 != "" && p.JA3 == "" {
+			return fmt.Errorf("psk_ja3 requires ja3 to be set (directly or via based_on)")
+		}
+		if spec.TLS.AllowBluntMimicry != nil && spec.TLS.RawClientHello == "" {
+			return fmt.Errorf("allow_blunt_mimicry only applies to raw_client_hello")
+		}
+		// PSK/QUIC hello IDs require a primary client_hello or JA3 on the built preset
+		// (could come from based_on inheritance, not just the spec)
+		hasPrimary := p.ClientHelloID.Client != "" || p.JA3 != ""
+		if !hasPrimary {
+			if spec.TLS.PSKClientHello != "" {
+				return fmt.Errorf("psk_client_hello requires client_hello to be set (directly or via based_on)")
+			}
+			if spec.TLS.QUICClientHello != "" {
+				return fmt.Errorf("quic_client_hello requires client_hello to be set (directly or via based_on)")
+			}
+			if spec.TLS.QUICPSKClientHello != "" {
+				return fmt.Errorf("quic_psk_client_hello requires client_hello to be set (directly or via based_on)")
+			}
+		}
+		// JA3 mode cannot control QUIC TLS — check both spec and built preset
+		isJA3Mode := p.JA3 != ""
+		if isJA3Mode {
+			if spec.TLS.QUICClientHello != "" {
+				return fmt.Errorf("quic_client_hello cannot be used with ja3; JA3 does not control QUIC TLS fingerprinting — use client_hello mode instead")
+			}
+			if spec.TLS.QUICPSKClientHello != "" {
+				return fmt.Errorf("quic_psk_client_hello cannot be used with ja3; JA3 does not control QUIC TLS fingerprinting — use client_hello mode instead")
+			}
+			if spec.TLS.PSKClientHello != "" {
+				return fmt.Errorf("psk_client_hello cannot be used with ja3; use psk_ja3, " +
+					"a JA3 captured from a resuming connection (its extension list contains 41)")
+			}
+		}
+		// ja3_extras without ja3 is invalid
+		if spec.TLS.JA3ExtrasSpec != nil && spec.TLS.JA3 == "" {
+			return fmt.Errorf("ja3_extras requires ja3 to be set")
+		}
+		// With ja3_extras present, the top-level fields it would otherwise be
+		// built from are not read at all, so declaring both lost the top-level
+		// ones without a word, the same failure as #130 below.
+		if spec.TLS.JA3ExtrasSpec != nil && spec.TLS.JA3 != "" {
+			var ignored []string
+			for _, f := range []struct {
+				name string
+				set  bool
+			}{
+				{"signature_algorithms", len(spec.TLS.SignatureAlgorithms) > 0},
+				{"delegated_credential_algorithms", len(spec.TLS.DelegatedCredentialAlgorithms) > 0},
+				{"alpn", len(spec.TLS.ALPN) > 0},
+				{"cert_compression", len(spec.TLS.CertCompression) > 0},
+				{"permute_extensions", spec.TLS.PermuteExtensions != nil},
+				{"record_size_limit", spec.TLS.RecordSizeLimit != nil},
+				{"key_share_curves", spec.TLS.KeyShareCurves != nil},
+			} {
+				if f.set {
+					ignored = append(ignored, f.name)
+				}
+			}
+			if len(ignored) > 0 {
+				return fmt.Errorf("tls.%s would be ignored because ja3_extras is set; "+
+					"put them inside ja3_extras instead", strings.Join(ignored, ", tls."))
+			}
+		}
+		// TLS extension fields only apply in ja3 mode, with one exception.
+		//
+		// signature_algorithms is NOT one of them. applyTLS honours it on the
+		// client_hello path precisely so a preset can add codepoints to a
+		// byte-exact base without re-declaring the hello, which is how Chrome
+		// 150 carries its ML-DSA set. Rejecting the pair here contradicted
+		// that: describe emits the resolved client_hello alongside the
+		// override, so describing any Chrome 150 or later preset produced JSON
+		// the loader then refused. Its QUIC counterpart was never listed and
+		// has always been allowed.
+		//
+		// The rest are read only when the same tls block declares ja3, and
+		// permute_extensions also on the raw path. Anywhere else they used to
+		// be dropped without a word: the guard here fired only when
+		// client_hello was set explicitly, so a preset inheriting its hello
+		// through based_on, or carrying a raw capture, loaded cleanly and went
+		// on the wire without the values it declared (#130). A preset that
+		// looks configured and is not is the worst kind of fingerprint bug,
+		// because every request still succeeds.
+		if spec.TLS.JA3 == "" {
+			var ignored []string
+			if len(spec.TLS.ALPN) > 0 {
+				ignored = append(ignored, "alpn")
+			}
+			if len(spec.TLS.CertCompression) > 0 {
+				ignored = append(ignored, "cert_compression")
+			}
+			if spec.TLS.RecordSizeLimit != nil {
+				ignored = append(ignored, "record_size_limit")
+			}
+			if spec.TLS.PermuteExtensions != nil && spec.TLS.RawClientHello == "" {
+				ignored = append(ignored, "permute_extensions")
+			}
+			if len(ignored) > 0 {
+				mode := "a client_hello inherited through based_on"
+				switch {
+				case spec.TLS.RawClientHello != "":
+					mode = "raw_client_hello, whose captured bytes already fix them"
+				case spec.TLS.ClientHello != "":
+					mode = "client_hello"
+				}
+				return fmt.Errorf("tls.%s only apply alongside ja3 in the same tls block, "+
+					"and would be ignored with %s", strings.Join(ignored, ", tls."), mode)
+			}
+		}
+	}
+
+	if spec.HTTP2 != nil {
+		// Validate HPACK indexing policy
+		if spec.HTTP2.HPACKIndexingPolicy != nil {
+			switch *spec.HTTP2.HPACKIndexingPolicy {
+			case "chrome", "never", "always", "default":
+				// valid
+			default:
+				return fmt.Errorf("invalid hpack_indexing_policy: %q (must be chrome/never/always/default)", *spec.HTTP2.HPACKIndexingPolicy)
+			}
+		}
+
+		// Validate stream priority mode
+		if spec.HTTP2.StreamPriorityMode != nil {
+			switch *spec.HTTP2.StreamPriorityMode {
+			case "chrome", "default":
+				// valid
+			default:
+				return fmt.Errorf("invalid stream_priority_mode: %q (must be chrome/default)", *spec.HTTP2.StreamPriorityMode)
+			}
+		}
+
+		if spec.HTTP2.PriorityModel != nil {
+			switch *spec.HTTP2.PriorityModel {
+			case PriorityModelChromium, PriorityModelTable:
+			default:
+				return fmt.Errorf("invalid priority_model: %q (must be chromium/table)", *spec.HTTP2.PriorityModel)
+			}
+		}
+		for dest, rp := range spec.HTTP2.PriorityTable {
+			if rp.Urgency > 7 {
+				return fmt.Errorf("priority_table[%q].urgency %d is out of range (0-7)", dest, rp.Urgency)
+			}
+			if rp.Weight > 256 {
+				return fmt.Errorf("priority_table[%q].weight %d is out of range (1-256)", dest, rp.Weight)
+			}
+		}
+	}
+
+	if spec.HTTP3 != nil {
+		// Validate QUIC transport param order
+		if spec.HTTP3.QUICTransportParamOrder != nil {
+			switch *spec.HTTP3.QUICTransportParamOrder {
+			case "chrome", "random":
+				// valid
+			default:
+				return fmt.Errorf("invalid quic_transport_param_order: %q (must be chrome/random)", *spec.HTTP3.QUICTransportParamOrder)
+			}
+		}
+	}
+
+	return nil
+}

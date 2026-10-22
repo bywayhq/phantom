@@ -7,6 +7,9 @@
   connector routes fail explicitly while a policy is configured. Denial also
   stops SSE reconnects and WebSocket handshake retries.
 
+- Add `chrome-155-linux` for fresh TLS, HTTP/2 and navigation headers, adapted
+  from a pinned httpcloak preset. It does not supply TCP/IP or HTTP/3 recipes.
+
 - Add `Http2IndexingLimit::FullTable` to index fields that fit the current
   HPACK table while retaining existing entries when a larger field is sent.
 

@@ -1,0 +1,1 @@
+go mod tidy (GOTOOLCHAIN=local,GOPROXY=off) failed before resolving: copied go.sum retained module-cache read-only attribute; Access is denied; exit1. Cleared read-only only on the new scratch copy before retry.

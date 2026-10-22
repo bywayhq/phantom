@@ -1,0 +1,426 @@
+{
+  "format": "phantom.custom-profile",
+  "version": 1,
+  "profile": {
+    "tls": {
+      "versions": {
+        "min": "Tls12",
+        "max": "Tls13"
+      },
+      "cipher_suites": [
+        "Aes128GcmSha256",
+        "Aes256GcmSha384",
+        "Chacha20Poly1305Sha256",
+        "EcdheEcdsaAes128GcmSha256",
+        "EcdheRsaAes128GcmSha256",
+        "EcdheEcdsaAes256GcmSha384",
+        "EcdheRsaAes256GcmSha384",
+        "EcdheEcdsaChacha20Poly1305Sha256",
+        "EcdheRsaChacha20Poly1305Sha256",
+        "EcdheRsaAes128CbcSha",
+        "EcdheRsaAes256CbcSha",
+        "RsaAes128GcmSha256",
+        "RsaAes256GcmSha384",
+        "RsaAes128CbcSha",
+        "RsaAes256CbcSha"
+      ],
+      "groups": [
+        "X25519MlKem768",
+        "X25519",
+        "Secp256r1",
+        "Secp384r1"
+      ],
+      "key_shares": [
+        "X25519MlKem768",
+        "X25519"
+      ],
+      "signature_schemes": [
+        "MlDsa44",
+        "MlDsa65",
+        "MlDsa87",
+        "EcdsaSecp256r1Sha256",
+        "RsaPssRsaeSha256",
+        "RsaPkcs1Sha256",
+        "EcdsaSecp384r1Sha384",
+        "RsaPssRsaeSha384",
+        "RsaPkcs1Sha384",
+        "RsaPssRsaeSha512",
+        "RsaPkcs1Sha512"
+      ],
+      "delegated_credential_schemes": [],
+      "alpn_protocols": [
+        [
+          104,
+          50
+        ],
+        [
+          104,
+          116,
+          116,
+          112,
+          47,
+          49,
+          46,
+          49
+        ]
+      ],
+      "alps": {
+        "protocol": [
+          104,
+          50
+        ],
+        "settings": [],
+        "use_new_codepoint": true
+      },
+      "certificate_compression": [
+        "Brotli"
+      ],
+      "session_tickets": {
+        "enabled": true,
+        "tcp_per_origin": 2
+      },
+      "session_ticket_order": "NewestFirst",
+      "session_ticket_extension_when_resuming": true,
+      "tcp_early_data": false,
+      "record_size_limit": null,
+      "tls12_extensions_in_tls13_client_hello": false,
+      "requested_trust_anchor_ids": {
+        "kind": "Fixed",
+        "orders": [
+          [
+            [
+              130,
+              223,
+              19,
+              2,
+              1
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              6
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              13
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              14
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              15
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              18
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              19
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              20
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              7
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              8
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              9
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              10
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              11
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              12
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              13
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              18
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              19
+            ],
+            [
+              214,
+              121,
+              9,
+              1
+            ],
+            [
+              214,
+              121,
+              9,
+              4
+            ],
+            [
+              214,
+              121,
+              9,
+              5
+            ],
+            [
+              214,
+              121,
+              9,
+              6
+            ],
+            [
+              214,
+              121,
+              9,
+              7
+            ],
+            [
+              214,
+              121,
+              9,
+              8
+            ],
+            [
+              214,
+              121,
+              9,
+              10
+            ],
+            [
+              214,
+              121,
+              9,
+              11
+            ],
+            [
+              214,
+              121,
+              9,
+              12
+            ],
+            [
+              214,
+              121,
+              9,
+              13
+            ],
+            [
+              214,
+              121,
+              9,
+              15
+            ]
+          ]
+        ]
+      },
+      "grease": true,
+      "grease_signature_algorithms": true,
+      "extension_order": {
+        "kind": "Permuted",
+        "extensions": []
+      },
+      "ech": {
+        "kind": "Grease",
+        "settings": {
+          "payload_length": {
+            "kind": "BackendDefault",
+            "value": null
+          },
+          "aeads": []
+        }
+      },
+      "request_ocsp_staple": true,
+      "request_signed_certificate_timestamps": true,
+      "aes_hardware": true,
+      "close_notify": false
+    },
+    "tcp": null,
+    "udp": null,
+    "dns_cache": null,
+    "http1": null,
+    "http2": {
+      "initial_settings": [
+        {
+          "kind": "HeaderTableSize",
+          "value": 65536
+        },
+        {
+          "kind": "EnablePush",
+          "value": false
+        },
+        {
+          "kind": "InitialWindowSize",
+          "value": 6291456
+        },
+        {
+          "kind": "MaxHeaderListSize",
+          "value": 262144
+        }
+      ],
+      "initial_connection_window_size": 15728640,
+      "initial_stream_window_target": null,
+      "pseudo_header_order": [
+        "Method",
+        "Authority",
+        "Scheme",
+        "Path"
+      ],
+      "extended_connect_pseudo_header_order": [
+        "Method",
+        "Authority",
+        "Scheme",
+        "Path",
+        "Protocol"
+      ],
+      "headers_priority": {
+        "dependency_stream_id": 0,
+        "weight": 256,
+        "exclusive": true
+      },
+      "extended_connect_priority": {
+        "dependency_stream_id": 0,
+        "weight": 147,
+        "exclusive": true
+      },
+      "hpack": {
+        "literal_pseudo_headers": [
+          "Method",
+          "Scheme",
+          "Path",
+          "Protocol"
+        ],
+        "static_name_index": "Lowest",
+        "huffman_coding": "WhenShorter",
+        "cookie_crumbs": "IndexAll",
+        "field_indexing": "All",
+        "name_reference": "StaticThenNewest",
+        "unindexed_match": "Index",
+        "indexing_limit": "FullTable",
+        "table_size_updates": "WhenChanged",
+        "sensitive_proxy_authorization": "FieldIndexing"
+      },
+      "streams": {
+        "first_stream_id": 1,
+        "assumed_max_concurrent_streams": 100,
+        "max_concurrent_streams_cap": 256
+      },
+      "preface_ping_after": {
+        "seconds": 10,
+        "nanoseconds": 0
+      },
+      "ping_timeout": {
+        "seconds": 10,
+        "nanoseconds": 0
+      },
+      "ping_failure_retries": 2,
+      "idle_ping_after": null,
+      "idle_ping_timeout": null,
+      "idle_timeout": {
+        "kind": "Unlimited",
+        "duration": null
+      }
+    },
+    "http3": null,
+    "client_hints": null,
+    "websocket": null,
+    "proxy_connect": null,
+    "cookie_placement": {
+      "before": [
+        "if-none-match",
+        "if-modified-since",
+        "priority"
+      ]
+    },
+    "request_template": null
+  }
+}

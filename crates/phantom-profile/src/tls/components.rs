@@ -232,6 +232,40 @@ const _: () = assert!(matches!(2, 1..=10));
 #[rustfmt::skip]
 const _: () = assert!(crate::TrustAnchorOrder::valid_recipe_ids(&[&[130, 223, 19, 2, 1], &[130, 223, 19, 2, 6], &[130, 223, 19, 2, 13], &[130, 223, 19, 2, 14], &[130, 223, 19, 2, 15], &[130, 223, 19, 2, 18], &[130, 223, 19, 2, 19], &[130, 223, 19, 2, 20], &[131, 154, 100, 140, 155, 45, 1, 7], &[131, 154, 100, 140, 155, 45, 1, 8], &[131, 154, 100, 140, 155, 45, 1, 9], &[131, 154, 100, 140, 155, 45, 1, 10], &[131, 154, 100, 140, 155, 45, 1, 11], &[131, 154, 100, 140, 155, 45, 1, 12], &[131, 154, 100, 140, 155, 45, 1, 13], &[131, 154, 100, 140, 155, 45, 1, 18], &[131, 154, 100, 140, 155, 45, 1, 19], &[214, 121, 9, 1], &[214, 121, 9, 4], &[214, 121, 9, 5], &[214, 121, 9, 6], &[214, 121, 9, 7], &[214, 121, 9, 8], &[214, 121, 9, 10], &[214, 121, 9, 11], &[214, 121, 9, 12], &[214, 121, 9, 13], &[214, 121, 9, 15]]));
 #[rustfmt::skip]
+pub(crate) fn chrome_155_linux_tls() -> crate::TlsSettings {
+    crate::TlsSettings {
+        versions: crate::TlsVersionRange { min: crate::TlsVersion::Tls12, max: crate::TlsVersion::Tls13 },
+        cipher_suites: vec![crate::CipherSuite::Aes128GcmSha256, crate::CipherSuite::Aes256GcmSha384, crate::CipherSuite::Chacha20Poly1305Sha256, crate::CipherSuite::EcdheEcdsaAes128GcmSha256, crate::CipherSuite::EcdheRsaAes128GcmSha256, crate::CipherSuite::EcdheEcdsaAes256GcmSha384, crate::CipherSuite::EcdheRsaAes256GcmSha384, crate::CipherSuite::EcdheEcdsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheRsaChacha20Poly1305Sha256, crate::CipherSuite::EcdheRsaAes128CbcSha, crate::CipherSuite::EcdheRsaAes256CbcSha, crate::CipherSuite::RsaAes128GcmSha256, crate::CipherSuite::RsaAes256GcmSha384, crate::CipherSuite::RsaAes128CbcSha, crate::CipherSuite::RsaAes256CbcSha],
+        groups: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519, crate::NamedGroup::Secp256r1, crate::NamedGroup::Secp384r1],
+        key_shares: vec![crate::NamedGroup::X25519MlKem768, crate::NamedGroup::X25519],
+        signature_schemes: vec![crate::SignatureScheme::MlDsa44, crate::SignatureScheme::MlDsa65, crate::SignatureScheme::MlDsa87, crate::SignatureScheme::EcdsaSecp256r1Sha256, crate::SignatureScheme::RsaPssRsaeSha256, crate::SignatureScheme::RsaPkcs1Sha256, crate::SignatureScheme::EcdsaSecp384r1Sha384, crate::SignatureScheme::RsaPssRsaeSha384, crate::SignatureScheme::RsaPkcs1Sha384, crate::SignatureScheme::RsaPssRsaeSha512, crate::SignatureScheme::RsaPkcs1Sha512],
+        delegated_credential_schemes: vec![],
+        alpn_protocols: vec![Box::<[u8]>::from(&[104, 50][..]), Box::<[u8]>::from(&[104, 116, 116, 112, 47, 49, 46, 49][..])],
+        alps: Some(crate::AlpsSettings { protocol: Box::<[u8]>::from(&[104, 50][..]), settings: Box::<[u8]>::from(&[][..]), use_new_codepoint: true }),
+        certificate_compression: vec![crate::CertificateCompression::Brotli],
+        session_tickets: crate::tls::TWO_SESSION_TICKETS,
+        session_ticket_order: crate::SessionTicketOrder::NewestFirst,
+        session_ticket_extension_when_resuming: true,
+        tcp_early_data: false,
+        record_size_limit: None,
+        tls12_extensions_in_tls13_client_hello: false,
+        requested_trust_anchor_ids: Some(crate::TrustAnchorIds::Fixed(crate::TrustAnchorOrder::from_recipe(vec![Box::<[u8]>::from(&[130, 223, 19, 2, 1][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 6][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 13][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 14][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 15][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 18][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 19][..]), Box::<[u8]>::from(&[130, 223, 19, 2, 20][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 7][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 8][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 9][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 10][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 11][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 12][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 13][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 18][..]), Box::<[u8]>::from(&[131, 154, 100, 140, 155, 45, 1, 19][..]), Box::<[u8]>::from(&[214, 121, 9, 1][..]), Box::<[u8]>::from(&[214, 121, 9, 4][..]), Box::<[u8]>::from(&[214, 121, 9, 5][..]), Box::<[u8]>::from(&[214, 121, 9, 6][..]), Box::<[u8]>::from(&[214, 121, 9, 7][..]), Box::<[u8]>::from(&[214, 121, 9, 8][..]), Box::<[u8]>::from(&[214, 121, 9, 10][..]), Box::<[u8]>::from(&[214, 121, 9, 11][..]), Box::<[u8]>::from(&[214, 121, 9, 12][..]), Box::<[u8]>::from(&[214, 121, 9, 13][..]), Box::<[u8]>::from(&[214, 121, 9, 15][..])]))),
+        grease: true,
+        grease_signature_algorithms: true,
+        extension_order: crate::ClientHelloExtensionOrder::Permuted,
+        ech: crate::EchSettings::Grease(crate::EchGreaseSettings { payload_length: crate::EchGreasePayloadLength::BackendDefault, aeads: vec![] }),
+        request_ocsp_staple: true,
+        request_signed_certificate_timestamps: true,
+        aes_hardware: true,
+        close_notify: false,
+    }
+}
+
+#[rustfmt::skip]
+const _: () = assert!(matches!(2, 1..=10));
+#[rustfmt::skip]
+const _: () = assert!(crate::TrustAnchorOrder::valid_recipe_ids(&[&[130, 223, 19, 2, 1], &[130, 223, 19, 2, 6], &[130, 223, 19, 2, 13], &[130, 223, 19, 2, 14], &[130, 223, 19, 2, 15], &[130, 223, 19, 2, 18], &[130, 223, 19, 2, 19], &[130, 223, 19, 2, 20], &[131, 154, 100, 140, 155, 45, 1, 7], &[131, 154, 100, 140, 155, 45, 1, 8], &[131, 154, 100, 140, 155, 45, 1, 9], &[131, 154, 100, 140, 155, 45, 1, 10], &[131, 154, 100, 140, 155, 45, 1, 11], &[131, 154, 100, 140, 155, 45, 1, 12], &[131, 154, 100, 140, 155, 45, 1, 13], &[131, 154, 100, 140, 155, 45, 1, 18], &[131, 154, 100, 140, 155, 45, 1, 19], &[214, 121, 9, 1], &[214, 121, 9, 4], &[214, 121, 9, 5], &[214, 121, 9, 6], &[214, 121, 9, 7], &[214, 121, 9, 8], &[214, 121, 9, 10], &[214, 121, 9, 11], &[214, 121, 9, 12], &[214, 121, 9, 13], &[214, 121, 9, 15]]));
+#[rustfmt::skip]
 pub(crate) fn chromium_154_android_quic_tls() -> crate::TlsSettings {
     crate::TlsSettings {
         versions: crate::TlsVersionRange { min: crate::TlsVersion::Tls13, max: crate::TlsVersion::Tls13 },

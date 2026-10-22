@@ -1,0 +1,4 @@
+* -text whitespace=trailing-space,space-before-tab,cr-at-eol
+upstream/** -whitespace
+licenses/** -whitespace
+build/binary-modules.txt -whitespace

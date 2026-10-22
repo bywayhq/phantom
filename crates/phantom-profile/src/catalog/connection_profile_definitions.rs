@@ -8,6 +8,7 @@ pub(super) enum TlsComponent {
     Brave153AndroidTcp,
     Brave154Quic,
     Brave154Tcp,
+    Chrome155Linux,
     Chromium154AndroidQuic,
     Chromium154AndroidTcp,
     Chromium154Quic,
@@ -33,6 +34,7 @@ impl TlsComponent {
             Self::Brave153AndroidTcp => crate::tls::components::brave_153_android_tcp_tls(),
             Self::Brave154Quic => crate::tls::components::brave_154_quic_tls(),
             Self::Brave154Tcp => crate::tls::components::brave_154_tcp_tls(),
+            Self::Chrome155Linux => crate::tls::components::chrome_155_linux_tls(),
             Self::Chromium154AndroidQuic => crate::tls::components::chromium_154_android_quic_tls(),
             Self::Chromium154AndroidTcp => crate::tls::components::chromium_154_android_tcp_tls(),
             Self::Chromium154Quic => crate::tls::components::chromium_154_quic_tls(),
@@ -127,6 +129,7 @@ impl Http1Component {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum Http2Component {
+    Chrome155Linux,
     Chromium154,
     Firefox157,
     Safari2601,
@@ -137,6 +140,7 @@ pub(super) enum Http2Component {
 impl Http2Component {
     pub(super) fn create(self) -> crate::Http2Settings {
         match self {
+            Self::Chrome155Linux => super::http2_components::chrome_155_linux_http2(),
             Self::Chromium154 => super::http2_components::chromium_154_http2(),
             Self::Firefox157 => super::http2_components::firefox_157_http2(),
             Self::Safari2601 => super::http2_components::safari_2601_http2(),
@@ -379,6 +383,21 @@ pub(super) static CHROMEWINDOWS154: ConnectionProfileDefinition = ConnectionProf
     client_hints: Some(ClientHintsComponent::ChromeWindows154),
     websocket: Some(WebSocketComponent::Chromium154),
     proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
+};
+
+#[rustfmt::skip]
+pub(super) static CHROMELINUX155: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Chrome155Linux,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::Chrome155Linux),
+    http3: None,
+    client_hints: None,
+    websocket: None,
+    proxy_connect: None,
     cookie_placement: Some(CookieComponent::Chromium154),
 };
 

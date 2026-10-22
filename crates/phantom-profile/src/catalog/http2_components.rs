@@ -2,6 +2,27 @@
 // Runtime draw policies remain enum variants; construction performs no draws.
 
 #[rustfmt::skip]
+pub(crate) fn chrome_155_linux_http2() -> crate::Http2Settings {
+    crate::Http2Settings {
+        initial_settings: vec![crate::Http2Setting::HeaderTableSize(65536), crate::Http2Setting::EnablePush(false), crate::Http2Setting::InitialWindowSize(6291456), crate::Http2Setting::MaxHeaderListSize(262144)],
+        initial_connection_window_size: 15728640,
+        initial_stream_window_target: None,
+        pseudo_header_order: vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Path],
+        extended_connect_pseudo_header_order: Some(vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Path, crate::Http2PseudoHeader::Protocol]),
+        headers_priority: Some(crate::Http2Priority { dependency_stream_id: 0, weight: 256, exclusive: true }),
+        extended_connect_priority: Some(crate::Http2Priority { dependency_stream_id: 0, weight: 147, exclusive: true }),
+        hpack: crate::Http2HpackSettings { literal_pseudo_headers: vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Path, crate::Http2PseudoHeader::Protocol], static_name_index: crate::Http2StaticNameIndex::Lowest, huffman_coding: crate::Http2HuffmanCoding::WhenShorter, cookie_crumbs: crate::Http2CookieCrumbs::IndexAll, field_indexing: crate::Http2FieldIndexing::All, name_reference: crate::Http2NameReference::StaticThenNewest, unindexed_match: crate::Http2UnindexedMatch::Index, indexing_limit: crate::Http2IndexingLimit::FullTable, table_size_updates: crate::Http2TableSizeUpdates::WhenChanged, sensitive_proxy_authorization: crate::Http2SensitiveProxyAuthorization::FieldIndexing },
+        streams: crate::Http2StreamSettings { first_stream_id: 1, assumed_max_concurrent_streams: Some(100), max_concurrent_streams_cap: Some(256) },
+        preface_ping_after: Some(std::time::Duration::new(10, 0)),
+        ping_timeout: Some(std::time::Duration::new(10, 0)),
+        ping_failure_retries: 2,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
+        idle_timeout: crate::Http2IdleTimeout::Unlimited,
+    }
+}
+
+#[rustfmt::skip]
 pub(crate) fn chromium_154_http2() -> crate::Http2Settings {
     crate::Http2Settings {
         initial_settings: vec![crate::Http2Setting::HeaderTableSize(65536), crate::Http2Setting::EnablePush(false), crate::Http2Setting::InitialWindowSize(6291456), crate::Http2Setting::MaxHeaderListSize(262144)],

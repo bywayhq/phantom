@@ -1,5 +1,5 @@
 //! Frozen resolved descriptions; expected values come from the public typed catalog.
-//! Safari TLS, HTTP/2 and navigation values also match the pinned peer sources
+//! Peer TLS, HTTP/2 and navigation values also match the pinned peer sources
 //! and raw observations under `phantom-profile/tests/fixtures/peers`.
 use super::super::import_profile_json;
 use phantom_profile::catalog::{self, RequestTemplateKind};
@@ -18,7 +18,7 @@ pub(super) fn import(
 
 #[test]
 fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestResult {
-    assert_eq!(PROFILES.len(), 14);
+    assert_eq!(PROFILES.len(), 15);
     assert_eq!(catalog::profiles().len(), PROFILES.len());
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
@@ -43,7 +43,7 @@ fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestRes
 
 #[test]
 fn all_catalog_templates_preserve_fields_flags_priority_and_protocol_absences() -> TestResult {
-    assert_eq!(TEMPLATES.len(), 27);
+    assert_eq!(TEMPLATES.len(), 28);
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
         for kind in [
@@ -217,6 +217,10 @@ pub(super) const PROFILES: &[(&str, &str)] = &[
         "safari/26.0/ios/r1",
         include_str!("fixtures/safari-26-ios.json"),
     ),
+    (
+        "chrome/155.0.0.0/linux/r1",
+        include_str!("fixtures/chrome-155-linux.json"),
+    ),
 ];
 
 const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
@@ -354,6 +358,11 @@ const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
         "safari/26.0/ios/r1",
         RequestTemplateKind::Navigation,
         include_str!("fixtures/safari-26-ios-navigation.json"),
+    ),
+    (
+        "chrome/155.0.0.0/linux/r1",
+        RequestTemplateKind::Navigation,
+        include_str!("fixtures/chrome-155-linux-navigation.json"),
     ),
 ];
 

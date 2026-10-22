@@ -1,0 +1,24 @@
+{
+  "source": "/mnt/c/code/phantom-worktrees/rust-release-audit",
+  "commit": "fa461b35a3fd6671321a7c22d307d81cc2f9cbc4",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "openssl": "OpenSSL 3.0.13 30 Jan 2024",
+  "packages": {
+    "h2": "4.4.1",
+    "hpack": "4.2.0",
+    "cryptography": "50.0.2"
+  },
+  "sha256": {
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/capture.py": "170db7c004718e10cb8d9bc2615461cc8fdfe3ef3e0f1c7814fc6b59da7aaadc",
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/build/peer": "1a6aa330a4f568bdb61ba9175d8584f5c0ae5494fc7bf57bf416cd549dcc8274",
+    "/mnt/c/code/phantom-worktrees/rust-release-audit/target/tmp/safari-ios-comparison/capture.py": "0aeaa3313458e5fc5a97ccfdad07da01069213c0ce0f0f4d9871da993d98a04e",
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/preparation-sha256.json": "b50cab64ec43176b724433782d5496df55bd539404f2f2923cb35d2b4278bb7b",
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/consumer/main.go": "ce07eee946b4f323a124a656d134866cdc79a56ab1b658f7d28036df63f149b4",
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/consumer/go.mod": "5d3855a815e75220ab3a950f705ae7fc1719abbf69d5297582e75ea23b6a48ac",
+    "/mnt/c/code/phantom/target/tmp/httpcloak-linux-peer-prep/consumer/go.sum": "92433c08a3076de8c65a8610e3cffc05f2f8cb97a95f3357ef20f6581d326bba",
+    "/mnt/c/code/phantom-worktrees/rust-release-audit/scripts/capture/http2_session.py": "de4413233b6bd6f080011be9f26990e82ffb6227067fbafc11dae36564e6c53a",
+    "/mnt/c/code/phantom-worktrees/rust-release-audit/scripts/capture/http2_analysis.py": "d973061e26e0007a5e0b79971ff13614df3e9910f449fbb10ee0a0549ba83fb2"
+  },
+  "scope": "controlled peer wire observations; not browser fidelity or performance"
+}

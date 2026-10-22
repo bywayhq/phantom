@@ -12515,6 +12515,23 @@
         "aes_hardware": true,
         "close_notify": true
       }
+    },
+    {
+      "id": "chrome_155_linux_tls",
+      "kind": "TlsSettings",
+      "base": "chromium_154_tcp_tls",
+      "values": {
+        "ech": {
+          "kind": "Grease",
+          "settings": {
+            "payload_length": {
+              "kind": "BackendDefault",
+              "value": null
+            },
+            "aeads": []
+          }
+        }
+      }
     }
   ]
 }

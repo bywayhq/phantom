@@ -3216,6 +3216,119 @@
         "ProxyConnect": null,
         "CookiePlacement": null
       }
+    },
+    {
+      "id": "chrome/155.0.0.0/linux/r1",
+      "selector": "chrome-155-linux",
+      "metadata": {
+        "browser": "Chrome",
+        "platform": "Linux",
+        "revision": 1,
+        "identity": {
+          "kind": "Peer",
+          "project": "httpcloak",
+          "source_revision": "3a426f92c44af452a249b388a16ae3720097e50a",
+          "recipe": "chrome-155-linux",
+          "release": "155.0.0.0"
+        }
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "ExternalSource",
+              "location": "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+              "build": "1.7.3"
+            },
+            {
+              "kind": "PeerCapture",
+              "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+              "build": "1.7.3"
+            }
+          ],
+          "verified_fields": [
+            "fresh cipher, group, key-share and signature order",
+            "extension presence and permutation",
+            "ALPN and ALPS",
+            "certificate compression and fixed trust-anchor IDs"
+          ],
+          "limitations": [
+            "External-client observations; no Chrome browser capture",
+            "Ticket storage, resumption and early data are not compared"
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "ExternalSource",
+              "location": "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+              "build": "1.7.3"
+            },
+            {
+              "kind": "PeerCapture",
+              "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+              "build": "1.7.3"
+            }
+          ],
+          "verified_fields": [
+            "SETTINGS order and values",
+            "connection window and HEADERS priority",
+            "first and reused navigation fields",
+            "HPACK full-table insertion boundary and marker retention"
+          ],
+          "limitations": [
+            "Only sequential bodyless GETs were captured",
+            "Source-only 16375-byte DATA cap is unported and unverified",
+            "Frame scheduling, shutdown and idle policies are not claimed identical"
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "ExternalSource",
+              "location": "https://github.com/sardanioss/httpcloak/blob/3a426f92c44af452a249b388a16ae3720097e50a/fingerprint/embedded/chrome-155-linux.json",
+              "build": "1.7.3"
+            },
+            {
+              "kind": "PeerCapture",
+              "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
+              "build": "1.7.3"
+            }
+          ],
+          "verified_fields": [
+            "caller Cookie crumbs before priority on HTTP/2"
+          ],
+          "limitations": [
+            "Other placement anchors and protocols are not compared"
+          ]
+        }
+      ],
+      "target": "ChromeLinux155",
+      "templates": {
+        "Navigation": "chrome_155_linux_navigation"
+      },
+      "composition": {
+        "TcpTls": "chrome_155_linux_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chrome_155_linux_http2",
+        "QuicTls": null,
+        "QuicTransport": null,
+        "Http3": null,
+        "Http3Request": null,
+        "ClientHints": null,
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": "chromium_154_cookie"
+      }
     }
   ]
 }

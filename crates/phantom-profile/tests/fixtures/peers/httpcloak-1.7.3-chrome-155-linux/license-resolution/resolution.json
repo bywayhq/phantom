@@ -1,0 +1,18 @@
+{
+  "checked_at_utc": "2026-10-22T02:52:44.613569+00:00",
+  "module": "github.com/sardanioss/http@v1.2.0",
+  "module_commit": "a5c3cf6aa4c37ce8865b39c938483e4fd0fc92eb",
+  "full_pinned_history_commits": 7,
+  "license_file_history_commits": 0,
+  "license_declaration": "BSD 3-Clause License (same as net/http)",
+  "readme_blob": "d658f947f50f6ed67b6e29a3e58ed8331a413d3b",
+  "pinned_cached_initial_readme_bytes_equal": true,
+  "initial_readme_commit": "63c426a1a50e087dea026aece9a2998315318115",
+  "referenced_full_text_source_commit": "3901409b5d0fb7c85a3e6730a59943cc93b2835c",
+  "referenced_full_text_source_tag": "golang/go go1.24.0",
+  "referenced_full_text_blob": "2a7cf70da6e498df9c11ab6a5eaa2ddd7af34da4",
+  "referenced_full_text_sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+  "referenced_full_text_matches_retained_go_1_26_5": true,
+  "original_65_payloads_unchanged": true,
+  "runtime_scope": "no build, installation, capture or browser launch"
+}

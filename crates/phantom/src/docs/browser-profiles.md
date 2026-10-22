@@ -43,6 +43,10 @@ assert_eq!(definition.metadata().build(), Some("154.0.8037.97"));
 Short selectors have fixed mappings. The definition's `id()` retains its full
 build, platform and revision; full identifiers remain accepted too.
 
+`chrome-155-linux` adapts a pinned external preset for TLS, HTTP/2 and
+navigation headers. Inspect its catalog evidence for limits; it supplies no
+TCP/IP or HTTP/3 recipe.
+
 ## Match the browser, version, and platform
 
 The [browser modules](crate::profile::browser) group constructors by browser.
