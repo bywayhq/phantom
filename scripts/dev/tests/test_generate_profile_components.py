@@ -42,6 +42,8 @@ class Http3ComponentTests(unittest.TestCase):
         self.assertIn("Http3SettingOrder::Ascending", expected)
         self.assertIn("alt_used: crate::Http3AltUsed::Omit", expected)
         self.assertIn("alt_used: crate::Http3AltUsed::ValidatedMapping", expected)
+        self.assertIn("alt_used_port: crate::Http3AltUsedPort::Explicit", expected)
+        self.assertIn("alt_used_port: crate::Http3AltUsedPort::OmitDefault", expected)
         self.assertIn("reserved_frame_after_settings: true", expected)
         self.assertNotIn("draw_", expected)
 
@@ -164,11 +166,23 @@ class Http3ComponentTests(unittest.TestCase):
             ("extended_connect_pseudo_header_order", False),
             ("cookie_crumbs", "Automatic"),
             ("alt_used", True),
+            ("alt_used_port", True),
+            ("alt_used_port", "BrowserDefault"),
         ):
             with self.subTest(field=field, value=value):
                 document = copy.deepcopy(self.document)
                 document["components"][1]["values"][field] = value
                 self.reject(document)
+
+    def test_request_port_policy_is_required_and_invalid_base_cannot_be_overridden(
+        self,
+    ):
+        document = copy.deepcopy(self.document)
+        del document["components"][1]["values"]["alt_used_port"]
+        self.reject(document)
+        document = copy.deepcopy(self.document)
+        document["components"][1]["values"]["alt_used_port"] = "Unknown"
+        self.reject(document)
 
     def test_inheritance_and_collection_limits_do_not_depend_on_resolution_cache(self):
         root = copy.deepcopy(self.document["components"][0])

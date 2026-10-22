@@ -29,7 +29,8 @@
         "pseudo_header_order": ["Method", "Authority", "Scheme", "Path"],
         "extended_connect_pseudo_header_order": null,
         "cookie_crumbs": "Split",
-        "alt_used": "Omit"
+        "alt_used": "Omit",
+        "alt_used_port": "Explicit"
       }
     },
     {
@@ -60,7 +61,8 @@
       "values": {
         "pseudo_header_order": ["Method", "Scheme", "Authority", "Path"],
         "cookie_crumbs": "Whole",
-        "alt_used": "ValidatedMapping"
+        "alt_used": "ValidatedMapping",
+        "alt_used_port": "OmitDefault"
       }
     }
   ]

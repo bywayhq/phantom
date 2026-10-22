@@ -2,9 +2,9 @@ use phantom_profile::{
     DnsAddressFailurePolicy, Http2CookieCrumbs, Http2FieldIndexing, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2PseudoHeader, Http2SensitiveProxyAuthorization,
     Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
-    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-    Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy,
-    TcpAddressAdvance,
+    Http3AltUsedPort, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+    Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder,
+    SystemDnsTtlPolicy, TcpAddressAdvance,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -204,6 +204,14 @@ fn http3_cookie_crumbs(e: &mut Encoder, value: &Http3CookieCrumbs) -> Result<(),
         Http3CookieCrumbs::Whole => 0,
         Http3CookieCrumbs::Split => 1,
         _ => return Err(PreparationError::Unsupported("Http3CookieCrumbs")),
+    })
+}
+
+fn http3_alt_used_port(e: &mut Encoder, value: &Http3AltUsedPort) -> Result<(), PreparationError> {
+    e.u8(match value {
+        Http3AltUsedPort::Explicit => 0,
+        Http3AltUsedPort::OmitDefault => 1,
+        _ => return Err(PreparationError::Unsupported("Http3AltUsedPort")),
     })
 }
 
@@ -481,6 +489,7 @@ pub(super) fn http3_request(
         extended_connect_pseudo_header_order,
         cookie_crumbs,
         alt_used,
+        alt_used_port,
     } = value;
     e.list(pseudo_header_order, http3_pseudo_header)?;
     e.option(extended_connect_pseudo_header_order.as_ref(), |e, value| {
@@ -488,6 +497,7 @@ pub(super) fn http3_request(
     })?;
     http3_cookie_crumbs(e, cookie_crumbs)?;
     http3_alt_used(e, alt_used)?;
+    http3_alt_used_port(e, alt_used_port)?;
     Ok(())
 }
 

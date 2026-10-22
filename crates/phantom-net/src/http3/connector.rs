@@ -537,6 +537,12 @@ impl Http3Connector {
         self.request_settings.alt_used
     }
 
+    /// Returns the profile's generated `Alt-Used` port policy.
+    #[must_use]
+    pub const fn alt_used_port_policy(&self) -> phantom_profile::Http3AltUsedPort {
+        self.request_settings.alt_used_port
+    }
+
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
         let mut connector = self.with_shared_crypto(Arc::new(crypto));
         connector.proxy_settings = ProxySettingsId::default();

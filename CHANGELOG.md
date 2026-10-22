@@ -5,6 +5,14 @@
 - Report Node response-body cancellation consistently when abort races with a
   body read or collection.
 
+- Breaking: add `Http3RequestSettings::alt_used_port` and
+  `Http3AltUsedPort::{Explicit, OmitDefault}`. Firefox HTTP/3 recipes omit
+  `:443` from generated `Alt-Used`; other ports and connection targets stay
+  unchanged. Migrate: set the new field to `Explicit` to keep the previous
+  value format, or `OmitDefault` to omit the HTTPS default port. Custom-profile
+  JSON with HTTP/3 now requires `request.alt_used_port` as `"Explicit"` or
+  `"OmitDefault"`; imports missing the field are rejected.
+
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
   Remove repeated caveats and capture history.
 

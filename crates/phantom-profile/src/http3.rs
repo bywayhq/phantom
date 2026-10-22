@@ -285,10 +285,11 @@ pub enum Http3CookieCrumbs {
 /// HTTP/3 request to the origin, and one sent to the origin's own host and
 /// port because an HTTPS record lists `h3`, never carry the field.
 ///
-/// The client generates the alternative's host and port, with IPv6 literals
-/// in brackets and an explicit port even when it is 443. A caller-supplied
-/// `Alt-Used` field or trailer is rejected under every setting. Automatic
-/// client-hint settings cannot generate, move or request a hint replay for
+/// The client generates the alternative's host, with IPv6 literals in
+/// brackets. [`Http3RequestSettings::alt_used_port`] controls the port.
+/// A caller-supplied `Alt-Used` field or trailer is rejected under every
+/// setting. Automatic client-hint settings cannot generate, move or request
+/// a hint replay for
 /// this field on any protocol. Other custom hint names retain their
 /// configured behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -314,6 +315,23 @@ pub enum Http3AltUsed {
     ValidatedMapping,
 }
 
+/// How a generated `Alt-Used` field writes the alternative's port.
+///
+/// This changes only the field value. The alternative's connection location,
+/// origin authority and TLS name remain unchanged.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3AltUsedPort {
+    /// Include the port, including HTTPS's default port 443.
+    Explicit,
+    /// Omit port 443 on HTTPS requests. Keep every other port.
+    ///
+    /// Phantom's HTTP/3 requests use HTTPS. Firefox 157 omits the alternative
+    /// port when it equals the origin scheme's default port
+    /// (`nsHttpChannel.cpp`, `FIREFOX_157_0_RELEASE`).
+    OmitDefault,
+}
+
 /// Ordered HTTP/3 request construction independent of the concrete backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3RequestSettings {
@@ -330,6 +348,8 @@ pub struct Http3RequestSettings {
     pub cookie_crumbs: Http3CookieCrumbs,
     /// Whether a request to an alternative service carries `Alt-Used`.
     pub alt_used: Http3AltUsed,
+    /// How the generated `Alt-Used` value writes the alternative's port.
+    pub alt_used_port: Http3AltUsedPort,
 }
 
 impl Http3RequestSettings {

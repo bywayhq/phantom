@@ -79,19 +79,37 @@ fn checked_state_changes_only_later_request_plans() -> TestResult {
     assert!(seed_validated(&store, &publication, now));
     assert!(seed_validated(&store, &publication, now));
     assert!(!planned.mapping_validated());
-    use phantom_profile::Http3AltUsed::{Append, Omit, ValidatedMapping};
-    assert_eq!(planned.alt_used_for(Omit), None);
-    assert_eq!(planned.alt_used_for(Append), Some("origin.example:8443"));
-    assert_eq!(planned.alt_used_for(ValidatedMapping), None);
-    let later = target_at(&store, &origin, &DIRECT, now)?;
-    assert!(later.mapping_validated());
-    assert_eq!(later.alt_used_for(Omit), None);
-    assert_eq!(later.alt_used_for(Append), planned.alt_used_for(Append));
+    use phantom_profile::{
+        Http3AltUsed::{Append, Omit, ValidatedMapping},
+        Http3AltUsedPort::Explicit,
+    };
+    assert_eq!(planned.alt_used_for(Omit, Explicit).as_deref(), None);
     assert_eq!(
-        later.alt_used_for(ValidatedMapping),
+        planned.alt_used_for(Append, Explicit).as_deref(),
         Some("origin.example:8443")
     );
-    assert_eq!(planned.clone().alt_used_for(ValidatedMapping), None);
+    assert_eq!(
+        planned.alt_used_for(ValidatedMapping, Explicit).as_deref(),
+        None
+    );
+    let later = target_at(&store, &origin, &DIRECT, now)?;
+    assert!(later.mapping_validated());
+    assert_eq!(later.alt_used_for(Omit, Explicit).as_deref(), None);
+    assert_eq!(
+        later.alt_used_for(Append, Explicit).as_deref(),
+        planned.alt_used_for(Append, Explicit).as_deref()
+    );
+    assert_eq!(
+        later.alt_used_for(ValidatedMapping, Explicit).as_deref(),
+        Some("origin.example:8443")
+    );
+    assert_eq!(
+        planned
+            .clone()
+            .alt_used_for(ValidatedMapping, Explicit)
+            .as_deref(),
+        None
+    );
     assert_eq!(later.alt_used(), planned.alt_used());
     assert_eq!(later.location(), planned.location());
     Ok(())
@@ -274,5 +292,98 @@ fn eviction_and_store_drop_leave_completion_tokens_inert() -> TestResult {
     let dropped = publication_at(&store, &other, &DIRECT, &current_target, now)?;
     drop(store);
     assert!(!current(&dropped, now));
+    Ok(())
+}
+
+#[test]
+fn learned_alt_used_port_format_preserves_location_and_mapping_eligibility() -> TestResult {
+    use phantom_profile::{
+        Http3AltUsed::{Append, Omit, ValidatedMapping},
+        Http3AltUsedPort::{Explicit, OmitDefault},
+    };
+
+    // Firefox compares with the scheme default, even for an origin on 8443.
+    let origin = endpoint("origin.example:8443")?;
+    for (advertisement, host, port, explicit, omitted) in [
+        (
+            "h3=\"alt.example:443\"",
+            "alt.example",
+            443,
+            "alt.example:443",
+            "alt.example",
+        ),
+        (
+            "h3=\"127.0.0.1:443\"",
+            "127.0.0.1",
+            443,
+            "127.0.0.1:443",
+            "127.0.0.1",
+        ),
+        ("h3=\"[::1]:443\"", "::1", 443, "[::1]:443", "[::1]"),
+        (
+            "h3=\"alt.example:80\"",
+            "alt.example",
+            80,
+            "alt.example:80",
+            "alt.example:80",
+        ),
+        (
+            "h3=\"alt.example:8443\"",
+            "alt.example",
+            8443,
+            "alt.example:8443",
+            "alt.example:8443",
+        ),
+        (
+            "h3=\"[2001:db8::1]:8443\"",
+            "2001:db8::1",
+            8443,
+            "[2001:db8::1]:8443",
+            "[2001:db8::1]:8443",
+        ),
+    ] {
+        let store = AltSvcStore::new(NonZeroUsize::MIN);
+        let now = Instant::now();
+        learn(&store, &origin, advertisement.as_bytes(), now);
+        let planned = target_at(&store, &origin, &DIRECT, now)?;
+        let publication = publication_at(&store, &origin, &DIRECT, &planned, now)?;
+        assert!(seed_validated(&store, &publication, now));
+        let validated = target_at(&store, &origin, &DIRECT, now)?;
+        for (policy, expected) in [(Explicit, explicit), (OmitDefault, omitted)] {
+            assert_eq!(
+                planned.alt_used_for(Append, policy).as_deref(),
+                Some(expected)
+            );
+            assert_eq!(planned.alt_used_for(ValidatedMapping, policy), None);
+            assert_eq!(
+                validated.alt_used_for(ValidatedMapping, policy).as_deref(),
+                Some(expected)
+            );
+            assert_eq!(validated.alt_used_for(Omit, policy), None);
+            assert_eq!(validated.host(), host);
+            assert_eq!(validated.port(), port);
+            assert_eq!(validated.location(), planned.location());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "https-records")]
+#[test]
+fn an_https_record_never_acquires_alt_used_from_a_port_policy() -> TestResult {
+    use phantom_profile::{Http3AltUsed, Http3AltUsedPort};
+
+    let origin = endpoint("origin.example:443")?;
+    let target = AlternativeTarget::https_record(&origin, false, false);
+    for emission in [
+        Http3AltUsed::Omit,
+        Http3AltUsed::Append,
+        Http3AltUsed::ValidatedMapping,
+    ] {
+        for port in [Http3AltUsedPort::Explicit, Http3AltUsedPort::OmitDefault] {
+            assert_eq!(target.alt_used_for(emission, port), None);
+        }
+    }
+    assert_eq!((target.host(), target.port()), ("origin.example", 443));
     Ok(())
 }

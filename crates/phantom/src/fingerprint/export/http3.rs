@@ -17,6 +17,7 @@ tokens!(Http3QpackEncoderStream, Eager, OnFirstInstruction);
 tokens!(Http3PseudoHeader, Method, Authority, Scheme, Path, Protocol);
 tokens!(Http3CookieCrumbs, Whole, Split);
 tokens!(Http3AltUsed, Omit, Append, ValidatedMapping);
+tokens!(Http3AltUsedPort, Explicit, OmitDefault);
 record!(
     Http3Settings,
     initial_settings,
@@ -32,7 +33,8 @@ record!(
     pseudo_header_order,
     extended_connect_pseudo_header_order,
     cookie_crumbs,
-    alt_used
+    alt_used,
+    alt_used_port
 );
 
 impl Encode for Http3ClientSettings {

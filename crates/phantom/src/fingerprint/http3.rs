@@ -5,7 +5,7 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    Http3AltUsed, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
+    Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
     Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
     Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
 };
@@ -67,6 +67,7 @@ pub(super) fn request(v: &Value) -> Result<Http3RequestSettings> {
             "extended_connect_pseudo_header_order",
             "cookie_crumbs",
             "alt_used",
+            "alt_used_port",
         ],
         "http3.request",
     )?;
@@ -82,6 +83,7 @@ pub(super) fn request(v: &Value) -> Result<Http3RequestSettings> {
             .optional(|v| v.list("http3.request.extended_connect_pseudo_header_order", pseudo))?,
         cookie_crumbs: cookie_crumbs(v.member("cookie_crumbs", "http3.request.cookie_crumbs")?)?,
         alt_used: alt_used(v.member("alt_used", "http3.request.alt_used")?)?,
+        alt_used_port: alt_used_port(v.member("alt_used_port", "http3.request.alt_used_port")?)?,
     };
     settings
         .validate()
@@ -144,6 +146,14 @@ fn alt_used(v: &Value) -> Result<Http3AltUsed> {
         "Append" => Ok(Http3AltUsed::Append),
         "ValidatedMapping" => Ok(Http3AltUsed::ValidatedMapping),
         _ => Err(json::unsupported("http3.alt_used")),
+    }
+}
+
+fn alt_used_port(v: &Value) -> Result<Http3AltUsedPort> {
+    match v.text("http3.request.alt_used_port")? {
+        "Explicit" => Ok(Http3AltUsedPort::Explicit),
+        "OmitDefault" => Ok(Http3AltUsedPort::OmitDefault),
+        _ => Err(json::unsupported("http3.request.alt_used_port")),
     }
 }
 

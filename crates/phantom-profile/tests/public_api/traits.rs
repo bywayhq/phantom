@@ -11,9 +11,9 @@ use phantom_profile::{
     Http2IndexingLimit, Http2NameReference, Http2Priority, Http2ProxyConnections,
     Http2PseudoHeader, Http2RejectedConnect, Http2SensitiveProxyAuthorization, Http2Setting,
     Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
-    Http2UnindexedMatch, Http3AltUsed, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
-    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http2UnindexedMatch, Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3CookieCrumbs,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+    Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
     InvalidClientHintSettings, InvalidHttp1Settings, InvalidHttp2Settings,
     InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProxyConnectTemplate,
     InvalidQuicTransportSettings, InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings,
@@ -112,6 +112,7 @@ fn public_enums_support_cloning_equality_and_thread_transfer() {
     value::<Http2TableSizeUpdates>();
     value::<Http2UnindexedMatch>();
     value::<Http3AltUsed>();
+    value::<Http3AltUsedPort>();
     value::<Http3CookieCrumbs>();
     value::<Http3PseudoHeader>();
     value::<Http3QpackDecoderStream>();
@@ -190,6 +191,7 @@ fn types_with_copy_keep_their_value_semantics() {
     copy::<Http2TableSizeUpdates>();
     copy::<Http2UnindexedMatch>();
     copy::<Http3AltUsed>();
+    copy::<Http3AltUsedPort>();
     copy::<Http3CookieCrumbs>();
     copy::<Http3PseudoHeader>();
     copy::<Http3QpackDecoderStream>();

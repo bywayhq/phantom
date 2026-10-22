@@ -1301,3 +1301,35 @@ fn hpack_insertion_limits_have_distinct_ticket_bindings() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn alt_used_port_policy_changes_ticket_identity_independently_of_emission() -> TestResult {
+    use phantom_profile::{Http3AltUsed, Http3AltUsedPort};
+
+    let mut identities = Vec::new();
+    for emission in [
+        Http3AltUsed::Omit,
+        Http3AltUsed::Append,
+        Http3AltUsed::ValidatedMapping,
+    ] {
+        for port in [Http3AltUsedPort::Explicit, Http3AltUsedPort::OmitDefault] {
+            let mut request = chrome::v154_http3_request();
+            request.alt_used = emission;
+            request.alt_used_port = port;
+            let configured = chrome::v154_windows().with_http3(Http3ClientSettings::new(
+                chrome::v154_quic_tls(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                request,
+            ));
+            let encoded = profile::encode(&configured, None, None)?;
+            assert!(
+                !identities.contains(&encoded),
+                "duplicate binding for {emission:?}/{port:?}"
+            );
+            assert_eq!(encoded, profile::encode(&configured, None, None)?);
+            identities.push(encoded);
+        }
+    }
+    Ok(())
+}

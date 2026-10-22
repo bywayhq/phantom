@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::VecDeque,
     net::Ipv6Addr,
     num::NonZeroUsize,
@@ -137,15 +138,21 @@ impl AlternativeTarget {
     }
 
     /// Applies the profile to the eligibility copied when this hop was planned.
-    pub(crate) fn alt_used_for(&self, policy: phantom_profile::Http3AltUsed) -> Option<&str> {
-        match policy {
-            phantom_profile::Http3AltUsed::Omit => None,
-            phantom_profile::Http3AltUsed::Append => self.alt_used(),
-            phantom_profile::Http3AltUsed::ValidatedMapping if self.mapping_validated() => {
-                self.alt_used()
-            }
-            _ => None,
+    pub(crate) fn alt_used_for(
+        &self,
+        policy: phantom_profile::Http3AltUsed,
+        port_policy: phantom_profile::Http3AltUsedPort,
+    ) -> Option<Cow<'_, str>> {
+        let eligible = match policy {
+            phantom_profile::Http3AltUsed::Append => true,
+            phantom_profile::Http3AltUsed::ValidatedMapping => self.mapping_validated(),
+            _ => false,
+        };
+        if !eligible {
+            return None;
         }
+        let explicit = self.alt_used()?;
+        Some(self.location.alt_used_authority(explicit, port_policy))
     }
 
     /// Returns whether the mapping was validated when this target was selected.
@@ -247,6 +254,24 @@ impl AltSvcLocation {
         self.port
     }
 
+    /// Formats only the field value. `explicit` is this location's cached
+    /// authority; transport keys retain the full location.
+    fn alt_used_authority<'a>(
+        &'a self,
+        explicit: &'a str,
+        policy: phantom_profile::Http3AltUsedPort,
+    ) -> Cow<'a, str> {
+        if self.port == 443 && policy == phantom_profile::Http3AltUsedPort::OmitDefault {
+            if self.host.parse::<Ipv6Addr>().is_ok() {
+                Cow::Owned(format!("[{}]", self.host))
+            } else {
+                Cow::Borrowed(&self.host)
+            }
+        } else {
+            Cow::Borrowed(explicit)
+        }
+    }
+
     pub(super) fn authority(&self) -> Box<str> {
         if self.host.parse::<Ipv6Addr>().is_ok() {
             format!("[{}]:{}", self.host, self.port).into()
@@ -287,6 +312,10 @@ impl PinnedAlternative {
     /// Returns the `Alt-Used` authority, with an explicit port.
     pub(crate) fn alt_used(&self) -> &str {
         &self.alt_used
+    }
+
+    pub(crate) fn alt_used_for(&self, policy: phantom_profile::Http3AltUsedPort) -> Cow<'_, str> {
+        self.location.alt_used_authority(self.alt_used(), policy)
     }
 }
 

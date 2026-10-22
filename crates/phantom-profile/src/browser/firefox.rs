@@ -242,12 +242,11 @@ pub fn v157_http3() -> Http3Settings {
 /// Orders pseudo-headers as `:method`, `:scheme`, `:authority`, `:path` and
 /// keeps cookies in one field. Extended CONNECT ordering is unavailable.
 ///
-/// Uses [`crate::Http3AltUsed::ValidatedMapping`]. Learned alternatives become
+/// Uses [`crate::Http3AltUsed::ValidatedMapping`] with
+/// [`crate::Http3AltUsedPort::OmitDefault`]. Learned alternatives become
 /// eligible after authenticated setup; pinned alternatives are eligible
-/// immediately. The request template's [`RequestField::AltUsed`] slot selects
-/// the position, or the field is appended if the template has no slot.
-/// Eligibility is checked before stream opening; this does not run Firefox's
-/// background connection scheduler.
+/// immediately. The template's [`RequestField::AltUsed`] slot selects the
+/// position, or the field is appended if the template has no slot.
 #[must_use]
 pub fn v157_http3_request() -> Http3RequestSettings {
     crate::catalog::http3_components::firefox_157_http3_request()

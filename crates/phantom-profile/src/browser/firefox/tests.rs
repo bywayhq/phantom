@@ -315,6 +315,10 @@ fn alternative_fields_use_request_time_mapping_eligibility() {
         v157_http3_request().alt_used,
         Http3AltUsed::ValidatedMapping
     );
+    assert_eq!(
+        v157_http3_request().alt_used_port,
+        crate::Http3AltUsedPort::OmitDefault
+    );
     // These fields show both outcomes; their mapping schedule was not recorded.
     assert!(V157_ALT_SVC_SNAPSHOT.lines().any(|line| {
         line.strip_prefix("request_2_field_order=")

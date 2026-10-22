@@ -141,8 +141,11 @@ fn checked_alternative_fields(
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    let alt_used = alternative.alt_used_for(connector.alt_used_policy());
-    let headers = alternative_headers(client, request, attempt.headers, alt_used);
+    let alt_used = alternative.alt_used_for(
+        connector.alt_used_policy(),
+        connector.alt_used_port_policy(),
+    );
+    let headers = alternative_headers(client, request, attempt.headers, alt_used.as_deref());
     #[cfg(test)]
     counts::checked(&[HttpProtocol::Http3]);
     http3_pool::validate_request(

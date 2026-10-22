@@ -165,6 +165,7 @@ COMPONENT_FIELDS = {
         "extended_connect_pseudo_header_order",
         "cookie_crumbs",
         "alt_used",
+        "alt_used_port",
     ),
 }
 

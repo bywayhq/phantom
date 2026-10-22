@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 
 use http::{Method, Response};
 use phantom_net::{
@@ -193,13 +193,14 @@ async fn send_once_exact(
                     },
                 }),
         };
+        let alt_used = pinned_alt_used(client, request, protocol);
         let prepared_headers = route_attempt_headers(
             client,
             request,
             protocol,
             &request_headers,
             forwarding,
-            pinned_alt_used(client, request, protocol),
+            alt_used.as_deref(),
         );
         // Checked before the attempt takes a one-shot body.
         // A pinned alternative is the caller's choice of where QUIC goes, so
@@ -780,13 +781,14 @@ pub(super) fn attempt_headers(
     protocol: HttpProtocol,
     request_headers: &[RequestHeader],
 ) -> Vec<RequestHeader> {
+    let alt_used = pinned_alt_used(client, request, protocol);
     route_attempt_headers(
         client,
         request,
         protocol,
         request_headers,
         Forwarding::default(),
-        pinned_alt_used(client, request, protocol),
+        alt_used.as_deref(),
     )
 }
 
@@ -811,26 +813,21 @@ fn pinned_alt_used<'a>(
     client: &Client,
     request: &'a ResolvedRequest,
     protocol: HttpProtocol,
-) -> Option<&'a str> {
-    if protocol != HttpProtocol::Http3
-        || !client
-            .inner
-            .connectors_for(&request.endpoint)
-            .http3
-            .is_some_and(|connector| {
-                matches!(
-                    connector.alt_used_policy(),
-                    phantom_profile::Http3AltUsed::Append
-                        | phantom_profile::Http3AltUsed::ValidatedMapping
-                )
-            })
-    {
+) -> Option<Cow<'a, str>> {
+    if protocol != HttpProtocol::Http3 {
+        return None;
+    }
+    let connector = client.inner.connectors_for(&request.endpoint).http3?;
+    if !matches!(
+        connector.alt_used_policy(),
+        phantom_profile::Http3AltUsed::Append | phantom_profile::Http3AltUsed::ValidatedMapping
+    ) {
         return None;
     }
     request
         .alternative
         .as_ref()
-        .map(|alternative| alternative.alt_used())
+        .map(|alternative| alternative.alt_used_for(connector.alt_used_port_policy()))
 }
 
 /// Returns the fields of one attempt, with the template's route-dependent

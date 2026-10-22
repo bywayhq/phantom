@@ -1,7 +1,7 @@
 //! Public HTTP/3 profile construction checks.
 
 use phantom_profile::{
-    Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+    Http3AltUsed, Http3AltUsedPort, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
     Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
     Http3Setting, Http3SettingOrder, Http3Settings,
 };
@@ -32,6 +32,7 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: Http3CookieCrumbs::Whole,
         alt_used: Http3AltUsed::Omit,
+        alt_used_port: Http3AltUsedPort::Explicit,
     };
 
     assert!(settings.validate().is_ok());
@@ -44,11 +45,13 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
     settings.qpack_decoder_stream = Http3QpackDecoderStream::Eager;
     request.pseudo_header_order.swap(0, 1);
     request.alt_used = Http3AltUsed::Append;
+    request.alt_used_port = Http3AltUsedPort::OmitDefault;
 
     assert!(settings.validate().is_ok());
     assert!(request.validate().is_ok());
     assert_eq!(settings.qpack_encoding, Http3QpackEncoding::Stateless);
     assert_eq!(request.alt_used, Http3AltUsed::Append);
+    assert_eq!(request.alt_used_port, Http3AltUsedPort::OmitDefault);
     assert_eq!(
         request.pseudo_header_order,
         [

@@ -21,6 +21,7 @@ pub(crate) fn chromium_154_http3_request() -> crate::Http3RequestSettings {
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: crate::Http3CookieCrumbs::Split,
         alt_used: crate::Http3AltUsed::Omit,
+        alt_used_port: crate::Http3AltUsedPort::Explicit,
     }
 }
 
@@ -44,5 +45,6 @@ pub(crate) fn firefox_157_http3_request() -> crate::Http3RequestSettings {
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: crate::Http3CookieCrumbs::Whole,
         alt_used: crate::Http3AltUsed::ValidatedMapping,
+        alt_used_port: crate::Http3AltUsedPort::OmitDefault,
     }
 }

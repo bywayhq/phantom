@@ -26,15 +26,22 @@ fn connector_preserves_distinct_alt_used_policies() -> TestResult<()> {
         phantom_profile::Http3AltUsed::Append,
         phantom_profile::Http3AltUsed::ValidatedMapping,
     ] {
-        let mut request = chrome::v154_http3_request();
-        request.alt_used = policy;
-        let connector = Http3Connector::new(
-            &h3_tls_settings(),
-            &chrome::v154_quic(),
-            &chrome::v154_http3(),
-            &request,
-        )?;
-        assert_eq!(connector.alt_used_policy(), policy);
+        for port_policy in [
+            phantom_profile::Http3AltUsedPort::Explicit,
+            phantom_profile::Http3AltUsedPort::OmitDefault,
+        ] {
+            let mut request = chrome::v154_http3_request();
+            request.alt_used = policy;
+            request.alt_used_port = port_policy;
+            let connector = Http3Connector::new(
+                &h3_tls_settings(),
+                &chrome::v154_quic(),
+                &chrome::v154_http3(),
+                &request,
+            )?;
+            assert_eq!(connector.alt_used_policy(), policy);
+            assert_eq!(connector.alt_used_port_policy(), port_policy);
+        }
     }
     Ok(())
 }
