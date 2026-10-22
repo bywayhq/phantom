@@ -19,7 +19,16 @@ die() {
 packages=(h3-datagram h3-quinn h3-webtransport h3)
 entries=$(git -C "$repository" ls-files --stage -- vendor/h3) \
   || die "cannot read tracked H3 entries"
-links=$(printf '%s\n' "$entries" | awk '$1 == "120000" { print $4 }')
+links=""
+license_entries=()
+while IFS= read -r entry; do
+  read -r mode object stage name <<< "$entry"
+  if [[ "$mode" == 120000 ]]; then
+    links+="$name"$'\n'
+    license_entries+=("$entry")
+  fi
+done <<< "$entries"
+links=${links%$'\n'}
 expected_links=$(printf 'vendor/h3/%s/LICENSE\n' "${packages[@]}")
 [[ "$links" == "$expected_links" ]] \
   || die "expected exactly the four tracked H3 LICENSE links"
@@ -27,12 +36,12 @@ expected_links=$(printf 'vendor/h3/%s/LICENSE\n' "${packages[@]}")
 observation=$(mktemp "${TMPDIR:-/tmp}/phantom-h3-link.XXXXXX")
 trap 'rm -f "$observation"' EXIT
 license_exclusions=()
-for package in "${packages[@]}"; do
+for index in "${!packages[@]}"; do
+  package=${packages[$index]}
   path="vendor/h3/$package/LICENSE"
   [[ -d "$source/$package" && ! -L "$source/$package" ]] \
     || die "package directory must be a regular directory for $path"
-  entry=$(git -C "$repository" ls-files --stage -- "$path") \
-    || die "cannot read tracked entry for $path"
+  entry=${license_entries[$index]}
   read -r mode object stage name <<< "$entry"
   [[ "$mode $object $stage"$'\t'"$name" == "$entry" \
     && "$mode" == 120000 && "$stage" == 0 && "$name" == "$path" ]] \
