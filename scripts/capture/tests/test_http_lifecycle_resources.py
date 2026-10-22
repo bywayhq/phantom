@@ -380,6 +380,7 @@ class ResourcePeerTests(unittest.IsolatedAsyncioTestCase):
             b"https://server.phantom.test:<port>/resource.css?run=<token>",
         )
         self.assertFalse(self.owner.protocols)
+
         self.assertTrue(
             all(listener.waiter.done() for listener in self.owner.listeners)
         )
@@ -423,3 +424,342 @@ class ResourcePeerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.run.resources.requests, [])
         await self.retire()
         self.assertFalse(self.owner.protocols)
+
+
+def h1_head(port: int, target: str, extra: bytes = b"") -> bytes:
+    return (
+        f"GET {target} HTTP/1.1\r\nHost: {HOSTNAME}:{port}\r\n".encode()
+        + b"aCcEpT: one\r\nAccept:\ttwo \t\r\nConnection: keep-alive\r\n"
+        + extra
+        + b"\r\n"
+    )
+
+
+class ResourceH1EvidenceTests(unittest.TestCase):
+    def test_explicit_protocol_options_are_scoped_and_default_remains_h2(self) -> None:
+        http_lifecycle.validate_options(options(scenario="resources"))
+        http_lifecycle.validate_options(
+            options(scenario="resources", resource_protocol="h1")
+        )
+        for changes in (
+            {"resource_protocol": "h1"},
+            {"scenario": "resources", "resource_protocol": "h3"},
+        ):
+            with (
+                self.subTest(changes=changes),
+                self.assertRaisesRegex(ValueError, "resource-protocol"),
+            ):
+                http_lifecycle.validate_options(options(**changes))
+        self.assertEqual(ResourceCapture("token", 12345).protocol, "h2")
+
+    def test_unowned_malformed_credential_and_body_heads_are_redacted(self) -> None:
+        valid = h1_head(12345, "/start?run=token")
+        cases = (
+            (valid[:-1], "incomplete"),
+            (valid.replace(b"GET ", b"POST ", 1), "GET"),
+            (valid.replace(b"HTTP/1.1", b"HTTP/1.0"), "HTTP/1.1"),
+            (valid.replace(b"run=token", b"run=wrong"), "owned path"),
+            (valid.replace(b"/start?", b"/other?"), "owned path"),
+            (valid.replace(b"12345", b"12346"), "owned HTTPS origin"),
+            (valid.replace(b"aCcEpT:", b"accept"), "malformed"),
+            (valid.replace(b"one", b"one\x00"), "control byte"),
+            (valid.replace(b"one", b"one\nprivate"), "control byte"),
+            (
+                h1_head(12345, "/start?run=token", b"Cookie: sensitive\r\n"),
+                "unapproved",
+            ),
+            (
+                h1_head(12345, "/start?run=token", b"Authorization: sensitive\r\n"),
+                "unapproved",
+            ),
+            (
+                h1_head(12345, "/start?run=token", b"Host: other\r\n"),
+                "owned HTTPS origin",
+            ),
+            (h1_head(12345, "/start?run=token", b"Content-Length: 1\r\n"), "bodies"),
+            (
+                h1_head(
+                    12345,
+                    "/start?run=token",
+                    b"Content-Length: 0\r\nContent-Length: 0\r\n",
+                ),
+                "bodies",
+            ),
+            (
+                h1_head(12345, "/start?run=token", b"Transfer-Encoding: chunked\r\n"),
+                "unapproved",
+            ),
+            (
+                h1_head(12345, "/start?run=token", b"Connection: upgrade\r\n"),
+                "connection options",
+            ),
+            (
+                h1_head(
+                    12345,
+                    "/start?run=token",
+                    b"Referer: https://unowned.test/private\r\n",
+                ),
+                "referrer",
+            ),
+        )
+        for raw, message in cases:
+            capture = ResourceCapture("token", 12345, "h1")
+            with (
+                self.subTest(raw=raw),
+                self.assertRaisesRegex(ValueError, message) as raised,
+            ):
+                capture.observe_h1(0, raw)
+            self.assertNotIn("sensitive", str(raised.exception))
+            self.assertEqual(capture.requests, [])
+
+
+class ResourceH1PeerTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        certificate = http_lifecycle.generate_certificate()
+        context = http_lifecycle.server_context(certificate)
+        context.set_alpn_protocols(["http/1.1"])
+        self.client_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.client_context.load_verify_locations(
+            cadata=certificate.certificate_pem.decode()
+        )
+        self.client_context.set_alpn_protocols(["http/1.1"])
+        self.run = Run("resources", "token", 1000)
+        self.owner = LifecycleServer(self.run)
+        self.writers = []
+        self.addAsyncCleanup(self.retire)
+        self.port = await self.owner.start("127.0.0.1", context, "main")
+        self.run.resources = ResourceCapture("token", self.port, "h1")
+        self.reader, self.writer = await self.connect()
+
+    async def connect(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(
+                "127.0.0.1",
+                self.port,
+                ssl=self.client_context,
+                server_hostname=HOSTNAME,
+            ),
+            5,
+        )
+        self.writers.append(writer)
+        return reader, writer
+
+    async def retire(self) -> None:
+        for writer in self.writers:
+            writer.transport.abort()
+            with contextlib.suppress(ConnectionError, ssl.SSLError):
+                await asyncio.wait_for(writer.wait_closed(), 5)
+        try:
+            await self.owner.close(self.run.failure)
+        except (ValueError, EOFError) as error:
+            if error is not self.run.failure or isinstance(
+                error.__cause__, LifecycleFailures
+            ):
+                raise
+
+    async def send(self, target: str, extra: bytes = b"") -> bytes:
+        raw = h1_head(self.port, target, extra)
+        # Exercise a head split inside a field name, rather than one full TLS write.
+        split = raw.index(b"aCcEpT") + 3
+        self.writer.write(raw[:split])
+        await self.writer.drain()
+        await asyncio.sleep(0)
+        self.writer.write(raw[split:])
+        await self.writer.drain()
+        head = await asyncio.wait_for(self.reader.readuntil(b"\r\n\r\n"), 5)
+        self.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+        length = next(
+            int(line.split(b":", 1)[1])
+            for line in head.split(b"\r\n")
+            if line.startswith(b"content-length:")
+        )
+        return await asyncio.wait_for(self.reader.readexactly(length), 5)
+
+    async def test_verified_h1_assets_keep_raw_case_order_duplicates_and_complete_bodies(
+        self,
+    ) -> None:
+        self.assertEqual(
+            self.writer.get_extra_info("ssl_object").selected_alpn_protocol(),
+            "http/1.1",
+        )
+        self.assertIn(b"document.fonts.load", await self.send("/start?run=token"))
+        for path in http_lifecycle_resources.ASSETS:
+            expected = self.run.resources.asset(path)[1]
+            self.assertEqual(await self.send(path + "?run=token"), expected)
+        # H1 can dispatch completion on a connection different from the navigation.
+        self.reader, self.writer = await self.connect()
+        self.assertEqual(
+            await self.send("/done?run=token&result=resources%3Aok"), b"ok"
+        )
+        await self.owner.wait_done(5)
+        await self.retire()
+        capture = self.run.resources
+        lines = dict(line.split("=", 1) for line in capture.lines(self.run.page_result))
+        self.assertEqual(lines["resource_protocol"], "http/1.1")
+        self.assertEqual(lines["resource_script_field_count"], "4")
+        self.assertEqual(
+            lines["resource_script_field_1"], "name_hex:614363457054,value_hex:6f6e65"
+        )
+        self.assertEqual(
+            lines["resource_script_field_2"], "name_hex:416363657074,value_hex:74776f"
+        )
+        self.assertEqual(
+            bytes.fromhex(lines["resource_script_head_hex"]),
+            h1_head(self.port, "/resource.js?run=token"),
+        )
+        self.assertNotEqual(
+            capture.requests[0].connection, capture.requests[-1].connection
+        )
+        self.assertFalse(self.owner.protocols)
+        tap = capture.taps[0]
+        tap.client_chunks.append((1, b"unowned trailing bytes"))
+        with self.assertRaisesRegex(ValueError, "disagree with owned request heads"):
+            capture.lines(self.run.page_result)
+        tap.client_chunks.pop()
+        tap.server_chunks[-1] = (
+            tap.server_chunks[-1][0],
+            tap.server_chunks[-1][1][:-1],
+        )
+        with self.assertRaisesRegex(ValueError, "response body"):
+            capture.lines(self.run.page_result)
+
+    async def test_actual_h1_credential_failure_prevents_retained_fixture(self) -> None:
+        self.writer.write(
+            h1_head(self.port, "/start?run=token", b"Cookie: sensitive\r\n")
+        )
+        await self.writer.drain()
+        with self.assertRaisesRegex(ValueError, "unapproved header") as raised:
+            await self.owner.wait_done(5)
+        self.assertIs(raised.exception, self.run.failure)
+        self.assertNotIn("sensitive", str(raised.exception))
+        self.assertEqual(self.run.resources.requests, [])
+        with self.assertRaises(ValueError):
+            self.run.resources.lines("resources:ok")
+
+    async def test_partial_head_eof_is_an_observed_failure(self) -> None:
+        self.writer.write(h1_head(self.port, "/start?run=token")[:-1])
+        await self.writer.drain()
+        self.writer.transport.abort()
+        with self.assertRaisesRegex(EOFError, "head is truncated") as raised:
+            await self.owner.wait_done(5)
+        self.assertIs(raised.exception, self.run.failure)
+        self.assertEqual(self.run.resources.requests, [])
+
+    async def test_unnegotiated_protocol_fails_before_request_admission(self) -> None:
+        self.client_context.set_alpn_protocols(["h2"])
+        await self.connect()
+        with self.assertRaisesRegex(ValueError, "requires http/1.1 negotiation"):
+            await self.owner.wait_done(5)
+        self.assertEqual(self.run.resources.requests, [])
+
+    async def test_actual_body_fails_before_response(self) -> None:
+        self.writer.write(
+            h1_head(self.port, "/start?run=token", b"Content-Length: 1\r\n") + b"x"
+        )
+        await self.writer.drain()
+        with self.assertRaisesRegex(ValueError, "request bodies"):
+            await self.owner.wait_done(5)
+        self.assertEqual(self.run.resources.responded, set())
+
+    async def test_actual_malformed_header_fails_before_admission(self) -> None:
+        self.writer.write(
+            h1_head(self.port, "/start?run=token").replace(b"aCcEpT:", b"broken")
+        )
+        await self.writer.drain()
+        with self.assertRaisesRegex(ValueError, "header field is malformed"):
+            await self.owner.wait_done(5)
+        self.assertEqual(self.run.resources.requests, [])
+
+    async def test_actual_wrong_token_fails_before_admission(self) -> None:
+        self.writer.write(h1_head(self.port, "/start?run=wrong"))
+        await self.writer.drain()
+        with self.assertRaisesRegex(ValueError, "owned path and token"):
+            await self.owner.wait_done(5)
+        self.assertEqual(self.run.resources.requests, [])
+
+    async def test_actual_peer_limit_counts_request_and_response_together(self) -> None:
+        raw = h1_head(self.port, "/start?run=token")
+        with patch.object(http_lifecycle_resources, "MAX_PEER_BYTES", len(raw)):
+            self.writer.write(raw)
+            await self.writer.drain()
+            with self.assertRaisesRegex(
+                ValueError, "peer bytes exceed the capture limit"
+            ):
+                await self.owner.wait_done(5)
+        self.assertEqual(self.run.resources.retained, len(raw))
+        self.assertEqual(self.run.resources.responded, set())
+        self.assertEqual(self.run.resources.taps[0].server_chunks, [])
+
+
+class ResourceH1OptionPeerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_capture_option_negotiates_h1_and_retires_after_driver_failure(
+        self,
+    ) -> None:
+        certificate = http_lifecycle.generate_certificate()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.load_verify_locations(cadata=certificate.certificate_pem.decode())
+        context.set_alpn_protocols(["http/1.1"])
+        primary = ValueError("controlled driver stop after verified H1 response")
+        test = self
+        owners = []
+
+        def server(run: Run) -> LifecycleServer:
+            owner = LifecycleServer(run)
+            owners.append(owner)
+            return owner
+
+        class WireDriver:
+            def __init__(self, _plan, url: str) -> None:
+                self.url = http_lifecycle.urlsplit(url)
+
+            async def __aenter__(self) -> None:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(
+                        "127.0.0.1",
+                        self.url.port,
+                        ssl=context,
+                        server_hostname=HOSTNAME,
+                    ),
+                    5,
+                )
+                try:
+                    test.assertEqual(
+                        writer.get_extra_info("ssl_object").selected_alpn_protocol(),
+                        "http/1.1",
+                    )
+                    writer.write(
+                        h1_head(self.url.port, self.url.path + "?" + self.url.query)
+                    )
+                    await writer.drain()
+                    head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+                    test.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+                finally:
+                    writer.transport.abort()
+                    with contextlib.suppress(ConnectionError, ssl.SSLError):
+                        await asyncio.wait_for(writer.wait_closed(), 5)
+                raise primary
+
+            async def __aexit__(self, _kind, _value, _traceback) -> bool:
+                return False
+
+        with (
+            patch.object(
+                http_lifecycle, "generate_certificate", return_value=certificate
+            ),
+            patch.object(http_lifecycle, "LifecycleServer", server),
+            patch.object(http_lifecycle, "BrowserDriver", WireDriver),
+            patch.object(http_lifecycle, "write_text_fixture") as publish,
+            self.assertRaises(ValueError) as raised,
+        ):
+            await asyncio.wait_for(
+                http_lifecycle.capture(
+                    options(scenario="resources", resource_protocol="h1")
+                ),
+                5,
+            )
+        self.assertIs(raised.exception, primary)
+        publish.assert_not_called()
+        self.assertEqual(owners[0].run.resources.protocol, "h1")
+        self.assertEqual(owners[0].run.connections[0].alpn, "http/1.1")
+        self.assertFalse(owners[0].protocols)
+        self.assertTrue(all(listener.waiter.done() for listener in owners[0].listeners))

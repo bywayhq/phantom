@@ -652,10 +652,18 @@ class Run:
             self.page_connection = connection
 
     def finish(self, target: str, connection: int) -> None:
+        resource_connection = (
+            self.resources is not None
+            and self.resources.protocol == "h1"
+            and any(
+                request.connection == connection and request.path == "/done"
+                for request in self.resources.requests
+            )
+        )
         if (
             self.stopping
             or not self.belongs(target)
-            or connection != self.page_connection
+            or (connection != self.page_connection and not resource_connection)
             or self.completion is not None
         ):
             return
@@ -808,6 +816,10 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
 
 
 async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None:
+    if run.resources is not None:
+        record.resource_tap = run.resources.tap(
+            record.index, record.listener, record.accepted
+        )
     buffer = bytearray()
     while True:
         while b"\r\n\r\n" not in buffer:
@@ -815,11 +827,15 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
                 raise ValueError("request head exceeds the capture limit")
             data = await channel.read()
             if data is None:
+                if run.resources is not None and buffer:
+                    raise EOFError("resource HTTP/1 request head is truncated")
                 return
             buffer.extend(data)
         end = buffer.index(b"\r\n\r\n")
         if end + 4 > MAX_REQUEST_HEAD:
             raise ValueError("request head exceeds the capture limit")
+        if run.resources is not None:
+            run.resources.observe_h1(record.index, bytes(buffer[: end + 4]))
         lines = bytes(buffer[:end]).decode("latin-1").split("\r\n")
         del buffer[: end + 4]
         parts = lines[0].split(" ")
@@ -874,6 +890,8 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
         if not reply.stall:
             out.append(f"content-length: {len(reply.body)}")
         await channel.write(("\r\n".join(out) + "\r\n\r\n").encode() + reply.body)
+        if run.resources is not None:
+            run.resources.responded.add(path)
         if path == "/done":
             run.finish(target, record.index)
 
@@ -1128,8 +1146,14 @@ class LifecycleServer:
                 self.run,
             )
             if await channel.handshake():
-                if self.run.resources is not None and record.alpn != "h2":
-                    raise ValueError("resource capture requires HTTP/2 negotiation")
+                if self.run.resources is not None:
+                    required = (
+                        "http/1.1" if self.run.resources.protocol == "h1" else "h2"
+                    )
+                    if record.alpn != required:
+                        raise ValueError(
+                            f"resource capture requires {required} negotiation"
+                        )
                 if record.alpn == "h2":
                     await serve_h2(self.run, channel, record)
                 else:
@@ -1426,6 +1450,11 @@ def fixture(
 
 
 def validate_options(args: argparse.Namespace) -> None:
+    protocol = getattr(args, "resource_protocol", "h2")
+    if protocol not in {"h1", "h2"}:
+        raise ValueError("--resource-protocol must be h1 or h2")
+    if protocol != "h2" and args.scenario != "resources":
+        raise ValueError("--resource-protocol h1 requires --scenario resources")
     address = ipaddress.ip_address(args.listen)
     if not address.is_loopback:
         raise ValueError("the capture listener must be a loopback address")
@@ -1446,6 +1475,10 @@ async def capture(args: argparse.Namespace) -> None:
     main_context.set_alpn_protocols(
         ["http/1.1"]
         if args.scenario == "upload-h1"
+        or (
+            args.scenario == "resources"
+            and getattr(args, "resource_protocol", "h2") == "h1"
+        )
         else ["h2"]
         if args.scenario == "resources"
         else ["h2", "http/1.1"]
@@ -1466,7 +1499,9 @@ async def capture(args: argparse.Namespace) -> None:
         )
         run.h1_origin = f"https://{HOSTNAME}:{h1_port}"
         if args.scenario == "resources":
-            run.resources = ResourceCapture(run.token, port)
+            run.resources = ResourceCapture(
+                run.token, port, getattr(args, "resource_protocol", "h2")
+            )
         plan = launch_plan(args, certificate, (port, h1_port))
         url = f"https://{HOSTNAME}:{port}/start?run={run.token}"
         async with BrowserDriver(plan, url) as driver:
@@ -1517,6 +1552,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--operating-system", default=platform.platform())
     parser.add_argument("--listen", default="127.0.0.1")
     parser.add_argument("--scenario", choices=SCENARIOS, required=True)
+    parser.add_argument(
+        "--resource-protocol",
+        choices=("h1", "h2"),
+        default="h2",
+        help="HTTPS protocol for the resources scenario (default: h2)",
+    )
     parser.add_argument("--idle", type=float, default=75.0)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)

@@ -1073,6 +1073,7 @@ and header names containing pipes fail before recording.
 
 `--idle` must be finite and positive, up to 2,147,483.647 seconds.
 Completion requires one exact run token on the page's selected connection.
+HTTP/1.1 resources may finish on another owned connection to the same origin.
 Firefox accepts only `--listen 127.0.0.1` or `--listen ::1`, checked before
 acquiring a certificate or listener. IPv4 disables IPv6. IPv6 prefers IPv6
 without excluding IPv4. Chromium brackets IPv6 resolver addresses.
@@ -1084,16 +1085,20 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 | `idle-ping` | `h2` | Fetches, leaves the connection idle for `--idle` seconds (75), fetches again |
 | `ping-unanswered` | `h2` | Fetches, waits 11.5 s, fetches again; from that request on the server writes nothing on the connection |
 | `close` | `h2` and `http/1.1` | Fetches over HTTP/2, aborts an HTTP/1.1 response at a second origin, fetches there again, then the tool closes the browser over CDP or WebDriver BiDi |
-| `resources` | `h2` | Loads one local script, stylesheet, image and licensed Ahem font |
+| `resources` | `h2` or explicit `http/1.1` | Loads one local script, stylesheet, image and licensed Ahem font |
 
-`resources` retains ordered byte fields, each request's initial HEADERS priority,
-and at most 512 KiB of plaintext HTTP/2 peer bytes. It accepts only the six
-owned paths with the exact run token and rejects credentials or unrelated
+`resources` defaults to HTTP/2 and retains each request's initial HEADERS
+priority. Add `--resource-protocol h1` to observe HTTPS over HTTP/1.1 instead.
+H1 retains raw request lines and headers, including case, order and duplicates.
+Both modes retain at most 512 KiB of plaintext peer bytes. They accept only six
+owned paths with the exact run token and reject credentials or unrelated
 headers. The page verifies script execution, image decoding and font loading
 before reporting success. Both asset values and raw bytes require review before
 publication. This scenario uses no NetLog and creates no profile or template.
 Select `http_lifecycle` with `scenarios: ["resources"]` and `repeat: 1` in a
-matrix manifest.
+matrix manifest. Use a separate output directory for each protocol; both write
+`resources.txt`. H1 output includes `resource_protocol=http/1.1`. HTTP/3 is not
+supported by this scenario.
 
 Capture Chrome and Firefox on Windows:
 

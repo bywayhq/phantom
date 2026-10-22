@@ -18,6 +18,10 @@
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
   Remove repeated caveats and capture history.
 
+- Capture HTTPS resource requests over HTTP/1.1 with `--resource-protocol h1`,
+  retaining raw request lines, header casing, order and duplicates.
+
+
 - Clarify qlog file retention and write-failure behavior.
 
 - Keep snapshot captures running when a browser closes a complete TLS opening.

@@ -1,11 +1,11 @@
-"""Local assets and owned HTTP/2 evidence for the lifecycle resource scenario."""
+"""Local assets and owned HTTPS evidence for the lifecycle resource scenario."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import quote
 
@@ -60,6 +60,7 @@ class ResourceRequest:
     path: str
     fields: tuple[tuple[bytes, bytes], ...]
     priority: Priority | None
+    raw_head: bytes | None = None
 
 
 def resource_page(token: str) -> bytes:
@@ -91,11 +92,14 @@ def resource_page(token: str) -> bytes:
 class ResourceCapture:
     """Keep only a fresh local page's requests; unexpected input prevents output."""
 
-    def __init__(self, token: str, port: int) -> None:
+    def __init__(self, token: str, port: int, protocol: str = "h2") -> None:
         if not token or len(token) > 64 or not token.isascii() or not token.isalnum():
             raise ValueError("resource token must be bounded ASCII letters and digits")
         if not 1 <= port <= 65535:
             raise ValueError("resource origin must have a valid listener port")
+        if protocol not in {"h1", "h2"}:
+            raise ValueError("resource protocol must be h1 or h2")
+        self.protocol = protocol
         self.token = token
         self.authority = f"{HOSTNAME}:{port}".encode("ascii")
         self.origin = b"https://" + self.authority
@@ -196,6 +200,61 @@ class ResourceCapture:
         )
         self.requests.append(ResourceRequest(connection, stream, path, fields, initial))
 
+    def observe_h1(self, connection: int, raw_head: bytes) -> None:
+        """Admit a bodyless owned request without rewriting its wire spelling."""
+        if self.protocol != "h1" or not raw_head.endswith(b"\r\n\r\n"):
+            raise ValueError("resource HTTP/1 request head is incomplete")
+        lines = raw_head[:-4].split(b"\r\n")
+        parts = lines[0].split(b" ")
+        if len(parts) != 3 or parts[0] != b"GET" or parts[2] != b"HTTP/1.1":
+            raise ValueError("resource HTTP/1 request requires GET and HTTP/1.1")
+        if not parts[1] or any(not 0x21 <= byte <= 0x7E for byte in parts[1]):
+            raise ValueError("resource HTTP/1 target must contain visible ASCII only")
+        fields = []
+        for line in lines[1:]:
+            name, separator, value = line.partition(b":")
+            if not separator:
+                raise ValueError("resource HTTP/1 header field is malformed")
+            if any(byte < 32 and byte != 9 or byte == 127 for byte in value):
+                raise ValueError("resource HTTP/1 header value contains a control byte")
+            fields.append((name, value.strip(b" \t")))
+        allowed = SAFE_FIELDS - {":method", ":scheme", ":authority", ":path"}
+        lengths = []
+        hosts = []
+        for name, value in fields:
+            lower = name.lower()
+            if lower == b"host":
+                hosts.append(value)
+            elif lower == b"content-length":
+                if value != b"0" or lengths:
+                    raise ValueError("resource HTTP/1 request bodies are unsupported")
+                lengths.append(value)
+            elif lower == b"connection":
+                if value.lower() not in {b"keep-alive", b"close"}:
+                    raise ValueError(
+                        "resource HTTP/1 connection options are unsupported"
+                    )
+            elif lower.decode("ascii", errors="replace") not in allowed:
+                raise ValueError("resource request contains an unapproved header name")
+        if hosts != [self.authority]:
+            raise ValueError("resource request does not name one owned HTTPS origin")
+        normalized = [
+            (b":method", parts[0]),
+            (b":scheme", b"https"),
+            (b":authority", hosts[0]),
+            (b":path", parts[1]),
+            *(
+                (name.lower(), value)
+                for name, value in fields
+                if name.lower() not in {b"host", b"connection", b"content-length"}
+            ),
+        ]
+        ordinal = sum(r.connection == connection for r in self.requests)
+        self.observe(connection, ordinal, normalized, None)
+        self.requests[-1] = replace(
+            self.requests[-1], fields=tuple(fields), raw_head=raw_head
+        )
+
     def lines(self, page_result: str | None) -> list[str]:
         expected = {"/start", "/done", *ASSETS}
         if (
@@ -206,6 +265,8 @@ class ResourceCapture:
             raise ValueError(
                 "resource page did not complete every owned asset successfully"
             )
+        if self.protocol == "h1":
+            return self._h1_lines()
         actual = {(r.connection, r.stream): r for r in self.requests}
         observed = set()
         lines = []
@@ -302,4 +363,69 @@ class ResourceCapture:
                 else f"exclusive:{str(p.exclusive).lower()},depends_on:{p.depends_on},weight:{p.weight}"
             )
             lines.append(f"{prefix}_initial_priority={priority}")
+        return lines
+
+    def _h1_lines(self) -> list[str]:
+        lines = ["resource_protocol=http/1.1"]
+        for index, tap in self.taps.items():
+            requests = [r for r in self.requests if r.connection == index]
+            client = b"".join(data for _, data in tap.client_chunks)
+            if client != b"".join(r.raw_head or b"" for r in requests):
+                raise ValueError(
+                    "resource HTTP/1 bytes disagree with owned request heads"
+                )
+            server = b"".join(data for _, data in tap.server_chunks)
+            for request in requests:
+                head, separator, tail = server.partition(b"\r\n\r\n")
+                if not separator or not head.startswith(b"HTTP/1.1 200 OK\r\n"):
+                    raise ValueError(
+                        "resource HTTP/1 response head is incomplete or failed"
+                    )
+                lengths = [
+                    line.partition(b":")[2].strip()
+                    for line in head.split(b"\r\n")[1:]
+                    if line.partition(b":")[0].lower() == b"content-length"
+                ]
+                body = (
+                    resource_page(self.token)
+                    if request.path == "/start"
+                    else b"ok"
+                    if request.path == "/done"
+                    else self.asset(request.path)[1]
+                )
+                if lengths != [str(len(body)).encode()] or not tail.startswith(body):
+                    raise ValueError(
+                        "resource HTTP/1 response body is incomplete or changed"
+                    )
+                server = tail[len(body) :]
+            if server:
+                raise ValueError("resource HTTP/1 response bytes are unowned")
+            for direction, chunks in (
+                ("client", tap.client_chunks),
+                ("server", tap.server_chunks),
+            ):
+                prefix = f"resource_connection_{index}_{direction}"
+                lines.append(f"{prefix}_chunk_count={len(chunks)}")
+                lines.extend(
+                    f"{prefix}_chunk_{i}=ms:{when * 1000:.3f},data_hex:{data.hex()}"
+                    for i, (when, data) in enumerate(chunks)
+                )
+        if any(r.connection not in self.taps for r in self.requests):
+            raise ValueError("resource HTTP/1 bytes omit an owned request")
+        for request in self.requests:
+            if request.path not in ASSETS:
+                continue
+            prefix = "resource_" + ASSETS[request.path]
+            lines.extend(
+                (
+                    f"{prefix}_connection={request.connection}",
+                    f"{prefix}_request={request.stream}",
+                    f"{prefix}_head_hex={request.raw_head.hex()}",
+                    f"{prefix}_field_count={len(request.fields)}",
+                )
+            )
+            lines.extend(
+                f"{prefix}_field_{i}=name_hex:{name.hex()},value_hex:{value.hex()}"
+                for i, (name, value) in enumerate(request.fields)
+            )
         return lines
