@@ -90,6 +90,10 @@ func TestStreamingUploadLengthsAndFinalBytes(t *testing.T) {
 			}
 			t.Logf("upload elapsed=%s source_bytes=%d peer_bytes=%d", time.Since(started), source.bytes.Load(), peerBytes)
 			if err != nil {
+				var failure *Error
+				if errors.As(err, &failure) {
+					t.Logf("native error kind=%s protocol=%s timeout_phase=%s", failure.Kind, failure.Protocol, failure.TimeoutPhase)
+				}
 				t.Fatal(err)
 			}
 			data, err := response.Body.ReadAll(64)

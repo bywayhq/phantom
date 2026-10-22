@@ -178,6 +178,10 @@ func http3UploadCancellation(t *testing.T, multipart bool) {
 		defer response.Body.Close()
 		data, err := response.Body.ReadAll(len(expected))
 		if err != nil || string(data) != expected || response.Protocol != "h3" {
+			var failure *Error
+			if errors.As(err, &failure) {
+				t.Logf("native error kind=%s protocol=%s timeout_phase=%s", failure.Kind, failure.Protocol, failure.TimeoutPhase)
+			}
 			t.Fatalf("body %q: %v", data, err)
 		}
 		if headers := responseTrailers(t, response, TrailersComplete); len(headers) != 0 {
