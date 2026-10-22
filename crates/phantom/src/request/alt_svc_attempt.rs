@@ -972,6 +972,9 @@ async fn send_on_alternative(
         let sent_headers = dispatched.sent_headers;
 
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
+            if retries_misdirected(client, request) {
+                client.invalidate_origin_alt_svc(endpoint, route, alternative.generation());
+            }
             client.invalidate_alternative(endpoint, route, alternative);
             if begin_misdirected_retry(client, request, &response, body, request_retries, replays)?
             {

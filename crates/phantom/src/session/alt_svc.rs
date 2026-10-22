@@ -172,7 +172,7 @@ impl AlternativeTarget {
     }
 
     /// Returns the store generation of an Alt-Svc alternative.
-    pub(super) const fn generation(&self) -> Option<u64> {
+    pub(crate) const fn generation(&self) -> Option<u64> {
         match &self.source {
             AlternativeSource::AltSvc { generation, .. } => Some(*generation),
             #[cfg(feature = "https-records")]
