@@ -571,19 +571,46 @@ class H3ReconnectServer(MultiplexedServer):
             field_trial_config=False,
         )
 
-    async def collect_connections(self):
-        deadline = asyncio.get_running_loop().time() + CONNECTION_CLEANUP_SECONDS
+    async def collect_connections(self) -> None:
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        deadline = started + CONNECTION_CLEANUP_SECONDS
         try:
-            await super().collect_connections()
+            # Closing only emits CONNECTION_CLOSE and arms aioquic's drain
+            # timer. Let that timer run while accepted workers are collected.
+            close_failed = False
             for protocol in self.protocols:
-                protocol.close()
-            if self.protocols:
-                await asyncio.wait_for(
-                    asyncio.gather(
-                        *(protocol.wait_closed() for protocol in self.protocols)
-                    ),
-                    timeout=max(0, deadline - asyncio.get_running_loop().time()),
-                )
+                try:
+                    protocol.close()
+                except BaseException as error:
+                    self.failures.append(error)
+                    close_failed = True
+            await super().collect_connections()
+            wait_started = loop.time()
+            if self.protocols and not close_failed:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            *(protocol.wait_closed() for protocol in self.protocols)
+                        ),
+                        timeout=max(0, deadline - loop.time()),
+                    )
+                except asyncio.TimeoutError as error:
+                    now = loop.time()
+                    pending = [p for p in self.protocols if not p._closed.is_set()]
+                    pto = max(
+                        (p._quic._loss.get_probe_timeout() for p in pending), default=0
+                    )
+                    remaining = max(
+                        (max(0, (p._quic._close_at or now) - now) for p in pending),
+                        default=0,
+                    )
+                    raise asyncio.TimeoutError(
+                        "SSE QUIC cleanup timed out "
+                        f"(workers={wait_started - started:.3f}s, "
+                        f"wait={now - wait_started:.3f}s, pending={len(pending)}, "
+                        f"max_pto={pto:.3f}s, close_remaining={remaining:.3f}s)"
+                    ) from error
         except BaseException as error:
             self.failures.append(error)
         finally:
@@ -616,6 +643,11 @@ class H3ReconnectServer(MultiplexedServer):
         self.stopping = True
         try:
             self.endpoint.close()
+            if any(not protocol._closed.is_set() for protocol in self.protocols):
+                # Failed graceful cleanup remains a capture failure. Abort its
+                # endpoint: Proactor close can strand a newly queued close
+                # datagram's write completion without connection_lost.
+                self.transport.abort()
             await asyncio.wait_for(
                 asyncio.shield(self.retired),
                 timeout=max(0, deadline - asyncio.get_running_loop().time()),

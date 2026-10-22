@@ -123,6 +123,108 @@ class H3CaptureTests(h2_tests.H2CaptureTests):
 
 
 class H3CleanupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_server_drain_exceeding_budget_fails_and_retires_owners(self) -> None:
+        server = H3ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        server.run = ScenarioRun(CATALOG[0], "server-drain-budget")
+        client = H3EventSource(server.url(server.run))
+        started = False
+        try:
+            await client.start(server)
+            started = True
+            protocol = server.protocols[0]
+            loop = asyncio.get_running_loop()
+            with patch.object(
+                protocol._quic._loss, "get_probe_timeout", return_value=2
+            ):
+                # Match capture_scenario: the driver retires before finish_run.
+                await client.close()
+                started = False
+                self.assertGreater(protocol._quic._close_at - loop.time(), 5)
+                with self.assertRaisesRegex(
+                    asyncio.TimeoutError,
+                    r"SSE QUIC cleanup timed out .*pending=1, max_pto=2\.000s",
+                ) as raised:
+                    await server.close()
+                self.assertIsInstance(raised.exception.__cause__, asyncio.TimeoutError)
+            self.assertFalse(protocol._closed.is_set())
+            self.assertTrue(server.retired.done())
+            self.assertTrue(server.transport.is_closing())
+            self.assertIsNone(protocol._timer)
+            self.assertIsNone(protocol._transmit_task)
+            self.assertFalse(server.protocols)
+            self.assertFalse(server.tasks)
+        finally:
+            try:
+                if started:
+                    await client.close()
+            finally:
+                if not server.transport.is_closing():
+                    await server.close()
+
+    async def test_server_drains_while_cancelled_worker_finishes(self) -> None:
+        server = H3ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        server.run = ScenarioRun(CATALOG[0], "parallel-server-drain")
+        client = H3EventSource(server.url(server.run))
+        started = False
+        ready = asyncio.Event()
+        phases = {}
+        loop = asyncio.get_running_loop()
+
+        async def worker() -> None:
+            ready.set()
+            try:
+                await loop.create_future()
+            finally:
+                phases["worker_cleanup"] = loop.time()
+                released = loop.create_future()
+                # This owned cancellation finalizer and the real QUIC drain
+                # each fit five seconds, but their sequential sum does not.
+                release = loop.call_later(3, released.set_result, None)
+                try:
+                    await released
+                finally:
+                    release.cancel()
+                phases["worker_finished"] = loop.time()
+
+        try:
+            await client.start(server)
+            started = True
+            protocol = server.protocols[0]
+            original_close = protocol.close
+
+            def close() -> None:
+                phases.setdefault("close", loop.time())
+                original_close()
+
+            protocol.close = close
+            task = server.spawn(worker(), server.run)
+            await asyncio.wait_for(ready.wait(), 2)
+            with patch.object(
+                protocol._quic._loss, "get_probe_timeout", return_value=1
+            ):
+                await server.close()
+            self.assertLessEqual(phases["close"], phases["worker_cleanup"])
+            self.assertGreaterEqual(
+                phases["worker_finished"] - phases["worker_cleanup"], 3
+            )
+            self.assertTrue(task.done())
+            self.assertTrue(protocol._closed.is_set())
+            self.assertTrue(server.retired.done())
+            self.assertIsNone(protocol._timer)
+            self.assertIsNone(protocol._transmit_task)
+            self.assertFalse(server.protocols)
+            self.assertFalse(server.tasks)
+            self.assertFalse(server.cancelled)
+        finally:
+            try:
+                if started:
+                    await client.close()
+            finally:
+                if not server.transport.is_closing():
+                    await server.close()
+
     async def test_client_close_collects_three_probe_timeouts_within_cleanup_budget(
         self,
     ):
@@ -172,3 +274,50 @@ class H3CleanupTests(unittest.IsolatedAsyncioTestCase):
                 await client.close()
             if not server.transport.is_closing():
                 await server.close()
+
+    async def test_close_initiation_failure_still_collects_accepted_worker(
+        self,
+    ) -> None:
+        server = H3ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        server.run = ScenarioRun(CATALOG[0], "close-initiation-fault")
+        client = H3EventSource(server.url(server.run))
+        started = False
+        ready = asyncio.Event()
+
+        async def worker() -> None:
+            ready.set()
+            await asyncio.get_running_loop().create_future()
+
+        try:
+            await client.start(server)
+            started = True
+            protocol = server.protocols[0]
+            original_close = protocol.close
+            error = RuntimeError("injected close initiation failure")
+
+            def failed_close() -> None:
+                protocol.close = original_close
+                raise error
+
+            task = server.spawn(worker(), server.run)
+            await asyncio.wait_for(ready.wait(), 2)
+            protocol.close = failed_close
+            with self.assertRaises(RuntimeError) as raised:
+                await server.close()
+            self.assertIs(raised.exception, error)
+            self.assertTrue(task.done())
+            self.assertFalse(server.tasks)
+            self.assertFalse(server.cancelled)
+            self.assertTrue(server.retired.done())
+            self.assertTrue(server.transport.is_closing())
+            self.assertFalse(server.protocols)
+            self.assertIsNone(protocol._timer)
+            self.assertIsNone(protocol._transmit_task)
+        finally:
+            try:
+                if started:
+                    await client.close()
+            finally:
+                if not server.transport.is_closing():
+                    await server.close()
