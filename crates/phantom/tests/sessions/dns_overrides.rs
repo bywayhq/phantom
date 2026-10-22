@@ -559,7 +559,7 @@ async fn stale_dns_answers_connect_while_one_refresh_is_pending() -> TestResult<
     let primary = bounded(async {
         let mut settings = cache_for(Duration::ZERO);
         settings.stale_grace = Duration::from_secs(600);
-        let client = Client::builder()
+        let client = Client::builder(ClientProfile::new(chrome::v154_tcp_tls()))
             .dns_resolver(resolver)
             .dns_cache(settings)
             .build()?;
