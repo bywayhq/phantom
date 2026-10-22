@@ -1293,7 +1293,7 @@ fn weight_band_priority_accepts_only_valid_weights() -> CaptureResult<()> {
             weight,
             exclusive: false,
         });
-        let error = template.validate().expect_err("invalid weight accepted");
+        let error = template.validate().err().ok_or("invalid weight accepted")?;
         assert_eq!(error.field(), "http2_priority");
         assert_eq!(error.kind(), crate::ValidationErrorKind::OutOfRange);
     }

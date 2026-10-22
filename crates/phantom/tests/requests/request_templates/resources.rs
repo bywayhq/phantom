@@ -247,10 +247,11 @@ async fn missing_resource_slots_fail_before_tcp_or_quic_io() -> TestResult<()> {
             .await
             .is_err()
     );
-    assert_eq!(
-        udp.try_recv_from(&mut [0; 1]).unwrap_err().kind(),
-        std::io::ErrorKind::WouldBlock
-    );
+    let error = udp
+        .try_recv_from(&mut [0; 1])
+        .err()
+        .ok_or("resource validation sent a UDP datagram")?;
+    assert_eq!(error.kind(), std::io::ErrorKind::WouldBlock);
     Ok(())
 }
 
