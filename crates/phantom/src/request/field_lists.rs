@@ -128,6 +128,43 @@ pub(super) fn alternative_fields(
     checked_alternative_fields(client, request, route, alternative, attempt)
 }
 
+/// Builds the new origin's H3 fields without inventing an Alt-Svc mapping.
+pub(super) fn reused_fields(
+    client: &Client,
+    request: &ResolvedRequest,
+    route: &Route,
+    attempt: &AttemptFields<'_>,
+) -> Result<Http3Fields, RequestError> {
+    let connector = client
+        .inner
+        .connectors_for(&request.endpoint)
+        .http3
+        .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+    if request
+        .template
+        .as_ref()
+        .is_some_and(|template| template.fields_for(HttpProtocol::Http3).is_none())
+    {
+        return Err(RequestError::request_template_protocol());
+    }
+    let headers = attempt_headers(client, request, HttpProtocol::Http3, attempt.headers);
+    #[cfg(test)]
+    counts::checked(&[HttpProtocol::Http3]);
+    http3_pool::validate_request(
+        connector,
+        None,
+        route,
+        Http3TransportTarget::for_origin(&request.endpoint),
+        attempt.method,
+        request.endpoint.authority().as_str(),
+        &request.target,
+        headers,
+        attempt.trailers,
+        attempt.client_hints,
+        attempt.body,
+    )
+}
+
 /// Builds the candidate's field list and checks it before I/O.
 fn checked_alternative_fields(
     client: &Client,

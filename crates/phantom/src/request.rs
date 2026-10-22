@@ -24,6 +24,7 @@ pub use template::PreparedRequestTemplate;
 
 mod alt_svc_attempt;
 mod attempt;
+mod coalesced_attempt;
 mod field_lists;
 mod replay;
 mod replay_buffer;

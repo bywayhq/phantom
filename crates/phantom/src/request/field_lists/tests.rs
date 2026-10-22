@@ -990,3 +990,51 @@ fn pinned_alt_used_policy_preserves_the_optional_template_slot() -> TestResult {
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn reused_h3_framing_is_checked_without_taking_a_one_shot_body() -> TestResult {
+    use http_body_util::BodyExt;
+    use phantom_net::request::{RequestBody, RequestHeader};
+
+    use crate::{Route, request::RequestBodySource};
+
+    let client = Client::builder(profile(true)).build()?;
+    let request = client
+        .get_negotiated("https://other.phantom.test/")?
+        .request;
+    let mut source = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
+        Bytes::from_static(b"payload"),
+    )));
+    let caller = [RequestHeader::new("content-length", b"8")];
+    let framing = source.framing(None)?;
+    let result = super::reused_fields(
+        &client,
+        &request,
+        &Route::Direct,
+        &super::AttemptFields {
+            method: &http::Method::POST,
+            headers: &caller,
+            trailers: &[],
+            client_hints: None,
+            body: framing
+                .as_ref()
+                .map(crate::request::RequestBodyFraming::body),
+        },
+    );
+
+    let error = match result {
+        Err(error) => error,
+        Ok(_) => return Err("mismatched content length was accepted".into()),
+    };
+    assert_eq!(error.kind(), crate::RequestErrorKind::Http3);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+    drop(framing);
+    let payload = source
+        .next_attempt()?
+        .ok_or("one-shot body was consumed")?
+        .collect()
+        .await?
+        .to_bytes();
+    assert_eq!(payload, "payload");
+    Ok(())
+}

@@ -372,12 +372,18 @@ async fn send_once_exact(
 async fn send_once_negotiated(
     client: &Client,
     request: &ResolvedRequest,
-    attempt: AttemptRequest<'_>,
+    mut attempt: AttemptRequest<'_>,
     route: &Route,
-    lifecycle: AttemptLifecycle<'_>,
+    mut lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
     if !route.carries_origin_tls_for_alpn() {
         return Err(RequestError::unsupported_negotiated_route());
+    }
+    if let Some(outcome) =
+        super::coalesced_attempt::send_reused(client, request, &mut attempt, route, &mut lifecycle)
+            .await?
+    {
+        return Ok(outcome);
     }
     match plan(client, request, route) {
         NegotiatedPlan::Alternative(alternative) => {
