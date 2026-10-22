@@ -3,6 +3,7 @@ import contextlib
 import dataclasses
 import re
 import unittest
+from collections.abc import AsyncIterator
 from urllib.parse import urljoin, urlsplit
 
 from scripts.capture.sse_reconnect import (
@@ -14,6 +15,7 @@ from scripts.capture.sse_reconnect import (
     CaptureMetadata,
     ReconnectServer,
     Scenario,
+    ScenarioRun,
     Stimulus,
     capture_scenario,
     event_stream,
@@ -235,7 +237,38 @@ class SseReconnectTests(unittest.TestCase):
             SCENARIOS["reconnect-404"], observation_seconds=1.0
         )
 
-        [run] = asyncio.run(capture(scenario, honor_termination=False))
+        async def capture_extra() -> list[ScenarioRun]:
+            server = ReconnectServer()
+            await server.start("127.0.0.1", 0)
+
+            @contextlib.asynccontextmanager
+            async def drive(page_url: str) -> AsyncIterator[None]:
+                client = ScriptedEventSource(page_url)
+                status, _, _ = await client.fetch(page_url, ())
+                self.assertEqual(status, 200)
+                current = server.run
+                if current is None:
+                    raise AssertionError("capture did not start a scenario")
+                stream_url = urljoin(page_url, current.stream_path())
+                # Complete the nonconforming request before capture teardown.
+                for expected in (200, 404, 204):
+                    status, _, _ = await client.fetch(
+                        stream_url, (b"Accept: text/event-stream",)
+                    )
+                    self.assertEqual(status, expected)
+                yield
+
+            try:
+                return await asyncio.wait_for(
+                    capture_scenario(
+                        server, scenario, repeat=1, run_timeout=10.0, drive=drive
+                    ),
+                    timeout=10.0 + scenario.observation_seconds,
+                )
+            finally:
+                await server.close()
+
+        [run] = asyncio.run(capture_extra())
 
         extra = [request for request in sse_requests(run) if request.extra]
         self.assertTrue(extra)
