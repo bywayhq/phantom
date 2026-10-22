@@ -278,6 +278,8 @@ impl SecretState {
 
 #[derive(Default)]
 struct CallbackStateInner {
+    #[cfg(test)]
+    panic_on_next_handshake: bool,
     terminal_error: Option<CallbackError>,
     handshake_secrets: SecretState,
     application_secrets: SecretState,
@@ -374,6 +376,11 @@ impl CallbackState {
     ) -> Result<(), CallbackError> {
         let limit = self.effective_flight_limit(level, backend_limit)?;
         let mut inner = self.lock();
+        #[cfg(test)]
+        if std::mem::take(&mut inner.panic_on_next_handshake) {
+            drop(inner);
+            panic!("handshake callback test panic");
+        }
         let level_index = level.index();
         let attempted = Self::bounded_handshake_len(&inner, level, data.len(), limit)?;
         inner
@@ -561,6 +568,11 @@ impl CallbackState {
         state
             .secret(direction)
             .is_some_and(|secret| secret.as_slice() == expected)
+    }
+
+    #[cfg(test)]
+    pub(super) fn panic_on_next_handshake(&self) {
+        self.lock().panic_on_next_handshake = true;
     }
 
     #[cfg(test)]

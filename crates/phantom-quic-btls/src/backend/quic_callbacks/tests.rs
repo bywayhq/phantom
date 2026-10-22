@@ -604,6 +604,49 @@ fn panic_is_contained_and_recorded() {
 }
 
 #[test]
+fn c_handshake_contains_callback_panic_and_releases_state() {
+    let mut test_ssl = TestSsl::client();
+    let ssl = test_ssl.ssl();
+    let state = install(&test_ssl);
+    let transport_parameters = [0x01, 0x01, 0x00];
+    let alpn = [2, b'h', b'3'];
+    // SAFETY: pointers reference live storage for each call on this owned SSL.
+    unsafe {
+        assert_eq!(
+            ffi::SSL_set_quic_transport_params(
+                ssl.as_ptr(),
+                transport_parameters.as_ptr(),
+                transport_parameters.len(),
+            ),
+            1
+        );
+        assert_eq!(
+            ffi::SSL_set_alpn_protos(ssl.as_ptr(), alpn.as_ptr(), alpn.len()),
+            0
+        );
+    }
+    assert_eq!(state.terminal_error(), None);
+    assert_eq!(state.owner_count(), 2);
+    state.panic_on_next_handshake();
+
+    // SAFETY: this uniquely owned SSL is configured as a no-BIO QUIC client.
+    let status = unsafe { ffi::SSL_do_handshake(ssl.as_ptr()) };
+    // SAFETY: status is the immediately preceding operation's result for this SSL.
+    let error = unsafe { ffi::SSL_get_error(ssl.as_ptr(), status) };
+
+    assert!(status <= 0);
+    assert_eq!(error, ffi::SSL_ERROR_SSL);
+    assert_eq!(
+        state.terminal_error(),
+        Some(CallbackError::CallbackPanicked)
+    );
+    drain_error_queue();
+    test_ssl.free_ssl();
+
+    assert_eq!(state.owner_count(), 1);
+}
+
+#[test]
 fn ssl_destruction_releases_ex_data_owner() {
     let mut test_ssl = TestSsl::client();
     let state = install(&test_ssl);
