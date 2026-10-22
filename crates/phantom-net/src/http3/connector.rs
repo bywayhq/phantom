@@ -53,12 +53,14 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 pub struct Http3Connector {
     crypto: Arc<QuicClientConfig>,
     server_authentication: ServerAuthentication,
+    client_certificate_configured: bool,
     ech_from_https_records: bool,
     settings: Http3Settings,
     request_settings: Http3RequestSettings,
     max_datagram_frame_size: Option<u64>,
     max_udp_payload_size: u64,
     identity: Arc<()>,
+    resolution_identity: Arc<()>,
     proxy_settings: ProxySettingsId,
     proxy_dial_settings: ProxySettingsId,
     tcp: Option<TcpSettings>,
@@ -82,11 +84,56 @@ pub struct Http3Connector {
     early_race: Option<(super::EarlyRace, Arc<super::RaceObserved>)>,
 }
 
+/// One origin lookup prepared for HTTP/3 connection reuse checks.
+///
+/// Created by [`Http3Connector::resolve_origin_for_reuse`] and bound to that
+/// connector's identity. Reuse it across candidates for the same request;
+/// prepare a fresh lookup for each later request.
+#[derive(Debug)]
+pub struct Http3OriginAddresses {
+    connector_identity: Arc<()>,
+    resolution_identity: Arc<()>,
+    host: Box<str>,
+    port: u16,
+    addresses: Vec<std::net::SocketAddr>,
+}
+
+impl Http3OriginAddresses {
+    /// Returns the validated, lowercase origin name or IP literal.
+    #[must_use]
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Whether this answer contains the peer's IP address and IPv6 scope.
+    ///
+    /// Ignores the peer's UDP port. This does not check its certificate,
+    /// connection state, or destination policy.
+    #[must_use]
+    pub fn contains_peer(&self, peer: std::net::SocketAddr) -> bool {
+        self.addresses
+            .iter()
+            .any(|address| same_peer_ip(*address, peer))
+    }
+
+    /// Returns the origin's logical port, which may differ from a QUIC peer's port.
+    #[must_use]
+    pub const fn port(&self) -> u16 {
+        self.port
+    }
+}
+
 impl Http3Connector {
     /// Returns the immutable server-authentication policy of this connector.
     #[must_use]
     pub const fn server_authentication(&self) -> ServerAuthentication {
         self.server_authentication
+    }
+
+    /// Returns which origins the profile allows to share a connection.
+    #[must_use]
+    pub const fn connection_reuse_policy(&self) -> phantom_profile::Http3ConnectionReuse {
+        self.settings.connection_reuse
     }
 
     /// Builds a connector using Phantom's bundled public trust roots.
@@ -254,12 +301,14 @@ impl Http3Connector {
         Ok(Self {
             crypto,
             server_authentication,
+            client_certificate_configured: false,
             ech_from_https_records: tls.ech.uses_https_records(),
             settings: settings.clone(),
             request_settings: request_settings.clone(),
             max_datagram_frame_size: quic.max_datagram_frame_size,
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
+            resolution_identity: Arc::new(()),
             proxy_settings: ProxySettingsId::default(),
             proxy_dial_settings: ProxySettingsId::default(),
             tcp: None,
@@ -552,12 +601,14 @@ impl Http3Connector {
         Self {
             crypto,
             server_authentication: self.server_authentication,
+            client_certificate_configured: self.client_certificate_configured,
             ech_from_https_records: self.ech_from_https_records,
             settings: self.settings.clone(),
             request_settings: self.request_settings.clone(),
             max_datagram_frame_size: self.max_datagram_frame_size,
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
+            resolution_identity: Arc::clone(&self.resolution_identity),
             proxy_settings: self.proxy_settings.clone(),
             proxy_dial_settings: self.proxy_dial_settings.clone(),
             tcp: self.tcp,
@@ -657,6 +708,7 @@ impl Http3Connector {
     pub fn with_host_resolver(&self, resolver: HostResolver) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
         connector.host_resolver = Some(resolver);
+        connector.resolution_identity = Arc::new(());
         connector.proxy_dial_settings = ProxySettingsId::default();
         connector.proxy_settings = ProxySettingsId::default();
         connector
@@ -707,6 +759,7 @@ impl Http3Connector {
     pub fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
         let mut connector =
             self.with_crypto(self.crypto.with_client_certificate(certificate.quic()));
+        connector.client_certificate_configured = true;
         connector.identity = Arc::new(());
         connector
     }
@@ -1879,6 +1932,109 @@ impl Http3Connector {
         connection.belongs_to(&self.identity) && connection.is_reusable()
     }
 
+    /// Resolves an origin once for checks against several pooled connections.
+    ///
+    /// Uses this connector's overrides, address cache and resolver. This does
+    /// not open a connection or reserve a stream. The caller bounds the lookup
+    /// with its request deadline and cancels it by dropping the future.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed invalid-name or DNS error, including an empty answer.
+    pub async fn resolve_origin_for_reuse(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<Http3OriginAddresses, Http3ConnectorError> {
+        QuicClientConfig::validate_server_name(host)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        let host = host.to_ascii_lowercase();
+        let addresses = resolve(self.host_resolver.as_ref(), &host, port)
+            .await
+            .map_err(Http3ConnectorError::resolve)?;
+        if addresses.is_empty() {
+            return Err(Http3ConnectorError::no_address());
+        }
+        Ok(Http3OriginAddresses {
+            connector_identity: Arc::clone(&self.identity),
+            resolution_identity: Arc::clone(&self.resolution_identity),
+            host: host.into_boxed_str(),
+            port,
+            addresses,
+        })
+    }
+
+    /// Checks whether a connection can serve the prepared HTTPS origin.
+    ///
+    /// Requires authorized-origin reuse, this connector's identity and runtime,
+    /// a verified completed handshake, and a certificate covering the name.
+    /// Configured client certificates and pending early data return `false`.
+    /// The current peer's IP and IPv6 scope must occur in the prepared answer;
+    /// its actual socket address must satisfy source and destination policies.
+    ///
+    /// The caller separately enforces route, logical port and stream admission.
+    /// This checks eligibility without reserving a stream or performing I/O.
+    /// Call it outside pool locks: a destination policy may invoke caller code.
+    ///
+    /// # Errors
+    ///
+    /// Returns typed destination-policy, runtime or certificate-check failures.
+    pub fn can_reuse_for_origin(
+        &self,
+        connection: &Http3Connection,
+        origin: &Http3OriginAddresses,
+    ) -> Result<bool, Http3ConnectorError> {
+        if self.connection_reuse_policy()
+            != phantom_profile::Http3ConnectionReuse::AuthorizedOrigins
+            || !self.server_authentication.verifies()
+            || self.client_certificate_configured
+            || !Arc::ptr_eq(&self.identity, &origin.connector_identity)
+            || !Arc::ptr_eq(&self.resolution_identity, &origin.resolution_identity)
+            || !self.can_reuse_now(connection)
+        {
+            return Ok(false);
+        }
+        let runtime = tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        if runtime.id() != connection.runtime().id() {
+            return Ok(false);
+        }
+        if !connection
+            .authorizes_origin_name(&origin.host)
+            .map_err(|source| {
+                Http3ConnectorError::with_source(
+                    Http3ConnectorErrorKind::Handshake,
+                    "failed to check the pooled HTTP/3 peer certificate",
+                    source,
+                )
+            })?
+        {
+            return Ok(false);
+        }
+        let peer = connection.peer_address();
+        if !origin.contains_peer(peer)
+            || self
+                .source
+                .as_ref()
+                .is_some_and(|source| !source.permits(&peer))
+        {
+            return Ok(false);
+        }
+        if self
+            .host_resolver
+            .as_ref()
+            .and_then(HostResolver::destination_policy)
+            .is_some_and(|policy| !policy.permits(peer))
+        {
+            return Err(Http3ConnectorError::with_source(
+                Http3ConnectorErrorKind::Connect,
+                "destination policy denied the pooled HTTP/3 peer",
+                crate::DestinationDenied,
+            ));
+        }
+        Ok(self.can_reuse_now(connection) && connection.peer_address() == peer)
+    }
+
     /// Validates an empty-body GET without opening a connection or stream.
     ///
     /// # Errors
@@ -2189,6 +2345,18 @@ fn should_try_next_address(error: &Http3Error) -> bool {
         error.kind(),
         Http3ErrorKind::Endpoint | Http3ErrorKind::Connect | Http3ErrorKind::Connection
     )
+}
+
+fn same_peer_ip(address: std::net::SocketAddr, peer: std::net::SocketAddr) -> bool {
+    match (address, peer) {
+        (std::net::SocketAddr::V4(address), std::net::SocketAddr::V4(peer)) => {
+            address.ip() == peer.ip()
+        }
+        (std::net::SocketAddr::V6(address), std::net::SocketAddr::V6(peer)) => {
+            address.ip() == peer.ip() && address.scope_id() == peer.scope_id()
+        }
+        _ => false,
+    }
 }
 
 fn validate_quic_runtime(crypto: &Arc<QuicClientConfig>) -> Result<(), Http3ConnectorError> {

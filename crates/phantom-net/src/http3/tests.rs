@@ -728,3 +728,4 @@ mod request;
 mod response_framing;
 mod response_trailers;
 mod resumption;
+mod reuse;

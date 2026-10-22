@@ -915,6 +915,50 @@ impl Http3Connection {
             .is_some_and(|connection| Arc::ptr_eq(connection, identity))
     }
 
+    pub(super) fn authorizes_origin_name(
+        &self,
+        host: &str,
+    ) -> Result<bool, btls::error::ErrorStack> {
+        if self.early_data_pending() {
+            return Ok(false);
+        }
+        let Some(data) = self
+            .inner
+            .quinn
+            .handshake_data()
+            .and_then(|data| data.downcast::<phantom_quic_btls::HandshakeData>().ok())
+        else {
+            return Ok(false);
+        };
+        if data.protocol() != b"h3" || !data.peer_verified() || data.client_certificate_sent() {
+            return Ok(false);
+        }
+        let Some(identity) = self
+            .inner
+            .quinn
+            .peer_identity()
+            .and_then(|identity| identity.downcast::<phantom_quic_btls::PeerIdentity>().ok())
+        else {
+            return Ok(false);
+        };
+        let Some(leaf) = identity.certificates().first() else {
+            return Ok(false);
+        };
+        let leaf = btls::x509::X509::from_der(leaf)?;
+        match host.parse::<std::net::IpAddr>() {
+            Ok(address) => leaf.check_ip_asc(&address.to_string()),
+            Err(_) => leaf.check_host(host),
+        }
+    }
+
+    /// Returns the QUIC connection's current remote socket address.
+    ///
+    /// The endpoint may change after an accepted peer migration.
+    #[must_use]
+    pub fn peer_address(&self) -> std::net::SocketAddr {
+        self.inner.quinn.remote_address()
+    }
+
     pub(super) fn runtime(&self) -> &Handle {
         &self.inner.runtime
     }
