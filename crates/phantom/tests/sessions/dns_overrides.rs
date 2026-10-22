@@ -26,7 +26,7 @@ use phantom::{
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
-    sync::oneshot,
+    sync::{oneshot, watch},
     time::timeout,
 };
 
@@ -530,6 +530,54 @@ fn cache_for(ttl: Duration) -> DnsCacheSettings {
         stale_grace: Duration::ZERO,
         negative_ttl: None,
     }
+}
+
+#[tokio::test]
+async fn stale_dns_answers_connect_while_one_refresh_is_pending() -> TestResult<()> {
+    let (port, origin) = closing_origin().await?;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (release, released) = watch::channel(false);
+    let (started, mut observed) = watch::channel(0);
+    let resolver = AddressResolver::from_fn({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            let call = calls.fetch_add(1, Ordering::SeqCst) + 1;
+            let mut released = released.clone();
+            let started = started.clone();
+            async move {
+                started.send_replace(call);
+                if call > 1 {
+                    released
+                        .wait_for(|released| *released)
+                        .await
+                        .map_err(io::Error::other)?;
+                }
+                Ok(vec![LOOPBACK])
+            }
+        }
+    });
+    let primary = bounded(async {
+        let mut settings = cache_for(Duration::ZERO);
+        settings.stale_grace = Duration::from_secs(600);
+        let client = Client::builder()
+            .dns_resolver(resolver)
+            .dns_cache(settings)
+            .build()?;
+        let url = format!("http://{ORIGIN}:{port}/");
+
+        get_ok(&client, &url).await?;
+        get_ok(&client, &url).await?;
+        observed.wait_for(|call| *call == 2).await?;
+        get_ok(&client, &url).await?;
+
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        release.send_replace(true);
+        Ok(())
+    })
+    .await;
+    // Release the resolver on assertion failure or timeout before joining the peer.
+    release.send_replace(true);
+    finish_with_cleanup(primary, origin.stop().await)
 }
 
 #[tokio::test]
