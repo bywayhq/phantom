@@ -27,34 +27,30 @@ file. A component can select a same-kind `base` and override specific values.
 Prefer one shared base over a chain of version-by-version overrides.
 Associate request kinds with entries in `request-templates.json`.
 
-Every selected layer needs an evidence record with references. Keep the build
-and location of each observation, including older builds whose settings you
-reuse. `verified_fields` requires a retained capture. Source policies and reused
-settings do not become observations of the new build.
+Give each selected layer references with the build and location, including
+older builds whose settings you reuse. List fields checked against a retained
+capture in `verified_fields`.
 
 For an external preset, use `identity.kind: "Peer"` with its project, exact
-source commit, preset name and advertised browser release. Keep browser and
-target platform in metadata; do not invent an observed build, OS release,
-architecture or capture environment. Name it by browser and platform: for
+source commit, preset name and advertised browser release. Set its browser and
+target platform in metadata. Name it by browser and platform: for
 example, ID `safari/26.0.1/macos/r1`, selector `safari-26-macos`, target
 `SafariMacos26`. Source project and preset names belong in identity metadata.
 Peer definitions use the same components and generated registration, without
 a browser factory. `ExternalSource` references pin the commit in an HTTPS URL;
 `PeerCapture` references name retained peer fixtures with matching execution
-metadata. Neither kind establishes browser fidelity.
+metadata.
 
 You can omit empty `references`, `verified_fields`, and `limitations` arrays.
 You can also omit evidence rows for unavailable layers: their composition
 must still be `null`. The generated catalog lists every layer explicitly.
 `Unavailable` means no recipe is supplied; generic client defaults may apply.
-`IntentionallyAbsent` describes an explicit browser omission. Record specific
-limitations once, rather than repeating this distinction in every row.
+`IntentionallyAbsent` describes an explicit browser omission. Record each
+specific limitation once.
 
-Keep capture comparisons independent of these declarations. The generator
-checks types, references and capture metadata; it does not prove wire parity.
-Add or extend the relevant browser and catalog tests using retained captures
-or explicit expectations. Do not regenerate expected settings from the catalog
-being tested.
+The generator checks types, references and capture metadata. Test browser and
+catalog behavior against retained captures or explicit expectations. Keep
+expected settings independent of the catalog being tested.
 
 ## Next
 
