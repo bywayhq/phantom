@@ -30,6 +30,16 @@ pub(crate) mod chrome {
     pub fn v154_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEWINDOWS154.instantiate()
     }
+
+    /// Returns the Chrome 156.0.8078.48 profile for windows-11-26200.
+    ///
+    /// Choose a request template separately. See the
+    /// [catalog evidence](crate::catalog::profile) for `chrome/156.0.8078.48/windows-11-26200/r1`
+    /// for supplied layers, reused settings and capture limits.
+    #[must_use]
+    pub fn v156_windows() -> crate::ClientProfile {
+        crate::catalog::connection_profile_definitions::CHROMEWINDOWS156.instantiate()
+    }
 }
 
 pub(crate) mod edge {

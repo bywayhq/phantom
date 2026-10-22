@@ -19,7 +19,7 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
         "chrome-154",
         "chrome-latest-windows",
         "chrome-154-linux",
-        "chrome-156-windows",
+        "chrome-157-windows",
         "chrome-154-windows-r2",
         "curl-safari-26-macos",
         "peer/curl-impersonate/safari2601/r1",
@@ -53,6 +53,10 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
 fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
     let mappings = [
         ("chrome-155-linux", "chrome/155.0.0.0/linux/r1"),
+        (
+            "chrome-156-windows",
+            "chrome/156.0.8078.48/windows-11-26200/r1",
+        ),
         ("safari-26-ios", "safari/26.0/ios/r1"),
         ("safari-26-macos", "safari/26.0.1/macos/r1"),
         (
@@ -164,7 +168,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::opera::v102_android,
         ),
     ];
-    assert_eq!(profiles().len(), factories.len() + 4);
+    assert_eq!(profiles().len(), factories.len() + 5);
 
     for &(id, factory) in factories {
         let definition = profile(id)?;

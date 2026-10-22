@@ -208,6 +208,7 @@ pub(super) enum ClientHintsComponent {
     ChromeAndroid154,
     ChromeMacos154,
     ChromeWindows154,
+    ChromeWindows156,
     EdgeAndroid153,
     EdgeWindows153,
     EdgeWindows154,
@@ -224,6 +225,7 @@ impl ClientHintsComponent {
             Self::ChromeAndroid154 => super::client_hints_components::chrome_android_154_client_hints(),
             Self::ChromeMacos154 => super::client_hints_components::chrome_macos_154_client_hints(),
             Self::ChromeWindows154 => super::client_hints_components::chrome_windows_154_client_hints(),
+            Self::ChromeWindows156 => super::client_hints_components::chrome_windows_156_client_hints(),
             Self::EdgeAndroid153 => super::client_hints_components::edge_android_153_client_hints(),
             Self::EdgeWindows153 => super::client_hints_components::edge_windows_153_client_hints(),
             Self::EdgeWindows154 => super::client_hints_components::edge_windows_154_client_hints(),
@@ -399,6 +401,26 @@ pub(super) static CHROMELINUX155: ConnectionProfileDefinition = ConnectionProfil
     websocket: None,
     proxy_connect: None,
     cookie_placement: Some(CookieComponent::Chromium154),
+};
+
+#[rustfmt::skip]
+pub(super) static CHROMEWINDOWS156: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Chromium154Tcp,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::Chromium154),
+    http3: Some(Http3Definition {
+        tls: TlsComponent::Chromium154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
+    }),
+    client_hints: Some(ClientHintsComponent::ChromeWindows156),
+    websocket: None,
+    proxy_connect: None,
+    cookie_placement: None,
 };
 
 #[rustfmt::skip]

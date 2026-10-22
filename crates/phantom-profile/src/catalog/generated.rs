@@ -1465,6 +1465,204 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("chrome/156.0.8078.48/windows-11-26200/r1"),
+        selector: "chrome-156-windows",
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            platform: ProfilePlatform::Windows,
+            identity: ProfileIdentity::Observed {
+                build: "156.0.8078.48",
+                platform_release: "windows-11-26200",
+                architecture: Some("x86_64"),
+                environment: CaptureEnvironment::Desktop,
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension presence"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["startup settings", "connection window", "navigation priority"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension presence"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["initial transport parameters"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["startup settings"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["pseudo-header order"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                ],
+                verified_fields: &["header values", "header order"],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMEWINDOWS156,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_WINDOWS156_NAVIGATION },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("edge/153.0.4234.48/windows-11-26200/r1"),
         selector: "edge-153-windows",
         metadata: ProfileMetadata {

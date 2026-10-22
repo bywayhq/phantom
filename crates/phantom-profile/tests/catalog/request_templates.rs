@@ -133,6 +133,11 @@ fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTe
             browser::chrome::v154_macos_fetch_template(),
         ),
     ]);
+    expected.push((
+        "chrome/156.0.8078.48/windows-11-26200/r1",
+        RequestTemplateKind::Navigation,
+        super::chrome_windows156::expected_navigation(),
+    ));
     expected
 }
 
@@ -188,7 +193,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (25, 23));
+    assert_eq!((supported, unsupported), (26, 26));
     Ok(())
 }
 

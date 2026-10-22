@@ -88,6 +88,23 @@ pub(crate) fn chrome_windows_154_client_hints() -> crate::ClientHintSettings {
 }
 
 #[rustfmt::skip]
+pub(crate) fn chrome_windows_156_client_hints() -> crate::ClientHintSettings {
+    crate::ClientHintSettings::new(vec![
+        crate::ClientHint::new("sec-ch-ua", "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\"", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-mobile", "?0", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-full-version", "\"156.0.8078.48\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-arch", "\"x86\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-platform", "\"Windows\"", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-platform-version", "\"19.0.0\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-model", "\"\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-bitness", "\"64\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-wow64", "?0", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-full-version-list", "\"Not:A-Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"156.0.8078.48\", \"Google Chrome\";v=\"156.0.8078.48\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-form-factors", "\"Desktop\"", crate::ClientHintDelivery::AcceptCh),
+    ])
+}
+
+#[rustfmt::skip]
 pub(crate) fn edge_android_153_client_hints() -> crate::ClientHintSettings {
     edge_android_153_client_hints_for_model("Pixel 7")
 }
