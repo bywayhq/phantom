@@ -6,15 +6,13 @@ Runtime: Python 3.12.10, h2 4.4.1, hpack 4.2.0, aioquic 1.3.0.
 Executable SHA256: `480f275b63d1ea39113cbc8344ac395578acc25b432bd39af5fbc77005179aca`.
 
 `snapshot-1/2/3.txt` are one normal headful batch, without retries.
-`snapshot-headless-1/2/3.txt` are one cleanup diagnostic, with unchanged
-capture source and deadlines. Both use fresh profiles and the browser sandbox.
-The observer wraps `_windows_open_process(pid)`, `_windows_terminate_job(job)`
-and `_windows_wait_process(handle, deadline)`, forwarding arguments/results/errors.
-It records owned PID/handle pairs and monotonic wait/terminate times; all 27
-waits completed within the original 20-second deadline, with no logging errors.
+`snapshot-headless-1/2/3.txt` are a cleanup diagnostic using the same source
+and deadlines. Both batches use fresh profiles and the browser sandbox.
+The observer wraps `_windows_open_process`, `_windows_terminate_job` and
+`_windows_wait_process`. All 27 owned waits completed within 20 seconds.
 Observer SHA256: `2cc36ba0a24625b16c2ec9457b20d89e824d1742d500e1eceeabfaf9008d3821`.
-The earlier failed headless batch stays in private evidence: an owned-member
-cleanup timeout stopped it after one saved snapshot. Its cause remains OPEN.
+An earlier normal headless batch stopped after one snapshot on an owned-member
+cleanup timeout. Its private logs are retained; the cause remains unresolved.
 
 Normalized TCP/QUIC TLS, exact H2 startup, ordered H2/first-H3 fields, H3
 SETTINGS and 11 hints agree across these modes. Only the decoded User-Agent
@@ -23,9 +21,7 @@ HeadlessChrome. Headless 1 records a TLS ConnectionError before successful H2/H3
 TLS comparison removes GREASE/random keys/ECH payloads and Chromium shuffle;
 QUIC also normalizes connection IDs/reserved versions. Against retained 154,
 transport structure agrees; three version/GREASE-brand hint values differ.
-Raw replay covers three H2 HPACK blocks and the first QPACK request, not later
-QPACK state. These do not establish TCP OS policy, H1 resource templates,
-resumption, early data, genuine ECH, a named 156 profile or performance.
+Raw replay covers three H2 HPACK blocks and the first QPACK request.
 
 Reproduce the normal batch with exact browser and fresh output/work paths:
 ```json
