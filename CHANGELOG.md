@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reduce repeated parsing of fragmented HTTP/1 response headers.
+
 - Restrict direct TCP and QUIC destinations with an optional client-wide
   address callback. Denied candidates never open a connection; proxy and custom
   connector routes fail explicitly while a policy is configured. Denial also

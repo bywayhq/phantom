@@ -118,11 +118,15 @@ impl ResponseHeadLimitError {
 
 impl ResponseHeadState {
     fn observe(&mut self, bytes: &[u8]) {
-        if !self.armed {
+        if !self.armed || bytes.is_empty() {
             return;
         }
 
-        let mut remaining = bytes;
+        // The retained prefix was already parsed as partial on the last read.
+        let available = MAX_RESPONSE_HEAD_BYTES - self.buffered.len();
+        let observed = available.min(bytes.len());
+        self.buffered.extend_from_slice(&bytes[..observed]);
+        let mut remaining = &bytes[observed..];
         loop {
             let mut slots = [httparse::EMPTY_HEADER; MAX_RESPONSE_HEADERS];
             let mut response = httparse::Response::new(&mut slots);
