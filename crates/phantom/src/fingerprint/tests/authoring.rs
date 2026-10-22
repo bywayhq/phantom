@@ -265,7 +265,8 @@ fn editable_request_priority_keeps_its_mode_and_rejects_mixed_fields() -> TestRe
 
     document["profile"]["request_template"]["http2_priority"]["dependency_stream_id"] = 0.into();
     let error = import_profile_json(&serde_json::to_vec(&document)?)
-        .expect_err("weight band accepted a fixed dependency");
+        .err()
+        .ok_or("weight band accepted a fixed dependency")?;
     assert_eq!(error.kind(), FingerprintImportErrorKind::UnsupportedSetting);
     assert_eq!(error.field(), "request_template.http2_priority");
     Ok(())
