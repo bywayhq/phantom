@@ -175,6 +175,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "exact catalog definitions and original component values",
             [
                 "catalog",
+                "chrome_linux_peer",
                 "client_hints_components",
                 "compositions",
                 "constructors",
