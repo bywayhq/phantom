@@ -1,0 +1,11 @@
+[package]
+name = "chrome-linux-public-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+phantom = { package = "phantom-http", path = "../../../../crates/phantom", features = ["fingerprint-import"] }
+tokio = { version = "=1.53.1", features = ["rt", "net", "time"] }

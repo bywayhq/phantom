@@ -3,6 +3,7 @@
 import hashlib
 import json
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from hpack import Decoder
@@ -230,6 +231,70 @@ class ChromeLinuxPeerTests(unittest.TestCase):
                         hello.extension(0xFE0D)[:5], bytes.fromhex("0000010001")
                     )
                     self.assertIn(len(hello.extension(0xFE0D)), (218, 250, 282))
+
+    def test_public_client_keeps_peer_ordered_fields_and_dynamic_state(self):
+        def normalized(name, value):
+            if name == b":authority":
+                host, separator, port = value.rpartition(b":")
+                self.assertEqual(host, b"server.phantom.test")
+                self.assertEqual(separator, b":")
+                self.assertTrue(port.isdigit())
+                return host + b":<port>"
+            return value
+
+        for mode, count in (("baseline", 2), ("boundary", 9)):
+            for number in range(1, 4):
+                name = f"{mode}-{number}"
+                records = [
+                    self.record(DIRECTORY / prefix / name)
+                    for prefix in ("phantom/observations", "observations-v1")
+                ]
+                blocks = [analyze_http2(record).client_headers for record in records]
+                self.assertEqual([len(value) for value in blocks], [count, count])
+                frames = [
+                    split_frames(record.client_chunks, "client", preface=True)[0]
+                    for record in records
+                ]
+                with self.subTest(run=name):
+                    for kind in (4, 8):
+                        self.assertEqual(
+                            [f.payload for f in frames[0] if f.frame_type == kind],
+                            [f.payload for f in frames[1] if f.frame_type == kind],
+                        )
+                    decoders = [Decoder(), Decoder()]
+                    for pair in zip(*blocks, strict=True):
+                        actual, peer = pair
+                        self.assertEqual(
+                            (
+                                actual.stream_id,
+                                actual.flags,
+                                actual.priority,
+                                actual.continuation_count,
+                            ),
+                            (
+                                peer.stream_id,
+                                peer.flags,
+                                peer.priority,
+                                peer.continuation_count,
+                            ),
+                        )
+                        fields, tables = [], []
+                        for block, decoder in zip(pair, decoders, strict=True):
+                            fields.append(
+                                [
+                                    replace(f, value=normalized(f.name, f.value))
+                                    for f in block.fields
+                                ]
+                            )
+                            decode_header_block(decoder, block.block)
+                            tables.append(
+                                [
+                                    (name, normalized(name, value))
+                                    for name, value in decoder.header_table.dynamic_entries
+                                ]
+                            )
+                        self.assertEqual(fields[0], fields[1])
+                        self.assertEqual(tables[0], tables[1])
 
     @staticmethod
     def record(run):

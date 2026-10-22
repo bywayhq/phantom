@@ -1,0 +1,503 @@
+{
+  "format": "phantom.custom-profile",
+  "profile": {
+    "client_hints": null,
+    "cookie_placement": {
+      "before": [
+        "if-none-match",
+        "if-modified-since",
+        "priority"
+      ]
+    },
+    "dns_cache": null,
+    "http1": null,
+    "http2": {
+      "extended_connect_priority": {
+        "dependency_stream_id": 0,
+        "exclusive": true,
+        "weight": 147
+      },
+      "extended_connect_pseudo_header_order": [
+        "Method",
+        "Authority",
+        "Scheme",
+        "Path",
+        "Protocol"
+      ],
+      "headers_priority": {
+        "dependency_stream_id": 0,
+        "exclusive": true,
+        "weight": 256
+      },
+      "hpack": {
+        "cookie_crumbs": "IndexAll",
+        "field_indexing": "All",
+        "huffman_coding": "WhenShorter",
+        "indexing_limit": "FullTable",
+        "literal_pseudo_headers": [
+          "Method",
+          "Scheme",
+          "Path",
+          "Protocol"
+        ],
+        "name_reference": "StaticThenNewest",
+        "sensitive_proxy_authorization": "FieldIndexing",
+        "static_name_index": "Lowest",
+        "table_size_updates": "WhenChanged",
+        "unindexed_match": "Index"
+      },
+      "idle_ping_after": null,
+      "idle_ping_timeout": null,
+      "idle_timeout": {
+        "duration": null,
+        "kind": "Unlimited"
+      },
+      "initial_connection_window_size": 15728640,
+      "initial_settings": [
+        {
+          "kind": "HeaderTableSize",
+          "value": 65536
+        },
+        {
+          "kind": "EnablePush",
+          "value": false
+        },
+        {
+          "kind": "InitialWindowSize",
+          "value": 6291456
+        },
+        {
+          "kind": "MaxHeaderListSize",
+          "value": 262144
+        }
+      ],
+      "initial_stream_window_target": null,
+      "ping_failure_retries": 2,
+      "ping_timeout": {
+        "nanoseconds": 0,
+        "seconds": 10
+      },
+      "preface_ping_after": {
+        "nanoseconds": 0,
+        "seconds": 10
+      },
+      "pseudo_header_order": [
+        "Method",
+        "Authority",
+        "Scheme",
+        "Path"
+      ],
+      "streams": {
+        "assumed_max_concurrent_streams": 100,
+        "first_stream_id": 1,
+        "max_concurrent_streams_cap": 256
+      }
+    },
+    "http3": null,
+    "proxy_connect": null,
+    "request_template": {
+      "http1_fields": [],
+      "http2_fields": [
+        {
+          "name": "sec-ch-ua",
+          "value": "\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-ch-ua-mobile",
+          "value": "?0",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-ch-ua-platform",
+          "value": "\"Linux\"",
+          "variant": "Literal"
+        },
+        {
+          "name": "upgrade-insecure-requests",
+          "value": "1",
+          "variant": "Literal"
+        },
+        {
+          "name": "user-agent",
+          "value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+          "variant": "Literal"
+        },
+        {
+          "name": "accept",
+          "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-fetch-site",
+          "value": "none",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-fetch-mode",
+          "value": "navigate",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-fetch-user",
+          "value": "?1",
+          "variant": "Literal"
+        },
+        {
+          "name": "sec-fetch-dest",
+          "value": "document",
+          "variant": "Literal"
+        },
+        {
+          "name": "accept-encoding",
+          "value": "gzip, deflate, br, zstd",
+          "variant": "Literal"
+        },
+        {
+          "name": "accept-language",
+          "value": "en-US,en;q=0.9",
+          "variant": "Literal"
+        },
+        {
+          "name": "priority",
+          "value": "u=0, i",
+          "variant": "Literal"
+        }
+      ],
+      "http2_priority": {
+        "dependency_stream_id": 0,
+        "exclusive": true,
+        "weight": 256
+      },
+      "http3_fields": null,
+      "requested_client_hint_placement": false,
+      "restarts_for_connection_accept_ch": false
+    },
+    "tcp": null,
+    "tls": {
+      "aes_hardware": true,
+      "alpn_protocols": [
+        [
+          104,
+          50
+        ],
+        [
+          104,
+          116,
+          116,
+          112,
+          47,
+          49,
+          46,
+          49
+        ]
+      ],
+      "alps": {
+        "protocol": [
+          104,
+          50
+        ],
+        "settings": [],
+        "use_new_codepoint": true
+      },
+      "certificate_compression": [
+        "Brotli"
+      ],
+      "cipher_suites": [
+        "Aes128GcmSha256",
+        "Aes256GcmSha384",
+        "Chacha20Poly1305Sha256",
+        "EcdheEcdsaAes128GcmSha256",
+        "EcdheRsaAes128GcmSha256",
+        "EcdheEcdsaAes256GcmSha384",
+        "EcdheRsaAes256GcmSha384",
+        "EcdheEcdsaChacha20Poly1305Sha256",
+        "EcdheRsaChacha20Poly1305Sha256",
+        "EcdheRsaAes128CbcSha",
+        "EcdheRsaAes256CbcSha",
+        "RsaAes128GcmSha256",
+        "RsaAes256GcmSha384",
+        "RsaAes128CbcSha",
+        "RsaAes256CbcSha"
+      ],
+      "close_notify": false,
+      "delegated_credential_schemes": [],
+      "ech": {
+        "kind": "Grease",
+        "settings": {
+          "aeads": [],
+          "payload_length": {
+            "kind": "BackendDefault",
+            "value": null
+          }
+        }
+      },
+      "extension_order": {
+        "extensions": [],
+        "kind": "Permuted"
+      },
+      "grease": true,
+      "grease_signature_algorithms": true,
+      "groups": [
+        "X25519MlKem768",
+        "X25519",
+        "Secp256r1",
+        "Secp384r1"
+      ],
+      "key_shares": [
+        "X25519MlKem768",
+        "X25519"
+      ],
+      "record_size_limit": null,
+      "request_ocsp_staple": true,
+      "request_signed_certificate_timestamps": true,
+      "requested_trust_anchor_ids": {
+        "kind": "Fixed",
+        "orders": [
+          [
+            [
+              130,
+              223,
+              19,
+              2,
+              1
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              6
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              13
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              14
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              15
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              18
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              19
+            ],
+            [
+              130,
+              223,
+              19,
+              2,
+              20
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              7
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              8
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              9
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              10
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              11
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              12
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              13
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              18
+            ],
+            [
+              131,
+              154,
+              100,
+              140,
+              155,
+              45,
+              1,
+              19
+            ],
+            [
+              214,
+              121,
+              9,
+              1
+            ],
+            [
+              214,
+              121,
+              9,
+              4
+            ],
+            [
+              214,
+              121,
+              9,
+              5
+            ],
+            [
+              214,
+              121,
+              9,
+              6
+            ],
+            [
+              214,
+              121,
+              9,
+              7
+            ],
+            [
+              214,
+              121,
+              9,
+              8
+            ],
+            [
+              214,
+              121,
+              9,
+              10
+            ],
+            [
+              214,
+              121,
+              9,
+              11
+            ],
+            [
+              214,
+              121,
+              9,
+              12
+            ],
+            [
+              214,
+              121,
+              9,
+              13
+            ],
+            [
+              214,
+              121,
+              9,
+              15
+            ]
+          ]
+        ]
+      },
+      "session_ticket_extension_when_resuming": true,
+      "session_ticket_order": "NewestFirst",
+      "session_tickets": {
+        "enabled": true,
+        "tcp_per_origin": 2
+      },
+      "signature_schemes": [
+        "MlDsa44",
+        "MlDsa65",
+        "MlDsa87",
+        "EcdsaSecp256r1Sha256",
+        "RsaPssRsaeSha256",
+        "RsaPkcs1Sha256",
+        "EcdsaSecp384r1Sha384",
+        "RsaPssRsaeSha384",
+        "RsaPkcs1Sha384",
+        "RsaPssRsaeSha512",
+        "RsaPkcs1Sha512"
+      ],
+      "tcp_early_data": false,
+      "tls12_extensions_in_tls13_client_hello": false,
+      "versions": {
+        "max": "Tls13",
+        "min": "Tls12"
+      }
+    },
+    "udp": null,
+    "websocket": null
+  },
+  "version": 1
+}

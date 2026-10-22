@@ -1,0 +1,187 @@
+"""Compare actual six-run observations with the retained peer; retain every difference."""
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+from hpack import Decoder
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+from scripts.capture.http2_analysis import (
+    analyze_http2,
+    decode_header_block,
+    split_frames,
+)
+from scripts.capture.http2_session import ConnectionRecord
+from scripts.capture.quic_resumption import is_tls_grease, parse_client_hello
+from scripts.capture.snapshot_compare import Variation, code, compare_hello
+
+PEER = (
+    ROOT
+    / "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/observations-v1"
+)
+
+
+def projection(directory):
+    record = ConnectionRecord(
+        "tls",
+        0,
+        client_chunks=[(0, (directory / "connection-0.client.bin").read_bytes())],
+        server_chunks=[(0, (directory / "connection-0.server.bin").read_bytes())],
+    )
+    analysis = analyze_http2(record)
+    frames, trailing = split_frames(record.client_chunks, "client", preface=True)
+    if trailing:
+        raise ValueError("trailing client bytes")
+    blocks = []
+    decoder = Decoder()
+    for block in analysis.client_headers:
+        fields = []
+        for field in block.fields:
+            value = field.value
+            if field.name == b":authority":
+                host, separator, port = value.rpartition(b":")
+                if (
+                    host != b"server.phantom.test"
+                    or not separator
+                    or not port.isdigit()
+                ):
+                    raise ValueError("unexpected authority")
+                value = host + b":<port>"
+            fields.append(
+                [
+                    field.representation,
+                    field.index,
+                    field.name_huffman,
+                    field.value_huffman,
+                    None if field.name is None else field.name.hex(),
+                    None if value is None else value.hex(),
+                ]
+            )
+        decode_header_block(decoder, block.block)
+        table = []
+        for name, value in decoder.header_table.dynamic_entries:
+            if name == b":authority":
+                value = b"server.phantom.test:<port>"
+            table.append([name.hex(), value.hex()])
+        blocks.append(
+            {
+                "stream": block.stream_id,
+                "flags": block.flags,
+                "continuations": block.continuation_count,
+                "priority": None if block.priority is None else vars(block.priority),
+                "fields": fields,
+                "dynamic_entries": table,
+            }
+        )
+    return {
+        "headers": blocks,
+        "settings": [
+            f.payload.hex() for f in frames if f.frame_type == 4 and not f.flags & 1
+        ],
+        "window": [
+            f.payload.hex() for f in frames if f.frame_type == 8 and f.stream_id == 0
+        ],
+        "frames": [[f.frame_type, f.flags, f.stream_id] for f in frames],
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--observations", type=Path, required=True)
+    args = parser.parse_args()
+    report = {
+        "scope": "controlled fresh sequential GETs, no browser/upload/performance claim",
+        "normalization": "authority port, TLS random/session ID/key exchange/GREASE codepoints, extension permutation and ECH random payload; actual ECH lengths and frame order retained separately, trust-anchor order preserved",
+        "comparisons": [],
+    }
+    for mode in ("baseline", "boundary"):
+        for index in range(1, 4):
+            name = f"{mode}-{index}"
+            new, old = args.observations / name, PEER / name
+            first = (new / "connection-0.hello.bin").read_bytes()
+            second = (old / "connection-0.hello.bin").read_bytes()
+            tls = compare_hello(name, first, second, Variation(extension_order=True))
+            grease = []
+            for message in (first, second):
+                grease.append(
+                    [
+                        body.hex()
+                        for kind, body in parse_client_hello(message).extensions
+                        if is_tls_grease(kind)
+                    ]
+                )
+            if grease[0] != grease[1]:
+                tls.append(
+                    f"GREASE extension bodies differ: actual {grease[0]}, peer {grease[1]}"
+                )
+            if first[38] != second[38]:
+                tls.append("session ID lengths differ")
+
+            def compression(message):
+                offset = 39 + message[38]
+                offset += 2 + int.from_bytes(message[offset : offset + 2], "big")
+                return message[offset : offset + 1 + message[offset]]
+
+            if compression(first) != compression(second):
+                tls.append("compression offers differ")
+            for label, message in (("Phantom", first), ("peer", second)):
+                shape = parse_client_hello(message)
+                if (
+                    not code(shape.extension_types[0])
+                    == code(shape.extension_types[-1])
+                    == "GREASE"
+                ):
+                    tls.append(f"{label}: GREASE extensions do not bracket offer")
+                if len(shape.extension(0xFE0D)) not in (186, 218, 250, 282):
+                    tls.append(f"{label}: ECH length outside the pinned source-supported distribution")
+            actual, expected = projection(new), projection(old)
+            differences = {
+                key: {"actual": actual[key], "peer": expected[key]}
+                for key in actual
+                if actual[key] != expected[key]
+            }
+            report["comparisons"].append(
+                {
+                    "run": name,
+                    "tls_differences": tls,
+                    "tls_observed": {
+                        "actual_grease_bodies": grease[0],
+                        "peer_grease_bodies": grease[1],
+                        "actual_ech_length": len(
+                            parse_client_hello(first).extension(0xFE0D)
+                        ),
+                        "peer_ech_length": len(
+                            parse_client_hello(second).extension(0xFE0D)
+                        ),
+                        "actual_extension_order": [
+                            code(v) for v in parse_client_hello(first).extension_types
+                        ],
+                        "peer_extension_order": [
+                            code(v) for v in parse_client_hello(second).extension_types
+                        ],
+                    },
+                    "h2_differences": differences,
+                    "raw_hello_sha256": {
+                        "actual": hashlib.sha256(first).hexdigest(),
+                        "peer": hashlib.sha256(second).hexdigest(),
+                    },
+                }
+            )
+    destination = args.observations / "comparison-source-range.json"
+    with destination.open("x", encoding="utf-8") as output:
+        json.dump(report, output, indent=2)
+        output.write("\n")
+    return int(
+        any(
+            row["tls_differences"] or row["h2_differences"]
+            for row in report["comparisons"]
+        )
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

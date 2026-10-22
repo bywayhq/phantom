@@ -9,7 +9,9 @@ navigation pairs and three nine-request cookie/HPACK boundary sequences.
 The browser build and Linux release were not observed. There is no TCP/IP,
 HTTP/1, QUIC, upload, DNS, WebSocket or resumption comparison. The source-only
 16,375-byte DATA cap is unported and unverified. Existing TLS ticket and HTTP/2
-idle defaults are not claimed equivalent. Phantom's public comparison is pending.
+idle defaults are not claimed equivalent. `phantom/` retains the public-client
+comparison and its observed differences. The original `provenance.json` records
+the peer preparation stage.
 
 The observed insertion limit is the complete dynamic table: 3,073 and 4,096
 bytes insert; 4,097 bytes uses a literal without insertion and preserves a

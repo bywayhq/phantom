@@ -1,0 +1,24 @@
+{
+  "source": "/mnt/c/code/phantom-worktrees/chrome-linux-peer",
+  "commit": "4cdba21446e25c4cb8092cce896e6fb7ad66bff1",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "platform": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "openssl": "OpenSSL 3.0.13 30 Jan 2024",
+  "packages": {
+    "h2": "4.4.1",
+    "hpack": "4.2.0",
+    "cryptography": "50.0.2"
+  },
+  "sha256": {
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/chrome-linux-comparison/capture.py": "c4a4f02add33c379cfc131d0fbfaa1c218aba592bfe36eff2acdba4a45aa58e7",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/chrome-linux-comparison/consumer/target/debug/chrome-linux-public-consumer": "1170481d00c8798b748f6a483167f1582a9414e122782db451f1d5af1386e1fb",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/safari-ios-comparison/capture.py": "0aeaa3313458e5fc5a97ccfdad07da01069213c0ce0f0f4d9871da993d98a04e",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/chrome-linux-comparison/consumer/Cargo.toml": "c3c6f8e24d2c0c34963ff6d9b9cfe5e37377fcf57156de4b6222c70bafdc49ff",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/chrome-linux-comparison/consumer/Cargo.lock": "f15b376d1a409b6865d68cea61a9f1a2259e7b947127964ed9160cce9116fec7",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/target/tmp/chrome-linux-comparison/consumer/src/main.rs": "5007f4bf27099f93e0a1f8a8f827c1f9fe1a3cda047312c11a2ec80b88737751",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/Cargo.lock": "0a4256263028ed243cc5dd450666af2788c00800f3caf2cd7476fc8e5ee61f04",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/scripts/capture/http2_session.py": "de4413233b6bd6f080011be9f26990e82ffb6227067fbafc11dae36564e6c53a",
+    "/mnt/c/code/phantom-worktrees/chrome-linux-peer/scripts/capture/http2_analysis.py": "d973061e26e0007a5e0b79971ff13614df3e9910f449fbb10ee0a0549ba83fb2"
+  },
+  "scope": "controlled peer wire observations; not browser fidelity or performance"
+}

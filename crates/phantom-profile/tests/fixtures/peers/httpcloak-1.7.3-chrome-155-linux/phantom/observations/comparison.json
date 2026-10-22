@@ -1,0 +1,936 @@
+{
+  "scope": "controlled fresh sequential GETs, no browser/upload/performance claim",
+  "normalization": "authority port, TLS random/session ID/key exchange/GREASE codepoints, extension permutation and ECH random payload; actual ECH lengths and frame order retained separately, trust-anchor order preserved",
+  "comparisons": [
+    {
+      "run": "baseline-1",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 282,
+        "peer_ech_length": 250,
+        "actual_extension_order": [
+          "GREASE",
+          "0x001b",
+          "0x0000",
+          "0x0010",
+          "0x0023",
+          "0x002b",
+          "0x0005",
+          "0xff01",
+          "0x0017",
+          "0x000b",
+          "0x0012",
+          "0xca34",
+          "0x0033",
+          "0x000d",
+          "0x000a",
+          "0xfe0d",
+          "0x002d",
+          "0x44cd",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0x0033",
+          "0xca34",
+          "0x001b",
+          "0x000b",
+          "0x000d",
+          "0x0000",
+          "0xff01",
+          "0x44cd",
+          "0x0012",
+          "0x0010",
+          "0x002d",
+          "0x000a",
+          "0x0005",
+          "0xfe0d",
+          "0x002b",
+          "0x0017",
+          "0x0023",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "2fb9f7999195f2378ab12f1624878f491b1449dc3a85c0ff948b4f1192a5155c",
+        "peer": "21a303e0ba051b8afd7126e335bf9e9de1049ed8a5cbe4c1fb6c37f8b4497925"
+      }
+    },
+    {
+      "run": "baseline-2",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 218,
+        "peer_ech_length": 250,
+        "actual_extension_order": [
+          "GREASE",
+          "0x000a",
+          "0x000d",
+          "0x0033",
+          "0xca34",
+          "0x0012",
+          "0x0017",
+          "0x000b",
+          "0x002b",
+          "0xfe0d",
+          "0x0010",
+          "0x001b",
+          "0xff01",
+          "0x0000",
+          "0x002d",
+          "0x0005",
+          "0x0023",
+          "0x44cd",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0x0000",
+          "0x0005",
+          "0x44cd",
+          "0x0017",
+          "0xff01",
+          "0x0033",
+          "0xfe0d",
+          "0x000a",
+          "0x000b",
+          "0x0010",
+          "0x001b",
+          "0x002b",
+          "0x000d",
+          "0xca34",
+          "0x0012",
+          "0x0023",
+          "0x002d",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "3fe5b29f659b097f7f0da51c931a057df7f739b43c077002581174d8a03ab89a",
+        "peer": "d44015f2c5fa7886fce2acdaadbb696b9c4b524a4eb130a87009b124c1046685"
+      }
+    },
+    {
+      "run": "baseline-3",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 250,
+        "peer_ech_length": 218,
+        "actual_extension_order": [
+          "GREASE",
+          "0x0023",
+          "0x0017",
+          "0xfe0d",
+          "0x44cd",
+          "0xca34",
+          "0x0000",
+          "0x0012",
+          "0x000b",
+          "0x000d",
+          "0x0033",
+          "0x0010",
+          "0xff01",
+          "0x002d",
+          "0x000a",
+          "0x001b",
+          "0x002b",
+          "0x0005",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0x002b",
+          "0x002d",
+          "0x0023",
+          "0x0012",
+          "0x0005",
+          "0x000b",
+          "0x0010",
+          "0xff01",
+          "0x0017",
+          "0xfe0d",
+          "0x0000",
+          "0x0033",
+          "0x000a",
+          "0xca34",
+          "0x001b",
+          "0x000d",
+          "0x44cd",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              3
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "2f3c721002308f43313e8e083e7792043b0854aaecc93e1d1251538dd153bf8b",
+        "peer": "e13372d8617c7226eb62271150cdcbb6658bbfd5b9798e1d08fc8049b0e0c4f7"
+      }
+    },
+    {
+      "run": "boundary-1",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 250,
+        "peer_ech_length": 218,
+        "actual_extension_order": [
+          "GREASE",
+          "0x0012",
+          "0x000b",
+          "0x44cd",
+          "0x002d",
+          "0x0033",
+          "0x0005",
+          "0x0017",
+          "0x002b",
+          "0x000a",
+          "0x0010",
+          "0x0000",
+          "0x001b",
+          "0xca34",
+          "0x0023",
+          "0x000d",
+          "0xff01",
+          "0xfe0d",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0x0005",
+          "0xca34",
+          "0x0010",
+          "0x0023",
+          "0x002b",
+          "0xff01",
+          "0x000a",
+          "0xfe0d",
+          "0x44cd",
+          "0x001b",
+          "0x000b",
+          "0x0012",
+          "0x000d",
+          "0x0017",
+          "0x002d",
+          "0x0033",
+          "0x0000",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "d8ad17c731b9be84175e3153532f135baefa4648b65b774f52619c50cca9b2d9",
+        "peer": "ff89d22e3e73091fe70e26ab1c452128c97a1f40272fca1808201524e6ffe030"
+      }
+    },
+    {
+      "run": "boundary-2",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 218,
+        "peer_ech_length": 282,
+        "actual_extension_order": [
+          "GREASE",
+          "0x000d",
+          "0x44cd",
+          "0x0033",
+          "0x000a",
+          "0x0017",
+          "0x002d",
+          "0x001b",
+          "0x0000",
+          "0x002b",
+          "0xfe0d",
+          "0x000b",
+          "0x0012",
+          "0x0005",
+          "0xca34",
+          "0xff01",
+          "0x0010",
+          "0x0023",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0xca34",
+          "0x0000",
+          "0x0017",
+          "0x0005",
+          "0xfe0d",
+          "0x000d",
+          "0x002b",
+          "0xff01",
+          "0x0010",
+          "0x44cd",
+          "0x0033",
+          "0x002d",
+          "0x0023",
+          "0x000a",
+          "0x000b",
+          "0x0012",
+          "0x001b",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "33881205c7111ae9d4ae8ae17fdc24959872506730b345ea12941d305d459dec",
+        "peer": "bbc402d610667e314d663528c46bf2ec936d071021331a30ec0e3e117ef62c38"
+      }
+    },
+    {
+      "run": "boundary-3",
+      "tls_differences": [],
+      "tls_observed": {
+        "actual_grease_bodies": [
+          "",
+          "00"
+        ],
+        "peer_grease_bodies": [
+          "",
+          "00"
+        ],
+        "actual_ech_length": 250,
+        "peer_ech_length": 282,
+        "actual_extension_order": [
+          "GREASE",
+          "0x0017",
+          "0x0033",
+          "0x0012",
+          "0xca34",
+          "0xfe0d",
+          "0x000d",
+          "0x000a",
+          "0x44cd",
+          "0x0010",
+          "0x002d",
+          "0x0005",
+          "0x0023",
+          "0x000b",
+          "0xff01",
+          "0x0000",
+          "0x002b",
+          "0x001b",
+          "GREASE"
+        ],
+        "peer_extension_order": [
+          "GREASE",
+          "0x0010",
+          "0x0033",
+          "0x0012",
+          "0x44cd",
+          "0xca34",
+          "0x0000",
+          "0x0017",
+          "0x000a",
+          "0x0023",
+          "0x001b",
+          "0x000b",
+          "0x000d",
+          "0x0005",
+          "0xfe0d",
+          "0x002d",
+          "0xff01",
+          "0x002b",
+          "GREASE"
+        ]
+      },
+      "h2_differences": {
+        "frames": {
+          "actual": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ],
+          "peer": [
+            [
+              4,
+              0,
+              0
+            ],
+            [
+              8,
+              0,
+              0
+            ],
+            [
+              1,
+              37,
+              1
+            ],
+            [
+              4,
+              1,
+              0
+            ],
+            [
+              1,
+              37,
+              3
+            ],
+            [
+              1,
+              37,
+              5
+            ],
+            [
+              1,
+              37,
+              7
+            ],
+            [
+              1,
+              37,
+              9
+            ],
+            [
+              1,
+              37,
+              11
+            ],
+            [
+              1,
+              37,
+              13
+            ],
+            [
+              1,
+              37,
+              15
+            ],
+            [
+              1,
+              37,
+              17
+            ]
+          ]
+        }
+      },
+      "raw_hello_sha256": {
+        "actual": "66365fa5226262bf82898d1752a77a632668323f0dc6f8a08350f59e4c641fce",
+        "peer": "4ceb08bdb9cd2df74bcca0d561380b6d255aaeafafcd1d3c77ceaef4b7c378f1"
+      }
+    }
+  ]
+}

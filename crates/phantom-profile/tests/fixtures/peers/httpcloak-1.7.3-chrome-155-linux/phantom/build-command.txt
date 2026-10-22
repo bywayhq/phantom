@@ -1,0 +1,1 @@
+CARGO_LOG=cargo::core::compiler::fingerprint=info cargo build --manifest-path target/tmp/chrome-linux-comparison/consumer/Cargo.toml --locked --offline --jobs 2

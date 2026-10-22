@@ -1,0 +1,70 @@
+{
+  "source_head": "4cdba21446e25c4cb8092cce896e6fb7ad66bff1",
+  "selector": "chrome-155-linux",
+  "consumer_sha256": "5007f4bf27099f93e0a1f8a8f827c1f9fe1a3cda047312c11a2ec80b88737751",
+  "executable_sha256": "1170481d00c8798b748f6a483167f1582a9414e122782db451f1d5af1386e1fb",
+  "capture_driver_sha256": "c4a4f02add33c379cfc131d0fbfaa1c218aba592bfe36eff2acdba4a45aa58e7",
+  "comparator_sha256": "e81405e390b2bd48bbe09eda6d39d38e0ea0a3e279d5035cdd0af49d213e3171",
+  "requests": 33,
+  "fresh_processes": 6,
+  "connections": 6,
+  "capture_exit": 0,
+  "comparison_exit": 1,
+  "normalized_tls_settings": "match; random values, extension permutation and randomized ECH payloads are not byte-identical",
+  "source_supported_ech_lengths": [
+    186,
+    218,
+    250,
+    282
+  ],
+  "observed_ech_lengths": [
+    218,
+    250,
+    282
+  ],
+  "actual_peer_ech_pairs": [
+    [
+      282,
+      250
+    ],
+    [
+      218,
+      250
+    ],
+    [
+      250,
+      218
+    ],
+    [
+      250,
+      218
+    ],
+    [
+      218,
+      282
+    ],
+    [
+      250,
+      282
+    ]
+  ],
+  "h2_matching_projections": [
+    "SETTINGS values/order",
+    "connection WINDOW_UPDATE",
+    "HEADERS fields/order/priority/flags",
+    "HPACK representations/indexes/Huffman flags",
+    "dynamic table after every block"
+  ],
+  "h2_difference": "Phantom acknowledges server SETTINGS before its connection WINDOW_UPDATE; peer ACK follows WINDOW_UPDATE, usually after first request HEADERS",
+  "normalization": "authority port; known TLS random/session ID/key exchange/GREASE codepoints; extension permutation and ECH randomized payload; GREASE bodies, trust-anchor bytes/order and actual ECH lengths retained",
+  "independent_raw_review_sha256": "3aec4f246dec688bfaaa6d137f39e869dbe41216a080b37400acdf384bcc8fca",
+  "limits": [
+    "fresh sequential bodyless GETs only",
+    "no observed browser build or OS release",
+    "no TCP/IP, HTTP1, QUIC, upload, DNS, proxy, WebSocket, resumption or performance equivalence",
+    "source-only 16375-byte upload DATA cap remains unported and unverified",
+    "six samples do not establish ECH distribution equivalence"
+  ],
+  "history": "original uppercase caller-header failures and one cause-chain diagnostic remain preserved with build logs in the private scratch handoff; only caller field spelling changed, with no production fix",
+  "comparison_filename": "observations/comparison.json retains the final comparison-source-range.json result"
+}
