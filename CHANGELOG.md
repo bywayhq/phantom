@@ -18,6 +18,9 @@
 - Fix socket-capture cleanup with the pinned Frida API and report nested
   cleanup errors.
 
+- Report actual client-certificate transmission in QUIC handshake metadata,
+  separately from server authentication.
+
 - Include I/O error kinds and OS codes in Node connection failures.
 
 - Start SSE QUIC shutdown while workers finish, and retire the UDP endpoint

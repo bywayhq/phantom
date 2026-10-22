@@ -18,6 +18,8 @@ use crate::{
     ApplicationState, HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind, StatelessResetKey,
 };
 
+mod client_certificate;
+
 /// A Chrome HTTP/3 TLS profile with ticket resumption enabled.
 fn resuming_tls_settings() -> phantom_profile::TlsSettings {
     chrome::v154_quic_tls()

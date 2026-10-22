@@ -20,6 +20,10 @@ use quinn_proto::{
 };
 use rustls_pki_types::DnsName;
 
+mod client_certificate;
+
+use self::client_certificate::ClientCertificateTracker;
+
 use super::callback_state::{CallbackError, EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{
     ClientSession, ClientSessionError, ClientSessionOptions, ScopedSessionOffer,
@@ -672,6 +676,7 @@ pub struct HandshakeData {
     session_resumed: bool,
     cipher_suite: Option<u16>,
     peer_verified: bool,
+    client_certificate_sent: bool,
     ech_accepted: bool,
     peer_initial_max_streams_bidi: Option<u64>,
 }
@@ -688,6 +693,17 @@ impl HandshakeData {
     pub const fn peer_verified(&self) -> bool {
         self.peer_verified
     }
+
+    /// Whether this connection sent a nonempty TLS 1.3 client Certificate.
+    ///
+    /// Available after the handshake completes. A configured certificate that
+    /// the server did not request returns false. Server authentication is
+    /// reported separately by [`Self::peer_verified`].
+    #[must_use]
+    pub const fn client_certificate_sent(&self) -> bool {
+        self.client_certificate_sent
+    }
+
     /// Returns the negotiated ALPN protocol.
     #[must_use]
     pub fn protocol(&self) -> &[u8] {
@@ -744,6 +760,7 @@ impl fmt::Debug for HandshakeData {
             .field("session_resumed", &self.session_resumed)
             .field("cipher_suite", &self.cipher_suite)
             .field("peer_verified", &self.peer_verified)
+            .field("client_certificate_sent", &self.client_certificate_sent)
             .field("ech_accepted", &self.ech_accepted)
             .field(
                 "peer_initial_max_streams_bidi",
@@ -1285,6 +1302,7 @@ struct SessionState {
     version: QuicVersion,
     backend: ClientSession,
     outbound: OutboundHandshake,
+    client_certificate: ClientCertificateTracker,
     handshake_keys: Option<Keys>,
     application_keys: Option<Keys>,
     application_schedule: Option<TrafficKeySchedule>,
@@ -1323,6 +1341,7 @@ impl SessionState {
             version,
             backend,
             outbound: OutboundHandshake::default(),
+            client_certificate: ClientCertificateTracker::default(),
             handshake_keys: None,
             application_keys: None,
             application_schedule: None,
@@ -1344,6 +1363,7 @@ impl SessionState {
 
     fn collect_backend_state(&mut self) -> Result<(), AdapterError> {
         for chunk in self.backend.drain_output()? {
+            self.client_certificate.observe(chunk.level, &chunk.bytes)?;
             self.outbound.stage(chunk);
         }
         if self.early_secret.is_none()
@@ -1388,6 +1408,7 @@ impl SessionState {
                 session_resumed: self.backend.session_reused(),
                 cipher_suite: self.backend.negotiated_cipher_suite(),
                 peer_verified: self.backend.peer_verified(),
+                client_certificate_sent: self.client_certificate.sent()?,
                 ech_accepted: self.backend.ech_accepted(),
                 peer_initial_max_streams_bidi: self
                     .peer_transport_parameters
