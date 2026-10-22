@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Include I/O error kinds and OS codes in Node connection failures.
+
 - Start SSE QUIC shutdown while workers finish, and retire the UDP endpoint
   after a failed graceful close. Cleanup timeouts include connection timings.
 
