@@ -52,8 +52,8 @@ impl Peer {
             };
             let endpoint = match h3_support::quic_server(config.clone(), address) {
                 Ok(endpoint) => endpoint,
-                Err(error) if shared_port::is_unavailable_boxed(error.as_ref()) => continue,
-                Err(error) => return Err(error),
+                Err(error) if shared_port::is_unavailable(&error) => continue,
+                Err(error) => return Err(error.into()),
             };
             return Ok(Self {
                 address,
@@ -135,7 +135,7 @@ impl Peer {
         let mut accepted = 0;
         loop {
             tokio::select! {
-                _ = stop.wait_for(|stopped| *stopped) => {
+                _ = async { stop.wait_for(|stopped| *stopped).await.map(|_| ()) } => {
                     while let Some(completed) = connections.next().await {
                         records.extend(completed?);
                     }
