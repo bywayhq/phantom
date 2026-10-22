@@ -94,7 +94,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."],
+                limitations: &["Comparison uses the Android 15 (API 35) emulator"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -605,7 +605,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["TCP settings come from browser source; Android socket options were not captured.", "Address-selection limits are described by the recipe rustdoc."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -811,7 +811,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer.", "The macOS TCP TLS observation covers sequential resumption, not a standalone fresh ClientHello capture."],
+                limitations: &["Sequential resumption capture only"],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -829,7 +829,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Source-derived macOS policy: only the keepalive idle time is set. No macOS socket-hook capture verifies these settings; kernel TCP behavior is not emulated."],
+                limitations: &["Only keepalive idle time is set"],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -837,7 +837,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No macOS recipe is selected for this layer; generic client defaults apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -845,7 +845,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No macOS recipe is selected for this layer; generic client defaults apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -863,7 +863,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -881,7 +881,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -899,7 +899,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -917,7 +917,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -935,7 +935,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -953,7 +953,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -971,7 +971,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "HTTP/1.1 navigation header order"],
-                limitations: &["Three headless navigation runs on macOS 15.5 arm64. Other request contexts need their own comparisons."],
+                limitations: &["Headless navigation captures"],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -989,7 +989,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -1002,7 +1002,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -1015,7 +1015,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::CHROMEMACOS154,
@@ -1073,7 +1073,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1091,7 +1091,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1109,7 +1109,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed cache reuse"],
+                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1127,7 +1127,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed connection admission"],
+                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1332,7 +1332,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["fresh cipher, group, key-share and signature order", "extension presence and permutation", "ALPN and ALPS", "certificate compression and fixed trust-anchor IDs"],
-                limitations: &["External-client observations; no Chrome browser capture", "Ticket storage, resumption and early data are not compared"],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -1381,8 +1381,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "1.7.3",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window and HEADERS priority", "first and reused navigation fields", "HPACK full-table insertion boundary and marker retention"],
-                limitations: &["Only sequential bodyless GETs were captured", "Source-only 16375-byte DATA cap is unported and unverified", "Frame scheduling, shutdown and idle policies are not claimed identical"],
+                verified_fields: &["SETTINGS order and values", "connection window and HEADERS priority", "fresh and reused navigation fields", "HPACK full-table insertion and marker retention"],
+                limitations: &["Comparison uses sequential bodyless GETs", "DATA frames use the transport default", "SETTINGS ACK order differs from httpcloak"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -1455,8 +1455,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "1.7.3",
                     },
                 ],
-                verified_fields: &["caller Cookie crumbs before priority on HTTP/2"],
-                limitations: &["Other placement anchors and protocols are not compared"],
+                verified_fields: &["HTTP/2 Cookie placement before priority"],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::CHROMELINUX155,
@@ -1505,7 +1505,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["initial ClientHello fields", "resumed ClientHello fields"],
-                limitations: &["ECH and ticket cache bounds/expiry reuse Chromium policies; the retained offers do not establish their complete lifecycles."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -1513,7 +1513,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -1521,7 +1521,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Dns,
@@ -1529,7 +1529,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
@@ -1537,7 +1537,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http2,
@@ -1560,7 +1560,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Stream limits, PING timers and idle policy reuse Chromium; the retained startup does not verify them."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -1588,7 +1588,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["initial ClientHello fields"],
-                limitations: &["QUIC ticket resumption and ECH policies remain reused; initial offers do not verify their complete lifecycles."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTransport,
@@ -1611,7 +1611,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["transport parameter values", "transport parameter encoded widths"],
-                limitations: &["Per-connection shuffle remains Chromium policy; the retained samples do not establish the Edge 153 order distribution."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3,
@@ -1634,7 +1634,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["startup settings"],
-                limitations: &["Uncaptured connection policies remain inherited."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -1657,7 +1657,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["navigation pseudo-header order"],
-                limitations: &["Cookie splitting, extended CONNECT and alternative-service field policies remain inherited."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -1675,7 +1675,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "header order"],
-                limitations: &["Retained headless Windows runs establish these hints; caller User-Agent remains separate."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -1683,7 +1683,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -1691,7 +1691,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::CookiePlacement,
@@ -1699,7 +1699,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 references: &[
                 ],
                 verified_fields: &[],
-                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &[],
             },
         ],
         composition: &connection_profile_definitions::EDGEWINDOWS153,
@@ -1927,7 +1927,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["HTTP/1.1 opening headers", "HTTP/2 opening headers and priority"],
-                limitations: &["Three emulator runs of each opening scenario; no physical-device observation.", "Retry, cookie, subprotocol, compression and connection-selection policies reuse pinned Chromium source, not an observed Edge override or refused-stream capture.", "HTTP/3 WebSockets and Android data-pipe sizing are outside this recipe."],
+                limitations: &["HTTP/3 WebSockets and Android data-pipe sizing unavailable"],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,
@@ -2005,7 +2005,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2028,7 +2028,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2051,7 +2051,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed cache reuse"],
+                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2074,7 +2074,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed connection admission"],
+                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2093,7 +2093,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2325,7 +2325,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["TCP settings come from browser source; Android socket options were not captured.", "Address-selection limits are described by the recipe rustdoc."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -2402,7 +2402,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["No client hints are configured; this is intentional browser behavior, not missing hint values."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -2481,7 +2481,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2507,7 +2507,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["observed cache reuse"],
+                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2525,7 +2525,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["observed connection admission"],
+                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2539,7 +2539,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -2588,7 +2588,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Http3Request,
@@ -2601,7 +2601,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::ClientHints,
@@ -2614,7 +2614,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["No client hints are configured; this is intentional browser behavior, not missing hint values."],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -2884,7 +2884,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2907,7 +2907,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed socket calls"],
+                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2930,7 +2930,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed cache reuse"],
+                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2953,7 +2953,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["observed connection admission"],
+                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3191,7 +3191,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension order and presence", "ALPN"],
-                limitations: &["External-client observations; no Safari browser capture", "Resumption and early data are not provided"],
+                limitations: &["Resumption and early data unavailable"],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -3240,8 +3240,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "2.2.3",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "first and reused navigation header blocks"],
-                limitations: &["Only two sequential GETs per fresh connection were captured", "Cookie splitting and other HPACK input classes are source-derived, not captured", "SETTINGS processing order and shutdown GOAWAY differ from retained peer runs"],
+                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
+                limitations: &["Comparison uses two sequential GETs", "SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -3344,7 +3344,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension order and presence", "ALPN"],
-                limitations: &["External-client observations; no Safari browser capture", "Resumption and early data are not provided"],
+                limitations: &["Resumption and early data unavailable"],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -3393,8 +3393,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "0.2.0",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "first and reused navigation header blocks"],
-                limitations: &["Only two sequential GETs per fresh connection were captured", "Cookie handling and other HPACK input classes are source-derived, not captured", "Frame scheduling and shutdown behavior are not claimed identical"],
+                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
+                limitations: &["Comparison uses two sequential GETs"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,

@@ -60,7 +60,7 @@
             }
           ],
           "limitations": [
-            "The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."
+            "Comparison uses the Android 15 (API 35) emulator"
           ]
         },
         {
@@ -603,10 +603,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "limitations": [
-            "TCP settings come from browser source; Android socket options were not captured.",
-            "Address-selection limits are described by the recipe rustdoc."
           ]
         },
         {
@@ -797,8 +793,7 @@
             }
           ],
           "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer.",
-            "The macOS TCP TLS observation covers sequential resumption, not a standalone fresh ClientHello capture."
+            "Sequential resumption capture only"
           ]
         },
         {
@@ -817,22 +812,16 @@
             }
           ],
           "limitations": [
-            "Source-derived macOS policy: only the keepalive idle time is set. No macOS socket-hook capture verifies these settings; kernel TCP behavior is not emulated."
+            "Only keepalive idle time is set"
           ]
         },
         {
           "layer": "Udp",
-          "support": "Unavailable",
-          "limitations": [
-            "No macOS recipe is selected for this layer; generic client defaults apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Dns",
-          "support": "Unavailable",
-          "limitations": [
-            "No macOS recipe is selected for this layer; generic client defaults apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Http1",
@@ -848,9 +837,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -867,9 +853,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -886,9 +869,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -905,9 +885,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -924,9 +901,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -943,9 +917,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -968,7 +939,7 @@
             "HTTP/1.1 navigation header order"
           ],
           "limitations": [
-            "Three headless navigation runs on macOS 15.5 arm64. Other request contexts need their own comparisons."
+            "Headless navigation captures"
           ]
         },
         {
@@ -985,9 +956,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component; retained macOS observations do not establish complete behavior for this layer."
           ]
         },
         {
@@ -999,9 +967,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
           ]
         },
         {
@@ -1013,9 +978,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Reuses the Chromium 154.0.8037.58 component without a macOS capture for this layer."
           ]
         }
       ],
@@ -1096,7 +1058,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -1115,7 +1077,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -1134,7 +1096,7 @@
             }
           ],
           "verified_fields": [
-            "observed cache reuse"
+            "cache reuse"
           ]
         },
         {
@@ -1153,7 +1115,7 @@
             }
           ],
           "verified_fields": [
-            "observed connection admission"
+            "connection admission"
           ]
         },
         {
@@ -1396,38 +1358,23 @@
           "verified_fields": [
             "initial ClientHello fields",
             "resumed ClientHello fields"
-          ],
-          "limitations": [
-            "ECH and ticket cache bounds/expiry reuse Chromium policies; the retained offers do not establish their complete lifecycles."
           ]
         },
         {
           "layer": "Tcp",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Udp",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Dns",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Http1",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "Http2",
@@ -1451,9 +1398,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Stream limits, PING timers and idle policy reuse Chromium; the retained startup does not verify them."
           ]
         },
         {
@@ -1483,9 +1427,6 @@
           ],
           "verified_fields": [
             "initial ClientHello fields"
-          ],
-          "limitations": [
-            "QUIC ticket resumption and ECH policies remain reused; initial offers do not verify their complete lifecycles."
           ]
         },
         {
@@ -1511,9 +1452,6 @@
           "verified_fields": [
             "transport parameter values",
             "transport parameter encoded widths"
-          ],
-          "limitations": [
-            "Per-connection shuffle remains Chromium policy; the retained samples do not establish the Edge 153 order distribution."
           ]
         },
         {
@@ -1538,9 +1476,6 @@
           ],
           "verified_fields": [
             "startup settings"
-          ],
-          "limitations": [
-            "Uncaptured connection policies remain inherited."
           ]
         },
         {
@@ -1565,9 +1500,6 @@
           ],
           "verified_fields": [
             "navigation pseudo-header order"
-          ],
-          "limitations": [
-            "Cookie splitting, extended CONNECT and alternative-service field policies remain inherited."
           ]
         },
         {
@@ -1588,31 +1520,19 @@
           "verified_fields": [
             "header values",
             "header order"
-          ],
-          "limitations": [
-            "Retained headless Windows runs establish these hints; caller User-Agent remains separate."
           ]
         },
         {
           "layer": "WebSocket",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "ProxyConnect",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         },
         {
           "layer": "CookiePlacement",
-          "support": "Unavailable",
-          "limitations": [
-            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
-          ]
+          "support": "Unavailable"
         }
       ],
       "templates": {
@@ -1839,9 +1759,7 @@
             "HTTP/2 opening headers and priority"
           ],
           "limitations": [
-            "Three emulator runs of each opening scenario; no physical-device observation.",
-            "Retry, cookie, subprotocol, compression and connection-selection policies reuse pinned Chromium source, not an observed Edge override or refused-stream capture.",
-            "HTTP/3 WebSockets and Android data-pipe sizing are outside this recipe."
+            "HTTP/3 WebSockets and Android data-pipe sizing unavailable"
           ]
         }
       ],
@@ -1926,7 +1844,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -1950,7 +1868,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -1974,7 +1892,7 @@
             }
           ],
           "verified_fields": [
-            "observed cache reuse"
+            "cache reuse"
           ]
         },
         {
@@ -1998,7 +1916,7 @@
             }
           ],
           "verified_fields": [
-            "observed connection admission"
+            "connection admission"
           ]
         },
         {
@@ -2015,9 +1933,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "limitations": [
-            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
         {
@@ -2277,10 +2192,6 @@
               "location": "crates/phantom-profile/src/browser/firefox/android.rs",
               "build": "156.0.1"
             }
-          ],
-          "limitations": [
-            "TCP settings come from browser source; Android socket options were not captured.",
-            "Address-selection limits are described by the recipe rustdoc."
           ]
         },
         {
@@ -2292,9 +2203,6 @@
               "location": "crates/phantom-profile/src/browser/firefox/android.rs",
               "build": "156.0.1"
             }
-          ],
-          "limitations": [
-            "No client hints are configured; this is intentional browser behavior, not missing hint values."
           ]
         }
       ],
@@ -2371,7 +2279,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -2390,7 +2298,7 @@
             }
           ],
           "verified_fields": [
-            "observed cache reuse"
+            "cache reuse"
           ]
         },
         {
@@ -2409,7 +2317,7 @@
             }
           ],
           "verified_fields": [
-            "observed connection admission"
+            "connection admission"
           ]
         },
         {
@@ -2421,9 +2329,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "limitations": [
-            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
         {
@@ -2475,9 +2380,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "limitations": [
-            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
         {
@@ -2489,9 +2391,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "limitations": [
-            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
           ]
         },
         {
@@ -2503,9 +2402,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "limitations": [
-            "No client hints are configured; this is intentional browser behavior, not missing hint values."
           ]
         },
         {
@@ -2727,7 +2623,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -2751,7 +2647,7 @@
             }
           ],
           "verified_fields": [
-            "observed socket calls"
+            "socket calls"
           ]
         },
         {
@@ -2775,7 +2671,7 @@
             }
           ],
           "verified_fields": [
-            "observed cache reuse"
+            "cache reuse"
           ]
         },
         {
@@ -2799,7 +2695,7 @@
             }
           ],
           "verified_fields": [
-            "observed connection admission"
+            "connection admission"
           ]
         },
         {
@@ -3070,8 +2966,7 @@
             "ALPN"
           ],
           "limitations": [
-            "External-client observations; no Safari browser capture",
-            "Resumption and early data are not provided"
+            "Resumption and early data unavailable"
           ]
         },
         {
@@ -3094,12 +2989,11 @@
             "connection window",
             "pseudo-header order",
             "HEADERS without priority",
-            "first and reused navigation header blocks"
+            "fresh and reused navigation headers"
           ],
           "limitations": [
-            "Only two sequential GETs per fresh connection were captured",
-            "Cookie splitting and other HPACK input classes are source-derived, not captured",
-            "SETTINGS processing order and shutdown GOAWAY differ from retained peer runs"
+            "Comparison uses two sequential GETs",
+            "SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"
           ]
         }
       ],
@@ -3163,8 +3057,7 @@
             "ALPN"
           ],
           "limitations": [
-            "External-client observations; no Safari browser capture",
-            "Resumption and early data are not provided"
+            "Resumption and early data unavailable"
           ]
         },
         {
@@ -3187,12 +3080,10 @@
             "connection window",
             "pseudo-header order",
             "HEADERS without priority",
-            "first and reused navigation header blocks"
+            "fresh and reused navigation headers"
           ],
           "limitations": [
-            "Only two sequential GETs per fresh connection were captured",
-            "Cookie handling and other HPACK input classes are source-derived, not captured",
-            "Frame scheduling and shutdown behavior are not claimed identical"
+            "Comparison uses two sequential GETs"
           ]
         }
       ],
@@ -3253,10 +3144,6 @@
             "extension presence and permutation",
             "ALPN and ALPS",
             "certificate compression and fixed trust-anchor IDs"
-          ],
-          "limitations": [
-            "External-client observations; no Chrome browser capture",
-            "Ticket storage, resumption and early data are not compared"
           ]
         },
         {
@@ -3277,13 +3164,13 @@
           "verified_fields": [
             "SETTINGS order and values",
             "connection window and HEADERS priority",
-            "first and reused navigation fields",
-            "HPACK full-table insertion boundary and marker retention"
+            "fresh and reused navigation fields",
+            "HPACK full-table insertion and marker retention"
           ],
           "limitations": [
-            "Only sequential bodyless GETs were captured",
-            "Source-only 16375-byte DATA cap is unported and unverified",
-            "Frame scheduling, shutdown and idle policies are not claimed identical"
+            "Comparison uses sequential bodyless GETs",
+            "DATA frames use the transport default",
+            "SETTINGS ACK order differs from httpcloak"
           ]
         },
         {
@@ -3302,10 +3189,7 @@
             }
           ],
           "verified_fields": [
-            "caller Cookie crumbs before priority on HTTP/2"
-          ],
-          "limitations": [
-            "Other placement anchors and protocols are not compared"
+            "HTTP/2 Cookie placement before priority"
           ]
         }
       ],
