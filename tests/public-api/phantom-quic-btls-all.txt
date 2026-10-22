@@ -59,6 +59,12 @@ pub phantom_quic_btls::QuicTlsProfileErrorKind::UnsupportedSetting
 #[non_exhaustive] pub enum phantom_quic_btls::QuicTransportProfileErrorKind
 pub phantom_quic_btls::QuicTransportProfileErrorKind::EntropyFailure
 pub phantom_quic_btls::QuicTransportProfileErrorKind::InvalidProfile
+#[non_exhaustive] pub enum phantom_quic_btls::SpkiPinFailure
+pub phantom_quic_btls::SpkiPinFailure::Backend
+pub phantom_quic_btls::SpkiPinFailure::Mismatch
+impl core::error::Error for phantom_quic_btls::SpkiPinFailure
+impl core::fmt::Display for phantom_quic_btls::SpkiPinFailure
+pub fn phantom_quic_btls::SpkiPinFailure::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::ApplicationState
 impl phantom_quic_btls::ApplicationState
 pub fn phantom_quic_btls::ApplicationState::new() -> Self
@@ -85,9 +91,12 @@ impl core::fmt::Debug for phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
 pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::HandshakeData
 impl phantom_quic_btls::HandshakeData
+pub const fn phantom_quic_btls::HandshakeData::cipher_suite(&self) -> core::option::Option<u16>
+pub const fn phantom_quic_btls::HandshakeData::client_certificate_sent(&self) -> bool
 pub const fn phantom_quic_btls::HandshakeData::ech_accepted(&self) -> bool
 pub fn phantom_quic_btls::HandshakeData::peer_application_settings(&self) -> core::option::Option<&[u8]>
 pub const fn phantom_quic_btls::HandshakeData::peer_initial_max_streams_bidi(&self) -> core::option::Option<u64>
+pub const fn phantom_quic_btls::HandshakeData::peer_verified(&self) -> bool
 pub fn phantom_quic_btls::HandshakeData::protocol(&self) -> &[u8]
 pub const fn phantom_quic_btls::HandshakeData::session_resumed(&self) -> bool
 impl core::fmt::Debug for phantom_quic_btls::HandshakeData
@@ -146,6 +155,7 @@ pub fn phantom_quic_btls::QuicClientConfig::configure_path(&self, &mut quinn_pro
 pub fn phantom_quic_btls::QuicClientConfig::configure_transport(&self, &mut quinn_proto::config::EndpointConfig, &mut quinn_proto::config::transport::TransportConfig) -> core::result::Result<(), phantom_quic_btls::QuicTransportProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::danger_disable_server_authentication(self) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::enable_session_resumption(&mut btls::ssl::SslContextBuilder) -> core::result::Result<(), phantom_quic_btls::QuicTlsProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::has_spki_pins(&self) -> bool
 pub fn phantom_quic_btls::QuicClientConfig::has_ticket_for(&self, &str) -> bool
 pub const fn phantom_quic_btls::QuicClientConfig::new(btls::ssl::SslContext) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::receives_datagrams(&self) -> bool
@@ -160,6 +170,8 @@ pub fn phantom_quic_btls::QuicClientConfig::with_client_certificate(&self, &phan
 pub fn phantom_quic_btls::QuicClientConfig::with_early_data(&self) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::with_ech(&self, &phantom_quic_btls::EchOffer) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::with_isolated_session_cache(&self) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_session_ticket_cache(&self, &phantom_quic_btls::QuicSessionTicketCacheOwner) -> core::result::Result<Self, phantom_quic_btls::QuicTlsProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::with_spki_pin_failure_capture(&self, &phantom_quic_btls::SpkiPinFailureCapture) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::with_tls_profile(self, &phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_quic_btls::QuicTlsProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::with_transport_profile(btls::ssl::SslContext, phantom_profile::quic::QuicTransportSettings) -> core::result::Result<Self, phantom_quic_btls::QuicTransportProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::without_early_data(&self) -> Self
@@ -267,6 +279,9 @@ pub fn phantom_quic_btls::ServerHandshakeData::server_name(&self) -> core::optio
 pub const fn phantom_quic_btls::ServerHandshakeData::session_resumed(&self) -> bool
 impl core::fmt::Debug for phantom_quic_btls::ServerHandshakeData
 pub fn phantom_quic_btls::ServerHandshakeData::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::SpkiPinFailureCapture(_)
+impl phantom_quic_btls::SpkiPinFailureCapture
+pub fn phantom_quic_btls::SpkiPinFailureCapture::failure(&self) -> core::option::Option<phantom_quic_btls::SpkiPinFailure>
 pub struct phantom_quic_btls::StatelessResetKey
 impl phantom_quic_btls::StatelessResetKey
 pub const phantom_quic_btls::StatelessResetKey::KEY_LEN: usize
