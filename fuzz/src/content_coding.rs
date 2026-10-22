@@ -321,7 +321,9 @@ mod tests {
             )
             .is_err()
         );
-        assert!(fuzz_content_decode(&[b"gzip"; 5], &[b"gzip"], GZIP, &[1], policy, 1).is_err());
+        assert!(
+            fuzz_content_decode(&[&b"gzip"[..]; 5], &[b"gzip"], GZIP, &[1], policy, 1).is_err()
+        );
         assert!(fuzz_content_decode(ADVERTISED, &[&[b'x'; 1025]], GZIP, &[1], policy, 1).is_err());
         assert!(
             fuzz_content_decode(
