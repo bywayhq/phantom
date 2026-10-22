@@ -1415,63 +1415,79 @@ mod test {
 
     #[test]
     fn full_table_limit_inserts_at_capacity_and_preserves_entries_after_oversize() {
-        let profile = HpackEncoderProfile::new().indexing_limit(IndexingLimit::FullTable);
-        for size in [3073, 4096] {
+        for names in [NameReference::Upstream, NameReference::StaticThenNewest] {
+            let profile = HpackEncoderProfile::new()
+                .indexing_limit(IndexingLimit::FullTable)
+                .name_reference(names);
+            for size in [3073, 4096] {
+                let mut encoder = Encoder::default();
+                encoder.set_profile(profile);
+                let mut decoder = Decoder::new(4096);
+                let value = "v".repeat(size - 32 - 3);
+                let block = encode(&mut encoder, vec![header("x-a", &value)]);
+                assert_eq!(representations(&block), [0x40]);
+                assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
+                let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
+                assert_eq!(*repeated, [0x80 | 62]);
+                assert_eq!(decode(&mut decoder, repeated), pairs(&[("x-a", &value)]));
+            }
+
             let mut encoder = Encoder::default();
             encoder.set_profile(profile);
             let mut decoder = Decoder::new(4096);
-            let value = "v".repeat(size - 32 - 3);
-            let block = encode(&mut encoder, vec![header("x-a", &value)]);
-            assert_eq!(representations(&block), [0x40]);
-            assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
-            let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
-            assert_eq!(*repeated, [0x80 | 62]);
-            assert_eq!(decode(&mut decoder, repeated), pairs(&[("x-a", &value)]));
+            let seed = encode(&mut encoder, vec![header("x-a", "seed")]);
+            assert_eq!(decode(&mut decoder, seed), pairs(&[("x-a", "seed")]));
+            let marker = encode(&mut encoder, vec![header("x-marker", "retained")]);
+            assert_eq!(
+                decode(&mut decoder, marker),
+                pairs(&[("x-marker", "retained")])
+            );
+            let large = "v".repeat(4097 - 32 - 3);
+            let block = encode(&mut encoder, vec![header("x-a", &large)]);
+            assert_eq!(representations(&block), [0x00]);
+            if names == NameReference::StaticThenNewest {
+                // The literal names the seeded x-a entry at index 63.
+                assert_eq!(&block[..2], &[0x0f, 0x30]);
+            }
+            assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &large)]));
+            let marker = encode(&mut encoder, vec![header("x-marker", "retained")]);
+            assert_eq!(*marker, [0x80 | 62]);
+            assert_eq!(
+                decode(&mut decoder, marker),
+                pairs(&[("x-marker", "retained")])
+            );
         }
-
-        let mut encoder = Encoder::default();
-        encoder.set_profile(profile);
-        let mut decoder = Decoder::new(4096);
-        let marker = encode(&mut encoder, vec![header("x-marker", "retained")]);
-        assert_eq!(
-            decode(&mut decoder, marker),
-            pairs(&[("x-marker", "retained")])
-        );
-        let large = "v".repeat(4097 - 32 - 3);
-        let block = encode(&mut encoder, vec![header("x-a", &large)]);
-        assert_eq!(representations(&block), [0x00]);
-        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &large)]));
-        let marker = encode(&mut encoder, vec![header("x-marker", "retained")]);
-        assert_eq!(*marker, [0x80 | 62]);
-        assert_eq!(
-            decode(&mut decoder, marker),
-            pairs(&[("x-marker", "retained")])
-        );
     }
 
     #[test]
     fn full_table_limit_tracks_reduced_zero_and_increased_capacity() {
-        let mut encoder = Encoder::default();
-        encoder.set_profile(HpackEncoderProfile::new().indexing_limit(IndexingLimit::FullTable));
-        let mut decoder = Decoder::new(4096);
-        for capacity in [128, 0, 4096] {
-            encoder.update_max_size(capacity);
-            let update = encode(&mut encoder, Vec::new());
-            assert_eq!(decode(&mut decoder, update), pairs(&[]));
-            // A 128-byte entry fits at 128 and 4096, but not at zero.
-            let value = "v".repeat(128 - 32 - 3);
-            let block = encode(&mut encoder, vec![header("x-a", &value)]);
-            assert_eq!(
-                representations(&block),
-                [if capacity == 0 { 0x00 } else { 0x40 }]
+        for names in [NameReference::Upstream, NameReference::StaticThenNewest] {
+            let mut encoder = Encoder::default();
+            encoder.set_profile(
+                HpackEncoderProfile::new()
+                    .indexing_limit(IndexingLimit::FullTable)
+                    .name_reference(names),
             );
-            assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
-            let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
-            assert_eq!(
-                representations(&repeated),
-                [if capacity == 0 { 0x00 } else { 0x80 | 62 }]
-            );
-            assert_eq!(decode(&mut decoder, repeated), pairs(&[("x-a", &value)]));
+            let mut decoder = Decoder::new(4096);
+            for capacity in [128, 0, 4096] {
+                encoder.update_max_size(capacity);
+                let update = encode(&mut encoder, Vec::new());
+                assert_eq!(decode(&mut decoder, update), pairs(&[]));
+                // A 128-byte entry fits at 128 and 4096, but not at zero.
+                let value = "v".repeat(128 - 32 - 3);
+                let block = encode(&mut encoder, vec![header("x-a", &value)]);
+                assert_eq!(
+                    representations(&block),
+                    [if capacity == 0 { 0x00 } else { 0x40 }]
+                );
+                assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
+                let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
+                assert_eq!(
+                    representations(&repeated),
+                    [if capacity == 0 { 0x00 } else { 0x80 | 62 }]
+                );
+                assert_eq!(decode(&mut decoder, repeated), pairs(&[("x-a", &value)]));
+            }
         }
     }
 
