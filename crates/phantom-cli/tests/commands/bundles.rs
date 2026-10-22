@@ -70,11 +70,15 @@ fn offline_install_pin_and_rollback_preserve_versions_and_wire_headers() -> Test
         let expected = ProfileBundle::from_json(&bytes)?.sha256().to_owned();
         assert_eq!(report["sha256"], expected);
         assert_eq!(report["revision"], revision);
-        assert!(
-            report["note"]
-                .as_str()
-                .ok_or("missing trust note")?
-                .contains("not verified")
+        assert_eq!(
+            report["profiles"],
+            json!([{
+                "name": "chosen",
+                "provenance": [{
+                    "source": "unverified publisher reference",
+                    "revision": "source-1"
+                }]
+            }])
         );
         for _ in 0..2 {
             let installed = command()

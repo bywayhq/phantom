@@ -587,9 +587,8 @@ def verify(target, output):
             )
             + " to that directory before running your program.\n\n"
         )
-        + "See module/README.md for the API. This candidate is unsigned and\n"
-        "verified only on its recorded native host. Older OS/libc versions and\n"
-        "other architectures are unverified. SDK/OS runtimes are not bundled.\n",
+        + "See module/README.md for the API and the receipt for tested hosts.\n"
+        "This candidate is unsigned. SDK/OS runtimes are not bundled.\n",
         encoding="utf-8",
     )
     inventory = tools.copy_notices(metadata, package_ids, staging / "notices")

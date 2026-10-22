@@ -95,7 +95,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
                 "platform_release": metadata.platform_release(), "architecture": metadata.architecture(),
                 "revision": metadata.revision(),
                 "settings": describe_profile(&profile).map_err(CliError::operation)?,
-                "note": "Catalog metadata does not establish fidelity for every setting; exported settings carry no browser identity."
+                "note": "Export contains editable settings without catalog identity."
             });
             write_output(
                 None,

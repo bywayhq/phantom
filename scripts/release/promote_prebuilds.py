@@ -636,7 +636,7 @@ def promote(api, tag, runs, output, *, publish=False):
         "cargo_lock_sha256": hashlib.sha256(lock).hexdigest(),
         "npm_lock_sha256": hashlib.sha256(npm_lock).hexdigest(),
         "candidates": candidates,
-        "compatibility": "Python Linux wheels carry the audited manylinux_2_28_x86_64 tag. Other compatibility is limited to the hosts and runtimes recorded in the unchanged candidate receipts; no older OS/libc or registry publication claim.",
+        "compatibility": "Python Linux wheels use manylinux_2_28_x86_64. Candidate receipts list tested hosts and runtimes.",
     }
     manifest_path = ready / manifest_name
     manifest_path.write_text(

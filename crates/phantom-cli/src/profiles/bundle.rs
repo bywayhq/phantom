@@ -74,7 +74,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
             json!({"name": name, "provenance": provenance})
         }).collect::<Vec<_>>();
         let document = json!({"id": bundle.id(), "revision": bundle.revision(), "sha256": bundle.sha256(), "profiles": profiles,
-            "note": "Publisher-supplied references are not verified browser evidence. SHA-256 identifies bytes, not a trusted publisher."});
+            "note": "References are supplied by the publisher; bundles are not signed."});
         return write_output(
             None,
             &serde_json::to_vec_pretty(&document).map_err(CliError::operation)?,
