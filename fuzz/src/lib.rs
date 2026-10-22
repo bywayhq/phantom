@@ -13,3 +13,4 @@ pub mod ech_config_list;
 pub mod http1_response;
 pub mod https_record;
 pub mod seed;
+pub mod sse;

@@ -105,6 +105,9 @@ pub use session::{
 pub use session::{SessionSnapshot, SessionSnapshotError, SessionSnapshotErrorKind};
 #[cfg(feature = "session-snapshot")]
 pub use session::{SessionStorageError, SessionStorageErrorKind, SessionStore, SessionStoreFuture};
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use sse::fuzz_sse_decode;
 #[cfg(feature = "sse")]
 pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseHeader, SseLimits, SseRequestBuilder,

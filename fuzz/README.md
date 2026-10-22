@@ -10,6 +10,7 @@ WebSocket engines.
 | Target | Parser | Entry point |
 | --- | --- | --- |
 | `client_hello` | TLS ClientHello capture and profile-import decoder | `phantom_testkit::tls` re-export of `phantom_profile::client_hello` |
+| `sse` | Incremental SSE event decoding and encoded-byte limits | Private `SseStream` decoder through an opt-in fuzzing seam |
 | `http2_frame` | Test-kit HTTP/2 frame capture | `phantom_testkit::http2` |
 | `quic_transport_parameters` | Quinn transport parameters (production) | `TransportParameters::read` |
 | `http1_response` | HTTP/1.1 response heads and bodies (production) | `Http1Connection::connect` and `send_get` over an in-memory origin |
@@ -45,6 +46,7 @@ cargo +nightly fuzz run http2_frame -- -max_len=262144
 cargo +nightly fuzz run https_record -- -max_len=65536
 cargo +nightly fuzz run proxy_basic_challenge -- -max_len=16384
 cargo +nightly fuzz run quic_transport_parameters -- -max_len=65536
+cargo +nightly fuzz run sse -- -max_len=65536
 ```
 
 Targets that link `phantom-net` also build BoringSSL, so they need the native
@@ -172,12 +174,19 @@ under AddressSanitizer:
 CI keeps one corpus per target in the Actions cache. Every run starts from the
 newest saved corpus, and only scheduled runs save it back.
 
+The `sse` target enables Phantom's optional `fuzzing` feature. Its doc-hidden
+batch seam calls the production incremental decoder; it is not supported API.
+The harness compares event prefixes, first errors, committed IDs and retry
+delays across whole-buffer, bytewise and cyclic chunks. Literal seeds and
+independent byte-limit controls cover BOM, CRLF, UTF-8 replacement and incomplete
+EOF. Inputs and both decoder limits are bounded at 64 KiB. This target does not
+exercise HTTP, reconnect timing or idle deadlines.
+
 ## Not fuzzed yet
 
 These peer-facing production parsers have no pure public entry point. Fuzzing
 them needs a reviewed fuzzing seam, not new public API:
 
-- the SSE decoder;
 - the Alt-Svc field parser, meaning `Alt-Svc` response fields, as distinct
   from the snapshot import that `alt_svc_snapshot` covers;
 - SOCKS5 negotiation replies (the public API is TCP-only);

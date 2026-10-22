@@ -25,6 +25,76 @@ pub use event_source::{SseEventSource, SseHeader, SseRequestBuilder};
 const DEFAULT_MAX_LINE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_EVENT_BYTES: usize = 1024 * 1024;
 
+/// Drives the production incremental decoder without a response body.
+///
+/// This is a fuzzing seam, not supported API. Positive `chunk_sizes` repeat
+/// until `input` is consumed. The result contains the dispatched event prefix,
+/// first decoder error kind, committed last-event ID, and retry delay. EOF or a
+/// decoder error discards incomplete state, as [`SseStream`] does.
+///
+/// # Errors
+///
+/// Returns a static harness error for inputs or limits over 64 KiB, an empty
+/// chunk plan, more than 64 chunk sizes, a zero or oversized chunk size, or an
+/// exhausted poll budget. Decoder failures remain in the successful result.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub fn fuzz_sse_decode(
+    input: &[u8],
+    chunk_sizes: &[usize],
+    limits: SseLimits,
+) -> Result<
+    (
+        Vec<SseEvent>,
+        Option<SseErrorKind>,
+        String,
+        Option<Duration>,
+    ),
+    &'static str,
+> {
+    const MAXIMUM_BYTES: usize = 64 * 1024;
+    if input.len() > MAXIMUM_BYTES
+        || limits.max_line_bytes() > MAXIMUM_BYTES
+        || limits.max_event_bytes() > MAXIMUM_BYTES
+        || chunk_sizes.is_empty()
+        || chunk_sizes.len() > 64
+        || chunk_sizes
+            .iter()
+            .any(|size| *size == 0 || *size > MAXIMUM_BYTES)
+    {
+        return Err("invalid SSE fuzz input bounds");
+    }
+
+    let mut decoder = Decoder::new(limits);
+    let mut events = Vec::new();
+    let mut error = None;
+    let mut remaining = input;
+    let mut chunks = chunk_sizes.iter().cycle();
+    // Every poll consumes input, yields an event, or ends the current chunk.
+    let mut polls = input.len() * 2 + 1;
+    'decode: while !remaining.is_empty() {
+        let size = *chunks.next().ok_or("SSE fuzz chunk plan is empty")?;
+        let (chunk, rest) = remaining.split_at(size.min(remaining.len()));
+        decoder.replace_chunk(bytes::Bytes::copy_from_slice(chunk));
+        remaining = rest;
+        loop {
+            polls = polls
+                .checked_sub(1)
+                .ok_or("SSE fuzz poll budget exhausted")?;
+            match decoder.decode_available() {
+                Ok(Some(event)) => events.push(event),
+                Ok(None) => break,
+                Err(failure) => {
+                    error = Some(failure.kind());
+                    break 'decode;
+                }
+            }
+        }
+    }
+    decoder.discard_pending();
+    Ok((events, error, decoder.last_event_id, decoder.retry_delay))
+}
+
 /// Memory limits applied while decoding one server-sent event stream.
 ///
 /// [`SseLimits::default`] allows lines up to 64 KiB and event blocks up to

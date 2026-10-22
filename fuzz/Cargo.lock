@@ -1109,6 +1109,7 @@ dependencies = [
  "cookie_store",
  "fastrand",
  "flate2",
+ "futures-core",
  "http",
  "http-body",
  "httparse",
