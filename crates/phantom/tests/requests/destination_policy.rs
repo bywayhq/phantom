@@ -243,6 +243,7 @@ async fn proxy_and_custom_routes_are_rejected_before_callbacks_or_io() -> TestRe
     Ok(())
 }
 
+#[cfg(feature = "sse")]
 #[tokio::test]
 async fn event_source_denial_is_terminal_with_its_typed_request_cause() -> TestResult<()> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
