@@ -18,8 +18,9 @@
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
   Remove repeated caveats and capture history.
 
-- Capture HTTPS resource requests over HTTP/1.1 with `--resource-protocol h1`,
-  retaining raw request lines, header casing, order and duplicates.
+- Capture HTTPS resource requests over HTTP/1.1 and HTTP/3 with
+  `--resource-protocol`. Retain Chrome 156 Windows client-hint and resource
+  observations.
 
 
 - Clarify qlog file retention and write-failure behavior.

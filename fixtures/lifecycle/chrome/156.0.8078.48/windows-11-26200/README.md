@@ -26,7 +26,6 @@ hints and priorities agree except the HeadlessChrome user agent.
 H3 retains client request, control and QPACK streams; response completion comes
 from the page checks rather than raw server DATA replay.
 
-
 Reproduce with a manifest, substituting the exact executable and fresh paths:
 
 ```json
