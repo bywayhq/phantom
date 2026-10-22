@@ -3356,7 +3356,11 @@
       ],
       "target": "ChromeWindows156",
       "templates": {
-        "Navigation": "chrome_windows156_navigation"
+        "Navigation": "chrome_windows156_navigation",
+        "Script": "chrome_windows156_script",
+        "Stylesheet": "chrome_windows156_stylesheet",
+        "Image": "chrome_windows156_image",
+        "Font": "chrome_windows156_font"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",
