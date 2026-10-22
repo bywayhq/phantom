@@ -1209,7 +1209,7 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
 }
 
 #[tokio::test]
-async fn critical_ch_retry_rejects_a_consumed_streaming_body() -> TestResult<()> {
+async fn critical_ch_returns_the_response_when_a_streaming_body_cannot_replay() -> TestResult<()> {
     let mut server = None;
     let mut retained_client = None;
     let result = bounded(async {
@@ -1222,31 +1222,60 @@ async fn critical_ch_retry_rejects_a_consumed_streaming_body() -> TestResult<()>
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (first, mut first_response) = accept_http2(&mut connection).await?;
-            first_response.send_response(
+            let mut body = first.into_body();
+            let received = async {
+                let mut received = Vec::new();
+                while let Some(chunk) = body.data().await {
+                    let chunk = chunk?;
+                    if received.len() + chunk.len() > b"one-shot".len() {
+                        return Err("one-shot request exceeded its expected body size".into());
+                    }
+                    received.extend_from_slice(&chunk);
+                    body.flow_control().release_capacity(chunk.len())?;
+                }
+                Ok::<_, Box<dyn Error + Send + Sync>>(received)
+            };
+            let received = tokio::select! {
+                result = received => result?,
+                _ = connection.accept() => return Err("HTTP/2 peer stopped reading the first body".into()),
+            };
+            assert_eq!(received, b"one-shot");
+            let mut response_body = first_response.send_response(
                 Response::builder()
                     .status(StatusCode::OK)
                     .header("accept-ch", "Sec-CH-UA-Arch")
                     .header("critical-ch", "Sec-CH-UA-Arch")
+                    .header("content-length", "8")
                     .body(())?,
-                true,
+                false,
             )?;
-            drop((first, first_response));
-            drive_http2_until_client_done(&mut connection, wait_for_client).await?;
+            response_body.send_data(Bytes::from_static(b"original"), true)?;
+            drop((body, first_response, response_body));
+            tokio::select! {
+                biased;
+                request = connection.accept() => {
+                    match request {
+                        Some(Ok(_)) => return Err("Critical-CH sent a second HTTP/2 request with a one-shot body".into()),
+                        Some(Err(error)) => return Err(error.into()),
+                        None => return Err("HTTP/2 connection closed before response completion".into()),
+                    }
+                }
+                result = wait_for_client => {
+                    result.map_err(|_| "client stopped before HTTP/2 response completion")?;
+                }
+            }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         }));
 
         let session = client(&identity)?;
         retained_client = Some(session.clone());
-        let result = session
+        let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/"))?
             .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
             .send()
-            .await;
-        let error = match result {
-            Ok(_) => return Err("Critical-CH retry replayed a one-shot streaming body".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.into_body().collect_with_limit(8).await?, "original");
         client_done
             .send(())
             .map_err(|_| "HTTP/2 server stopped before client completion")?;

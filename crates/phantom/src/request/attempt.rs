@@ -347,7 +347,9 @@ async fn send_once_exact(
             &sent_headers,
             AttemptPath::Exact,
         );
-        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
+        if critical_retry_requested
+            && body.can_replay()
+            && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
             tracing::debug!(
                 retry = 1,
@@ -379,11 +381,33 @@ async fn send_once_negotiated(
     if !route.carries_origin_tls_for_alpn() {
         return Err(RequestError::unsupported_negotiated_route());
     }
-    if let Some(outcome) =
-        super::coalesced_attempt::send_reused(client, request, &mut attempt, route, &mut lifecycle)
-            .await?
+    match super::coalesced_attempt::send_reused(
+        client,
+        request,
+        &mut attempt,
+        route,
+        &mut lifecycle,
+    )
+    .await?
     {
-        return Ok(outcome);
+        super::coalesced_attempt::ReusedOutcome::Complete(outcome) => return Ok(outcome),
+        super::coalesced_attempt::ReusedOutcome::Origin {
+            fields,
+            restart_hints,
+        } => {
+            return send_once_origin(
+                client,
+                request,
+                attempt,
+                route,
+                lifecycle,
+                None,
+                fields,
+                restart_hints,
+            )
+            .await;
+        }
+        super::coalesced_attempt::ReusedOutcome::Miss => {}
     }
     match plan(client, request, route) {
         NegotiatedPlan::Alternative(alternative) => {
@@ -404,7 +428,17 @@ async fn send_once_negotiated(
             .await
         }
         NegotiatedPlan::Origin => {
-            send_once_origin(client, request, attempt, route, lifecycle, None, None).await
+            send_once_origin(
+                client,
+                request,
+                attempt,
+                route,
+                lifecycle,
+                None,
+                None,
+                RestartHints::default(),
+            )
+            .await
         }
     }
 }
@@ -424,6 +458,7 @@ pub(super) async fn send_once_origin(
     lifecycle: AttemptLifecycle<'_>,
     mut leased: Option<NegotiatedLease>,
     mut fields: Option<NegotiatedFields>,
+    mut restart_hints: RestartHints,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
         request_span,
@@ -444,7 +479,6 @@ pub(super) async fn send_once_origin(
         .http1_or_2
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
-    let mut restart_hints = RestartHints::default();
     let mut fresh_http1_connection = false;
     let keeps_fields = may_replay_unanswered(retries, body)
         || (replays.replays_http2_ping_failures() && body.can_replay());
@@ -535,7 +569,9 @@ pub(super) async fn send_once_origin(
             &sent_headers,
             AttemptPath::Negotiated,
         );
-        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
+        if critical_retry_requested
+            && body.can_replay()
+            && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
             tracing::debug!(
                 retry = 1,

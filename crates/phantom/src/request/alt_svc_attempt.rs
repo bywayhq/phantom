@@ -348,6 +348,7 @@ pub(super) async fn send_once_raced(
                 lifecycle,
                 Some(leased),
                 Some(fields.negotiated),
+                RestartHints::default(),
             )
             .await
         }
@@ -967,7 +968,9 @@ async fn send_on_alternative(
             &sent_headers,
             AttemptPath::Alternative,
         );
-        if critical_retry_requested && replays.try_begin(ReplayClass::CriticalClientHints, &method)
+        if critical_retry_requested
+            && body.can_replay()
+            && replays.try_begin(ReplayClass::CriticalClientHints, &method)
         {
             tracing::debug!(
                 retry = 1,

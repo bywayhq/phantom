@@ -15,30 +15,43 @@ use crate::{
     session::{
         box_send,
         client_hints::{Dispatched, RestartHints},
+        http1_or_2_pool::NegotiatedFields,
     },
 };
 
-/// A miss leaves the body available for ordinary origin/Alt-Svc planning.
+pub(super) enum ReusedOutcome {
+    Miss,
+    Complete(AttemptOutcome),
+    /// Continue the same hop on H1/H2 when no authorized H3 donor remains.
+    Origin {
+        fields: Option<NegotiatedFields>,
+        restart_hints: RestartHints,
+    },
+}
+
+/// An initial miss leaves the body available for ordinary Alt-Svc planning.
 pub(super) async fn send_reused(
     client: &Client,
     request: &ResolvedRequest,
     attempt: &mut AttemptRequest<'_>,
     route: &Route,
     lifecycle: &mut AttemptLifecycle<'_>,
-) -> Result<Option<AttemptOutcome>, RequestError> {
+) -> Result<ReusedOutcome, RequestError> {
     if !matches!(route, Route::Direct)
         || request.alternative.is_some()
         || request.uri.scheme_str() != Some("https")
     {
-        return Ok(None);
+        return Ok(ReusedOutcome::Miss);
     }
     let Some(connector) = client.inner.connectors_for(&request.endpoint).http3 else {
-        return Ok(None);
+        return Ok(ReusedOutcome::Miss);
     };
     let hint_origin = client_hint_origin(client, request);
     let mut restart_hints = RestartHints::default();
     let keeps_fields = may_replay_unanswered(lifecycle.retries, attempt.body);
     let mut fields = None;
+    let mut origin_fields = None;
+    let mut started = false;
 
     loop {
         let Some(candidates) = client
@@ -47,7 +60,7 @@ pub(super) async fn send_reused(
             .reuse_candidates(connector, &request.endpoint, route)
             .await
         else {
-            return Ok(None);
+            return Ok(missing_donor(started, origin_fields, restart_hints));
         };
         lifecycle
             .retries
@@ -56,23 +69,27 @@ pub(super) async fn send_reused(
             Some(fields) => fields,
             None => {
                 let framing = attempt.body.framing(request.expect_continue)?;
-                field_lists::reused_fields(
-                    client,
-                    request,
-                    route,
-                    &AttemptFields {
-                        method: &attempt.method,
-                        headers: &attempt.headers,
-                        trailers: &attempt.trailers,
-                        client_hints: attempt_client_hints(
-                            client,
-                            request,
-                            hint_origin.as_deref(),
-                            &restart_hints,
-                        ),
-                        body: framing.as_ref().map(RequestBodyFraming::body),
-                    },
-                )?
+                let inputs = AttemptFields {
+                    method: &attempt.method,
+                    headers: &attempt.headers,
+                    trailers: &attempt.trailers,
+                    client_hints: attempt_client_hints(
+                        client,
+                        request,
+                        hint_origin.as_deref(),
+                        &restart_hints,
+                    ),
+                    body: framing.as_ref().map(RequestBodyFraming::body),
+                };
+                let fields = field_lists::reused_fields(client, request, route, &inputs)?;
+                // If this donor disappears after an unanswered dispatch,
+                // origin negotiation must retain this attempt's cookies and hints.
+                origin_fields = if keeps_fields {
+                    Some(field_lists::negotiated(client, request, &inputs)?)
+                } else {
+                    None
+                };
+                fields
             }
         };
         let Some(leased) = client
@@ -81,7 +98,7 @@ pub(super) async fn send_reused(
             .acquire_reused(candidates, connector, lifecycle.timeout_budget)
             .await?
         else {
-            return Ok(None);
+            return Ok(missing_donor(started, origin_fields, restart_hints));
         };
         let kept_fields = keeps_fields.then(|| attempt_fields.clone());
         let prepared = prepare_attempt(
@@ -94,6 +111,7 @@ pub(super) async fn send_reused(
         lifecycle
             .request_span
             .record("selected_protocol", HttpProtocol::Http3.trace_name());
+        started = true;
         let sent = box_send(client.state.http3.send_request_on_lease(
             leased,
             connector,
@@ -112,6 +130,7 @@ pub(super) async fn send_reused(
             Ok(Dispatched::Sent(sent)) => sent,
             Ok(Dispatched::Restart(restart)) => {
                 begin_accept_ch_restart(restart, &mut restart_hints, attempt.body);
+                origin_fields = None;
                 continue;
             }
             Err(error) => {
@@ -135,7 +154,7 @@ pub(super) async fn send_reused(
                 response.body_mut().apply_transfer(control.clone());
             }
             store_cookies(client, request, &response);
-            return Ok(Some(AttemptOutcome {
+            return Ok(ReusedOutcome::Complete(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,
             }));
@@ -150,6 +169,7 @@ pub(super) async fn send_reused(
             AttemptPath::Negotiated,
         );
         if critical_retry_requested
+            && attempt.body.can_replay()
             && lifecycle
                 .replays
                 .try_begin(ReplayClass::CriticalClientHints, &attempt.method)
@@ -159,6 +179,7 @@ pub(super) async fn send_reused(
                 "retrying coalesced request with client hints"
             );
             drop(response);
+            origin_fields = None;
             continue;
         }
         if let Some(delay) = begin_status_retry(
@@ -170,6 +191,7 @@ pub(super) async fn send_reused(
             lifecycle.replays,
         ) {
             drop(response);
+            origin_fields = None;
             lifecycle
                 .retries
                 .ensure_http_attempt_available(Some(HttpProtocol::Http3))?;
@@ -179,10 +201,25 @@ pub(super) async fn send_reused(
                 .await?;
             continue;
         }
-        return Ok(Some(AttemptOutcome {
+        return Ok(ReusedOutcome::Complete(AttemptOutcome {
             response,
             protocol: HttpProtocol::Http3,
         }));
+    }
+}
+
+fn missing_donor(
+    started: bool,
+    fields: Option<NegotiatedFields>,
+    restart_hints: RestartHints,
+) -> ReusedOutcome {
+    if started {
+        ReusedOutcome::Origin {
+            fields,
+            restart_hints,
+        }
+    } else {
+        ReusedOutcome::Miss
     }
 }
 
@@ -199,16 +236,71 @@ mod tests {
     use bytes::Bytes;
     use http_body_util::BodyExt;
     use phantom_net::request::RequestBody;
-    use phantom_profile::browser::firefox;
+    use phantom_profile::browser::{chrome, firefox};
     use tracing::Span;
 
-    use super::{AttemptLifecycle, AttemptRequest, send_reused};
+    use super::{
+        AttemptLifecycle, AttemptRequest, ReusedOutcome, attempt_client_hints,
+        begin_accept_ch_restart, missing_donor, send_reused,
+    };
     use crate::{
         AddressResolver, Client, HttpAttemptBudget, RequestTimeouts, RetryPolicy, Route,
         request::{RequestBodySource, replay::ReplayState},
         retry::ConnectionSetupRetryState,
+        session::client_hints::{AcceptChRestart, RestartHints},
         timeout::TimeoutBudget,
     };
+
+    #[tokio::test]
+    async fn donor_loss_after_accept_ch_preserves_hints_and_the_unpolled_body()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let hints = chrome::v154_windows_client_hints();
+        let arch = hints
+            .hints()
+            .iter()
+            .position(|hint| hint.name() == "sec-ch-ua-arch")
+            .ok_or("profile omitted architecture hint")?;
+        let client = Client::builder(firefox::v157_windows().with_client_hints(hints)).build()?;
+        let request = client
+            .get_negotiated("https://other.phantom.test/")?
+            .request;
+        let origin = super::client_hint_origin(&client, &request);
+        let mut body = RequestBodySource::Streaming(None);
+        let mut restart_hints = RestartHints::default();
+        begin_accept_ch_restart(
+            AcceptChRestart {
+                hints: vec![arch].into_boxed_slice(),
+                body: Some(RequestBody::from_bytes(Bytes::from_static(b"one-shot"))),
+            },
+            &mut restart_hints,
+            &mut body,
+        );
+
+        let ReusedOutcome::Origin {
+            fields,
+            restart_hints,
+        } = missing_donor(true, None, restart_hints)
+        else {
+            return Err("restarted request became an initial donor miss".into());
+        };
+        assert!(fields.is_none(), "ALPS restart retained an obsolete list");
+        let fields = attempt_client_hints(&client, &request, origin.as_deref(), &restart_hints)
+            .ok_or("client hints were disabled")?
+            .prepare(Vec::new())?;
+        assert!(
+            fields
+                .iter()
+                .any(|field| { field.name() == "sec-ch-ua-arch" && field.value() == b"\"x86\"" })
+        );
+        let payload = body
+            .next_attempt()?
+            .ok_or("ALPS restart lost its one-shot body")?
+            .collect()
+            .await?
+            .to_bytes();
+        assert_eq!(payload, "one-shot");
+        Ok(())
+    }
 
     #[tokio::test]
     async fn no_donor_leaves_the_body_and_shared_attempt_budget_untouched()
@@ -257,7 +349,7 @@ mod tests {
         )
         .await?;
 
-        assert!(outcome.is_none());
+        assert!(matches!(outcome, ReusedOutcome::Miss));
         assert_eq!(lookups.load(Ordering::SeqCst), 0);
         assert_eq!(allowance.remaining(), 1);
         let payload = body
