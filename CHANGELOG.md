@@ -4,6 +4,9 @@
 
 - Clarify qlog file retention and write-failure behavior.
 
+- Keep snapshot captures running when a browser closes a complete TLS opening.
+  Retain the failed connection; a complete page and cleanup are still required.
+
 - Capture ordered HTTP/2 script, stylesheet, image and font requests with the
   lifecycle tool's `resources` scenario.
 

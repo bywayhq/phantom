@@ -155,8 +155,10 @@ class RecordedClientHello(ClientHello):
 
     raw: bytearray = field(default_factory=bytearray)
     run: SnapshotRun | None = field(default=None, repr=False)
+    data_after_hello: bool = False
 
     def feed(self, data: bytes) -> None:
+        self.data_after_hello |= self.complete and bool(data)
         if not self.complete:
             if len(self.raw) + len(data) > MAX_CLIENT_HELLO:
                 raise CaptureLimitError("ClientHello exceeds the capture limit")
@@ -818,15 +820,26 @@ class TcpListeners:
                 await serve_http1(channel, self.run, index, "tls")
         except BaseException as error:
             record.failure = record.failure or type(error).__name__
+            hello = record.client_hello
+            complete_hello = (
+                isinstance(hello, RecordedClientHello)
+                and hello.complete
+                and not hello.data_after_hello
+                and not hello.records
+                and hello.handshake[:1] == b"\x01"
+                and len(hello.handshake)
+                == 4 + int.from_bytes(hello.handshake[1:4], "big")
+            )
+            # A browser can abandon a valid opening and use another connection.
+            # Keep its failure; only the completed page ends the observation.
             closed_handshake = (
-                self.stopping
-                and isinstance(channel, TlsChannel)
+                isinstance(channel, TlsChannel)
                 and type(error) is ConnectionError
                 and error is channel.peer_handshake_failure
                 and error.errno is None
                 and reader.at_eof()
                 and reader.exception() is None
-                and writer.is_closing()
+                and ((self.stopping and writer.is_closing()) or complete_hello)
             )
             if not closed_handshake and (
                 channel is None or error is not channel.peer_io_failure

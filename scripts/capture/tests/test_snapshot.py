@@ -336,6 +336,106 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_incomplete_or_alerted_tls_openings_still_fail_capture(self):
+        incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+        tls = client_tls_context().wrap_bio(
+            incoming, outgoing, server_side=False, server_hostname=HOSTNAME
+        )
+        with self.assertRaises(ssl.SSLWantReadError):
+            tls.do_handshake()
+        hello = outgoing.read()
+
+        for payload, followup, error_type in (
+            (b"", b"", ConnectionError),
+            (hello[:-1], b"", ConnectionError),
+            (hello + b"\x16", b"", ConnectionError),
+            (bytes.fromhex("15030300020228"), b"", ssl.SSLError),
+            (hello, b"\x16", ConnectionError),
+            (hello, bytes.fromhex("15030300020228"), ssl.SSLError),
+        ):
+            client = None
+            run = None
+            try:
+                with self.subTest(payload_bytes=len(payload), followup=followup):
+                    with self.assertRaises(error_type) as raised:
+                        async with serving(CERTIFICATE, "invalid-opening", 0) as run:
+                            client = await asyncio.open_connection(
+                                "127.0.0.1", run.port
+                            )
+                            client[1].write(payload)
+                            await client[1].drain()
+                            if followup:
+                                self.assertTrue(
+                                    await asyncio.wait_for(client[0].read(1), TIMEOUT)
+                                )
+                                client[1].write(followup)
+                                await client[1].drain()
+                            client[1].write_eof()
+                            await asyncio.wait_for(
+                                run.owners[0].protocols[0].task, TIMEOUT
+                            )
+                            self.assertTrue(run.done.is_set())
+
+                    self.assertIs(run.failures[0], raised.exception)
+                    self.assertIsNone(run.finished)
+                    self.assertTrue(all(owner.finished for owner in run.owners))
+                    with self.assertRaises(error_type) as unpublished:
+                        render_snapshot(run, METADATA)
+                    self.assertIs(unpublished.exception, raised.exception)
+            finally:
+                if client is not None:
+                    client[1].close()
+                    await client[1].wait_closed()
+                if run is not None:
+                    for owner in run.owners:
+                        await owner.close(asyncio.get_running_loop().time() + 10)
+
+    async def test_clean_complete_handshake_eof_keeps_other_requests_running(self):
+        incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+        tls = client_tls_context().wrap_bio(
+            incoming, outgoing, server_side=False, server_hostname=HOSTNAME
+        )
+        with self.assertRaises(ssl.SSLWantReadError):
+            tls.do_handshake()
+
+        client = None
+        run = None
+        try:
+            async with serving(CERTIFICATE, "peer-close", 0.05) as run:
+                client = await asyncio.open_connection("127.0.0.1", run.port)
+                client[1].write(outgoing.read())
+                await client[1].drain()
+                self.assertTrue(await asyncio.wait_for(client[0].read(1), TIMEOUT))
+                client[1].write_eof()
+                await asyncio.wait_for(run.owners[0].protocols[0].task, TIMEOUT)
+
+                self.assertEqual(run.connections[0].failure, "ConnectionError")
+                self.assertTrue(run.connections[0].client_hello.complete)
+                self.assertEqual(run.failures, [])
+                self.assertFalse(run.done.is_set())
+                self.assertIsNone(run.finished)
+                self.assertFalse(run.owners[0].stopping)
+
+                await asyncio.wait_for(h2_session(run.port, run.token), TIMEOUT)
+                await asyncio.wait_for(h3_session(run.port, run.token), TIMEOUT)
+                await asyncio.wait_for(
+                    http1_requests(run.plain_port, run.token), TIMEOUT
+                )
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+
+            self.assertIsNotNone(run.finished)
+            self.assertTrue(all(owner.finished for owner in run.owners))
+            text = render_snapshot(run, METADATA)
+            self.assertIn("failure:ConnectionError", text)
+            self.assertEqual(problems(text), [])
+        finally:
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            if run is not None:
+                for owner in run.owners:
+                    await owner.close(asyncio.get_running_loop().time() + 10)
+
     async def test_completion_requires_one_origin_form_run_token(self):
         invalid = (
             b"/done?run=wrong",
