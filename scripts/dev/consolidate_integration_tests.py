@@ -53,6 +53,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "expect_continue",
                 "fingerprint_import",
                 "h2c",
+                "h3_coalescing",
                 "h3_received_order",
                 "ping_failure_replay",
                 "plaintext_templates",
