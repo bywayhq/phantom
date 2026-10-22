@@ -57,8 +57,8 @@ reports the actual protocol. Select `raw` for caller headers, or an available
 catalog context such as `navigation`. Unsupported combinations fail.
 
 Headers are ordered `{name, value: Uint8Array, sensitive?}` entries, including
-duplicates. H2/H3 caller names must be lowercase. Response headers retain
-received spelling, ordering and bytes.
+duplicates. H2/H3 caller names must be lowercase. `response.headers` retains
+received spelling, order, raw bytes and actual `sensitive` markers.
 Inputs are copied before async work; shared byte buffers are rejected.
 
 `read(maximumBytes)` pulls up to 65,536 bytes; `null` means EOF. Only one reader
@@ -68,7 +68,6 @@ close it on completion or failure. Content stays encoded unless you pass
 `contentDecoding: {mode: 'advertised', maximumDecodedBytes: 1_000_000n}` and
 an `accept-encoding` header. Decoded-stream and collection limits are separate.
 Headers remain unchanged; `decodedContentCodings` records the selected chain.
-`response.headers` retains ordered names, raw bytes and actual `sensitive` markers.
 `response.trailers` never reads the body: its state is `pending`, `unavailable`
 after failure or abandonment, or `complete` after validated EOF. Complete
 `headers` retain ordered names and owned byte values, including duplicates;

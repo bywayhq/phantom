@@ -52,9 +52,6 @@ receipt for source, checksums and tested hosts. Windows needs the x64 Visual C++
 v14 runtime at least as recent as the recorded build tools; runtime DLLs are
 not bundled. Keep the included notices when redistributing.
 
-`Response.Headers` preserves ordered names, raw bytes and retained `Sensitive` markers.
-A false marker can mean the protocol decoder did not retain it.
-
 ## Build from source
 
 Source builds require Go 1.26, Rust 1.88+ and the repository's
@@ -103,8 +100,9 @@ prefetch can still occur.
 
 ## Read a response
 
-Response headers retain received order and bytes. HTTP error statuses remain
-responses; inspect `Status` before consuming the body.
+`Response.Headers` retains received order, raw bytes and `Sensitive` markers.
+A false marker can mean the protocol decoder did not retain it. HTTP error
+statuses remain responses; inspect `Status` before consuming the body.
 
 `Body.ReadAll(maximum)` collects within your limit and closes the body on
 success or failure. To stream to a writer, use the standard `io.Copy`:
