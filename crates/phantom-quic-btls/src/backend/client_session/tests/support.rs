@@ -2,12 +2,12 @@ use std::ffi::{CString, c_int, c_uint, c_void};
 use std::fmt::Debug;
 #[cfg(feature = "keylog")]
 use std::num::NonZeroUsize;
-use std::ptr::{self, NonNull};
+use std::ptr;
 use std::slice;
 use std::sync::Arc;
 
 use btls::ssl::{
-    ScopedClientSessionMode, ScopedSslSession, SslContext, SslMethod, SslRef, SslSessionScope,
+    ScopedClientSessionMode, ScopedSslSession, Ssl, SslContext, SslMethod, SslRef, SslSessionScope,
     SslVerifyMode,
 };
 use btls_sys as ffi;
@@ -97,13 +97,11 @@ impl RawServer {
         application_settings: Option<&[u8]>,
         early_data: bool,
     ) -> Result<Self, ClientSessionError> {
-        // SAFETY: `context` is live for the call and SSL_new retains it.
-        let ssl = unsafe {
-            OwnedSsl::new(
-                NonNull::new(context.as_ptr())
-                    .ok_or(ClientSessionError::BackendFailure("test context pointer"))?,
-            )
-        }?;
+        // The safe constructor retains the context used by message callbacks.
+        let ssl = OwnedSsl::from_safe(
+            Ssl::new(context.as_context())
+                .map_err(|_| ClientSessionError::BackendFailure("test SSL allocation"))?,
+        )?;
         if let Some(application_settings) = application_settings {
             // SAFETY: this test helper uniquely owns the live SSL.
             let ssl_ref = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
