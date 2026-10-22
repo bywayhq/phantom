@@ -13,7 +13,7 @@ asks about.
 | `idle-ping` | h2 | Fetches, waits `--idle` seconds on the open connection, fetches again |
 | `ping-unanswered` | h2 | Fetches, waits 11.5 s, fetches again; the server goes silent on that connection |
 | `close` | h2 and http/1.1 | Fetches over both, aborts an HTTP/1.1 response, then the tool closes the browser over its remote protocol |
-| `resources` | h2 | Loads one local script, stylesheet, image and font |
+| `resources` | h2 (default), http/1.1 (explicit) | Loads one local script, stylesheet, image and font |
 """
 
 from __future__ import annotations
