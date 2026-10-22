@@ -1,7 +1,7 @@
 //! Socket destination admission through the public client.
 
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{
         Arc, Mutex,
@@ -88,17 +88,13 @@ async fn denial_prevents_tcp_quic_and_fallback_without_spending_retries() -> Tes
 
 #[tokio::test]
 async fn overrides_keep_allowed_order_and_never_connect_to_denied_candidates() -> TestResult<()> {
-    let allowed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let (allowed, denied) = loopback_listeners().await?;
     let port = allowed.local_addr()?.port();
-    let denied_ip = Ipv4Addr::new(127, 0, 0, 2);
-    let denied = TcpListener::bind((denied_ip, port)).await?;
+    let denied_ip = IpAddr::V6(Ipv6Addr::LOCALHOST);
     let seen = Arc::new(Mutex::new(Vec::new()));
     let observed = Arc::clone(&seen);
     let client = Client::builder(profile())
-        .resolve(
-            "origin.test",
-            [IpAddr::V4(denied_ip), IpAddr::V4(Ipv4Addr::LOCALHOST)],
-        )
+        .resolve("origin.test", [denied_ip, IpAddr::V4(Ipv4Addr::LOCALHOST)])
         .destination_policy(DestinationPolicy::from_fn(move |address| {
             observed
                 .lock()
@@ -141,6 +137,19 @@ async fn overrides_keep_allowed_order_and_never_connect_to_denied_candidates() -
     );
     assert!(timeout(QUIET, denied.accept()).await.is_err());
     Ok(())
+}
+
+async fn loopback_listeners() -> TestResult<(TcpListener, TcpListener)> {
+    for _ in 0..64 {
+        let allowed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let port = allowed.local_addr()?.port();
+        match TcpListener::bind((Ipv6Addr::LOCALHOST, port)).await {
+            Ok(denied) => return Ok((allowed, denied)),
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err("no port was free on both loopback addresses".into())
 }
 
 #[tokio::test]
@@ -398,8 +407,7 @@ async fn denied_alternative_stays_available_while_the_permitted_origin_wins() ->
     let acceptor = identity.acceptor(H1_ALPN)?;
     let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let origin_address = origin.local_addr()?;
-    let alternative =
-        phantom_testkit::udp::bind_tokio(SocketAddr::from((Ipv4Addr::new(127, 0, 0, 2), 0)))?;
+    let alternative = phantom_testkit::udp::bind_tokio(SocketAddr::from((Ipv6Addr::LOCALHOST, 0)))?;
     let alternative_address = alternative.local_addr()?;
     let policy_alternative = alternative_address;
     let denied = Arc::new(AtomicUsize::new(0));
