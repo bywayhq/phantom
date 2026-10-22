@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fuzz content-coding headers and chained response decompression.
+
 - Add `chrome-156-windows` with Chrome 156 Windows TLS, HTTP/2, HTTP/3,
   client hints and navigation headers.
 
