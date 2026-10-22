@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Capture ordered HTTP/2 script, stylesheet, image and font requests with the
+  lifecycle tool's `resources` scenario.
+
 - Reduce repeated parsing of fragmented HTTP/1 response headers.
 
 - Restrict direct TCP and QUIC destinations with an optional client-wide
