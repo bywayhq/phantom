@@ -40,6 +40,7 @@ use tls_support::{
 use tracing_support::OutcomeSubscriber;
 
 mod h1_retry;
+mod h2_retry;
 mod terminal_status;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -454,7 +455,8 @@ async fn negotiated_one_shot_body_is_not_polled_before_retry() -> TestResult {
 
 #[tokio::test]
 async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
-    bounded(async {
+    let mut exchange = h2_retry::Exchange::new();
+    let caller = timeout_at(exchange.deadline(), async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let reserved = ReservedPort::bind()?;
@@ -463,42 +465,13 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
             .retry_policy(RetryPolicy::none())
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{address}/retried-h2"),
-            )?
-            .retry_policy(RetryPolicy::connection_failures(
-                NonZeroUsize::MIN,
-                RETRY_DELAY,
-            ));
-        let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
+        exchange.start(address, &client, &subscriber)?;
 
-        wait_for_retry_reason(&subscriber).await?;
+        exchange.wait_for_retry_reason(&subscriber).await?;
         let listener = reserved.listen()?;
-        let server = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let stream = accept_tls_stream(tcp, acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("HTTP/2 connection closed before retried request")??;
-            respond.send_response(
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body(())?,
-                true,
-            )?;
-            let path = request.uri().path().to_owned();
-            drop(request);
-            drop(respond);
-            poll_fn(|context| connection.poll_closed(context)).await?;
-            let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((path, second.is_err()))
-        });
+        exchange.listen(listener, acceptor);
 
-        let response = request_task.await??;
+        let response = exchange.response().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         let info = response
             .extensions()
@@ -506,10 +479,13 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
             .ok_or("response omitted retry metadata")?;
         assert_eq!(info.protocol(), HttpProtocol::Http2);
         assert_eq!(info.retries_performed(), 1);
+        exchange.mark("reading response body");
         response.into_body().collect().await?;
+        exchange.mark("response body complete");
         drop(client);
+        exchange.mark("client dropped");
 
-        let (path, had_no_second_connection) = server.await??;
+        let (path, had_no_second_connection) = exchange.peer_output().await?;
         assert_eq!(path, "/retried-h2");
         assert!(had_no_second_connection);
         assert_eq!(subscriber.selected_protocols_for("client.request"), ["h2"]);
@@ -520,7 +496,12 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
         assert_eq!(subscriber.retries_performed_for("client.request"), [1]);
         Ok(())
     })
-    .await
+    .await;
+    let caller = match caller {
+        Ok(result) => result,
+        Err(elapsed) => Err(exchange.deadline_error(elapsed)),
+    };
+    exchange.finish(caller).await
 }
 
 #[tokio::test]
