@@ -93,27 +93,27 @@ phantom profiles bundle install browsers.json --store ./profiles
 phantom request https://example.com/ --bundle <sha256> --bundle-profile custom/chrome --bundle-store ./profiles --protocol h2
 ```
 
-Install prints the bundle's lowercase SHA-256. Use that exact digest, not its
-publisher label or revision, to pin requests. Installing another revision keeps
-older files. To roll back, select an older digest. Requests use only the selected
-file and name; there is no catalog fallback or network lookup. `--context` is
-unavailable for bundle entries: each document contains its chosen template.
+Install prints the bundle's lowercase SHA-256. Pin requests to that digest and
+an exact profile name. Installing another revision keeps older files; select an
+older digest to roll back. Requests read the selected local file. Each document
+contains its chosen template, so bundle entries reject `--context`.
 
 The JSON envelope uses `format: "phantom.profile-bundle"`, `version: 1`, an `id`,
 a positive integer `revision`, and `profiles`. Each profile has `name`, `document`
 (the complete exported custom-profile object), and `provenance`. References are
 objects with `source` and `revision` strings; an empty provenance list is allowed.
-Publisher references are retained, not verified or fetched. A digest identifies
-bytes, not a trusted publisher. Bundles may contain literal header secrets.
+Publisher references are unverified labels. The digest checks file contents;
+it does not authenticate the publisher. Inspect bundles for literal header
+secrets before sharing them.
 
-Bundles are limited to 16 MiB and 64 entries. Installation validates every entry
-before exclusive file creation. Reinstalling identical bytes succeeds; conflicting
-or incomplete files are never overwritten. Ordinary write errors attempt removal
-and report cleanup failures. Installation is not crash-atomic: interruption can
-leave an incomplete digest file, and concurrent readers can see a partial write.
-Requests verify the digest before use. Remove an incomplete file deliberately
-before retrying. Keep the store under your control, without untrusted writers.
-There is no `profiles update` command or automatic version selection.
+Installation validates all entries within the 16 MiB and 64-entry limits, then
+creates a new file. Reinstalling identical bytes succeeds; existing conflicting
+or incomplete files stay untouched. Write errors trigger removal of the partial
+file, with cleanup failures reported.
+
+Interruption can leave an incomplete file, and concurrent readers can see a
+partial write. Requests verify the digest before use. Remove an incomplete file
+before retrying, and keep the store protected from untrusted writers.
 
 ## Diagnostics
 

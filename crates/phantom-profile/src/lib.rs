@@ -12,13 +12,7 @@
 //! marked `non_exhaustive` require a catch-all match arm. A transport must
 //! reject an unknown policy instead of choosing an implicit behavior.
 //!
-//! Settings equality compares stored values, including the order of lists.
-//! It does not prove that two settings produce the same connection bytes.
-//! Clone, Debug, Eq, Send, and Sync apply where each type implements them.
-//! Validation errors in this crate support these traits too. Network errors
-//! can carry runtime or backend sources and are outside this contract.
-//! Defaults, builders, and Hash are provided only by types that implement
-//! them.
+//! Settings equality compares stored values, including list order.
 
 pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{

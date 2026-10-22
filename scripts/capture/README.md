@@ -117,10 +117,9 @@ order. Firefox also draws its ECH GREASE AEAD per connection, so that AEAD is
 not compared. A layer missing from the snapshot, or with no retained
 fixture, is a difference. Malformed normalized extension lengths, duplicate
 extensions and missing declared entries fail comparison. Counts are limited
-to 16,384 TLS records, 16,384 HTTP/2 frames and 1,024 hints. These limits do
-not bound the file size or validate every TLS field.
-The tool does not compare HTTP/3 request fields, HTTP/2 fields other than
-the first navigation's, or HTTP/1.1.
+to 16,384 TLS records, 16,384 HTTP/2 frames and 1,024 hints; input file size
+is unrestricted. Request-field comparison covers the first HTTP/2
+navigation only.
 
 Take a snapshot first for every new browser version. The other tools record
 a changed layer for a recipe, and they are the only way to record behavior

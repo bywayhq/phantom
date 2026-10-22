@@ -41,34 +41,24 @@ The artifact retains the command log and exit status, `result.json` and,
 when a page was attempted, `reconnect-204.txt`. TLS/H2 also retains its public
 certificate as `peer-certificate.der`. Inspect failures too. Source hashes,
 Safari and driver versions, Safari build, OS, architecture, runner image,
-returned capabilities and automation mode identify the attempt. The runner
-label alone does not pin a browser build.
+returned capabilities and automation mode identify the attempt.
 
 ## Interpret the result
 
-Success requires a real page request, the initial EventSource request and
-its reconnect, followed by the existing terminal observation period. Request
-order and timing come from the existing loopback SSE peer. Driver creation
-alone does not establish capture success. TLS/H2 also requires the peer's
-verified H2 ALPN and decoded ordered request fields with stream identities.
-An HTTP/1.1 connection cannot satisfy that check.
+Success requires a page request, the initial EventSource request and its
+reconnect, followed by the terminal observation period. The loopback SSE
+peer records request order and timing. TLS/H2 also requires verified H2
+ALPN and decoded ordered request fields with stream identities.
 
-The adapter deletes its exact WebDriver session, stops and joins its driver,
-and retains launch and cleanup failures separately. It does not kill other
-Safari processes. Session deletion acknowledgement does not establish that
-every system XPC process has exited. Safari's REST listener can belong to its
-XPC service rather than the launched driver PID. The adapter records that
-one port's listener and requires the launched driver to remain alive. This
-is a disposable runner capture, not isolation from hostile local processes.
+The adapter deletes its WebDriver session, stops and joins its driver, and
+retains launch and cleanup failures separately. It records the listener on
+its chosen port and requires the launched driver to remain alive. That
+listener can belong to Safari's XPC service, which is outside driver cleanup.
 
-The HTTP attempt establishes no TLS behavior. The TLS/H2 attempt uses an IP
-target and explicit session certificate bypass. The certificate names
-`server.phantom.test`, not the IP. This captures neither domain SNI nor a
-ClientHello fingerprint, and establishes no ordinary Safari trust behavior.
-The peer does not retain the client's SETTINGS frame inventory.
-Neither mode establishes H3, a whole Safari profile or equivalence to
-interactive browsing. Hosted arm64 and Intel VMs are separate environments.
-An arm64 run does not establish Intel or physical Mac results.
+TLS/H2 uses an IP target with session certificate bypass. The certificate
+names `server.phantom.test`, not the IP. Domain SNI, ClientHello and client
+SETTINGS are not recorded. Compare results by their recorded browser build,
+architecture and hosted VM image.
 
 ## Implementation references
 
