@@ -47,7 +47,9 @@ and request fields match the peer. SETTINGS processing occurred earlier, moving
 the 4096 table-size update to the first request. Shutdown GOAWAY also differs.
 These runs do not establish identical frame scheduling or connection shutdown.
 Cookie splitting and other HPACK input classes remain source-derived.
+The retained consumer and stdout predate the selector rename to
+`safari-26-macos`; their original bytes are preserved.
 
 ## Next
 
-Use `catalog::profile("curl-safari-26-macos")` and require the layers you need.
+Use `catalog::profile("safari-26-macos")` and require the layers you need.
