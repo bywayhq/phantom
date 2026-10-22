@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- Add `safari-26-macos` for TLS, HTTP/2 and navigation headers, adapted from
-  curl-impersonate's Safari 26.0.1 preset. Catalog descriptions retain the pinned
-  source and distinguish it from browser observations.
+- Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
+  headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog
+  descriptions retain their sources and distinguish them from browser captures.
 
 - Breaking: catalog identities distinguish observed browsers from peer presets.
   Migrate: `ProfileMetadata::build`, `platform_release` and `environment` return
