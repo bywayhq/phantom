@@ -6,7 +6,12 @@ use futures_util::{StreamExt, stream::FuturesUnordered};
 use h3::ext::OrderedHeaders;
 use http::{Response, StatusCode};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpStream},
+    sync::watch,
+};
+use tokio_btls::SslStream;
 
 use crate::support::{
     h3 as h3_support, shared_port,
@@ -75,46 +80,16 @@ impl Peer {
                 _ = stop.wait_for(|stopped| *stopped) => return Ok(records),
                 accepted = self.listener.accept() => accepted?,
             };
-            let mut stream = accept_tls_stream(tcp, self.acceptor.clone()).await?;
-            let head = read_head(&mut stream).await?;
-            let mut headers = [httparse::EMPTY_HEADER; 32];
-            let mut request = httparse::Request::new(&mut headers);
-            if !request.parse(&head)?.is_complete() {
-                return Err("incomplete coalescing HTTP/1 request head".into());
-            }
-            let authority = request
-                .headers
-                .iter()
-                .find(|field| field.name.eq_ignore_ascii_case("host"))
-                .ok_or("coalescing HTTP/1 request omitted Host")?;
-            let authority = std::str::from_utf8(authority.value)?.to_owned();
-            let path = request
-                .path
-                .ok_or("coalescing HTTP/1 request omitted its target")?
-                .to_owned();
-            let method = request
-                .method
-                .ok_or("coalescing HTTP/1 request omitted its method")?
-                .to_owned();
-            self.validate(&authority, &path, &method)?;
-            let advertisement =
-                if authority == format!("{DONOR}:{}", self.address.port()) && path == "/learn" {
-                    format!("Alt-Svc: h3=\":{}\"; ma=60\r\n", self.address.port())
-                } else {
-                    String::new()
-                };
-            records.push(Observation {
-                connection: None,
-                stream: None,
-                method,
-                authority,
-                path,
-                fields: request
-                    .headers
-                    .iter()
-                    .map(|field| (field.name.to_ascii_lowercase(), field.value.to_vec()))
-                    .collect(),
-            });
+            let (mut stream, record) = self.read_tcp_request(tcp).await?;
+            self.validate(&record.authority, &record.path, &record.method)?;
+            let advertisement = if record.authority == format!("{DONOR}:{}", self.address.port())
+                && record.path == "/learn"
+            {
+                format!("Alt-Svc: h3=\":{}\"; ma=60\r\n", self.address.port())
+            } else {
+                String::new()
+            };
+            records.push(record);
             if records.len() > 3 {
                 return Err("coalescing fixture received too many HTTP/1 requests".into());
             }
@@ -124,6 +99,50 @@ impl Peer {
             stream.write_all(response.as_bytes()).await?;
             stream.shutdown().await?;
         }
+    }
+
+    pub(super) async fn accept_tcp_request(
+        &self,
+    ) -> TestResult<(SslStream<TcpStream>, Observation)> {
+        let (tcp, _) = self.listener.accept().await?;
+        self.read_tcp_request(tcp).await
+    }
+
+    async fn read_tcp_request(
+        &self,
+        tcp: TcpStream,
+    ) -> TestResult<(SslStream<TcpStream>, Observation)> {
+        let mut stream = accept_tls_stream(tcp, self.acceptor.clone()).await?;
+        let head = read_head(&mut stream).await?;
+        let mut headers = [httparse::EMPTY_HEADER; 32];
+        let mut request = httparse::Request::new(&mut headers);
+        if !request.parse(&head)?.is_complete() {
+            return Err("incomplete coalescing HTTP/1 request head".into());
+        }
+        let authority = request
+            .headers
+            .iter()
+            .find(|field| field.name.eq_ignore_ascii_case("host"))
+            .ok_or("coalescing HTTP/1 request omitted Host")?;
+        let record = Observation {
+            connection: None,
+            stream: None,
+            method: request
+                .method
+                .ok_or("coalescing HTTP/1 request omitted its method")?
+                .to_owned(),
+            authority: std::str::from_utf8(authority.value)?.to_owned(),
+            path: request
+                .path
+                .ok_or("coalescing HTTP/1 request omitted its target")?
+                .to_owned(),
+            fields: request
+                .headers
+                .iter()
+                .map(|field| (field.name.to_ascii_lowercase(), field.value.to_vec()))
+                .collect(),
+        };
+        Ok((stream, record))
     }
 
     pub(super) async fn serve_h3(

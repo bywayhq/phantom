@@ -16,6 +16,7 @@ use crate::support::{
 use self::peer::{Observation, Peer};
 
 mod peer;
+mod replays;
 
 const DONOR: &str = "donor.test";
 const OTHER: &str = "other.test";
