@@ -24,6 +24,7 @@ mod address_feedback;
 #[cfg(feature = "https-records")]
 mod configuration_generation;
 mod dns_answers;
+mod removal;
 mod routes;
 mod stale_grace;
 mod system_ttl;

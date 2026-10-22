@@ -2,9 +2,12 @@ use super::*;
 use crate::host_resolver::{AddressAnswer, AddressNegativeKind};
 
 fn publish(cache: &AddressCache, result: io::Result<Resolved>) -> Outcome {
-    let generation = cache.lock().generation;
+    let publication = {
+        let mut state = cache.lock();
+        crate::address_cache::PublicationGuard::new(cache, &mut state, HOST.into())
+    };
     let (outcome, lifetime) = Outcome::from_resolution(result, cache.cache_errors());
-    cache.complete(HOST, None, generation, &None, &outcome, lifetime)
+    cache.complete(HOST, None, &publication, &None, &outcome, lifetime)
 }
 
 #[test]

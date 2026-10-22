@@ -8,7 +8,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr, ToSocketAddrs},
     pin::Pin,
-    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    sync::{Arc, Mutex, MutexGuard, PoisonError, Weak},
     time::Instant,
 };
 
@@ -90,7 +90,9 @@ enum Lookup {
 /// through a caller's resolver runs inside the connection that asked for it
 /// and ends with it, and a system lookup runs on the blocking pool without
 /// being shared; either still stores its answer. A resolver that never
-/// answers therefore holds at most `max_entries` tasks and pending entries.
+/// answers therefore holds at most `max_entries` shared tasks and pending
+/// entries. Publication identities also cover live unshared resolutions;
+/// their weak index is pruned when that work completes or is cancelled.
 #[derive(Clone)]
 pub struct AddressCache {
     inner: Arc<Inner>,
@@ -110,6 +112,9 @@ struct State {
     /// Shared resolutions still running, including those a clear detached
     /// from `pending`. Their publishers release these reservations on drop.
     shared_resolutions: usize,
+    /// Only live resolutions own these identities, including caller-owned
+    /// overflow work. Last-owner drop prunes its weak index entry.
+    publications: HashMap<Box<str>, Weak<()>>,
     /// Advanced by [`AddressCache::clear`], so that a resolution started
     /// before the clear does not store its answer after it.
     generation: u64,
@@ -338,7 +343,23 @@ impl AddressCache {
         let mut state = self.lock();
         state.entries.clear();
         state.pending.clear();
+        state.publications.clear();
         state.generation += 1;
+    }
+
+    /// Forgets one hostname's answer, failure and grace renewal.
+    ///
+    /// Names use the same ASCII-case normalization as lookup. Detached work
+    /// may still answer existing waiters, but cannot repopulate this name.
+    /// Other names and their resolutions remain unchanged.
+    pub fn remove(&self, host: &str) {
+        let host = host.to_ascii_lowercase();
+        let mut state = self.lock();
+        state.entries.remove(host.as_str());
+        state
+            .pending
+            .retain(|(name, _), _| name.as_ref() != host.as_str());
+        state.publications.remove(host.as_str());
     }
 
     /// Returns what [`Self::lookup_noting_cache`] returns, without the flag.
@@ -429,8 +450,7 @@ impl AddressCache {
             }
             Answer::Wait(receiver) => receiver,
             Answer::Inline {
-                host,
-                generation,
+                publication,
                 configuration,
                 resolution,
             } => {
@@ -439,8 +459,14 @@ impl AddressCache {
                     result = Err(error);
                 }
                 let (outcome, lifetime) = Outcome::from_resolution(result, self.cache_errors());
-                let outcome =
-                    self.complete(&host, None, generation, &configuration, &outcome, lifetime);
+                let outcome = self.complete(
+                    &publication.host,
+                    None,
+                    &publication,
+                    &configuration,
+                    &outcome,
+                    lifetime,
+                );
                 return Ok((outcome, false));
             }
         };
@@ -479,6 +505,7 @@ impl AddressCache {
         if state.configuration != configuration {
             state.entries.clear();
             state.pending.clear();
+            state.publications.clear();
             state.configuration = configuration.clone();
         }
         let now = Instant::now();
@@ -516,17 +543,16 @@ impl AddressCache {
             return Ok(stale.map_or_else(|| Answer::Wait(receiver.clone()), Answer::Stored));
         }
 
-        let generation = state.generation;
         let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
         if !shared && let Some(outcome) = &stale {
             return Ok(Answer::Stored(outcome.clone()));
         }
+        let publication = PublicationGuard::new(self, &mut state, key.0.clone());
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
             drop(state);
             let resolution = resolver.lookup_with_configuration(&key.0, configuration.clone());
             return Ok(Answer::Inline {
-                host: key.0,
-                generation,
+                publication,
                 configuration,
                 resolution,
             });
@@ -540,10 +566,9 @@ impl AddressCache {
         drop(state);
 
         let publisher = Publisher {
-            cache: self.clone(),
+            publication,
             key,
             shared,
-            generation,
             configuration,
             sender: Some(sender),
         };
@@ -570,21 +595,26 @@ impl AddressCache {
         Ok(stale.map_or(Answer::Wait(receiver), Answer::Stored))
     }
 
-    /// Stores a finished resolution, unless the cache was cleared after it
-    /// started, and releases its shared entry in `pending`, if it has one.
+    /// Stores a finished resolution while its publication identity is current,
+    /// and releases its shared entry in `pending`, if it has one.
     ///
     /// `lifetime` distinguishes legacy retention from bounded DNS answers.
     fn complete(
         &self,
         host: &str,
         pending: Option<&PendingKey>,
-        generation: u64,
+        publication: &PublicationGuard,
         configuration: &Option<DnsConfigurationToken>,
         outcome: &Outcome,
         lifetime: CacheLifetime,
     ) -> Outcome {
         let mut state = self.lock();
-        if state.generation != generation
+        if state.generation != publication.generation
+            || !state
+                .publications
+                .get(host)
+                .and_then(Weak::upgrade)
+                .is_some_and(|identity| Arc::ptr_eq(&identity, &publication.identity))
             || state.configuration != *configuration
             || Self::check_configuration(configuration).is_err()
         {
@@ -740,17 +770,61 @@ impl AddressCache {
     }
 }
 
+/// Publication authority for one live resolution, shared across runtimes.
+/// The weak index holds no history once the last active resolution ends.
+struct PublicationGuard {
+    cache: AddressCache,
+    host: Box<str>,
+    identity: Arc<()>,
+    generation: u64,
+}
+
+impl PublicationGuard {
+    fn new(cache: &AddressCache, state: &mut State, host: Box<str>) -> Self {
+        let identity = state
+            .publications
+            .get(&host)
+            .and_then(Weak::upgrade)
+            .unwrap_or_else(|| {
+                let identity = Arc::new(());
+                state
+                    .publications
+                    .insert(host.clone(), Arc::downgrade(&identity));
+                identity
+            });
+        Self {
+            cache: cache.clone(),
+            host,
+            identity,
+            generation: state.generation,
+        }
+    }
+}
+
+impl Drop for PublicationGuard {
+    fn drop(&mut self) {
+        let mut state = self.cache.lock();
+        if Arc::strong_count(&self.identity) == 1
+            && state
+                .publications
+                .get(&self.host)
+                .is_some_and(|identity| identity.ptr_eq(&Arc::downgrade(&self.identity)))
+        {
+            state.publications.remove(&self.host);
+        }
+    }
+}
+
 /// The sending side of one resolution.
 ///
 /// Dropped without sending, as when the runtime shuts down before the
 /// resolution finishes, it releases the pending entry so that waiters see an
 /// error and the next lookup of the name starts a new resolution.
 struct Publisher {
-    cache: AddressCache,
+    publication: PublicationGuard,
     key: PendingKey,
     /// Whether `key` is in `pending`, so that completion releases it.
     shared: bool,
-    generation: u64,
     configuration: Option<DnsConfigurationToken>,
     sender: Option<watch::Sender<Option<Outcome>>>,
 }
@@ -761,12 +835,13 @@ impl Publisher {
         if let Err(error) = AddressCache::check_configuration(&self.configuration) {
             result = Err(error);
         }
-        let (outcome, lifetime) = Outcome::from_resolution(result, self.cache.cache_errors());
+        let (outcome, lifetime) =
+            Outcome::from_resolution(result, self.publication.cache.cache_errors());
         let pending = self.shared.then_some(&self.key);
-        let outcome = self.cache.complete(
+        let outcome = self.publication.cache.complete(
             &self.key.0,
             pending,
-            self.generation,
+            &self.publication,
             &self.configuration,
             &outcome,
             lifetime,
@@ -780,7 +855,7 @@ impl Publisher {
 impl Drop for Publisher {
     fn drop(&mut self) {
         let unanswered = self.sender.take().is_some();
-        let mut state = self.cache.lock();
+        let mut state = self.publication.cache.lock();
         if self.shared {
             state.shared_resolutions -= 1;
         }
@@ -801,8 +876,7 @@ enum Answer {
     Wait(watch::Receiver<Option<Outcome>>),
     /// A caller's resolution past the bound, for the lookup to run itself.
     Inline {
-        host: Box<str>,
-        generation: u64,
+        publication: PublicationGuard,
         configuration: Option<DnsConfigurationToken>,
         resolution: ResolverFuture,
     },
