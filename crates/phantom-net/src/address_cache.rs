@@ -49,8 +49,9 @@ enum Lookup {
 /// lookup.
 ///
 /// A lookup's answer keeps the resolver's address order, on which address
-/// racing depends. A system answer with a native remaining lifetime keeps
-/// its absolute expiry without a floor. An answer without a record TTL is
+/// racing depends. Positive legacy/native answers may be reused during
+/// [`DnsCacheSettings::stale_grace`] while a renewal runs. Native freshness
+/// keeps its absolute expiry without a floor. An answer without a record TTL is
 /// kept for [`DnsCacheSettings::ttl`]; one with a record TTL,
 /// from the built-in DNS resolver, for that TTL or
 /// [`DnsCacheSettings::min_record_ttl`], whichever is longer. A failure or an
@@ -84,7 +85,8 @@ enum Lookup {
 /// Clones share one cache. It holds at most
 /// [`DnsCacheSettings::max_entries`] names; when it is full, a new answer
 /// replaces an expired one, then the one that would expire soonest. At most
-/// as many shared resolutions are in flight. Past that bound, a lookup
+/// as many shared resolutions are in flight. A grace hit past that bound
+/// returns its stored answer without starting more work. Otherwise a lookup
 /// through a caller's resolver runs inside the connection that asked for it
 /// and ends with it, and a system lookup runs on the blocking pool without
 /// being shared; either still stores its answer. A resolver that never
@@ -118,6 +120,8 @@ struct Entry {
     outcome: Outcome,
     /// `None` when the lifetime reaches past what `Instant` can represent.
     expires_at: Option<Instant>,
+    /// Positive legacy/native answers may be reused while renewal runs.
+    stale_until: Option<Instant>,
 }
 
 impl Entry {
@@ -125,9 +129,18 @@ impl Entry {
         self.expires_at.is_none_or(|expires_at| expires_at > now)
     }
 
-    /// Orders entries by expiry, soonest first, with never-expiring last.
+    fn is_in_grace(&self, now: Instant) -> bool {
+        !self.is_fresh(now) && self.stale_until.is_some_and(|end| now < end)
+    }
+
+    fn is_usable(&self, now: Instant) -> bool {
+        self.is_fresh(now) || self.is_in_grace(now)
+    }
+
+    /// Orders entries by their last usable instant, never-expiring last.
     fn eviction_key(&self) -> (bool, Option<Instant>) {
-        (self.expires_at.is_none(), self.expires_at)
+        let end = self.stale_until.or(self.expires_at);
+        (end.is_none(), end)
     }
 }
 
@@ -339,8 +352,9 @@ impl AddressCache {
     /// Returns `host`'s addresses with `port`, in resolver order, and whether
     /// a stored answer supplied them without a resolution.
     ///
-    /// A fresh stored answer or failure is returned at once. Otherwise the
-    /// lookup joins the resolution in flight for the name, or starts one.
+    /// Fresh entries return at once. A positive answer in its configured grace
+    /// period also returns at once and starts a bounded background renewal.
+    /// Otherwise the lookup joins an in-flight resolution or starts one.
     ///
     /// # Errors
     ///
@@ -468,10 +482,11 @@ impl AddressCache {
             state.configuration = configuration.clone();
         }
         let now = Instant::now();
-        match state.entries.get(&host) {
+        let stale = match state.entries.get(&host) {
             Some(entry) if entry.is_fresh(now) => {
                 return Ok(Answer::Stored(entry.outcome.clone()));
             }
+            Some(entry) if entry.is_in_grace(now) => Some(entry.outcome.clone()),
             Some(_) => {
                 if matches!(
                     self.inner.settings.address_failure_policy,
@@ -479,9 +494,10 @@ impl AddressCache {
                 ) {
                     state.entries.remove(&host);
                 }
+                None
             }
-            None => {}
-        }
+            None => None,
+        };
 
         // A resolution that ended without an answer, as when its runtime shut
         // down or its task panicked, has dropped its sender; such entries are
@@ -497,11 +513,14 @@ impl AddressCache {
             Lookup::Task(_) => (host, Some(runtime.id())),
         };
         if let Some(receiver) = state.pending.get(&key) {
-            return Ok(Answer::Wait(receiver.clone()));
+            return Ok(stale.map_or_else(|| Answer::Wait(receiver.clone()), Answer::Stored));
         }
 
         let generation = state.generation;
         let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
+        if !shared && let Some(outcome) = &stale {
+            return Ok(Answer::Stored(outcome.clone()));
+        }
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
             drop(state);
             let resolution = resolver.lookup_with_configuration(&key.0, configuration.clone());
@@ -548,7 +567,7 @@ impl AddressCache {
             }
         }
 
-        Ok(Answer::Wait(receiver))
+        Ok(stale.map_or(Answer::Wait(receiver), Answer::Stored))
     }
 
     /// Stores a finished resolution, unless the cache was cleared after it
@@ -578,23 +597,31 @@ impl AddressCache {
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
+        // Even an uncacheable replacement retires the previous answer. Retain
+        // its record locally so successful renewal preserves failed-IP history.
+        let previous = state.entries.remove(host);
         let settings = &self.inner.settings;
         let now = Instant::now();
-        let expires_at = match lifetime {
+        let (expires_at, grace) = match lifetime {
             CacheLifetime::Legacy(record_ttl) => {
                 let ttl = if outcome.is_negative() {
                     settings.negative_ttl
                 } else {
                     Some(record_ttl.map_or(settings.ttl, |ttl| ttl.max(settings.min_record_ttl)))
                 };
-                // Preserve legacy answers' never-expiring overflow behavior.
-                let Some(expires_at) = ttl
-                    .filter(|ttl| !ttl.is_zero())
-                    .map(|ttl| now.checked_add(ttl))
-                else {
+                let Some(ttl) = ttl else {
                     return outcome.clone();
                 };
-                expires_at
+                let grace = !outcome.is_negative() && !settings.stale_grace.is_zero();
+                if ttl.is_zero() && !grace {
+                    return outcome.clone();
+                }
+                let expiry = now.checked_add(ttl);
+                if grace && expiry.is_none() {
+                    return outcome.clone();
+                }
+                // Preserve zero-grace legacy answers' overflow behavior.
+                (expiry, grace)
             }
             CacheLifetime::Dns(lifetime) => {
                 let Some(expires_at) = lifetime.expires_at(settings.negative_ttl) else {
@@ -603,17 +630,30 @@ impl AddressCache {
                 if expires_at <= now {
                     return outcome.clone();
                 }
-                Some(expires_at)
+                (Some(expires_at), false)
             }
             CacheLifetime::Never => return outcome.clone(),
             #[cfg(any(windows, test))]
             CacheLifetime::System(expiry) => {
-                let Some(expiry) = expiry.filter(|expiry| *expiry > now) else {
+                let Some(expiry) = expiry else {
                     return outcome.clone();
                 };
-                Some(expiry)
+                (
+                    Some(expiry),
+                    !outcome.is_negative() && !settings.stale_grace.is_zero(),
+                )
             }
         };
+        let stale_until = if grace {
+            expires_at.and_then(|expiry| expiry.checked_add(settings.stale_grace))
+        } else {
+            None
+        };
+        if expires_at.is_some_and(|expiry| expiry <= now)
+            && !stale_until.is_some_and(|end| end > now)
+        {
+            return outcome.clone();
+        }
         let outcome = match (outcome, settings.address_failure_policy) {
             (
                 Outcome::Resolved(answer),
@@ -621,13 +661,10 @@ impl AddressCache {
                     max_unusable_addresses,
                 },
             ) if !answer.addresses.is_empty() => {
-                let record = state
-                    .entries
-                    .get(host)
-                    .and_then(|entry| match &entry.outcome {
-                        Outcome::Resolved(previous) => previous.record.clone(),
-                        Outcome::Failed(_) => None,
-                    });
+                let record = previous.as_ref().and_then(|entry| match &entry.outcome {
+                    Outcome::Resolved(previous) => previous.record.clone(),
+                    Outcome::Failed(_) => None,
+                });
                 let record = match record {
                     Some(record) => {
                         if let Err(error) = record.refresh(answer.addresses.to_vec()) {
@@ -647,10 +684,8 @@ impl AddressCache {
             }
             _ => outcome.clone(),
         };
-        if !state.entries.contains_key(host)
-            && state.entries.len() >= self.inner.settings.max_entries.get()
-        {
-            state.entries.retain(|_, entry| entry.is_fresh(now));
+        if state.entries.len() >= self.inner.settings.max_entries.get() {
+            state.entries.retain(|_, entry| entry.is_usable(now));
             while state.entries.len() >= self.inner.settings.max_entries.get() {
                 let Some(soonest) = state
                     .entries
@@ -669,6 +704,7 @@ impl AddressCache {
             Entry {
                 outcome: outcome.clone(),
                 expires_at,
+                stale_until,
             },
         );
         outcome

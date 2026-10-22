@@ -441,6 +441,7 @@ async fn the_address_cache_keeps_a_dns_answer_for_its_record_ttl() -> TestResult
         max_entries: NonZeroUsize::MIN,
         ttl: Duration::ZERO,
         min_record_ttl: Duration::ZERO,
+        stale_grace: Duration::ZERO,
         negative_ttl: None,
     };
     let cache = AddressCache::with_resolver(settings, resolver);

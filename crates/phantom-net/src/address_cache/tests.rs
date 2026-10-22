@@ -25,6 +25,7 @@ mod address_feedback;
 mod configuration_generation;
 mod dns_answers;
 mod routes;
+mod stale_grace;
 mod system_ttl;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -40,6 +41,7 @@ fn settings(max_entries: usize, ttl: Duration, negative_ttl: Option<Duration>) -
         max_entries: NonZeroUsize::new(max_entries).unwrap_or(NonZeroUsize::MIN),
         ttl,
         min_record_ttl: Duration::ZERO,
+        stale_grace: Duration::ZERO,
         negative_ttl,
     }
 }

@@ -205,3 +205,63 @@ fn udp_views_share_generation_but_independent_owners_do_not() -> TestResult {
     assert!(!token.is_current()?);
     Ok(())
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn configuration_change_rejects_a_grace_renewal_and_starts_current_work() -> TestResult {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let (open, gate) = watch::channel(true);
+        let backend = Generational::new(gate);
+        let mut config = long_lived();
+        config.stale_grace = Duration::from_secs(600);
+        let cache = AddressCache::with_resolver(config, backend.resolver());
+        cache.lookup("origin.phantom.test", 443).await?;
+        open.send(false)?;
+        cache
+            .lock()
+            .entries
+            .get_mut("origin.phantom.test")
+            .ok_or("missing entry")?
+            .expires_at = Some(std::time::Instant::now());
+        assert!(
+            cache
+                .lookup_noting_cache("origin.phantom.test", 443)
+                .await?
+                .1
+        );
+        while backend.calls.load(Ordering::SeqCst) != 2 {
+            tokio::task::yield_now().await;
+        }
+        let key = (
+            Box::from("origin.phantom.test"),
+            Some(tokio::runtime::Handle::current().id()),
+        );
+        let old = Answer::Wait(
+            cache
+                .lock()
+                .pending
+                .get(&key)
+                .cloned()
+                .ok_or("old renewal")?,
+        );
+        backend.invalidate();
+        let new = cache.cached_or_pending("origin.phantom.test".into())?;
+        assert!(
+            matches!(new, Answer::Wait(_)),
+            "old grace crossed configuration generations"
+        );
+        while backend.calls.load(Ordering::SeqCst) != 3 {
+            tokio::task::yield_now().await;
+        }
+        open.send(true)?;
+        assert!(cache.consume_answer(old, 443).await.is_err());
+        cache.consume_answer(new, 443).await?;
+        assert_eq!(
+            cache.lookup("origin.phantom.test", 443).await?,
+            [SocketAddr::new(V4, 443)]
+        );
+        assert_eq!(cache.lock().shared_resolutions, 0);
+        assert_eq!(backend.calls.load(Ordering::SeqCst), 3);
+        Ok::<_, Box<dyn Error>>(())
+    })
+    .await?
+}
