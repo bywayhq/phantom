@@ -266,18 +266,20 @@ def validate(document, repo=REPO):
                 raise DeclarationError(
                     f"{identifier}: configured layer lacks provenance"
                 )
-            if (
-                peer
-                and support == "Configured"
-                and not any(
-                    reference.get("kind") == "ExternalSource"
+            if peer and support == "Configured":
+                kinds = [
+                    reference.get("kind")
                     for reference in references
                     if isinstance(reference, dict)
-                )
-            ):
-                raise DeclarationError(
-                    f"{identifier}: peer layer lacks pinned external source"
-                )
+                ]
+                if "ExternalSource" not in kinds:
+                    raise DeclarationError(
+                        f"{identifier}: peer layer lacks pinned external source"
+                    )
+                if "PeerCapture" not in kinds:
+                    raise DeclarationError(
+                        f"{identifier}: peer layer lacks capture evidence"
+                    )
             for reference in references:
                 keys(reference, ("kind", "location", "build"), "evidence reference")
                 kind = choice(
