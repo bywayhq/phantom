@@ -12,7 +12,7 @@ const MAXIMUM_BYTES: usize = 64 * 1024;
 const MAXIMUM_HEADER_BYTES: usize = 1024;
 const MAXIMUM_PUMPS: usize = 4096;
 
-/// Outcome of one bounded content-coding fuzz invocation, not supported API.
+/// Outcome of one bounded content-coding fuzz invocation.
 #[derive(Debug, Eq, PartialEq)]
 #[doc(hidden)]
 pub enum FuzzContentDecode {
@@ -35,7 +35,7 @@ pub enum FuzzContentDecode {
 
 /// Drives production coding-field parsing and decoding for a streaming GET/200.
 ///
-/// This is a fuzzing seam, not supported API. Error kinds use HTTP/2 attribution.
+/// Error kinds use HTTP/2 attribution.
 /// Request and response values are separate ordered field lines. Positive chunk
 /// sizes cycle until the input is consumed. Work-limit exhaustion discards the
 /// decoder without claiming EOF or successful decoding.
