@@ -3,12 +3,13 @@
 use std::{net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use phantom::{
-    AltSvcPolicy, Client, HttpProtocol, RequestHeader, ResponseInfo, profile::browser::firefox,
+    AltSvcPolicy, Client, HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader,
+    ResponseInfo, profile::browser::firefox,
 };
-use tokio::{sync::watch, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch, time::timeout};
 
 use crate::support::{
-    tls::{TestIdentity, TestResult},
+    tls::{TestIdentity, TestResult, read_head},
     tunnel_proxy::finish_with_cleanup,
 };
 
@@ -74,6 +75,56 @@ async fn firefox_does_not_reuse_a_settled_h3_donor_whose_certificate_excludes_th
     assert_eq!(exchange.h3.len(), 1);
     let other = find(&exchange.tcp, OTHER, "/first")?;
     assert_other_fields(other);
+    Ok(())
+}
+
+#[tokio::test]
+async fn reuse_requires_h3_template_fields_for_https_but_not_cleartext_without_alt_svc()
+-> TestResult<()> {
+    let client = Client::builder(firefox::v157_windows()).build()?;
+    let mut template = firefox::v157_windows_navigation_template();
+    template.http3_fields = None;
+    let template = PreparedRequestTemplate::new(template)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+
+    let error = client
+        .get_negotiated(&format!("https://{address}/"))?
+        .template(&template)
+        .send()
+        .await
+        .err()
+        .ok_or("HTTPS reuse accepted a template without H3 fields")?;
+    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    assert!(
+        timeout(Duration::from_millis(100), listener.accept())
+            .await
+            .is_err(),
+        "invalid HTTPS template opened a connection"
+    );
+
+    let caller = async {
+        let response = client
+            .get_negotiated(&format!("http://{address}/"))?
+            .template(&template)
+            .send()
+            .await?;
+        assert_eq!(response.version(), http::Version::HTTP_11);
+        let body = response.into_body().collect_with_limit(2).await?;
+        assert_eq!(body, b"ok"[..]);
+        TestResult::Ok(())
+    };
+    let peer = async {
+        let (mut stream, _) = listener.accept().await?;
+        let head = read_head(&mut stream).await?;
+        assert!(head.starts_with(b"GET / HTTP/1.1\r\n"));
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await?;
+        stream.shutdown().await?;
+        TestResult::Ok(())
+    };
+    timeout(DEADLINE, async { tokio::try_join!(caller, peer) }).await??;
     Ok(())
 }
 

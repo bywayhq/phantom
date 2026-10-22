@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Breaking: add `Http3Settings::connection_reuse` to select same-origin or
-  authorized-origin connection reuse. Migrate: add
+  authorized-origin connection reuse. Firefox recipes reuse eligible direct
+  HTTP/3 connections across origins. A coalesced 421 retires the connection
+  and returns the response without an automatic replay. Migrate: add
   `connection_reuse: Http3ConnectionReuse::SameOrigin` to custom settings and
   `"connection_reuse": "SameOrigin"` to HTTP/3 profile JSON. Recreate saved
   tickets and session checkpoints.

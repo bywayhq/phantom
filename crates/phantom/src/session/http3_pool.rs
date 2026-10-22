@@ -128,6 +128,7 @@ impl Http3Pool {
         let mut proxy_pools = Vec::new();
         {
             let mut state = self.state.lock().await;
+            state.generation = Arc::new(());
             for (key, entry) in &mut state.entries {
                 if let Route::ConnectUdp(proxy) = &key.route {
                     proxy_pools.push(proxy.pool().clone());
@@ -441,6 +442,10 @@ impl Http3Pool {
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
+        self.entry_in_state(&mut state, key)
+    }
+
+    fn entry_in_state(&self, state: &mut PoolState, key: PoolKey) -> Arc<PoolEntry> {
         if let Some(position) = state
             .entries
             .iter()
@@ -470,10 +475,187 @@ impl Http3Pool {
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
+
+    /// Snapshots donors without resolving a name or reserving a stream.
+    /// The existing pool bounds the snapshot; it creates no origin alias.
+    pub(crate) async fn reuse_candidates(
+        &self,
+        connector: &Http3Connector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Option<Http3ReuseCandidates> {
+        if !matches!(route, Route::Direct)
+            || connector.connection_reuse_policy()
+                != phantom_profile::Http3ConnectionReuse::AuthorizedOrigins
+        {
+            return None;
+        }
+        let key = PoolKey::new(endpoint, route);
+        let state = self.state.lock().await;
+        // Prefer this origin's own connections and their normal selection path.
+        if state.entries.iter().any(|(stored, entry)| {
+            stored == &key
+                && entry
+                    .lock_slots()
+                    .connections
+                    .iter()
+                    .any(|slot| connector.can_reuse_now(&slot.connection))
+        }) {
+            return None;
+        }
+        let mut connections = Vec::new();
+        for (stored, owner) in &state.entries {
+            if !matches!(stored.route, Route::Direct)
+                || stored.port != key.port
+                || stored.host == key.host
+                || stored.runtime != key.runtime
+            {
+                continue;
+            }
+            for slot in &owner.lock_slots().connections {
+                if connector.can_reuse_now(&slot.connection)
+                    && !slot.connection.early_data_pending()
+                {
+                    connections.push(Http3ReuseCandidate {
+                        owner: Arc::clone(owner),
+                        token: Arc::clone(&slot.token),
+                        connection: slot.connection.clone(),
+                    });
+                }
+            }
+        }
+        if connections.is_empty() {
+            return None;
+        }
+        Some(Http3ReuseCandidates {
+            key,
+            generation: Arc::clone(&state.generation),
+            connections,
+        })
+    }
+
+    /// Resolves once, authenticates donors outside locks, then reserves a stream
+    /// against its physical connection and the request origin's admission.
+    pub(crate) async fn acquire_reused(
+        &self,
+        candidates: Http3ReuseCandidates,
+        connector: &Http3Connector,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<Option<Http3Lease>, RequestError> {
+        let Http3ReuseCandidates {
+            key,
+            generation,
+            connections,
+        } = candidates;
+        let origin = timeout_budget
+            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
+                connector
+                    .resolve_origin_for_reuse(&key.host, key.port)
+                    .await
+                    .map_err(RequestError::http3_connection_setup)
+            })
+            .await?;
+        let mut authorized = Vec::new();
+        for candidate in connections {
+            let peer = candidate.connection.peer_address();
+            if connector
+                .can_reuse_for_origin(&candidate.connection, &origin)
+                .map_err(RequestError::http3_connection_setup)?
+                && candidate.connection.peer_address() == peer
+            {
+                authorized.push((candidate, peer));
+            }
+        }
+        if authorized.is_empty() {
+            return Ok(None);
+        }
+        let entry = {
+            let mut state = self.state.lock().await;
+            if !Arc::ptr_eq(&state.generation, &generation) {
+                return Ok(None);
+            }
+            authorized.retain(|(candidate, _)| {
+                state
+                    .entries
+                    .iter()
+                    .any(|(_, owner)| Arc::ptr_eq(owner, &candidate.owner))
+                    && candidate
+                        .owner
+                        .lock_slots()
+                        .connections
+                        .iter()
+                        .any(|slot| Arc::ptr_eq(&slot.token, &candidate.token))
+            });
+            if authorized.is_empty() {
+                return Ok(None);
+            }
+            // LRU eviction may remove a donor here. Its admitted request keeps
+            // the physical owner alive, as an ordinary lease does after eviction.
+            self.entry_in_state(&mut state, key)
+        };
+        let permit = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http3),
+                entry.admit(),
+            )
+            .await?;
+        let state = self.state.lock().await;
+        if !Arc::ptr_eq(&state.generation, &generation) {
+            return Ok(None);
+        }
+        for (candidate, peer) in authorized {
+            let mut slots = candidate.owner.lock_slots();
+            let Some(slot) = slots
+                .connections
+                .iter_mut()
+                .find(|slot| Arc::ptr_eq(&slot.token, &candidate.token))
+            else {
+                continue;
+            };
+            // Caller destination policy ran during authorization, outside locks.
+            // A migrated connection needs a new check, never a stale decision.
+            if slot.connection.peer_address() != peer
+                || !origin.contains_peer(peer)
+                || !connector.can_reuse_now(&slot.connection)
+                || slot.connection.early_data_pending()
+            {
+                continue;
+            }
+            slot.read_peer_limit();
+            let peer_limit = slot.peer_limit.map_or(self.max_active.get(), |limit| {
+                usize::try_from(limit).unwrap_or(usize::MAX).max(1)
+            });
+            if slot.streams.get() >= self.max_active.get().min(peer_limit) {
+                continue;
+            }
+            let (lease, stream) = slot.lease(&candidate.owner);
+            return Ok(Some(Http3Lease {
+                entry,
+                lease,
+                stream,
+                permit,
+            }));
+        }
+        Ok(None)
+    }
+}
+
+pub(crate) struct Http3ReuseCandidates {
+    key: PoolKey,
+    generation: Arc<()>,
+    connections: Vec<Http3ReuseCandidate>,
+}
+
+struct Http3ReuseCandidate {
+    owner: Arc<PoolEntry>,
+    token: Arc<()>,
+    connection: Http3Connection,
 }
 
 #[derive(Default)]
 struct PoolState {
+    generation: Arc<()>,
     entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
     admissions: AdmissionRegistry<PoolKey>,
 }
@@ -1760,7 +1942,7 @@ async fn dispatch(
 ) -> Result<Dispatched<Http3Response>, RequestError> {
     retries.admit_http_attempt(Some(HttpProtocol::Http3))?;
     let Http3Lease {
-        entry: _entry,
+        entry,
         lease,
         stream,
         permit,
@@ -1812,6 +1994,13 @@ async fn dispatch(
                 publication.record(lease.connection.completed_handshake_rtt());
             }
             let (parts, body) = response.into_parts();
+            if parts.status == http::StatusCode::MISDIRECTED_REQUEST
+                && !Arc::ptr_eq(&entry, &lease.owner)
+            {
+                // Retire the physical donor without closing its active streams.
+                // This response is returned to the caller without an HTTP replay.
+                lease.owner.invalidate(&lease.token);
+            }
             Ok(Dispatched::Sent((
                 // The stream count drops first, so the request the permit
                 // admits next sees this stream ended.

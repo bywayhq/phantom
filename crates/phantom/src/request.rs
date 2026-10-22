@@ -382,8 +382,11 @@ impl RequestBuilder {
                 ProtocolSelection::Exact(protocol) => Some(protocol),
                 ProtocolSelection::Http1Or2 => None,
             },
-            alt_svc: self.client.alt_svc_enabled()
-                && self.selected_route().carries_quic_alternative(),
+            alt_svc: negotiated_http3_available(
+                &self.client,
+                &self.request,
+                &self.selected_route(),
+            ),
             content_decoding: false,
         }
     }
@@ -1047,8 +1050,11 @@ impl RequestBuilder {
                             ProtocolSelection::Exact(protocol) => Some(protocol),
                             ProtocolSelection::Http1Or2 => None,
                         },
-                        alt_svc: self.client.alt_svc_enabled()
-                            && self.selected_route().carries_quic_alternative(),
+                        alt_svc: negotiated_http3_available(
+                            &self.client,
+                            &self.request,
+                            &self.selected_route(),
+                        ),
                         content_decoding: false,
                     },
                     initial_fallback,
@@ -1174,7 +1180,8 @@ impl RequestBuilder {
             None => None,
         };
 
-        if (self.client.alt_svc_enabled() || alternative.is_some())
+        if (negotiated_http3_available(&self.client, &self.request, &self.selected_route())
+            || alternative.is_some())
             && contains_caller_alt_used(
                 &self.headers,
                 &self.trailers,
@@ -1194,7 +1201,7 @@ impl RequestBuilder {
                 },
                 // A route that cannot carry QUIC never moves a negotiated
                 // request to HTTP/3, so it needs no HTTP/3 list.
-                alt_svc: self.client.alt_svc_enabled() && route.carries_quic_alternative(),
+                alt_svc: negotiated_http3_available(&self.client, &self.request, &route),
                 content_decoding: content_decoding.is_enabled(),
             };
             template::check_with_managed_headers(
@@ -1349,7 +1356,7 @@ impl RequestBuilder {
                         ProtocolSelection::Exact(protocol) => Some(protocol),
                         ProtocolSelection::Http1Or2 => None,
                     },
-                    alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
+                    alt_svc: negotiated_http3_available(&client, &resolved, route),
                     content_decoding: false,
                 },
                 http2_fallback && resolved.alternative.is_none(),
@@ -1375,7 +1382,7 @@ impl RequestBuilder {
                             ProtocolSelection::Exact(protocol) => Some(protocol),
                             ProtocolSelection::Http1Or2 => None,
                         },
-                        alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
+                        alt_svc: negotiated_http3_available(&client, &resolved, route),
                         content_decoding: content_decoding.is_enabled(),
                     },
                     http2_fallback && resolved.alternative.is_none(),
@@ -1527,6 +1534,21 @@ impl AdvertisedByTrust {
             self.untrustworthy
         }
     }
+}
+
+/// Whether negotiated requests on this route can select HTTP/3.
+fn negotiated_http3_available(client: &Client, request: &ResolvedRequest, route: &Route) -> bool {
+    (client.alt_svc_enabled() && route.carries_quic_alternative())
+        || (request.uri.scheme_str() == Some("https")
+            && matches!(route, Route::Direct)
+            && client
+                .inner
+                .connectors_for(&request.endpoint)
+                .http3
+                .is_some_and(|connector| {
+                    connector.connection_reuse_policy()
+                        == phantom_profile::Http3ConnectionReuse::AuthorizedOrigins
+                }))
 }
 
 /// Returns the content codings the request advertises to a URL of this
