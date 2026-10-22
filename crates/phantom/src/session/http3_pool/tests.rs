@@ -3,6 +3,8 @@ use std::{num::NonZeroUsize, sync::Arc};
 use super::{Http3Pool, Http3TransportTarget, PoolKey, TransportLocation};
 use crate::{Route, Socks5Proxy, authority::Endpoint};
 
+mod reuse;
+
 #[tokio::test]
 async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>> {
     let one = NonZeroUsize::MIN;
