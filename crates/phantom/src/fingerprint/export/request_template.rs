@@ -9,9 +9,9 @@ impl Encode for Http2RequestPriority {
         match self {
             Self::Fixed(priority) => object!(e, f,
                 "variant" => "Fixed",
-                "dependency_stream_id" => priority.dependency_stream_id,
-                "weight" => priority.weight,
-                "exclusive" => priority.exclusive
+                "dependency_stream_id" => &priority.dependency_stream_id,
+                "weight" => &priority.weight,
+                "exclusive" => &priority.exclusive
             ),
             Self::WeightBand { weight, exclusive } => object!(e, f,
                 "variant" => "WeightBand", "weight" => weight, "exclusive" => exclusive
