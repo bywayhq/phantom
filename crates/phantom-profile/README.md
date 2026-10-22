@@ -10,10 +10,8 @@ Use a platform factory, such as `chrome::v154_windows()` or
 request headers without a template. Set one with
 `ClientProfile::with_request_template`.
 
-Windows factories include TCP, TLS, HTTP/1.1, HTTP/2, HTTP/3, WebSocket, proxy
-CONNECT, and cookie-placement settings. Client hints apply to Chromium browsers;
-Firefox sends none. macOS and Android factories cover fewer layers. Each
-constructor documents its included settings and generic defaults.
+Layer coverage varies by recipe. Each constructor documents its included
+settings and generic defaults.
 
 Component functions keep custom layering available. `*_tcp_tls` supplies TLS
 for HTTP/1.1 and HTTP/2. `*_quic_tls` supplies TLS for QUIC and HTTP/3.

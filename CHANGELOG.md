@@ -34,7 +34,7 @@
   and session checkpoints.
 
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
-  Remove repeated caveats and capture history.
+  Remove repeated caveats and capture history. Describe layer coverage per recipe.
 
 - Capture HTTPS resource requests over HTTP/1.1 and HTTP/3 with
   `--resource-protocol`. Retain Chrome 156 Windows client-hint and resource
