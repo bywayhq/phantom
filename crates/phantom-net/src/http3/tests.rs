@@ -559,6 +559,7 @@ async fn send_request_head(
 fn test_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
+        misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(0),
             Http3Setting::MaxFieldSectionSize(65_536),

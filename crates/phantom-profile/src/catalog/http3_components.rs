@@ -5,6 +5,7 @@
 pub(crate) fn chromium_154_http3() -> crate::Http3Settings {
     crate::Http3Settings {
         connection_reuse: crate::Http3ConnectionReuse::SameOrigin,
+        misdirected_request: crate::Http3MisdirectedRequest::ReturnResponse,
         initial_settings: vec![crate::Http3Setting::QpackMaxTableCapacity(65536), crate::Http3Setting::MaxFieldSectionSize(262144), crate::Http3Setting::QpackBlockedStreams(100), crate::Http3Setting::H3Datagram(true), crate::Http3Setting::RandomizedGrease],
         setting_order: crate::Http3SettingOrder::Ascending,
         qpack_encoding: crate::Http3QpackEncoding::Dynamic,
@@ -30,6 +31,7 @@ pub(crate) fn chromium_154_http3_request() -> crate::Http3RequestSettings {
 pub(crate) fn firefox_157_http3() -> crate::Http3Settings {
     crate::Http3Settings {
         connection_reuse: crate::Http3ConnectionReuse::AuthorizedOrigins,
+        misdirected_request: crate::Http3MisdirectedRequest::RetryFirst,
         initial_settings: vec![crate::Http3Setting::QpackMaxTableCapacity(65536), crate::Http3Setting::QpackBlockedStreams(20), crate::Http3Setting::EnableWebTransportDraft02(false), crate::Http3Setting::H3DatagramDraft04(true), crate::Http3Setting::H3Datagram(true), crate::Http3Setting::EnableConnectProtocol(true)],
         setting_order: crate::Http3SettingOrder::Fixed,
         qpack_encoding: crate::Http3QpackEncoding::DynamicUnmatchedNames,

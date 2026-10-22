@@ -6,8 +6,9 @@ use super::{
 };
 use phantom_profile::{
     Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3ConnectionReuse, Http3CookieCrumbs,
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
-    Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3MisdirectedRequest, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+    Http3SettingOrder, Http3Settings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<Http3ClientSettings> {
@@ -22,9 +23,12 @@ pub(super) fn parse(v: &Value) -> Result<Http3ClientSettings> {
 pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
     let connection_reuse =
         connection_reuse(v.member("connection_reuse", "http3.connection_reuse")?)?;
+    let misdirected_request =
+        misdirected_request(v.member("misdirected_request", "http3.misdirected_request")?)?;
     v.record(
         &[
             "connection_reuse",
+            "misdirected_request",
             "initial_settings",
             "setting_order",
             "qpack_encoding",
@@ -37,6 +41,7 @@ pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
     )?;
     let settings = Http3Settings {
         connection_reuse,
+        misdirected_request,
         initial_settings: v
             .member("initial_settings", "http3.initial_settings")?
             .list("http3.initial_settings", setting)?,
@@ -93,6 +98,14 @@ pub(super) fn request(v: &Value) -> Result<Http3RequestSettings> {
         .validate()
         .map_err(|error| FingerprintImportError::native("http3.request", error))?;
     Ok(settings)
+}
+
+fn misdirected_request(v: &Value) -> Result<Http3MisdirectedRequest> {
+    match v.text("http3.misdirected_request")? {
+        "ReturnResponse" => Ok(Http3MisdirectedRequest::ReturnResponse),
+        "RetryFirst" => Ok(Http3MisdirectedRequest::RetryFirst),
+        _ => Err(json::unsupported("http3.misdirected_request")),
+    }
 }
 
 fn connection_reuse(v: &Value) -> Result<Http3ConnectionReuse> {

@@ -2,9 +2,9 @@ use phantom_profile::{
     DnsAddressFailurePolicy, Http2CookieCrumbs, Http2FieldIndexing, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2PseudoHeader, Http2SensitiveProxyAuthorization,
     Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
-    Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs, Http3PseudoHeader,
-    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3SettingOrder, SystemDnsTtlPolicy, TcpAddressAdvance,
+    Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs, Http3MisdirectedRequest,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+    Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy, TcpAddressAdvance,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -465,6 +465,7 @@ pub(super) fn encode_streams(
 pub(super) fn http3(e: &mut Encoder, value: &Http3Settings) -> Result<(), PreparationError> {
     let Http3Settings {
         connection_reuse,
+        misdirected_request,
         initial_settings,
         setting_order,
         qpack_encoding,
@@ -477,6 +478,11 @@ pub(super) fn http3(e: &mut Encoder, value: &Http3Settings) -> Result<(), Prepar
         Http3ConnectionReuse::SameOrigin => 0,
         Http3ConnectionReuse::AuthorizedOrigins => 1,
         _ => return Err(PreparationError::Unsupported("Http3ConnectionReuse")),
+    })?;
+    e.u8(match misdirected_request {
+        Http3MisdirectedRequest::ReturnResponse => 0,
+        Http3MisdirectedRequest::RetryFirst => 1,
+        _ => return Err(PreparationError::Unsupported("Http3MisdirectedRequest")),
     })?;
     e.list(initial_settings, http3_setting)?;
     http3_setting_order(e, setting_order)?;

@@ -168,11 +168,23 @@ pub enum Http3ConnectionReuse {
     AuthorizedOrigins,
 }
 
+/// How to handle an HTTP/3 `421 Misdirected Request` response.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3MisdirectedRequest {
+    /// Return the response to the caller.
+    ReturnResponse,
+    /// Retry a replayable request if its first attempt receives HTTP/3 421.
+    RetryFirst,
+}
+
 /// Ordered HTTP/3 settings independent of the concrete HTTP/3 backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3Settings {
     /// Which origins may reuse this connection.
     pub connection_reuse: Http3ConnectionReuse,
+    /// Response policy for HTTP/3 421.
+    pub misdirected_request: Http3MisdirectedRequest,
     /// Initial SETTINGS entries. Position is wire order when order is fixed.
     pub initial_settings: Vec<Http3Setting>,
     /// Ordering applied after per-connection settings are materialized.

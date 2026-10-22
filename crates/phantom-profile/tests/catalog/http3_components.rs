@@ -80,6 +80,7 @@ fn composed_recipes_preserve_http3_values_and_draw_policies() -> TestResult {
 fn chromium_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
+        misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::MaxFieldSectionSize(262_144),
@@ -114,6 +115,7 @@ fn chromium_request() -> Http3RequestSettings {
 fn firefox_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::AuthorizedOrigins,
+        misdirected_request: phantom_profile::Http3MisdirectedRequest::RetryFirst,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::QpackBlockedStreams(20),

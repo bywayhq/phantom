@@ -674,6 +674,30 @@ fn http3_reuse_changes_ticket_identity_and_rejects_a_prepared_policy() -> TestRe
 }
 
 #[test]
+fn http3_misdirected_policy_changes_ticket_identity_and_rejects_a_prepared_policy() -> TestResult {
+    let original = chrome::v154_windows();
+    let http3 = original.http3().ok_or("missing HTTP/3 settings")?;
+    let mut settings = http3.http3().clone();
+    settings.misdirected_request = phantom_profile::Http3MisdirectedRequest::RetryFirst;
+    let changed = original.clone().with_http3(Http3ClientSettings::new(
+        http3.tls().clone(),
+        http3.quic_transport().clone(),
+        settings,
+        http3.request().clone(),
+    ));
+
+    assert_ne!(
+        profile::encode(&original, None, None)?,
+        profile::encode(&changed, None, None)?,
+    );
+    assert!(matches!(
+        BindingPlan::capture(&original)?.complete(&changed),
+        Err(PreparationError::DrawMismatch)
+    ));
+    Ok(())
+}
+
+#[test]
 fn none_and_explicit_empty_trust_anchor_lists_are_distinct() -> TestResult {
     let mut tls = chrome::v154_tcp_tls();
     tls.requested_trust_anchor_ids = None;

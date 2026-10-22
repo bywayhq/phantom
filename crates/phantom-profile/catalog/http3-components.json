@@ -7,6 +7,7 @@
       "base": null,
       "values": {
         "connection_reuse": "SameOrigin",
+        "misdirected_request": "ReturnResponse",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "MaxFieldSectionSize", "value": 262144},
@@ -40,6 +41,7 @@
       "base": null,
       "values": {
         "connection_reuse": "AuthorizedOrigins",
+        "misdirected_request": "RetryFirst",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "QpackBlockedStreams", "value": 20},

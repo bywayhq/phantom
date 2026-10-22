@@ -79,6 +79,81 @@ fn http3_reuse_requires_a_known_explicit_policy() -> TestResult {
 }
 
 #[test]
+fn edited_http3_misdirected_policy_round_trips_without_changing_other_settings() -> TestResult {
+    use super::super::{describe_profile, export_profile_json, import_profile_json};
+    use phantom_profile::{Http3ClientSettings, Http3MisdirectedRequest, browser::chrome};
+
+    let profile = chrome::v154_windows();
+    let http3 = profile.http3().ok_or("missing HTTP/3 settings")?;
+    for (name, policy) in [
+        ("ReturnResponse", Http3MisdirectedRequest::ReturnResponse),
+        ("RetryFirst", Http3MisdirectedRequest::RetryFirst),
+    ] {
+        let mut document = describe_profile(&profile)?;
+        document["profile"]["http3"]["http3"]["misdirected_request"] = json!(name);
+        let mut settings = http3.http3().clone();
+        settings.misdirected_request = policy;
+        let expected = profile.clone().with_http3(Http3ClientSettings::new(
+            http3.tls().clone(),
+            http3.quic_transport().clone(),
+            settings,
+            http3.request().clone(),
+        ));
+
+        let actual = import(&document)?;
+
+        assert_eq!(actual, expected);
+        assert_eq!(
+            import_profile_json(&export_profile_json(&actual)?)?,
+            expected
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn http3_misdirected_requires_a_known_explicit_policy() -> TestResult {
+    use super::super::{FingerprintImportErrorKind, describe_profile};
+    use phantom_profile::browser::chrome;
+
+    let document = describe_profile(&chrome::v154_windows())?;
+    for (value, kind) in [
+        (None, FingerprintImportErrorKind::MissingField),
+        (
+            Some(json!("RetryAlways")),
+            FingerprintImportErrorKind::UnsupportedSetting,
+        ),
+        (Some(json!(null)), FingerprintImportErrorKind::InvalidValue),
+        (Some(json!(true)), FingerprintImportErrorKind::InvalidValue),
+        (
+            Some(json!({"kind": "RetryFirst"})),
+            FingerprintImportErrorKind::InvalidValue,
+        ),
+    ] {
+        let mut edited = document.clone();
+        let settings = edited["profile"]["http3"]["http3"]
+            .as_object_mut()
+            .ok_or("missing HTTP/3 settings")?;
+        match value {
+            Some(value) => {
+                settings.insert("misdirected_request".into(), value);
+            }
+            None => {
+                settings.remove("misdirected_request");
+            }
+        }
+
+        let error = import_profile_json(&serde_json::to_vec(&edited)?)
+            .err()
+            .ok_or("invalid HTTP/3 misdirected-response policy was accepted")?;
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(error.field(), "http3.misdirected_request");
+    }
+    Ok(())
+}
+
+#[test]
 fn drawn_anchor_candidates_preserve_duplicates_weights_and_order() -> TestResult {
     let mut value = document(0)?;
     value["profile"]["tls"]["requested_trust_anchor_ids"] =
