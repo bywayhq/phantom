@@ -1,0 +1,49 @@
+{
+  "http1_fields": [],
+  "http2_fields": [
+    {
+      "variant": "Literal",
+      "name": "sec-fetch-dest",
+      "value": "document"
+    },
+    {
+      "variant": "Literal",
+      "name": "user-agent",
+      "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0.1 Safari/605.1.15"
+    },
+    {
+      "variant": "Literal",
+      "name": "accept",
+      "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    },
+    {
+      "variant": "Literal",
+      "name": "sec-fetch-site",
+      "value": "none"
+    },
+    {
+      "variant": "Literal",
+      "name": "sec-fetch-mode",
+      "value": "navigate"
+    },
+    {
+      "variant": "Literal",
+      "name": "accept-language",
+      "value": "en-US,en;q=0.9"
+    },
+    {
+      "variant": "Literal",
+      "name": "priority",
+      "value": "u=0, i"
+    },
+    {
+      "variant": "Literal",
+      "name": "accept-encoding",
+      "value": "gzip, deflate, br"
+    }
+  ],
+  "http3_fields": null,
+  "http2_priority": null,
+  "requested_client_hint_placement": false,
+  "restarts_for_connection_accept_ch": false
+}

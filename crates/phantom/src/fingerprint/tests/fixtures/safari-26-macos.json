@@ -1,0 +1,183 @@
+{
+  "format": "phantom.custom-profile",
+  "version": 1,
+  "profile": {
+    "tls": {
+      "versions": {
+        "min": "Tls12",
+        "max": "Tls13"
+      },
+      "cipher_suites": [
+        "Aes256GcmSha384",
+        "Chacha20Poly1305Sha256",
+        "Aes128GcmSha256",
+        "EcdheEcdsaAes256GcmSha384",
+        "EcdheEcdsaAes128GcmSha256",
+        "EcdheEcdsaChacha20Poly1305Sha256",
+        "EcdheRsaAes256GcmSha384",
+        "EcdheRsaAes128GcmSha256",
+        "EcdheRsaChacha20Poly1305Sha256",
+        "EcdheEcdsaAes256CbcSha",
+        "EcdheEcdsaAes128CbcSha",
+        "EcdheRsaAes256CbcSha",
+        "EcdheRsaAes128CbcSha",
+        "RsaAes256GcmSha384",
+        "RsaAes128GcmSha256",
+        "RsaAes256CbcSha",
+        "RsaAes128CbcSha",
+        "EcdheEcdsa3DesEdeCbcSha",
+        "EcdheRsa3DesEdeCbcSha",
+        "Rsa3DesEdeCbcSha"
+      ],
+      "groups": [
+        "X25519MlKem768",
+        "X25519",
+        "Secp256r1",
+        "Secp384r1",
+        "Secp521r1"
+      ],
+      "key_shares": [
+        "X25519MlKem768",
+        "X25519"
+      ],
+      "signature_schemes": [
+        "EcdsaSecp256r1Sha256",
+        "RsaPssRsaeSha256",
+        "RsaPkcs1Sha256",
+        "EcdsaSecp384r1Sha384",
+        "RsaPssRsaeSha384",
+        "RsaPssRsaeSha384",
+        "RsaPkcs1Sha384",
+        "RsaPssRsaeSha512",
+        "RsaPkcs1Sha512",
+        "RsaPkcs1Sha1"
+      ],
+      "delegated_credential_schemes": [],
+      "alpn_protocols": [
+        [
+          104,
+          50
+        ],
+        [
+          104,
+          116,
+          116,
+          112,
+          47,
+          49,
+          46,
+          49
+        ]
+      ],
+      "alps": null,
+      "certificate_compression": [
+        "Zlib"
+      ],
+      "session_tickets": {
+        "enabled": false,
+        "tcp_per_origin": null
+      },
+      "session_ticket_order": "NewestFirst",
+      "session_ticket_extension_when_resuming": false,
+      "tcp_early_data": false,
+      "record_size_limit": null,
+      "tls12_extensions_in_tls13_client_hello": true,
+      "requested_trust_anchor_ids": null,
+      "grease": true,
+      "grease_signature_algorithms": false,
+      "extension_order": {
+        "kind": "Fixed",
+        "extensions": [
+          "ServerName",
+          "ExtendedMasterSecret",
+          "RenegotiationInfo",
+          "SupportedGroups",
+          "EcPointFormats",
+          "Alpn",
+          "StatusRequest",
+          "SignatureAlgorithms",
+          "SignedCertificateTimestamp",
+          "KeyShare",
+          "PskKeyExchangeModes",
+          "SupportedVersions",
+          "CertificateCompression"
+        ]
+      },
+      "ech": {
+        "kind": "Disabled",
+        "settings": null
+      },
+      "request_ocsp_staple": true,
+      "request_signed_certificate_timestamps": true,
+      "aes_hardware": true,
+      "close_notify": true
+    },
+    "tcp": null,
+    "udp": null,
+    "dns_cache": null,
+    "http1": null,
+    "http2": {
+      "initial_settings": [
+        {
+          "kind": "EnablePush",
+          "value": false
+        },
+        {
+          "kind": "MaxConcurrentStreams",
+          "value": 100
+        },
+        {
+          "kind": "InitialWindowSize",
+          "value": 2097152
+        },
+        {
+          "kind": "NoRfc7540Priorities",
+          "value": true
+        }
+      ],
+      "initial_connection_window_size": 10485760,
+      "initial_stream_window_target": null,
+      "pseudo_header_order": [
+        "Method",
+        "Scheme",
+        "Authority",
+        "Path"
+      ],
+      "extended_connect_pseudo_header_order": null,
+      "headers_priority": null,
+      "extended_connect_priority": null,
+      "hpack": {
+        "literal_pseudo_headers": [],
+        "static_name_index": "Lowest",
+        "huffman_coding": "WhenShorter",
+        "cookie_crumbs": "IndexAll",
+        "field_indexing": "Nghttp2",
+        "name_reference": "StaticUnlessSensitive",
+        "unindexed_match": "Index",
+        "indexing_limit": "ThreeQuarters",
+        "table_size_updates": "EverySetting",
+        "sensitive_proxy_authorization": "NeverIndexed"
+      },
+      "streams": {
+        "first_stream_id": 1,
+        "assumed_max_concurrent_streams": 100,
+        "max_concurrent_streams_cap": null
+      },
+      "preface_ping_after": null,
+      "ping_timeout": null,
+      "ping_failure_retries": 0,
+      "idle_ping_after": null,
+      "idle_ping_timeout": null,
+      "idle_timeout": {
+        "kind": "Unlimited",
+        "duration": null
+      }
+    },
+    "http3": null,
+    "client_hints": null,
+    "websocket": null,
+    "proxy_connect": null,
+    "cookie_placement": null,
+    "request_template": null
+  }
+}
