@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Report Node response-body cancellation consistently when abort races with a
+  body read or collection.
+
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
   Remove repeated caveats and capture history.
 
