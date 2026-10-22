@@ -1,0 +1,256 @@
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index c7bf1c0bb..8dc5e2d39 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -2583,3 +2583,6 @@ mod initial_stream_window;
+ mod completed_response_reset;
+ 
+ mod received_trailers;
++
++#[cfg(feature = "unstable")]
++mod queued_priority_suppression;
+diff --git a/src/client/tests/queued_priority_suppression.rs b/src/client/tests/queued_priority_suppression.rs
+new file mode 100644
+index 000000000..19a796931
+--- /dev/null
++++ b/src/client/tests/queued_priority_suppression.rs
+@@ -0,0 +1,239 @@
++use super::*;
++
++struct Driver(tokio::task::JoinHandle<Result<(), crate::Error>>);
++
++impl Driver {
++    async fn close(mut self) {
++        self.0.abort();
++        match (&mut self.0).await {
++            Err(error) => assert!(error.is_cancelled(), "connection driver panicked: {error}"),
++            Ok(result) => panic!("connection driver exited before cleanup: {result:?}"),
++        }
++    }
++}
++
++impl Drop for Driver {
++    fn drop(&mut self) {
++        self.0.abort();
++    }
++}
++
++fn builder(tree: bool) -> super::super::Builder {
++    let mut builder = super::super::Builder::new();
++    builder.headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true));
++    if tree {
++        builder.initial_stream_id(3).priorities(
++            crate::frame::Priorities::builder()
++                .push(crate::frame::Priority::new(
++                    StreamId::from(1),
++                    StreamDependency::new(StreamId::zero(), 99, false),
++                ))
++                .build(),
++        );
++    }
++    builder
++}
++
++async fn queued_frames(
++    setting: Option<bool>,
++    overridden: bool,
++    tree: bool,
++    fragmented: bool,
++) -> Vec<RawFrame> {
++    let (client_io, mut peer) = duplex(128 * 1024);
++    let (mut sender, connection) = builder(tree)
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let mut request = request_with_headers();
++    if overridden {
++        request.extensions_mut().insert(
++            HeadersFrameOverrides::new().stream_dependency(StreamDependency::new(
++                StreamId::zero(),
++                21,
++                false,
++            )),
++        );
++    }
++    if fragmented {
++        request.headers_mut().insert(
++            "x-large",
++            HeaderValue::from_str(&"z".repeat(30_000)).expect("valid large field"),
++        );
++    }
++    let (_response, _upload) = sender
++        .send_request(request, true)
++        .expect("queued request was rejected");
++
++    // Both the request and the first peer SETTINGS exist before any driver poll.
++    let settings =
++        setting.map_or_else(Vec::new, |value| settings_payload(&[(9, u32::from(value))]));
++    write_raw_frame(&mut peer, 4, 0, 0, &settings).await;
++    let driver = Driver(tokio::spawn(connection));
++    read_client_preface(&mut peer).await;
++    let mut frames = Vec::new();
++    loop {
++        let frame = read_raw_frame(&mut peer).await;
++        assert_ne!(frame.kind, 7, "unexpected GOAWAY: {:?}", frame.payload);
++        let complete = matches!(frame.kind, 1 | 9) && frame.flags & 4 != 0;
++        frames.push(frame);
++        if complete {
++            break;
++        }
++    }
++    let ack = frames
++        .iter()
++        .position(|frame| (frame.kind, frame.flags) == (4, 1))
++        .expect("peer SETTINGS was not acknowledged");
++    let headers = frames
++        .iter()
++        .position(|frame| frame.kind == 1)
++        .expect("request HEADERS missing");
++    assert!(ack < headers, "HEADERS preceded processed peer SETTINGS");
++    driver.close().await;
++    frames
++}
++
++fn assert_headers(frames: &[RawFrame], priority: Option<(bool, u8)>, fragmented: bool) {
++    let headers = frames
++        .iter()
++        .find(|frame| frame.kind == 1)
++        .expect("request HEADERS missing");
++    assert_ne!(headers.flags & 1, 0, "END_STREAM was lost");
++    assert_eq!(headers.flags & 0x20 != 0, priority.is_some());
++    let mut block = if let Some((exclusive, weight)) = priority {
++        assert_eq!(
++            &headers.payload[..4],
++            &[if exclusive { 0x80 } else { 0 }, 0, 0, 0]
++        );
++        assert_eq!(headers.payload[4], weight);
++        headers.payload[5..].to_vec()
++    } else {
++        headers.payload.clone()
++    };
++    let continuations = frames.iter().filter(|frame| frame.kind == 9).count();
++    assert_eq!(continuations > 0, fragmented);
++    assert_eq!(headers.flags & 4 == 0, fragmented);
++    let mut ended = headers.flags & 4 != 0;
++    for frame in frames.iter().skip_while(|frame| frame.kind != 1).skip(1) {
++        assert!(!ended, "frame followed the completed header block");
++        assert_eq!((frame.kind, frame.stream_id), (9, headers.stream_id));
++        assert_eq!(frame.flags & !4, 0, "CONTINUATION carried unrelated flags");
++        block.extend_from_slice(&frame.payload);
++        ended = frame.flags & 4 != 0;
++    }
++    assert!(ended, "header block was truncated");
++    let fields = decode_header_block(&block);
++    let expected = request_with_headers();
++    for (name, value) in expected.headers() {
++        assert!(fields.contains(&(name.clone(), value.clone())));
++    }
++    assert_eq!(fields.len(), if fragmented { 4 } else { 3 });
++    if fragmented {
++        let value = fields
++            .iter()
++            .find(|(name, _)| name == "x-large")
++            .map(|(_, value)| value)
++            .expect("large field missing");
++        assert_eq!(value.as_bytes(), "z".repeat(30_000).as_bytes());
++    }
++}
++
++#[tokio::test]
++async fn received_disable_removes_queued_connection_priority() {
++    timeout(Duration::from_secs(3), async {
++        let frames = queued_frames(Some(true), false, false, false).await;
++        assert_headers(&frames, None, false);
++    })
++    .await
++    .expect("queued connection-priority test timed out");
++}
++
++#[tokio::test]
++async fn received_disable_removes_queued_request_override() {
++    timeout(Duration::from_secs(3), async {
++        let frames = queued_frames(Some(true), true, false, false).await;
++        assert_headers(&frames, None, false);
++    })
++    .await
++    .expect("queued override-priority test timed out");
++}
++
++#[tokio::test]
++async fn received_disable_discards_queued_initial_priority_tree() {
++    timeout(Duration::from_secs(3), async {
++        let frames = queued_frames(Some(true), false, true, false).await;
++        assert!(
++            frames.iter().all(|frame| frame.kind != 2),
++            "PRIORITY was sent"
++        );
++        assert_headers(&frames, None, false);
++    })
++    .await
++    .expect("queued initial-priority test timed out");
++}
++
++#[tokio::test]
++async fn received_disable_preserves_fragmented_headers_and_end_stream() {
++    timeout(Duration::from_secs(3), async {
++        let frames = queued_frames(Some(true), true, true, true).await;
++        assert!(
++            frames.iter().all(|frame| frame.kind != 2),
++            "PRIORITY was sent"
++        );
++        assert_headers(&frames, None, true);
++    })
++    .await
++    .expect("fragmented priority-suppression test timed out");
++}
++
++#[tokio::test]
++async fn zero_or_absent_disable_retains_configured_priorities() {
++    timeout(Duration::from_secs(3), async {
++        for setting in [None, Some(false)] {
++            let frames = queued_frames(setting, true, true, false).await;
++            let priorities = frames
++                .iter()
++                .filter(|frame| frame.kind == 2)
++                .collect::<Vec<_>>();
++            assert_eq!(priorities.len(), 1);
++            assert_eq!(priorities[0].stream_id, 1);
++            assert_eq!(priorities[0].payload, [0, 0, 0, 0, 99]);
++            assert_headers(&frames, Some((false, 21)), false);
++            let default_frames = queued_frames(setting, false, false, true).await;
++            assert_headers(&default_frames, Some((true, 255)), true);
++        }
++    })
++    .await
++    .expect("priority retention control timed out");
++}
++
++#[tokio::test]
++async fn priority_already_emitted_before_settings_is_not_retracted() {
++    timeout(Duration::from_secs(3), async {
++        let (client_io, mut peer) = duplex(16 * 1024);
++        let (mut sender, connection) = builder(false)
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let (_response, _upload) = sender
++            .send_request(request_with_headers(), true)
++            .expect("request was rejected");
++        let driver = Driver(tokio::spawn(connection));
++        read_client_preface(&mut peer).await;
++        let headers = loop {
++            let frame = read_raw_frame(&mut peer).await;
++            if frame.kind == 1 {
++                break frame;
++            }
++        };
++        assert_eq!(headers.flags, 0x25);
++        assert_eq!(&headers.payload[..5], &[0x80, 0, 0, 0, 255]);
++        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(9, 1)])).await;
++        let ack = read_raw_frame(&mut peer).await;
++        assert_eq!((ack.kind, ack.flags, ack.stream_id), (4, 1, 0));
++        driver.close().await;
++    })
++    .await
++    .expect("already-emitted priority control timed out");
++}

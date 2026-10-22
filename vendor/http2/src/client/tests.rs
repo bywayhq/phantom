@@ -2583,3 +2583,6 @@ mod initial_stream_window;
 mod completed_response_reset;
 
 mod received_trailers;
+
+#[cfg(feature = "unstable")]
+mod queued_priority_suppression;
