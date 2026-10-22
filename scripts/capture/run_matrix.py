@@ -226,6 +226,16 @@ TOOLS = {
             "retry failed tunnels",
         ),
         Tool(
+            "http_lifecycle",
+            "scripts.capture.http_lifecycle",
+            DESKTOP_BROWSERS,
+            scenario_file("{scenario}.txt"),
+            scenarios=("resources",),
+            takes_repeat=False,
+            run_seconds=60,
+            timing="its resource fixtures keep connection and request order",
+        ),
+        Tool(
             "sse_reconnect",
             "scripts.capture.sse_reconnect",
             DESKTOP_BROWSERS,

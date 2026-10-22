@@ -86,6 +86,31 @@ def fake_capture(**fields):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_resource_capture_uses_one_lifecycle_run_without_netlog(self) -> None:
+        jobs = expand_manifest(
+            manifest(
+                {
+                    "tool": "http_lifecycle",
+                    "browsers": ["chrome"],
+                    "scenarios": ["resources"],
+                    "repeat": 1,
+                    "output_dir": "resources/{browser}/{version}",
+                }
+            ),
+            base=Path("/repo"),
+        )
+        self.assertEqual(len(jobs), 1)
+        job = jobs[0]
+        self.assertEqual(
+            job.outputs, (Path("/repo/resources/chrome/154.0.8037.58/resources.txt"),)
+        )
+        command = job.command("python")
+        self.assertEqual(command[1:3], ["-m", "scripts.capture.http_lifecycle"])
+        self.assertEqual(command[command.index("--scenario") + 1], "resources")
+        self.assertNotIn("--repeat", command)
+        self.assertFalse(job.tool.netlog_dir)
+        self.assertTrue(job.exclusive)
+
     def test_nonfinite_timeouts_are_refused_before_jobs_are_created(self) -> None:
         for timeout in (float("nan"), float("inf"), float("-inf"), 10**400):
             with (

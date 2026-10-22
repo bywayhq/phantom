@@ -13,6 +13,7 @@ asks about.
 | `idle-ping` | h2 | Fetches, waits `--idle` seconds on the open connection, fetches again |
 | `ping-unanswered` | h2 | Fetches, waits 11.5 s, fetches again; the server goes silent on that connection |
 | `close` | h2 and http/1.1 | Fetches over both, aborts an HTTP/1.1 response, then the tool closes the browser over its remote protocol |
+| `resources` | h2 | Loads one local script, stylesheet, image and font |
 """
 
 from __future__ import annotations
@@ -51,6 +52,10 @@ from .http2_session import (
     peer_disconnected,
     server_context,
 )
+from .http2_session import (
+    ConnectionRecord as RawConnectionRecord,
+)
+from .http_lifecycle_resources import ASSETS, ResourceCapture, resource_page
 
 FORMAT = "phantom-http-lifecycle-v1"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0"}
@@ -61,6 +66,7 @@ SCENARIOS = (
     "idle-ping",
     "ping-unanswered",
     "close",
+    "resources",
 )
 FRAME_TYPES = {
     0x1: "HEADERS",
@@ -178,6 +184,8 @@ def scenario_script(scenario: str, token: str, h1_origin: str, idle_ms: int) -> 
 
 
 def page(scenario: str, token: str, h1_origin: str, idle_ms: int) -> bytes:
+    if scenario == "resources":
+        return resource_page(token)
     script = scenario_script(scenario, token, h1_origin, idle_ms)
     return (
         "<!doctype html><meta charset=utf-8>"
@@ -209,6 +217,18 @@ def reply_for(
 ) -> Reply:
     """The response to one request; `fields` maps lowercase names to values."""
     plain = (("content-type", "text/plain"), ("access-control-allow-origin", "*"))
+    if run.resources is not None:
+        if path == "/start":
+            content_type, body = "text/html; charset=utf-8", resource_page(run.token)
+        elif path in ASSETS:
+            content_type, body = run.resources.asset(path)
+        elif path == "/done":
+            content_type, body = "text/plain", b"ok"
+        else:
+            raise ValueError("resource response does not name an owned path")
+        return Reply(
+            200, (("content-type", content_type), ("cache-control", "no-store")), body
+        )
     if path == "/start":
         body = page(scenario, run.token, run.h1_origin, run.idle_ms)
         return Reply(
@@ -295,6 +315,7 @@ class ConnectionRecord:
     data_frames: int = 0
     # Expected native disconnects retain their original diagnostic outside the fixture.
     disconnects: list[BaseException] = field(default_factory=list, repr=False)
+    resource_tap: RawConnectionRecord | None = field(default=None, repr=False)
 
     @property
     def ended(self) -> bool:
@@ -527,6 +548,10 @@ class Channel:
                 data = self.tls.read(READ_SIZE)
                 await self.flush()
                 if data:
+                    if self.run is not None and self.run.resources is not None:
+                        self.run.resources.retain(
+                            self.record.resource_tap, "client", self.run.now(), data
+                        )
                     return data
                 # `_ssl` returns no bytes, rather than raising, once it has
                 # read the peer's close_notify.
@@ -555,7 +580,15 @@ class Channel:
 
     async def write(self, data: bytes) -> None:
         if data and self.record.silenced is None:
-            self.tls.write(data)
+            written = self.tls.write(data)
+            if self.run is not None and self.run.resources is not None:
+                if written != len(data):
+                    raise ValueError(
+                        "resource TLS write did not accept every peer byte"
+                    )
+                self.run.resources.retain(
+                    self.record.resource_tap, "server", self.run.now(), data
+                )
             await self.flush()
 
 
@@ -583,6 +616,7 @@ class Run:
     retained_bytes: int = 0
     grace_timeout: asyncio.TimeoutError | None = None
     remote_disconnect: BaseException | None = None
+    resources: ResourceCapture | None = None
 
     def now(self) -> float:
         return time.perf_counter() - self.started
@@ -655,7 +689,17 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
     from h2.config import H2Configuration
     from h2.connection import H2Connection
 
-    connection = H2Connection(H2Configuration(client_side=False, header_encoding=None))
+    connection = H2Connection(
+        H2Configuration(
+            client_side=False,
+            header_encoding=None,
+            normalize_inbound_headers=run.resources is None,
+        )
+    )
+    if run.resources is not None:
+        record.resource_tap = run.resources.tap(
+            record.index, record.listener, record.accepted
+        )
     connection.initiate_connection()
     await channel.write(connection.data_to_send())
     log = FrameLog(record)
@@ -668,6 +712,13 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
         log.feed(data, run.now() * 1000)
         for event in connection.receive_data(data):
             if isinstance(event, h2.events.RequestReceived):
+                if run.resources is not None:
+                    run.resources.observe(
+                        record.index,
+                        event.stream_id,
+                        event.headers,
+                        event.priority_updated,
+                    )
                 fields = [
                     (n.decode("latin-1"), v.decode("latin-1")) for n, v in event.headers
                 ]
@@ -696,6 +747,8 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                 if run.silences(record.index, path):
                     record.silenced = run.now()
             elif isinstance(event, h2.events.DataReceived):
+                if run.resources is not None and event.data:
+                    raise ValueError("resource GET contains an unexpected body")
                 request = streams.get(event.stream_id)
                 if request is not None:
                     request.body_bytes += len(event.data)
@@ -722,9 +775,30 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                     end_stream=not reply.body,
                 )
                 if reply.body:
-                    connection.send_data(
-                        event.stream_id, reply.body, end_stream=not reply.stall
+                    if run.resources is not None and len(
+                        reply.body
+                    ) > connection.local_flow_control_window(event.stream_id):
+                        raise ValueError(
+                            "resource response exceeds the client receive window"
+                        )
+                    chunks = (
+                        [reply.body]
+                        if run.resources is None
+                        else [
+                            reply.body[i : i + connection.max_outbound_frame_size]
+                            for i in range(
+                                0, len(reply.body), connection.max_outbound_frame_size
+                            )
+                        ]
                     )
+                    for i, chunk in enumerate(chunks):
+                        connection.send_data(
+                            event.stream_id,
+                            chunk,
+                            end_stream=not reply.stall and i == len(chunks) - 1,
+                        )
+                if run.resources is not None:
+                    run.resources.responded.add(request.path)
                 if request.path == "/done":
                     run.finish(target, record.index)
             elif isinstance(event, h2.events.StreamReset):
@@ -1054,6 +1128,8 @@ class LifecycleServer:
                 self.run,
             )
             if await channel.handshake():
+                if self.run.resources is not None and record.alpn != "h2":
+                    raise ValueError("resource capture requires HTTP/2 negotiation")
                 if record.alpn == "h2":
                     await serve_h2(self.run, channel, record)
                 else:
@@ -1235,7 +1311,7 @@ def firefox_cert_override(ports: Sequence[int], certificate: Certificate) -> str
 def launch_plan(
     args: argparse.Namespace, certificate: Certificate, ports: Sequence[int]
 ) -> LaunchPlan:
-    remote = args.scenario == "close"
+    remote = args.scenario in {"close", "resources"}
     if args.browser in CHROMIUM_BROWSERS:
         address = ipaddress.ip_address(args.listen)
         replacement = f"[{address}]" if address.version == 6 else str(address)
@@ -1246,6 +1322,11 @@ def launch_plan(
         ]
         if remote:
             extra.append("--remote-debugging-port=0")
+        if args.scenario == "resources":
+            extra.append("--remote-debugging-address=127.0.0.1")
+            extra[0] = (
+                f"--host-resolver-rules=MAP {HOSTNAME} {replacement}, MAP * ~NOTFOUND"
+            )
         return LaunchPlan(
             args.browser, args.browser_path, not args.headful, tuple(extra)
         )
@@ -1339,6 +1420,8 @@ def fixture(
     lines.extend(
         f"request_{n}={request.line()}" for n, request in enumerate(run.requests)
     )
+    if run.resources is not None:
+        lines.extend(run.resources.lines(run.page_result))
     return "\n".join(lines) + "\n"
 
 
@@ -1361,7 +1444,11 @@ async def capture(args: argparse.Namespace) -> None:
     certificate = generate_certificate()
     main_context = server_context(certificate)
     main_context.set_alpn_protocols(
-        ["http/1.1"] if args.scenario == "upload-h1" else ["h2", "http/1.1"]
+        ["http/1.1"]
+        if args.scenario == "upload-h1"
+        else ["h2"]
+        if args.scenario == "resources"
+        else ["h2", "http/1.1"]
     )
     h1_context = server_context(certificate)
     h1_context.set_alpn_protocols(["http/1.1"])
@@ -1372,14 +1459,20 @@ async def capture(args: argparse.Namespace) -> None:
     primary = None
     try:
         port = await owner.start(args.listen, main_context, "main")
-        h1_port = await owner.start(args.listen, h1_context, "h1")
+        h1_port = (
+            port
+            if args.scenario == "resources"
+            else await owner.start(args.listen, h1_context, "h1")
+        )
         run.h1_origin = f"https://{HOSTNAME}:{h1_port}"
+        if args.scenario == "resources":
+            run.resources = ResourceCapture(run.token, port)
         plan = launch_plan(args, certificate, (port, h1_port))
         url = f"https://{HOSTNAME}:{port}/start?run={run.token}"
         async with BrowserDriver(plan, url) as driver:
             await owner.wait_done(budget)
             print(f"page finished at {run.now():.1f} s", file=sys.stderr, flush=True)
-            if args.scenario == "close":
+            if args.scenario in {"close", "resources"}:
                 await asyncio.sleep(2)
                 if driver.browser is None or driver.browser.profile is None:
                     raise RuntimeError("the browser has no remote profile")
@@ -1396,6 +1489,8 @@ async def capture(args: argparse.Namespace) -> None:
                     # An open connection at the end of this observation window is
                     # part of the recording, not evidence that the browser closed it.
                     run.grace_timeout = error
+                    if args.scenario == "resources":
+                        raise
     except BaseException as error:
         primary = error
     await owner.close(primary)

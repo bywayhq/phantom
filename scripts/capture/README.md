@@ -1091,6 +1091,16 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 | `idle-ping` | `h2` | Fetches, leaves the connection idle for `--idle` seconds (75), fetches again |
 | `ping-unanswered` | `h2` | Fetches, waits 11.5 s, fetches again; from that request on the server writes nothing on the connection |
 | `close` | `h2` and `http/1.1` | Fetches over HTTP/2, aborts an HTTP/1.1 response at a second origin, fetches there again, then the tool closes the browser over CDP or WebDriver BiDi |
+| `resources` | `h2` | Loads one local script, stylesheet, image and licensed Ahem font |
+
+`resources` retains ordered byte fields, each request's initial HEADERS priority,
+and at most 512 KiB of plaintext HTTP/2 peer bytes. It accepts only the six
+owned paths with the exact run token and rejects credentials or unrelated
+headers. The page verifies script execution, image decoding and font loading
+before reporting success. Both asset values and raw bytes require review before
+publication. This scenario uses no NetLog and creates no profile or template.
+Select `http_lifecycle` with `scenarios: ["resources"]` and `repeat: 1` in a
+matrix manifest.
 
 Capture Chrome and Firefox on Windows:
 
@@ -1115,9 +1125,9 @@ Chromium browsers map `server.phantom.test` with `--host-resolver-rules`
 and trust the throwaway certificate with
 `--ignore-certificate-errors-spki-list`; Firefox gets
 `network.dns.localDomains` and a `cert_override.txt` for both listener
-ports. Only the `close` scenario adds `--remote-debugging-port`. A run takes
-1 to 5 seconds, except `ping-unanswered` (about 23) and `idle-ping` (about
-81). The page's own results go to the `page_result` line.
+ports. The `close` and `resources` scenarios add `--remote-debugging-port`.
+A run takes 1 to 5 seconds, except `ping-unanswered` (about 23) and
+`idle-ping` (about 81). The page's own results go to the `page_result` line.
 
 ## ALPS `ACCEPT_CH` restart
 
