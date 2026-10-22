@@ -12,6 +12,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpStream, UdpSocket},
 };
+use zeroize::Zeroizing;
 
 use super::socks5::{Socks5Auth, Socks5Error, Socks5ErrorKind, connect_proxy, trace_connect};
 use crate::direct::Dialer;
@@ -502,7 +503,8 @@ where
     match (selection[1], auth) {
         (NO_AUTHENTICATION, _) => Ok(()),
         (USERNAME_PASSWORD, Socks5Auth::UsernamePassword { username, password }) => {
-            let mut request = Vec::with_capacity(3 + username.len() + password.len());
+            let mut request =
+                Zeroizing::new(Vec::with_capacity(3 + username.len() + password.len()));
             request.push(1);
             request.push(username.len() as u8);
             request.extend_from_slice(username.as_bytes());

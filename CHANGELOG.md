@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Clear the SOCKS5 UDP authentication buffer when negotiation ends or is
+  cancelled.
+
 - Report Node response-body cancellation consistently when abort races with a
   body read or collection.
 
