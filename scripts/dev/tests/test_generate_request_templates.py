@@ -60,8 +60,8 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 23)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 27)
+        self.assertEqual(len(templates), 24)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 28)
         original = [
             row
             for row in profiles
