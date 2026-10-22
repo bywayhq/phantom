@@ -163,7 +163,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::opera::v102_android,
         ),
     ];
-    assert_eq!(profiles().len(), factories.len() + 2);
+    assert_eq!(profiles().len(), factories.len() + 3);
 
     for &(id, factory) in factories {
         let definition = profile(id)?;
