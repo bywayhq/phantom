@@ -13,7 +13,7 @@ use phantom::{
 };
 #[cfg(feature = "cookies")]
 use tokio::sync::oneshot;
-use tokio::{io::AsyncWriteExt, sync::watch, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch, time::timeout};
 
 use crate::support::{
     tls::{TestIdentity, TestResult},
@@ -160,16 +160,16 @@ async fn rejected_donor_continues_with_checked_fields_and_the_shared_attempt_bud
 }
 
 #[tokio::test]
-async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_active_streams()
+async fn coalesced_421_restarts_on_the_origin_without_interrupting_active_donor_streams()
 -> TestResult<()> {
     let identity = TestIdentity::generate_for_dns_names(&[DONOR, OTHER])?;
     let peer = Peer::bind(&identity, &identity).await?;
     let client = builder(
         &identity,
-        phantom::profile::Http3MisdirectedRequest::ReturnResponse,
+        phantom::profile::Http3MisdirectedRequest::RetryFirst,
     )?
     .build()?;
-    let allowance = HttpAttemptBudget::new(1);
+    let allowance = HttpAttemptBudget::new(2);
     let (stop, stopped) = watch::channel(false);
     let caller = async {
         settle(&client, &peer).await?;
@@ -188,9 +188,9 @@ async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_activ
             .attempt_budget(allowance.clone())
             .send()
             .await?;
-        assert_protocol(&response, HttpProtocol::Http3)?;
-        assert_eq!(response.status(), StatusCode::MISDIRECTED_REQUEST);
-        assert_eq!(response.into_body().collect_with_limit(2).await?, "no");
+        assert_protocol(&response, HttpProtocol::Http1)?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.into_body().collect_with_limit(2).await?, "ok");
         assert_eq!(allowance.remaining(), 0);
         let snapshot = client.export_alt_svc().ok_or("Alt-Svc store disabled")?;
         assert_eq!(
@@ -222,6 +222,12 @@ async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_activ
     };
     let tcp = async {
         answer_learn(&peer).await?;
+        let (mut stream, record) = peer.accept_tcp_request().await?;
+        assert_target(&record, OTHER, "/misdirected", peer.address.port())?;
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await?;
+        stream.shutdown().await?;
         no_more_tcp(&peer, stopped.clone()).await
     };
     let h3 = async {
@@ -327,6 +333,9 @@ enum MisdirectedReply {
     Repeated,
     Exhausted,
     OneShot,
+    ReturnResponse,
+    Exact,
+    Pinned,
 }
 
 #[tokio::test]
@@ -349,24 +358,68 @@ async fn a_one_shot_upload_keeps_its_original_421_response_and_body() -> TestRes
     misdirected_exchange(MisdirectedReply::OneShot).await
 }
 
+#[tokio::test]
+async fn return_response_policy_keeps_the_original_421_without_restarting() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::ReturnResponse).await
+}
+
+#[tokio::test]
+async fn exact_h3_restarts_on_a_fresh_connection_without_changing_protocol() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::Exact).await
+}
+
+#[tokio::test]
+async fn pinned_h3_restarts_at_the_selected_location_without_dialing_the_origin() -> TestResult<()>
+{
+    misdirected_exchange(MisdirectedReply::Pinned).await
+}
+
 async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
     let identity = TestIdentity::generate_for_dns_names(&[DONOR, OTHER])?;
     let peer = Peer::bind(&identity, &identity).await?;
-    let client = builder(
-        &identity,
-        phantom::profile::Http3MisdirectedRequest::RetryFirst,
-    )?
-    .build()?;
+    let policy = if matches!(reply, MisdirectedReply::ReturnResponse) {
+        phantom::profile::Http3MisdirectedRequest::ReturnResponse
+    } else {
+        phantom::profile::Http3MisdirectedRequest::RetryFirst
+    };
+    let client = builder(&identity, policy)?.build()?;
+    let pinned_origin = if matches!(reply, MisdirectedReply::Pinned) {
+        Some(TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?)
+    } else {
+        None
+    };
+    let logical_port = match &pinned_origin {
+        Some(listener) => listener.local_addr()?.port(),
+        None => peer.address.port(),
+    };
+    let exact = matches!(reply, MisdirectedReply::Exact | MisdirectedReply::Pinned);
     let maximum = match reply {
-        MisdirectedReply::Success | MisdirectedReply::Repeated => 2,
-        MisdirectedReply::Exhausted | MisdirectedReply::OneShot => 1,
+        MisdirectedReply::Success
+        | MisdirectedReply::Repeated
+        | MisdirectedReply::Exact
+        | MisdirectedReply::Pinned => 2,
+        MisdirectedReply::Exhausted
+        | MisdirectedReply::OneShot
+        | MisdirectedReply::ReturnResponse => 1,
     };
     let allowance = HttpAttemptBudget::new(maximum);
     let (stop, stopped) = watch::channel(false);
     let caller = async {
-        settle(&client, &peer).await?;
-        let request = client
-            .get_negotiated(&url(&peer, OTHER, "/misdirected"))?
+        if !exact {
+            settle(&client, &peer).await?;
+        }
+        let target = format!("https://{OTHER}:{logical_port}/misdirected");
+        let request = if exact {
+            client.get(HttpProtocol::Http3, &target)?
+        } else {
+            client.get_negotiated(&target)?
+        };
+        let request = if matches!(reply, MisdirectedReply::Pinned) {
+            request.alt_svc_alternative("127.0.0.1", peer.address.port())
+        } else {
+            request
+        };
+        let request = request
             .headers(vec![
                 RequestHeader::new("x-first", "one"),
                 RequestHeader::new("authorization", "Basic dGVzdDp0ZXN0"),
@@ -388,10 +441,13 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
             let response = sent?;
             let (protocol, status, payload) = match reply {
                 MisdirectedReply::Success => (HttpProtocol::Http1, StatusCode::OK, "ok"),
+                MisdirectedReply::Exact | MisdirectedReply::Pinned => {
+                    (HttpProtocol::Http3, StatusCode::OK, "ok")
+                }
                 MisdirectedReply::Repeated => {
                     (HttpProtocol::Http1, StatusCode::MISDIRECTED_REQUEST, "no")
                 }
-                MisdirectedReply::OneShot => {
+                MisdirectedReply::OneShot | MisdirectedReply::ReturnResponse => {
                     (HttpProtocol::Http3, StatusCode::MISDIRECTED_REQUEST, "no")
                 }
                 MisdirectedReply::Exhausted => {
@@ -405,9 +461,10 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
         assert_eq!(allowance.remaining(), 0);
         let alternatives = client.export_alt_svc().ok_or("Alt-Svc store disabled")?;
         assert!(
-            alternatives.entries().iter().all(|entry| {
-                entry.origin() != format!("https://{OTHER}:{}", peer.address.port())
-            }),
+            alternatives
+                .entries()
+                .iter()
+                .all(|entry| { entry.origin() != format!("https://{OTHER}:{logical_port}") }),
             "421 taught B's Alt-Svc mapping"
         );
         stop.send(true)
@@ -415,7 +472,9 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
         TestResult::Ok(())
     };
     let tcp = async {
-        answer_learn(&peer).await?;
+        if !exact {
+            answer_learn(&peer).await?;
+        }
         if matches!(
             reply,
             MisdirectedReply::Success | MisdirectedReply::Repeated
@@ -423,6 +482,7 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
             let (mut stream, record) = peer.accept_tcp_request().await?;
             assert_target(&record, OTHER, "/misdirected", peer.address.port())?;
             assert_421_credentials(&record)?;
+            assert!(record.fields.iter().all(|(name, _)| name != "alt-used"));
             let response = if matches!(reply, MisdirectedReply::Success) {
                 b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".as_slice()
             } else {
@@ -435,9 +495,11 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
     };
     let h3 = async {
         let (identity, mut connection) = accept_connection(&peer).await?;
-        let (record, mut stream) = accept_h3(&mut connection, identity).await?;
-        assert_target(&record, DONOR, "/settled", peer.address.port())?;
-        answer_ok(&mut stream).await?;
+        if !exact {
+            let (record, mut stream) = accept_h3(&mut connection, identity).await?;
+            assert_target(&record, DONOR, "/settled", peer.address.port())?;
+            answer_ok(&mut stream).await?;
+        }
         let resolver = connection
             .accept()
             .await?
@@ -450,10 +512,10 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
                 .authority()
                 .ok_or("B omitted authority")?
                 .as_str(),
-            format!("{OTHER}:{}", peer.address.port())
+            format!("{OTHER}:{logical_port}")
         );
         assert_eq!(request.uri().path(), "/misdirected");
-        assert_421_credentials(&Observation {
+        let record = Observation {
             connection: Some(identity),
             stream: Some(stream.id().into_inner()),
             method: request.method().to_string(),
@@ -471,7 +533,11 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
                 .iter()
                 .map(|(name, value)| (name.to_string(), value.as_bytes().to_vec()))
                 .collect(),
-        })?;
+        };
+        assert_421_credentials(&record)?;
+        if !matches!(reply, MisdirectedReply::Pinned) {
+            assert!(record.fields.iter().all(|(name, _)| name != "alt-used"));
+        }
         let mut received = Vec::new();
         while let Some(mut chunk) = stream.recv_data().await? {
             if received.len() + chunk.remaining() > b"one-shot".len() {
@@ -495,6 +561,27 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
             .await?;
         stream.send_data(Bytes::from_static(b"no")).await?;
         stream.finish().await?;
+        if exact {
+            let (replacement_id, mut replacement) = tokio::select! {
+                incoming = accept_connection(&peer) => incoming?,
+                request = connection.accept() => {
+                    match request {
+                        Ok(Some(_)) => return Err("exact 421 replay used the rejected physical connection".into()),
+                        Ok(None) => {},
+                        Err(h3::error::ConnectionError::Remote(h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code }, ..))
+                            if error_code == h3::error::Code::H3_NO_ERROR.value() => {},
+                        Err(error) => return Err(error.into()),
+                    }
+                    accept_connection(&peer).await?
+                }
+            };
+            assert_ne!(identity, replacement_id);
+            let (record, mut stream) = accept_h3(&mut replacement, replacement_id).await?;
+            assert_target(&record, OTHER, "/misdirected", logical_port)?;
+            assert_421_credentials(&record)?;
+            answer_ok(&mut stream).await?;
+            connection = replacement;
+        }
         let mut stopped = stopped.clone();
         let mut closed = false;
         loop {
@@ -520,8 +607,24 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
             }
         }
     };
+    let origin = async {
+        let mut stopped = stopped.clone();
+        if let Some(listener) = &pinned_origin {
+            tokio::select! {
+                biased;
+                connection = listener.accept() => {
+                    drop(connection?);
+                    return Err("pinned 421 retry dialed its logical origin".into());
+                }
+                result = stopped.wait_for(|done| *done) => {
+                    result.map_err(|_| "pinned caller stopped before completion")?;
+                }
+            }
+        }
+        TestResult::Ok(())
+    };
     let result = match AssertUnwindSafe(timeout(DEADLINE, async {
-        tokio::try_join!(caller, tcp, h3)
+        tokio::try_join!(caller, tcp, h3, origin)
     }))
     .catch_unwind()
     .await
@@ -555,7 +658,6 @@ fn assert_421_credentials(record: &Observation) -> TestResult<()> {
             ("cookie", b"sid=caller".as_slice()),
         ]
     );
-    assert!(record.fields.iter().all(|(name, _)| name != "alt-used"));
     Ok(())
 }
 
