@@ -13,6 +13,9 @@
 - Add `Http2IndexingLimit::FullTable` to index fields that fit the current
   HPACK table while retaining existing entries when a larger field is sent.
 
+- Correct Firefox TCP documentation for retained backup connections, address
+  family memory and failed-address history. Keep capture limits explicit.
+
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
   headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog
   descriptions retain their sources and distinguish them from browser captures.

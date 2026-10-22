@@ -151,18 +151,18 @@ pub fn v157_tcp_tls() -> TlsSettings {
 ///   each connection the next free local port, and
 ///   [`TcpSettings::port_randomization`] is `None`.
 ///
+/// Phantom retains slower connections and remembers the address family for
+/// direct and proxy connections, WebSockets, and exact HTTP/2, including
+/// direct ECH setup. The retained backup capture covers direct HTTP/1.1;
+/// these other address-selection paths have no matching Firefox capture.
+///
+/// With [`v157_dns_cache`], locally cached DNS records remember failed
+/// addresses and skip them on later connections, as Firefox does
+/// (`netwerk/base/nsSocketTransport2.cpp:1742-1745`). See
+/// [`crate::DnsAddressFailurePolicy`] for the history's resource limit.
+///
 /// Not modeled:
 ///
-/// - Firefox keeps the slower connection, and remembers the address family,
-///   on every connection entry (`DnsAndConnectSocket.cpp:671-745`). Phantom
-///   does so only for direct HTTP/1.1 and negotiated requests. Connections
-///   to a proxy, WebSocket connections, exact HTTP/2 requests, and
-///   connections that offer ECH from HTTPS records start the backup, close
-///   the slower attempt, and neither use nor learn the family.
-/// - Firefox marks an address that failed to connect as unusable in its
-///   cached DNS record and skips it on later connections
-///   (`netwerk/base/nsSocketTransport2.cpp:1742-1745`); Phantom tries it
-///   again.
 /// - Firefox remembers an origin's address family until a prune finds its
 ///   connection entry empty
 ///   (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). Phantom
