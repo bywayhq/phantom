@@ -30,4 +30,5 @@ initial-stream-window.patch
 completed-response-reset-tests.patch
 completed-response-reset.patch
 received-trailers.patch
+full-table-indexing.patch
 publish-identity.patch

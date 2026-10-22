@@ -330,6 +330,7 @@ impl Table {
                 header.len() > limit
             }
             IndexingLimit::Half => header.len() > self.max_size / 2 || self.max_size < 128,
+            IndexingLimit::FullTable => header.len() > self.max_size,
             IndexingLimit::Unlimited => false,
         }
     }

@@ -22,7 +22,13 @@ tokens!(
     OldestDynamic
 );
 tokens!(Http2UnindexedMatch, Index, Literal);
-tokens!(Http2IndexingLimit, ThreeQuarters, Half, Unlimited);
+tokens!(
+    Http2IndexingLimit,
+    ThreeQuarters,
+    Half,
+    FullTable,
+    Unlimited
+);
 tokens!(Http2TableSizeUpdates, WhenChanged, EverySetting);
 tokens!(
     Http2SensitiveProxyAuthorization,

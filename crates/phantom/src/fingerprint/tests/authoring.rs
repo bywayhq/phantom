@@ -222,3 +222,16 @@ fn failed_registry_operations_leave_other_entries_unchanged() -> TestResult {
     assert_eq!(registry.get("existing"), Some(&profile));
     Ok(())
 }
+
+#[test]
+fn full_table_indexing_round_trips_as_an_explicit_choice() -> TestResult {
+    let mut http2 = chrome::v154_http2();
+    http2.hpack.indexing_limit = phantom_profile::Http2IndexingLimit::FullTable;
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(http2);
+    let description = describe_profile(&profile)?;
+    assert_eq!(
+        description["profile"]["http2"]["hpack"]["indexing_limit"],
+        "FullTable"
+    );
+    round_trip(&profile)
+}

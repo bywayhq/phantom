@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.20`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.21`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -982,6 +982,16 @@ stream's single baseline adjustment, the next stream's changed increment
 (or no boost), and exact credit exhaustion followed by FLOW_CONTROL_ERROR.
 Extended CONNECT still requires the root-owned profile translation and
 real-peer coverage; this backend packet does not establish that integration.
+
+## Full-table insertion limit
+
+`full-table-indexing.patch` adds `IndexingLimit::FullTable`. A field whose
+RFC 7541 entry size exceeds the current table capacity is sent without
+indexing and leaves existing entries available. Fields that fit may enter.
+The other insertion limits retain their behavior. Encoder controls cover
+3,073/4,096/4,097-byte entries, marker reuse, zero capacity and table changes.
+This choice reproduces the pinned httpcloak v1.7.3 peer's observed boundary
+behavior; profile selection belongs to the dependent crates.
 
 ## Refreshing the vendor copy
 

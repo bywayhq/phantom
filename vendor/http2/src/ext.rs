@@ -205,6 +205,9 @@ pub enum IndexingLimit {
     /// indexing. One larger than the whole table empties it and is not
     /// inserted, as RFC 7541 section 4.4 requires.
     Unlimited,
+    /// Fields up to the full table size may enter. Larger fields are sent
+    /// without indexing and preserve the existing table.
+    FullTable,
 }
 
 /// When an HPACK encoder starts a field block with a dynamic-table size

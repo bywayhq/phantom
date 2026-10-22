@@ -490,6 +490,7 @@ fn hpack_encoder_profile(
     let indexing_limit = match hpack.indexing_limit {
         Http2IndexingLimit::ThreeQuarters => IndexingLimit::ThreeQuarters,
         Http2IndexingLimit::Half => IndexingLimit::Half,
+        Http2IndexingLimit::FullTable => IndexingLimit::FullTable,
         Http2IndexingLimit::Unlimited => IndexingLimit::Unlimited,
         _ => return Err(Http2Error::UnsupportedSetting),
     };

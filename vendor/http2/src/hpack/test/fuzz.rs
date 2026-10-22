@@ -305,6 +305,7 @@ fn gen_profile(g: &mut StdRng) -> HpackEncoderProfile {
                 IndexingLimit::ThreeQuarters,
                 IndexingLimit::Half,
                 IndexingLimit::Unlimited,
+                IndexingLimit::FullTable,
             ],
         ))
         .size_updates(pick(

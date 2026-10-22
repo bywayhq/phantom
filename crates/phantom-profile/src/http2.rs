@@ -228,6 +228,9 @@ pub enum Http2IndexingLimit {
     /// older entries are evicted to make room. A field larger than the whole
     /// table empties it and is not inserted (Chromium).
     Unlimited,
+    /// Fields up to the full table size may enter. Larger fields are sent
+    /// without indexing and preserve the existing table.
+    FullTable,
 }
 
 /// When a field block starts with a dynamic-table size update after the peer

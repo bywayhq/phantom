@@ -104,6 +104,7 @@ fn http2_indexing_limit(
         Http2IndexingLimit::ThreeQuarters => 0,
         Http2IndexingLimit::Half => 1,
         Http2IndexingLimit::Unlimited => 2,
+        Http2IndexingLimit::FullTable => 3,
         _ => return Err(PreparationError::Unsupported("Http2IndexingLimit")),
     })
 }

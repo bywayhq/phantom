@@ -7,6 +7,9 @@
   connector routes fail explicitly while a policy is configured. Denial also
   stops SSE reconnects and WebSocket handshake retries.
 
+- Add `Http2IndexingLimit::FullTable` to index fields that fit the current
+  HPACK table while retaining existing entries when a larger field is sent.
+
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
   headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog
   descriptions retain their sources and distinguish them from browser captures.

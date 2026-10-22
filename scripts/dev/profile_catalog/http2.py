@@ -36,7 +36,10 @@ HTTP2_HPACK_ENUMS = {
         ("StaticUnlessSensitive", "StaticThenNewest", "OldestDynamic"),
     ),
     "unindexed_match": ("Http2UnindexedMatch", ("Index", "Literal")),
-    "indexing_limit": ("Http2IndexingLimit", ("ThreeQuarters", "Half", "Unlimited")),
+    "indexing_limit": (
+        "Http2IndexingLimit",
+        ("ThreeQuarters", "Half", "Unlimited", "FullTable"),
+    ),
     "table_size_updates": ("Http2TableSizeUpdates", ("WhenChanged", "EverySetting")),
     "sensitive_proxy_authorization": (
         "Http2SensitiveProxyAuthorization",

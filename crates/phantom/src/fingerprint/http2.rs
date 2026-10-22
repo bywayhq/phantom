@@ -244,6 +244,7 @@ fn indexing_limit(v: &Value) -> Result<Http2IndexingLimit> {
     match v.text("http2.hpack.indexing_limit")? {
         "ThreeQuarters" => Ok(Http2IndexingLimit::ThreeQuarters),
         "Half" => Ok(Http2IndexingLimit::Half),
+        "FullTable" => Ok(Http2IndexingLimit::FullTable),
         "Unlimited" => Ok(Http2IndexingLimit::Unlimited),
         _ => Err(json::unsupported("http2.hpack.indexing_limit")),
     }

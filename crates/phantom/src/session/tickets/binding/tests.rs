@@ -1084,6 +1084,7 @@ fn all_hpack_and_stream_policy_fields_change_identity() -> TestResult {
     hpack!(name_reference, Http2NameReference::OldestDynamic);
     hpack!(unindexed_match, Http2UnindexedMatch::Literal);
     hpack!(indexing_limit, Http2IndexingLimit::Half);
+    hpack!(indexing_limit, Http2IndexingLimit::FullTable);
     hpack!(table_size_updates, Http2TableSizeUpdates::EverySetting);
     hpack!(
         sensitive_proxy_authorization,
@@ -1099,7 +1100,7 @@ fn all_hpack_and_stream_policy_fields_change_identity() -> TestResult {
     streams!(first_stream_id, 3);
     streams!(assumed_max_concurrent_streams, None);
     streams!(max_concurrent_streams_cap, None);
-    assert_eq!(changed.len(), 13);
+    assert_eq!(changed.len(), 14);
     let original = encode(base)?;
     for (field, value) in changed {
         assert!(original != encode(value)?, "missing {field}");
@@ -1271,5 +1272,32 @@ fn ticket_policy_distinguishes_each_websocket_refusal_rule() -> TestResult {
     assert_ne!(encoded[0], encoded[1]);
     assert_ne!(encoded[0], encoded[2]);
     assert_ne!(encoded[1], encoded[2]);
+    Ok(())
+}
+
+#[test]
+fn hpack_insertion_limits_have_distinct_ticket_bindings() -> TestResult {
+    use phantom_profile::Http2IndexingLimit;
+
+    let mut identities = Vec::new();
+    for limit in [
+        Http2IndexingLimit::ThreeQuarters,
+        Http2IndexingLimit::Half,
+        Http2IndexingLimit::Unlimited,
+        Http2IndexingLimit::FullTable,
+    ] {
+        let mut settings = chrome::v154_http2();
+        settings.hpack.indexing_limit = limit;
+        let encoded = profile::encode(
+            &ClientProfile::new(chrome::v154_tcp_tls()).with_http2(settings),
+            None,
+            None,
+        )?;
+        assert!(
+            !identities.contains(&encoded),
+            "duplicate binding for {limit:?}"
+        );
+        identities.push(encoded);
+    }
     Ok(())
 }
