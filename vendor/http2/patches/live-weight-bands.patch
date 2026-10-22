@@ -1,0 +1,803 @@
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 8dc5e2d39..709e17696 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -2586,3 +2586,5 @@ mod received_trailers;
+ 
+ #[cfg(feature = "unstable")]
+ mod queued_priority_suppression;
++
++mod live_weight_bands;
+diff --git a/src/client/tests/live_weight_bands.rs b/src/client/tests/live_weight_bands.rs
+new file mode 100644
+index 000000000..a931ef7d5
+--- /dev/null
++++ b/src/client/tests/live_weight_bands.rs
+@@ -0,0 +1,537 @@
++use super::*;
++
++const DEADLINE: Duration = Duration::from_secs(5);
++
++struct Client {
++    peer: DuplexStream,
++    sender: super::super::SendRequest<Bytes>,
++    driver: tokio::task::JoinHandle<Result<(), crate::Error>>,
++}
++
++impl Client {
++    async fn open(builder: super::super::Builder) -> Self {
++        let (io, mut peer) = duplex(128 * 1024);
++        let (sender, connection) = builder.handshake(io).await.expect("handshake failed");
++        let driver = tokio::spawn(connection);
++        accept_client_handshake(&mut peer).await;
++        let mut client = Self {
++            peer,
++            sender,
++            driver,
++        };
++        client.probe().await;
++        client
++    }
++
++    async fn headers(&mut self) -> RawFrame {
++        loop {
++            let frame = read_raw_frame(&mut self.peer).await;
++            assert_ne!(frame.kind, 7, "unexpected GOAWAY: {:?}", frame.payload);
++            if frame.kind == 1 {
++                return frame;
++            }
++            assert_eq!(frame.stream_id, 0, "unexpected stream frame");
++        }
++    }
++
++    async fn probe(&mut self) -> Vec<RawFrame> {
++        write_raw_frame(&mut self.peer, 6, 0, 0, b"bands!!!").await;
++        let mut frames = Vec::new();
++        loop {
++            let frame = read_raw_frame(&mut self.peer).await;
++            assert_ne!(frame.kind, 7, "unexpected GOAWAY: {:?}", frame.payload);
++            if (frame.kind, frame.flags, frame.stream_id) == (6, 1, 0) {
++                assert_eq!(frame.payload, b"bands!!!");
++                return frames;
++            }
++            frames.push(frame);
++        }
++    }
++
++    async fn close(mut self) {
++        self.driver.abort();
++        match (&mut self.driver).await {
++            Err(error) => assert!(error.is_cancelled(), "driver panicked: {error}"),
++            Ok(result) => panic!("driver exited before cleanup: {result:?}"),
++        }
++    }
++}
++
++impl Drop for Client {
++    fn drop(&mut self) {
++        self.driver.abort();
++    }
++}
++
++fn request(weight: u8) -> Request<()> {
++    let mut request = data_budget_request();
++    request
++        .extensions_mut()
++        .insert(HeadersFrameOverrides::new().weight_band(weight, true));
++    request
++}
++
++fn assert_priority(frame: &RawFrame, parent: u32, weight: u8, exclusive: bool) {
++    assert_eq!(frame.kind, 1);
++    assert_ne!(frame.flags & 0x20, 0, "HEADERS priority missing");
++    assert_eq!(frame.payload[4], weight);
++    let dependency = u32::from_be_bytes(frame.payload[..4].try_into().unwrap());
++    assert_eq!(dependency & 0x7fff_ffff, parent);
++    assert_eq!(dependency >> 31 != 0, exclusive);
++}
++
++#[tokio::test]
++async fn newest_same_band_and_nearest_higher_band_follow_emission_order() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let mut live = Vec::new();
++        let mut ids = Vec::new();
++        // Expected parents refer to peer-observed IDs, not a captured sequence.
++        for (weight, parent_position) in [
++            (100, None),
++            (200, None),
++            (150, Some(1)),
++            (150, Some(2)),
++            (50, Some(0)),
++            (255, None),
++            (0, Some(4)),
++        ] {
++            live.push(client.sender.send_request(request(weight), true).unwrap());
++            let frame = client.headers().await;
++            let parent = parent_position.map_or(0, |position| ids[position]);
++            assert_priority(&frame, parent, weight, true);
++            ids.push(frame.stream_id);
++        }
++        client.close().await;
++    })
++    .await
++    .expect("band ordering timed out");
++}
++
++#[tokio::test]
++async fn fixed_overrides_remain_exact_and_do_not_join_bands() {
++    timeout(DEADLINE, async {
++        let mut builder = super::super::Builder::new();
++        builder.headers_stream_dependency(StreamDependency::new(StreamId::zero(), 255, true));
++        let mut client = Client::open(builder).await;
++        let fixed = client
++            .sender
++            .send_request(data_budget_request(), true)
++            .unwrap();
++        assert_priority(&client.headers().await, 0, 255, true);
++        let band = client.sender.send_request(request(100), true).unwrap();
++        let band_frame = client.headers().await;
++        assert_priority(&band_frame, 0, 100, true);
++
++        let mut overridden = request(200);
++        overridden.extensions_mut().insert(
++            HeadersFrameOverrides::new()
++                .weight_band(200, true)
++                .stream_dependency(StreamDependency::new(
++                    StreamId::from(band_frame.stream_id),
++                    17,
++                    false,
++                )),
++        );
++        let override_stream = client.sender.send_request(overridden, true).unwrap();
++        assert_priority(&client.headers().await, band_frame.stream_id, 17, false);
++        let next = client.sender.send_request(request(150), true).unwrap();
++        assert_priority(&client.headers().await, 0, 150, true);
++        drop((fixed, band, override_stream, next));
++        client.close().await;
++    })
++    .await
++    .expect("fixed override control timed out");
++}
++
++#[tokio::test]
++async fn cloned_senders_share_bands_but_separate_sessions_do_not() {
++    timeout(DEADLINE, async {
++        let mut first = Client::open(super::super::Builder::new()).await;
++        let mut clone = first.sender.clone();
++        let a = first.sender.send_request(request(100), true).unwrap();
++        let a_frame = first.headers().await;
++        let mut other_authority = request(100);
++        *other_authority.uri_mut() = "https://other.example/".parse().unwrap();
++        let b = clone.send_request(other_authority, true).unwrap();
++        assert_priority(&first.headers().await, a_frame.stream_id, 100, true);
++
++        let mut second = Client::open(super::super::Builder::new()).await;
++        let c = second.sender.send_request(request(100), true).unwrap();
++        assert_priority(&second.headers().await, 0, 100, true);
++        drop((a, b, c, clone));
++        first.close().await;
++        second.close().await;
++    })
++    .await
++    .expect("session isolation timed out");
++}
++
++#[tokio::test]
++async fn completed_responses_leave_bands_before_buffered_bodies_are_consumed() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let mut held = Vec::new();
++        for ending in 0..3 {
++            let (response, upload) = client.sender.send_request(request(200), true).unwrap();
++            let frame = client.headers().await;
++            assert_priority(&frame, 0, 200, true);
++            write_raw_frame(
++                &mut client.peer,
++                1,
++                if ending == 0 { 5 } else { 4 },
++                frame.stream_id,
++                &[0x88],
++            )
++            .await;
++            if ending != 0 {
++                write_raw_frame(
++                    &mut client.peer,
++                    0,
++                    if ending == 1 { 1 } else { 0 },
++                    frame.stream_id,
++                    b"unread",
++                )
++                .await;
++                if ending == 2 {
++                    write_raw_frame(
++                        &mut client.peer,
++                        1,
++                        5,
++                        frame.stream_id,
++                        b"\x00\x05x-end\x03yes",
++                    )
++                    .await;
++                }
++            }
++            client.probe().await;
++            held.push((response.await.unwrap(), upload));
++        }
++        let next = client.sender.send_request(request(100), true).unwrap();
++        assert_priority(&client.headers().await, 0, 100, true);
++        drop((held, next));
++        client.close().await;
++    })
++    .await
++    .expect("response completion timed out");
++}
++
++#[tokio::test]
++async fn half_closed_streams_remain_parents_until_reset_or_local_completion() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let (response, mut upload) = client.sender.send_request(request(200), false).unwrap();
++        let frame = client.headers().await;
++        write_raw_frame(&mut client.peer, 1, 5, frame.stream_id, &[0x88]).await;
++        let held = response.await.unwrap();
++        let same = client.sender.send_request(request(200), true).unwrap();
++        let same_frame = client.headers().await;
++        assert_priority(&same_frame, frame.stream_id, 200, true);
++        // Remove the newer stream by peer reset, leaving the half-closed one.
++        write_raw_frame(
++            &mut client.peer,
++            3,
++            0,
++            same_frame.stream_id,
++            &u32::from(crate::Reason::CANCEL).to_be_bytes(),
++        )
++        .await;
++        client.probe().await;
++        let next = client.sender.send_request(request(100), true).unwrap();
++        let next_frame = client.headers().await;
++        assert_priority(&next_frame, frame.stream_id, 100, true);
++        // This empty final DATA closes the upload; the response is still held.
++        upload.send_data(Bytes::new(), true).unwrap();
++        let frames = client.probe().await;
++        assert!(frames
++            .iter()
++            .any(|f| (f.kind, f.flags, f.stream_id) == (0, 1, frame.stream_id)));
++        let higher = client.sender.send_request(request(150), true).unwrap();
++        assert_priority(&client.headers().await, 0, 150, true);
++        drop((held, upload, same, next, higher));
++        client.close().await;
++    })
++    .await
++    .expect("half-closed stream lifecycle timed out");
++}
++
++#[tokio::test]
++async fn local_reset_removes_a_live_parent_while_reset_is_retained() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let (response, mut upload) = client.sender.send_request(request(200), true).unwrap();
++        let frame = client.headers().await;
++        upload.send_reset(crate::Reason::CANCEL);
++        let frames = client.probe().await;
++        assert!(frames
++            .iter()
++            .any(|f| (f.kind, f.stream_id) == (3, frame.stream_id)));
++        let next = client.sender.send_request(request(100), true).unwrap();
++        assert_priority(&client.headers().await, 0, 100, true);
++        drop((response, upload, next));
++        client.close().await;
++    })
++    .await
++    .expect("local reset lifecycle timed out");
++}
++
++#[tokio::test]
++async fn pending_open_uses_current_live_bands_and_cancelled_open_never_joins() {
++    timeout(DEADLINE, async {
++        let mut builder = super::super::Builder::new();
++        builder
++            .initial_max_send_streams(1)
++            .retain_initial_max_send_streams(true);
++        let mut client = Client::open(builder).await;
++        let (first, _) = client.sender.send_request(request(200), true).unwrap();
++        let first_frame = client.headers().await;
++        let pending = client.sender.send_request(request(100), true).unwrap();
++        assert!(client.probe().await.iter().all(|f| f.stream_id == 0));
++        write_raw_frame(&mut client.peer, 1, 5, first_frame.stream_id, &[0x88]).await;
++        let pending_frame = client.headers().await;
++        assert_priority(&pending_frame, 0, 100, true);
++        let cancelled = client.sender.send_request(request(200), true).unwrap();
++        drop(cancelled);
++        assert!(client.probe().await.iter().all(|f| f.stream_id == 0));
++        write_raw_frame(&mut client.peer, 1, 5, pending_frame.stream_id, &[0x88]).await;
++        let cancelled_frame = client.headers().await;
++        assert_priority(&cancelled_frame, 0, 200, true);
++        let reset = read_raw_frame(&mut client.peer).await;
++        assert_eq!(
++            (reset.kind, reset.stream_id),
++            (3, cancelled_frame.stream_id)
++        );
++        assert_eq!(
++            reset.payload,
++            u32::from(crate::Reason::CANCEL).to_be_bytes()
++        );
++        let next = client.sender.send_request(request(100), true).unwrap();
++        assert_priority(&client.headers().await, 0, 100, true);
++        drop((first, pending, next));
++        client.close().await;
++    })
++    .await
++    .expect("pending-open lifecycle timed out");
++}
++
++#[tokio::test]
++async fn queued_disable_suppresses_live_band_fields_including_fragmented_headers() {
++    timeout(DEADLINE, async {
++        let (io, mut peer) = duplex(128 * 1024);
++        let (mut sender, connection) = super::super::Builder::new()
++            .handshake::<_, Bytes>(io)
++            .await
++            .unwrap();
++        let mut request = request(100);
++        request.headers_mut().insert(
++            "x-large",
++            HeaderValue::from_str(&"z".repeat(30_000)).unwrap(),
++        );
++        let queued = sender.send_request(request, true).unwrap();
++        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(9, 1)])).await;
++        let driver = tokio::spawn(connection);
++        let mut client = Client {
++            peer,
++            sender,
++            driver,
++        };
++        read_client_preface(&mut client.peer).await;
++        let mut ack_seen = false;
++        let headers = loop {
++            let frame = read_raw_frame(&mut client.peer).await;
++            assert_ne!(frame.kind, 7, "unexpected GOAWAY");
++            assert_ne!(frame.kind, 2, "suppressed request sent PRIORITY");
++            if frame.kind == 1 {
++                break frame;
++            }
++            if (frame.kind, frame.flags) == (4, 1) {
++                ack_seen = true;
++            }
++        };
++        assert!(ack_seen, "HEADERS preceded processed peer SETTINGS");
++        assert_eq!(headers.flags & 0x21, 1);
++        assert_eq!(headers.flags & 4, 0);
++        let mut block = headers.payload;
++        loop {
++            let frame = read_raw_frame(&mut client.peer).await;
++            assert_eq!((frame.kind, frame.stream_id), (9, headers.stream_id));
++            assert_eq!(frame.flags & !4, 0);
++            block.extend_from_slice(&frame.payload);
++            if frame.flags & 4 != 0 {
++                break;
++            }
++        }
++        let fields = decode_header_block(&block);
++        assert!(fields
++            .iter()
++            .any(|(n, v)| n == "x-large" && v.as_bytes() == "z".repeat(30_000).as_bytes()));
++        drop(queued);
++        client.close().await;
++    })
++    .await
++    .expect("live-band suppression timed out");
++}
++
++#[tokio::test]
++async fn fragmented_initial_headers_preserve_end_stream_and_exact_payload() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let mut opening = request(0);
++        opening
++            .extensions_mut()
++            .insert(HeadersFrameOverrides::new().weight_band(0, false));
++        opening.headers_mut().insert(
++            "x-large",
++            HeaderValue::from_str(&"z".repeat(30_000)).unwrap(),
++        );
++        let held = client.sender.send_request(opening, true).unwrap();
++        let headers = client.headers().await;
++        assert_priority(&headers, 0, 0, false);
++        assert_eq!(headers.flags & 1, 1);
++        assert_eq!(headers.flags & 4, 0);
++        let mut block = headers.payload[5..].to_vec();
++        loop {
++            let frame = read_raw_frame(&mut client.peer).await;
++            assert_eq!((frame.kind, frame.stream_id), (9, headers.stream_id));
++            assert_eq!(frame.flags & !4, 0);
++            block.extend_from_slice(&frame.payload);
++            if frame.flags & 4 != 0 {
++                break;
++            }
++        }
++        let fields = decode_header_block(&block);
++        assert!(fields
++            .iter()
++            .any(|(n, v)| n == "x-large" && v.as_bytes() == "z".repeat(30_000).as_bytes()));
++        let next = client.sender.send_request(request(0), true).unwrap();
++        assert_priority(&client.headers().await, headers.stream_id, 0, true);
++        drop((held, next));
++        client.close().await;
++    })
++    .await
++    .expect("fragmented live-band HEADERS timed out");
++}
++
++#[tokio::test]
++async fn trailing_headers_do_not_register_the_initial_band_again() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let (first, mut upload) = client.sender.send_request(request(200), false).unwrap();
++        let first_frame = client.headers().await;
++        let second = client.sender.send_request(request(200), true).unwrap();
++        let second_frame = client.headers().await;
++        assert_priority(&second_frame, first_frame.stream_id, 200, true);
++        let mut trailers = HeaderMap::new();
++        trailers.insert("x-end", HeaderValue::from_static("yes"));
++        upload.send_trailers(trailers).unwrap();
++        let trailing = client.headers().await;
++        assert_eq!(
++            (trailing.stream_id, trailing.flags),
++            (first_frame.stream_id, 5)
++        );
++        let third = client.sender.send_request(request(100), true).unwrap();
++        assert_priority(&client.headers().await, second_frame.stream_id, 100, true);
++        drop((first, upload, second, third));
++        client.close().await;
++    })
++    .await
++    .expect("live-band trailer control timed out");
++}
++
++#[tokio::test]
++async fn rejected_header_conversion_never_enters_a_band() {
++    timeout(DEADLINE, async {
++        let mut client = Client::open(super::super::Builder::new()).await;
++        let mut invalid = request(255);
++        invalid.extensions_mut().insert(OrderedHeaders::new(vec![(
++            HeaderName::from_static("x-missing"),
++            HeaderValue::from_static("value"),
++        )]));
++        let error = client
++            .sender
++            .send_request(invalid, true)
++            .err()
++            .expect("invalid ordered fields accepted");
++        assert_eq!(error.reason(), None);
++        assert!(error.to_string().contains("malformed headers"));
++        assert!(client
++            .probe()
++            .await
++            .iter()
++            .all(|frame| frame.stream_id == 0));
++        let next = client.sender.send_request(request(100), true).unwrap();
++        assert_priority(&client.headers().await, 0, 100, true);
++        drop(next);
++        client.close().await;
++    })
++    .await
++    .expect("header conversion control timed out");
++}
++
++#[tokio::test]
++async fn write_backpressure_defers_parent_selection_until_codec_readiness() {
++    timeout(DEADLINE, async {
++        let (io, mut peer) = duplex(64);
++        let (mut sender, mut connection) = super::super::Builder::new()
++            .handshake::<_, Bytes>(io)
++            .await
++            .unwrap();
++        drive_idle_ping_checkpoint(&mut connection, async {
++            accept_client_handshake(&mut peer).await;
++            assert_connection_open(&mut peer).await;
++        })
++        .await;
++        let mut large = request(200);
++        large.headers_mut().insert(
++            "x-large",
++            HeaderValue::from_str(&"z".repeat(30_000)).unwrap(),
++        );
++        let (first, mut upload) = sender.send_request(large, true).unwrap();
++        drive_idle_ping_checkpoint(&mut connection, std::future::ready(())).await;
++        // Read just the first frame head. Its remaining bytes fill the tiny pipe,
++        // so the codec cannot accept the next request yet.
++        let mut head = [0; 9];
++        peer.read_exact(&mut head).await.unwrap();
++        assert_eq!(head[3], 1);
++        assert_ne!(head[4] & 0x20, 0);
++        assert_eq!(head[4] & 4, 0);
++        let first_id = u32::from_be_bytes(head[5..].try_into().unwrap());
++        let length =
++            (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
++        let second = sender.send_request(request(100), true).unwrap();
++        upload.send_reset(crate::Reason::CANCEL);
++        let driver = tokio::spawn(connection);
++        let mut client = Client {
++            peer,
++            sender,
++            driver,
++        };
++        let mut payload = vec![0; length];
++        client.peer.read_exact(&mut payload).await.unwrap();
++        let mut reset_seen = false;
++        let next = loop {
++            let frame = read_raw_frame(&mut client.peer).await;
++            match frame.kind {
++                9 => assert_eq!(frame.stream_id, first_id),
++                3 => {
++                    assert_eq!(frame.stream_id, first_id);
++                    reset_seen = true;
++                }
++                1 => break frame,
++                _ => assert_eq!(frame.stream_id, 0, "unexpected stream frame"),
++            }
++        };
++        assert_priority(&next, 0, 100, true);
++        let remaining = client.probe().await;
++        assert!(
++            reset_seen
++                || remaining
++                    .iter()
++                    .any(|frame| (frame.kind, frame.stream_id) == (3, first_id))
++        );
++        drop((first, upload, second));
++        client.close().await;
++    })
++    .await
++    .expect("write-backpressure selection timed out");
++}
+diff --git a/src/ext.rs b/src/ext.rs
+index bcd371192..0bc56ecd0 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -59,7 +59,13 @@ impl OrderedHeaders {
+ #[derive(Clone, Debug, Default, Eq, PartialEq)]
+ pub struct HeadersFrameOverrides {
+     pseudo_order: Option<PseudoOrder>,
+-    stream_dependency: Option<StreamDependency>,
++    stream_dependency: Option<HeadersFrameDependency>,
++}
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub(crate) enum HeadersFrameDependency {
++    Fixed(StreamDependency),
++    WeightBand { weight: u8, exclusive: bool },
+ }
+ 
+ impl HeadersFrameOverrides {
+@@ -79,11 +85,24 @@ impl HeadersFrameOverrides {
+     /// Replaces the connection's HEADERS stream dependency for this request.
+     #[must_use]
+     pub fn stream_dependency(mut self, dependency: StreamDependency) -> Self {
+-        self.stream_dependency = Some(dependency);
++        self.stream_dependency = Some(HeadersFrameDependency::Fixed(dependency));
+         self
+     }
+ 
+-    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<StreamDependency>) {
++    /// Chooses a parent from this session's live weight bands when sending HEADERS.
++    ///
++    /// Uses the newest live stream in the same band, otherwise the newest in
++    /// the nearest higher band, otherwise stream 0. Fixed overrides do not join
++    /// the bands. Half-closed streams remain eligible; closed or reset streams
++    /// do not. The weight is encoded as 0..=255, like [`StreamDependency`].
++    /// Peer SETTINGS that disable RFC 7540 priorities suppress this choice too.
++    #[must_use]
++    pub fn weight_band(mut self, weight: u8, exclusive: bool) -> Self {
++        self.stream_dependency = Some(HeadersFrameDependency::WeightBand { weight, exclusive });
++        self
++    }
++
++    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<HeadersFrameDependency>) {
+         (self.pseudo_order, self.stream_dependency)
+     }
+ }
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+index 37794639b..6983fa8a9 100644
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -403,6 +403,11 @@ impl Headers {
+         self.stream_dep = Some(stream_dep);
+     }
+ 
++    pub(crate) fn set_selected_stream_dependency(&mut self, stream_dep: StreamDependency) {
++        self.flags.0 |= PRIORITY;
++        self.stream_dep = Some(stream_dep);
++    }
++
+     pub(crate) fn clear_stream_dependency(&mut self) {
+         self.flags.0 &= !PRIORITY;
+         self.stream_dep = None;
+diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
+index 5b565834a..001d66c41 100644
+--- a/src/proto/streams/counts.rs
++++ b/src/proto/streams/counts.rs
+@@ -1,3 +1,5 @@
++use std::collections::BTreeMap;
++
+ use super::*;
+ use crate::tracing;
+ 
+@@ -82,6 +84,9 @@ pub(super) struct Counts {
+     /// Number of empty, non-final DATA frames received over the lifetime of
+     /// the connection.
+     num_recv_empty_data_frames: usize,
++
++    /// Live local streams in each weight band, in HEADERS selection order.
++    weight_bands: BTreeMap<u8, Vec<StreamId>>,
+ }
+ 
+ impl Counts {
+@@ -103,9 +108,34 @@ impl Counts {
+             num_local_error_reset_streams: 0,
+             data_frame_budget: Budget::new(config.data_frame_budget),
+             num_recv_empty_data_frames: 0,
++            weight_bands: BTreeMap::new(),
+         }
+     }
+ 
++    pub fn select_weight_band(
++        &mut self,
++        stream: &mut store::Ptr,
++        weight: u8,
++        exclusive: bool,
++    ) -> StreamDependency {
++        let parent = self
++            .weight_bands
++            .range(weight..)
++            .next()
++            .and_then(|(_, streams)| streams.last())
++            .copied()
++            .unwrap_or_else(StreamId::zero);
++
++        // A cancelled pending request may still need HEADERS before RST_STREAM.
++        // It can use the policy, but must never become a parent itself.
++        if !stream.state.is_reset() && !stream.is_closed() {
++            self.weight_bands.entry(weight).or_default().push(stream.id);
++            stream.registered_weight_band = Some(weight);
++        }
++
++        StreamDependency::new(parent, weight, exclusive)
++    }
++
+     /// Records the framing overhead of a non-final DATA frame.
+     pub fn record_data_frame(&mut self, payload_len: usize) -> Result<(), BudgetExhausted> {
+         if payload_len == 0 {
+@@ -302,6 +332,17 @@ impl Counts {
+             self.num_send_streams
+         );
+ 
++        if stream.is_closed() || stream.state.is_reset() {
++            if let Some(weight) = stream.registered_weight_band.take() {
++                if let Some(streams) = self.weight_bands.get_mut(&weight) {
++                    streams.retain(|id| *id != stream.id);
++                    if streams.is_empty() {
++                        self.weight_bands.remove(&weight);
++                    }
++                }
++            }
++        }
++
+         if stream.is_closed() {
+             if !stream.is_pending_reset_expiration() {
+                 stream.unlink();
+diff --git a/src/proto/streams/prioritize.rs b/src/proto/streams/prioritize.rs
+index ffceb676e..f4105a0b8 100644
+--- a/src/proto/streams/prioritize.rs
++++ b/src/proto/streams/prioritize.rs
+@@ -604,7 +604,13 @@ impl Prioritize {
+                 self.try_assign_capacity(&mut stream);
+             }
+ 
+-            match self.pop_frame(buffer, store, max_frame_len, counts) {
++            match self.pop_frame(
++                buffer,
++                store,
++                max_frame_len,
++                counts,
++                peer_ignores_rfc7540_priorities,
++            ) {
+                 Some(mut frame) => {
+                     // SETTINGS can disable priorities after these frames were queued.
+                     if peer_ignores_rfc7540_priorities {
+@@ -782,6 +788,7 @@ impl Prioritize {
+         store: &mut Store,
+         max_len: usize,
+         counts: &mut Counts,
++        peer_ignores_rfc7540_priorities: bool,
+     ) -> Option<Frame<Prioritized<B>>>
+     where
+         B: Buf,
+@@ -802,7 +809,7 @@ impl Prioritize {
+ 
+                     tracing::trace!(is_pending_reset);
+ 
+-                    let frame = match stream.pending_send.pop_front(buffer) {
++                    let mut frame = match stream.pending_send.pop_front(buffer) {
+                         Some(Frame::Data(mut frame)) => {
+                             if let Some(reason) = stream.state.get_scheduled_reset() {
+                                 // If a reset is scheduled due to cancellation or
+@@ -959,7 +966,14 @@ impl Prioritize {
+                         }
+                     };
+ 
+-                    if matches!(frame, Frame::Headers(_)) {
++                    if let Frame::Headers(headers) = &mut frame {
++                        if let Some((weight, exclusive)) = stream.headers_weight_band.take() {
++                            if !peer_ignores_rfc7540_priorities {
++                                let dependency =
++                                    counts.select_weight_band(&mut stream, weight, exclusive);
++                                headers.set_selected_stream_dependency(dependency);
++                            }
++                        }
+                         if let Some(target) = stream.initial_window_target.take() {
+                             let initial = stream.recv_initial_window_size.unwrap_or(target);
+                             let inc = target.saturating_sub(initial);
+diff --git a/src/proto/streams/stream.rs b/src/proto/streams/stream.rs
+index a9315e34e..f787b3ea7 100644
+--- a/src/proto/streams/stream.rs
++++ b/src/proto/streams/stream.rs
+@@ -92,6 +92,12 @@ pub(super) struct Stream {
+     /// Consumed only by the first opening HEADERS emitted for this stream.
+     pub initial_window_target: Option<WindowSize>,
+ 
++    /// Consumed when this stream's initial HEADERS is selected for the codec.
++    pub headers_weight_band: Option<(u8, bool)>,
++
++    /// The live-band record, independent of application handle ownership.
++    pub registered_weight_band: Option<u8>,
++
+     /// Next node in the linked list of streams waiting to send window updates.
+     pub next_window_update: Option<store::Key>,
+ 
+@@ -199,6 +205,8 @@ impl Stream {
+             in_flight_recv_data: 0,
+             recv_initial_window_size: None,
+             initial_window_target: None,
++            headers_weight_band: None,
++            registered_weight_band: None,
+             next_window_update: None,
+             is_pending_window_update: false,
+             reset_at: None,
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index 93e9e3dfc..018641592 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -18,7 +18,7 @@ use super::{
+ use crate::{
+     client,
+     codec::{Codec, SendError, UserError},
+-    ext::{HeadersFrameOverrides, OrderedHeaders, Protocol},
++    ext::{HeadersFrameDependency, HeadersFrameOverrides, OrderedHeaders, Protocol},
+     frame::{self, Frame, Reason},
+     proto,
+     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
+@@ -382,6 +382,14 @@ where
+ 
+         // Convert the message
+         let send_rfc7540_priorities = !me.peer_ignores_rfc7540_priorities;
++        let stream_dependency = match stream_dependency {
++            Some(HeadersFrameDependency::Fixed(dependency)) => Some(dependency),
++            Some(HeadersFrameDependency::WeightBand { weight, exclusive }) => {
++                stream.headers_weight_band = Some((weight, exclusive));
++                None
++            }
++            None => me.headers_stream_dependency,
++        };
+         let headers = client::Peer::convert_send_message(
+             stream_id,
+             request,
+@@ -389,7 +397,7 @@ where
+             end_of_stream,
+             pseudo_order.or_else(|| me.headers_pseudo_order.clone()),
+             if send_rfc7540_priorities {
+-                stream_dependency.or(me.headers_stream_dependency)
++                stream_dependency
+             } else {
+                 None
+             },

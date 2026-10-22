@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use super::*;
 use crate::tracing;
 
@@ -82,6 +84,9 @@ pub(super) struct Counts {
     /// Number of empty, non-final DATA frames received over the lifetime of
     /// the connection.
     num_recv_empty_data_frames: usize,
+
+    /// Live local streams in each weight band, in HEADERS selection order.
+    weight_bands: BTreeMap<u8, Vec<StreamId>>,
 }
 
 impl Counts {
@@ -103,7 +108,32 @@ impl Counts {
             num_local_error_reset_streams: 0,
             data_frame_budget: Budget::new(config.data_frame_budget),
             num_recv_empty_data_frames: 0,
+            weight_bands: BTreeMap::new(),
         }
+    }
+
+    pub fn select_weight_band(
+        &mut self,
+        stream: &mut store::Ptr,
+        weight: u8,
+        exclusive: bool,
+    ) -> StreamDependency {
+        let parent = self
+            .weight_bands
+            .range(weight..)
+            .next()
+            .and_then(|(_, streams)| streams.last())
+            .copied()
+            .unwrap_or_else(StreamId::zero);
+
+        // A cancelled pending request may still need HEADERS before RST_STREAM.
+        // It can use the policy, but must never become a parent itself.
+        if !stream.state.is_reset() && !stream.is_closed() {
+            self.weight_bands.entry(weight).or_default().push(stream.id);
+            stream.registered_weight_band = Some(weight);
+        }
+
+        StreamDependency::new(parent, weight, exclusive)
     }
 
     /// Records the framing overhead of a non-final DATA frame.
@@ -301,6 +331,17 @@ impl Counts {
             self.num_recv_streams,
             self.num_send_streams
         );
+
+        if stream.is_closed() || stream.state.is_reset() {
+            if let Some(weight) = stream.registered_weight_band.take() {
+                if let Some(streams) = self.weight_bands.get_mut(&weight) {
+                    streams.retain(|id| *id != stream.id);
+                    if streams.is_empty() {
+                        self.weight_bands.remove(&weight);
+                    }
+                }
+            }
+        }
 
         if stream.is_closed() {
             if !stream.is_pending_reset_expiration() {

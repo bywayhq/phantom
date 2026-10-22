@@ -2586,3 +2586,5 @@ mod received_trailers;
 
 #[cfg(feature = "unstable")]
 mod queued_priority_suppression;
+
+mod live_weight_bands;

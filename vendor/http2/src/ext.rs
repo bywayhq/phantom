@@ -59,7 +59,13 @@ impl OrderedHeaders {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct HeadersFrameOverrides {
     pseudo_order: Option<PseudoOrder>,
-    stream_dependency: Option<StreamDependency>,
+    stream_dependency: Option<HeadersFrameDependency>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HeadersFrameDependency {
+    Fixed(StreamDependency),
+    WeightBand { weight: u8, exclusive: bool },
 }
 
 impl HeadersFrameOverrides {
@@ -79,11 +85,24 @@ impl HeadersFrameOverrides {
     /// Replaces the connection's HEADERS stream dependency for this request.
     #[must_use]
     pub fn stream_dependency(mut self, dependency: StreamDependency) -> Self {
-        self.stream_dependency = Some(dependency);
+        self.stream_dependency = Some(HeadersFrameDependency::Fixed(dependency));
         self
     }
 
-    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<StreamDependency>) {
+    /// Chooses a parent from this session's live weight bands when sending HEADERS.
+    ///
+    /// Uses the newest live stream in the same band, otherwise the newest in
+    /// the nearest higher band, otherwise stream 0. Fixed overrides do not join
+    /// the bands. Half-closed streams remain eligible; closed or reset streams
+    /// do not. The weight is encoded as 0..=255, like [`StreamDependency`].
+    /// Peer SETTINGS that disable RFC 7540 priorities suppress this choice too.
+    #[must_use]
+    pub fn weight_band(mut self, weight: u8, exclusive: bool) -> Self {
+        self.stream_dependency = Some(HeadersFrameDependency::WeightBand { weight, exclusive });
+        self
+    }
+
+    pub(crate) fn into_parts(self) -> (Option<PseudoOrder>, Option<HeadersFrameDependency>) {
         (self.pseudo_order, self.stream_dependency)
     }
 }

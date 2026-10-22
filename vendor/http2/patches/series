@@ -34,4 +34,5 @@ full-table-indexing.patch
 queued-priority-suppression-tests.patch
 queued-priority-suppression.patch
 queued-priority-cancel-tests.patch
+live-weight-bands.patch
 publish-identity.patch

@@ -604,7 +604,13 @@ impl Prioritize {
                 self.try_assign_capacity(&mut stream);
             }
 
-            match self.pop_frame(buffer, store, max_frame_len, counts) {
+            match self.pop_frame(
+                buffer,
+                store,
+                max_frame_len,
+                counts,
+                peer_ignores_rfc7540_priorities,
+            ) {
                 Some(mut frame) => {
                     // SETTINGS can disable priorities after these frames were queued.
                     if peer_ignores_rfc7540_priorities {
@@ -782,6 +788,7 @@ impl Prioritize {
         store: &mut Store,
         max_len: usize,
         counts: &mut Counts,
+        peer_ignores_rfc7540_priorities: bool,
     ) -> Option<Frame<Prioritized<B>>>
     where
         B: Buf,
@@ -802,7 +809,7 @@ impl Prioritize {
 
                     tracing::trace!(is_pending_reset);
 
-                    let frame = match stream.pending_send.pop_front(buffer) {
+                    let mut frame = match stream.pending_send.pop_front(buffer) {
                         Some(Frame::Data(mut frame)) => {
                             if let Some(reason) = stream.state.get_scheduled_reset() {
                                 // If a reset is scheduled due to cancellation or
@@ -959,7 +966,14 @@ impl Prioritize {
                         }
                     };
 
-                    if matches!(frame, Frame::Headers(_)) {
+                    if let Frame::Headers(headers) = &mut frame {
+                        if let Some((weight, exclusive)) = stream.headers_weight_band.take() {
+                            if !peer_ignores_rfc7540_priorities {
+                                let dependency =
+                                    counts.select_weight_band(&mut stream, weight, exclusive);
+                                headers.set_selected_stream_dependency(dependency);
+                            }
+                        }
                         if let Some(target) = stream.initial_window_target.take() {
                             let initial = stream.recv_initial_window_size.unwrap_or(target);
                             let inc = target.saturating_sub(initial);

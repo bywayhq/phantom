@@ -92,6 +92,12 @@ pub(super) struct Stream {
     /// Consumed only by the first opening HEADERS emitted for this stream.
     pub initial_window_target: Option<WindowSize>,
 
+    /// Consumed when this stream's initial HEADERS is selected for the codec.
+    pub headers_weight_band: Option<(u8, bool)>,
+
+    /// The live-band record, independent of application handle ownership.
+    pub registered_weight_band: Option<u8>,
+
     /// Next node in the linked list of streams waiting to send window updates.
     pub next_window_update: Option<store::Key>,
 
@@ -199,6 +205,8 @@ impl Stream {
             in_flight_recv_data: 0,
             recv_initial_window_size: None,
             initial_window_target: None,
+            headers_weight_band: None,
+            registered_weight_band: None,
             next_window_update: None,
             is_pending_window_update: false,
             reset_at: None,

@@ -1005,6 +1005,20 @@ The adjacent test patch queues requests before the first peer SETTINGS is read.
 It covers connection defaults, request overrides, the initial priority tree,
 fragmented headers, zero/absent settings and already-emitted priority fields.
 
+## Live weight-band dependencies
+
+`live-weight-bands.patch` adds `HeadersFrameOverrides::weight_band`. It selects
+an initial HEADERS parent when the codec is ready: the newest live stream in
+the same weight band, otherwise the newest in the nearest higher band, otherwise
+stream 0. Weights use the same encoded 0..=255 values as `StreamDependency`.
+Fixed overrides keep their exact values and do not enter the bands.
+
+The session owns these records and removes them on reset or flushed close.
+Half-closed streams remain candidates. Pending cancellation keeps the legal
+HEADERS-before-RST sequence without registering a parent. Peer priority
+suppression, END_STREAM, fragmentation and trailers keep their existing rules.
+This does not reorder activation, delay stream IDs or send later reprioritization.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never

@@ -18,7 +18,7 @@ use super::{
 use crate::{
     client,
     codec::{Codec, SendError, UserError},
-    ext::{HeadersFrameOverrides, OrderedHeaders, Protocol},
+    ext::{HeadersFrameDependency, HeadersFrameOverrides, OrderedHeaders, Protocol},
     frame::{self, Frame, Reason},
     proto,
     proto::{peer, Error, Initiator, Open, Peer, WindowSize},
@@ -382,6 +382,14 @@ where
 
         // Convert the message
         let send_rfc7540_priorities = !me.peer_ignores_rfc7540_priorities;
+        let stream_dependency = match stream_dependency {
+            Some(HeadersFrameDependency::Fixed(dependency)) => Some(dependency),
+            Some(HeadersFrameDependency::WeightBand { weight, exclusive }) => {
+                stream.headers_weight_band = Some((weight, exclusive));
+                None
+            }
+            None => me.headers_stream_dependency,
+        };
         let headers = client::Peer::convert_send_message(
             stream_id,
             request,
@@ -389,7 +397,7 @@ where
             end_of_stream,
             pseudo_order.or_else(|| me.headers_pseudo_order.clone()),
             if send_rfc7540_priorities {
-                stream_dependency.or(me.headers_stream_dependency)
+                stream_dependency
             } else {
                 None
             },
