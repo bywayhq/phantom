@@ -35,10 +35,7 @@ pub(crate) fn is_potentially_trustworthy(url: &Url) -> bool {
 /// potentially trustworthy origin: the host rules of
 /// [`is_potentially_trustworthy`].
 ///
-/// A `ws://` WebSocket URL follows these rules too: the retained proxy route
-/// captures show Chrome 154, Edge 154, and Firefox 157 sending a `ws://`
-/// opening to `127.0.0.1` the fields they send only to a trustworthy origin,
-/// and withholding them from `origin.phantom.test`.
+/// These host rules also apply to `ws://` WebSocket URLs.
 pub(crate) fn is_potentially_trustworthy_host(host: &Host<&str>) -> bool {
     match host {
         Host::Ipv4(address) => address.is_loopback(),

@@ -411,10 +411,7 @@ mod tests {
         );
     }
 
-    /// Guards the direction of the profile mapping: the retained
-    /// `accept-deflate` captures show Chrome 154 and Edge 154 compressing a
-    /// zero-length message and Firefox 157 sending it uncompressed, so
-    /// swapping the two arms must fail here.
+    /// Chrome compresses empty messages; Firefox leaves them uncompressed.
     #[test]
     fn profile_offer_and_empty_message_rule_follow_the_recipe() -> Result<(), crate::WebSocketError>
     {

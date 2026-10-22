@@ -60,8 +60,7 @@ impl Error for ProfileRegistryError {
 ///
 /// Names are case-sensitive ASCII: 1..=128 bytes, starting with a lowercase
 /// letter or digit, followed by lowercase letters, digits, `.`, `_`, `/` or `-`.
-/// Names are labels, not paths. No files, downloads, built-in catalog fallback
-/// or browser evidence are involved. Existing names never change implicitly.
+/// Names are labels. Register settings explicitly; duplicate names are rejected.
 /// Cloning the registry copies its settings; it shares no client session state.
 #[derive(Clone, Debug, Default)]
 pub struct ProfileRegistry {

@@ -282,7 +282,7 @@ export interface RequestOptions {
 export interface ResponseHeader {
   readonly name: string;
   readonly value: Buffer;
-  /** Retained compression marker. False does not establish absence where the decoder does not retain it. */
+  /** True for a preserved compression marker. False also covers decoders that omit markers. */
   readonly sensitive: boolean;
 }
 export type ResponseTrailers = Readonly<{state: 'pending' | 'unavailable'; headers: null}>

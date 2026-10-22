@@ -351,46 +351,26 @@ pub struct RequestTemplate {
     /// Ordered ordinary HTTP/2 fields after the pseudo-header fields.
     pub http2_fields: Vec<RequestField>,
     /// Ordered ordinary HTTP/3 fields after the pseudo-header fields, or
-    /// `None` when no HTTP/3 capture backs this request kind.
+    /// `None` when this template has no HTTP/3 field list.
     pub http3_fields: Option<Vec<RequestField>>,
     /// HTTP/2 HEADERS priority of this request kind, or `None` to keep the
     /// connection's
     /// [`Http2Settings::headers_priority`](crate::Http2Settings::headers_priority).
     ///
-    /// Browsers weight a stream by request kind, so a captured value replaces
-    /// the connection's priority for this template's requests only. It must
-    /// depend on stream 0, because a request's own stream ID is not known
-    /// before it is sent.
+    /// Applies to this template's requests only. Must depend on stream 0,
+    /// because the request's stream ID is assigned when sending.
     pub http2_priority: Option<Http2Priority>,
-    /// Whether a capture shows where this request kind places client hints
-    /// that an origin requested through `Accept-CH`.
+    /// Whether client-hint slots accept hints requested through `Accept-CH`.
     ///
-    /// A capture on one protocol suffices: the built-in navigation templates
-    /// rest on an HTTP/1.1 capture, and their HTTP/2 and HTTP/3 placement is
-    /// inferred from it.
-    ///
-    /// When `false`, the template's client-hint slots are backed only for
-    /// hints the profile sends by default, and a client must refuse to send a
-    /// requested hint with it rather than guess a position.
+    /// When `false`, only the profile's default hints can use these slots.
+    /// Requested hints cause a request-template error.
     pub requested_client_hint_placement: bool,
     /// Whether this request kind restarts when its HTTP/2 or HTTP/3
     /// connection's ALPS `ACCEPT_CH` names a client hint it lacks.
     ///
-    /// Chromium restarts only navigations. The network service attaches the
-    /// `ACCEPT_CH` observer only from a request's trusted parameters
-    /// (`services/network/url_loader_factory.cc:341-371` at tag
-    /// `154.0.8037.58`), which only the browser's navigation loader sets
-    /// (`content/browser/loader/navigation_url_loader_impl.cc:256-277`,
-    /// `:2160-2181`) and a renderer's factory refuses
-    /// (`services/network/cors/cors_url_loader_factory.cc:657-662`). Without
-    /// the observer no interceptor exists
-    /// (`services/network/accept_ch_frame_interceptor.cc:57-68`), and the
-    /// loader sends a `fetch` as built
-    /// (`services/network/url_loader.cc:933-937`).
-    ///
-    /// When `false`, a request with this template goes out with the fields it
-    /// was built with, whatever the connection's `ACCEPT_CH` names, and the
-    /// entry teaches the origin nothing.
+    /// Chromium enables this for navigations. When `false`, the request keeps
+    /// its fields and the connection's `ACCEPT_CH` does not update origin hints.
+    /// See `services/network/url_loader_factory.cc` at tag `154.0.8037.58`.
     pub restarts_for_connection_accept_ch: bool,
 }
 

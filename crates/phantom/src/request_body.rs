@@ -83,8 +83,7 @@ impl PreparedRequestBody {
 
     /// Encodes a JSON value directly into a bounded output buffer.
     ///
-    /// The content type is exactly `application/json`. This is serde's JSON
-    /// encoding, with no claim about a browser's JSON request bytes.
+    /// Uses serde's JSON encoding with content type `application/json`.
     /// The output limit does not bound allocations inside your serializer.
     ///
     /// # Errors

@@ -120,17 +120,12 @@ impl ProxyConnectField {
 #[non_exhaustive]
 pub enum Http2RejectedConnect {
     /// An empty DATA frame with END_STREAM, before any later stream opens.
-    ///
-    /// Chrome 154 and Edge 154 do this in the
-    /// `https-proxy-auth-secure-hostname` captures.
     #[default]
     EndStream,
     /// Nothing while the connection carries the tunnel that follows.
     ///
-    /// Firefox 157 does this in the `https-proxy-auth-secure-hostname`
-    /// captures. The stream stays open on the client side, so it holds one of
-    /// the proxy's concurrent streams. When the proxy allows only one
-    /// stream, the client ends the stream as in [`Self::EndStream`] instead.
+    /// Holds one of the proxy's concurrent streams. If the proxy allows only
+    /// one stream, uses [`Self::EndStream`] instead.
     LeaveOpen,
 }
 
@@ -145,20 +140,11 @@ pub enum Http2RejectedConnect {
 pub enum Http2ProxyConnections {
     /// Forwarded `http://` requests, CONNECT tunnels, and WebSocket tunnels
     /// are streams of one connection.
-    ///
-    /// Chrome 154, Edge 154, Brave 154, and Opera 136 send a page's
-    /// navigation, its `fetch()`, and every CONNECT it opens on one
-    /// connection in the `https-proxy-*` captures.
     #[default]
     Shared,
     /// Forwarded `http://` requests, CONNECT tunnels for other requests, and
     /// CONNECT tunnels for WebSocket openings each share a connection only
     /// among themselves.
-    ///
-    /// Firefox 157 opens three connections for one page in the
-    /// `https-proxy-*` captures: one for the navigation and `fetch()`, one
-    /// for the `https://` CONNECTs, and one for the `ws://` and `wss://`
-    /// CONNECTs.
     ByPurpose,
 }
 

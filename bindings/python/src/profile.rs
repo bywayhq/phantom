@@ -1,4 +1,4 @@
-//! Owned profiles and strict authoring; imported settings carry no catalog claim.
+//! Owned profiles and validated custom settings.
 
 use crate::error;
 use phantom::fingerprint::{self, FingerprintImportErrorKind};

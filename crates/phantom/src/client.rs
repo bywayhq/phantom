@@ -2176,8 +2176,8 @@ impl ClientBuilder {
     ///
     /// Checkpoints with discovery require this explicit opt-in, even for an
     /// empty cache. Fixed and callback resolvers can opt in. Paired native
-    /// resolvers remain unsupported: their process-local configuration token
-    /// does not establish portable identity. This does not change DNS queries.
+    /// resolvers have process-local identities and cannot opt in. DNS queries
+    /// keep their configured behavior.
     #[cfg(all(feature = "https-records", feature = "session-snapshot"))]
     pub fn https_record_checkpoint_namespace(mut self, namespace: impl Into<Box<str>>) -> Self {
         self.options.https_record_checkpoint_namespace = Some(namespace.into());
@@ -2903,9 +2903,8 @@ fn validate_websocket_policy(
 
 /// QUIC settings for the outer connection to a CONNECT-UDP proxy.
 ///
-/// No capture shows a browser's resumed CONNECT-UDP proxy connection, so the
-/// outer connection offers no early data and sends no `initial_rtt_us`,
-/// whatever the profile sets. Everything else follows the profile.
+/// Disables early data and omits `initial_rtt_us` on the outer connection.
+/// All other transport settings follow the profile.
 fn connect_udp_proxy_quic(settings: &QuicTransportSettings) -> QuicTransportSettings {
     let mut quic = settings.clone();
     quic.early_data = false;

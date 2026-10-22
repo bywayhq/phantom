@@ -235,6 +235,4 @@ pub mod dns {
 
 #[cfg(feature = "fingerprint-import")]
 /// Inspect, export, import and name complete custom profiles.
-///
-/// Imported settings carry no catalog identity or browser validation claim.
 pub mod fingerprint;

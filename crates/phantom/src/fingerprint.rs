@@ -1,4 +1,4 @@
-//! Inspect, edit and name custom profiles without assigning catalog evidence.
+//! Inspect, edit and name custom profiles.
 //!
 //! Enable `fingerprint-import` to edit complete settings with
 //! [`describe_profile`](crate::fingerprint::describe_profile) and [`import_profile_json`](crate::fingerprint::import_profile_json). Compact observations need
@@ -7,9 +7,8 @@
 //! [`import_quic_transport_profile`](crate::fingerprint::import_quic_transport_profile) or [`import_akamai_profile`](crate::fingerprint::import_akamai_profile), then inspect
 //! [`ImportedProfile::supplemented_fields`](crate::fingerprint::ImportedProfile::supplemented_fields) before using the result.
 //!
-//! JA3 and JA4 hashes cannot recover settings. Raw fingerprints only constrain
-//! their documented fields. A successful import creates custom settings; it
-//! does not establish browser identity or fidelity on unobserved layers.
+//! JA3 and JA4 hashes cannot recover settings. Raw fingerprints describe only
+//! part of a profile; imports take the remaining settings from your base.
 
 use phantom_profile::ClientProfile;
 use std::{error::Error, fmt};
@@ -173,8 +172,8 @@ impl Error for FingerprintExportError {
 ///
 /// Uses the same format as [`import_profile_json`]. Arrays retain their order,
 /// duplicate candidate slots and raw bytes. Optional layers remain explicit
-/// `null`. The document includes configured literal header values. It carries
-/// no catalog identity or browser validation claim and draws no random values.
+/// `null`. The document includes configured literal header values and omits
+/// catalog identity. Export draws no random values.
 ///
 /// # Errors
 ///
@@ -191,7 +190,7 @@ pub fn describe_profile(
 
 /// Exports a complete profile as indented, UTF-8 JSON for editing or storage.
 ///
-/// See [`describe_profile`] for the document's contents and evidence limits.
+/// See [`describe_profile`] for the document's contents.
 /// Export performs no I/O and does not mutate the profile or a running client.
 ///
 /// # Errors
@@ -207,7 +206,7 @@ pub fn export_profile_json(
 
 /// Imports a version-1 `phantom.custom-profile` JSON document.
 ///
-/// Returns owned custom settings, without browser identity or evidence.
+/// Returns owned custom settings.
 /// Arrays preserve their supplied order. Optional layers require explicit
 /// `null`; present layers require all their fields. Import performs no I/O,
 /// client construction, catalog selection or random draws. Backend and host

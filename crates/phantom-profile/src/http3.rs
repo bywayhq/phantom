@@ -323,8 +323,8 @@ pub struct Http3RequestSettings {
     ///
     /// When configured, this must contain `:method`, `:authority`, `:scheme`,
     /// `:path`, and `:protocol` exactly once. One order applies to every
-    /// extended CONNECT protocol. `None` means that the profile does not claim
-    /// an observed extended CONNECT pseudo-header order.
+    /// extended CONNECT protocol. `None` leaves extended CONNECT ordering
+    /// unconfigured.
     pub extended_connect_pseudo_header_order: Option<Vec<Http3PseudoHeader>>,
     /// How each `cookie` field is split.
     pub cookie_crumbs: Http3CookieCrumbs,

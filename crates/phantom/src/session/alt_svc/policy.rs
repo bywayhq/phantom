@@ -139,8 +139,7 @@ impl AltSvcPolicy {
 /// When several alternatives race and one of them wins, a failed one is
 /// marked broken too, once the winner's handshake has completed; one still
 /// connecting when the winner was chosen is marked if it fails later, as a
-/// background setup is. Chrome never races two alternatives, so this is
-/// Phantom's choice for the caller policy, not browser behavior.
+/// background setup is.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: AltSvcOriginDelay,
@@ -149,24 +148,12 @@ pub struct AltSvcRace {
     max_alternatives: NonZeroUsize,
 }
 
-/// Longest time one raced alternative connection attempt may run once it
-/// holds its location's connect turn: Chromium's client QUIC idle timeout
-/// before the handshake completes.
+/// Four-second limit for a raced alternative after it obtains its connect turn.
 ///
-/// At 153.0.8010.48, `QuicParams::max_idle_time_before_crypto_handshake` is
-/// `quic::kInitialIdleTimeoutSecs` (`net/quic/quic_context.h` line 172), 5
-/// seconds at the pinned quiche revision 2c4a1246
-/// (`quiche/quic/core/quic_constants.h` line 159), and quiche shortens a
-/// client's idle timeout by one second (`QuicConnection::SetNetworkTimeouts`,
-/// `quic_connection.cc` lines 4983-4984). The `udp-blackhole` capture shows
-/// the orphaned QUIC job failing with `ERR_QUIC_HANDSHAKE_FAILED` 4002-4016
-/// ms after it started.
-///
-/// Chromium restarts that timer on every received packet and lets a
-/// responsive handshake run for up to 10 seconds
-/// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
-/// packets at this layer, so it bounds the whole attempt instead, including
-/// name resolution and proxy setup that Chromium's timer does not cover.
+/// Covers the whole setup, including DNS and proxy work. This uses Chromium's
+/// initial QUIC idle timeout as a fixed deadline; received packets do not reset
+/// it here. See `QuicConnection::SetNetworkTimeouts` at quiche revision 2c4a1246
+/// (Chromium 153.0.8010.48).
 pub(crate) const DEFAULT_ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 
 impl AltSvcRace {

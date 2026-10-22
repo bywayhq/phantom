@@ -109,9 +109,9 @@ enum ResponseBodyInner {
 impl ResponseBody {
     /// Returns retained trailers without reading the body.
     ///
-    /// Completion requires an actual end-of-body poll after content decoding
-    /// and proxy response authentication. A final DATA or trailer frame alone
-    /// does not establish completion. Values remain owned by this body.
+    /// Completion requires polling end-of-body after content decoding and
+    /// proxy response authentication, including after a final DATA or trailer
+    /// frame. Values remain owned by this body.
     #[must_use]
     pub const fn trailers(&self) -> &ResponseTrailers {
         &self.trailers

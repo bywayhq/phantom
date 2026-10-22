@@ -165,13 +165,10 @@ async fn direct_opening(
 ///
 /// An exact opening shares the exact HTTP/1.1 pool's key for its origin and
 /// route; a profile-policy opening shares the negotiated pool's, or without
-/// one the exact HTTP/1.1 pool's, with the policy's ALPN offer. Chrome 154
-/// keys its session cache by host and port, network anonymization key,
-/// privacy mode, and proxy chain, not by ALPN
-/// (`SSLClientSocketImpl::GetSessionCacheKey`,
-/// `net/socket/ssl_client_socket_impl.cc` lines 1631-1644 at
-/// `154.0.8037.58`), and Firefox 157 resumed the page's ticket on its
-/// WebSocket connections in the retained captures.
+/// one the exact HTTP/1.1 pool's, with the policy's ALPN offer. ALPN is
+/// excluded from ticket-cache identity, following `SSLClientSocketImpl::
+/// GetSessionCacheKey` in `net/socket/ssl_client_socket_impl.cc` at
+/// `154.0.8037.58`.
 async fn pooled_tls_connector(
     client: &Client,
     upgrade_connector: Http1UpgradeConnector,

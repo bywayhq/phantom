@@ -19,7 +19,6 @@ const ROOT: &str = "http3.quic_transport";
 /// Omitted parameters retain the base's settings, which must permit omission
 /// under QUIC's wire defaults. Reserved parameters and Version Information
 /// need runtime generation policies; use the complete JSON importer for those.
-/// This imports a transport description, not an exact browser profile.
 ///
 /// # Errors
 ///

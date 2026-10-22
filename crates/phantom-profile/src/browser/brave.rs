@@ -1,52 +1,11 @@
-//! Wire settings retained from Brave browser observations.
+//! Brave connection settings and request templates.
 //!
-//! Brave 154.1.96.59 on Windows 11 (build 26200) is built on Chromium 154. Its
-//! captures match the retained Chrome 154 captures on the H2 startup, request
-//! pseudo-header order and priority, extended CONNECT shape, WebSocket
-//! connection choice and opening fields, proxy CONNECT fields, QUIC transport
-//! parameters, and H3 SETTINGS, so they are replayed against
-//! [`chrome::v154_http2`], [`chrome::v154_websocket`],
-//! [`chrome::v154_proxy_connect`], [`chrome::v154_quic`],
-//! [`chrome::v154_http3`], and [`chrome::v154_http3_request`]. The TLS
-//! offers, client hints, and request fields differ, so only they have Brave
-//! recipes here.
+//! Brave 154 uses Chromium connection settings with Brave TLS offers, client
+//! hints and request fields. Use a separate client per top-level site to
+//! isolate caches and connections as Brave does.
 //!
-//! The retained Brave cookie captures place `Cookie` and split it into crumbs
-//! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
-//! against [`chrome::v154_cookie_placement`] with the H2 and H3 recipes.
-//!
-//! The TCP and UDP options, the HTTP/1.1 connection bound, and the address
-//! cache are not visible in a capture. Brave 1.96.59 builds Chromium tag
-//! `154.0.8037.58` (`package.json` in `brave-core` at tag `v1.96.59`), the tag
-//! behind [`chrome::v154_tcp`], [`chrome::v154_udp`],
-//! [`chrome::v154_http1`], and [`chrome::v154_dns_cache`], and none of its
-//! patches or overrides changes a value those recipes cite, so they serve Brave
-//! unchanged. The one Brave change that reaches these layers enables
-//! `kPartitionConnectionsByNetworkIsolationKey`
-//! (`patches/net-base-features.cc.patch` in `brave-core`), which keys
-//! Chromium's socket groups, TLS session cache, HTTP/2 and QUIC sessions, host
-//! cache, and learned server properties by top-level site as well. A Phantom
-//! client shares each of these across all its requests, as Brave does within
-//! one top-level site.
-
-//!
-//! ## Android
-//!
-//! Wire settings retained from Brave for Android observations.
-//!
-//! Brave 1.95.104 (Chromium 153), as the Google Play Store served it to two
-//! emulators: the `phantom-pixel7` Android 17 emulator, which reports a
-//! Pixel 7, and the earlier `phantom-api35-play` Android 15 emulator. Fixtures
-//! record it as `153.1.95.104` to match the desktop naming. Its captures equal
-//! the desktop Brave recipes in [`brave`](crate::browser::brave) on the TLS
-//! and QUIC ClientHellos and on every
-//! request-field difference from Chrome, and the desktop Chromium recipes on
-//! HTTP/2, QUIC transport parameters, HTTP/3, and WebSocket openings. Only
-//! the client hints and `User-Agent` carry Android data.
-//!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
-//! cookie-placement recipe, for the reasons given in
-//! [`crate::browser::chrome`].
+//! Android recipes target Brave 1.95.104. Android TCP, HTTP/1.1 pool,
+//! address-cache, proxy CONNECT and cookie-placement recipes are unavailable.
 
 pub use crate::catalog::browser_profiles::brave::*;
 
@@ -70,80 +29,40 @@ use crate::{
 pub(crate) const V154_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
 image/avif,image/webp,image/apng,*/*;q=0.8";
 
-/// Returns TLS settings captured from Brave 154.1.96.59 on Windows 11.
+/// Returns Brave 154.1.96.59 TLS settings for Windows 11.
 ///
-/// Brave 154.1.96.59 (Windows 11 build 26200) sends the Chrome 154 TCP
-/// ClientHello without the trust-anchor IDs extension, across 20 fresh
-/// processes, so this reuses [`chrome::v154_tcp_tls`] and removes the ID list;
-/// the retained Brave ClientHello is replayed against the result.
-///
-/// It keeps [`TlsSettings::ech`] on HTTPS records. The retained
-/// `ech-accept.txt` capture shows Brave encrypting its ClientHello with the
-/// configuration from an HTTPS record: outer name `public.phantom.test`,
-/// HKDF-SHA256 with AES-128-GCM, a 32-byte encapsulated key, and a 144-byte
-/// payload, as Chrome 154 sends. In `ech-reject.txt` Brave connects once more
-/// with the server's retry configuration, which the origin accepts.
+/// Uses [`chrome::v154_tcp_tls`] without trust-anchor IDs. Keeps its
+/// HTTPS-record ECH and session-ticket policies.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
     crate::tls::components::brave_154_tcp_tls()
 }
 
-/// Returns TLS settings for the Brave 154.1.96.59 HTTP/3 offer on Windows 11.
+/// Returns Brave 154.1.96.59 TLS settings for HTTP/3.
 ///
-/// The QUIC ClientHellos of three fresh processes match
-/// [`chrome::v154_quic_tls`] without the trust-anchor IDs extension, so
-/// this reuses that recipe and removes only the ID list. It inherits that
-/// recipe's ticket resumption, which the retained Brave resumption captures
-/// show: a resumed connection offers early data.
-///
-/// It also keeps the HTTPS record policy in [`TlsSettings::ech`]. Given an
-/// HTTPS record that lists `h3` and carries `ech`, Brave 154.1.96.59
-/// encrypted its QUIC ClientHello with the record's configuration and did not
-/// repeat a rejected QUIC connection, as Chrome 154 does, in three runs of
-/// each scenario.
+/// Uses [`chrome::v154_quic_tls`] without trust-anchor IDs, including its
+/// HTTPS-record ECH and session-ticket policies.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     crate::tls::components::brave_154_quic_tls()
 }
 
-/// Returns client-hint fields observed from Brave 154 on Windows 11 x64.
+/// Returns Brave 154 client hints for Windows 11 x64.
 ///
-/// From the retained fresh-profile navigation capture of Brave 154.1.96.59,
-/// three headless runs that agree. The names Brave sends keep the Chromium
-/// order and delivery, but Brave sends two fewer: after `Accept-CH` it adds
-/// no `sec-ch-ua-full-version` and no `sec-ch-ua-form-factors`. Its brand list
-/// names `"Brave"` where Chrome names `"Google Chrome"`, and the full version
-/// list reports every brand as `154.0.0.0` or `99.0.0.0` instead of an exact
-/// build. The returned value is owned and may be customized before client
-/// creation.
+/// Uses Chromium field order with Brave's brand list and reduced full
+/// versions. Omits `sec-ch-ua-full-version` and `sec-ch-ua-form-factors`.
 #[must_use]
 pub fn v154_windows_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::brave_windows_154_client_hints()
 }
 
-/// Returns navigation request fields observed from Brave 154.1.96.59 on Windows 11.
+/// Returns Brave 154.1.96.59 navigation fields for Windows 11.
 ///
-/// Brave sends the fields of [`chrome::v154_windows_navigation_template`]
-/// in the same order on HTTP/1.1, HTTP/2, and HTTP/3, with three
-/// differences in the retained captures:
-///
-/// - `Accept` omits `application/signed-exchange;v=b3;q=0.7`.
-/// - `Sec-GPC: 1` follows `Accept`, on every request, to potentially
-///   trustworthy and plaintext origins alike.
-/// - `Accept-Language` is a required caller slot. Brave draws the `q` value
-///   of its second language per browser session: across the retained runs it
-///   sent `en-US,en;q=` followed by each of `0.5`, `0.6`, `0.7`, `0.8`, and
-///   `0.9`, one value per run. No single literal matches Brave, so the caller
-///   chooses one and keeps it for the session.
-///
-/// `User-Agent` is a required caller slot for the reason given for
-/// [`crate::browser::edge::v154_windows_navigation_template`]: every retained Brave
-/// capture ran headless and sent `HeadlessChrome`. The brand-bearing client
-/// hints come from [`v154_windows_client_hints`]. The retained proxy route
-/// captures show the Chromium change for a URL that is not potentially
-/// trustworthy: to `origin.phantom.test` Brave sends no `Sec-Fetch-*` field,
-/// no client hint, and `Accept-Encoding: gzip, deflate`, and still sends
-/// `Sec-GPC`.
+/// Uses [`chrome::v154_windows_navigation_template`]'s ordering, omits signed
+/// exchanges from `Accept`, and puts `Sec-GPC: 1` after `Accept` on all URLs.
+/// Supply `User-Agent` and `Accept-Language`. To follow Brave's session
+/// language policy, choose a secondary-language quality from 0.5 through 0.9
+/// and keep it for the session.
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     with_brave_fields(
@@ -152,39 +71,22 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
     )
 }
 
-/// Returns same-origin no-store `fetch` request fields observed from Brave
-/// 154.1.96.59 on Windows 11.
+/// Returns Brave 154.1.96.59 same-origin no-store GET fields for Windows 11.
 ///
-/// The order and values match [`chrome::v154_windows_fetch_no_store_template`]
-/// on HTTP/1.1 and HTTP/2, including the HTTP/2 HEADERS priority weight 220,
-/// except that `Sec-GPC: 1` follows `Accept` and `User-Agent` and
-/// `Accept-Language` are required caller slots, for the reasons given in
-/// [`v154_windows_navigation_template`]. No capture backs this request kind on
-/// HTTP/3, and none shows where hints requested through `Accept-CH` go on a
-/// fetch.
+/// Uses [`chrome::v154_windows_fetch_no_store_template`]'s ordering and
+/// HTTP/2 weight 220, with `Sec-GPC: 1` after `Accept`. Supply `User-Agent`
+/// and `Accept-Language`. HTTP/3 and requested client hints are unavailable.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     with_brave_fields(chrome::v154_fetch_no_store_template(None), None)
 }
 
-/// Applies Brave's request-field differences to a Chromium template: an
-/// optional replacement `Accept` value, `Sec-GPC: 1` after `Accept`, and a
-/// required caller `Accept-Language`.
+/// Adds Brave's optional `Accept` override, `Sec-GPC: 1` after `Accept`,
+/// and a required `Accept-Language` slot.
 ///
-/// On a navigation, `Sec-GPC` also follows the hints an ALPS `ACCEPT_CH`
-/// restart adds after `Accept` ([`RequestField::RestartClientHints`]).
-/// Brave sets it on a copy of the request after the browser's own fields,
-/// those hints included, are in place: `BraveProxyingURLLoaderFactory` wraps
-/// the navigation's loader factory
-/// (`browser/brave_content_browser_client.cc` lines 1227-1255 at brave-core
-/// tag `v1.96.59`), copies the request
-/// (`browser/net/brave_proxying_url_loader_factory.cc` line 119), runs its
-/// start-transaction callbacks on the copy's fields (lines 496-497), and
-/// passes the copy on (lines 539-545). The Global Privacy Control callback
-/// (`browser/net/brave_request_handler_impl.cc` lines 99-103) appends
-/// `Sec-GPC` with `SetHeader`
-/// (`browser/net/global_privacy_control_network_delegate_helper.cc` line
-/// 30).
+/// On navigation restarts, `Sec-GPC` follows newly added client hints.
+/// Brave appends it in `BraveProxyingURLLoaderFactory`'s start-transaction
+/// callback (`browser/net/brave_request_handler_impl.cc` at `v1.96.59`).
 pub(crate) fn with_brave_fields(
     mut template: RequestTemplate,
     accept: Option<&str>,

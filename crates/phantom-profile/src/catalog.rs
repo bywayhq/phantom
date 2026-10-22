@@ -1,8 +1,7 @@
-//! Exact selection and evidence for compiled browser recipes.
+//! Select compiled browser recipes and inspect their sources.
 //!
 //! Definitions describe a recipe revision. Instantiation returns fresh owned
 //! settings; changing those settings does not change the catalog definition.
-//! Catalog identity does not establish transport compatibility or cache identity.
 //!
 //! ```
 //! use phantom_profile::catalog::{profile, ProfileLayer};
@@ -87,32 +86,29 @@ pub enum ProfilePlatform {
     Ios,
 }
 
-/// The environment used for retained observations.
+/// The environment where the browser was recorded.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CaptureEnvironment {
     /// A desktop browser on its host operating system.
     Desktop,
-    /// An emulator; its reported model does not establish physical hardware.
+    /// An emulated device.
     Emulator,
     /// A browser on a physical mobile device.
     PhysicalDevice,
 }
 
-/// The origin of a recipe's identity.
-///
-/// A peer preset names an external implementation. Its advertised browser
-/// version and platform do not establish observations of that browser.
+/// Whether a recipe comes from browser observations or an external client.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ProfileIdentity {
-    /// A recipe with retained browser observations.
+    /// A recipe based on browser observations.
     Observed {
-        /// Advertised browser build; individual layers can use older evidence.
+        /// Advertised browser build. Each layer lists its own sources.
         build: &'static str,
         /// Recorded operating-system release or capture target.
         platform_release: &'static str,
-        /// Observed host or emulator architecture, when established.
+        /// Recorded host or emulator architecture, if available.
         architecture: Option<&'static str>,
         /// Environment used for the browser observations.
         environment: CaptureEnvironment,
@@ -163,8 +159,7 @@ impl ProfileMetadata {
 
     /// Returns the browser build for an observed recipe, or `None` for a peer.
     ///
-    /// Individual layers can be backed by different builds. Inspect their
-    /// evidence instead of attributing this build to every setting.
+    /// Individual layers list their source builds in [`ProfileDefinition::layers`].
     #[must_use]
     pub const fn build(&self) -> Option<&'static str> {
         match self.identity {
@@ -190,9 +185,7 @@ impl ProfileMetadata {
         }
     }
 
-    /// Returns the observed host or emulator architecture, when established.
-    ///
-    /// This is not inferred from the `User-Agent` or client hints.
+    /// Returns the recorded host or emulator architecture, if available.
     #[must_use]
     pub const fn architecture(&self) -> Option<&'static str> {
         match self.identity {
@@ -255,7 +248,7 @@ pub enum ProfileLayer {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum LayerSupport {
-    /// Configured; evidence can still cover only some fields.
+    /// The recipe provides settings for this layer.
     Configured,
     /// The browser deliberately omits this behavior, such as Firefox hints.
     IntentionallyAbsent,
@@ -273,15 +266,15 @@ pub enum EvidenceKind {
     Source,
     /// Another recipe supplies settings compared against this browser.
     Reused,
-    /// The implementation and its citations; not independent browser evidence.
+    /// The implementation and its citations.
     Recipe,
-    /// A pinned external client's source, not browser source.
+    /// A pinned external client's source.
     ExternalSource,
-    /// A retained external-client execution, not a browser capture.
+    /// A recording of an external client.
     PeerCapture,
 }
 
-/// One retained reference, with its own browser or upstream build.
+/// One source reference and the browser or upstream build it describes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EvidenceReference {
     kind: EvidenceKind,
@@ -302,7 +295,7 @@ impl EvidenceReference {
         self.location
     }
 
-    /// Returns the build described by this reference, not the whole profile.
+    /// Returns the build described by this reference.
     #[must_use]
     pub const fn build(&self) -> &'static str {
         self.build
@@ -326,7 +319,7 @@ impl LayerEvidence {
         self.layer
     }
 
-    /// Returns configuration availability, independent of evidence coverage.
+    /// Returns whether the recipe provides this layer.
     #[must_use]
     pub const fn support(&self) -> LayerSupport {
         self.support
@@ -338,16 +331,15 @@ impl LayerEvidence {
         self.references
     }
 
-    /// Returns the fields checked against retained browser or peer observations.
+    /// Returns the fields checked against browser or external-client recordings.
     ///
-    /// Source-derived policies are references, not captured fields. An empty
-    /// slice therefore need not mean the configuration lacks source support.
+    /// Source-derived policies appear in [`Self::references`] instead.
     #[must_use]
     pub const fn verified_fields(&self) -> &'static [&'static str] {
         self.verified_fields
     }
 
-    /// Returns unverified behavior and known limits of the evidence.
+    /// Returns recipe limits and gaps in the available sources.
     #[must_use]
     pub const fn limitations(&self) -> &'static [&'static str] {
         self.limitations
@@ -370,8 +362,8 @@ pub enum RequestTemplateKind {
 
 /// An immutable compiled definition, with owned settings created on demand.
 ///
-/// It is metadata, not a connection-pool or session-cache key. Instantiation
-/// does not draw per-client or per-connection random values.
+/// Instantiation leaves per-client and per-connection random values for
+/// client and connection setup. Pool and session keys use the settings.
 #[derive(Clone, Debug)]
 pub struct ProfileDefinition {
     id: ProfileId,
@@ -410,7 +402,7 @@ impl ProfileDefinition {
         self.layers
     }
 
-    /// Finds a layer's evidence without selecting another recipe.
+    /// Returns the selected recipe's sources for a layer.
     #[must_use]
     pub fn evidence(&self, layer: ProfileLayer) -> Option<&'static LayerEvidence> {
         self.layers.iter().find(|entry| entry.layer == layer)
@@ -471,7 +463,7 @@ pub enum CatalogError {
     UnknownProfile,
     /// The selected definition does not configure the required layer.
     UnavailableLayer {
-        /// The selected recipe, without an implicit replacement.
+        /// The selected recipe.
         profile: ProfileId,
         /// The first unmet requirement.
         layer: ProfileLayer,

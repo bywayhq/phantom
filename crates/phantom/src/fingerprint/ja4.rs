@@ -27,10 +27,9 @@ pub enum Ja4RawFormat {
 /// supplemented, including the complete ALPN list and supported groups.
 ///
 /// Pass the raw value without a `JA4_r =` or `JA4_ro =` label. Hashes cannot
-/// reconstruct settings. This produces custom settings, not browser evidence.
-/// Verification covers a fresh direct TCP handshake in the indicated DNS-name
-/// or IP context. Destination type, protocol-specific ALPN, discovery and
-/// resumption can change the projection on a later request.
+/// reconstruct settings. Validation uses a fresh direct TCP ClientHello for
+/// the indicated DNS-name or IP context. Destination type, ALPN, discovery and
+/// resumption can change a later ClientHello.
 ///
 /// # Errors
 ///

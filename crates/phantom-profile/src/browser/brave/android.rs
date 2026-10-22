@@ -1,17 +1,4 @@
-//! Wire settings retained from Brave for Android observations.
-//!
-//! Brave 1.95.104 (Chromium 153), as the Google Play Store served it to two
-//! emulators: the `phantom-pixel7` Android 17 emulator, which reports a
-//! Pixel 7, and the earlier `phantom-api35-play` Android 15 emulator. Fixtures
-//! record it as `153.1.95.104` to match the desktop naming. Its captures equal
-//! the desktop Brave recipes in [`brave`] on the TLS and QUIC ClientHellos and on every
-//! request-field difference from Chrome, and the desktop Chromium recipes on
-//! HTTP/2, QUIC transport parameters, HTTP/3, and WebSocket openings. Only
-//! the client hints and `User-Agent` carry Android data.
-//!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
-//! cookie-placement recipe, for the reasons given in
-//! [`crate::browser::chrome`].
+//! Brave 1.95.104 connection settings and request templates for Android.
 
 use crate::{
     browser::brave,
@@ -30,57 +17,43 @@ use crate::{
 pub(crate) const V153_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 
-/// Returns TLS settings captured from Brave 1.95.104 for Android.
+/// Returns Brave 1.95.104 TLS settings for Android.
 ///
-/// The retained TCP ClientHello of each emulator equals the desktop Brave
-/// ClientHello of [`brave::v154_tcp_tls`], with no trust-anchor IDs.
-/// [`TlsSettings::ech`] uses GREASE without HTTPS records: no Android capture
-/// shows Brave using an HTTPS record's `ech`, because the device cannot be
-/// given a DNS-over-HTTPS resolver.
+/// Uses [`brave::v154_tcp_tls`]'s ClientHello settings. ECH uses GREASE
+/// rather than HTTPS-record configurations.
 #[must_use]
 pub fn v153_android_tcp_tls() -> TlsSettings {
     crate::tls::components::brave_153_android_tcp_tls()
 }
 
-/// Returns TLS settings for the Brave 1.95.104 for Android HTTP/3 offer.
+/// Returns Brave 1.95.104 TLS settings for HTTP/3 on Android.
 ///
-/// The retained Android QUIC ClientHellos equal [`brave::v154_quic_tls`].
-/// [`TlsSettings::ech`] uses GREASE without HTTPS records, as in
-/// [`v153_android_tcp_tls`].
+/// Uses [`brave::v154_quic_tls`]'s ClientHello settings with ECH GREASE.
 #[must_use]
 pub fn v153_android_quic_tls() -> TlsSettings {
     crate::tls::components::brave_153_android_quic_tls()
 }
 
-/// Returns client-hint fields observed from Brave 1.95.104 for Android.
+/// Returns Brave 1.95.104 client hints for Android 17.
 ///
-/// From the retained navigation capture, three fresh-profile runs that agree.
-/// Names, order, and delivery equal [`brave::v154_windows_client_hints`]: no
-/// `sec-ch-ua-full-version` and no `sec-ch-ua-form-factors`. The values carry
-/// Brave's Chromium 153 brand list, `?1`, the `"Android"` platform at
-/// `"17.0.0"`, and an empty model, architecture, and bitness; every version
-/// in the full version list is reduced to `.0.0.0`. Brave sends the empty
-/// model on the Pixel 7 as it did on the earlier emulator, so the value
-/// names no device.
+/// Uses [`brave::v154_windows_client_hints`]'s order with Chromium 153 brands,
+/// reduced full versions and empty model, architecture and bitness values.
 #[must_use]
 pub fn v153_android_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::brave_android_153_client_hints()
 }
 
-/// Returns HTTP/2 settings observed from Brave 1.95.104 for Android.
+/// Returns Brave 1.95.104 HTTP/2 settings for Android.
 ///
-/// The raw startup is byte-identical to the desktop Chromium and Brave
-/// captures, and the H2 request shape of the WebSocket captures equals
-/// [`chrome::v154_http2`], so this returns that recipe.
+/// Uses [`chrome::v154_http2`].
 #[must_use]
 pub fn v153_android_http2() -> Http2Settings {
     chrome::v154_http2()
 }
 
-/// Returns QUIC transport settings observed from Brave 1.95.104 for Android.
+/// Returns Brave 1.95.104 QUIC settings for Android.
 ///
-/// The transport parameters of the retained Android capture equal
-/// [`chrome::v154_quic`]; see that recipe for what varies per connection.
+/// Uses [`chrome::v154_quic`].
 #[must_use]
 pub fn v153_android_quic() -> QuicTransportSettings {
     chrome::v154_quic()
@@ -100,26 +73,20 @@ pub fn v153_android_http3_request() -> Http3RequestSettings {
     chrome::v154_http3_request()
 }
 
-/// Returns WebSocket settings observed from Brave 1.95.104 for Android.
+/// Returns Brave 1.95.104 WebSocket settings for Android.
 ///
-/// The nine retained WebSocket scenarios equal [`chrome::v154_websocket`]
-/// on every compared field.
+/// Uses [`chrome::v154_websocket`].
 #[must_use]
 pub fn v153_android_websocket() -> WebSocketSettings {
     chrome::v154_websocket()
 }
 
-/// Returns navigation request fields observed from Brave 1.95.104 for
-/// Android.
+/// Returns Brave 1.95.104 Android address-bar navigation fields.
 ///
-/// A navigation typed into the address bar. The captures show the desktop
-/// Brave differences from Chrome: `Accept` without signed exchanges,
-/// `Sec-GPC: 1` after `Accept`, and an `Accept-Language` whose `q` value
-/// Brave draws per session (every value from `0.5` to `0.9` appears across
-/// the runs, one per run), so `Accept-Language` is a required caller slot.
-/// `User-Agent` is Chrome's reduced Android string, which Brave sent on every
-/// captured request; unlike the desktop Brave captures, these ran with a
-/// visible browser, so the value is literal.
+/// Uses Chromium ordering, omits signed exchanges from `Accept` and adds
+/// `Sec-GPC: 1` after it. Includes the reduced Android user agent.
+/// Supply `Accept-Language`; Brave chooses the secondary-language quality
+/// from 0.5 through 0.9 once per session.
 #[must_use]
 pub fn v153_android_navigation_template() -> RequestTemplate {
     brave::with_brave_fields(
@@ -128,10 +95,10 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
     )
 }
 
-/// Returns same-origin no-store `fetch` request fields observed from Brave
-/// 1.95.104 for Android: the Chromium fetch lists with `Sec-GPC: 1` after
-/// `Accept`, a required caller `Accept-Language`, and the Android
-/// `User-Agent`. No capture backs this request kind on HTTP/3.
+/// Returns Brave 1.95.104 Android same-origin no-store GET fields.
+///
+/// Uses Chromium fetch ordering with `Sec-GPC: 1` after `Accept` and the
+/// Android user agent. Supply `Accept-Language`. HTTP/3 is unavailable.
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     brave::with_brave_fields(

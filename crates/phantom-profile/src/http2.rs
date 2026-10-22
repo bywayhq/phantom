@@ -386,8 +386,8 @@ pub struct Http2Settings {
     /// Wire order of pseudo-headers on an extended CONNECT request.
     ///
     /// When configured, this must contain `:method`, `:authority`, `:scheme`,
-    /// `:path`, and `:protocol` exactly once. `None` means that the profile
-    /// does not claim an observed extended CONNECT pseudo-header order.
+    /// `:path`, and `:protocol` exactly once. `None` leaves extended CONNECT
+    /// ordering unconfigured.
     pub extended_connect_pseudo_header_order: Option<Vec<Http2PseudoHeader>>,
     /// Optional priority fields carried by each request HEADERS frame.
     pub headers_priority: Option<Http2Priority>,

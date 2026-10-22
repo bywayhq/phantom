@@ -518,9 +518,8 @@ impl EchGreasePayloadLength {
     /// literal, which sends no server name, and `None` for a host name,
     /// which pads by the server name itself.
     ///
-    /// Firefox 157 pads by `127.0.0.1` and by `::1` without brackets. An
-    /// IPv4-mapped IPv6 address keeps the text it is given, such as
-    /// `::ffff:127.0.0.1`; how Firefox writes such a host is not verified.
+    /// Preserves the supplied spelling of IPv4-mapped IPv6 addresses, such as
+    /// `::ffff:127.0.0.1`.
     #[must_use]
     pub fn ip_literal_host(server_name: &str) -> Option<&str> {
         let host = server_name
@@ -915,14 +914,10 @@ pub enum SessionTicketOrder {
     /// Offers the newest ticket and drops the oldest, as Chrome 154 does.
     NewestFirst,
     /// Offers the tickets of the connection that stored its first ticket
-    /// earliest, newest of them first, and drops the ticket it would offer
-    /// next. This follows the usual Firefox 157 Windows capture order;
-    /// tickets from different clock ticks or interleaved connections can
-    /// differ.
+    /// earliest, newest of them first. When full, drops the ticket it would
+    /// offer next.
     OldestConnectionFirst,
-    /// Offers the ticket stored first and drops it first when full. This
-    /// follows the macOS Firefox capture order and Firefox's Unix source
-    /// when no tickets share a clock value. Android resumption is uncaptured.
+    /// Offers the ticket stored first and drops it first when full.
     OldestFirst,
 }
 

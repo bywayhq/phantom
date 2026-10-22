@@ -743,9 +743,7 @@ pub(super) struct PreparedAttempt<'a> {
 /// Chromium sends and learns client hints only for a potentially
 /// trustworthy origin: `IsValidURLForClientHints` gates both
 /// `ShouldAddClientHints` and `ParseAndPersistAcceptCHForNavigation`
-/// (`content/browser/client_hints/client_hints.cc` lines 501-503, 787-804,
-/// and 1004 at tag `154.0.8037.58`). The retained Chrome and Edge captures
-/// carry hints to `http://127.0.0.1` and none to `http://origin.phantom.test`.
+/// (`content/browser/client_hints/client_hints.cc` at tag `154.0.8037.58`).
 pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> Option<String> {
     client
         .inner

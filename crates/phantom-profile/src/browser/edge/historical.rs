@@ -1,10 +1,8 @@
-//! Retained Windows layers for Edge 153.0.4234.48.
+//! Edge 153.0.4234.48 settings for Windows.
 //!
-//! Socket options, address-cache lifetimes, and HTTP/1.1 pool policy are
-//! unavailable. ClientHello, HTTP/2 startup, QUIC parameters, HTTP/3 settings,
-//! and request ordering reuse the equivalent Chromium components. Their
-//! uncaptured connection policies remain inherited, rather than verified
-//! Edge 153 behavior. TCP and QUIC ticket bounds also remain reused policies.
+//! Uses Chromium TLS, HTTP/2 and HTTP/3 policies with Edge's ClientHello and
+//! request fields. Socket options, address-cache and HTTP/1.1 pool settings
+//! are unavailable.
 
 use crate::browser::chrome;
 use crate::{
@@ -15,8 +13,7 @@ use crate::{
 /// Returns the captured Edge 153 TCP ClientHello settings.
 ///
 /// The offer matches the Chromium component without trust-anchor IDs.
-/// ECH and ticket policies reuse that component; a ClientHello alone does
-/// not verify their complete lifecycles.
+/// Uses the Chromium component's ECH and ticket policies.
 #[must_use]
 pub fn v153_tcp_tls() -> TlsSettings {
     let mut settings = chrome::v154_tcp_tls();
@@ -26,8 +23,7 @@ pub fn v153_tcp_tls() -> TlsSettings {
 
 /// Returns the captured Edge 153 QUIC ClientHello settings.
 ///
-/// Ticket resumption policy reuses Chromium behavior. The retained Edge
-/// captures verify initial offers, rather than the QUIC ticket lifecycle.
+/// Uses Chromium ticket resumption policy.
 #[must_use]
 pub fn v153_quic_tls() -> TlsSettings {
     let mut settings = chrome::v154_quic_tls();
@@ -37,7 +33,7 @@ pub fn v153_quic_tls() -> TlsSettings {
 
 /// Returns HTTP/2 settings whose startup matches the Edge 153 capture.
 ///
-/// Uncaptured stream limits, PING timers, and idle policy reuse Chromium.
+/// Uses Chromium stream limits, PING timers and idle policy.
 #[must_use]
 pub fn v153_http2() -> Http2Settings {
     chrome::v154_http2()
@@ -45,8 +41,7 @@ pub fn v153_http2() -> Http2Settings {
 
 /// Returns QUIC parameters matching the retained Edge 153 startup.
 ///
-/// Parameter order reuses Chromium's per-connection shuffle. The retained
-/// samples do not establish Edge's shuffle distribution or a fixed order.
+/// Uses Chromium's per-connection parameter shuffle.
 #[must_use]
 pub fn v153_quic() -> QuicTransportSettings {
     chrome::v154_quic()
@@ -60,8 +55,7 @@ pub fn v153_http3() -> Http3Settings {
 
 /// Returns HTTP/3 request ordering matching the Edge 153 navigation.
 ///
-/// Uncaptured cookie splitting, extended CONNECT, and alternative-service
-/// field policies remain inherited.
+/// Uses Chromium cookie splitting and alternative-service field policies.
 #[must_use]
 pub fn v153_http3_request() -> Http3RequestSettings {
     chrome::v154_http3_request()

@@ -39,10 +39,9 @@ const CAPTURE_LEGACY_FIELDS: &[&str] = &[
 ///
 /// A fresh ClientHello is generated in memory to check every JA3 field.
 /// Extension membership must agree with the base's configured payloads.
-/// Successful import reproduces this projection, not a complete browser.
-/// Verification covers a fresh direct TCP handshake in the input's DNS-name
-/// or IP context. A different destination type, protocol-specific ALPN,
-/// discovery or session resumption can change that projection.
+/// Validation uses a fresh direct TCP ClientHello in the input's DNS-name
+/// or IP context. Destination type, ALPN, discovery and resumption can
+/// change the fields sent on a later request.
 ///
 /// # Errors
 ///
@@ -73,11 +72,9 @@ pub fn import_ja3_profile(input: &str, base: &ClientProfile) -> Result<ImportedP
 /// Captured randoms, keys, session IDs and SNI are never stored in the profile.
 /// GREASE values are normalized and the base's GREASE policy is retained.
 ///
-/// A fresh in-memory ClientHello must reproduce the imported projection.
-/// This does not establish browser identity or replay arbitrary TLS bytes.
-/// Verification uses the captured SNI context for a fresh direct handshake.
-/// Destination type, protocol-specific ALPN, discovery and resumption can
-/// change the projection on a later request.
+/// Checks imported fields against a fresh in-memory ClientHello with the
+/// input's SNI context. Destination type, ALPN, discovery and resumption
+/// can change the fields sent on a later request.
 ///
 /// # Errors
 ///

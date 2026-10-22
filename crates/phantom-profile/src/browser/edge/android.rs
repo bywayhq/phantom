@@ -1,20 +1,4 @@
-//! Wire settings retained from Microsoft Edge for Android observations.
-//!
-//! Edge 153.0.4234.49 for Android, the arm64 build the Google Play Store
-//! serves, captured on an arm64 Android 17 emulator that reports a Pixel 7
-//! on build `CP3A.260905.009`. Edge for Android reads Chrome's command-line
-//! file, so the Chrome for Android launches and tools apply unchanged.
-//!
-//! The TLS and QUIC ClientHellos equal desktop Edge's, which Edge 153 and 154
-//! send alike: the Chromium offers without trust-anchor IDs. The H2 startup,
-//! QUIC transport parameters, H3 SETTINGS, and request field orders equal the
-//! Chromium recipes. The client hints, `User-Agent`, and WebSocket opening
-//! settings carry Edge for Android data.
-//!
-//! WebSocket HTTP/1.1 and HTTP/2 openings are retained. Uncaptured WebSocket
-//! policies reuse pinned Chromium source; see [`v153_android_websocket`].
-//! TCP socket options, HTTP/1.1 connection policy, address caching, proxy
-//! CONNECT, and cookie placement remain unavailable.
+//! Edge 153.0.4234.49 connection settings and request templates for Android.
 
 use crate::{
     browser::chrome,
@@ -32,34 +16,27 @@ use crate::{
 pub(crate) const V153_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36 EdgA/153.0.0.0";
 
-/// Returns TLS settings captured from Edge 153.0.4234.49 for Android.
+/// Returns Edge 153.0.4234.49 TLS settings for Android.
 ///
-/// Three fresh-process TCP ClientHellos of the retained capture equal the
-/// desktop Edge ClientHello of [`crate::browser::edge::v154_tcp_tls`]: the Chromium
-/// ClientHello without trust-anchor IDs. [`TlsSettings::ech`] uses GREASE
-/// without HTTPS records: no Android capture shows Edge using an HTTPS
-/// record's `ech`, because the device cannot be given a DNS-over-HTTPS
-/// resolver.
+/// Uses [`crate::browser::edge::v154_tcp_tls`]'s ClientHello settings with
+/// ECH GREASE rather than HTTPS-record configurations.
 #[must_use]
 pub fn v153_android_tcp_tls() -> TlsSettings {
     crate::tls::components::edge_153_android_tcp_tls()
 }
 
-/// Returns TLS settings for the Edge 153.0.4234.49 for Android HTTP/3 offer.
+/// Returns Edge 153.0.4234.49 TLS settings for HTTP/3 on Android.
 ///
-/// The retained QUIC ClientHello equals [`crate::browser::edge::v154_quic_tls`].
-/// [`TlsSettings::ech`] uses GREASE without HTTPS records, as in
-/// [`v153_android_tcp_tls`].
+/// Uses [`crate::browser::edge::v154_quic_tls`]'s ClientHello settings with
+/// ECH GREASE.
 #[must_use]
 pub fn v153_android_quic_tls() -> TlsSettings {
     crate::tls::components::edge_153_android_quic_tls()
 }
 
-/// Returns HTTP/2 settings observed from Edge 153.0.4234.49 for Android.
+/// Returns Edge 153.0.4234.49 HTTP/2 settings for Android.
 ///
-/// The raw startup is byte-identical to the Chrome 154 startup, and the page
-/// requests of the WebSocket captures carry its pseudo-header order and
-/// priority, so this returns [`chrome::v154_http2`].
+/// Uses [`chrome::v154_http2`].
 #[must_use]
 pub fn v153_android_http2() -> Http2Settings {
     chrome::v154_http2()
@@ -86,35 +63,24 @@ pub fn v153_android_http3_request() -> Http3RequestSettings {
     chrome::v154_http3_request()
 }
 
-/// Returns client-hint fields observed from Edge 153 for Android on a
-/// Pixel 7.
+/// Returns Edge 153 client hints for a Pixel 7 on Android 17.
 ///
-/// From the retained navigation capture, three fresh-profile runs that
-/// agree. Names, order, and delivery equal the Chromium client-hint recipes.
-/// The values carry desktop Edge 153's brand list and the Chromium
-/// 153.0.8010.53 base in the full version list, the exact 153.0.4234.49
-/// build, `?1`, the `"Android"` platform at `"17.0.0"`, the `"Pixel 7"`
-/// model, an empty architecture and bitness, and the `"Mobile"` form factor.
-///
-/// Google publishes Android 17 for the Pixel 7: its factory image list for
-/// `panther` has 17.0.0 builds `CP2A.260605.012` (Jun 2026),
-/// `CP2A.260705.006` (Jul 2026), and `CP3A.260905.009` (Sep 2026), the build
-/// the capture emulator reports.
-///
-/// For another phone, use [`v153_android_client_hints_for_model`].
+/// Uses Chromium field order with Edge 153.0.4234.49 brands and mobile
+/// platform values. Use [`v153_android_client_hints_for_model`] for another
+/// model.
 #[must_use]
 pub fn v153_android_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::edge_android_153_client_hints()
 }
 
-/// Returns the client hints of [`v153_android_client_hints`] with another
-/// device model in `sec-ch-ua-model`, as Android's `Build.MODEL` reports it.
-/// Only the Pixel 7 value is captured.
+/// Returns [`v153_android_client_hints`] with a custom `sec-ch-ua-model`.
+///
+/// Pass Android's `Build.MODEL` value.
 ///
 /// # Errors
 ///
-/// Returns an error if the model contains anything outside printable ASCII
-/// (space through `~`). Quotes and backslashes are escaped in the hint value.
+/// Rejects characters outside printable ASCII (space through `~`). Quotes
+/// and backslashes are escaped in the structured-field string.
 pub fn v153_android_client_hints_for_model(
     model: &str,
 ) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
@@ -122,45 +88,35 @@ pub fn v153_android_client_hints_for_model(
     Ok(crate::catalog::client_hints_components::edge_android_153_client_hints_for_model(model))
 }
 
-/// Returns navigation request fields observed from Edge 153.0.4234.49 for
-/// Android.
+/// Returns Edge 153.0.4234.49 Android address-bar navigation fields.
 ///
-/// A navigation typed into the address bar. The retained captures send the
-/// fields of [`chrome::v154_windows_navigation_template`] in the same order
-/// and with the same values and HTTP/2 priority, except `User-Agent`, which
-/// is the literal Edge for Android string, and the client hints of
-/// [`v153_android_client_hints`]. The captures ran with a visible browser,
-/// so, unlike the headless desktop Edge captures, they back a literal
-/// `User-Agent`. The HTTP/3 list is the Chromium one: the Android H3
-/// startup, opened by intent, sends it without `Sec-Fetch-User` and with
-/// `Sec-Fetch-Site: cross-site`.
+/// Uses [`chrome::v154_windows_navigation_template`]'s ordering and priority
+/// with the Edge Android user agent and [`v153_android_client_hints`].
+/// This models typed navigation; another app's `VIEW` intent omits
+/// `Sec-Fetch-User` and can change `Sec-Fetch-Site`.
 #[must_use]
 pub fn v153_android_navigation_template() -> RequestTemplate {
     chrome::v154_navigation_template(Some(V153_ANDROID_USER_AGENT))
 }
 
-/// Returns same-origin no-store `fetch` request fields observed from Edge
-/// 153.0.4234.49 for Android: the Chromium fetch lists on HTTP/1.1 and
-/// HTTP/2, including the HTTP/2 HEADERS priority weight 220, with the Edge
-/// for Android `User-Agent`. No capture backs this request kind on HTTP/3.
+/// Returns Edge 153.0.4234.49 Android same-origin no-store GET fields.
+///
+/// Uses Chromium ordering and HTTP/2 weight 220 with the Edge Android
+/// user agent. HTTP/3 is unavailable.
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT))
 }
 
-/// Returns Edge 153 Android WebSocket openings and reused Chromium policies.
+/// Returns Edge 153 Android WebSocket settings.
 ///
-/// Three emulator runs each of `accept` and `h1-accept` back the field order,
-/// values, HTTP/2 priority and pseudo-field order. Caller slots supply the
-/// captured User-Agent and Origin. No physical-device capture is claimed.
+/// Uses Chromium's compression, 240-second opening deadline, session
+/// selection and refusal retries. Supply `User-Agent` and `Origin`.
+/// Includes optional cookie and subprotocol slots. HTTP/3 and Android
+/// buffer sizing are outside this recipe.
 ///
-/// Unobserved policies reuse Chromium `153.0.8010.53` at commit
-/// `792bf6722e73a45aa9e47c163b9901bdc17f3230`: WebSocket handshake creation,
-/// deflate, the 240-second opening timer, existing-session selection, and
-/// transaction-level refusal restarts. Edge overrides are not established.
-/// Cookie and optional subprotocol slots follow the source insertion order;
-/// neither appears in these two captures. HTTP/3 and Android data-pipe sizing
-/// are outside this recipe.
+/// Connection policies follow Chromium 153.0.8010.53 at commit
+/// `792bf6722e73a45aa9e47c163b9901bdc17f3230`.
 #[must_use]
 pub fn v153_android_websocket() -> WebSocketSettings {
     crate::catalog::websocket_components::edge_android_153_websocket()

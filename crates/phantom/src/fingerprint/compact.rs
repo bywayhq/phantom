@@ -15,8 +15,7 @@ const OBSERVED_HTTP2: &[&str] = &[
 
 /// Custom settings and the fields supplied by each import input.
 ///
-/// The profile has no catalog identity or browser evidence. Field paths name
-/// complete layers or individual settings. Inspect configured values
+/// Field paths name complete layers or individual settings. Inspect values
 /// with [`super::describe_profile`]. Debug output omits those values.
 #[derive(Clone)]
 pub struct ImportedProfile {

@@ -9,7 +9,7 @@ use super::{
 
 const MAX_PROFILES: usize = 64;
 
-/// A publisher-supplied reference, not evidence verified by Phantom.
+/// A source reference supplied by the bundle publisher.
 #[derive(Clone, Eq, PartialEq)]
 pub struct ProfileProvenance {
     source: Box<str>,
@@ -38,9 +38,8 @@ impl ProfileProvenance {
 
 /// A validated version-1 `phantom.profile-bundle` document.
 ///
-/// Entries are owned custom settings with exact names. Neither bundle labels
-/// nor provenance assign catalog identity or establish browser fidelity.
-/// Each entry contains one complete custom-profile document, including its
+/// Entries are owned custom settings with exact names. Each entry contains
+/// one complete custom-profile document, including its
 /// selected request template. Catalog context associations are not included.
 /// No I/O, client construction or random draws occur during import.
 /// Existing clients keep the settings they were built with.

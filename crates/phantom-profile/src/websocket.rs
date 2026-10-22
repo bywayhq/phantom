@@ -221,9 +221,7 @@ pub enum WebSocketDeflateParameter {
 /// Whether an empty data message is compressed once `permessage-deflate` is
 /// negotiated.
 ///
-/// This is the only per-message compression decision the retained captures
-/// disagree on. Every client in them compresses each non-empty text and binary
-/// message and sets RSV1 on it.
+/// Non-empty text and binary messages are compressed with RSV1 set.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketEmptyMessageCompression {
@@ -251,7 +249,7 @@ pub enum WebSocketNewConnection {
 ///
 /// RFC 9113, section 8.7 says such a stream was closed before the peer
 /// processed anything on it, so only the HEADERS the client already sent can
-/// be sent again. Browser profiles use captured and source-derived behavior.
+/// be sent again.
 /// The client's ordinary request retry policy does not apply to a WebSocket
 /// opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -265,9 +263,7 @@ pub enum WebSocketRefusedStreamRetry {
     /// session. No other failure is retried, and no other connection or
     /// protocol is tried.
     ///
-    /// No retained run shows a second consecutive refusal, so what a client
-    /// does then is unobserved. Phantom reports it to the caller; that bound
-    /// is a choice, not capture evidence.
+    /// A second refusal is returned to the caller.
     SameSessionOnce,
     /// Restart a refused opening through this profile's connection selection,
     /// at most twice (three total attempts).

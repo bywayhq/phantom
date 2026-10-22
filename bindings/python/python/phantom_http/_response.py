@@ -52,7 +52,7 @@ class ResponseHeader:
 
     name: str
     value: bytes = _field(repr=False)
-    # False does not establish absence when a decoder does not retain markers.
+    # False also covers protocols whose decoder omits sensitivity markers.
     sensitive: bool
 
 

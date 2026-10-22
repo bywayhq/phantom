@@ -1,16 +1,12 @@
 //! HTTP/2 connections to HTTPS proxies that carry many CONNECT tunnels.
 //!
-//! Browsers open a page's CONNECT tunnels as streams of one HTTP/2 proxy
-//! connection (the `https-proxy-*` captures under `fixtures/proxy/`). A pool
-//! keeps one connection per proxy route, as they do, and hands every tunnel
-//! to it; the HTTP/2 layer holds a CONNECT past the proxy's stream limit
-//! until another stream ends. A caller may opt into more connections per
-//! route.
+//! Shares one connection per proxy route by default. The HTTP/2 layer queues
+//! CONNECTs at the proxy's stream limit until another stream ends. A caller
+//! may allow more connections per route.
 //!
 //! The pool never holds its lock across an `.await`. One connection setup
 //! runs at a time per route; other tunnels wait for it rather than open
-//! their own, as a browser waits for its proxy session, and fail with it
-//! when it fails.
+//! their own. Waiters receive that setup attempt's failure.
 
 use std::{
     fmt,

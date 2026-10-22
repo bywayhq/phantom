@@ -1,32 +1,8 @@
-//! Wire settings retained from Chromium-family browser observations.
+//! Chrome connection settings and request templates.
 //!
-//! The Windows capture host updated Chrome from 154.0.8037.58 to
-//! 154.0.8037.97. Fingerprint snapshots of 154.0.8037.97 matched the retained
-//! 154.0.8037.58 TCP and QUIC ClientHellos, H2 startup, first H2 navigation,
-//! and H3 SETTINGS, and differed only in the full version its client hints
-//! report, so only [`v154_windows_client_hints`] comes from 154.0.8037.97
-//! captures. Each other recipe names the build it was captured from.
-
-//!
-//! ## Android
-//!
-//! Wire settings retained from Chrome for Android observations.
-//!
-//! Google Chrome 154.0.8037.57 is the build the Google Play Store served to the
-//! `phantom-pixel7` Android 17 x86_64 emulator on the Windows 11 capture host.
-//! A Magisk module sets the emulator's build properties to those of a Pixel 7
-//! on build `CP3A.260905.009`: model, build fingerprint, and security patch
-//! level.
-//!
-//! Where a layer equals the desktop Chrome recipe on every compared field, the
-//! function here returns the [`chrome`](crate::browser::chrome) recipe, and
-//! a test replays the
-//! Android capture against it. Values that carry the platform, such as client
-//! hints and `User-Agent`, have their own data.
-//!
-//! TCP settings come from Chromium source, not from the emulator captures:
-//! the emulator terminates the device's TCP connections. HTTP/1.1 connection,
-//! address-cache, proxy CONNECT, and cookie-placement recipes remain absent.
+//! Desktop recipes provide Windows and macOS settings. Android recipes target
+//! Chrome 154.0.8037.57 with Pixel 7 / Android 17 client hints. Android has no
+//! HTTP/1.1 pool, address-cache, proxy CONNECT or cookie-placement recipe.
 
 pub use crate::catalog::browser_profiles::chrome::*;
 
@@ -60,147 +36,60 @@ use crate::tcp::TcpSettings;
 
 use crate::quic::QuicTransportSettings;
 
-/// Returns client-hint fields observed from Chrome 154 on Windows 11 x64.
+/// Returns Chrome 154.0.8037.97 client hints for Windows 11 x64.
 ///
-/// Field values, relative order, and delivery come from the retained
-/// fresh-profile navigation capture of Chrome 154.0.8037.97 on Windows 11
-/// (build 26200): fields on the first navigation are sent by default, the rest
-/// only after the origin requests them through `Accept-CH`. Three headless runs
-/// agree. The values carry the exact 154.0.8037.97 build and Windows platform
-/// data. Chrome 154.0.8037.58 sent the same names, order, delivery, and
-/// values, except that `sec-ch-ua-full-version` and the `Chromium` and
-/// `Google Chrome` entries of `sec-ch-ua-full-version-list` reported its own
-/// build; a headful run of that build matched its headless runs.
-///
-/// Chrome 154 reorders the `sec-ch-ua` brand list and renames its greased
-/// brand: `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`,
-/// where Chrome 153 sent `"Google Chrome"`, `"Not_A Brand";v="8"`, and
-/// `"Chromium"` in that order. `sec-ch-ua-full-version-list` follows the same
-/// list. The returned value is owned and may be customized before client
-/// creation.
+/// Includes default and `Accept-CH`-requested hints in profile order. You can
+/// change the returned values before building a client.
 #[must_use]
 pub fn v154_windows_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::chrome_windows_154_client_hints()
 }
 
-/// Returns client-hint fields observed from Chrome 154 on macOS 15.5 arm64.
+/// Returns Chrome 154.0.8037.95 client hints for macOS 15.5 arm64.
 ///
-/// Names, order, delivery, and the brand list match
-/// [`v154_windows_client_hints`]; three headless runs of the retained
-/// navigation capture of Chrome 154.0.8037.95 on macOS 15.5 (24F74) on Apple
-/// silicon agree. The platform data differs: `sec-ch-ua-platform` is
-/// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
-/// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
-/// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
-/// 154.0.8037.95, which Google's stable channel served alongside the Windows
-/// recipe's 154.0.8037.97. The returned value is owned and may be customized
-/// before client creation, for example to carry another macOS version.
+/// Uses the Windows recipe's field order with macOS platform values.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::chrome_macos_154_client_hints()
 }
 
-/// Returns the automatic `Cookie` field position for Chrome 154.
+/// Returns Chrome 154's automatic `Cookie` position.
 ///
-/// Chrome appends `Cookie` after every other request field it builds:
-/// `URLRequestHttpJob::AddCookieHeaderAndStart` sets it on the extra headers
-/// last (`net/url_request/url_request_http_job.cc:799-871` at Chromium tag
-/// `154.0.8037.58`). The retained Chrome 154 HTTP/1.1 EventSource reconnect
-/// capture `set-cookie-then-close.txt` sends it last on every run. For H2 and
-/// H3, `CreateSpdyHeadersFromHttpRequest` copies those fields in order and then
-/// appends `priority` (`net/spdy/spdy_http_utils.cc:32`, `:199-236`), so
-/// `Cookie` precedes a `priority` field. The retained cookie captures of
-/// Chrome 154, Edge 154, Brave 154, and Opera 136 (`fixtures/cookies/`) show
-/// both positions on every run: `Cookie` last over HTTP/1.1, and the crumbs
-/// right before `priority` over HTTP/2 and HTTP/3. The cache appends the
-/// validators of a revalidation after it
-/// (`net/http/http_cache_transaction.cc:3322-3323`, `:3337-3338`), so
-/// `Cookie` also precedes an `If-None-Match` or `If-Modified-Since` field; no
-/// capture shows a cookie and a validator together. Edge, Brave, and Opera
-/// use this recipe.
+/// Places it last on HTTP/1.1, before `priority` on HTTP/2 and HTTP/3, and
+/// before revalidation fields. Chromium's cache appends validators after
+/// cookies (`net/http/http_cache_transaction.cc` at tag `154.0.8037.58`).
 #[must_use]
 pub fn v154_cookie_placement() -> CookiePlacement {
     crate::catalog::cookie_components::chromium_154_cookie()
 }
 
-/// Returns TLS settings captured from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 TLS settings for Windows 11.
 ///
-/// Captured from branded Chrome 154.0.8037.58 on Windows 11 (build 26200) with
-/// the retained Chrome launch flags and its default field-trial configuration.
-/// Every field comes from the retained `client-hello.txt` ClientHello: the
-/// cipher suites, supported groups, key shares, signature algorithms, ALPN
-/// offer, ALPS protocol on the new codepoint, Brotli certificate compression,
-/// the offered TLS versions, and the OCSP, SCT, and session-ticket requests.
-/// GREASE, the permuted extension order, and the ECH GREASE payload length are
-/// per-connection randomness; 61 fresh-process ClientHellos agree on everything
-/// else.
+/// Uses per-connection GREASE, extension permutation and ECH GREASE sizing,
+/// with a sorted list of 28 trust-anchor IDs. Enables ECH from HTTPS records
+/// when the client has an HTTPS-record resolver.
 ///
-/// The requested trust-anchor IDs are the 28 identifiers Chrome 153 also
-/// advertised, but Chrome 154 sorts them: Chromium commit `942bda4298c1` sorts
-/// the list before encoding, so the order no longer differs between browser
-/// processes. All 60 processes of the retained `trust-anchor-orders.txt`
-/// capture emit the one ascending order this recipe carries.
-///
-/// Chrome 154 offers real Encrypted Client Hello on a direct connection whose
-/// HTTPS record carries `ech`, so [`TlsSettings::ech`] uses HTTPS records. It
-/// applies only on a client that looks up HTTPS records.
-///
-/// Ticket resumption over TCP follows the retained `resumption-*.txt`
-/// captures. Chrome kept the two newest tickets for an origin, presented the
-/// newest first ([`crate::SessionTicketOrder::NewestFirst`]), and used each once; a
-/// resumed ClientHello adds only
-/// `pre_shared_key`, last, and never offers early data over TCP.
-///
-/// The returned value is an ordinary owned [`TlsSettings`], so callers can
-/// customize it before constructing a transport.
+/// Keeps the two newest tickets per origin and offers the newest first.
+/// Each ticket is used once. Resumed TCP connections omit early data.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
     crate::tls::components::chromium_154_tcp_tls()
 }
 
-/// Returns the TCP socket options Chromium 154.0.8037.58 sets on Windows and Linux.
+/// Returns Chromium 154.0.8037.58 TCP settings for Windows and Linux.
 ///
-/// From Chromium source at tag `154.0.8037.58`, not from a capture: socket
-/// options are not visible on the wire. `TCPClientSocket` calls
-/// `SetDefaultOptionsForClient` when it opens each socket, before connecting
-/// (`net/socket/tcp_client_socket.cc:173` and `:558`). On Windows that sets
-/// `TCP_NODELAY` and enables keepalive through `SIO_KEEPALIVE_VALS` with
-/// `kTCPKeepAliveSeconds = 45` as both the idle time and the probe interval
-/// (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`). The POSIX path
-/// sets the same values through `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux
-/// (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`).
+/// Enables `TCP_NODELAY` and keepalive with a 45-second idle time and interval.
+/// Address racing uses a 300 ms fallback delay. Windows port randomization
+/// starts on Windows 11 build 22621. See [`crate::TcpAddressRacing`] for the
+/// address selection algorithm.
 ///
-/// Addresses race as Chromium 154's default Happy Eyeballs v2 `TcpConnectJob`
-/// does (`net/base/features.cc:114-122`,
-/// `net/socket/transport_connect_job.cc:118-123`): a second attempt starts
-/// `kIPv6FallbackTime = 300` ms after the first
-/// (`net/socket/tcp_connect_job.h:85`,
-/// `net/socket/tcp_connect_job.cc:573-610`). The field trials that change that
-/// delay, `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT`, and Happy
-/// Eyeballs v3 are disabled by default (`net/base/features.cc:124`, `:128`,
-/// `:136`). [`crate::TcpAddressRacing`] describes the rest of the algorithm; its own
-/// line numbers were read at tag `153.0.8010.48` and have not been re-read at
-/// 154.
+/// Use [`v154_macos_tcp`] on macOS and [`v154_android_tcp`] on Android.
+/// Phantom fails the connection if a requested socket option cannot be set;
+/// Chromium ignores those failures. Phantom sets port randomization before
+/// binding because Windows rejects it on an already-bound socket.
 ///
-/// On Windows 11 22H2 and later Chromium also sets `SO_RANDOMIZE_PORT` right
-/// before `connect` (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`).
-/// The `kTcpPortRandomizationWin` feature that gates it is enabled by
-/// default, with a minimum of `base::win::Version::WIN11_22H2`, build 22621
-/// (`net/base/features.cc:308-314`; `base/win/windows_version.cc:386-404`).
-/// [`TcpSettings::port_randomization`] sets it from the same build.
-///
-/// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
-/// (`net/socket/tcp_socket_posix.cc:102-106`); set [`crate::TcpKeepalive::interval`]
-/// to `None` for that platform. Android and iOS builds enable no keepalive.
-/// Chromium ignores a failure to set any of these options
-/// (`net/socket/tcp_socket_win.cc:70-71`, `:1046-1047`); Phantom instead fails
-/// the connection attempt rather than connect with options the profile did
-/// not ask for. Windows rejects `SO_RANDOMIZE_PORT` on a socket that is
-/// already bound, which Chromium's comment names as the expected failure;
-/// Phantom sets it before binding.
-///
-/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
-/// values, so this recipe also serves Brave 154 (see [`crate::browser::brave`]).
+/// These options follow `net/socket/tcp_socket_{win,posix}.cc` at Chromium tag
+/// `154.0.8037.58`. Brave 154 uses the same settings.
 #[must_use]
 pub fn v154_tcp() -> TcpSettings {
     crate::catalog::tcp_components::chromium_154_tcp()
@@ -208,309 +97,110 @@ pub fn v154_tcp() -> TcpSettings {
 
 /// Returns Chrome 154.0.8037.58 TCP settings for macOS.
 ///
-/// Chromium sets `TCP_NODELAY` and a 45-second keepalive idle time. It leaves
-/// the probe interval, probe count, send buffer, and port selection unchanged.
-/// These values come from `net/socket/tcp_socket_posix.cc` at that build's
-/// source tag; no macOS socket-hook capture verifies them.
+/// Enables `TCP_NODELAY` and a 45-second keepalive idle time. Leaves the
+/// probe interval, probe count, send buffer and port selection unchanged.
 #[must_use]
 pub fn v154_macos_tcp() -> TcpSettings {
     crate::catalog::tcp_components::chromium_154_macos_tcp()
 }
 
-/// Returns the UDP socket options Chromium 154.0.8037.58 sets on Windows.
+/// Returns Chromium 154.0.8037.58 UDP settings for Windows.
 ///
-/// From Chromium source at tag `154.0.8037.58`, not from a capture: socket
-/// options are not visible on the wire. Every UDP socket Chromium connects
-/// gets `SO_RANDOMIZE_PORT` right before `connect`, with no feature or
-/// Windows version gate (`net/socket/udp_socket_win.cc:559-575`), so its
-/// local port is random on every Windows. That covers QUIC sockets, which
-/// `QuicSessionPool` connects before setting any other option
-/// (`net/quic/quic_session_pool.cc:1334-1378`), and the built-in DNS
-/// client's sockets (`net/socket/udp_client_socket.cc:69-89`). A socket that
-/// binds an explicit address instead, as WebRTC's do, does not get it
-/// (`net/socket/udp_socket_win.cc:587-602`). The same lines are at
-/// `152.0.7977.130`, the Chromium version Opera 136 reports.
-///
-/// Phantom binds its QUIC sockets rather than connecting them, and sets
-/// [`UdpSettings::port_randomization`] before that bind. Chromium ignores a
-/// failure to set the option; Phantom fails the connection attempt instead,
-/// as it does for every profile socket option. Every Windows that Rust
-/// supports has the option.
-///
-/// Brave 1.96.59 builds the same Chromium tag, so this recipe also serves
-/// Brave 154 (see [`crate::browser::brave`]).
+/// Randomizes the local port before binding. A failure to set the option
+/// fails the connection attempt. Chromium instead sets the option before
+/// connecting and ignores a failure (`net/socket/udp_socket_win.cc` at tag
+/// `154.0.8037.58`). Brave 154 uses the same settings.
 #[must_use]
 pub fn v154_udp() -> UdpSettings {
     crate::catalog::udp_components::chromium_154_udp()
 }
 
-/// Returns the address cache of Chromium 154.0.8037.58.
+/// Returns Chromium 154.0.8037.58 address-cache settings.
 ///
-/// From Chromium source at tag `154.0.8037.58`, not from a capture: a DNS
-/// cache is not visible on the wire, only the queries it saves. Each
-/// `URLRequestContext`, one per browser profile, creates its resolver with
-/// caching enabled (`net/url_request/url_request_context_builder.cc:363-382`),
-/// and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000`
-/// entries in builds with the built-in DNS client, which every Blink build
-/// has (`net/dns/resolve_context.cc:109-121`, `net/dns/BUILD.gn:9`).
+/// Keeps up to 1,000 entries. System answers live for 60 seconds; answers
+/// with record TTLs live for at least 60 seconds. Failed lookups are not
+/// cached. Eviction removes stale entries first, then the soonest to expire.
 ///
-/// An answer from the operating system resolver carries no TTL, so Chromium
-/// keeps it for `kCacheEntryTTLSeconds = 60` and a failure for
-/// `kNegativeCacheEntryTTLSeconds = 0`
-/// (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`). A failure
-/// without a positive TTL is never cached
-/// (`net/dns/host_resolver_manager.cc:1284-1291`). When the cache is full,
-/// the entry that expires soonest is evicted, stale entries first
-/// (`net/dns/host_cache.cc:886-916`, `:1289-1319`).
-///
-/// An answer from Chromium's built-in DNS client, enabled by default on
-/// Windows, macOS, Linux, ChromeOS, and Android (`net/base/features.cc:42-48`),
-/// carries the smallest TTL of its records (`net/dns/host_cache.cc:279-336`,
-/// `:729-740`) and is kept for that TTL or `kMinimumTTLSeconds = 60`,
-/// whichever is longer (`net/dns/host_resolver_manager_job.cc:61`,
-/// `:965-966`), hence `min_record_ttl`. A built-in lookup that fails falls
-/// back to the system resolver (`net/dns/host_resolver_manager.cc:1415-1421`),
-/// whose failure is not cached. Chrome, Edge, and Opera with their default
-/// resolver sent one query for a name in 120 s of fetches 10 s apart.
-///
-/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
-/// values, so this recipe also serves Brave 154. Brave enables
-/// `kPartitionConnectionsByNetworkIsolationKey`, which keys the cache by
-/// top-level site as well (see [`crate::browser::brave`]).
+/// Matches Chromium's `HostCache` and `HostResolverManager` policy at tag
+/// `154.0.8037.58`. Brave 154 shares these values; use separate clients when
+/// you need caches isolated by top-level site.
 #[must_use]
 pub fn v154_dns_cache() -> DnsCacheSettings {
     crate::catalog::dns_components::chromium_154_dns_cache()
 }
 
-/// Returns the HTTP/1.1 connection policy of Chromium 154.0.8037.58.
+/// Returns Chromium 154.0.8037.58 HTTP/1.1 connection settings.
 ///
-/// From Chromium source at tag `154.0.8037.58`, not from a capture: the
-/// normal socket pool allows six sockets per group, `g_max_sockets_per_group`
-/// (`net/socket/client_socket_pool_manager.cc:46-58`). A group is one
-/// scheme, host, and port within the pool of one proxy chain
-/// (`net/socket/client_socket_pool.h:130-153`,
-/// `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as
-/// one origin and route. Idle sockets, connecting sockets, and sockets in use all
-/// occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a
-/// request takes the most recently used idle socket before it opens another
-/// (`net/socket/transport_client_socket_pool.cc:530-560`).
+/// Allows six connections per origin and route, counting idle, connecting
+/// and active sockets. Reuses the most recently used idle connection. A
+/// request closes connections idle for at least 300 seconds before reuse.
 ///
-/// A socket that carried a request and has sat idle for
-/// `g_used_idle_socket_timeout_s = 300` seconds is not reused
-/// (`net/socket/client_socket_pool.cc:42`). The pool checks the timeout only
-/// when a request arrives: `RequestSocket` first calls `CleanupIdleSockets`,
-/// which closes every idle socket idle at least that long, so the request
-/// opens a new one (`net/socket/transport_client_socket_pool.cc:242-263`,
-/// `:935-955`, `:969-1000`). Hook logs of Chrome 154, Edge 154, and Opera 136
-/// show it: a connection idle 290 s carried the next request, and one idle
-/// 310 s was closed as its replacement opened.
+/// Phantom applies this cleanup to the requested origin and route. It does
+/// not apply Chromium's additional pool-wide and proxy-chain limits or open
+/// unused preconnect sockets. Brave 154 shares these values; separate clients
+/// provide top-level-site isolation.
 ///
-/// Chromium closes an idle socket that never carried a request, which only a
-/// preconnect or a connect job whose request went elsewhere leaves, after 60
-/// seconds (`kPreconnectIntervalSec`,
-/// `net/socket/client_socket_pool_manager.cc:208-212`). Phantom opens a
-/// connection only for a request, so it has no such connection to time out.
-///
-/// Chromium's other socket limits are not modeled: 256 sockets per pool and
-/// 128 per proxy chain (`net/socket/client_socket_pool_manager.cc:37-44`,
-/// `:60-66`), and 255 per group for WebSocket connections. Chromium's cleanup
-/// also closes the expired idle sockets of every other origin in the same
-/// proxy chain's pool; Phantom closes only those of the request's origin and
-/// route.
-///
-/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
-/// values, so this recipe also serves Brave 154. Brave enables
-/// `kPartitionConnectionsByNetworkIsolationKey`, which keys each socket group
-/// by top-level site as well (see [`crate::browser::brave`]).
+/// See `net/socket/transport_client_socket_pool.cc` at tag `154.0.8037.58`.
 #[must_use]
 pub fn v154_http1() -> Http1Settings {
     crate::catalog::http1_components::chromium_154_http1()
 }
 
-/// Returns HTTP/2 settings observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 HTTP/2 settings.
 ///
-/// The initial SETTINGS, their order, and the connection WINDOW_UPDATE come
-/// from the retained raw startup-frame capture, whose frames are byte-identical
-/// to the Chrome 153 capture. The request pseudo-header order and the
-/// navigation HEADERS priority, exclusive on stream 0 with weight 256, come
-/// from the page request of the retained H2 WebSocket session captures, three
-/// fresh-profile runs.
+/// Navigation HEADERS use exclusive priority on stream 0 with weight 256.
+/// Extended CONNECT uses weight 147 and pseudo-headers in this order:
+/// `:method`, `:authority`, `:scheme`, `:path`, `:protocol`.
 ///
-/// The extended CONNECT shape comes from the same captures: `:method`,
-/// `:authority`, `:scheme`, `:path`, `:protocol`, and HEADERS priority
-/// exclusive on stream 0 with weight 147 instead of the navigation's 256.
+/// HPACK excludes `:method` and `:protocol` from dynamic indexing. Literals
+/// use Huffman coding only when shorter. Ordinary fields may be indexed;
+/// names prefer static entries, then the newest dynamic entry. Cookie crumbs
+/// are indexed individually. See [`crate::Http2FieldIndexing::All`],
+/// [`crate::Http2NameReference::StaticThenNewest`] and
+/// [`crate::Http2IndexingLimit::Unlimited`].
 ///
-/// The HPACK choices come from every block in those captures. `:method` and
-/// `:protocol` are never inserted into the dynamic table, so `:method:
-/// CONNECT` is sent as a literal without indexing naming static entry 2, and
-/// `:protocol` as a literal without indexing with a literal name. A repeated
-/// static name takes the lower entry, `:method` 2 and `:path` 4. A literal
-/// string is Huffman-coded only when the coded form is strictly shorter: all
-/// 774 coding decisions in the retained Chrome and Edge captures follow that
-/// rule, and the 105 ties among them, such as `CONNECT` and `13`, are raw.
+/// The first request uses stream 1. The initial concurrent-stream limit is
+/// 100; a peer's limit replaces it, capped at 256. A request after more than
+/// 10 seconds without a read triggers a PING. An unanswered PING closes the
+/// connection after 10 seconds without a read, sending `GOAWAY(0,
+/// PROTOCOL_ERROR)` with debug data `Failed ping.`
 ///
-/// Each `cookie` field is split into one field per cookie, and each crumb is
-/// inserted into the dynamic table and sent as an index on later requests
-/// ([`crate::Http2CookieCrumbs::IndexAll`]). The retained two-request cookie
-/// captures (`fixtures/cookies/`) show this for five cookies on every run;
-/// quiche's `HpackEncoder::CookieToCrumbs` is the split rule.
-///
-/// The rest of the indexing policy is quiche's `HpackEncoder` at the revision
-/// Chromium 154 pins. Every ordinary field may enter the dynamic table,
-/// `authorization` and `content-length` included ([`crate::Http2FieldIndexing::All`]).
-/// A literal names the static entry when one has its name, otherwise the
-/// newest dynamic entry ([`crate::Http2NameReference::StaticThenNewest`]). A field of
-/// any size is inserted, evicting older entries, and one larger than the whole
-/// table empties it ([`crate::Http2IndexingLimit::Unlimited`]). A table size setting
-/// equal to the current size is not announced. Every HEADERS block of the
-/// retained Chrome and Edge WebSocket and cookie sessions equals Phantom's
-/// byte for byte.
-///
-/// Each connection's first request is stream 1 (`kFirstStreamId`,
-/// `net/spdy/spdy_session.h:93` at tag `154.0.8037.58`), as in every retained
-/// Chrome, Edge, Brave, and Opera HTTP/2 session. Until the peer states
-/// `SETTINGS_MAX_CONCURRENT_STREAMS`, at most 100 streams are open:
-/// `SpdySession` starts at `kInitialMaxConcurrentStreams` (`:84`;
-/// `net/spdy/spdy_session.cc:837`), creates a stream only below it
-/// (`:1696-1699`), and replaces it only with a stated value (`:2355-2358`). No
-/// capture shows the limit, because every capture server states 100. A stated
-/// value above 256 is lowered to 256 (`kMaxConcurrentStreamLimit`, `:383`,
-/// applied at `:2355-2358`).
-///
-/// On a connection that has read nothing for more than 10 seconds, a PING
-/// follows the next request HEADERS or non-empty DATA frame.
-/// `SpdySession::MaybeSendPrefacePing` runs as the write loop builds each such
-/// frame (`:1088`, `:1205-1207`) and queues one when no PING of its own is in
-/// flight and `kSpdyDefaultConnectionAtRiskOfLossSeconds`, 10, has passed
-/// since the last read (`:2446-2456`; `net/spdy/spdy_session.h:111`). Its
-/// payload is a counter from 1, sent as a 64-bit big-endian value
-/// (`:2479-2499`). The check is on by default
-/// (`net/http/http_network_session.h:88`). The retained loopback capture
-/// (`fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt`)
-/// shows the PING right after the HEADERS of a request sent after 11.5 idle
-/// seconds.
-///
-/// A PING that goes unanswered while nothing is read for 10 seconds closes
-/// the connection. Sending it schedules `SpdySession::CheckPingStatus` after
-/// `kHungIntervalSeconds`, 10 (`:102`, `:2500-2510`); the check closes the
-/// session with `ERR_HTTP2_PING_FAILED` when the ACK is still missing and
-/// nothing has been read since the PING or for 10 seconds, and otherwise
-/// checks again 10 seconds after the last read (`:2512-2538`). Closing sends
-/// `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
-/// `Failed ping.` (`:2719-2738`) and fails every stream (`:2753`).
-///
-/// A request the failure ended before its response head is sent again, at
-/// once and on another connection, up to twice per redirect hop.
-/// `HttpNetworkTransaction::HandleIOError` resends on
-/// `ERR_HTTP2_PING_FAILED` whatever the method until `retry_attempts_`
-/// reaches `kMaxRetryAttempts`, 2
-/// (`net/http/http_network_transaction.cc:106-108`, `:2073-2074`,
-/// `:2222-2233`, `:2329-2331`). The retained capture
-/// (`fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/ping-unanswered.txt`)
-/// shows the request sent once more with the same fields on a new
-/// connection right after the `GOAWAY`.
-///
-/// The returned value is an ordinary owned [`Http2Settings`], so callers can
-/// customize it before constructing a transport.
+/// A request failed by that PING before its response head can be replayed
+/// up to twice per redirect hop. This follows `SpdySession::CheckPingStatus`
+/// and `HttpNetworkTransaction::HandleIOError` at tag `154.0.8037.58`.
 #[must_use]
 pub fn v154_http2() -> Http2Settings {
     crate::catalog::http2_components::chromium_154_http2()
 }
 
-/// Returns WebSocket settings observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 WebSocket settings.
 ///
-/// From the retained Windows 11 (build 26200) WebSocket captures, three runs of
-/// each of nine scenarios. A `wss://` WebSocket uses a pooled H2 session to the
-/// origin only when its peer enabled extended CONNECT. Otherwise, with or
-/// without such a session, Chrome opens a new TLS connection offering only
-/// `http/1.1` and sends an HTTP/1.1 Upgrade; it never opens a new H2 connection
-/// for a WebSocket. The `fresh-origin` and `no-connect-protocol` captures
-/// record that connection's ALPN offer, not its complete ClientHello.
+/// Reuses a capable HTTP/2 session, including one reached through a proxy.
+/// Otherwise opens a new HTTP/1.1 connection. Supply `User-Agent`, `Origin`
+/// and `Accept-Language`. Compression is offered when you enable it, using
+/// `permessage-deflate; client_max_window_bits`; empty messages are compressed.
 ///
-/// The opening templates keep the captured field order and spelling.
-/// `User-Agent`, `Origin`, and `Accept-Language` are caller slots because
-/// their values are persona and page data. The captures carry no cookies, so
-/// the cookie placeholder's final position is not observed. The
-/// compression offer is `permessage-deflate; client_max_window_bits`; Chrome
-/// always sends it, while Phantom sends it only when the caller enables
-/// compression. Edge 154.0.4258.37, Brave 154.1.96.59, and Opera
-/// 136.0.6008.52 match this recipe on every compared field.
+/// Offers `br` and `zstd` only to potentially trustworthy URLs and sends no
+/// `Sec-Fetch-*` fields. Caller fields replace matching template entries.
+/// A refused extended CONNECT may be reopened up to twice; session selection
+/// can choose another capable session. The opening deadline is 240 seconds.
 ///
-/// `Accept-Encoding` is a [`crate::WebSocketField::ByTrust`] entry, as on
-/// ordinary requests: Chrome offers `br` and `zstd` only to a potentially
-/// trustworthy URL. The retained proxy route captures show the `ws://`
-/// Upgrade to `127.0.0.1` with `gzip, deflate, br, zstd` and the one to
-/// the plaintext name `origin.phantom.test` with `gzip, deflate`, direct and
-/// through both proxies; every other field is the same in both. Chrome
-/// sends no `Sec-Fetch-*` field on a WebSocket opening to either. A caller
-/// field named `Accept-Encoding` replaces the recipe's value in place.
-///
-/// The `refused-stream` captures show Chrome answering
-/// `RST_STREAM(REFUSED_STREAM)` with one further extended CONNECT on the same
-/// H2 session and the next client stream id, which the peer then accepted; no
-/// data frame had been sent on the refused stream. The two-restart ceiling is
-/// source-backed: at tag `154.0.8037.58`, `HttpNetworkTransaction::HandleIOError`
-/// restarts `ERR_HTTP2_SERVER_REFUSED_STREAM` through `STATE_CREATE_STREAM`
-/// until `kMaxRetryAttempts` (2), retaining the request. Session selection may
-/// reuse an available capable H2 session; it is not pinned to the old one.
-/// The retained capture demonstrates only the first successful reopening.
-/// The `accept-deflate`
-/// captures show a zero-length text message compressed into one byte with RSV1
-/// set.
-///
-/// The 240-second handshake timeout is Chromium's own constant, not a
-/// capture: `WebSocketStreamRequestImpl::Start` starts a one-shot timer of
-/// `kHandshakeTimeoutIntervalInSeconds` before the opening request starts,
-/// `PerformUpgrade` stops it once the handshake stream is upgraded, and
-/// `OnTimeout` cancels the request with `ERR_TIMED_OUT`
-/// (`net/websockets/websocket_stream.cc` lines 60-64, 248-262, and 338-340
-/// at tag `154.0.8037.58`). The source comment sets it equal to the TCP
-/// connect timeout so that a page cannot tell which step timed out.
-///
-/// [`crate::WebSocketProxiedSession::Reuse`] is also source, not a capture: no
-/// retained capture opens a `wss://` WebSocket through a proxy. At tag
-/// `154.0.8037.58`, `HttpStreamFactory::Job` lets a `wss://` WebSocket try
-/// HTTP/2 whatever the proxy (`net/http/http_stream_factory_job.cc` lines
-/// 136-137), keys the session it looks for by the request's proxy chain
-/// (lines 154-157), and asks the session pool for one whenever a WebSocket
-/// may try HTTP/2 (lines 426-427, 749, and 764-767). The pool returns a
-/// session only when its key, proxy chain included, matches and its peer
-/// allows WebSockets (`net/spdy/spdy_session_pool.cc` lines 211-215).
+/// See `net/websockets/websocket_stream.cc` and
+/// `net/http/http_network_transaction.cc` at tag `154.0.8037.58`.
 #[must_use]
 pub fn v154_websocket() -> WebSocketSettings {
     crate::catalog::websocket_components::chromium_154_websocket()
 }
 
-/// Returns the CONNECT request fields observed from Chrome 154.0.8037.58 on
-/// Windows 11.
+/// Returns Chrome 154.0.8037.58 proxy CONNECT settings.
 ///
-/// From the retained proxy route captures, three runs of each scenario.
-/// Every HTTP/1.1 CONNECT for the page's `ws://` origin sends `Host`,
-/// `Proxy-Connection: keep-alive`, and `User-Agent`, then
-/// `Proxy-Authorization` when the proxy asked for credentials
-/// (`http-proxy-*` and `http-proxy-auth-*`). Every HTTP/2 CONNECT to the TLS
-/// proxy sends `user-agent` after `:method` and `:authority`, then
-/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`). The
-/// `*-secure-hostname` captures show the same fields on the CONNECT for an
-/// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
-/// replay after a `407`, and with remembered credentials. Edge
-/// 154.0.4258.37, Brave 154.1.96.59, and Opera 136.0.6008.52 send the same
-/// fields in the same order.
+/// HTTP/1.1 sends `Host`, `Proxy-Connection: keep-alive` and `User-Agent`,
+/// then challenged credentials. HTTP/2 sends `user-agent` after the two
+/// pseudo-headers, then credentials. The user agent comes from the request
+/// that opens the tunnel.
 ///
-/// Chrome's `User-Agent` there is its own, which the captures show equal to
-/// the page request's. The recipe copies the `User-Agent` of the request
-/// that opens the tunnel: the caller's field, or the request template's
-/// value.
-///
-/// After an HTTP/2 CONNECT is challenged, Chrome and Edge end the challenged
-/// stream with an empty END_STREAM DATA frame before the replay
-/// (`https-proxy-auth-secure-hostname`).
-///
-/// A page's navigation, `fetch()`, and every CONNECT it opens, for
-/// `https://`, `ws://`, and `wss://` origins, are streams of one HTTP/2
-/// connection to the proxy in every `https-proxy-*` capture of Chrome, Edge,
-/// Brave, and Opera, so the recipe shares one connection among them
-/// ([`crate::Http2ProxyConnections::Shared`]).
+/// Ends a challenged HTTP/2 CONNECT with empty END_STREAM DATA before replay.
+/// Forwarded requests and CONNECT tunnels share one proxy HTTP/2 connection.
 #[must_use]
 pub fn v154_proxy_connect() -> ProxyConnectTemplate {
     crate::catalog::proxy_connect_components::chromium_154_proxy_connect()
@@ -524,187 +214,86 @@ const V154_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
 const V154_WINDOWS_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 
-/// Returns Chromium 154's `Accept-Encoding` entry: `br` and `zstd` are
-/// offered only to a potentially trustworthy URL.
+/// Returns Chromium 154's `Accept-Encoding` entry.
 ///
-/// `HttpRequestHeaders::SetAcceptEncodingIfMissing` adds them only when the
-/// URL is cryptographic or `net::IsLocalhost`
-/// (`net/http/http_request_headers.cc` lines 261-275 at Chromium tag
-/// `154.0.8037.58`). The retained proxy route captures show `gzip, deflate`
-/// to `origin.phantom.test` and the full list to `127.0.0.1`, direct and
-/// through both proxies.
+/// Offers `br` and `zstd` only to potentially trustworthy URLs
+/// (`net/http/http_request_headers.cc` at tag `154.0.8037.58`).
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
 }
 
-/// Returns navigation request fields observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154 Windows address-bar navigation fields.
 ///
-/// A top-level navigation the user starts from the address bar: an HTML
-/// document request with `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
-/// The HTTP/1.1 order comes from plaintext loopback page loads in the retained
-/// Chrome 154 SSE, WebSocket, and client-hint captures; the HTTP/2 order from
-/// the page requests of the WebSocket captures; the HTTP/3 order from the H3
-/// startup capture. Every run agrees. Each captured HTTP/2 page request carries
-/// HEADERS priority weight 256, exclusive, on stream 0, which is also
-/// [`v154_http2`]'s connection priority.
+/// Uses `Sec-Fetch-Site: none`, `Sec-Fetch-User: ?1` and HTTP/2 weight 256.
+/// Default and requested client hints share one block before
+/// `Upgrade-Insecure-Requests`. ALPS-requested restart hints follow `Accept`.
 ///
-/// The client hints form one block in profile order after `Connection` or
-/// `Proxy-Connection` (on HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
-/// requested hints join that block, as the HTTP/1.1 client-hint capture shows.
-/// No capture records an HTTP/2 or HTTP/3 navigation after `Accept-CH`; the
-/// same placement on those protocols is inferred from the default block, which
-/// every protocol's capture places identically. The `User-Agent` value is the
-/// one headful Chrome sent in the retained launch-mode SSE capture; the other
-/// captures ran headless and sent `HeadlessChrome`. `Accept-Language` is the
-/// capture machine's `en-US` locale. A caller field with the same name replaces
-/// a captured value in place.
-///
-/// Chrome sends the `Sec-Fetch-*` fields, and `br` and `zstd` in
-/// `Accept-Encoding`, only to a potentially trustworthy URL, so those entries
-/// are [`RequestField::ByTrust`]: `network::SetFetchMetadataHeaders` returns
-/// before adding any `Sec-Fetch-*` field when `IsUrlPotentiallyTrustworthy`
-/// is false (`services/network/sec_header_helpers.cc` lines 288-292 at tag
-/// `154.0.8037.58`); `HttpRequestHeaders::SetAcceptEncodingIfMissing` adds
-/// `br` and `zstd` only for a cryptographic or `net::IsLocalhost` URL
-/// (`net/http/http_request_headers.cc` lines 261-275). The retained proxy
-/// route captures show the
-/// navigation to the plaintext name `origin.phantom.test` without them, with
-/// `Accept-Encoding: gzip, deflate`, and with the remaining fields in the same
-/// order on HTTP/1.1 and HTTP/2; Chrome sends no client hints there either.
-///
-/// When an HTTP/1.1 proxy forwards the request, Chrome sends
-/// `Proxy-Connection: keep-alive` where a direct request has
-/// `Connection: keep-alive`, so both are [`RequestField::ByForwarding`]
-/// entries. The retained `http-proxy-*` proxy route captures show this on
-/// every forwarded page request and `fetch()`, with the other fields
-/// unchanged.
-///
-/// A navigation restarts when its connection's ALPS `ACCEPT_CH` names a hint
-/// it lacks ([`RequestTemplate::restarts_for_connection_accept_ch`]), and the
-/// hints it lacked go after `Accept`, at [`RequestField::RestartClientHints`].
-/// The restart merges them into the navigation's own fields, the block
-/// through `Accept`, appending each name those lack
-/// (`content/browser/loader/navigation_url_loader_impl.cc` line 1904;
-/// `net/http/http_request_headers.cc` lines 191-195, 303-310). The network
-/// service copies those fields first (`services/network/url_loader_util.cc`
-/// lines 550-555) and then adds the `Sec-Fetch-*` fields (lines 579-583,
-/// `services/network/sec_header_helpers.cc` lines 163-192); the request job
-/// adds `Accept-Encoding` and `Accept-Language` after them
-/// (`net/url_request/url_request_http_job.cc` lines 781-794). Every protocol
-/// keeps that order, because the transaction merges the fields after `Host`
-/// and `Connection` (`net/http/http_network_transaction.cc` lines
-/// 1381-1429).
+/// The literal user agent describes headful Chrome; language is `en-US`.
+/// Caller fields replace matching values in place. `Sec-Fetch-*`, client hints,
+/// and `br`/`zstd` require a potentially trustworthy URL. HTTP/1.1 forwarding
+/// replaces `Connection` with `Proxy-Connection`.
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     v154_navigation_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-/// Returns same-origin `fetch` request fields observed from Chrome 154.0.8037.58 on
-/// Windows 11.
+/// Returns Chrome 154 Windows same-origin no-store GET fields.
 ///
-/// A script `fetch(url, {cache: "no-store"})` GET to the page's own origin;
-/// the cache mode adds `Pragma` and `Cache-Control`. The HTTP/1.1 and HTTP/2
-/// orders come from the final report request of the retained Chrome 154
-/// WebSocket captures, and every run agrees. No capture backs this request kind
-/// on HTTP/3, so [`RequestTemplate::http3_fields`] is `None`.
+/// Adds `Pragma` and `Cache-Control`. HTTP/2 uses exclusive priority on
+/// stream 0 with weight 220. Chrome can select another live stream as a
+/// parent; this template always uses stream 0.
 ///
-/// Each captured HTTP/2 fetch carries HEADERS priority weight 220, exclusive,
-/// on stream 0, unlike the navigation's 256 in [`v154_http2`];
-/// [`RequestTemplate::http2_priority`] records it so the fetch does not go out
-/// with the connection's navigation weight. Chrome can make a stream depend on
-/// another open stream of equal or higher priority
-/// (`net/spdy/http2_priority_dependencies.cc`); in the captures the only open
-/// stream was a lower-priority WebSocket, the dependency was stream 0, and the
-/// template always sends stream 0.
-///
-/// Unlike a navigation, the default client hints are split:
-/// `sec-ch-ua-platform` precedes `User-Agent`, and `sec-ch-ua` and
-/// `sec-ch-ua-mobile` follow it. Where Chrome puts hints requested through
-/// `Accept-CH` on such a request is not captured, so
-/// [`RequestTemplate::requested_client_hint_placement`] is `false` and the
-/// `phantom` client refuses to send a requested hint with this template.
-/// `Referer` is a caller slot because its value is the page URL. The
-/// `User-Agent` value matches [`v154_windows_navigation_template`].
-///
-/// As on the navigation, the `Sec-Fetch-*` fields and the `br` and `zstd`
-/// codings are sent only to a potentially trustworthy URL. The proxy route
-/// captures back that shape with a same-origin `fetch()` in the default cache
-/// mode, and the `*-auth-nostore-*` captures with a no-store `fetch()` through
-/// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included. Forwarded through an HTTP/1.1
-/// proxy, `Connection` becomes `Proxy-Connection`, as on the navigation.
+/// Supply `Referer`. The user agent matches
+/// [`v154_windows_navigation_template`]. Requested client hints and HTTP/3
+/// are unavailable. Trust and forwarding rules match the navigation template.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-/// Returns navigation request fields observed from Chrome 154.0.8037.95 on
-/// macOS 15.5 arm64.
+/// Returns Chrome 154.0.8037.95 navigation fields for macOS.
 ///
-/// The fields, order, values, and HTTP/2 priority are those of
-/// [`v154_windows_navigation_template`], which the headless page loads of
-/// the retained macOS WebSocket captures and the macOS H3 startup capture
-/// match on HTTP/1.1, HTTP/2, and HTTP/3 with [`v154_macos_client_hints`].
-/// `User-Agent` is a required caller slot: every macOS capture ran headless
-/// and sent `HeadlessChrome/154.0.0.0` with `Macintosh; Intel Mac OS X
-/// 10_15_7`, and no headful macOS capture backs a literal value.
+/// Uses [`v154_windows_navigation_template`]'s ordering and priority with
+/// [`v154_macos_client_hints`]. Supply `User-Agent`.
 #[must_use]
 pub fn v154_macos_navigation_template() -> RequestTemplate {
     v154_navigation_template(None)
 }
 
-/// Returns same-origin no-store `fetch` request fields observed from Chrome
-/// 154.0.8037.95 on macOS 15.5 arm64.
+/// Returns Chrome 154.0.8037.95 same-origin no-store GET fields for macOS.
 ///
-/// The fields, order, values, and HTTP/2 priority are those of
-/// [`v154_windows_fetch_no_store_template`], with `User-Agent` as a required
-/// caller slot for the reason given in [`v154_macos_navigation_template`].
+/// Uses [`v154_windows_fetch_no_store_template`]'s ordering and priority.
+/// Supply `User-Agent`.
 #[must_use]
 pub fn v154_macos_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(None)
 }
 
-/// Returns same-origin `fetch` request fields of Chrome 154 on Windows 11 in
-/// the default cache mode, with slots for the validators of a revalidation.
+/// Returns Chrome 154 Windows same-origin GET fields in default cache mode.
 ///
-/// A script `fetch(url)` GET to the page's own origin. The fields, values,
-/// and HTTP/2 priority are those of
-/// [`v154_windows_fetch_no_store_template`] without `Pragma` and
-/// `Cache-Control`, which only the no-store mode adds; the proxy route
-/// captures show the default-mode `fetch()` with that shape. When the cache
-/// revalidates a response, Chrome adds `If-None-Match`, then
-/// `If-Modified-Since`, after `Accept-Language` and before `priority`. Phantom
-/// has no HTTP cache, so both are optional caller slots: a caller that
-/// revalidates its own cached response supplies the fields, and they go
-/// there. The retained Chrome 154.0.8037.97 revalidation capture shows that
-/// HTTP/2 order with either field and with both. The HTTP/1.1 position, last,
-/// follows from Chromium source: the cache appends the validators to the
-/// request's fields, which the transaction writes after `Host` and
-/// `Connection` (`net/http/http_cache_transaction.cc:3322-3323`,
-/// `:3337-3338`; `net/http/http_network_transaction.cc:1429` at tag
-/// `154.0.8037.58`). A `Cookie` precedes them, as
-/// [`v154_cookie_placement`] places it. No capture backs this request kind on
-/// HTTP/3, so [`RequestTemplate::http3_fields`] is `None`.
+/// Uses [`v154_windows_fetch_no_store_template`] without `Pragma` and
+/// `Cache-Control`. Supply optional `If-None-Match`, then `If-Modified-Since`
+/// to revalidate your cached response. They follow `Accept-Language` and
+/// precede `priority` on HTTP/2; they are last on HTTP/1.1. Cookies precede
+/// them. HTTP/3 is unavailable.
+///
+/// Validator order follows `HttpCache::Transaction::ConditionalizeRequest`
+/// at Chromium tag `154.0.8037.58`.
 #[must_use]
 pub fn v154_windows_fetch_template() -> RequestTemplate {
     v154_fetch_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-/// Returns same-origin POST upload fields for Chrome 154 on Windows 11.
+/// Returns Chrome 154 Windows same-origin POST upload fields.
 ///
-/// You supply `Origin` and `Referer`. `Content-Type` and `Content-Length` are
-/// optional caller slots. `prepared_body()` fills the type slot automatically.
-/// It fills the length slot when the request has no trailers.
-/// With a raw `body()`, an omitted length follows these fields when the body
-/// is nonempty, has a known length, and has no trailers.
+/// Supply `Origin` and `Referer`. `Content-Type` and `Content-Length` are
+/// optional slots. `prepared_body()` supplies the type and, without trailers,
+/// the length. A raw `body()` appends an omitted length for a nonempty body
+/// with a known length and no trailers.
 ///
-/// The field order follows `upload-{h1,h2}.txt` under
-/// `fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/`.
-/// Text, Blob, and multipart uploads share this order. A Blob without a type
-/// omits `Content-Type`. The captures record multipart body byte counts,
-/// not boundary formatting or escaping.
-/// Other values, HTTP/2 priority, and proxy credential placement use
-/// [`v154_windows_fetch_template`]'s same-origin fetch policy. There is no
-/// HTTP/3 list, navigation POST list, or form-submit list.
+/// Uses [`v154_windows_fetch_template`]'s other values, HTTP/2 priority and
+/// proxy credential placement. Provides HTTP/1.1 and HTTP/2 upload ordering;
+/// HTTP/3, navigation POSTs and form submissions have no template.
 #[must_use]
 pub fn v154_windows_fetch_upload_template() -> RequestTemplate {
     let mut template = v154_windows_fetch_template();
@@ -752,33 +341,18 @@ pub fn v154_windows_fetch_upload_template() -> RequestTemplate {
     template
 }
 
-/// Returns same-origin `fetch` request fields of Chrome 154 on macOS 15.5
-/// arm64 in the default cache mode, with slots for the validators of a
-/// revalidation.
+/// Returns Chrome 154 macOS same-origin GET fields in default cache mode.
 ///
-/// The fields, order, values, and HTTP/2 priority are those of
-/// [`v154_windows_fetch_template`], with `User-Agent` as a required caller
-/// slot for the reason given in [`v154_macos_navigation_template`].
+/// Uses [`v154_windows_fetch_template`]'s ordering, priority and validator
+/// slots. Supply `User-Agent`.
 #[must_use]
 pub fn v154_macos_fetch_template() -> RequestTemplate {
     v154_fetch_template(None)
 }
 
-/// Returns Chromium 154's position of forwarded proxy credentials, on the
-/// replay after a `407` and on later requests alike: after
-/// `Proxy-Connection` on HTTP/1.1 and first after the pseudo-header fields
-/// on HTTP/2, except that the `Pragma` and `Cache-Control` fields of a
-/// no-store `fetch()` come before it.
-///
-/// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
-/// captures of Chrome 154 and Edge 154 show this on the replayed navigation
-/// and on the default-mode `fetch()` that follows it, to loopback and named
-/// origins, with a loopback origin's client hints after it. The
-/// `*-auth-remembered-hostname` captures show the same place on a replayed
-/// `fetch()` and on a navigation with remembered credentials, and the
-/// `*-auth-nostore-*` captures show a no-store `fetch()`, challenged,
-/// replayed, and with remembered credentials, placing it after
-/// `Cache-Control` and before the client hints.
+/// Places forwarded proxy credentials after `Proxy-Connection` on HTTP/1.1
+/// and first after pseudo-headers on HTTP/2. No-store cache fields precede
+/// credentials. Replays and later requests use the same position.
 fn chromium_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Every)
 }
@@ -858,18 +432,11 @@ fn v154_fetch_template(user_agent: Option<&str>) -> RequestTemplate {
     v154_fetch_lists(user_agent, FetchCache::Default)
 }
 
-/// Builds the Chromium 154 fetch lists for `cache`.
+/// Builds Chromium 154 fetch lists for the selected cache mode.
 ///
-/// `HttpNetworkTransaction::BuildRequestHeaders` writes the no-store cache
-/// fields right after `Connection`, before the merged request fields
-/// (`net/http/http_network_transaction.cc:1415-1419`, `:1429` at tag
-/// `154.0.8037.58`). `HttpCache::Transaction::ConditionalizeRequest` appends
-/// `If-None-Match` and then `If-Modified-Since` to those fields
-/// (`net/http/http_cache_transaction.cc:3322-3323`, `:3337-3338`), after
-/// `URLRequestHttpJob` has added `Accept-Encoding`, `Accept-Language`
-/// (`net/url_request/url_request_http_job.cc:782`, `:793-794`), and the
-/// cookies, and `CreateSpdyHeadersFromHttpRequest` appends `priority` after
-/// them (`net/spdy/spdy_http_utils.cc:227-237`).
+/// No-store cache fields precede merged fields. Validators follow cookies,
+/// `Accept-Encoding` and `Accept-Language`, before `priority`.
+/// See `net/http/http_cache_transaction.cc` at tag `154.0.8037.58`.
 fn v154_fetch_lists(user_agent: Option<&str>, cache: FetchCache) -> RequestTemplate {
     let user_agent = |name: &str| match user_agent {
         Some(value) => RequestField::literal(name, value),
@@ -942,114 +509,48 @@ fn v154_fetch_lists(user_agent: Option<&str>, cache: FetchCache) -> RequestTempl
     }
 }
 
-/// Returns HTTP/3 settings observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 HTTP/3 settings.
 ///
-/// The five settings, their ascending order, their id and value widths, and the
-/// randomized reserved setting come from the retained Chrome 154 raw
-/// control-stream capture, three fresh processes. The QPACK encoding and the
-/// empty decoder-stream prefix come from the same capture. The QPACK stream
-/// order and the encoder stream's lazy type follow the retained resumption
-/// captures: Chrome 154 opens its decoder stream before its encoder stream, so
-/// the encoder is client stream 10, and writes the encoder stream type only
-/// with its first instructions. The returned value is owned and can be
-/// customized before constructing a transport.
+/// Orders SETTINGS by identifier and includes a randomized reserved setting.
+/// Opens the QPACK decoder before the encoder. The encoder writes its stream
+/// type with its first instructions.
 #[must_use]
 pub fn v154_http3() -> Http3Settings {
     crate::catalog::http3_components::chromium_154_http3()
 }
 
-/// Returns TLS settings for the Chrome 154.0.8037.58 HTTP/3 offer on Windows 11.
+/// Returns Chrome 154.0.8037.58 TLS settings for HTTP/3.
 ///
-/// The wire-visible offer fields come from the retained Chrome 154 QUIC
-/// ClientHellos. They match [`v154_tcp_tls`], including the sorted trust-anchor ID
-/// list, except for the fields this function replaces: TLS 1.3 only, three
-/// cipher suites with no GREASE, the nine non-ML-DSA signature schemes ending
-/// in `rsa_pkcs1_sha1`, an `h3` ALPN offer and `h3` ALPS protocol, and no
-/// GREASE, OCSP staple, or SCT request. The empty application-settings value
-/// follows Chromium's QUIC configuration. The returned value is owned and can
-/// be customized before transport setup.
+/// Uses TLS 1.3, `h3` ALPN and ALPS, and the TCP recipe's sorted trust-anchor
+/// IDs. Omits GREASE cipher suites, OCSP and SCT requests. Enables session
+/// tickets; resumed connections can offer early data with [`v154_quic`].
 ///
-/// `session_tickets` is enabled because Chrome 154 resumes QUIC sessions with
-/// TLS 1.3 tickets. `QuicSessionPool::CreateCryptoConfigHandle` gives each
-/// crypto configuration a `quic::QuicClientSessionCache`
-/// (`net/quic/quic_session_pool.cc` at tag `154.0.8037.58`), and
-/// `TlsClientConnection::CreateSslCtx` enables BoringSSL client session
-/// caching (`quiche/quic/core/crypto/tls_client_connection.cc` at quiche
-/// revision `80bf9559`, which Chromium's `DEPS` pins at that tag). A TLS
-/// 1.3-only offer never carries the TLS 1.2 `session_ticket` extension, so a
-/// first ClientHello is unchanged. The retained resumption captures show a
-/// resumed Chrome 154 ClientHello adding `early_data` and, last,
-/// `pre_shared_key`; [`v154_quic`] sets `early_data` so a resumed connection
-/// offers it too.
-///
-/// [`TlsSettings::ech`] keeps its HTTPS record policy from [`v154_tcp_tls`]:
-/// given an HTTPS record that lists `h3` and carries `ech`, Chrome 154
-/// encrypted its QUIC ClientHello with the record's configuration, under the
-/// public name, with the extension set of its ECH GREASE QUIC ClientHello.
-/// After a rejection it did not open another QUIC connection with the
-/// server's retry configurations; the request went over TCP instead.
-/// Phantom's exact HTTP/3 requests, and negotiated requests under the
-/// sequential Alt-Svc policy, have no such fallback and keep failing on a
-/// stale configuration until the cached record expires. Set the returned
-/// value's `ech` to `EchSettings::Grease` to send ECH GREASE instead.
+/// Uses ECH configurations from HTTPS records. Exact HTTP/3 and sequential
+/// Alt-Svc requests keep failing on a rejected configuration until its cached
+/// record expires. Set `ech` to `EchSettings::Grease` to use GREASE instead.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     crate::tls::components::chromium_154_quic_tls()
 }
 
-/// Returns HTTP/3 request ordering observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 HTTP/3 request settings.
 ///
-/// The retained Chrome 154 H3 startup capture sends `:method`, `:authority`,
-/// `:scheme`, and `:path` in that order ahead of the ordinary request fields.
-/// No capture backs an HTTP/3 extended CONNECT, so
-/// [`Http3RequestSettings::extended_connect_pseudo_header_order`] is `None`.
-///
-/// Each `cookie` field is split into one field per cookie
-/// ([`crate::Http3CookieCrumbs::Split`]). The retained cookie captures
-/// (`fixtures/cookies/`) show Chrome 154, Edge 154, Brave 154, and Opera 136
-/// inserting each crumb into the QPACK dynamic table with a static name
-/// reference and sending it as an indexed field line, at the position of the
-/// joined field.
-///
-/// No request carries `Alt-Used` ([`crate::Http3AltUsed::Omit`]), not even one sent
-/// to an alternative service. The retained Chrome 154 snapshots
-/// (`fixtures/client-hints/chrome/154.0.8037.97/`) send a navigation and a
-/// fetch over HTTP/3 to an alternative learned from Alt-Svc without it. At
-/// tag 154.0.8037.58 no non-test file under `net/http`, `net/quic`,
-/// `net/spdy`, or `net/base` mentions the field, though Chrome connects to
-/// an alternative at another host or port
-/// (`net/http/http_stream_factory_job_controller.cc` lines 1366-1376), and
-/// the request fields are built without it by
-/// `HttpNetworkTransaction::BuildRequestHeaders`
-/// (`net/http/http_network_transaction.cc` lines 1381-1438),
-/// `QuicHttpStream::SendRequest` (`net/quic/quic_http_stream.cc` lines
-/// 117-133), and `CreateSpdyHeadersFromHttpRequest`
-/// (`net/spdy/spdy_http_utils.cc` lines 199-238).
+/// Orders pseudo-headers as `:method`, `:authority`, `:scheme`, `:path`.
+/// Extended CONNECT is unavailable. Splits cookies into crumbs, each indexed
+/// in QPACK, and omits `Alt-Used`, including on alternative services.
 #[must_use]
 pub fn v154_http3_request() -> Http3RequestSettings {
     crate::catalog::http3_components::chromium_154_http3_request()
 }
 
-/// Returns QUIC transport settings observed from Chrome 154.0.8037.58 on Windows 11.
+/// Returns Chrome 154.0.8037.58 QUIC transport settings.
 ///
-/// Every parameter, id width, length width, and value comes from the retained
-/// Chrome 154 QUIC startup capture, three fresh processes. Chrome ran without
-/// `--disable-field-trial-config`, so `max_idle_timeout` is 30000 ms and the
-/// Google connection option is `ORIG`.
+/// Uses a 30-second idle timeout and the `ORIG` connection option. Parameter
+/// order is a permutation template; connection IDs, reserved versions and
+/// reserved parameters are generated at runtime. Pair with [`v154_http3`].
 ///
-/// The parameter vector retains one captured order as a permutation template;
-/// Chrome varies that order between connections. Connection IDs, the reserved
-/// version, and the reserved transport parameter remain runtime-generated.
-/// This is a QUIC transport recipe; use it with [`v154_http3`] for the HTTP/3
-/// application settings captured from the same client.
-///
-/// The retained resumption captures of Chrome 154 and Edge 154 add two
-/// things to a resumed connection. Its ClientHello offers early data, so
-/// `early_data` is set; it takes effect with H3 TLS settings that enable
-/// session tickets, such as [`v154_quic_tls`]. Its transport parameters add
-/// `initial_rtt_us` (`0x3127`) with a two-byte id, a one-byte length, and a
-/// minimal-length value, at a position permuted with the others. A fresh
-/// connection sends neither.
+/// Resumed connections can offer early data and add `initial_rtt_us` with
+/// a two-byte identifier, one-byte length and minimal-width value.
 #[must_use]
 pub fn v154_quic() -> QuicTransportSettings {
     crate::catalog::quic_components::chromium_154_quic()

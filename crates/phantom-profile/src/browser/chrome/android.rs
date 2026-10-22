@@ -1,19 +1,7 @@
-//! Wire settings retained from Chrome for Android observations.
+//! Chrome 154.0.8037.57 connection settings and request templates for Android.
 //!
-//! Google Chrome 154.0.8037.57 is the build the Google Play Store served to the
-//! `phantom-pixel7` Android 17 x86_64 emulator on the Windows 11 capture host.
-//! A Magisk module sets the emulator's build properties to those of a Pixel 7
-//! on build `CP3A.260905.009`: model, build fingerprint, and security patch
-//! level.
-//!
-//! Where a layer equals the desktop Chrome recipe on every compared field, the
-//! function here returns the [`chrome`] recipe, and a test replays the
-//! Android capture against it. Values that carry the platform, such as client
-//! hints and `User-Agent`, have their own data.
-//!
-//! TCP settings come from Chromium source, not from the emulator captures:
-//! the emulator terminates the device's TCP connections. HTTP/1.1 connection,
-//! address-cache, proxy CONNECT, and cookie-placement recipes remain absent.
+//! Client hints use Pixel 7 / Android 17 values. HTTP/1.1 pool, address-cache,
+//! proxy CONNECT and cookie-placement recipes are unavailable.
 
 use crate::{
     browser::chrome,
@@ -29,10 +17,8 @@ use crate::{
 
 /// Returns Chrome 154.0.8037.57 TCP settings for Android.
 ///
-/// Chromium sets `TCP_NODELAY` but does not enable keepalive on Android.
-/// It leaves the send buffer and port selection unchanged. These values come
-/// from `net/socket/tcp_socket_posix.cc` at the build's source tag, not from
-/// socket-hook captures. Address racing keeps the 300 ms fallback delay.
+/// Enables `TCP_NODELAY` and a 300 ms address fallback delay. Leaves
+/// keepalive disabled, with the send buffer and port selection unchanged.
 #[must_use]
 pub fn v154_android_tcp() -> TcpSettings {
     crate::catalog::tcp_components::chromium_154_android_tcp()
@@ -45,39 +31,24 @@ pub fn v154_android_tcp() -> TcpSettings {
 pub(crate) const V154_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36";
 
-/// Returns client-hint fields observed from Chrome 154 for Android on a
-/// Pixel 7.
+/// Returns Chrome 154 client hints for a Pixel 7 on Android 17.
 ///
-/// From the retained navigation capture of Chrome 154.0.8037.57, three
-/// fresh-profile runs that agree. Names, order, and delivery equal
-/// [`chrome::v154_windows_client_hints`]: the three default hints, then
-/// eight more after `Accept-CH`. The values carry Chrome 154's brand list,
-/// `?1` for `sec-ch-ua-mobile`, the `"Android"` platform at version
-/// `"17.0.0"`, the `"Pixel 7"` model, an empty architecture and bitness, and
-/// the `"Mobile"` form factor.
-///
-/// Google publishes Android 17 for the Pixel 7: its factory image list for
-/// `panther` has 17.0.0 builds `CP2A.260605.012` (Jun 2026),
-/// `CP2A.260705.006` (Jul 2026), and `CP3A.260905.009` (Sep 2026), the build
-/// the capture emulator reports.
-///
-/// For another phone, use [`v154_android_client_hints_for_model`].
+/// Uses [`chrome::v154_windows_client_hints`]'s field order with mobile
+/// platform values. Use [`v154_android_client_hints_for_model`] for another
+/// model.
 #[must_use]
 pub fn v154_android_client_hints() -> ClientHintSettings {
     crate::catalog::client_hints_components::chrome_android_154_client_hints()
 }
 
-/// Returns the client hints of [`v154_android_client_hints`] with another
-/// device model in `sec-ch-ua-model`.
+/// Returns [`v154_android_client_hints`] with a custom `sec-ch-ua-model`.
 ///
-/// Pass the model as Android's `Build.MODEL` reports it; it is sent as a
-/// structured-field string. Only the Pixel 7 value is captured, and the
-/// platform version stays Android 17's.
+/// Pass Android's `Build.MODEL` value. The platform version stays Android 17.
 ///
 /// # Errors
 ///
-/// Returns an error if the model contains anything outside printable ASCII
-/// (space through `~`). Quotes and backslashes are escaped in the hint value.
+/// Rejects characters outside printable ASCII (space through `~`). Quotes
+/// and backslashes are escaped in the structured-field string.
 pub fn v154_android_client_hints_for_model(
     model: &str,
 ) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
@@ -85,119 +56,80 @@ pub fn v154_android_client_hints_for_model(
     Ok(crate::catalog::client_hints_components::chrome_android_154_client_hints_for_model(model))
 }
 
-/// Returns TLS settings captured from Chrome 154.0.8037.57 for Android.
+/// Returns Chrome 154.0.8037.57 TLS settings for Android.
 ///
-/// The retained TCP ClientHello equals [`chrome::v154_tcp_tls`] on every
-/// compared field, the 28 trust-anchor IDs in their sorted order included.
-/// GREASE, the permuted extension order, and the ECH GREASE payload length
-/// vary per connection, as on Windows.
-///
-/// [`TlsSettings::ech`] uses GREASE without HTTPS records: no Android capture
-/// shows Chrome using an HTTPS record's `ech`, because the capture cannot
-/// give the device a DNS-over-HTTPS resolver.
+/// Uses [`chrome::v154_tcp_tls`]'s ClientHello settings, including sorted
+/// trust-anchor IDs. ECH uses GREASE rather than HTTPS-record configurations.
 #[must_use]
 pub fn v154_android_tcp_tls() -> TlsSettings {
     crate::tls::components::chromium_154_android_tcp_tls()
 }
 
-/// Returns HTTP/2 settings observed from Chrome 154.0.8037.57 for Android.
+/// Returns Chrome 154.0.8037.57 HTTP/2 settings for Android.
 ///
-/// The initial SETTINGS, their order, the connection WINDOW_UPDATE, the
-/// request pseudo-header order, the navigation priority, and the HPACK
-/// choices of the retained Android captures equal [`chrome::v154_http2`],
-/// so this returns that recipe. Its `cookie` crumb rule comes from the
-/// desktop cookie captures; no Android capture carries a cookie.
+/// Uses [`chrome::v154_http2`], including its cookie-crumb policy.
 #[must_use]
 pub fn v154_android_http2() -> Http2Settings {
     chrome::v154_http2()
 }
 
-/// Returns TLS settings for the Chrome 154.0.8037.57 for Android HTTP/3 offer.
+/// Returns Chrome 154.0.8037.57 TLS settings for HTTP/3 on Android.
 ///
-/// The retained QUIC ClientHello equals [`chrome::v154_quic_tls`] on every
-/// compared field, the sorted trust-anchor IDs included. [`TlsSettings::ech`]
-/// uses GREASE without HTTPS records, as in [`v154_android_tcp_tls`].
+/// Uses [`chrome::v154_quic_tls`]'s ClientHello settings. ECH uses GREASE
+/// rather than HTTPS-record configurations.
 #[must_use]
 pub fn v154_android_quic_tls() -> TlsSettings {
     crate::tls::components::chromium_154_android_quic_tls()
 }
 
-/// Returns QUIC transport settings observed from Chrome 154.0.8037.57 for
-/// Android.
+/// Returns Chrome 154.0.8037.57 QUIC settings for Android.
 ///
-/// Every transport parameter of the retained Android QUIC startup capture,
-/// with its id, length, and value widths, equals [`chrome::v154_quic`], and
-/// the order varies per connection as on Windows, so this returns that
-/// recipe.
+/// Uses [`chrome::v154_quic`], including its per-connection parameter shuffle.
 #[must_use]
 pub fn v154_android_quic() -> QuicTransportSettings {
     chrome::v154_quic()
 }
 
-/// Returns HTTP/3 settings observed from Chrome 154.0.8037.57 for Android.
+/// Returns Chrome 154.0.8037.57 HTTP/3 settings for Android.
 ///
-/// The five SETTINGS, their order and widths, and the QPACK stream prefixes
-/// of the retained Android capture equal [`chrome::v154_http3`]. Its
-/// `cookie` crumb rule comes from the desktop cookie captures; no Android
-/// capture carries a cookie.
+/// Uses [`chrome::v154_http3`].
 #[must_use]
 pub fn v154_android_http3() -> Http3Settings {
     chrome::v154_http3()
 }
 
-/// Returns HTTP/3 request ordering observed from Chrome 154.0.8037.57 for
-/// Android.
+/// Returns Chrome 154.0.8037.57 HTTP/3 request settings for Android.
 ///
-/// The retained Android H3 request sends the pseudo-header fields in the
-/// order of [`chrome::v154_http3_request`].
+/// Uses [`chrome::v154_http3_request`].
 #[must_use]
 pub fn v154_android_http3_request() -> Http3RequestSettings {
     chrome::v154_http3_request()
 }
 
-/// Returns WebSocket settings for Chrome 154.0.8037.57 for Android.
+/// Returns Chrome 154.0.8037.57 WebSocket settings for Android.
 ///
-/// The nine retained Chrome 154 for Android WebSocket scenarios, `accept`
-/// and `h1-accept` opened by typed entry and the other seven by intent,
-/// match [`chrome::v154_websocket`] on every compared field, so this
-/// returns it.
+/// Uses [`chrome::v154_websocket`].
 #[must_use]
 pub fn v154_android_websocket() -> WebSocketSettings {
     chrome::v154_websocket()
 }
 
-/// Returns navigation request fields observed from Chrome 154.0.8037.57 for
-/// Android.
+/// Returns Chrome 154.0.8037.57 Android address-bar navigation fields.
 ///
-/// A navigation typed into the address bar. The retained Android captures
-/// send the fields of [`chrome::v154_windows_navigation_template`] in the
-/// same order, with the same values and HTTP/2 priority, except `User-Agent`,
-/// which is Chrome's reduced Android string, and the client hints of
-/// [`v154_android_client_hints`]. The HTTP/1.1 order comes from the plaintext
-/// page loads of the WebSocket and client-hint captures and the HTTP/2 order
-/// from the WebSocket captures' page requests. The HTTP/3 list is the
-/// Chromium one: the Android H3 startup, opened by intent, sends it without
-/// `Sec-Fetch-User` and with `Sec-Fetch-Site: cross-site`.
-///
-/// A page that another app opens with a `VIEW` intent is not user-activated,
-/// and Chrome then leaves out `Sec-Fetch-User`; this template models the
-/// typed navigation only.
+/// Uses [`chrome::v154_windows_navigation_template`]'s ordering and priority,
+/// with the reduced Android user agent and [`v154_android_client_hints`].
+/// This models typed navigation; another app's `VIEW` intent omits
+/// `Sec-Fetch-User` and can change `Sec-Fetch-Site`.
 #[must_use]
 pub fn v154_android_navigation_template() -> RequestTemplate {
     chrome::v154_navigation_template(Some(V154_ANDROID_USER_AGENT))
 }
 
-/// Returns same-origin no-store `fetch` request fields observed from Chrome
-/// 154.0.8037.57 for Android.
+/// Returns Chrome 154.0.8037.57 Android same-origin no-store GET fields.
 ///
-/// The final report request of every retained Android WebSocket capture sends
-/// the fields of [`chrome::v154_windows_fetch_no_store_template`] in the
-/// same order and with the same values on HTTP/1.1 and HTTP/2, including the
-/// HTTP/2 HEADERS priority weight 220, except `User-Agent`, which is Chrome's
-/// reduced Android string, and the client hints of
-/// [`v154_android_client_hints`]. No capture backs this request kind on
-/// HTTP/3, and none shows where a hint requested through `Accept-CH` goes on
-/// a fetch.
+/// Uses [`chrome::v154_windows_fetch_no_store_template`]'s ordering and
+/// priority with the reduced Android user agent and mobile client hints.
+/// HTTP/3 and requested client hints are unavailable.
 #[must_use]
 pub fn v154_android_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(Some(V154_ANDROID_USER_AGENT))
