@@ -244,11 +244,16 @@ async fn close_idle_and_refresh_preserve_a_coalesced_response_until_its_body_end
                 .reuse(&fixture.second)
                 .await?
                 .ok_or("B was not admitted")?;
-            let owner = Arc::clone(&lease.lease.owner);
+            let owner = Arc::downgrade(&lease.lease.owner);
             let count = lease.lease.streams.clone();
             fixture.pool.close_idle_connections().await;
             assert_eq!(
-                owner.lock_slots().connections.len(),
+                owner
+                    .upgrade()
+                    .ok_or("physical owner retired while held")?
+                    .lock_slots()
+                    .connections
+                    .len(),
                 1,
                 "close-idle retired a held lease"
             );
@@ -292,14 +297,27 @@ async fn close_idle_and_refresh_preserve_a_coalesced_response_until_its_body_end
             assert_eq!(fixture.logical_available(&fixture.second).await, 0);
             fixture.pool.close_idle_connections().await;
             assert_eq!(
-                owner.lock_slots().connections.len(),
+                owner
+                    .upgrade()
+                    .ok_or("physical owner retired while held")?
+                    .lock_slots()
+                    .connections
+                    .len(),
                 1,
                 "close-idle retired a held response"
             );
             fixture.pool.refresh_connections().await;
+            assert!(
+                owner.upgrade().is_some(),
+                "held response lost its physical owner"
+            );
             assert!(fixture.candidates(&fixture.third).await.is_err());
             fixture.release_body.notify_one();
             assert_eq!(response.into_body().collect_with_limit(2).await?, b"ok"[..]);
+            assert!(
+                owner.upgrade().is_none(),
+                "completed response retained its physical owner"
+            );
             assert_eq!(count.get(), 0);
             assert_eq!(fixture.logical_available(&fixture.second).await, 1);
             Ok(())
