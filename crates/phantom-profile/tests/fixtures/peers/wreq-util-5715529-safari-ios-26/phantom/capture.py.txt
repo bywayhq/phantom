@@ -1,0 +1,376 @@
+"""Capture a public Rust consumer; compare only with the three retained peer runs."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import dataclasses
+import hashlib
+import importlib.metadata
+import json
+import platform
+import ssl
+import sys
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+
+from scripts.capture.http2_analysis import analyze_http2, frame_details
+from scripts.capture.http2_session import (
+    CaptureRun,
+    CaptureServer,
+    ServerPolicy,
+    generate_certificate,
+)
+from scripts.capture.quic_resumption import parse_client_hello
+from scripts.capture.snapshot_compare import Variation, code, extension_body
+
+HERE = Path(__file__).resolve().parent
+RETAINED = ROOT / "crates/phantom-profile/tests/fixtures/peers/wreq-util-5715529-safari-ios-26"
+
+
+def encoded(value):
+    if isinstance(value, bytes):
+        return {"hex": value.hex()}
+    if dataclasses.is_dataclass(value):
+        return dataclasses.asdict(value)
+    raise TypeError(type(value).__name__)
+
+
+def write_json(path, value):
+    path.write_text(
+        json.dumps(value, default=encoded, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def hello_shape(message):
+    shape = parse_client_hello(message)
+    # The shared parser validates all extents. Retain session-ID length and
+    # compression too; only its random bytes and the fixed random are masked.
+    session_length = message[38]
+    offset = 39 + session_length
+    cipher_length = int.from_bytes(message[offset : offset + 2], "big")
+    offset += 2 + cipher_length
+    compression_length = message[offset]
+    compression_start = offset + 1
+    extensions = []
+    for kind, body in shape.extensions:
+        if kind == 0x0033:
+            # Validate the vector before walking it. Genuine key exchanges
+            # vary; this peer's one-byte GREASE share is a constant payload.
+            shares = extension_body(kind, body, Variation()).split(",")
+            share_offset = 2
+            for index in range(len(shares)):
+                group = int.from_bytes(body[share_offset : share_offset + 2], "big")
+                length = int.from_bytes(
+                    body[share_offset + 2 : share_offset + 4], "big"
+                )
+                if code(group) == "GREASE":
+                    shares[index] += "/" + body[
+                        share_offset + 4 : share_offset + 4 + length
+                    ].hex()
+                share_offset += 4 + length
+            value = ",".join(shares)
+        elif kind in (0x000A, 0x000D, 0x002B):
+            # Normalize only GREASE code points,
+            # retaining order, group IDs, widths and key exchange lengths.
+            value = extension_body(kind, body, Variation())
+        else:
+            value = body.hex()
+        extensions.append([code(kind), value])
+    return {
+        "legacy_version": message[4:6].hex(),
+        "random_length": 32,
+        "session_id_length": session_length,
+        "cipher_suites": [code(value) for value in shape.cipher_suites],
+        "compression": message[
+            compression_start : compression_start + compression_length
+        ].hex(),
+        "extensions": extensions,
+    }
+
+
+def projection(metadata):
+    frames = metadata["analysis"]["frames"]
+    blocks = metadata["analysis"]["client_headers"]
+    normalized_blocks = []
+    for block in blocks:
+        fields = []
+        for field in block["fields"]:
+            item = dict(field)
+            if item["name"] == {"hex": b":authority".hex()}:
+                authority = bytes.fromhex(item["value"]["hex"]).decode("ascii")
+                host, separator, port = authority.rpartition(":")
+                if (
+                    host != "server.phantom.test"
+                    or not separator
+                    or not port.isdecimal()
+                ):
+                    raise ValueError("unexpected captured authority")
+                item["value"] = "server.phantom.test:<port>"
+            fields.append(item)
+        normalized_blocks.append(
+            {
+                "stream_id": block["stream_id"],
+                "flags": block["flags"],
+                "priority": block["priority"],
+                "continuation_count": block["continuation_count"],
+                "fields": fields,
+            }
+        )
+    return {
+        "client_frame_order": [
+            [frame["frame_type"], frame["flags"], frame["stream_id"]]
+            for frame in frames
+            if frame["direction"] == "client"
+        ],
+        "client_non_header_frames": [
+            {key: frame[key] for key in ("frame_type", "flags", "stream_id", "payload")}
+            for frame in frames
+            if frame["direction"] == "client" and frame["frame_type"] not in (1, 9)
+        ],
+        "ordered_headers_and_hpack_representations": normalized_blocks,
+        "raw_hpack_blocks": [block["block"] for block in blocks],
+        "observed_direction_order": [
+            [
+                frame["direction"],
+                frame["frame_type"],
+                frame["flags"],
+                frame["stream_id"],
+            ]
+            for frame in frames
+        ],
+    }
+
+
+def compare(directory, retained):
+    current = json.loads((directory / "connection-0.json").read_text())
+    previous = json.loads((retained / "connection-0.json").read_text())
+    current_hello = hello_shape((directory / "connection-0.hello.bin").read_bytes())
+    previous_hello = hello_shape((retained / "connection-0.hello.bin").read_bytes())
+    new, old = projection(current), projection(previous)
+    result = {
+        "scope": "fresh TLS plus first/reused HTTP2 requests; external peer, not Safari browser fidelity",
+        "normalization": [
+            "TLS random and session-ID bytes",
+            "non-GREASE key exchange bytes (lengths retained); GREASE share payload retained",
+            "TLS GREASE code points only (body bytes retained)",
+            "decoded :authority port only",
+        ],
+        "tls_shape_equal": current_hello == previous_hello,
+        "http2_equal_by_field": {key: new[key] == old[key] for key in new},
+        "raw_hpack_note": "Raw blocks are compared without normalization; a mismatch is not excused by decoded authority normalization.",
+        "phantom_tls": current_hello,
+        "peer_tls": previous_hello,
+        "phantom_http2": new,
+        "peer_http2": old,
+        "retained_inputs_sha256": {
+            name: digest(retained / name)
+            for name in (
+                "command.json",
+                "connection-0.json",
+                "connection-0.hello.bin",
+                "connection-0.client.bin",
+            )
+        },
+    }
+    write_json(directory / "comparison.json", result)
+    return {
+        "tls_shape_equal": result["tls_shape_equal"],
+        **result["http2_equal_by_field"],
+    }
+
+
+def retain_capture(directory, run):
+    write_json(
+        directory / "run.json",
+        {
+            "connection_count": len(run.connections),
+            "results": run.results,
+            "timed_out": run.timed_out,
+        },
+    )
+    for index, record in enumerate(run.connections):
+        base = directory / f"connection-{index}"
+        base.with_suffix(".client.bin").write_bytes(record.client_stream())
+        base.with_suffix(".server.bin").write_bytes(
+            b"".join(data for _, data in record.server_chunks)
+        )
+        if record.client_hello is not None:
+            base.with_suffix(".hello.bin").write_bytes(
+                bytes(record.client_hello.handshake)
+            )
+        analysis = analyze_http2(record)
+        write_json(
+            base.with_suffix(".json"),
+            {
+                "protocol": record.protocol,
+                "alpn": record.alpn,
+                "failure": record.failure,
+                "hello_complete": record.client_hello is not None
+                and record.client_hello.complete,
+                "received": record.received,
+                "sent": record.sent,
+                "analysis": dataclasses.asdict(analysis),
+                "frame_details": [
+                    {
+                        "direction": frame.direction,
+                        "type": frame.type_name,
+                        "flags": frame.flags,
+                        "stream_id": frame.stream_id,
+                        "details": frame_details(frame),
+                    }
+                    for frame in analysis.frames
+                ],
+            },
+        )
+        for block in analysis.client_headers:
+            (
+                directory / f"connection-{index}.stream-{block.stream_id}.hpack.bin"
+            ).write_bytes(block.block)
+
+
+async def capture(consumer, output, retained, index):
+    directory = output / f"run-{index}"
+    directory.mkdir()
+    original = json.loads((retained / "command.json").read_text())
+    urls = [urlsplit(item) for item in original if item.startswith("https://")]
+    token = f"peer-{index}"
+    if (
+        len(urls) != 2
+        or [url.path for url in urls] != ["/ws.html", "/done"]
+        or any(
+            url.hostname != "server.phantom.test" or url.query != f"run={token}"
+            for url in urls
+        )
+    ):
+        raise ValueError(
+            "retained command differs from the scoped two-request workload"
+        )
+    certificate = generate_certificate()
+    (directory / "certificate.pem").write_bytes(certificate.certificate_pem)
+    ca = directory / "certificate.der"
+    ca.write_bytes(certificate.der)
+    server = CaptureServer(certificate)
+    run = CaptureRun(
+        token, ServerPolicy(), {"tls": b"peer capture\n"}, observation_seconds=0
+    )
+    process = None
+    failures = []
+    try:
+        await asyncio.wait_for(server.start("127.0.0.1"), 5)
+        server.begin_run(run)
+        if server.tls_address is None:
+            raise RuntimeError("server omitted its TLS address")
+        authority = f"server.phantom.test:{server.tls_address[1]}"
+        actual = [
+            urlunsplit((url.scheme, authority, url.path, url.query, url.fragment))
+            for url in urls
+        ]
+        command = [str(consumer), str(ca), *actual, str(directory)]
+        write_json(directory / "command.json", command)
+        process = await asyncio.create_subprocess_exec(
+            *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), 40)
+        (directory / "stdout.log").write_bytes(stdout)
+        (directory / "stderr.log").write_bytes(stderr)
+        (directory / "exit.txt").write_text(f"{process.returncode}\n")
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"public consumer failed with exit {process.returncode}; see retained stderr"
+            )
+        await asyncio.wait_for(run.done.wait(), 3)
+    except BaseException as error:
+        failures.append(error)
+    finally:
+        try:
+            if process is not None and process.returncode is None:
+                process.kill()
+                await asyncio.wait_for(process.wait(), 3)
+        except BaseException as error:
+            failures.append(error)
+        try:
+            await asyncio.wait_for(server.close(), 5)
+        except BaseException as error:
+            failures.append(error)
+        try:
+            retain_capture(directory, run)
+        except BaseException as error:
+            failures.append(error)
+    if failures:
+        raise BaseExceptionGroup("capture and owned cleanup failures", failures)
+    if len(run.connections) != 1:
+        raise AssertionError("two requests did not reuse one connection")
+    record = run.connections[0]
+    if (
+        record.failure is not None
+        or record.protocol != "h2"
+        or record.alpn != "h2"
+        or record.client_hello is None
+        or not record.client_hello.complete
+    ):
+        raise AssertionError("capture did not complete verified TLS and exact H2")
+    analysis = analyze_http2(record)
+    if [block.stream_id for block in analysis.client_headers] != [
+        1,
+        3,
+    ] or analysis.client_trailing:
+        raise AssertionError(
+            "expected exactly two complete sequential H2 request blocks"
+        )
+    return compare(directory, retained)
+
+
+async def main(args):
+    consumer = args.consumer.resolve(strict=True)
+    output = args.output.resolve()
+    output.mkdir()  # A failed/repeated run cannot overwrite retained evidence.
+    write_json(
+        output / "environment.json",
+        {
+            "python": sys.version,
+            "executable": sys.executable,
+            "platform": platform.platform(),
+            "openssl": ssl.OPENSSL_VERSION,
+            "packages": {
+                name: importlib.metadata.version(name)
+                for name in ("aioquic", "h2", "hpack", "cryptography")
+            },
+            "consumer_sha256": digest(consumer),
+            "source_sha256": {
+                name: digest(ROOT / name)
+                for name in (
+                    "scripts/capture/http2_session.py",
+                    "scripts/capture/http2_analysis.py",
+                    "scripts/capture/quic_resumption.py",
+                    "scripts/capture/snapshot_compare.py",
+                    "crates/phantom-profile/src/catalog/generated.rs",
+                    "crates/phantom-profile/src/catalog/connection_profile_definitions.rs",
+                    "crates/phantom-profile/src/catalog/request_template_definitions.rs",
+                )
+            },
+            "driver_sha256": digest(Path(__file__)),
+            "consumer_source_sha256": digest(HERE / "consumer/src/main.rs"),
+        },
+    )
+    summary = {}
+    for index in range(1, 4):
+        summary[f"run-{index}"] = await capture(
+            consumer, output, args.retained / f"run-{index}", index
+        )
+    write_json(output / "comparison-summary.json", summary)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--consumer", required=True, type=Path)
+    parser.add_argument("--output", type=Path, default=HERE / "capture-results")
+    parser.add_argument("--retained", type=Path, default=RETAINED)
+    asyncio.run(main(parser.parse_args()))

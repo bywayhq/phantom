@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "C:\code\phantom-worktrees\rust-release-audit\target\tmp\safari-ios-comparison\check_offline.py", line 22, in <module>
+    assert original["compression"] == "00"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

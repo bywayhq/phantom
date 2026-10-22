@@ -55,7 +55,8 @@ scheduling under other workloads, or shutdown parity.
 `observations.json` keeps the decoded projection. Only the assigned authority
 port is normalized in headers; raw HPACK bytes retain it. `provenance.json`
 names source, build and executable identities; `sha256.json` covers every
-retained file. Actual Phantom emission is verified separately before landing.
+retained file. [Public-client comparison](phantom/README.md) retains Phantom
+emission at the recorded integration checkout and localizes its differences.
 
 ## Next
 

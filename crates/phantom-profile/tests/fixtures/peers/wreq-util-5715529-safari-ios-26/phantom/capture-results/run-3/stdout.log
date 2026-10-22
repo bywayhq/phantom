@@ -1,0 +1,3 @@
+selector=safari-26-ios id=safari/26.0/ios/r1
+request=1 protocol=h2 status=200 bytes=13
+request=2 protocol=h2 status=204 bytes=0

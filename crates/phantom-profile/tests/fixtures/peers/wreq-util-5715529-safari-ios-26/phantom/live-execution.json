@@ -1,0 +1,25 @@
+{
+  "startedUtc": "2026-10-22T00:54:25.2688654Z",
+  "head": "be7d7745e261569870869fd3f25ada31cf52a05c",
+  "command": [
+    "uv",
+    "run",
+    "--no-project",
+    "--python",
+    "3.12.10",
+    "--with",
+    "aioquic==1.3.0",
+    "--with",
+    "h2==4.4.1",
+    "--with",
+    "hpack==4.2.0",
+    "python",
+    "target/tmp/safari-ios-comparison/capture.py",
+    "--consumer",
+    "C:/code/phantom-worktrees/rust-release-audit/target/profile-port/debug/safari-peer-public-consumer.exe"
+  ],
+  "binarySha256": "6ebaba5bb5f325677463812e53ee02f015bf6a14add8a12a97c967354b89435f",
+  "driverSha256": "0aeaa3313458e5fc5a97ccfdad07da01069213c0ce0f0f4d9871da993d98a04e",
+  "consumerLockSha256": "2fc859b8631d4e4f38094ff677ef669aa964b67ac17c2cf8550fbba62dc6c95c",
+  "scope": "three fresh public Rust clients, two verified HTTP2 GET requests each, peer comparison only"
+}

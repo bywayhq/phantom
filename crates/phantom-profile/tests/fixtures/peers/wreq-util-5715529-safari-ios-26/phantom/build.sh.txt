@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -uo pipefail
+cd /c/code/phantom-worktrees/rust-release-audit || exit 1
+receipt="$PWD/target/tmp/safari-ios-comparison"
+[[ $(git rev-parse HEAD) == be7d7745e261569870869fd3f25ada31cf52a05c ]] || exit 65
+[[ -z $(git status --porcelain) ]] || exit 65
+export CARGO_BUILD_JOBS=2 PHANTOM_CARGO_SLOTS=4
+git rev-parse HEAD > "$receipt/build-head.txt"
+rustc -Vv > "$receipt/rustc.txt"
+cp "$receipt/consumer/Cargo.lock" "$receipt/consumer-lock-before-build.txt"
+scripts/dev/with-cargo-lock.sh cargo build --offline --locked --manifest-path target/tmp/safari-ios-comparison/consumer/Cargo.toml --target-dir target/profile-port > "$receipt/consumer-build.log" 2>&1
+result=$?
+printf '%s\n' "$result" > "$receipt/consumer-build-exit.txt"
+exit "$result"

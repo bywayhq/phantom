@@ -1,0 +1,25 @@
+warning: phantom-btls-sys@0.5.6-phantom.2: applying post quantum crypto patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0001-boringssl-ffdhe.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0002-boringssl-legacy-ciphers.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0003-boringssl-tls-options.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0004-boringssl-extension-order.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0005-record-size-limit.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0006-delegated-credentials.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0007-boringssl-cipher-preferences.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0008-boringssl-sigalgs.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0009-boringssl-zstd-cert-compression.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0010-boringssl-build-compat.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0011-boringssl-ech-grease-payload-length.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0012-boringssl-ech-grease-aead.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0013-boringssl-record-size-limit-early-data.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0014-boringssl-extension-order-tail.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0015-boringssl-quic-record-size-limit.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0016-boringssl-tls13-legacy-extensions.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying 0017-boringssl-ech-grease-payload-from-client-hello.patch to boringssl
+warning: phantom-btls-sys@0.5.6-phantom.2: applying loongarch patch to boringssl
+   Compiling phantom-profile v0.3.0 (C:\code\phantom-worktrees\rust-release-audit\crates\phantom-profile)
+   Compiling phantom-quic-btls v0.3.0 (C:\code\phantom-worktrees\rust-release-audit\crates\phantom-quic-btls)
+   Compiling phantom-net v0.3.0 (C:\code\phantom-worktrees\rust-release-audit\crates\phantom-net)
+   Compiling phantom-http v0.3.0 (C:\code\phantom-worktrees\rust-release-audit\crates\phantom)
+   Compiling safari-peer-public-consumer v0.0.0 (C:\code\phantom-worktrees\rust-release-audit\target\tmp\safari-ios-comparison\consumer)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 33.63s

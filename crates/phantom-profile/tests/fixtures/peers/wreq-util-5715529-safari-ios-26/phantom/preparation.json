@@ -1,0 +1,42 @@
+{
+  "preparedAt": "2026-10-21T17:31:37.9504264-07:00",
+  "peerSource": "dc0ba819bf32e00c7b967d1e89dffcb249c1c8fb",
+  "derivedFrom": "target/tmp/safari-peer-comparison",
+  "change": "consumer selects safari-26-ios; existing exact comparison driver unchanged",
+  "compiled": false,
+  "executed": false,
+  "corrections": [
+    {
+      "detail": "After preparation, capture.py RETAINED default was changed to wreq-util-5715529-safari-ios-26. Comparison logic is unchanged; driver file is not byte-identical to the macOS driver.",
+      "driverSha256": "7be55a5163120fd8f975cef1ca6287b4759ccb68d359ae3294f39e469bf98464",
+      "at": "2026-10-21T17:38:34.0109301-07:00"
+    },
+    {
+      "detail": "Preserve the pinned peer's constant GREASE key-share payload while normalizing genuine key-exchange bytes; independent raw-offset mutation controls retain all previous checks",
+      "at": "2026-10-22T00:41:07.233901+00:00",
+      "source": "BoringSSL f1f2556a5dfa59e147d9d47279cc3f7f8a18b433 ssl/extensions.cc:2497-2502 emits GREASE length1/body00; retained peer raw runs1-3 confirm00",
+      "driverSha256": "b3ef221e0772cdc21edaec1f050ad9841ae82568940e8f249fd17f23b8921850",
+      "offlineCheckSha256": "c1c0f893a3768bf22321ffc6e0e68c8843b5165514a11ae65f7c5d02cbebf273",
+      "beforeExit": 1,
+      "beforeLogSha256": "b3cf80ef2acac50170f5352aba30944967dd83e35d5e25b3d851a3ab99001a4b",
+      "afterExit": 0,
+      "afterLogSha256": "ce60aa9599eefab761ebcacc44b95eebcd3f5491ff4b825e3a6983914f83c101",
+      "offlineResultsSha256": "04b9b0f2ed67583ed0509a3c0af2cb97d1c693cca7b59b0c7fab2d74afd61a5e",
+      "checks": "all ten controls pass independently on each of three retained runs; no server or Cargo invocation"
+    },
+    {
+      "detail": "Fix introduced cursor shadowing: preserve compression_start and use share_offset for key-share traversal. Independent raw-offset assertions require literal compression00 and observe actual00-to01 mutation on all three peers",
+      "at": "2026-10-22T00:42:59.955846+00:00",
+      "driverSha256": "0aeaa3313458e5fc5a97ccfdad07da01069213c0ce0f0f4d9871da993d98a04e",
+      "offlineCheckSha256": "592209b080bdd0acd59b29988ac5c8701216d5258b822d36ab346e67c78016e2",
+      "beforeExit": 1,
+      "beforeLogSha256": "c36bef7daf9f4ab562d11f5eecec93f0b279c60bcbed26b795c6524431f5f700",
+      "afterExit": 0,
+      "afterLogSha256": "4991f82066e585746a41184c635e60e0e492fbd25e857b696b70d99bb90a213e",
+      "offlineResults": "offline-checks-after-compression.json",
+      "offlineResultsSha256": "638f2a2c3dd5a72fe19cb82dd4f294dce5487fa80b6e4c70edca75e8fb2b5ddd",
+      "checks": "all twelve controls pass on each of three retained runs; no capture/server/Cargo invocation",
+      "priorResults": "offline-checks-after-grease.json preserved byte-exact at prior recorded hash04b9b0f2ed67583ed0509a3c0af2cb97d1c693cca7b59b0c7fab2d74afd61a5e"
+    }
+  ]
+}

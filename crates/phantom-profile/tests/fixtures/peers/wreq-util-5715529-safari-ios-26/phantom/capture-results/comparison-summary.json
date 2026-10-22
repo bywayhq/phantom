@@ -1,0 +1,26 @@
+{
+  "run-1": {
+    "tls_shape_equal": true,
+    "client_frame_order": false,
+    "client_non_header_frames": false,
+    "ordered_headers_and_hpack_representations": true,
+    "raw_hpack_blocks": false,
+    "observed_direction_order": false
+  },
+  "run-2": {
+    "tls_shape_equal": true,
+    "client_frame_order": true,
+    "client_non_header_frames": true,
+    "ordered_headers_and_hpack_representations": true,
+    "raw_hpack_blocks": false,
+    "observed_direction_order": false
+  },
+  "run-3": {
+    "tls_shape_equal": true,
+    "client_frame_order": false,
+    "client_non_header_frames": false,
+    "ordered_headers_and_hpack_representations": true,
+    "raw_hpack_blocks": false,
+    "observed_direction_order": false
+  }
+}
