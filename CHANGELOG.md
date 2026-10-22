@@ -21,6 +21,8 @@
   local ports.
 - Close headful Alt-Svc captures through their owned loopback browser endpoint
   after the page finishes. Require process exit and a complete NetLog.
+- Reject truncated remote-protocol frames and unfinished fragmented messages
+  when a browser closes before replying.
 
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
   headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog

@@ -89,7 +89,12 @@ def encode_frame(opcode: int, payload: bytes, mask: bytes) -> bytes:
 
 async def read_frame(reader: asyncio.StreamReader) -> tuple[bool, int, bytes]:
     """Read one server frame as (final, opcode, payload)."""
-    first, second = await reader.readexactly(2)
+    try:
+        first, second = await reader.readexactly(2)
+    except asyncio.IncompleteReadError as error:
+        if not error.partial:
+            raise _FrameHeaderEnd(error.partial, error.expected) from error
+        raise
     length = second & 0x7F
     if length == 126:
         length = int.from_bytes(await reader.readexactly(2), "big")
@@ -102,6 +107,10 @@ async def read_frame(reader: asyncio.StreamReader) -> tuple[bool, int, bytes]:
     if mask:
         payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
     return bool(first & 0x80), first & 0x0F, payload
+
+
+class _FrameHeaderEnd(asyncio.IncompleteReadError):
+    """EOF before any byte of the next frame, rather than inside a frame."""
 
 
 class RemoteSocket:
@@ -189,8 +198,14 @@ class RemoteSocket:
     async def receive(self) -> str:
         """Return the next text message; answer pings; raise on close."""
         message = bytearray()
+        fragmented = False
         while True:
-            final, opcode, payload = await read_frame(self.reader)
+            try:
+                final, opcode, payload = await read_frame(self.reader)
+            except _FrameHeaderEnd as error:
+                if fragmented:
+                    raise
+                raise ConnectionError("remote protocol endpoint closed") from error
             if opcode == OPCODE_PING:
                 self.writer.write(encode_frame(OPCODE_PONG, payload, os.urandom(4)))
                 await self.writer.drain()
@@ -206,6 +221,7 @@ class RemoteSocket:
                 raise ValueError("remote protocol message exceeds the capture limit")
             if final:
                 return message.decode()
+            fragmented = True
 
     def close(self) -> None:
         self.writer.transport.abort()
@@ -395,14 +411,10 @@ async def request_browser_close(
     future = await asyncio.wait_for(connection.send(method, {}), 5)
     try:
         await asyncio.wait_for(future, timeout=5)
-    except (ConnectionError, asyncio.IncompleteReadError) as error:
+    except ConnectionError as error:
         clean_end = (
             type(error) is ConnectionError
             and str(error) == "remote protocol endpoint closed"
-        ) or (
-            isinstance(error, asyncio.IncompleteReadError)
-            and error.expected == 2
-            and not error.partial
         )
         if connection.failure is not error or not clean_end:
             raise

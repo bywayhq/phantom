@@ -69,13 +69,15 @@ class BrowserCloseRequestTests(unittest.IsolatedAsyncioTestCase):
                     await peer.finish()
 
     async def test_only_the_owned_clean_disconnect_can_replace_a_close_reply(self):
-        clean = asyncio.IncompleteReadError(b"", 2)
+        clean = ConnectionError("remote protocol endpoint closed")
+        ambiguous = asyncio.IncompleteReadError(b"", 2)
         partial = asyncio.IncompleteReadError(b"\x81", 2)
         wrong_length = asyncio.IncompleteReadError(b"", 8)
         unrelated = ConnectionAbortedError("remote protocol endpoint closed")
         foreign = ConnectionError("remote protocol endpoint closed")
         for error, owned, accepted in (
             (clean, clean, True),
+            (ambiguous, ambiguous, False),
             (partial, partial, False),
             (wrong_length, wrong_length, False),
             (unrelated, unrelated, False),
