@@ -297,7 +297,7 @@ impl QuicClientConfig {
     /// directly or through another. The clone shares the immutable BoringSSL
     /// context. Without `session_tickets` the clone has no cache and never
     /// resumes.
-    /// With authentication disabled, tickets do not prove a trusted peer identity.
+    /// Tickets retain the connection's authentication policy.
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
         Self {
@@ -755,8 +755,7 @@ impl fmt::Debug for HandshakeData {
 
 /// Peer-provided certificate chain, encoded as leaf-first DER certificates.
 ///
-/// Trust requires a configuration that verifies server authentication.
-/// With authentication disabled, these certificates provide no trust proof.
+/// Server trust depends on the connection's authentication policy.
 #[derive(Clone, Eq, PartialEq)]
 pub struct PeerIdentity {
     certificates: Vec<Vec<u8>>,

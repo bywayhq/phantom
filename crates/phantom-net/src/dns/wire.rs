@@ -572,7 +572,7 @@ pub enum DnsNegativeKind {
 ///
 /// A lifetime requires an IN SOA owned by an ancestor of the terminal name,
 /// and is the minimum of SOA TTL, SOA MINIMUM and any CNAME TTL. No SOA means
-/// no cache lifetime. This does not establish DNSSEC authentication.
+/// no cache lifetime. DNSSEC authentication is outside this parser.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DnsNegativeAnswer {
     kind: DnsNegativeKind,

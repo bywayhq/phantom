@@ -15,15 +15,14 @@ const MAX_SNAPSHOT: usize = 16 * 1024 * 1024;
 ///
 /// Keep this snapshot and its key private. Together they allow another client
 /// with matching settings to resume the captured sessions. The format is
-/// tied to this library and its TLS backend; it is not a portable browser
-/// ticket format. Debug formatting omits its contents.
+/// specific to this library and its TLS backend. Debug formatting omits its
+/// contents.
 pub struct SessionTicketSnapshot(Zeroizing<Vec<u8>>);
 
 impl SessionTicketSnapshot {
     /// Copies encrypted bytes after checking the 16 MiB size bound.
     ///
-    /// This does not authenticate or import them. Use
-    /// [`Client::import_session_tickets`] to validate the complete snapshot.
+    /// Authentication and import happen in [`Client::import_session_tickets`].
     ///
     /// # Errors
     ///

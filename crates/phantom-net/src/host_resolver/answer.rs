@@ -118,8 +118,7 @@ pub enum AddressNegativeKind {
 /// [`super::AddressResolver::from_answer_fn`].
 ///
 /// Inspect [`io::Error::get_ref`] or the cached error's source chain to find
-/// this cause. Receiving it does not prove DNSSEC validation or browser
-/// behavior.
+/// this cause.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AddressNegative {
     kind: AddressNegativeKind,

@@ -23,11 +23,10 @@ never follows updates or chooses your host's platform.
 
 `safari-26-macos` and `safari-26-ios` supply TLS, HTTP/2 and navigation
 settings for Safari 26.0.1 and 26.0. They adapt curl-impersonate and wreq-util
-presets. `metadata().identity()` identifies the pinned source; these settings
-are not Safari browser captures.
-`version()` returns its advertised Safari version. Browser build, OS release
-and capture environment are absent for peer presets. Require layers when you
-instantiate a definition to reject missing settings rather than use defaults.
+presets identified by `metadata().identity()`. `version()` returns the
+advertised Safari version; peer presets omit browser build, OS release and
+capture environment. Require layers when instantiating a definition to reject
+missing settings rather than use defaults.
 
 Brave's version labels use the Chromium major. `v154_windows` describes
 Brave 1.96.59, and `v153_android` describes Brave 1.95.104.
@@ -46,8 +45,7 @@ Adding or removing required public fields is a breaking API change. Before
 version 1.0, it requires a minor release. Policy enums marked `non_exhaustive`
 require a catch-all match arm. Reject an unknown policy when applying settings.
 
-Equality compares stored values, including list order. Equal settings do not
-promise equal bytes across connections with random draws or different peers.
+Equality compares stored values, including list order.
 
 ## Next
 

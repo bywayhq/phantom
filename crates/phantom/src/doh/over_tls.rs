@@ -88,8 +88,8 @@ impl fmt::Debug for DotConfiguration {
 /// Clones and both resolver factories share connection and admission state.
 /// Replies may arrive out of order. Dropping a lookup cancels its interest
 /// without closing another lookup's connection. The application client owns
-/// its separate DNS cache. This does not enable HTTP/3 discovery or DNSSEC
-/// validation, or claim to reproduce a browser's encrypted DNS behavior.
+/// its separate DNS cache. HTTP/3 discovery requires separate configuration;
+/// DNSSEC validation is unsupported.
 #[derive(Clone)]
 pub struct DnsOverTls {
     endpoint: Arc<Endpoint>,

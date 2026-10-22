@@ -80,8 +80,8 @@ impl fmt::Debug for ImportedProfile {
 ///
 /// Replaces ordered initial SETTINGS, the initial connection window and
 /// ordinary pseudo-header order. All other settings come from `base`, which
-/// must include HTTP/2. The result lists those supplemented fields. It describes
-/// a custom client, without claiming an exact browser match.
+/// must include HTTP/2. The result lists those supplemented fields and has a
+/// custom client identity.
 ///
 /// Input has four sections: `settings|window_update|priority|pseudo_headers`.
 /// SETTINGS uses decimal `id:value` pairs separated by `;`. WINDOW_UPDATE is

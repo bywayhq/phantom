@@ -102,7 +102,7 @@ impl EchConfig {
 
     /// Returns whether this configuration uses parameters the TLS client supports.
     ///
-    /// This does not validate the HPKE public key or guarantee a handshake.
+    /// HPKE public-key validation is left to the TLS backend.
     ///
     /// As in BoringSSL's `ssl_select_ech_config`, that needs version
     /// `0xfe0d`, the X25519 HKDF-SHA256 KEM, a cipher suite pairing

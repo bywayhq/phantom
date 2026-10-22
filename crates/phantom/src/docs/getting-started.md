@@ -86,9 +86,8 @@ fallback. To let TLS negotiate HTTP/1.1 or HTTP/2, use
 [`Client::get_negotiated`](crate::Client::get_negotiated).
 
 [`chrome::v154_windows`](crate::profile::browser::chrome::v154_windows) supplies
-Chrome 154's Windows connection settings. It does not attach a set of browser
-request headers. For page-load or fetch headers, choose a request template in
-[Browser profiles](crate::guide::browser_profiles).
+Chrome 154's Windows connection settings. Add page-load or fetch headers with
+a request template from [Browser profiles](crate::guide::browser_profiles).
 
 ## Keep the client for later requests
 

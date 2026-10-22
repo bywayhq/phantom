@@ -23,7 +23,6 @@ Check API signatures and feature requirements in this checkout. Reuse a client
 for shared pools and session state. Built-in profile constructors leave ordinary
 request templates unset; attach one when browser headers are needed. Preserve
 header order, select a protocol deliberately, and use bounded body readers.
-Do not claim complete browser behavior or guaranteed server acceptance.
 
 For changes to Phantom itself, read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [AGENTS.md](AGENTS.md). Read [CHANGELOG.md](CHANGELOG.md) before upgrading.

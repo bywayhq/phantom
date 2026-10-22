@@ -43,8 +43,7 @@ Short selectors have fixed mappings. The definition's `id()` retains its full
 build, platform and revision; full identifiers remain accepted too.
 
 `chrome-155-linux` adapts a pinned external preset for TLS, HTTP/2 and
-navigation headers. Inspect its catalog evidence for limits; it supplies no
-TCP/IP or HTTP/3 recipe.
+navigation headers. Its catalog definition lists the available layers.
 
 ## Match the browser, version, and platform
 
@@ -197,7 +196,7 @@ let client = Client::builder(settings.clone()).build()?;
 ```
 
 Pin `bundle.sha256()` to identify its exact bytes, including whitespace.
-A revision label and publisher references do not authenticate a publisher.
+Revision labels and publisher references are unauthenticated metadata.
 Entries contain one selected request template.
 Loading a different bundle never changes an existing client. The CLI can install
 bundle files and select older digests for offline rollback.

@@ -340,4 +340,5 @@ See [`RequestTimingPhase`](crate::RequestTimingPhase) for phase meanings and
 [`RequestConnection`](crate::RequestConnection) for connection reuse, endpoints,
 and TLS details. A [`TlsConnectionState::Pending`](crate::TlsConnectionState::Pending)
 value records the state at dispatch; that event does not update after the
-handshake. Early-data completion alone does not prove acceptance or resumption.
+handshake. The `EarlyData` outcome records setup returning before handshake
+confirmation.

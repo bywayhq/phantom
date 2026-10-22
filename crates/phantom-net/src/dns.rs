@@ -2,12 +2,10 @@
 //! the address lookups of `AddressResolver::system_nameservers`.
 //!
 //! Address records are resolved by the operating system through
-//! `getaddrinfo` unless a client is given that resolver. HTTPS records cannot
-//! be: the portable system resolver interface returns addresses only, and the
-//! platform DNS APIs that can return other record types need an FFI boundary
-//! that Phantom forbids outside its audited modules. [`HttpsRecordResolver`]
-//! therefore sends its own DNS queries, over UDP with a TCP retry on
-//! truncation, to the system's configured nameservers or to explicit ones.
+//! `getaddrinfo` unless a client is given that resolver. The portable system
+//! interface returns addresses only. [`HttpsRecordResolver`] sends DNS queries
+//! over UDP, retrying truncated replies over TCP, to the system's configured
+//! nameservers or explicit ones.
 //!
 //! Each UDP query carries one question with only the recursion-desired flag set
 //! and no EDNS(0) OPT record, the shape of Chromium's insecure DNS queries.

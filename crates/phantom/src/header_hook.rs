@@ -20,7 +20,7 @@ use crate::RequestHeader;
 /// Check [`Self::uri`] before adding credentials. For custom credentials, disable
 /// automatic redirects and check each new request's origin yourself.
 /// Generated headers, cookies, hints, and template literals are added afterward.
-/// This is not the complete wire header list. Hooks do not receive the body.
+/// Hooks receive caller headers only, without the body.
 ///
 /// Hooks are synchronous: avoid blocking or doing network I/O in them.
 pub struct HeaderHookContext<'a> {

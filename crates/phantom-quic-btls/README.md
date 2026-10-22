@@ -24,8 +24,8 @@ transaction guards are held, commit them, then release the guards before
 finishing retired stores. Treat exported records and their keys as secrets.
 
 The records retain the receiving connection's QUIC version, remembered server
-parameters, application state and RTT. Parameter parsing does not validate
-HTTP/3 application state. The consumer must check that state before import.
+parameters, application state and RTT. The consumer must validate HTTP/3
+application state separately before import.
 Applications can use `Client::export_session_tickets` and
 `Client::import_session_tickets` for TCP TLS and QUIC. Import checks the complete
 snapshot against the receiving client's profile, trust, peer, and route.

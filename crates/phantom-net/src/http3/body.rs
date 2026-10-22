@@ -72,7 +72,6 @@ impl Http3Body {
     }
 
     /// Takes ordered fields from the last yielded trailer frame without polling.
-    /// This does not establish higher-level body completion.
     #[doc(hidden)]
     pub fn take_received_trailers(&mut self) -> Option<OrderedResponseHeaders> {
         self.received_trailers.take()

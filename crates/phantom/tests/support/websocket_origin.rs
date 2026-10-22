@@ -205,7 +205,6 @@ where
             result = &mut frames => Some(result),
             _ = client_done => {
                 // This finite window checks a completed client's queued bytes.
-                // It does not prove that a live peer will never send HEADERS.
                 timeout(Duration::from_secs(1), &mut frames).await.ok()
             }
         }

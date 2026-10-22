@@ -48,8 +48,8 @@ pub struct RequestTimeline {
     pub events: Vec<RequestTiming>,
     /// Events omitted because the caller's capacity was reached.
     pub dropped_events: usize,
-    /// Total admitted origin attempts, including those omitted from `events`.
-    /// Admission does not prove that bytes were sent.
+    /// Total admitted origin attempts, including unsent attempts and those
+    /// omitted from `events`.
     pub admitted_attempts: usize,
 }
 
@@ -104,10 +104,9 @@ pub enum RequestTimingPhase {
     PoolAdmission,
     /// Acquiring a connection: shared waits, new setup and protocol readiness.
     ConnectionAcquisition,
-    /// Dispatch on an HTTP connection. This does not prove bytes were sent.
+    /// Selection of an HTTP connection for dispatch, including unsent requests.
     ConnectionUse,
-    /// Waiting for local address resolution, including caches and overrides.
-    /// This is not the execution time of a shared or background DNS query.
+    /// This request's wait for address resolution, including caches and overrides.
     ResolutionWait,
     /// An operating-system TCP connection attempt, excluding resolution.
     TcpConnect,

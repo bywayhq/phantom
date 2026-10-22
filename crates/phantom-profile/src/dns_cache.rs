@@ -11,8 +11,8 @@ pub enum SystemDnsTtlPolicy {
     ///
     /// Uses Firefox's native DNS query options, which permit network queries.
     /// Other platforms keep the configured fallback lifetime. Custom resolvers
-    /// are unaffected. This does not reproduce Firefox's background refresh
-    /// scheduling or stale-answer grace period.
+    /// are unaffected. Background refresh and stale-answer grace periods are
+    /// unsupported.
     FirefoxWindows,
 }
 
@@ -33,11 +33,10 @@ pub enum DnsAddressFailurePolicy {
     Record {
         /// Most distinct failed IP addresses retained by one record.
         ///
-        /// This is a Phantom resource limit, separate from the number of DNS
-        /// cache entries. Reaching it returns a resource error without dropping
-        /// history or authorizing a retry. Firefox's source does not impose this
-        /// per-record limit. The Firefox recipe chooses 1600 at the existing
-        /// cache resource scale; it is not a browser-observed address bound.
+        /// Phantom's per-record resource limit, separate from the cache-entry
+        /// limit. Reaching it returns a resource error without dropping history
+        /// or authorizing a retry. The Firefox recipe uses 1600; Firefox itself
+        /// has no per-record limit.
         max_unusable_addresses: NonZeroUsize,
     },
 }

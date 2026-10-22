@@ -118,7 +118,7 @@ pub(crate) struct Devolution {
 pub(crate) struct WindowsDnsIneligibility {
     pub(crate) nrpt: bool,
     pub(crate) proxy: bool,
-    /// Chromium's PPP heuristic; false does not prove the absence of a VPN.
+    /// Chromium's PPP-based VPN heuristic.
     pub(crate) ppp: bool,
     pub(crate) differing_nameservers: bool,
 }

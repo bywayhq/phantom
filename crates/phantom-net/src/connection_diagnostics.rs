@@ -29,7 +29,7 @@ pub enum ConnectionEndpointScope {
 ///
 /// This is separate from TLS session resumption. `reused` means an earlier
 /// HTTP request was dispatched on the same HTTP connection, including CONNECT
-/// and requests that subsequently failed. It does not prove bytes were sent.
+/// and requests that failed before writing bytes.
 #[derive(Clone, Debug)]
 pub struct RequestConnection {
     /// Whether another HTTP request was dispatched on this HTTP connection.

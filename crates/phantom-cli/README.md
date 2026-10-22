@@ -106,18 +106,17 @@ The JSON envelope uses `format: "phantom.profile-bundle"`, `version: 1`, an `id`
 a positive integer `revision`, and `profiles`. Each profile has `name`, `document`
 (the complete exported custom-profile object), and `provenance`. References are
 objects with `source` and `revision` strings; an empty provenance list is allowed.
-Publisher references are unverified labels. The digest checks file contents;
-it does not authenticate the publisher. Inspect bundles for literal header
-secrets before sharing them.
+The digest identifies file contents; publisher references are unauthenticated
+labels. Inspect bundles for literal header secrets before sharing them.
 
 Installation validates all entries within the 16 MiB and 64-entry limits, then
-creates a new file. Reinstalling identical bytes succeeds; existing conflicting
-or incomplete files stay untouched. Write errors trigger removal of the partial
-file, with cleanup failures reported.
+creates a new file. Reinstalling identical bytes succeeds; conflicting or
+incomplete files stay untouched. Write errors trigger partial-file removal and
+report cleanup failures.
 
-Interruption can leave an incomplete file, and concurrent readers can see a
-partial write. Requests verify the digest before use. Remove an incomplete file
-before retrying, and keep the store protected from untrusted writers.
+Interrupted writes can leave incomplete files visible to readers. Requests
+verify the digest before use. Remove incomplete files before retrying and
+protect the store from untrusted writers.
 
 ## Diagnostics
 

@@ -1,4 +1,4 @@
-//! Public exact-H1 HTTPS CONNECT controls; one-IP peers do not prove a TCP race.
+//! Public exact-H1 HTTPS CONNECT controls with one-IP peers.
 use crate::support::tls::{
     H1_ALPN, TestIdentity, TestResult, accept_tls_stream, read_head, tls_settings,
 };

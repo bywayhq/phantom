@@ -8,21 +8,16 @@
 //! for connections to HTTP/2 proxies. The facade owns origin connection
 //! pools, redirects, cookies, and retry policy.
 //!
-//! It is an internal crate with no stability guarantee. Applications should
-//! depend on `phantom-http`. The optional `qlog` feature enables HTTP/3 qlog
-//! output, and `keylog` enables NSS key logging on every TLS context; the
-//! facade exposes both through its `diagnostics` feature. The optional
+//! Applications should depend on `phantom-http`; this crate's API is internal.
+//! The optional `qlog` feature enables HTTP/3 qlog output, and `keylog` enables
+//! NSS key logging on every TLS context. The facade exposes both through its
+//! `diagnostics` feature. The optional
 //! `https-records` feature adds `dns`, HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
-//! Unsafe code stays in audited private modules. `socket_ffi` sets Windows port
-//! randomization and platform interface binding. `system_dns_ffi` owns Windows
-//! system resolution, DNS settings reads and configuration notifications.
-//! Its safe API returns owned data and generation observations. Native pointers,
-//! handles and callbacks stay private. Every unsafe block carries a `SAFETY`
-//! comment required by `clippy::undocumented_unsafe_blocks`; the rest of
-//! the crate denies `unsafe_code`.
-//! `linux_dns_ffi` reads Linux native witnesses and owns file/network watches.
+//! Private FFI modules own native socket settings, system DNS configuration
+//! and change notifications. Their safe APIs return owned data; native pointers,
+//! handles and callbacks stay private.
 
 #![deny(unsafe_code)]
 

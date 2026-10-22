@@ -32,7 +32,7 @@ mod idle;
 /// Tunnels one HTTP/2 proxy connection carries before a pool that allows
 /// more than one connection per route opens another.
 ///
-/// This is Phantom's choice, not a browser value, and applies only after
+/// This resource limit applies only after
 /// [`Http2ProxyPool::with_max_connections_per_route`]. A connection is also
 /// full at the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, when that is
 /// lower. The default pool keeps one connection per route and runtime and

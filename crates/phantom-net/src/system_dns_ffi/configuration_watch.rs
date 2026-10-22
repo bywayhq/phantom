@@ -1,8 +1,8 @@
 //! Private Windows DNS invalidation owner. Register before reading settings.
 //!
-//! This draft belongs inside the audited system_dns_ffi boundary. It does not
-//! read settings or publish caches. Start and shutdown belong in blocking work:
-//! shutdown signals the OS wait and joins the one owned thread.
+//! Start and shutdown run in blocking work. Shutdown signals the OS wait and
+//! joins the owned thread. Settings reads and cache publication belong to the
+//! caller.
 
 use std::ffi::c_void;
 use std::fmt;

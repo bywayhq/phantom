@@ -57,8 +57,8 @@ assert!(first_order.starts_with("Host,Connection,sec-ch-ua,"));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-This summary records HTTP/1.1 field names and client hints. It is not a raw
-request head. See [navigation provenance](https://github.com/bywayhq/phantom/blob/main/crates/phantom-testkit/fixtures/client-hints/README.md)
+This summary lists HTTP/1.1 field names and client hints. See
+[navigation provenance](https://github.com/bywayhq/phantom/blob/main/crates/phantom-testkit/fixtures/client-hints/README.md)
 for the exact platform, launch mode, source path and hash.
 
 ## Capture a head from a stream
@@ -133,7 +133,6 @@ async fn read_client_hello(
 Capture checks record and handshake framing. The summary checks inner
 lengths and extensions and keeps their order. Later records remain unread.
 Extra bytes after ClientHello within its final record return an error.
-The summary describes the ClientHello, rather than completing a TLS handshake.
 
 ## Observe DNS fixture completion
 
@@ -162,8 +161,8 @@ let runtime = tokio::runtime::Builder::new_current_thread()
 ```
 
 A missing runtime driver can panic. Read, syntax, bounds, and deadline
-failures return typed errors. A failed or cancelled stream capture may
-consume input. Discard the stream or restore a known boundary before reuse.
+failures return typed errors. Restore a known stream boundary after a partial
+capture, or discard the stream.
 
 ## Other captures
 

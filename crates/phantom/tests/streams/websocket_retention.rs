@@ -1,5 +1,5 @@
 //! Windows' refused IPv6 attempt leaves a real slower IPv4 connection.
-//! This custom profile tests pool ownership, not a browser's WebSocket choice.
+//! Pool ownership controls using a custom profile.
 
 use std::{
     io,

@@ -279,7 +279,6 @@ async fn relay_after_origin_payload(payload: &[u8], forwarded: bool) -> TestResu
 
     target.send_to(payload, relay).await?;
     // Observe the actual UDP receive before sending the following packet.
-    // A scheduling yield alone does not establish that the first arrived.
     tokio::time::timeout(Duration::from_secs(5), async {
         while lock(&proxy.log).origin_datagrams != 1 {
             tokio::task::yield_now().await;

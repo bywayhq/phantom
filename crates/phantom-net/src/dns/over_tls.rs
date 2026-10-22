@@ -36,7 +36,7 @@ mod tests;
 /// Clones share one connection and its query limit. Bootstrap addresses are
 /// supplied by the caller; no OS DNS, proxy, cleartext fallback or DNSSEC
 /// validation is used. The supplied TLS settings offer `dot`, omit ALPS and
-/// disable early data. This is not a captured browser DNS recipe.
+/// disable early data.
 #[derive(Clone)]
 pub struct DnsOverTlsTransport {
     endpoint: Arc<Endpoint>,

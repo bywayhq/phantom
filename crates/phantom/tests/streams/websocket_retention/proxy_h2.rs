@@ -1,4 +1,4 @@
-//! Controlled proxy TCP backups; source controls, not browser measurements.
+//! Proxy TCP backup ownership controls.
 use super::proxy_h2_peer::{self, Mode};
 use super::{TEST_TIMEOUT, TestIdentity, TestResult};
 use bytes::Bytes;

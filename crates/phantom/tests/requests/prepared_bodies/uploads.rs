@@ -288,7 +288,6 @@ async fn named_uploads_send_captured_field_order_and_exact_prepared_bodies() -> 
             for body in &bodies {
                 timeout(BUDGET, async {
                     let identity = TestIdentity::generate()?;
-                    // These tests assert request fields and body bytes, not TLS parity.
                     let client = Client::builder(browser.clone())
                         .add_root_certificate_der(identity.root_der.clone())
                         .build()?;
