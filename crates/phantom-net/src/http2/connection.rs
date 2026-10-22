@@ -15,7 +15,7 @@ use std::{
 use ::http2::{Reason, SendStream, client};
 use bytes::Bytes;
 use http::{Method, Request, Response};
-use phantom_profile::{Http2Priority, Http2RejectedConnect, Http2Settings};
+use phantom_profile::{Http2RejectedConnect, Http2RequestPriority, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
@@ -30,9 +30,9 @@ use super::{
     Http2Body, Http2Builder, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
     OperationOutcome, OriginForm, RequestHeader,
     driver::DriverTask,
-    extended_connect_overrides, prepare_extended_connect, prepare_request, priority_overrides,
+    extended_connect_overrides, prepare_extended_connect, prepare_request,
     request::PreparedRequestTrailers,
-    translate_extended_connect_settings, translate_settings,
+    request_priority_overrides, translate_extended_connect_settings, translate_settings,
     tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream, Http2RejectedStream},
     upload::send_body,
 };
@@ -253,9 +253,9 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
         body: Option<RequestBody>,
         trailers: Vec<RequestHeader>,
-        priority: Http2Priority,
+        priority: Http2RequestPriority,
     ) -> Result<Response<Http2Body>, Http2Error> {
-        let overrides = priority_overrides(priority, self.inner.first_stream_id)?;
+        let overrides = request_priority_overrides(priority, self.inner.first_stream_id)?;
 
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
 
@@ -291,10 +291,10 @@ impl Http2Connection {
         headers: Vec<RequestHeader>,
         body: Option<RequestBody>,
         trailers: Vec<RequestHeader>,
-        priority: Option<Http2Priority>,
+        priority: Option<Http2RequestPriority>,
     ) -> Result<Response<Http2Body>, Http2Error> {
         let overrides = priority
-            .map(|priority| priority_overrides(priority, self.inner.first_stream_id))
+            .map(|priority| request_priority_overrides(priority, self.inner.first_stream_id))
             .transpose()?;
 
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;

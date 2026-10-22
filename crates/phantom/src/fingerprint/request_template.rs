@@ -4,7 +4,9 @@ use super::{
     FingerprintImportError, Result,
     json::{self, Value},
 };
-use phantom_profile::{ProxyAuthorizationAttempt, RequestField, RequestTemplate};
+use phantom_profile::{
+    Http2RequestPriority, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
+};
 
 pub(super) fn parse(v: &Value) -> Result<RequestTemplate> {
     v.record(
@@ -30,7 +32,7 @@ pub(super) fn parse(v: &Value) -> Result<RequestTemplate> {
             .optional(|v| v.list("request_template.http3_fields", field))?,
         http2_priority: v
             .member("http2_priority", "request_template.http2_priority")?
-            .optional(super::http2::priority)?,
+            .optional(priority)?,
         requested_client_hint_placement: v
             .member(
                 "requested_client_hint_placement",
@@ -48,6 +50,47 @@ pub(super) fn parse(v: &Value) -> Result<RequestTemplate> {
         .validate()
         .map_err(|error| FingerprintImportError::native("request_template", error))?;
     Ok(settings)
+}
+
+fn priority(v: &Value) -> Result<Http2RequestPriority> {
+    const FIELD: &str = "request_template.http2_priority";
+    let weight = || {
+        v.member("weight", "request_template.http2_priority.weight")?
+            .integer("request_template.http2_priority.weight")
+    };
+    let exclusive = || {
+        v.member("exclusive", "request_template.http2_priority.exclusive")?
+            .boolean("request_template.http2_priority.exclusive")
+    };
+    const VARIANT: &str = "request_template.http2_priority.variant";
+    match v.member("variant", VARIANT)?.text(VARIANT)? {
+        "Fixed" => {
+            v.record(
+                &["variant", "dependency_stream_id", "weight", "exclusive"],
+                FIELD,
+            )?;
+            Ok(Http2RequestPriority::Fixed(
+                phantom_profile::Http2Priority {
+                    dependency_stream_id: v
+                        .member(
+                            "dependency_stream_id",
+                            "request_template.http2_priority.dependency_stream_id",
+                        )?
+                        .integer("request_template.http2_priority.dependency_stream_id")?,
+                    weight: weight()?,
+                    exclusive: exclusive()?,
+                },
+            ))
+        }
+        "WeightBand" => {
+            v.record(&["variant", "weight", "exclusive"], FIELD)?;
+            Ok(Http2RequestPriority::WeightBand {
+                weight: weight()?,
+                exclusive: exclusive()?,
+            })
+        }
+        _ => Err(json::unsupported(VARIANT)),
+    }
 }
 
 fn attempt(v: &Value) -> Result<ProxyAuthorizationAttempt> {

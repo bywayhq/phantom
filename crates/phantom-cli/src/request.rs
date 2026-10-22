@@ -51,6 +51,10 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
             let kind = match context.as_str() {
                 "navigation" => RequestTemplateKind::Navigation,
                 "fetch" => RequestTemplateKind::Fetch,
+                "script" => RequestTemplateKind::Script,
+                "stylesheet" => RequestTemplateKind::Stylesheet,
+                "image" => RequestTemplateKind::Image,
+                "font" => RequestTemplateKind::Font,
                 _ => return Err(CliError::invalid("unsupported request context")),
             };
             profile = profile.with_request_template(

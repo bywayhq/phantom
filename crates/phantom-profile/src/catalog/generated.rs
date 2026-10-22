@@ -1660,6 +1660,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMEWINDOWS156,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_WINDOWS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_WINDOWS156_SCRIPT },
+            RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_WINDOWS156_STYLESHEET },
+            RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_WINDOWS156_IMAGE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Font, definition: &request_template_definitions::CHROME_WINDOWS156_FONT },
         ],
     },
     ProfileDefinition {

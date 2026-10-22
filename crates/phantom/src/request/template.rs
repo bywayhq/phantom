@@ -4,9 +4,9 @@ use std::{fmt, sync::Arc};
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, ClientHintSlot, Http2Priority, InvalidRequestTemplate,
-    ProxyAuthorizationAttempt, RequestField, RequestTemplate, client_hint_placement,
-    restart_client_hint_placement,
+    ClientHintDelivery, ClientHintSettings, ClientHintSlot, Http2RequestPriority,
+    InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
+    client_hint_placement, restart_client_hint_placement,
 };
 
 use crate::{HttpProtocol, RequestError};
@@ -159,7 +159,7 @@ impl PreparedRequestTemplate {
         self.0.template.restarts_for_connection_accept_ch
     }
 
-    pub(crate) fn http2_priority(&self) -> Option<Http2Priority> {
+    pub(crate) fn http2_priority(&self) -> Option<Http2RequestPriority> {
         self.0.template.http2_priority
     }
 

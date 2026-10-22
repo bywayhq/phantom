@@ -4,6 +4,22 @@ use super::{Encode, Encoder, Result};
 use phantom_profile::*;
 use serde_json::Value;
 
+impl Encode for Http2RequestPriority {
+    fn encode(&self, e: &mut Encoder, f: &str) -> Result<Value> {
+        match self {
+            Self::Fixed(priority) => object!(e, f,
+                "variant" => "Fixed",
+                "dependency_stream_id" => priority.dependency_stream_id,
+                "weight" => priority.weight,
+                "exclusive" => priority.exclusive
+            ),
+            Self::WeightBand { weight, exclusive } => object!(e, f,
+                "variant" => "WeightBand", "weight" => weight, "exclusive" => exclusive
+            ),
+        }
+    }
+}
+
 impl Encode for RequestField {
     fn encode(&self, e: &mut Encoder, f: &str) -> Result<Value> {
         match self {

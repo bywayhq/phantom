@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add Chrome 156 Windows script, stylesheet, image and font request templates,
+  including CLI contexts and live HTTP/2 priority dependencies.
+- Breaking: use `Http2RequestPriority` for template and per-request HTTP/2
+  priorities. Migrate: wrap fixed `Http2Priority` values in `Fixed`; use
+  `WeightBand` to choose a live dependency. Template JSON now requires
+  `variant: "Fixed"` or `variant: "WeightBand"`. Recreate saved ticket state
+  and session checkpoints for ticket-policy version 7.
+
 - Stop sending queued HTTP/2 priority fields after the peer disables them.
 
 - Fuzz content-coding headers and chained response decompression.

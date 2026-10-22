@@ -354,11 +354,11 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
             RequestField::trustworthy_only("sec-fetch-user", "?1"),
             RequestField::literal("priority", "u=0, i"),
         ]),
-        http2_priority: Some(Http2Priority {
+        http2_priority: Some(crate::Http2RequestPriority::Fixed(Http2Priority {
             dependency_stream_id: 0,
             weight: 42,
             exclusive: false,
-        }),
+        })),
         requested_client_hint_placement: false,
         // Firefox sends no client hints and ignores ACCEPT_CH.
         restarts_for_connection_accept_ch: false,
@@ -540,11 +540,11 @@ fn fetch_template(user_agent: &str, cache: FetchCache) -> RequestTemplate {
         http1_fields,
         http2_fields,
         http3_fields: Some(http3_fields),
-        http2_priority: Some(Http2Priority {
+        http2_priority: Some(crate::Http2RequestPriority::Fixed(Http2Priority {
             dependency_stream_id: 0,
             weight: 22,
             exclusive: false,
-        }),
+        })),
         requested_client_hint_placement: false,
         // Firefox sends no client hints and ignores ACCEPT_CH.
         restarts_for_connection_accept_ch: false,

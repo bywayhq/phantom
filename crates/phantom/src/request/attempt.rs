@@ -11,7 +11,7 @@ use phantom_net::{
     },
     request::{RequestBody, RequestHeader},
 };
-use phantom_profile::{Http2Priority, ProxyAuthorizationAttempt};
+use phantom_profile::{Http2RequestPriority, ProxyAuthorizationAttempt};
 use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
@@ -1242,7 +1242,7 @@ async fn dispatch_attempt(
 }
 
 /// Returns the template's HTTP/2 HEADERS priority for this request, if any.
-fn http2_priority(request: &ResolvedRequest) -> Option<Http2Priority> {
+fn http2_priority(request: &ResolvedRequest) -> Option<Http2RequestPriority> {
     request
         .template
         .as_ref()

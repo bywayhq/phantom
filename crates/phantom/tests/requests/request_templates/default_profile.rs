@@ -28,11 +28,13 @@ fn template(value: &str) -> RequestTemplate {
         http1_fields: vec![RequestField::literal("X-Default", value)],
         http2_fields: vec![RequestField::literal("x-default", value)],
         http3_fields: Some(vec![RequestField::literal("x-default", value)]),
-        http2_priority: Some(Http2Priority {
-            dependency_stream_id: 0,
-            weight: 37,
-            exclusive: true,
-        }),
+        http2_priority: Some(phantom_profile::Http2RequestPriority::Fixed(
+            Http2Priority {
+                dependency_stream_id: 0,
+                weight: 37,
+                exclusive: true,
+            },
+        )),
         requested_client_hint_placement: false,
         restarts_for_connection_accept_ch: false,
     }

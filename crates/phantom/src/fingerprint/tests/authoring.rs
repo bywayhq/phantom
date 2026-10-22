@@ -36,6 +36,10 @@ fn every_catalog_profile_and_available_template_round_trips() -> TestResult {
             RequestTemplateKind::FetchNoStore,
             RequestTemplateKind::Fetch,
             RequestTemplateKind::FetchUpload,
+            RequestTemplateKind::Script,
+            RequestTemplateKind::Stylesheet,
+            RequestTemplateKind::Image,
+            RequestTemplateKind::Font,
         ] {
             if let Ok(template) = definition.request_template(kind) {
                 round_trip(&profile.clone().with_request_template(template))?;
@@ -234,4 +238,35 @@ fn full_table_indexing_round_trips_as_an_explicit_choice() -> TestResult {
         "FullTable"
     );
     round_trip(&profile)
+}
+
+#[test]
+fn editable_request_priority_keeps_its_mode_and_rejects_mixed_fields() -> TestResult {
+    use phantom_profile::Http2RequestPriority;
+    use serde_json::json;
+
+    let profile =
+        chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
+    let mut document = describe_profile(&profile)?;
+    let priority = &mut document["profile"]["request_template"]["http2_priority"];
+    *priority = json!({"variant":"WeightBand", "weight":147, "exclusive":true});
+    let imported = import_profile_json(&serde_json::to_vec(&document)?)?;
+    assert_eq!(
+        imported
+            .request_template()
+            .ok_or("missing template")?
+            .http2_priority,
+        Some(Http2RequestPriority::WeightBand {
+            weight: 147,
+            exclusive: true
+        })
+    );
+    round_trip(&imported)?;
+
+    document["profile"]["request_template"]["http2_priority"]["dependency_stream_id"] = 0.into();
+    let error = import_profile_json(&serde_json::to_vec(&document)?)
+        .expect_err("weight band accepted a fixed dependency");
+    assert_eq!(error.kind(), FingerprintImportErrorKind::UnsupportedSetting);
+    assert_eq!(error.field(), "request_template.http2_priority");
+    Ok(())
 }

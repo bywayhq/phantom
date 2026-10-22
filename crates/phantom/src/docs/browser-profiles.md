@@ -86,6 +86,11 @@ For Chrome on Windows, choose the template that matches your operation:
 Templates supply request fields. Choose one for the request context documented
 in its API reference.
 
+`chrome-156-windows` also offers `Script`, `Stylesheet`, `Image` and `Font`
+through [`RequestTemplateKind`](crate::profile::catalog::RequestTemplateKind).
+These same-origin templates require a caller-supplied `Referer`. Fonts also
+require `Origin`, with the stylesheet URL as `Referer`.
+
 ## Override the template for one request
 
 Keep navigation as the client default and prepare a fetch template for requests

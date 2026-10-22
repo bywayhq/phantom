@@ -37,6 +37,10 @@ fn every_catalog_profile_and_template_retains_order_in_a_bundle() -> TestResult 
             RequestTemplateKind::Fetch,
             RequestTemplateKind::FetchNoStore,
             RequestTemplateKind::FetchUpload,
+            RequestTemplateKind::Script,
+            RequestTemplateKind::Stylesheet,
+            RequestTemplateKind::Image,
+            RequestTemplateKind::Font,
         ] {
             if let Ok(template) = definition.request_template(kind) {
                 profiles.push(base.clone().with_request_template(template));

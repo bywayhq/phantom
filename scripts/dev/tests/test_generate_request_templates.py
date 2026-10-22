@@ -60,11 +60,18 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 25)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 29)
+        self.assertEqual(len(templates), 29)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 33)
         chrome156 = next(row for row in profiles if row["target"] == "ChromeWindows156")
         self.assertEqual(
-            chrome156["templates"], {"Navigation": "chrome_windows156_navigation"}
+            chrome156["templates"],
+            {
+                "Navigation": "chrome_windows156_navigation",
+                "Script": "chrome_windows156_script",
+                "Stylesheet": "chrome_windows156_stylesheet",
+                "Image": "chrome_windows156_image",
+                "Font": "chrome_windows156_font",
+            },
         )
         navigation = templates["chrome_windows156_navigation"]
         self.assertEqual(
@@ -103,7 +110,7 @@ class TemplateDeclarationTests(unittest.TestCase):
             for identifier in profile["templates"].values()
             for name in ("http1_fields", "http2_fields", "http3_fields")
         )
-        self.assertEqual(count, 769)
+        self.assertEqual(count, 938)
         self.assertEqual(
             domain.generate_templates(templates),
             cli.REQUEST_TEMPLATE_OUTPUT.read_text(encoding="utf-8"),
@@ -263,6 +270,7 @@ class TemplateDeclarationTests(unittest.TestCase):
         for weight in (1, 256):
             value = empty_values()
             value["http2_priority"] = {
+                "variant": "Fixed",
                 "dependency_stream_id": 0,
                 "weight": weight,
                 "exclusive": False,
@@ -278,11 +286,42 @@ class TemplateDeclarationTests(unittest.TestCase):
         ):
             value = empty_values()
             value["http2_priority"] = {
+                "variant": "Fixed",
                 "dependency_stream_id": 0,
                 "weight": 1,
                 "exclusive": False,
             }
             value["http2_priority"][name] = item
+            self.reject(document(value))
+
+    def test_weight_bands_have_explicit_bounded_and_exclusive_fields(self):
+        for weight in (1, 256):
+            value = empty_values()
+            value["http2_priority"] = {
+                "variant": "WeightBand",
+                "weight": weight,
+                "exclusive": True,
+            }
+            domain.validate_templates(document(value))
+
+        for priority in (
+            False,
+            [],
+            "WeightBand",
+            {"variant": "Unknown", "weight": 1, "exclusive": True},
+            {"variant": "WeightBand", "weight": 0, "exclusive": True},
+            {"variant": "WeightBand", "weight": 257, "exclusive": True},
+            {"variant": "WeightBand", "weight": True, "exclusive": True},
+            {"variant": "WeightBand", "weight": 1, "exclusive": 1},
+            {
+                "variant": "WeightBand",
+                "weight": 1,
+                "exclusive": True,
+                "dependency_stream_id": 0,
+            },
+        ):
+            value = empty_values()
+            value["http2_priority"] = priority
             self.reject(document(value))
 
     def test_conditional_values_require_one_branch_and_preserve_empty(self):

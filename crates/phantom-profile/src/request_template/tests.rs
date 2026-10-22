@@ -1244,9 +1244,18 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             "{destination}: {}",
             priorities.len()
         );
-        assert_eq!(template.http2_priority.map(|p| p.weight), Some(weight));
+        assert_eq!(
+            template
+                .http2_priority
+                .map(crate::Http2RequestPriority::weight),
+            Some(weight)
+        );
         for priority in priorities {
-            assert_eq!(priority, template.http2_priority, "{destination}");
+            assert_eq!(
+                priority.map(crate::Http2RequestPriority::Fixed),
+                template.http2_priority,
+                "{destination}"
+            );
         }
     }
 
@@ -1254,12 +1263,40 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
     // priority, so the template, not the H2 settings, must supply them.
     assert_ne!(
         chrome::v154_windows_fetch_no_store_template().http2_priority,
-        chrome::v154_http2().headers_priority
+        chrome::v154_http2()
+            .headers_priority
+            .map(crate::Http2RequestPriority::Fixed)
     );
     assert_ne!(
         firefox::v157_windows_fetch_no_store_template().http2_priority,
-        firefox::v157_http2().headers_priority
+        firefox::v157_http2()
+            .headers_priority
+            .map(crate::Http2RequestPriority::Fixed)
     );
+    Ok(())
+}
+
+#[test]
+fn weight_band_priority_accepts_only_valid_weights() -> CaptureResult<()> {
+    for weight in [1, 256] {
+        let mut template = chrome::v154_windows_navigation_template();
+        template.http2_priority = Some(crate::Http2RequestPriority::WeightBand {
+            weight,
+            exclusive: true,
+        });
+        template.validate()?;
+    }
+
+    for weight in [0, 257, u16::MAX] {
+        let mut template = chrome::v154_windows_navigation_template();
+        template.http2_priority = Some(crate::Http2RequestPriority::WeightBand {
+            weight,
+            exclusive: false,
+        });
+        let error = template.validate().expect_err("invalid weight accepted");
+        assert_eq!(error.field(), "http2_priority");
+        assert_eq!(error.kind(), crate::ValidationErrorKind::OutOfRange);
+    }
     Ok(())
 }
 
@@ -1655,11 +1692,11 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
 
     for (dependency_stream_id, weight) in [(3, 220), (0, 0), (0, 257)] {
         let mut template = chrome::v154_windows_fetch_no_store_template();
-        template.http2_priority = Some(crate::Http2Priority {
+        template.http2_priority = Some(crate::Http2RequestPriority::Fixed(crate::Http2Priority {
             dependency_stream_id,
             weight,
             exclusive: true,
-        });
+        }));
         assert_eq!(
             template.validate().map_err(|error| error.field()),
             Err("http2_priority"),

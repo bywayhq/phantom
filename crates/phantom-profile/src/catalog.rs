@@ -358,6 +358,14 @@ pub enum RequestTemplateKind {
     Fetch,
     /// A same-origin POST upload.
     FetchUpload,
+    /// A same-origin classic script.
+    Script,
+    /// A same-origin stylesheet.
+    Stylesheet,
+    /// A same-origin image.
+    Image,
+    /// A same-origin CSS font.
+    Font,
 }
 
 /// An immutable compiled definition, with owned settings created on demand.

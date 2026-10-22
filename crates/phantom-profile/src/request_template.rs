@@ -13,7 +13,7 @@
 
 use std::{collections::HashSet, error::Error, fmt};
 
-use crate::http2::Http2Priority;
+use crate::http2::Http2RequestPriority;
 
 /// One field, caller slot, or client-hint position in a request template.
 ///
@@ -357,9 +357,9 @@ pub struct RequestTemplate {
     /// connection's
     /// [`Http2Settings::headers_priority`](crate::Http2Settings::headers_priority).
     ///
-    /// Applies to this template's requests only. Must depend on stream 0,
-    /// because the request's stream ID is assigned when sending.
-    pub http2_priority: Option<Http2Priority>,
+    /// A fixed priority must depend on stream 0. A weight band selects a
+    /// live dependency when the connection sends the opening HEADERS.
+    pub http2_priority: Option<Http2RequestPriority>,
     /// Whether client-hint slots accept hints requested through `Accept-CH`.
     ///
     /// When `false`, only the profile's default hints can use these slots.
@@ -390,14 +390,15 @@ impl RequestTemplate {
     /// stream other than 0 or has a weight outside 1..=256.
     pub fn validate(&self) -> Result<(), InvalidRequestTemplate> {
         if let Some(priority) = self.http2_priority {
-            if priority.dependency_stream_id != 0 {
+            if matches!(priority, Http2RequestPriority::Fixed(fixed) if fixed.dependency_stream_id != 0)
+            {
                 return Err(InvalidRequestTemplate::new(
                     crate::ValidationErrorKind::Inconsistent,
                     "http2_priority",
                     "a template's HTTP/2 priority must depend on stream 0",
                 ));
             }
-            if !(1..=256).contains(&priority.weight) {
+            if !(1..=256).contains(&priority.weight()) {
                 return Err(InvalidRequestTemplate::new(
                     crate::ValidationErrorKind::OutOfRange,
                     "http2_priority",

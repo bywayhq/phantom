@@ -63,6 +63,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "request_conveniences",
                 "request_hooks",
                 "request_templates",
+                "resource_templates",
                 "request_timeline",
                 "request_connections",
                 "response_conveniences",

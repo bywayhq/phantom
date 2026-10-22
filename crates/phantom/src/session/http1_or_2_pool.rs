@@ -32,7 +32,7 @@ use phantom_net::{
     },
     tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress},
 };
-use phantom_profile::Http2Priority;
+use phantom_profile::Http2RequestPriority;
 use tokio::{
     sync::{Mutex, Notify, oneshot},
     task::AbortHandle,
@@ -257,7 +257,7 @@ impl Http1Or2Pool {
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
-        http2_priority: Option<Http2Priority>,
+        http2_priority: Option<Http2RequestPriority>,
         fresh_http1_connection: bool,
         leased: Option<NegotiatedLease>,
         timeout_budget: TimeoutBudget,
@@ -3450,7 +3450,7 @@ struct NegotiatedRequest<'a> {
     method: Method,
     authority: &'a str,
     target: OriginForm,
-    http2_priority: Option<Http2Priority>,
+    http2_priority: Option<Http2RequestPriority>,
     trailers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'a>>,
 }

@@ -54,6 +54,10 @@ fn unhex(value: &str) -> TestResult<Vec<u8>> {
 
 pub(super) fn expected_navigation() -> RequestTemplate {
     let mut template = browser::chrome::v154_windows_navigation_template();
+    template.http2_priority = Some(phantom_profile::Http2RequestPriority::WeightBand {
+        weight: 256,
+        exclusive: true,
+    });
     let ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36";
     let accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
     for fields in [&mut template.http1_fields, &mut template.http2_fields]
@@ -75,7 +79,7 @@ pub(super) fn expected_navigation() -> RequestTemplate {
 }
 
 #[test]
-fn windows156_selects_only_captured_layers_and_navigation() -> TestResult {
+fn windows156_selects_its_captured_layers() -> TestResult {
     let definition = profile("chrome-156-windows")?;
     assert_eq!(
         definition.id().as_str(),

@@ -1,7 +1,7 @@
 use phantom_profile::{
-    ClientHintDelivery, Http2ProxyConnections, Http2RejectedConnect, ProxyAuthorizationAttempt,
-    WebSocketEmptyMessageCompression, WebSocketNewConnection, WebSocketProxiedSession,
-    WebSocketRefusedStreamRetry,
+    ClientHintDelivery, Http2ProxyConnections, Http2RejectedConnect, Http2RequestPriority,
+    ProxyAuthorizationAttempt, WebSocketEmptyMessageCompression, WebSocketNewConnection,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -131,7 +131,17 @@ pub(super) fn template(e: &mut Encoder, value: &RequestTemplate) -> Result<(), P
     e.option(http3_fields.as_ref(), |e, values| {
         e.list(values, request_field)
     })?;
-    e.option(http2_priority.as_ref(), super::http::priority)?;
+    e.option(http2_priority.as_ref(), |e, priority| match priority {
+        Http2RequestPriority::Fixed(priority) => {
+            e.u8(0)?;
+            super::http::priority(e, priority)
+        }
+        Http2RequestPriority::WeightBand { weight, exclusive } => {
+            e.u8(1)?;
+            e.u16(*weight)?;
+            e.bool(*exclusive)
+        }
+    })?;
     e.bool(*requested_client_hint_placement)?;
     e.bool(*restarts_for_connection_accept_ch)
 }

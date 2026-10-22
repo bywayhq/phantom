@@ -66,6 +66,10 @@ after downloading the response body.
 
 ## Profiles
 
+With `--profile chrome-156-windows`, `--context` also accepts `script`,
+`stylesheet`, `image` and `font`. Supply `Referer` with `--header`; fonts
+also need `Origin` and use the stylesheet URL as `Referer`.
+
 ```console
 phantom profiles describe chrome-154-windows
 phantom profiles export chrome-154-windows --output profile.json

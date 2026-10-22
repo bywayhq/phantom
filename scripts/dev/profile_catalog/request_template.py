@@ -15,7 +15,16 @@ from .declarations import (
 )
 from .rust_literals import rust_option, rust_string
 
-REQUEST_KINDS = ("Navigation", "FetchNoStore", "Fetch", "FetchUpload")
+REQUEST_KINDS = (
+    "Navigation",
+    "FetchNoStore",
+    "Fetch",
+    "FetchUpload",
+    "Script",
+    "Stylesheet",
+    "Image",
+    "Font",
+)
 TEMPLATE_FIELDS = (
     "http1_fields",
     "http2_fields",
@@ -197,12 +206,24 @@ def validate_template_values(value):
         boolean(value[name], name)
     priority = value["http2_priority"]
     if priority is not None:
+        if not isinstance(priority, dict):
+            raise DeclarationError("template priority requires an object")
+        variant = choice(
+            priority.get("variant"),
+            ("Fixed", "WeightBand"),
+            "template priority variant",
+        )
         keys(
             priority,
-            ("dependency_stream_id", "weight", "exclusive"),
+            ("variant", "dependency_stream_id", "weight", "exclusive")
+            if variant == "Fixed"
+            else ("variant", "weight", "exclusive"),
             "template priority",
         )
-        bounded_integer(priority["dependency_stream_id"], 0, 0, "template dependency")
+        if variant == "Fixed":
+            bounded_integer(
+                priority["dependency_stream_id"], 0, 0, "template dependency"
+            )
         bounded_integer(priority["weight"], 1, 256, "template weight")
         boolean(priority["exclusive"], "template exclusive priority")
     validate_fields(value["http1_fields"], 1)
@@ -331,14 +352,21 @@ def generate_templates(templates):
         priority = value["http2_priority"]
         expression = "None"
         if priority is not None:
-            expression = (
-                "Some(crate::Http2Priority { "
-                + ", ".join(
-                    f"{name}: {str(priority[name]).lower()}"
-                    for name in ("dependency_stream_id", "weight", "exclusive")
+            if priority["variant"] == "Fixed":
+                expression = (
+                    "Some(crate::Http2RequestPriority::Fixed(crate::Http2Priority { "
+                    + ", ".join(
+                        f"{name}: {str(priority[name]).lower()}"
+                        for name in ("dependency_stream_id", "weight", "exclusive")
+                    )
+                    + " }))"
                 )
-                + " })"
-            )
+            else:
+                expression = (
+                    "Some(crate::Http2RequestPriority::WeightBand { "
+                    f"weight: {priority['weight']}, exclusive: {str(priority['exclusive']).lower()}"
+                    " })"
+                )
         lines.append(f"    http2_priority: {expression},")
         lines += [
             f"    {name}: {str(value[name]).lower()}," for name in TEMPLATE_FIELDS[-2:]

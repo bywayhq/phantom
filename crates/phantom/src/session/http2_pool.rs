@@ -17,7 +17,7 @@ use phantom_net::{
     request::{OriginForm, RequestHeader},
     tcp::{AddressFamilyMemory, SlowerConnection},
 };
-use phantom_profile::Http2Priority;
+use phantom_profile::Http2RequestPriority;
 use tokio::{
     sync::{Mutex, Notify},
     task::AbortHandle,
@@ -56,7 +56,7 @@ pub(super) async fn send_on(
     headers: Vec<RequestHeader>,
     body: Option<RequestBody>,
     trailers: Vec<RequestHeader>,
-    priority: Option<Http2Priority>,
+    priority: Option<Http2RequestPriority>,
 ) -> Result<http::Response<Http2Body>, Http2Error> {
     match priority {
         Some(priority) => {
@@ -250,7 +250,7 @@ impl Http2Pool {
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
-        priority: Option<Http2Priority>,
+        priority: Option<Http2RequestPriority>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<Dispatched<(http::Response<ResponseBody>, Vec<RequestHeader>)>, RequestError> {

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use crate::{Http2Priority, ProxyAuthorizationAttempt, RequestField, RequestTemplate};
+use crate::{Http2RequestPriority, ProxyAuthorizationAttempt, RequestField, RequestTemplate};
 
 pub(super) enum RequestFieldDefinition {
     Literal {
@@ -80,7 +80,7 @@ pub(super) struct RequestTemplateDefinition {
     pub(super) http1_fields: &'static [RequestFieldDefinition],
     pub(super) http2_fields: &'static [RequestFieldDefinition],
     pub(super) http3_fields: Option<&'static [RequestFieldDefinition]>,
-    pub(super) http2_priority: Option<Http2Priority>,
+    pub(super) http2_priority: Option<Http2RequestPriority>,
     pub(super) requested_client_hint_placement: bool,
     pub(super) restarts_for_connection_accept_ch: bool,
 }

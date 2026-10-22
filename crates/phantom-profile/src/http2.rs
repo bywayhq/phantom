@@ -359,6 +359,32 @@ pub struct Http2Priority {
     pub exclusive: bool,
 }
 
+/// Priority carried by a request template's opening HTTP/2 HEADERS.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Http2RequestPriority {
+    /// Uses the supplied dependency without joining the live weight bands.
+    Fixed(Http2Priority),
+    /// Depends on the newest live request in the same weight band, or the
+    /// nearest higher band. Uses stream 0 when neither band is occupied.
+    WeightBand {
+        /// RFC 7540 weight in 1..=256; higher weights have higher priority.
+        weight: u16,
+        /// Whether this stream becomes the chosen dependency's sole child.
+        exclusive: bool,
+    },
+}
+
+impl Http2RequestPriority {
+    /// Returns the configured RFC 7540 weight.
+    #[must_use]
+    pub const fn weight(self) -> u16 {
+        match self {
+            Self::Fixed(priority) => priority.weight,
+            Self::WeightBand { weight, .. } => weight,
+        }
+    }
+}
+
 /// Ordered HTTP/2 settings independent of the concrete HTTP/2 backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http2Settings {

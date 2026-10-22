@@ -24,8 +24,9 @@ pub use http1::{Http1IdleTimeout, Http1Settings, InvalidHttp1Settings};
 pub use http2::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
     Http2IdleTimeout, Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
-    Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
-    Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch, InvalidHttp2Settings,
+    Http2RequestPriority, Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings,
+    Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
+    InvalidHttp2Settings,
 };
 pub use http3::{
     Http3AltUsed, Http3AltUsedPort, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,

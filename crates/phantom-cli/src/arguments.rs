@@ -63,7 +63,14 @@ pub(super) fn command() -> Command {
                         .long("context")
                         .requires("profile")
                         .conflicts_with_all(["profile-file", "bundle"])
-                        .value_parser(["navigation", "fetch"])
+                        .value_parser([
+                            "navigation",
+                            "fetch",
+                            "script",
+                            "stylesheet",
+                            "image",
+                            "font",
+                        ])
                         .help("Select this catalog request template; omitted means no template"),
                 )
                 .arg(

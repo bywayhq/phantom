@@ -17,7 +17,7 @@ use bytes::Bytes;
 use http::{Method, Request};
 use phantom_profile::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
+    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2RequestPriority,
     Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
     Http2TableSizeUpdates, Http2UnindexedMatch,
 };
@@ -424,6 +424,25 @@ pub(crate) fn priority_overrides(
     }
     Ok(HeadersFrameOverrides::new()
         .stream_dependency(stream_dependency(priority, first_stream_id)?))
+}
+
+fn request_priority_overrides(
+    priority: Http2RequestPriority,
+    first_stream_id: u32,
+) -> Result<HeadersFrameOverrides, Http2Error> {
+    match priority {
+        Http2RequestPriority::Fixed(priority) => priority_overrides(priority, first_stream_id),
+        Http2RequestPriority::WeightBand { weight, exclusive } => {
+            let encoded_weight = weight
+                .checked_sub(1)
+                .and_then(|weight| u8::try_from(weight).ok())
+                .ok_or(Http2Error::InvalidPriority {
+                    dependency_stream_id: 0,
+                    weight,
+                })?;
+            Ok(HeadersFrameOverrides::new().weight_band(encoded_weight, exclusive))
+        }
+    }
 }
 
 /// Builds the connection's HPACK encoder identity from profile settings.

@@ -108,11 +108,11 @@ async fn a_request_priority_on_the_first_stream_is_refused() -> TestResult<()> {
                 Vec::new(),
                 None,
                 Vec::new(),
-                Http2Priority {
+                phantom_profile::Http2RequestPriority::Fixed(Http2Priority {
                     dependency_stream_id: 3,
                     weight: 220,
                     exclusive: true,
-                },
+                }),
             )
             .await;
         assert!(matches!(

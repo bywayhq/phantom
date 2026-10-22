@@ -32,7 +32,10 @@ fn historical_edge_153_navigation_matches_retained_h1_h2_h3_requests() -> Captur
     let priorities = Capture::parse(WEBSOCKET[0])?.http2_priorities("document")?;
     assert_eq!(priorities.len(), 3);
     for priority in priorities {
-        assert_eq!(priority, template.http2_priority);
+        assert_eq!(
+            priority.map(crate::Http2RequestPriority::Fixed),
+            template.http2_priority
+        );
     }
     assert_all_match(
         &template,
@@ -97,7 +100,10 @@ fn historical_edge_153_no_store_fetch_matches_retained_h1_h2_requests() -> Captu
     let priorities = Capture::parse(WEBSOCKET[0])?.http2_priorities("empty")?;
     assert_eq!(priorities.len(), 3);
     for priority in priorities {
-        assert_eq!(priority, template.http2_priority);
+        assert_eq!(
+            priority.map(crate::Http2RequestPriority::Fixed),
+            template.http2_priority
+        );
     }
     assert_all_match(
         &template,

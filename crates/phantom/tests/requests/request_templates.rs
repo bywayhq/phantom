@@ -51,6 +51,7 @@ mod default_profile;
 mod fixture;
 mod owner_contract;
 mod reply_contract;
+mod resources;
 mod wire;
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;

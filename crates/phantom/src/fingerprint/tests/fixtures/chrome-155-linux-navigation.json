@@ -69,6 +69,7 @@
   ],
   "http3_fields": null,
   "http2_priority": {
+    "variant": "Fixed",
     "dependency_stream_id": 0,
     "weight": 256,
     "exclusive": true

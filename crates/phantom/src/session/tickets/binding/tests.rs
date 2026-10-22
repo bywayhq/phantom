@@ -978,6 +978,42 @@ fn absent_http3_template_fields_differ_from_present_empty_fields() -> TestResult
 }
 
 #[test]
+fn request_priority_mode_weight_and_exclusivity_change_ticket_identity() -> TestResult {
+    use phantom_profile::{Http2Priority, Http2RequestPriority};
+
+    let base = chrome::v154_windows();
+    let mut identities = Vec::new();
+    for priority in [
+        None,
+        Some(Http2RequestPriority::Fixed(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 256,
+            exclusive: true,
+        })),
+        Some(Http2RequestPriority::WeightBand {
+            weight: 256,
+            exclusive: true,
+        }),
+        Some(Http2RequestPriority::WeightBand {
+            weight: 147,
+            exclusive: true,
+        }),
+        Some(Http2RequestPriority::WeightBand {
+            weight: 256,
+            exclusive: false,
+        }),
+    ] {
+        let mut template = chrome::v154_windows_navigation_template();
+        template.http2_priority = priority;
+        let profile = base.clone().with_request_template(template);
+        let encoded = profile::encode(&profile, None, None)?;
+        assert!(identities.iter().all(|previous| previous != &encoded));
+        identities.push(encoded);
+    }
+    Ok(())
+}
+
+#[test]
 fn draw_failure_keeps_existing_partial_draw_semantics() -> TestResult {
     let mut profile = drawn_profile(TrustAnchorIds::PerClient(candidates()?));
     let _plan = BindingPlan::capture(&profile)?;

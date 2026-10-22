@@ -400,11 +400,11 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
         // credentials slot.
         http3_fields: Some(http2_fields[1..].to_vec()),
         http2_fields,
-        http2_priority: Some(Http2Priority {
+        http2_priority: Some(crate::Http2RequestPriority::Fixed(Http2Priority {
             dependency_stream_id: 0,
             weight: 256,
             exclusive: true,
-        }),
+        })),
         requested_client_hint_placement: true,
         restarts_for_connection_accept_ch: true,
     }
@@ -499,11 +499,11 @@ fn v154_fetch_lists(user_agent: Option<&str>, cache: FetchCache) -> RequestTempl
         http1_fields,
         http2_fields,
         http3_fields: None,
-        http2_priority: Some(Http2Priority {
+        http2_priority: Some(crate::Http2RequestPriority::Fixed(Http2Priority {
             dependency_stream_id: 0,
             weight: 220,
             exclusive: true,
-        }),
+        })),
         requested_client_hint_placement: false,
         restarts_for_connection_accept_ch: false,
     }
