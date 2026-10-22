@@ -78,9 +78,9 @@ browser build, platform release and recipe revision.
 
 Export produces editable `phantom.custom-profile` JSON. Import validates the
 complete document and exports its supported settings with ordering preserved.
-Input is limited to 16 MiB. Import writes a file; it does not install a registry
-entry. Profile documents include literal header values, so inspect them before
-sharing.
+Input is limited to 16 MiB. Import writes normalized JSON; it does not install
+a registry entry. Profile documents include literal header values, so inspect
+them before sharing.
 
 ## Offline bundles
 
