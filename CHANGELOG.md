@@ -19,6 +19,8 @@
 - Add `--observe-images` to retain ordered HTTP/2 image fields and initial
   HEADERS priority in Alt-Svc captures, rejecting credentials and normalizing
   local ports.
+- Close headful Alt-Svc captures through their owned loopback browser endpoint
+  after the page finishes. Require process exit and a complete NetLog.
 
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
   headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog

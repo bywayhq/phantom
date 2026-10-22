@@ -379,6 +379,37 @@ class RemoteError(Exception):
         )
 
 
+async def request_browser_close(
+    connection: RemoteConnection, browser: str
+) -> BaseException | None:
+    """Request a graceful close; return an observed clean endpoint disconnect.
+
+    The caller owns the connection and must retire it on success or failure.
+    A partial frame, unrelated I/O error or timeout is not a successful close.
+    """
+    if browser == "firefox":
+        await asyncio.wait_for(connection.call("session.new", {"capabilities": {}}), 15)
+        method = "browser.close"
+    else:
+        method = "Browser.close"
+    future = await asyncio.wait_for(connection.send(method, {}), 5)
+    try:
+        await asyncio.wait_for(future, timeout=5)
+    except (ConnectionError, asyncio.IncompleteReadError) as error:
+        clean_end = (
+            type(error) is ConnectionError
+            and str(error) == "remote protocol endpoint closed"
+        ) or (
+            isinstance(error, asyncio.IncompleteReadError)
+            and error.expected == 2
+            and not error.partial
+        )
+        if connection.failure is not error or not clean_end:
+            raise
+        return error
+    return None
+
+
 # -- Chrome DevTools Protocol -----------------------------------------------
 
 

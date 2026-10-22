@@ -39,6 +39,7 @@ from .browser_remote import (
     RemoteSocket,
     chromium_endpoint,
     firefox_endpoint,
+    request_browser_close,
     wait_for_endpoint,
 )
 from .fixture_file import write_text_fixture
@@ -1282,29 +1283,7 @@ async def close_browser(browser: str, profile: Path, run: Run) -> None:
     try:
         connection = RemoteConnection(socket)
         connection.start(ignore)
-        if browser == "firefox":
-            await asyncio.wait_for(
-                connection.call("session.new", {"capabilities": {}}), 15
-            )
-            future = await asyncio.wait_for(connection.send("browser.close", {}), 5)
-        else:
-            future = await asyncio.wait_for(connection.send("Browser.close", {}), 5)
-        try:
-            await asyncio.wait_for(future, timeout=5)
-        except (ConnectionError, asyncio.IncompleteReadError) as error:
-            # Browser.close may retire the endpoint before replying. A partial frame
-            # or an unrelated I/O error is not a successful remote close.
-            clean_end = (
-                type(error) is ConnectionError
-                and str(error) == "remote protocol endpoint closed"
-            ) or (
-                isinstance(error, asyncio.IncompleteReadError)
-                and error.expected == 2
-                and not error.partial
-            )
-            if connection.failure is not error or not clean_end:
-                raise
-            run.remote_disconnect = error
+        run.remote_disconnect = await request_browser_close(connection, browser)
     except BaseException as error:
         primary = error
     if connection is not None:

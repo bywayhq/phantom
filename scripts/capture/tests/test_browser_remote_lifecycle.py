@@ -32,6 +32,83 @@ class CloseFailure(Exception):
     pass
 
 
+class BrowserCloseRequestTests(unittest.IsolatedAsyncioTestCase):
+    async def test_close_uses_the_browser_protocol_without_page_instrumentation(self):
+        for browser, replies, expected in (
+            ("chrome", {"Browser.close": {}}, ["Browser.close"]),
+            (
+                "firefox",
+                {"session.new": {}, "browser.close": {}},
+                ["session.new", "browser.close"],
+            ),
+        ):
+            with self.subTest(browser=browser):
+                peer = CommandPeer(replies, {})
+                try:
+                    port = await peer.listen()
+
+                    async def ignore(_):
+                        return None
+
+                    connection = await peer.connect(port, ignore)
+                    disconnect = await browser_remote.request_browser_close(
+                        connection, browser
+                    )
+
+                    self.assertIsNone(disconnect)
+                    self.assertEqual(
+                        [command["method"] for command in peer.remote.commands],
+                        expected,
+                    )
+                    if browser == "firefox":
+                        self.assertEqual(
+                            peer.remote.commands[0]["params"], {"capabilities": {}}
+                        )
+                    self.assertEqual(peer.remote.commands[-1]["params"], {})
+                finally:
+                    await peer.finish()
+
+    async def test_only_the_owned_clean_disconnect_can_replace_a_close_reply(self):
+        clean = asyncio.IncompleteReadError(b"", 2)
+        partial = asyncio.IncompleteReadError(b"\x81", 2)
+        wrong_length = asyncio.IncompleteReadError(b"", 8)
+        unrelated = ConnectionAbortedError("remote protocol endpoint closed")
+        foreign = ConnectionError("remote protocol endpoint closed")
+        for error, owned, accepted in (
+            (clean, clean, True),
+            (partial, partial, False),
+            (wrong_length, wrong_length, False),
+            (unrelated, unrelated, False),
+            (foreign, ConnectionError("remote protocol endpoint closed"), False),
+        ):
+            with self.subTest(error=error, owned=error is owned):
+
+                class Connection:
+                    def __init__(self, outcome, failure):
+                        self.outcome = outcome
+                        self.failure = failure
+
+                    async def send(self, method, params):
+                        if method != "Browser.close" or params != {}:
+                            raise AssertionError("unexpected close command")
+                        future = asyncio.get_running_loop().create_future()
+                        future.set_exception(self.outcome)
+                        return future
+
+                connection = Connection(error, owned)
+                if accepted:
+                    self.assertIs(
+                        await browser_remote.request_browser_close(
+                            connection, "chrome"
+                        ),
+                        error,
+                    )
+                else:
+                    with self.assertRaises(type(error)) as raised:
+                        await browser_remote.request_browser_close(connection, "chrome")
+                    self.assertIs(raised.exception, error)
+
+
 class CommandObservations(list):
     def __init__(self) -> None:
         super().__init__()

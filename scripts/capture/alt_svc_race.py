@@ -51,7 +51,15 @@ from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.errors import ErrorCodes
 
+from .browser_failures import CleanupFailures
 from .browser_launch import BrowserDriver, LaunchPlan
+from .browser_remote import (
+    RemoteConnection,
+    RemoteSocket,
+    chromium_endpoint,
+    request_browser_close,
+    wait_for_endpoint,
+)
 from .chrome_netlog import NetLog, RaceObservation, broken_until_seconds, observe_races
 from .fixture_file import write_text_fixture
 from .http2_analysis import Priority
@@ -339,6 +347,7 @@ class RunRecord:
     images: list[H2ImageRequest] | None = None
     page_results: list[dict[str, object]] | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    remote_disconnect: BaseException | None = None
 
     def now(self) -> float:
         return round((time.perf_counter() - self.started_counter) * 1000, 3)
@@ -1563,6 +1572,61 @@ class CaptureCleanupError(Exception):
         self.__cause__ = self.failures[0]
 
 
+class RemoteCloseCleanupError(CleanupFailures):
+    """Retain the remote owner when a headful close cannot retire it."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+        owner: RemoteConnection | RemoteSocket,
+    ) -> None:
+        self.owner = owner
+        super().__init__(primary, cleanup, "headful browser close cleanup failed")
+
+
+async def close_headful_browser(profile: Path, browser: str, run: RunRecord) -> None:
+    """Close the owned browser over its fresh loopback remote endpoint."""
+    endpoint = await wait_for_endpoint(chromium_endpoint, profile)
+    socket = await RemoteSocket.connect(endpoint)
+    connection = None
+    primary = None
+    cleanup = []
+
+    async def ignore(_: dict) -> None:
+        return None
+
+    try:
+        connection = RemoteConnection(socket)
+        connection.start(ignore)
+        run.remote_disconnect = await request_browser_close(connection, browser)
+    except BaseException as error:
+        primary = error
+    if connection is not None:
+        try:
+            await connection.close()
+        except BaseException as error:
+            cleanup.append(error)
+    else:
+        try:
+            socket.close()
+        except BaseException as error:
+            cleanup.append(error)
+        try:
+            await asyncio.wait_for(socket.writer.wait_closed(), CLEANUP_WAIT_SECONDS)
+        except BaseException as error:
+            cleanup.append(error)
+    cleanup = tuple(error for error in cleanup if error is not primary)
+    if cleanup:
+        failure = RemoteCloseCleanupError(primary, cleanup, connection or socket)
+        failure.raise_interruption()
+        if primary is None:
+            raise failure from cleanup[0]
+        retain_capture_cleanup(primary, failure)
+    if primary is not None:
+        raise primary
+
+
 async def capture_run(
     scenario: Scenario,
     *,
@@ -1622,6 +1686,11 @@ async def capture_run(
             extra = chromium_extra_arguments(
                 listen_host, certificate.spki_sha256_base64, netlog
             )
+            if not headless:
+                extra += (
+                    "--remote-debugging-address=127.0.0.1",
+                    "--remote-debugging-port=0",
+                )
             plan = LaunchPlan(browser, executable, headless, extra)
             recorded = plan.recorded_arguments(url).replace(
                 certificate.spki_sha256_base64, "<certificate-spki>"
@@ -1644,9 +1713,19 @@ async def capture_run(
                     process = driver.browser.process if driver.browser else None
 
                 if process is not None:
+                    if not headless:
+                        if driver.browser.profile is None:
+                            raise RuntimeError("the browser has no remote profile")
+                        await close_headful_browser(
+                            driver.browser.profile, browser, run
+                        )
                     # `--dump-dom` exits after the load event; a graceful exit
                     # writes the NetLog's closing polled data.
                     exited = await wait_for_exit(process, EXIT_WAIT_SECONDS)
+                    if not headless and not exited:
+                        raise TimeoutError(
+                            "headful browser did not exit after remote close"
+                        )
                 await asyncio.sleep(0.5)
         except BaseException as error:
             primary = error
@@ -1717,6 +1796,13 @@ async def capture_run(
         if primary is not None:
             raise primary
 
+        if not headless:
+            if not exited:
+                raise RuntimeError("headful browser exit was not observed")
+            if not NetLog.load(netlog).complete:
+                raise ValueError(
+                    "headful browser NetLog is incomplete after remote close"
+                )
         return RunResult(run, port, netlog, recorded, exited)
 
 

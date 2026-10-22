@@ -1516,8 +1516,12 @@ The page drives these server paths:
   the next request needs a new connection.
 - `/retire` retires every open connection.
 - `/hold` is an image that keeps the load event pending until `/done`. As a
-  result `--dump-dom` exits cleanly, and the NetLog ends with `polledData`,
+  result headless `--dump-dom` exits cleanly, and the NetLog ends with `polledData`,
   whose Alt-Svc mappings give each broken alternative's expiry.
+
+Headful runs request browser shutdown over its fresh loopback remote endpoint
+after `/done`. They fail unless the process exits and the NetLog is complete.
+Forced cleanup still runs on failure. Headless runs keep their existing exit path.
 
 With `--observe-images`, fixtures retain `/hold` HTTP/2 fields in wire order,
 including duplicates, fetch metadata and the `priority` header. They also record
