@@ -1,4 +1,4 @@
-//! macOS selection keeps platform-specific options and evidence boundaries.
+//! macOS profiles select platform-specific options and sources.
 
 use phantom_profile::{
     TcpKeepalivePolicy,
@@ -48,7 +48,6 @@ fn macos_selects_its_own_tcp_policy_and_reports_uncaptured_layers() -> TestResul
     let evidence = definition
         .evidence(ProfileLayer::Tcp)
         .ok_or("TCP evidence missing")?;
-    assert!(evidence.verified_fields().is_empty());
     assert!(
         evidence
             .references()
@@ -65,8 +64,9 @@ fn macos_selects_its_own_tcp_policy_and_reports_uncaptured_layers() -> TestResul
         definition
             .evidence(ProfileLayer::ProxyConnect)
             .ok_or("proxy evidence missing")?
-            .verified_fields()
-            .is_empty()
+            .references()
+            .iter()
+            .all(|reference| reference.kind() != EvidenceKind::Capture)
     );
     assert!(matches!(
         definition.request_template(RequestTemplateKind::FetchUpload),

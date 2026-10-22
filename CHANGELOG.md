@@ -9,6 +9,9 @@
   `WeightBand` to choose a live dependency. Template JSON now requires
   `variant: "Fixed"` or `variant: "WeightBand"`. Recreate saved ticket state
   and session checkpoints for ticket-policy version 7.
+- Breaking: remove `LayerEvidence::verified_fields()` and the catalog's
+  `verified_fields` lists. Migrate: use `support()`, `references()` and
+  `limitations()` to inspect a recipe; comparison details live in the tests.
 
 - Stop sending queued HTTP/2 priority fields after the peer disables them.
 

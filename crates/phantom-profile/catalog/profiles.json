@@ -31,12 +31,6 @@
               "location": "crates/phantom-profile/src/browser/brave/android.rs",
               "build": "153.1.95.104"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -74,11 +68,6 @@
               "location": "crates/phantom-profile/src/browser/brave/android.rs",
               "build": "153.1.95.104"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -100,9 +89,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -124,9 +110,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -164,10 +147,6 @@
               "location": "crates/phantom-profile/src/browser/brave/android.rs",
               "build": "153.1.95.104"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -189,9 +168,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         }
       ],
@@ -247,12 +223,6 @@
               "location": "crates/phantom-profile/src/browser/brave.rs",
               "build": "154.1.96.59"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -338,9 +308,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -357,11 +324,6 @@
               "location": "crates/phantom-profile/src/browser/brave.rs",
               "build": "154.1.96.59"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -383,9 +345,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -407,9 +366,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -447,10 +403,6 @@
               "location": "crates/phantom-profile/src/browser/brave.rs",
               "build": "154.1.96.59"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -472,9 +424,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         },
         {
@@ -496,9 +445,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "CONNECT request headers"
           ]
         },
         {
@@ -520,9 +466,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 cookie placement"
           ]
         }
       ],
@@ -578,12 +521,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -616,9 +553,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -635,11 +569,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -656,9 +585,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -675,9 +601,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -710,10 +633,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -730,9 +649,6 @@
               "location": "crates/phantom-profile/src/browser/chrome/android.rs",
               "build": "154.0.8037.57"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         }
       ],
@@ -927,10 +843,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "HTTP/1.1 navigation header order"
           ]
         },
         {
@@ -1025,12 +937,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -1047,9 +953,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -1066,9 +969,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -1085,9 +985,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cache reuse"
           ]
         },
         {
@@ -1104,9 +1001,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "connection admission"
           ]
         },
         {
@@ -1123,9 +1017,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1142,11 +1033,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -1163,9 +1049,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -1182,9 +1065,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1217,10 +1097,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -1237,9 +1113,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         },
         {
@@ -1256,9 +1129,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "CONNECT request headers"
           ]
         },
         {
@@ -1275,9 +1145,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 cookie placement"
           ]
         }
       ],
@@ -1345,10 +1212,6 @@
               "location": "crates/phantom-profile/src/browser/edge.rs",
               "build": "154.0.4258.37"
             }
-          ],
-          "verified_fields": [
-            "initial ClientHello fields",
-            "resumed ClientHello fields"
           ]
         },
         {
@@ -1386,9 +1249,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1415,9 +1275,6 @@
               "location": "crates/phantom-profile/src/browser/edge.rs",
               "build": "154.0.4258.37"
             }
-          ],
-          "verified_fields": [
-            "initial ClientHello fields"
           ]
         },
         {
@@ -1439,10 +1296,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameter values",
-            "transport parameter encoded widths"
           ]
         },
         {
@@ -1464,9 +1317,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1488,9 +1338,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "navigation pseudo-header order"
           ]
         },
         {
@@ -1507,10 +1354,6 @@
               "location": "crates/phantom-profile/src/browser/edge/historical.rs",
               "build": "153.0.4234.48"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -1578,12 +1421,6 @@
               "location": "crates/phantom-profile/src/browser/edge/android.rs",
               "build": "153.0.4234.49"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -1605,9 +1442,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1624,11 +1458,6 @@
               "location": "crates/phantom-profile/src/browser/edge/android.rs",
               "build": "153.0.4234.49"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -1650,9 +1479,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -1674,9 +1500,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -1714,10 +1537,6 @@
               "location": "crates/phantom-profile/src/browser/edge/android.rs",
               "build": "153.0.4234.49"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -1744,10 +1563,6 @@
               "location": "https://chromium.googlesource.com/chromium/src/+/792bf6722e73a45aa9e47c163b9901bdc17f3230/net/websockets/websocket_http2_handshake_stream.cc",
               "build": "153.0.8010.53"
             }
-          ],
-          "verified_fields": [
-            "HTTP/1.1 opening headers",
-            "HTTP/2 opening headers and priority"
           ],
           "limitations": [
             "HTTP/3 WebSockets and Android data-pipe sizing unavailable"
@@ -1806,12 +1621,6 @@
               "location": "crates/phantom-profile/src/browser/edge.rs",
               "build": "154.0.4258.37"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -1833,9 +1642,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -1857,9 +1663,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -1881,9 +1684,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cache reuse"
           ]
         },
         {
@@ -1905,9 +1705,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "connection admission"
           ]
         },
         {
@@ -1940,11 +1737,6 @@
               "location": "crates/phantom-profile/src/browser/edge.rs",
               "build": "154.0.4258.37"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -1966,9 +1758,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -1990,9 +1779,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -2030,10 +1816,6 @@
               "location": "crates/phantom-profile/src/browser/edge.rs",
               "build": "154.0.4258.37"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -2055,9 +1837,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         },
         {
@@ -2079,9 +1858,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "CONNECT request headers"
           ]
         },
         {
@@ -2103,9 +1879,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 cookie placement"
           ]
         }
       ],
@@ -2161,12 +1934,6 @@
               "location": "crates/phantom-profile/src/browser/firefox/android.rs",
               "build": "156.0.1"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -2246,12 +2013,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -2268,9 +2029,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -2287,9 +2045,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "cache reuse"
           ]
         },
         {
@@ -2306,9 +2061,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "connection admission"
           ]
         },
         {
@@ -2336,11 +2088,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -2357,9 +2104,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -2409,9 +2153,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         },
         {
@@ -2428,9 +2169,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "CONNECT request headers"
           ]
         },
         {
@@ -2447,9 +2185,6 @@
               "location": "crates/phantom-profile/src/browser/firefox.rs",
               "build": "157.0"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 cookie placement"
           ]
         }
       ],
@@ -2507,12 +2242,6 @@
               "location": "crates/phantom-profile/src/browser/opera/android.rs",
               "build": "102.1.5206.90382"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -2529,10 +2258,6 @@
               "location": "crates/phantom-profile/src/browser/opera/android.rs",
               "build": "102.1.5206.90382"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         }
       ],
@@ -2585,12 +2310,6 @@
               "location": "crates/phantom-profile/src/browser/opera.rs",
               "build": "136.0.6008.52"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -2612,9 +2331,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -2636,9 +2352,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "socket calls"
           ]
         },
         {
@@ -2660,9 +2373,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cache reuse"
           ]
         },
         {
@@ -2684,9 +2394,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "connection admission"
           ]
         },
         {
@@ -2708,9 +2415,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -2727,11 +2431,6 @@
               "location": "crates/phantom-profile/src/browser/opera.rs",
               "build": "136.0.6008.52"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "supported groups",
-            "extension presence"
           ]
         },
         {
@@ -2753,9 +2452,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "transport parameters"
           ]
         },
         {
@@ -2777,9 +2473,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -2817,10 +2510,6 @@
               "location": "crates/phantom-profile/src/browser/opera.rs",
               "build": "136.0.6008.52"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         },
         {
@@ -2842,9 +2531,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "opening headers"
           ]
         },
         {
@@ -2866,9 +2552,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "CONNECT request headers"
           ]
         },
         {
@@ -2890,9 +2573,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 cookie placement"
           ]
         }
       ],
@@ -2949,13 +2629,6 @@
               "build": "2.2.3"
             }
           ],
-          "verified_fields": [
-            "cipher suites",
-            "groups and key shares",
-            "signature schemes",
-            "extension order and presence",
-            "ALPN"
-          ],
           "limitations": [
             "Resumption and early data unavailable"
           ]
@@ -2974,13 +2647,6 @@
               "location": "crates/phantom-profile/tests/fixtures/peers/curl-impersonate-2.2.3-safari2601/capture.txt",
               "build": "2.2.3"
             }
-          ],
-          "verified_fields": [
-            "SETTINGS order and values",
-            "connection window",
-            "pseudo-header order",
-            "HEADERS without priority",
-            "fresh and reused navigation headers"
           ],
           "limitations": [
             "SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"
@@ -3039,13 +2705,6 @@
               "build": "0.2.0"
             }
           ],
-          "verified_fields": [
-            "cipher suites",
-            "groups and key shares",
-            "signature schemes",
-            "extension order and presence",
-            "ALPN"
-          ],
           "limitations": [
             "Resumption and early data unavailable"
           ]
@@ -3064,13 +2723,6 @@
               "location": "crates/phantom-profile/tests/fixtures/peers/wreq-util-5715529-safari-ios-26/capture.txt",
               "build": "0.2.0"
             }
-          ],
-          "verified_fields": [
-            "SETTINGS order and values",
-            "connection window",
-            "pseudo-header order",
-            "HEADERS without priority",
-            "fresh and reused navigation headers"
           ]
         }
       ],
@@ -3125,12 +2777,6 @@
               "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
               "build": "1.7.3"
             }
-          ],
-          "verified_fields": [
-            "fresh cipher, group, key-share and signature order",
-            "extension presence and permutation",
-            "ALPN and ALPS",
-            "certificate compression and fixed trust-anchor IDs"
           ]
         },
         {
@@ -3147,12 +2793,6 @@
               "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
               "build": "1.7.3"
             }
-          ],
-          "verified_fields": [
-            "SETTINGS order and values",
-            "connection window and HEADERS priority",
-            "fresh and reused navigation fields",
-            "HPACK full-table insertion and marker retention"
           ],
           "limitations": [
             "DATA frames use the transport default",
@@ -3173,9 +2813,6 @@
               "location": "crates/phantom-profile/tests/fixtures/peers/httpcloak-1.7.3-chrome-155-linux/capture.txt",
               "build": "1.7.3"
             }
-          ],
-          "verified_fields": [
-            "HTTP/2 Cookie placement before priority"
           ]
         }
       ],
@@ -3230,12 +2867,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "groups and key shares",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -3252,11 +2883,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings",
-            "connection window",
-            "navigation priority"
           ]
         },
         {
@@ -3273,12 +2899,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "cipher suites",
-            "groups and key shares",
-            "signature schemes",
-            "extension presence"
           ]
         },
         {
@@ -3295,9 +2915,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "initial transport parameters"
           ]
         },
         {
@@ -3314,9 +2931,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "startup settings"
           ]
         },
         {
@@ -3333,9 +2947,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "verified_fields": [
-            "pseudo-header order"
           ]
         },
         {
@@ -3347,10 +2958,6 @@
               "location": "fixtures/client-hints/chrome/156.0.8078.48/windows-11-26200/snapshot-1.txt",
               "build": "156.0.8078.48"
             }
-          ],
-          "verified_fields": [
-            "header values",
-            "header order"
           ]
         }
       ],

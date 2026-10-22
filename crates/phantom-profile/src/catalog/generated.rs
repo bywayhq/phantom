@@ -38,7 +38,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.1.95.104",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -46,7 +45,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -54,7 +52,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -62,7 +59,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -70,7 +66,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -93,7 +88,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -111,7 +105,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.1.95.104",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -134,7 +127,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -157,7 +149,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -180,7 +171,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -198,7 +188,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.1.95.104",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -221,7 +210,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -229,7 +217,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -237,7 +224,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -277,7 +263,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.1.96.59",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -295,7 +280,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -313,7 +297,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -331,7 +314,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -349,7 +331,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -372,7 +353,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -390,7 +370,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.1.96.59",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -413,7 +392,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -436,7 +414,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -459,7 +436,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -477,7 +453,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.1.96.59",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -500,7 +475,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -523,7 +497,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["CONNECT request headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -546,7 +519,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["HTTP/2 cookie placement"],
                 limitations: &[],
             },
         ],
@@ -586,7 +558,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -604,7 +575,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -612,7 +582,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -620,7 +589,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -628,7 +596,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -646,7 +613,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -664,7 +630,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -682,7 +647,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -700,7 +664,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -718,7 +681,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -736,7 +698,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -754,7 +715,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.57",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -762,7 +722,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -770,7 +729,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -810,7 +768,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -828,7 +785,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &["Only keepalive idle time is set"],
             },
             LayerEvidence {
@@ -836,7 +792,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -844,7 +799,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -862,7 +816,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -880,7 +833,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -898,7 +850,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -916,7 +867,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -934,7 +884,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -952,7 +901,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -970,7 +918,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &["header values", "HTTP/1.1 navigation header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -988,7 +935,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1001,7 +947,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1014,7 +959,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.95",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -1055,7 +999,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1073,7 +1016,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1091,7 +1033,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1109,7 +1050,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1127,7 +1067,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1145,7 +1084,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1163,7 +1101,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1181,7 +1118,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1199,7 +1135,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1217,7 +1152,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1235,7 +1169,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1253,7 +1186,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1271,7 +1203,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["CONNECT request headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1289,7 +1220,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["HTTP/2 cookie placement"],
                 limitations: &[],
             },
         ],
@@ -1331,7 +1261,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "1.7.3",
                     },
                 ],
-                verified_fields: &["fresh cipher, group, key-share and signature order", "extension presence and permutation", "ALPN and ALPS", "certificate compression and fixed trust-anchor IDs"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1339,7 +1268,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1347,7 +1275,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1355,7 +1282,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1363,7 +1289,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1381,7 +1306,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "1.7.3",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window and HEADERS priority", "fresh and reused navigation fields", "HPACK full-table insertion and marker retention"],
                 limitations: &["DATA frames use the transport default", "SETTINGS ACK order differs from httpcloak"],
             },
             LayerEvidence {
@@ -1389,7 +1313,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1397,7 +1320,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1405,7 +1327,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1413,7 +1334,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1421,7 +1341,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1429,7 +1348,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1437,7 +1355,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1455,7 +1372,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "1.7.3",
                     },
                 ],
-                verified_fields: &["HTTP/2 Cookie placement before priority"],
                 limitations: &[],
             },
         ],
@@ -1494,7 +1410,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1502,7 +1417,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1510,7 +1424,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1518,7 +1431,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1526,7 +1438,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1544,7 +1455,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings", "connection window", "navigation priority"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1562,7 +1472,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1580,7 +1489,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["initial transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1598,7 +1506,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1616,7 +1523,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["pseudo-header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1629,7 +1535,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "156.0.8078.48",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1637,7 +1542,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1645,7 +1549,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1653,7 +1556,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -1706,7 +1608,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.4258.37",
                     },
                 ],
-                verified_fields: &["initial ClientHello fields", "resumed ClientHello fields"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1714,7 +1615,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1722,7 +1622,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1730,7 +1629,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1738,7 +1636,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1761,7 +1658,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1789,7 +1685,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.4258.37",
                     },
                 ],
-                verified_fields: &["initial ClientHello fields"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1812,7 +1707,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameter values", "transport parameter encoded widths"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1835,7 +1729,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1858,7 +1751,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["navigation pseudo-header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1876,7 +1768,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.0.4234.48",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1884,7 +1775,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1892,7 +1782,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1900,7 +1789,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -1940,7 +1828,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.0.4234.49",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1948,7 +1835,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1956,7 +1842,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1964,7 +1849,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1972,7 +1856,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -1995,7 +1878,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2013,7 +1895,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.0.4234.49",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2036,7 +1917,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2059,7 +1939,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2082,7 +1961,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2100,7 +1978,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.0.4234.49",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2128,7 +2005,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "153.0.8010.53",
                     },
                 ],
-                verified_fields: &["HTTP/1.1 opening headers", "HTTP/2 opening headers and priority"],
                 limitations: &["HTTP/3 WebSockets and Android data-pipe sizing unavailable"],
             },
             LayerEvidence {
@@ -2136,7 +2012,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2144,7 +2019,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -2184,7 +2058,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.4258.37",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2207,7 +2080,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2230,7 +2102,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2253,7 +2124,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2276,7 +2146,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2294,7 +2163,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2312,7 +2180,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.4258.37",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2335,7 +2202,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2358,7 +2224,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2381,7 +2246,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2399,7 +2263,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.4258.37",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2422,7 +2285,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2445,7 +2307,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["CONNECT request headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2468,7 +2329,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["HTTP/2 cookie placement"],
                 limitations: &[],
             },
         ],
@@ -2508,7 +2368,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "156.0.1",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2526,7 +2385,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "156.0.1",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2534,7 +2392,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2542,7 +2399,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2550,7 +2406,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2558,7 +2413,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2566,7 +2420,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2574,7 +2427,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2582,7 +2434,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2590,7 +2441,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2603,7 +2453,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "156.0.1",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2611,7 +2460,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2619,7 +2467,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2627,7 +2474,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -2665,7 +2511,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2683,7 +2528,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2691,7 +2535,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2709,7 +2552,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2727,7 +2569,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2740,7 +2581,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2758,7 +2598,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2776,7 +2615,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2789,7 +2627,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2802,7 +2639,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2815,7 +2651,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2833,7 +2668,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2851,7 +2685,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["CONNECT request headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2869,7 +2702,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "157.0",
                     },
                 ],
-                verified_fields: &["HTTP/2 cookie placement"],
                 limitations: &[],
             },
         ],
@@ -2911,7 +2743,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "102.1.5206.90382",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2919,7 +2750,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2927,7 +2757,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2935,7 +2764,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2943,7 +2771,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2951,7 +2778,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2959,7 +2785,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2967,7 +2792,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2975,7 +2799,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -2983,7 +2806,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3001,7 +2823,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "102.1.5206.90382",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3009,7 +2830,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3017,7 +2837,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3025,7 +2844,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -3063,7 +2881,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "136.0.6008.52",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "signature schemes", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3086,7 +2903,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3109,7 +2925,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["socket calls"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3132,7 +2947,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["cache reuse"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3155,7 +2969,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["connection admission"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3178,7 +2991,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3196,7 +3008,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "136.0.6008.52",
                     },
                 ],
-                verified_fields: &["cipher suites", "supported groups", "extension presence"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3219,7 +3030,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["transport parameters"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3242,7 +3052,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["startup settings"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3265,7 +3074,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3283,7 +3091,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "136.0.6008.52",
                     },
                 ],
-                verified_fields: &["header values", "header order"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3306,7 +3113,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["opening headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3329,7 +3135,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["CONNECT request headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3352,7 +3157,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "154.0.8037.58",
                     },
                 ],
-                verified_fields: &["HTTP/2 cookie placement"],
                 limitations: &[],
             },
         ],
@@ -3392,7 +3196,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "2.2.3",
                     },
                 ],
-                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension order and presence", "ALPN"],
                 limitations: &["Resumption and early data unavailable"],
             },
             LayerEvidence {
@@ -3400,7 +3203,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3408,7 +3210,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3416,7 +3217,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3424,7 +3224,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3442,7 +3241,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "2.2.3",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
                 limitations: &["SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"],
             },
             LayerEvidence {
@@ -3450,7 +3248,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3458,7 +3255,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3466,7 +3262,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3474,7 +3269,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3482,7 +3276,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3490,7 +3283,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3498,7 +3290,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3506,7 +3297,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],
@@ -3545,7 +3335,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "0.2.0",
                     },
                 ],
-                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension order and presence", "ALPN"],
                 limitations: &["Resumption and early data unavailable"],
             },
             LayerEvidence {
@@ -3553,7 +3342,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3561,7 +3349,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3569,7 +3356,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3577,7 +3363,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3595,7 +3380,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         build: "0.2.0",
                     },
                 ],
-                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3603,7 +3387,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3611,7 +3394,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3619,7 +3401,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3627,7 +3408,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3635,7 +3415,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3643,7 +3422,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3651,7 +3429,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
             LayerEvidence {
@@ -3659,7 +3436,6 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Unavailable,
                 references: &[
                 ],
-                verified_fields: &[],
                 limitations: &[],
             },
         ],

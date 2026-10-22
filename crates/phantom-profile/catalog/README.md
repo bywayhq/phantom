@@ -1,7 +1,7 @@
 # Add a browser profile
 
-`profiles.json` owns each profile's identity, component selection, evidence,
-and request-template associations. Generate Rust after editing the catalog:
+`profiles.json` selects each profile's components and request templates, with
+its build, platform and sources. Generate Rust after editing the catalog:
 
 ```sh
 python scripts/dev/generate_profiles.py
@@ -27,9 +27,8 @@ file. A component can select a same-kind `base` and override specific values.
 Prefer one shared base over a chain of version-by-version overrides.
 Associate request kinds with entries in `request-templates.json`.
 
-Give each selected layer references with the build and location, including
-older builds whose settings you reuse. List fields checked against a retained
-capture in `verified_fields`.
+Give each selected layer source locations and builds, including older builds
+whose settings you reuse. Keep comparison details in the tests.
 
 For an external preset, use `identity.kind: "Peer"` with its project, exact
 source commit, preset name and advertised browser release. Set its browser and
@@ -41,9 +40,8 @@ a browser factory. `ExternalSource` references pin the commit in an HTTPS URL;
 `PeerCapture` references name retained peer fixtures with matching execution
 metadata.
 
-You can omit empty `references`, `verified_fields`, and `limitations` arrays.
-You can also omit evidence rows for unavailable layers: their composition
-must still be `null`. The generated catalog lists every layer explicitly.
+Omit empty `references` and `limitations` arrays. Unavailable layers need no
+row, but their composition must be `null`.
 `Unavailable` means no recipe is supplied; generic client defaults may apply.
 `IntentionallyAbsent` describes an explicit browser omission. Record each
 specific limitation once.

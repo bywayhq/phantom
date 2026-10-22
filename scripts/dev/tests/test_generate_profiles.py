@@ -29,7 +29,6 @@ class CatalogDeclarationTests(unittest.TestCase):
             tcp = next(layer for layer in profile["layers"] if layer["layer"] == "Tcp")
             if profile["target"] in ("ChromeAndroid154", "FirefoxAndroid156"):
                 self.assertEqual(tcp["support"], "Configured")
-                self.assertEqual(tcp["verified_fields"], [])
                 self.assertEqual(
                     {reference["kind"] for reference in tcp["references"]},
                     {"Source", "Recipe"},
@@ -46,7 +45,6 @@ class CatalogDeclarationTests(unittest.TestCase):
         self.assertEqual(profile["metadata"]["identity"]["environment"], "Desktop")
         self.assertEqual(profile["composition"]["Tcp"], "chromium_154_macos_tcp")
         layers = {layer["layer"]: layer for layer in profile["layers"]}
-        self.assertEqual(layers["Tcp"]["verified_fields"], [])
         self.assertEqual(
             {r["kind"] for r in layers["Tcp"]["references"]}, {"Source", "Recipe"}
         )
@@ -72,7 +70,11 @@ class CatalogDeclarationTests(unittest.TestCase):
                 document = copy.deepcopy(self.document)
                 document["profiles"][0][key] = value
                 self.reject(document)
-        for key, value in (("layer", "AutomaticFallback"), ("support", "Assumed")):
+        for key, value in (
+            ("layer", "AutomaticFallback"),
+            ("support", "Assumed"),
+            ("verified_fields", ["cipher suites"]),
+        ):
             with self.subTest(key=key):
                 document = copy.deepcopy(self.document)
                 document["profiles"][0]["layers"][0][key] = value
@@ -238,15 +240,6 @@ class CatalogDeclarationTests(unittest.TestCase):
                 }
                 self.reject(document)
 
-    def test_observed_fields_require_direct_capture_support(self):
-        document = copy.deepcopy(self.document)
-        layer = document["profiles"][0]["layers"][0]
-        layer["references"] = [
-            {"kind": "Recipe", "location": "Cargo.toml", "build": "test"}
-        ]
-        layer["verified_fields"] = ["cipher suites"]
-        self.reject(document)
-
     def test_capture_reference_build_matches_the_fixture_not_the_target(self):
         generator.validate(self.document)
         chrome = next(
@@ -320,7 +313,6 @@ class CatalogDeclarationTests(unittest.TestCase):
                     )
             else:
                 self.assertEqual(layer["references"], [])
-                self.assertEqual(layer["verified_fields"], [])
                 self.assertIsNone(old["composition"][layer["layer"]])
         for field, value in (
             ("build", "153.0.4234.49"),
@@ -358,7 +350,6 @@ class CatalogDeclarationTests(unittest.TestCase):
             "android-17-pixel7-emulator",
         )
         self.assertIsNone(brave["metadata"]["identity"]["architecture"])
-        self.assertEqual(layer["verified_fields"], [])
         capture = next(ref for ref in layer["references"] if ref["kind"] == "Capture")
         self.assertEqual(
             capture["location"],
@@ -416,7 +407,6 @@ class CatalogDeclarationTests(unittest.TestCase):
             },
             {"kind": "Recipe", "location": "Cargo.toml", "build": "unknown"},
         ]
-        layer["verified_fields"] = []
         generator.validate(document)
 
     def test_malformed_source_urls_and_recipe_as_source_are_rejected(self):
@@ -432,7 +422,6 @@ class CatalogDeclarationTests(unittest.TestCase):
                 layer["references"] = [
                     {"kind": "Source", "location": location, "build": "test"}
                 ]
-                layer["verified_fields"] = []
                 self.reject(document)
 
     def test_byte_depth_count_and_string_limits_are_enforced(self):

@@ -302,13 +302,12 @@ impl EvidenceReference {
     }
 }
 
-/// Evidence and limits for one configured or missing layer.
+/// Availability, sources and limits for one layer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LayerEvidence {
     layer: ProfileLayer,
     support: LayerSupport,
     references: &'static [EvidenceReference],
-    verified_fields: &'static [&'static str],
     limitations: &'static [&'static str],
 }
 
@@ -325,21 +324,13 @@ impl LayerEvidence {
         self.support
     }
 
-    /// Returns each source with its own build and provenance.
+    /// Returns source locations and their builds.
     #[must_use]
     pub const fn references(&self) -> &'static [EvidenceReference] {
         self.references
     }
 
-    /// Returns the fields checked against browser or external-client recordings.
-    ///
-    /// Source-derived policies appear in [`Self::references`] instead.
-    #[must_use]
-    pub const fn verified_fields(&self) -> &'static [&'static str] {
-        self.verified_fields
-    }
-
-    /// Returns recipe limits and gaps in the available sources.
+    /// Returns known recipe limitations.
     #[must_use]
     pub const fn limitations(&self) -> &'static [&'static str] {
         self.limitations
@@ -389,10 +380,7 @@ impl ProfileDefinition {
         self.id
     }
 
-    /// Returns this recipe revision's fixed short selection name.
-    ///
-    /// The name selects the same definition as [`Self::id`]. It does not
-    /// follow browser updates or choose the current host's platform.
+    /// Returns the short name fixed to this recipe revision.
     #[must_use]
     pub const fn selector(&self) -> &'static str {
         self.selector
@@ -404,7 +392,7 @@ impl ProfileDefinition {
         &self.metadata
     }
 
-    /// Returns per-layer availability and evidence.
+    /// Returns per-layer availability, sources and limits.
     #[must_use]
     pub const fn layers(&self) -> &'static [LayerEvidence] {
         self.layers
@@ -425,7 +413,7 @@ impl ProfileDefinition {
     /// # Errors
     ///
     /// Returns [`CatalogError::UnavailableLayer`] if a requirement is missing
-    /// or intentionally absent. Never substitutes another browser or version.
+    /// or intentionally absent.
     pub fn instantiate(&self, required: &[ProfileLayer]) -> Result<ClientProfile, CatalogError> {
         for &layer in required {
             if !self

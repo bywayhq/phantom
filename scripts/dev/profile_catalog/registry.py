@@ -238,11 +238,10 @@ def validate(document, repo=REPO):
         for layer in layers:
             if not isinstance(layer, dict):
                 raise DeclarationError(f"{identifier}: invalid layer evidence")
-            optional = {"references", "verified_fields", "limitations"}
+            optional = {"references", "limitations"}
             keys(layer, {"layer", "support"} | (optional & layer.keys()), identifier)
             layer = {
                 "references": [],
-                "verified_fields": [],
                 "limitations": [],
                 **layer,
             }
@@ -356,23 +355,13 @@ def validate(document, repo=REPO):
                                 "peer capture must name a retained peer fixture"
                             )
                         validate_peer_capture(repo / path, identity)
-            string_list(layer["verified_fields"], "verified fields")
             string_list(layer["limitations"], "limitations")
-            if layer["verified_fields"] and not any(
-                item["kind"] in ("Capture", "PeerCapture") for item in references
-            ):
-                raise DeclarationError("observed fields require capture evidence")
-            if support != "Configured" and layer["verified_fields"]:
-                raise DeclarationError(
-                    "unconfigured layer cannot claim verified settings"
-                )
-        # An omitted evidence row cannot establish support for a component.
+        # Omitted layers have no recipe.
         entry["layers"] = expanded + [
             {
                 "layer": name,
                 "support": "Unavailable",
                 "references": [],
-                "verified_fields": [],
                 "limitations": [],
             }
             for name in LAYERS
@@ -459,7 +448,6 @@ def generate(profiles):
             lines.extend(
                 [
                     "                ],",
-                    f"                verified_fields: {rust_strings(layer['verified_fields'])},",
                     f"                limitations: {rust_strings(layer['limitations'])},",
                     "            },",
                 ]
@@ -507,13 +495,15 @@ def generate_constructors(profiles):
             ):
                 continue
             identity = metadata["identity"]
+            major = identity["build"].split(".", 1)[0]
+            platform = {"Macos": "macOS", "Ios": "iOS"}.get(
+                metadata["platform"], metadata["platform"]
+            )
             lines.extend(
                 [
-                    f"    /// Returns the {browser} {identity['build']} profile for {identity['platform_release']}.",
+                    f"    /// Returns {browser} {major} settings for {platform}, without a request template.",
                     "    ///",
-                    "    /// Choose a request template separately. See the",
-                    f"    /// [catalog evidence](crate::catalog::profile) for `{entry['id']}`",
-                    "    /// for supplied layers, reused settings and capture limits.",
+                    f"    /// Catalog: [`{entry['selector']}`](crate::catalog::profile).",
                     "    #[must_use]",
                     f"    pub fn {constructor(entry)}() -> crate::ClientProfile {{",
                     f"        crate::catalog::connection_profile_definitions::{entry['target'].upper()}.instantiate()",
