@@ -1,0 +1,21 @@
+[package]
+name = "safari-ios-peer-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+wreq-util = { git = "https://github.com/0x676e67/wreq-util", rev = "5715529002738f46eea86a7271f918f9374d3582", default-features = false, features = ["emulation", "emulation-compression", "tokio-rt"] }
+wreq = { version = "=0.16.1", default-features = false, features = ["tokio-rt"] }
+tokio = { version = "=1.52.3", default-features = false, features = ["rt", "time", "net"] }
+
+[patch.crates-io]
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "cd76bcdf1307153de289d34e072528bdf0510a3b" }
+btls = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }
+btls-sys = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }
+
+[profile.dev]
+debug = 0
+incremental = false

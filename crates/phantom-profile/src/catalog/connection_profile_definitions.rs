@@ -130,6 +130,7 @@ pub(super) enum Http2Component {
     Chromium154,
     Firefox157,
     Safari2601,
+    SafariIos26,
 }
 
 #[rustfmt::skip]
@@ -139,6 +140,7 @@ impl Http2Component {
             Self::Chromium154 => super::http2_components::chromium_154_http2(),
             Self::Firefox157 => super::http2_components::firefox_157_http2(),
             Self::Safari2601 => super::http2_components::safari_2601_http2(),
+            Self::SafariIos26 => super::http2_components::safari_ios26_http2(),
         }
     }
 }
@@ -518,6 +520,21 @@ pub(super) static SAFARIMACOS26: ConnectionProfileDefinition = ConnectionProfile
     dns_cache: None,
     http1: None,
     http2: Some(Http2Component::Safari2601),
+    http3: None,
+    client_hints: None,
+    websocket: None,
+    proxy_connect: None,
+    cookie_placement: None,
+};
+
+#[rustfmt::skip]
+pub(super) static SAFARIIOS26: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Safari2601,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::SafariIos26),
     http3: None,
     client_hints: None,
     websocket: None,

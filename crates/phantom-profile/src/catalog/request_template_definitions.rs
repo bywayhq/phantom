@@ -220,3 +220,13 @@ pub(super) static SAFARI_2601_NAVIGATION: RequestTemplateDefinition = RequestTem
     requested_client_hint_placement: false,
     restarts_for_connection_accept_ch: false,
 };
+
+#[rustfmt::skip]
+pub(super) static SAFARI_IOS26_NAVIGATION: RequestTemplateDefinition = RequestTemplateDefinition {
+    http1_fields: &[],
+    http2_fields: &[Field::Literal { name: "sec-fetch-dest", value: "document" }, Field::Literal { name: "user-agent", value: "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1" }, Field::Literal { name: "accept", value: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" }, Field::Literal { name: "sec-fetch-site", value: "none" }, Field::Literal { name: "sec-fetch-mode", value: "navigate" }, Field::Literal { name: "accept-language", value: "en-US,en;q=0.9" }, Field::Literal { name: "priority", value: "u=0, i" }, Field::Literal { name: "accept-encoding", value: "gzip, deflate, br" }],
+    http3_fields: None,
+    http2_priority: None,
+    requested_client_hint_placement: false,
+    restarts_for_connection_accept_ch: false,
+};

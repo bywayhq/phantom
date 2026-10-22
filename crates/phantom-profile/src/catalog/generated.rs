@@ -3150,4 +3150,157 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::SAFARI_2601_NAVIGATION },
         ],
     },
+    ProfileDefinition {
+        id: ProfileId("safari/26.0/ios/r1"),
+        selector: "safari-26-ios",
+        metadata: ProfileMetadata {
+            browser: Browser::Safari,
+            platform: ProfilePlatform::Ios,
+            identity: ProfileIdentity::Peer {
+                project: "wreq-util",
+                source_revision: "5715529002738f46eea86a7271f918f9374d3582",
+                recipe: "safari-ios-26",
+                release: "26.0",
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::ExternalSource,
+                        location: "https://github.com/0x676e67/wreq-util/blob/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari.rs",
+                        build: "0.2.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::PeerCapture,
+                        location: "crates/phantom-profile/tests/fixtures/peers/wreq-util-5715529-safari-ios-26/capture.txt",
+                        build: "0.2.0",
+                    },
+                ],
+                verified_fields: &["cipher suites", "groups and key shares", "signature schemes", "extension order and presence", "ALPN"],
+                limitations: &["External-client observations; no Safari browser capture", "Resumption and early data are not provided"],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::ExternalSource,
+                        location: "https://github.com/0x676e67/wreq-util/blob/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari.rs",
+                        build: "0.2.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::PeerCapture,
+                        location: "crates/phantom-profile/tests/fixtures/peers/wreq-util-5715529-safari-ios-26/capture.txt",
+                        build: "0.2.0",
+                    },
+                ],
+                verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "first and reused navigation header blocks"],
+                limitations: &["Only two sequential GETs per fresh connection were captured", "Cookie handling and other HPACK input classes are source-derived, not captured", "Frame scheduling and shutdown behavior are not claimed identical"],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &[],
+            },
+        ],
+        composition: &connection_profile_definitions::SAFARIIOS26,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::SAFARI_IOS26_NAVIGATION },
+        ],
+    },
 ];

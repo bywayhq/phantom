@@ -1,0 +1,7 @@
+format=phantom-peer-capture-v1
+client_version=0.2.0
+peer_project=wreq-util
+peer_source_revision=5715529002738f46eea86a7271f918f9374d3582
+peer_recipe=safari-ios-26
+
+Three independent native consumer processes; two sequential GETs each.

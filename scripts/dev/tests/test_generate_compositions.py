@@ -212,7 +212,7 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 13)
+        self.assertEqual(generated.count("static "), 14)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
         self,

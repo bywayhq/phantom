@@ -12,7 +12,7 @@ use phantom_profile::{
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const HELLOS: [&[u8]; 3] = [
+const HELLOS: [&[u8]; 6] = [
     include_bytes!(
         "../fixtures/peers/curl-impersonate-2.2.3-safari2601/run-1/connection-0.hello.bin"
     ),
@@ -21,6 +21,15 @@ const HELLOS: [&[u8]; 3] = [
     ),
     include_bytes!(
         "../fixtures/peers/curl-impersonate-2.2.3-safari2601/run-3/connection-0.hello.bin"
+    ),
+    include_bytes!(
+        "../fixtures/peers/wreq-util-5715529-safari-ios-26/run-1/connection-0.hello.bin"
+    ),
+    include_bytes!(
+        "../fixtures/peers/wreq-util-5715529-safari-ios-26/run-2/connection-0.hello.bin"
+    ),
+    include_bytes!(
+        "../fixtures/peers/wreq-util-5715529-safari-ios-26/run-3/connection-0.hello.bin"
     ),
 ];
 

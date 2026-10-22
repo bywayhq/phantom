@@ -52,6 +52,7 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
 #[test]
 fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
     let mappings = [
+        ("safari-26-ios", "safari/26.0/ios/r1"),
         ("safari-26-macos", "safari/26.0.1/macos/r1"),
         (
             "brave-153-android",

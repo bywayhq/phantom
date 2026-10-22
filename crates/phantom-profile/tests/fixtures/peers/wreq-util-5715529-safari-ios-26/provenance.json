@@ -1,0 +1,105 @@
+{
+  "project": "wreq-util",
+  "release": "0.2.0",
+  "source_revision": "5715529002738f46eea86a7271f918f9374d3582",
+  "recipe": "safari-ios-26",
+  "upstream_symbols": [
+    "Emulation::SafariIos26",
+    "safari_ios_26::build_emulation"
+  ],
+  "advertised_browser_release": "26.0",
+  "source_url": "https://github.com/0x676e67/wreq-util/tree/5715529002738f46eea86a7271f918f9374d3582",
+  "source_license": "Apache-2.0",
+  "capture_repository": "https://github.com/bywayhq/phantom",
+  "capture_checkout": "449bb0bddb74fdbef40136b8136dd57bf138d729",
+  "executable_sha256": "4c3ecd8bdb055b97ab640040d17807cc2418dc743401faa5f462058b32a683bc",
+  "resolved_sources": {
+    "wreq": {
+      "version": "0.16.1",
+      "revision": "cd76bcdf1307153de289d34e072528bdf0510a3b"
+    },
+    "wreq-proto": {
+      "version": "0.2.5"
+    },
+    "http2": {
+      "version": "0.5.20",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    "btls": {
+      "version": "0.5.6",
+      "revision": "129887582a538b8f4dcf371d15c953335312ca37"
+    },
+    "boringssl": {
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433"
+    }
+  },
+  "build": {
+    "platform": "x86_64-unknown-linux-gnu",
+    "features": [
+      "wreq-util/emulation",
+      "wreq-util/emulation-compression",
+      "wreq-util/tokio-rt",
+      "wreq/tokio-rt"
+    ],
+    "profile": "dev",
+    "debug": 0,
+    "incremental": false,
+    "jobs": 2,
+    "rustc": "1.99.1 (58cf8f9c35b355199727627d07ae34a4e2846d67)",
+    "cargo": "1.99.1 (5f94df478 2026-08-27)",
+    "cmake": "3.28.3",
+    "clang": "18.1.3"
+  },
+  "scope": "peer execution, not Safari browser observation",
+  "source_files": [
+    {
+      "project": "wreq-util",
+      "path": "Cargo.toml",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/Cargo.toml",
+      "sha256": "95a472537a4c03254fbdeeefe9152e6eebcfde60d965ccdb941cf5f38750852f",
+      "bytes": 2716,
+      "retained": "upstream/wreq-util-Cargo.toml.txt"
+    },
+    {
+      "project": "wreq-util",
+      "path": "src/emulate.rs",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/src/emulate.rs",
+      "sha256": "bef472523750628d103d6bcf231cb4e7d5561669437616fe32c37004fec36b07",
+      "bytes": 15461,
+      "retained": "upstream/wreq-util-src_emulate.rs.txt"
+    },
+    {
+      "project": "wreq-util",
+      "path": "src/emulate/profile/safari.rs",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari.rs",
+      "sha256": "200d83b4458643945f3fece463c80897c50923b7db72882c3fa0bc3237bf8958",
+      "bytes": 7108,
+      "retained": "upstream/wreq-util-src_emulate_profile_safari.rs.txt"
+    },
+    {
+      "project": "wreq-util",
+      "path": "src/emulate/profile/safari/tls.rs",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari/tls.rs",
+      "sha256": "aaa7c52aa8f6347adcc91ed41a31c4b4aa2bf2c08484b3211f49721ab63df034",
+      "bytes": 5798,
+      "retained": "upstream/wreq-util-src_emulate_profile_safari_tls.rs.txt"
+    },
+    {
+      "project": "wreq-util",
+      "path": "src/emulate/profile/safari/http2.rs",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari/http2.rs",
+      "sha256": "bbac1cf156285e92a8e39e8559b175696d74863ce5f1f8025a5b69b391d01979",
+      "bytes": 3687,
+      "retained": "upstream/wreq-util-src_emulate_profile_safari_http2.rs.txt"
+    },
+    {
+      "project": "wreq-util",
+      "path": "src/emulate/profile/safari/header.rs",
+      "url": "https://raw.githubusercontent.com/0x676e67/wreq-util/5715529002738f46eea86a7271f918f9374d3582/src/emulate/profile/safari/header.rs",
+      "sha256": "05e9aa30c5e274fa1a1174d202ab1ca66875d5fb50d2f45a501994d4d8a6efc1",
+      "bytes": 2246,
+      "retained": "upstream/wreq-util-src_emulate_profile_safari_header.rs.txt"
+    }
+  ],
+  "capture_command": "uv run --no-project --python 3.12.10 --with-requirements scripts/requirements.txt python target/tmp/safari-ios-peer-preparation/capture.py --consumer /root/.cache/phantom-peer/safari-ios-peer/debug/safari-ios-peer-consumer --output target/tmp/safari-ios-peer-preparation/peer-capture-results"
+}

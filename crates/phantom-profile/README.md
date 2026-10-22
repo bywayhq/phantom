@@ -23,9 +23,10 @@ or pass its full ID. `selector()` returns the short name; `id()` and
 `metadata()` retain the exact build, platform and recipe revision. Selection
 never follows updates or chooses your host's platform.
 
-`safari-26-macos` supplies Safari 26.0.1 settings for TLS, HTTP/2 and navigation
-headers, adapted from curl-impersonate 2.2.3. `metadata().identity()` identifies
-the pinned source; these settings are not a Safari browser capture.
+`safari-26-macos` and `safari-26-ios` supply TLS, HTTP/2 and navigation
+settings for Safari 26.0.1 and 26.0. They adapt curl-impersonate and wreq-util
+presets. `metadata().identity()` identifies the pinned source; these settings
+are not Safari browser captures.
 `version()` returns its advertised Safari version. Browser build, OS release
 and capture environment are absent for peer presets. Require layers when you
 instantiate a definition to reject missing settings rather than use defaults.

@@ -146,6 +146,25 @@
           "duration": null
         }
       }
+    },
+    {
+      "id": "safari_ios26_http2",
+      "kind": "Http2Settings",
+      "base": "safari_2601_http2",
+      "values": {
+        "hpack": {
+          "literal_pseudo_headers": [],
+          "static_name_index": "Lowest",
+          "huffman_coding": "Always",
+          "cookie_crumbs": "Whole",
+          "field_indexing": "Nghttp2",
+          "name_reference": "StaticUnlessSensitive",
+          "unindexed_match": "Index",
+          "indexing_limit": "ThreeQuarters",
+          "table_size_updates": "WhenChanged",
+          "sensitive_proxy_authorization": "NeverIndexed"
+        }
+      }
     }
   ]
 }

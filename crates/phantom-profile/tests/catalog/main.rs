@@ -16,6 +16,7 @@ mod macos;
 mod proxy_connect_components;
 mod quic_components;
 mod request_templates;
+mod safari_ios_peer;
 mod safari_peer;
 mod tcp_components;
 mod udp_components;

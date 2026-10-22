@@ -63,3 +63,24 @@ pub(crate) fn safari_2601_http2() -> crate::Http2Settings {
         idle_timeout: crate::Http2IdleTimeout::Unlimited,
     }
 }
+
+#[rustfmt::skip]
+pub(crate) fn safari_ios26_http2() -> crate::Http2Settings {
+    crate::Http2Settings {
+        initial_settings: vec![crate::Http2Setting::EnablePush(false), crate::Http2Setting::MaxConcurrentStreams(100), crate::Http2Setting::InitialWindowSize(2097152), crate::Http2Setting::NoRfc7540Priorities(true)],
+        initial_connection_window_size: 10485760,
+        initial_stream_window_target: None,
+        pseudo_header_order: vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Path],
+        extended_connect_pseudo_header_order: None,
+        headers_priority: None,
+        extended_connect_priority: None,
+        hpack: crate::Http2HpackSettings { literal_pseudo_headers: vec![], static_name_index: crate::Http2StaticNameIndex::Lowest, huffman_coding: crate::Http2HuffmanCoding::Always, cookie_crumbs: crate::Http2CookieCrumbs::Whole, field_indexing: crate::Http2FieldIndexing::Nghttp2, name_reference: crate::Http2NameReference::StaticUnlessSensitive, unindexed_match: crate::Http2UnindexedMatch::Index, indexing_limit: crate::Http2IndexingLimit::ThreeQuarters, table_size_updates: crate::Http2TableSizeUpdates::WhenChanged, sensitive_proxy_authorization: crate::Http2SensitiveProxyAuthorization::NeverIndexed },
+        streams: crate::Http2StreamSettings { first_stream_id: 1, assumed_max_concurrent_streams: Some(100), max_concurrent_streams_cap: None },
+        preface_ping_after: None,
+        ping_timeout: None,
+        ping_failure_retries: 0,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
+        idle_timeout: crate::Http2IdleTimeout::Unlimited,
+    }
+}
