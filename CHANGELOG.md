@@ -7,7 +7,7 @@
   background. Caller-supplied hard lifetimes stay strict.
   Migrate: add `stale_grace: Duration::ZERO` to custom settings and
   `"stale_grace": {"seconds": 0, "nanoseconds": 0}` to profile JSON to keep
-  the previous expiry behavior.
+  the previous expiry behavior. Recreate saved tickets and session checkpoints.
 
 - Include I/O error kinds and OS codes in Node connection failures.
 
