@@ -26,6 +26,7 @@ class AndroidBrowserProgressMonitorTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as directory:
             command = lifecycle.HostCommand(Path(directory), ())
             command.ready.write_text("not JSON")
+            command.published.touch()
             monitor = lifecycle.ProgressMonitor(asyncio.get_running_loop(), command)
             monitor.start()
             try:
@@ -45,9 +46,8 @@ class AndroidBrowserProgressMonitorTests(unittest.IsolatedAsyncioTestCase):
                 monitor.start()
                 try:
                     await asyncio.sleep(0.05)
-                    pending = command.ready.with_suffix(".tmp")
-                    pending.write_text(json.dumps({"pid": 42, "arguments": []}))
-                    pending.replace(command.ready)
+                    command.ready.write_text(json.dumps({"pid": 42, "arguments": []}))
+                    command.published.touch()
                     await asyncio.wait_for(monitor.observed.wait(), 3)
                     self.assertIsNone(monitor.failure)
                     self.assertTrue(monitor.progress_before_release)
@@ -62,6 +62,7 @@ class AndroidBrowserProgressMonitorTests(unittest.IsolatedAsyncioTestCase):
             command.process = Mock(pid=42)
             command.process.poll.return_value = None
             command.ready.write_text(json.dumps({"pid": 42, "arguments": []}))
+            command.published.touch()
             monitor = lifecycle.ProgressMonitor(asyncio.get_running_loop(), command)
             with patch.object(lifecycle, "PROGRESS_SECONDS", 0.03):
                 monitor.start()
@@ -72,3 +73,19 @@ class AndroidBrowserProgressMonitorTests(unittest.IsolatedAsyncioTestCase):
                     self.assertFalse(monitor.progress_before_release)
                 finally:
                     monitor.finish()
+
+    async def test_an_unpublished_payload_does_not_become_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            command = lifecycle.HostCommand(Path(directory), ())
+            command.ready.write_text(json.dumps({"pid": 42, "arguments": []}))
+            monitor = lifecycle.ProgressMonitor(asyncio.get_running_loop(), command)
+            with patch.object(lifecycle, "READY_SECONDS", 0.03):
+                monitor.start()
+                try:
+                    await asyncio.wait_for(monitor.observed.wait(), 2)
+                    self.assertIsInstance(monitor.failure, TimeoutError)
+                    self.assertIsNone(monitor.ready_observation)
+                    self.assertFalse(monitor.callback.is_set())
+                finally:
+                    with self.assertRaisesRegex(TimeoutError, "did not become ready"):
+                        monitor.finish()
