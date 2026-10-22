@@ -10,6 +10,58 @@ DEADLINE = 3.0
 
 
 class BrowserCloseFrameTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reply_does_not_hide_an_observed_later_truncated_frame(self):
+        case = self
+        reply = b'\x81\x14{"id":1,"result":{}}'
+        for ending in (b"\x81\x02", b"\x81\x7e"):
+            with self.subTest(ending=ending):
+                closed = []
+
+                class Writer:
+                    def __init__(self, observations):
+                        self.transport = self
+                        self.observations = observations
+
+                    def abort(self):
+                        self.observations.append(True)
+
+                    async def wait_closed(self):
+                        return None
+
+                class Socket(remote.RemoteSocket):
+                    def __init__(self, reader, writer, ending):
+                        super().__init__(reader, writer)
+                        self.ending = ending
+
+                    async def send(self, text):
+                        case.assertEqual(
+                            json.loads(text),
+                            {"id": 1, "method": "Browser.close", "params": {}},
+                        )
+                        self.reader.feed_data(reply + self.ending)
+                        self.reader.feed_eof()
+
+                connection = remote.RemoteConnection(
+                    Socket(asyncio.StreamReader(), Writer(closed), ending)
+                )
+
+                async def ignore(_):
+                    return None
+
+                connection.start(ignore)
+                try:
+                    with self.assertRaises(asyncio.IncompleteReadError) as raised:
+                        await asyncio.wait_for(
+                            remote.request_browser_close(connection, "chrome"), DEADLINE
+                        )
+                    self.assertIs(raised.exception, connection.failure)
+                    self.assertEqual(raised.exception.partial, b"")
+                    self.assertEqual(raised.exception.expected, 2)
+                finally:
+                    await connection.close()
+                    self.assertTrue(connection.reader.done())
+                    self.assertEqual(closed, [True])
+
     async def observe(self, ending):
         writers = []
         tasks = []

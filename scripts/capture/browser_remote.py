@@ -402,6 +402,7 @@ async def request_browser_close(
 
     The caller owns the connection and must retire it on success or failure.
     A partial frame, unrelated I/O error or timeout is not a successful close.
+    An observed reader failure remains an error even after a close reply.
     """
     if browser == "firefox":
         await asyncio.wait_for(connection.call("session.new", {"capabilities": {}}), 15)
@@ -412,14 +413,17 @@ async def request_browser_close(
     try:
         await asyncio.wait_for(future, timeout=5)
     except ConnectionError as error:
-        clean_end = (
-            type(error) is ConnectionError
-            and str(error) == "remote protocol endpoint closed"
-        )
-        if connection.failure is not error or not clean_end:
+        if connection.failure is not error:
             raise
-        return error
-    return None
+    failure = connection.failure
+    if failure is None:
+        return None
+    if (
+        type(failure) is ConnectionError
+        and str(failure) == "remote protocol endpoint closed"
+    ):
+        return failure
+    raise failure
 
 
 # -- Chrome DevTools Protocol -----------------------------------------------
