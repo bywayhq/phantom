@@ -136,10 +136,13 @@ fn windows156_http2_and_http3_startup_match_retained_frame_bytes() -> TestResult
             settings.get(..9),
             Some([0, 0, 24, 4, 0, 0, 0, 0, 0].as_slice())
         );
-        let captured: TestResult<Vec<_>> = settings
+        let (entries, remainder) = settings
             .get(9..)
             .ok_or("missing SETTINGS")?
-            .chunks_exact(6)
+            .as_chunks::<6>();
+        assert!(remainder.is_empty());
+        let captured: TestResult<Vec<_>> = entries
+            .iter()
             .map(|entry| {
                 let value = u32::from_be_bytes(entry[2..].try_into()?);
                 Ok(match u16::from_be_bytes(entry[..2].try_into()?) {
