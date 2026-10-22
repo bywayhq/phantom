@@ -23,17 +23,23 @@ impl Client {
         client
     }
 
-    async fn headers(&mut self) -> RawFrame {
+    async fn stream_frame(&mut self) -> RawFrame {
         loop {
             let frame = read_raw_frame(&mut self.peer).await;
             assert_ne!(frame.kind, 7, "unexpected GOAWAY: {:?}", frame.payload);
-            if frame.kind == 1 {
+            if frame.stream_id != 0 {
                 return frame;
             }
-            assert_eq!(frame.stream_id, 0, "unexpected stream frame");
         }
     }
 
+    async fn headers(&mut self) -> RawFrame {
+        let frame = self.stream_frame().await;
+        assert_eq!(frame.kind, 1, "unexpected stream frame");
+        frame
+    }
+
+    // A PING ACK fences received frames, not the outgoing stream queues.
     async fn probe(&mut self) -> Vec<RawFrame> {
         write_raw_frame(&mut self.peer, 6, 0, 0, b"bands!!!").await;
         let mut frames = Vec::new();
@@ -242,10 +248,12 @@ async fn half_closed_streams_remain_parents_until_reset_or_local_completion() {
         assert_priority(&next_frame, frame.stream_id, 100, true);
         // This empty final DATA closes the upload; the response is still held.
         upload.send_data(Bytes::new(), true).unwrap();
-        let frames = client.probe().await;
-        assert!(frames
-            .iter()
-            .any(|f| (f.kind, f.flags, f.stream_id) == (0, 1, frame.stream_id)));
+        let final_data = client.stream_frame().await;
+        assert_eq!(
+            (final_data.kind, final_data.flags, final_data.stream_id),
+            (0, 1, frame.stream_id)
+        );
+        assert!(final_data.payload.is_empty());
         let higher = client.sender.send_request(request(150), true).unwrap();
         assert_priority(&client.headers().await, 0, 150, true);
         drop((held, upload, same, next, higher));
@@ -262,10 +270,15 @@ async fn local_reset_removes_a_live_parent_while_reset_is_retained() {
         let (response, mut upload) = client.sender.send_request(request(200), true).unwrap();
         let frame = client.headers().await;
         upload.send_reset(crate::Reason::CANCEL);
-        let frames = client.probe().await;
-        assert!(frames
-            .iter()
-            .any(|f| (f.kind, f.stream_id) == (3, frame.stream_id)));
+        let reset = client.stream_frame().await;
+        assert_eq!(
+            (reset.kind, reset.flags, reset.stream_id),
+            (3, 0, frame.stream_id)
+        );
+        assert_eq!(
+            reset.payload,
+            u32::from(crate::Reason::CANCEL).to_be_bytes()
+        );
         let next = client.sender.send_request(request(100), true).unwrap();
         assert_priority(&client.headers().await, 0, 100, true);
         drop((response, upload, next));
@@ -290,8 +303,9 @@ async fn pending_open_uses_current_live_bands_and_cancelled_open_never_joins() {
         write_raw_frame(&mut client.peer, 1, 5, first_frame.stream_id, &[0x88]).await;
         let pending_frame = client.headers().await;
         assert_priority(&pending_frame, 0, 100, true);
-        let cancelled = client.sender.send_request(request(200), true).unwrap();
-        drop(cancelled);
+        let mut cancelled_sender = client.sender.clone();
+        let cancelled = cancelled_sender.send_request(request(200), true).unwrap();
+        drop((cancelled, cancelled_sender));
         assert!(client.probe().await.iter().all(|f| f.stream_id == 0));
         write_raw_frame(&mut client.peer, 1, 5, pending_frame.stream_id, &[0x88]).await;
         let cancelled_frame = client.headers().await;
