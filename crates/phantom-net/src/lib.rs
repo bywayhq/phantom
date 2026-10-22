@@ -32,6 +32,7 @@ mod attempt_budget;
 mod authorization;
 mod connection_diagnostics;
 mod connection_leg;
+mod destination_policy;
 mod direct;
 #[cfg(feature = "https-records")]
 pub mod dns;
@@ -85,6 +86,7 @@ pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 pub use connection_diagnostics::{
     ConnectionEndpointScope, RequestConnection, TlsConnectionInfo, TlsConnectionState,
 };
+pub use destination_policy::{DestinationDenied, DestinationPolicy};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use phantom_quic_btls::{QuicSessionRecordMetadata, QuicSessionStoreHeader};

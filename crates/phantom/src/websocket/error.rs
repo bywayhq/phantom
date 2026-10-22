@@ -73,6 +73,8 @@ pub enum WebSocketErrorKind {
     AbnormalClosure,
     /// The WebSocket is closed and cannot perform the requested operation.
     Closed,
+    /// The destination policy denied every candidate before opening a socket.
+    DestinationDenied,
 }
 
 /// Error returned by WebSocket connection and message operations.
@@ -144,6 +146,7 @@ impl WebSocketError {
 
     pub(super) fn request(source: RequestError) -> Self {
         let kind = match source.kind() {
+            RequestErrorKind::DestinationDenied => WebSocketErrorKind::DestinationDenied,
             RequestErrorKind::InvalidUri | RequestErrorKind::InvalidTarget => {
                 WebSocketErrorKind::InvalidUri
             }

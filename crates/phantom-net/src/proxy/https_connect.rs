@@ -289,7 +289,8 @@ impl HttpsProxyConnector {
     ///
     /// The resolver covers the HTTPS proxy's host. A target that a proxy
     /// resolves is never looked up locally. Clones of this connector share
-    /// `resolver`.
+    /// `resolver`. A resolver carrying a destination policy is unsupported:
+    /// that policy admits direct origins, not proxy sockets.
     #[must_use]
     pub fn with_host_resolver(mut self, resolver: HostResolver) -> Self {
         self.host_resolver = Some(resolver);
@@ -301,6 +302,11 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn host_resolver(&self) -> Option<&HostResolver> {
         self.host_resolver.as_ref()
+    }
+
+    pub(super) fn check_destination_policy(&self) -> Result<(), HttpConnectError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(HttpConnectError::Connect)
     }
 
     fn dialer(&self) -> Dialer<'_> {
@@ -355,6 +361,8 @@ impl HttpsProxyConnector {
         fields: &[crate::request::RequestHeader],
         credentials: Option<&super::HttpBasicCredentials>,
     ) -> Result<super::PreparedConnectUdpOuter, crate::http3::ConnectUdpError> {
+        self.check_destination_policy()
+            .map_err(crate::http3::ConnectUdpError::proxy_leg_configuration)?;
         if self.protocol != HttpsProxyProtocol::Http2 {
             return Err(super::connect_udp_pool::prepared_outer_error());
         }
@@ -381,6 +389,8 @@ impl HttpsProxyConnector {
         owner: &crate::SessionTicketCacheOwner,
         credentials: Option<&super::HttpBasicCredentials>,
     ) -> Result<super::PreparedConnectUdpOuter, crate::http3::ConnectUdpError> {
+        self.check_destination_policy()
+            .map_err(crate::http3::ConnectUdpError::proxy_leg_configuration)?;
         if self.protocol != HttpsProxyProtocol::Http2 {
             return Err(super::connect_udp_pool::prepared_outer_error());
         }
@@ -993,6 +1003,7 @@ impl HttpsProxyConnector {
         ),
         HttpConnectError,
     > {
+        self.check_destination_policy()?;
         if self.protocol != HttpsProxyProtocol::Http1 {
             return Err(HttpConnectError::Connect(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -1116,6 +1127,7 @@ impl HttpsProxyConnector {
         proxy_port: u16,
         proxy_server_name: &str,
     ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
+        self.check_destination_policy()?;
         let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
             .await
             .map_err(|error| match error {
@@ -1262,6 +1274,7 @@ impl HttpsProxyConnector {
 
     /// Validates HTTP/2 extended CONNECT support before proxy I/O.
     pub(super) fn http2_extended_builder(&self) -> Result<Http2Builder, HttpConnectError> {
+        self.check_destination_policy()?;
         if !self.offers_h2 {
             return Err(HttpConnectError::MissingH2Alpn);
         }
@@ -1277,6 +1290,7 @@ impl HttpsProxyConnector {
     }
 
     fn http2_builder(&self) -> Result<Http2Builder, HttpConnectError> {
+        self.check_destination_policy()?;
         if !self.offers_h2 {
             return Err(HttpConnectError::MissingH2Alpn);
         }

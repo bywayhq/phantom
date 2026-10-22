@@ -29,6 +29,13 @@ For async storage, implement [`SessionStore`](crate::SessionStore) and call
 Storage receives encrypted bytes only. Loading returns a separate client, or
 `None` for a missing name. Cancellation cannot undo an external write.
 
+Use [`ClientBuilder::destination_policy`](crate::ClientBuilder::destination_policy)
+to restrict actual IP addresses and ports before new direct TCP or QUIC
+connections. Denied candidates are skipped, including on redirects and
+discovered alternatives. If none are allowed, the request fails with
+`DestinationDenied`. Existing connections remain reusable. Proxies and custom
+connectors are unsupported with this policy.
+
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and

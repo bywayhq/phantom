@@ -114,6 +114,8 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http1TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -228,6 +230,8 @@ impl Http1TlsConnector {
         origin: OriginRoute<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http1TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -345,6 +349,8 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http1TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -387,6 +393,8 @@ impl Http1TlsConnector {
         proxy: crate::route::Endpoint<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http1TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -436,6 +444,8 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http1TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http1TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -1246,6 +1256,18 @@ impl Http1TlsConnector {
         &self,
         route: Http1Route<'a>,
     ) -> Result<Http1Route<'a>, Http1TlsError> {
+        let direct = matches!(
+            &route,
+            Http1Route::Origin(OriginRoute::Plaintext {
+                tcp: TcpRoute::Direct(_),
+                ..
+            }) | Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::Direct(_),
+                ..
+            })
+        );
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), direct)
+            .map_err(Http1TlsError::Connect)?;
         let route = if let Some(connector) = &self.tcp_connector {
             connector
                 .check_socket_policy(self.source.as_ref(), self.host_resolver.as_ref())

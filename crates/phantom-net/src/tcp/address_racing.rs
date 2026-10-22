@@ -2,7 +2,7 @@
 
 use std::{future::Future, io, net::SocketAddr, pin::Pin};
 
-use super::{is_feedback_resource_error, no_addresses};
+use super::{is_feedback_resource_error, no_addresses_or_denied};
 use crate::host_resolver::tcp_addresses::{TcpAddressCursor, TcpAddresses, TcpCandidate};
 
 /// Connects to one of `addresses` the way Chromium 153's `TcpConnectJob`
@@ -57,6 +57,7 @@ where
     Attempt: Future<Output = io::Result<Stream>>,
     Fallback: Future<Output = ()>,
 {
+    let admission = addresses.admission();
     let mut addresses = Untried::new(addresses);
     let mut prefer_ipv6 = true;
     let mut primary = addresses
@@ -69,7 +70,7 @@ where
 
     loop {
         if primary.is_none() && secondary.is_none() {
-            return Err(last_error.unwrap_or_else(no_addresses));
+            return Err(last_error.unwrap_or_else(|| no_addresses_or_denied(admission.as_deref())));
         }
         tokio::select! {
             biased;

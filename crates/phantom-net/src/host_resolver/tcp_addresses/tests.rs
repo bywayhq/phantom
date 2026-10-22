@@ -199,3 +199,54 @@ async fn uncached_and_override_lookups_do_not_create_retained_failure_history() 
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     Ok(())
 }
+
+#[test]
+fn policy_sees_actual_port_outside_record_lock_without_changing_dns_history() -> TestResult {
+    let record = record();
+    let observed = Arc::clone(&record);
+    let policy = crate::DestinationPolicy::from_fn(move |address| {
+        assert_eq!(address.port(), 443);
+        // Taking another cursor needs the same record lock as selection.
+        assert!(observed.cursor().next().is_some());
+        address.ip() == a(2).ip()
+    });
+    let filtered = addresses(&record).with_destination_policy(Some(&policy));
+    assert_eq!(first(&filtered)?.address().ip(), a(2).ip());
+    assert!(filtered.admission().ok_or("no observation")?.denied());
+    assert_eq!(first(&addresses(&record))?.address().ip(), a(1).ip());
+    Ok(())
+}
+
+#[test]
+fn policy_keeps_allowed_order_and_ipv6_scope() -> TestResult {
+    let scoped = SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 8443, 7, 9));
+    let policy = crate::DestinationPolicy::from_fn(move |address| address != a(1));
+    let addresses =
+        TcpAddresses::from(vec![a(1), scoped, a(2), a(3)]).with_destination_policy(Some(&policy));
+    let mut cursor = addresses.cursor();
+    assert_eq!(cursor.next().ok_or("no scoped address")?.address(), scoped);
+    assert_eq!(cursor.next().ok_or("no second address")?.address(), a(2));
+    assert_eq!(cursor.next().ok_or("no third address")?.address(), a(3));
+    assert!(cursor.next().is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn resolving_names_does_not_invoke_the_connection_policy() -> TestResult {
+    use crate::host_resolver::{AddressResolver, HostResolver, resolve};
+    let resolver = HostResolver::new()
+        .with_destination_policy(crate::DestinationPolicy::from_fn(|_| {
+            panic!("lookup applied connection admission")
+        }))
+        .with_resolver(AddressResolver::from_fn(|_| async { Ok(vec![a(2).ip()]) }))
+        .with_override("override.test", [a(1).ip()]);
+    assert_eq!(
+        resolve(Some(&resolver), "override.test", 8443).await?,
+        [SocketAddr::new(a(1).ip(), 8443)]
+    );
+    assert_eq!(
+        resolve(Some(&resolver), "callback.test", 443).await?,
+        [SocketAddr::new(a(2).ip(), 443)]
+    );
+    Ok(())
+}

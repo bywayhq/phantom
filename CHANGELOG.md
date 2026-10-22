@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Restrict direct TCP and QUIC destinations with an optional client-wide
+  address callback. Denied candidates never open a connection; proxy and custom
+  connector routes fail explicitly while a policy is configured. Denial also
+  stops SSE reconnects and WebSocket handshake retries.
+
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
   headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog
   descriptions retain their sources and distinguish them from browser captures.

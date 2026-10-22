@@ -491,6 +491,7 @@ pub struct HostResolver {
     overrides: Arc<HashMap<Box<str>, Arc<[IpAddr]>>>,
     resolver: Option<AddressResolver>,
     cache: Option<AddressCache>,
+    destination_policy: Option<crate::DestinationPolicy>,
 }
 
 impl HostResolver {
@@ -499,6 +500,21 @@ impl HostResolver {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Applies `policy` when built-in direct-origin connectors select sockets.
+    ///
+    /// Name lookups are unchanged. Connector routes through proxies or caller
+    /// streams are unsupported with this policy. DNS service sockets are outside
+    /// its scope. This setting is retained when replacing the resolver or cache.
+    #[must_use]
+    pub fn with_destination_policy(mut self, policy: crate::DestinationPolicy) -> Self {
+        self.destination_policy = Some(policy);
+        self
+    }
+
+    pub(crate) fn destination_policy(&self) -> Option<&crate::DestinationPolicy> {
+        self.destination_policy.as_ref()
     }
 
     /// Answers `host` with `addresses` in the given order, replacing any
@@ -679,6 +695,7 @@ impl fmt::Debug for HostResolver {
             .debug_struct("HostResolver")
             .field("overrides", &self.overrides.len())
             .field("resolver", &self.resolver.is_some())
+            .field("destination_policy", &self.destination_policy)
             .field("cache", &self.cache)
             .finish()
     }

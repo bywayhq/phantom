@@ -416,6 +416,8 @@ pub enum RequestErrorKind {
     Http2,
     /// HTTP/3 or QUIC request or response processing failed.
     Http3,
+    /// The destination policy denied every candidate before opening a socket.
+    DestinationDenied,
 }
 
 /// Error returned by a public client request or response body.
@@ -837,6 +839,13 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn unsupported_destination_policy_route() -> Self {
+        Self::without_source(
+            RequestErrorKind::UnsupportedRoute,
+            "destination policies require direct origin routes",
+        )
+    }
+
     pub(crate) fn unsupported_custom_connector_route() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedRoute,
@@ -1003,7 +1012,7 @@ impl RequestError {
     pub(crate) fn http1_connection_setup(source: Http1TlsError) -> Self {
         let retryable = is_retryable_http1_connection_setup(&source);
         let mut error = Self::http1(source);
-        if retryable {
+        if retryable && error.kind != RequestErrorKind::DestinationDenied {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
         error
@@ -1065,7 +1074,7 @@ impl RequestError {
     pub(crate) fn http2_connection_setup(source: Http2TlsError) -> Self {
         let retryable = is_retryable_http2_connection_setup(&source);
         let mut error = Self::http2(source);
-        if retryable {
+        if retryable && error.kind != RequestErrorKind::DestinationDenied {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
         error
@@ -1138,7 +1147,7 @@ impl RequestError {
             _ => false,
         };
         let mut error = Self::http1_or_2(source);
-        if retryable {
+        if retryable && error.kind != RequestErrorKind::DestinationDenied {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
         error
@@ -1225,10 +1234,11 @@ impl RequestError {
         };
         // A rejected Encrypted Client Hello is the server's answer, not a
         // connection that could not be set up.
-        let setup_failed =
-            source.ech_failure().is_none() && is_http3_setup_failure_kind(source.kind());
+        let setup_failed = source.ech_failure().is_none()
+            && is_http3_setup_failure_kind(source.kind())
+            && !error_chain_contains::<crate::DestinationDenied>(&source);
         let mut error = Self::http3(source);
-        if retryable {
+        if retryable && error.kind != RequestErrorKind::DestinationDenied {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
         error.http3_setup_failed = setup_failed;
@@ -1238,8 +1248,9 @@ impl RequestError {
     /// Wraps the failed handshake of a connection that sent early data,
     /// observed before the request was written.
     pub(crate) fn http3_early_data_setup(source: Http3ConnectorError) -> Self {
-        let setup_failed =
-            source.ech_failure().is_none() && is_http3_setup_failure_kind(source.kind());
+        let setup_failed = source.ech_failure().is_none()
+            && is_http3_setup_failure_kind(source.kind())
+            && !error_chain_contains::<crate::DestinationDenied>(&source);
         let mut error = Self::http3_stream(source);
         error.http3_setup_failed = setup_failed;
         error
@@ -1255,7 +1266,7 @@ impl RequestError {
             && http3_proxy_failure(&source)
                 .is_some_and(Http3ProxyFailure::is_retryable_connection_setup);
         let mut error = Self::http3(source);
-        if retryable {
+        if retryable && error.kind != RequestErrorKind::DestinationDenied {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
         error
@@ -1322,6 +1333,11 @@ impl RequestError {
             (
                 RequestErrorKind::AttemptBudgetExhausted,
                 "shared HTTP attempt budget exhausted",
+            )
+        } else if error_chain_contains::<crate::DestinationDenied>(&source) {
+            (
+                RequestErrorKind::DestinationDenied,
+                "destination policy denied every candidate address",
             )
         } else if error_chain_contains::<crate::TransferError>(&source) {
             (RequestErrorKind::Transfer, "body transfer control failed")

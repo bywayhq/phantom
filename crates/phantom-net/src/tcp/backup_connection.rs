@@ -23,7 +23,7 @@ use tokio::net::TcpStream;
 
 use super::{
     ProfileTcpStream, TcpKeepaliveControl, is_feedback_resource_error, is_refusal_or_timeout,
-    no_addresses,
+    no_addresses_or_denied,
 };
 
 /// An IP address family.
@@ -255,6 +255,7 @@ where
     Attempt: Future<Output = io::Result<Stream>>,
     Delay: Future<Output = ()>,
 {
+    let admission = addresses.admission();
     let (primary_addresses, backup_addresses) = match plan.family {
         None => {
             let ipv4 = Addresses {
@@ -294,7 +295,7 @@ where
 
     loop {
         if primary.is_none() && backup.is_none() {
-            return Err(last_error.unwrap_or_else(no_addresses));
+            return Err(last_error.unwrap_or_else(|| no_addresses_or_denied(admission.as_deref())));
         }
         tokio::select! {
             biased;

@@ -35,6 +35,7 @@ pub use phantom_net::{
     RequestTimelineOutcome, RequestTiming, RequestTimingOutcome, RequestTimingPhase,
     TlsConnectionInfo, TlsConnectionState,
 };
+pub use phantom_net::{DestinationDenied, DestinationPolicy};
 pub use phantom_net::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
 pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 /// Policy for authenticating a TLS server certificate.

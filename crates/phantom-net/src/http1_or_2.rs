@@ -285,6 +285,8 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
         if self.tcp_connector.is_some() {
             return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -374,6 +376,8 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
         if self.tcp_connector.is_some() {
             return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -484,6 +488,8 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
         if self.tcp_connector.is_some() {
             return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
                 crate::tcp_connector::unsupported(),
@@ -870,6 +876,8 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        crate::destination_policy::check_origin(self.host_resolver.as_ref(), &route)
+            .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
         let server_name = match &route {
             OriginRoute::Tls { server_name, .. } => *server_name,
             OriginRoute::Plaintext { .. } => "",

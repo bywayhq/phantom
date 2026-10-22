@@ -295,7 +295,7 @@ impl ConnectUdpError {
 
     /// Maps a leg configuration that cannot speak the selected protocol,
     /// found before I/O.
-    pub(super) fn proxy_leg_configuration(error: HttpConnectError) -> Self {
+    pub(crate) fn proxy_leg_configuration(error: HttpConnectError) -> Self {
         Self::with_source(
             ConnectUdpErrorKind::Configuration,
             "CONNECT-UDP proxy connection is misconfigured",

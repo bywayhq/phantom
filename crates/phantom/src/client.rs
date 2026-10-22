@@ -116,6 +116,7 @@ pub(crate) struct ClientInner {
     pub(crate) ticket_preparation:
         Result<Arc<crate::session::PreparedTicketPolicy>, crate::session::PreparationError>,
     pub(crate) custom_tcp_connector: bool,
+    pub(crate) destination_policy: bool,
     pub(crate) base_url: Option<crate::base_url::BaseUrl>,
     pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
     pub(crate) server_spki_pins: bool,
@@ -224,6 +225,9 @@ impl ClientInner {
         scheme: &str,
         route: &Route,
     ) -> Result<(), crate::RequestError> {
+        if self.destination_policy && !matches!(route, Route::Direct) {
+            return Err(crate::RequestError::unsupported_destination_policy_route());
+        }
         if self.custom_tcp_connector && !matches!(route, Route::Direct) {
             return Err(crate::RequestError::unsupported_custom_connector_route());
         }
@@ -588,6 +592,7 @@ impl Client {
         ClientBuilder {
             base_url: None,
             tcp_connector: None,
+            destination_policy: None,
             header_hooks: Vec::new(),
             request_hooks: None,
             profile,
@@ -942,6 +947,7 @@ impl Client {
 #[must_use = "client builders do nothing until build is called"]
 pub struct ClientBuilder {
     tcp_connector: Option<crate::TcpConnector>,
+    destination_policy: Option<crate::DestinationPolicy>,
     base_url: Option<crate::base_url::BaseUrl>,
     header_hooks: Vec<crate::header_hook::HeaderHook>,
     request_hooks: Option<crate::request_hook::SharedRequestHooks>,
@@ -988,6 +994,7 @@ impl fmt::Debug for ClientBuilder {
         debug
             .field("base_url", &self.base_url.is_some())
             .field("tcp_connector", &self.tcp_connector)
+            .field("destination_policy", &self.destination_policy)
             .field("header_hook_count", &self.header_hooks.len())
             .field("request_hooks", &self.request_hooks.is_some())
             .field("http2_configured", &self.profile.http2().is_some())
@@ -1376,6 +1383,36 @@ impl ClientBuilder {
         self
     }
 
+    /// Restricts actual socket addresses for new direct-origin connections.
+    ///
+    /// The policy covers TCP and QUIC, including literals, overrides, cached
+    /// answers, redirects, ECH reconnects and discovered alternatives. Denied
+    /// candidates are skipped before socket setup. If all are denied, the
+    /// request returns [`RequestErrorKind::DestinationDenied`](crate::RequestErrorKind::DestinationDenied).
+    /// Denial is terminal for retries and SSE reconnects. WebSocket openings
+    /// report `WebSocketErrorKind::DestinationDenied`.
+    ///
+    /// Existing connections remain reusable. Forks retain the policy. Session
+    /// restore uses the receiving client's policy with fresh pools. DNS service
+    /// sockets and caller callback work are outside this connection policy.
+    /// Proxy routes, environment routing and custom TCP connectors are unsupported.
+    /// Keep the callback short, nonblocking and stable for the client's lifetime.
+    ///
+    /// ```
+    /// use phantom::{Client, DestinationPolicy, profile::browser::chrome};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Client::builder(chrome::v154_windows())
+    ///     .destination_policy(DestinationPolicy::from_fn(|address| address.ip().is_loopback()))
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn destination_policy(mut self, policy: crate::DestinationPolicy) -> Self {
+        self.destination_policy = Some(policy);
+        self
+    }
+
     /// Resolves the host names this client resolves itself through
     /// `resolver` instead of the operating system.
     ///
@@ -1669,12 +1706,18 @@ impl ClientBuilder {
     /// or `None` when it asks the operating system for every connection.
     fn host_resolver(&self) -> Result<Option<HostResolver>, BuildError> {
         let dns_cache = self.dns_cache_settings().copied();
-        if self.host_overrides.is_empty() && self.address_resolver.is_none() && dns_cache.is_none()
+        if self.host_overrides.is_empty()
+            && self.address_resolver.is_none()
+            && dns_cache.is_none()
+            && self.destination_policy.is_none()
         {
             return Ok(None);
         }
 
         let mut resolver = HostResolver::new();
+        if let Some(policy) = &self.destination_policy {
+            resolver = resolver.with_destination_policy(policy.clone());
+        }
         if let Some(address_resolver) = &self.address_resolver {
             let address_resolver = match self.profile.udp() {
                 Some(udp) => address_resolver.clone().with_udp_settings(*udp),
@@ -2172,7 +2215,8 @@ impl ClientBuilder {
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
     ///   delay or setup limit exceeds the runtime clock range;
-    ///   a retry backoff cap is below its initial delay;
+    ///   a retry backoff cap is below its initial delay; a destination policy is
+    ///   combined with proxy routing or a custom TCP connector;
     ///   an active or pending request bound exceeds
     ///   [`tokio::sync::Semaphore::MAX_PERMITS`]; `max_http3_connections_per_origin` or
     ///   `max_http2_proxy_connections_per_route` is above its ceiling; disabled
@@ -2194,6 +2238,18 @@ impl ClientBuilder {
     /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
     ///   when the profile enables no HTTP protocol Phantom implements.
     pub fn build(mut self) -> Result<Client, BuildError> {
+        if self.destination_policy.is_some()
+            && (self.tcp_connector.is_some()
+                || self.environment_proxies.is_some()
+                || self
+                    .route
+                    .as_ref()
+                    .is_some_and(|route| !matches!(route, Route::Direct)))
+        {
+            return Err(BuildError::invalid_policy(
+                "destination policies require direct routes without custom TCP connectors or environment proxies",
+            ));
+        }
         if self.tcp_connector.is_some() {
             if self.binds_sources()
                 || self.address_resolver.is_some()
@@ -2611,6 +2667,7 @@ impl ClientBuilder {
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
             custom_tcp_connector: self.tcp_connector.is_some(),
+            destination_policy: self.destination_policy.is_some(),
             ticket_preparation,
             server_spki_pins: self.server_spki_pins.is_some(),
             proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),

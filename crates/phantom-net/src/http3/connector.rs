@@ -291,6 +291,7 @@ impl Http3Connector {
     ///
     /// # Errors
     /// Returns a runtime or capacity error without opening a connection.
+    /// An origin destination policy on either connector is unsupported.
     #[allow(clippy::too_many_arguments)]
     pub fn prepare_connect_udp_outer(
         &self,
@@ -302,6 +303,15 @@ impl Http3Connector {
         fields: &[RequestHeader],
         credentials: Option<&HttpBasicCredentials>,
     ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .and_then(|()| {
+                crate::destination_policy::check_route(proxy.host_resolver.as_ref(), false)
+            })
+            .map_err(|error| {
+                ConnectUdpError::proxy_leg_configuration(crate::proxy::HttpConnectError::Connect(
+                    error,
+                ))
+            })?;
         pool.prepare_http3(
             PoolKey::http3(
                 &proxy.proxy_settings,
@@ -334,6 +344,15 @@ impl Http3Connector {
         owner: &crate::SessionTicketCacheOwner,
         credentials: Option<&HttpBasicCredentials>,
     ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .and_then(|()| {
+                crate::destination_policy::check_route(proxy.host_resolver.as_ref(), false)
+            })
+            .map_err(|error| {
+                ConnectUdpError::proxy_leg_configuration(crate::proxy::HttpConnectError::Connect(
+                    error,
+                ))
+            })?;
         pool.prepare_http3_selected(
             PoolKey::http3(
                 &proxy.proxy_settings,
@@ -622,7 +641,8 @@ impl Http3Connector {
     /// of a SOCKS5 or CONNECT-UDP proxy, and the target of a local-DNS SOCKS5
     /// route. A target that a proxy resolves is never looked up locally. The
     /// clone shares this connector's ticket cache and identity, and its own
-    /// clones share `resolver`.
+    /// clones share `resolver`. A destination policy applies only to direct
+    /// origins; proxy routes and use as a proxy outer connector are unsupported.
     ///
     /// Unlike the TCP connectors' `with_host_resolver`, this borrows `self`,
     /// like [`Self::with_early_data`] and the other clone-returning methods
@@ -807,6 +827,14 @@ impl Http3Connector {
         route: DatagramRoute<'_>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
+        let direct = match &route {
+            DatagramRoute::Direct(_) => true,
+            #[cfg(feature = "https-records")]
+            DatagramRoute::DirectEch { .. } => true,
+            _ => false,
+        };
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), direct)
+            .map_err(Http3ConnectorError::resolve)?;
         match route {
             DatagramRoute::Direct(endpoint) => {
                 self.connect_datagrams_direct(endpoint.host, endpoint.port, server_name)
@@ -1614,6 +1642,15 @@ impl Http3Connector {
         host: &str,
         port: u16,
     ) -> Result<Http3Connection, ConnectUdpError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .and_then(|()| {
+                crate::destination_policy::check_route(proxy.host_resolver.as_ref(), false)
+            })
+            .map_err(|error| {
+                ConnectUdpError::proxy_leg_configuration(crate::proxy::HttpConnectError::Connect(
+                    error,
+                ))
+            })?;
         let addresses = resolve(self.host_resolver.as_ref(), host, port)
             .await
             .map_err(|error| {
@@ -1645,7 +1682,8 @@ impl Http3Connector {
     /// # Errors
     ///
     /// Returns [`Http3ConnectorError`] for invalid proxy authority, server name,
-    /// fields, pseudo-header order, or outer CONNECT-UDP settings.
+    /// fields, pseudo-header order, or outer CONNECT-UDP settings. An origin
+    /// destination policy is unsupported on this proxy connector.
     pub fn validate_connect_udp(
         &self,
         proxy_host: &str,
@@ -1689,6 +1727,7 @@ impl Http3Connector {
     ///
     /// Returns [`Http3ConnectorError`] for invalid proxy fields or authority,
     /// incompatible proxy protocol settings, or an invalid authorization placement.
+    /// An origin destination policy is unsupported on the proxy connector.
     pub fn validate_connect_udp_over_tcp(
         proxy: &HttpsProxyConnector,
         protocol: HttpsProxyProtocol,
@@ -1712,6 +1751,13 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         credentials: Option<&HttpBasicCredentials>,
     ) -> Result<(http::Request<()>, Option<http::Request<()>>), ConnectUdpError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false).map_err(
+            |error| {
+                ConnectUdpError::proxy_leg_configuration(crate::proxy::HttpConnectError::Connect(
+                    error,
+                ))
+            },
+        )?;
         let Some(credentials) = credentials else {
             let request = self.prepare_connect_udp(proxy_host, proxy_authority, path, headers)?;
             return Ok((request, None));
@@ -2019,6 +2065,22 @@ impl Http3Connector {
             }
             None => addresses,
         };
+        let mut addresses = addresses;
+        if !addresses.is_empty()
+            && let Some(policy) = self
+                .host_resolver
+                .as_ref()
+                .and_then(HostResolver::destination_policy)
+        {
+            addresses.retain(|address| policy.permits(*address));
+            if addresses.is_empty() {
+                return Err(Http3Error::with_source(
+                    Http3ErrorKind::Connect,
+                    "destination policy denied every candidate address",
+                    crate::DestinationDenied,
+                ));
+            }
+        }
         let mut addresses = addresses.into_iter();
         let Some(mut remote) = addresses.next() else {
             return Err(Http3Error::without_source(

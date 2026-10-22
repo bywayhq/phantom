@@ -223,7 +223,9 @@ pub(crate) async fn connect_keeping_slower(
 ) -> io::Result<(ProfileTcpStream, Option<SlowerAttempt>)> {
     check_settings(settings.as_ref(), source)?;
     let started = Instant::now();
-    let addresses = crate::host_resolver::resolve_tcp(resolver, host, port).await?;
+    let addresses = crate::host_resolver::resolve_tcp(resolver, host, port)
+        .await?
+        .with_destination_policy(resolver.and_then(HostResolver::destination_policy));
     connect_resolved_keeping_slower(addresses, settings, source, started, family).await
 }
 
@@ -478,6 +480,7 @@ where
             ));
         }
     };
+    let admission = addresses.admission();
     let mut last_error = None;
     let mut addresses = addresses.cursor();
     while let Some(address) = addresses.next() {
@@ -493,7 +496,7 @@ where
             }
         }
     }
-    Err(last_error.unwrap_or_else(no_addresses))
+    Err(last_error.unwrap_or_else(|| no_addresses_or_denied(admission.as_deref())))
 }
 
 /// Whether Firefox tries the next address after this failure: a refused
@@ -523,6 +526,15 @@ pub(crate) fn deadline(delay: Duration) -> io::Result<impl std::future::Future<O
     Ok(async {
         let _ = deadline.await;
     })
+}
+
+fn no_addresses_or_denied(
+    admission: Option<&crate::destination_policy::DestinationAdmission>,
+) -> io::Error {
+    if admission.is_some_and(|admission| admission.denied()) {
+        return crate::DestinationDenied::io();
+    }
+    no_addresses()
 }
 
 fn no_addresses() -> io::Error {

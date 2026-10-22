@@ -315,7 +315,9 @@ async fn connect_addresses_keeping_slower(
     }
     let connected = poll_tokio_io(|| {
         crate::tcp::connect_resolved_keeping_slower(
-            addresses,
+            addresses.with_destination_policy(
+                dialer.resolver.and_then(HostResolver::destination_policy),
+            ),
             dialer.tcp,
             dialer.source,
             started,
@@ -338,7 +340,9 @@ async fn connect_addresses(
 ) -> Result<ProfileTcpStream, DirectConnectError> {
     let stream = poll_tokio_io(|| {
         crate::tcp::connect_resolved_keeping_slower(
-            addresses,
+            addresses.with_destination_policy(
+                dialer.resolver.and_then(HostResolver::destination_policy),
+            ),
             dialer.tcp,
             dialer.source,
             started,

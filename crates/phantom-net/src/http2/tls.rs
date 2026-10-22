@@ -126,6 +126,8 @@ impl Http2TlsConnector {
         ),
         Http2TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
         }
@@ -222,6 +224,8 @@ impl Http2TlsConnector {
         origin: OriginRoute<'_>,
         family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
         }
@@ -313,6 +317,8 @@ impl Http2TlsConnector {
         ),
         Http2TlsError,
     > {
+        crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
         }
@@ -741,6 +747,15 @@ impl Http2TlsConnector {
         &self,
         route: Http2Route<'_>,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        match &route {
+            Http2Route::Origin(origin) => {
+                crate::destination_policy::check_origin(self.host_resolver.as_ref(), origin)
+            }
+            Http2Route::Forward { .. } => {
+                crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            }
+        }
+        .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() && matches!(&route, Http2Route::Forward { .. }) {
             return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
         }
@@ -820,6 +835,15 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
         body: Option<Bytes>,
     ) -> Result<Response<Http2Body>, Http2TlsError> {
+        match &route {
+            Http2Route::Origin(origin) => {
+                crate::destination_policy::check_origin(self.host_resolver.as_ref(), origin)
+            }
+            Http2Route::Forward { .. } => {
+                crate::destination_policy::check_route(self.host_resolver.as_ref(), false)
+            }
+        }
+        .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() && matches!(&route, Http2Route::Forward { .. }) {
             return Err(Http2TlsError::Connect(crate::tcp_connector::unsupported()));
         }
@@ -985,6 +1009,8 @@ impl Http2TlsConnector {
         client: Http2Builder,
         extended_connect: bool,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        crate::destination_policy::check_origin(self.host_resolver.as_ref(), &origin)
+            .map_err(Http2TlsError::Connect)?;
         if self.tcp_connector.is_some() {
             return self
                 .connect_origin(origin, client, true, extended_connect)
@@ -1129,6 +1155,8 @@ impl Http2TlsConnector {
         origin: OriginRoute<'_>,
         client: Http2Builder,
     ) -> Result<Http2Connection, Http2TlsError> {
+        crate::destination_policy::check_origin(self.host_resolver.as_ref(), &origin)
+            .map_err(Http2TlsError::Connect)?;
         origin
             .validate(true, false)
             .map_err(Http2TlsError::Connect)?;
@@ -1172,6 +1200,8 @@ impl Http2TlsConnector {
         early_data: bool,
         extended_connect: bool,
     ) -> Result<Http2Connection, Http2TlsError> {
+        crate::destination_policy::check_origin(self.host_resolver.as_ref(), &origin)
+            .map_err(Http2TlsError::Connect)?;
         let origin = match &self.tcp_connector {
             Some(connector) => {
                 connector

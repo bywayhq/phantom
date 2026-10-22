@@ -220,6 +220,8 @@ impl Client {
     /// this client are not copied or changed. Returned state is independent.
     /// Address DNS, client hints and racing history start empty. HTTPS discovery
     /// must have the same enabled state and explicit portable resolver namespace.
+    /// The receiving destination policy is retained and checks every new dial,
+    /// including restored alternatives. It is not serialized into the snapshot.
     /// Hooks and custom resolver callback state remain caller owned, as with
     /// [`Self::fork`]. Configuration is supplied by this client, not deserialized.
     ///

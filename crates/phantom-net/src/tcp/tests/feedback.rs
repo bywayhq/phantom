@@ -292,3 +292,108 @@ async fn an_invalid_backup_deadline_precedes_socket_setup_without_recording_fail
     assert_eq!(next(&resolver, "proxy.test", 443).await?.ip(), REFUSED);
     Ok(())
 }
+
+#[tokio::test]
+async fn every_selection_strategy_rejects_denied_candidates_without_dialing() -> TestResult {
+    use crate::host_resolver::tcp_addresses::TcpAddresses;
+    use std::future::{pending, ready};
+    let policy = crate::DestinationPolicy::from_fn(|_| false);
+    let addresses = || {
+        TcpAddresses::from(vec![SocketAddr::new(REACHED, 443)])
+            .with_destination_policy(Some(&policy))
+    };
+    let dials = std::cell::Cell::new(0);
+    let deny_dial = |_| {
+        dials.set(dials.get() + 1);
+        ready(Ok::<_, io::Error>(()))
+    };
+    let sequential = super::super::connect_candidates_sequentially(
+        addresses(),
+        phantom_profile::TcpAddressAdvance::AfterAnyFailure,
+        deny_dial,
+    )
+    .await;
+    let racing =
+        super::super::address_racing::race_candidates(addresses(), pending(), deny_dial).await;
+    let backup = super::super::backup_connection::connect_candidates(
+        addresses(),
+        super::super::backup_connection::Plan {
+            family: None,
+            known_family_backup_timeout: None,
+        },
+        pending(),
+        |candidate, _| deny_dial(candidate),
+        std::time::Instant::now(),
+    )
+    .await
+    .map(|_| ());
+    assert_eq!(dials.get(), 0);
+    for result in [sequential, racing, backup] {
+        let error = result.err().ok_or("denied traversal succeeded")?;
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert!(
+            error
+                .get_ref()
+                .is_some_and(|cause| cause.is::<crate::DestinationDenied>())
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_real_connect_failure_is_not_replaced_by_denied_siblings() -> TestResult {
+    use crate::host_resolver::tcp_addresses::TcpAddresses;
+    let policy = crate::DestinationPolicy::from_fn(|address| address.ip() == REACHED);
+    let addresses = TcpAddresses::from(vec![
+        SocketAddr::new(REACHED, 443),
+        SocketAddr::new(TARGET, 443),
+    ])
+    .with_destination_policy(Some(&policy));
+    let error = super::super::connect_candidates_sequentially(
+        addresses,
+        phantom_profile::TcpAddressAdvance::AfterAnyFailure,
+        |_| async {
+            Err::<(), _>(io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                "independent dial failure",
+            ))
+        },
+    )
+    .await
+    .err()
+    .ok_or("failed traversal succeeded")?;
+    assert_eq!(error.kind(), io::ErrorKind::ConnectionRefused);
+    assert_eq!(error.to_string(), "independent dial failure");
+    Ok(())
+}
+
+#[cfg(feature = "https-records")]
+#[tokio::test]
+async fn ech_single_address_reconnect_cannot_bypass_destination_admission() -> TestResult {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let resolver =
+        HostResolver::new().with_destination_policy(crate::DestinationPolicy::from_fn(|_| false));
+    let result = crate::direct::connect_tcp_address(
+        listener.local_addr()?,
+        Dialer {
+            resolver: Some(&resolver),
+            ..Dialer::default()
+        },
+    )
+    .await;
+    let source = match result {
+        Err(crate::direct::DirectConnectError::Connect(source)) => source,
+        _ => return Err("ECH retry did not report destination denial".into()),
+    };
+    assert!(
+        source
+            .get_ref()
+            .is_some_and(|cause| cause.is::<crate::DestinationDenied>())
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(30), listener.accept())
+            .await
+            .is_err()
+    );
+    Ok(())
+}

@@ -6,7 +6,7 @@ use super::{
     DnsConfigurationToken,
     address_feedback::{AddressCursor, AddressRecord, SelectedAddress},
 };
-use crate::SourceBinding;
+use crate::{SourceBinding, destination_policy::DestinationAdmission};
 
 #[derive(Clone)]
 pub(crate) struct TcpAddresses {
@@ -15,6 +15,7 @@ pub(crate) struct TcpAddresses {
     port: u16,
     configuration: Option<DnsConfigurationToken>,
     source: Option<SourceBinding>,
+    admission: Option<Arc<DestinationAdmission>>,
 }
 
 #[derive(Clone)]
@@ -24,6 +25,7 @@ pub(crate) struct TcpAddressCursor {
     port: u16,
     configuration: Option<DnsConfigurationToken>,
     source: Option<SourceBinding>,
+    admission: Option<Arc<DestinationAdmission>>,
 }
 
 /// Only the socket-connect operation consumes this witness on failure.
@@ -41,6 +43,7 @@ impl From<Vec<SocketAddr>> for TcpAddresses {
             port: 0,
             configuration: None,
             source: None,
+            admission: None,
         }
     }
 }
@@ -58,6 +61,7 @@ impl TcpAddresses {
             port,
             configuration,
             source: None,
+            admission: None,
         }
     }
 
@@ -69,6 +73,18 @@ impl TcpAddresses {
         Ok(self)
     }
 
+    pub(crate) fn with_destination_policy(
+        mut self,
+        policy: Option<&crate::DestinationPolicy>,
+    ) -> Self {
+        self.admission = policy.map(|policy| Arc::new(DestinationAdmission::new(policy.clone())));
+        self
+    }
+
+    pub(crate) fn admission(&self) -> Option<Arc<DestinationAdmission>> {
+        self.admission.clone()
+    }
+
     pub(crate) fn cursor(&self) -> TcpAddressCursor {
         TcpAddressCursor {
             addresses: self.addresses.clone().into_iter(),
@@ -76,6 +92,7 @@ impl TcpAddresses {
             port: self.port,
             configuration: self.configuration.clone(),
             source: self.source.clone(),
+            admission: self.admission.clone(),
         }
     }
 }
@@ -86,6 +103,19 @@ impl TcpAddressCursor {
     }
 
     pub(crate) fn next_matching(&mut self, ipv6: Option<bool>) -> Option<TcpCandidate> {
+        loop {
+            let candidate = self.next_unchecked(ipv6)?;
+            if self
+                .admission
+                .as_ref()
+                .is_none_or(|admission| admission.permits(candidate.address))
+            {
+                return Some(candidate);
+            }
+        }
+    }
+
+    fn next_unchecked(&mut self, ipv6: Option<bool>) -> Option<TcpCandidate> {
         let accepts = |address: &SocketAddr| {
             ipv6.is_none_or(|ipv6| address.is_ipv6() == ipv6)
                 && self

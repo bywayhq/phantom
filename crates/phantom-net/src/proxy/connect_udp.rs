@@ -189,6 +189,7 @@ impl HttpsProxyConnector {
         &self,
         protocol: HttpsProxyProtocol,
     ) -> Result<(), HttpConnectError> {
+        self.check_destination_policy()?;
         match protocol {
             HttpsProxyProtocol::Http2 => self.http2_extended_builder().map(drop),
             _ => Ok(()),
