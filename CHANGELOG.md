@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Breaking: add `Http3Settings::connection_reuse` to select same-origin or
+  authorized-origin connection reuse. Migrate: add
+  `connection_reuse: Http3ConnectionReuse::SameOrigin` to custom settings and
+  `"connection_reuse": "SameOrigin"` to HTTP/3 profile JSON. Recreate saved
+  tickets and session checkpoints.
+
 - Breaking: add `DnsCacheSettings::stale_grace`. Firefox recipes reuse
   positive DNS answers for up to ten minutes while refreshing them in the
   background. Caller-supplied hard lifetimes stay strict.

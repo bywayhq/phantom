@@ -158,9 +158,21 @@ pub enum Http3PseudoHeader {
     Protocol,
 }
 
+/// Which origins may share an HTTP/3 connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3ConnectionReuse {
+    /// Reuse a connection only for the origin that opened it.
+    SameOrigin,
+    /// Reuse a connection for other origins authorized by its peer and certificate.
+    AuthorizedOrigins,
+}
+
 /// Ordered HTTP/3 settings independent of the concrete HTTP/3 backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3Settings {
+    /// Which origins may reuse this connection.
+    pub connection_reuse: Http3ConnectionReuse,
     /// Initial SETTINGS entries. Position is wire order when order is fixed.
     pub initial_settings: Vec<Http3Setting>,
     /// Ordering applied after per-connection settings are materialized.

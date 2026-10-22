@@ -9,6 +9,76 @@ use serde_json::json;
 use std::num::NonZeroUsize;
 
 #[test]
+fn edited_http3_reuse_policy_round_trips_without_changing_other_settings() -> TestResult {
+    use super::super::{describe_profile, export_profile_json, import_profile_json};
+    use phantom_profile::{Http3ClientSettings, Http3ConnectionReuse, browser::chrome};
+
+    let profile = chrome::v154_windows();
+    let http3 = profile.http3().ok_or("missing HTTP/3 settings")?;
+    for (name, policy) in [
+        ("SameOrigin", Http3ConnectionReuse::SameOrigin),
+        ("AuthorizedOrigins", Http3ConnectionReuse::AuthorizedOrigins),
+    ] {
+        let mut document = describe_profile(&profile)?;
+        document["profile"]["http3"]["http3"]["connection_reuse"] = json!(name);
+        let mut settings = http3.http3().clone();
+        settings.connection_reuse = policy;
+        let expected = profile.clone().with_http3(Http3ClientSettings::new(
+            http3.tls().clone(),
+            http3.quic_transport().clone(),
+            settings,
+            http3.request().clone(),
+        ));
+
+        let actual = import(&document)?;
+
+        assert_eq!(actual, expected);
+        assert_eq!(
+            import_profile_json(&export_profile_json(&actual)?)?,
+            expected
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn http3_reuse_requires_a_known_explicit_policy() -> TestResult {
+    use super::super::{FingerprintImportErrorKind, describe_profile};
+    use phantom_profile::browser::chrome;
+
+    let document = describe_profile(&chrome::v154_windows())?;
+    for (value, kind) in [
+        (None, FingerprintImportErrorKind::MissingField),
+        (
+            Some(json!("AnyOrigin")),
+            FingerprintImportErrorKind::UnsupportedSetting,
+        ),
+        (Some(json!(null)), FingerprintImportErrorKind::InvalidValue),
+    ] {
+        let mut edited = document.clone();
+        let settings = edited["profile"]["http3"]["http3"]
+            .as_object_mut()
+            .ok_or("missing HTTP/3 settings")?;
+        match value {
+            Some(value) => {
+                settings.insert("connection_reuse".into(), value);
+            }
+            None => {
+                settings.remove("connection_reuse");
+            }
+        }
+
+        let error = import_profile_json(&serde_json::to_vec(&edited)?)
+            .err()
+            .ok_or("invalid HTTP/3 reuse policy was accepted")?;
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(error.field(), "http3.connection_reuse");
+    }
+    Ok(())
+}
+
+#[test]
 fn drawn_anchor_candidates_preserve_duplicates_weights_and_order() -> TestResult {
     let mut value = document(0)?;
     value["profile"]["tls"]["requested_trust_anchor_ids"] =

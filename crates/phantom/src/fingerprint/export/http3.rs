@@ -5,6 +5,7 @@ use phantom_profile::*;
 use serde_json::Value;
 
 tokens!(Http3SettingOrder, Fixed, Ascending);
+tokens!(Http3ConnectionReuse, SameOrigin, AuthorizedOrigins);
 tokens!(
     Http3QpackEncoding,
     Stateless,
@@ -20,6 +21,7 @@ tokens!(Http3AltUsed, Omit, Append, ValidatedMapping);
 tokens!(Http3AltUsedPort, Explicit, OmitDefault);
 record!(
     Http3Settings,
+    connection_reuse,
     initial_settings,
     setting_order,
     qpack_encoding,

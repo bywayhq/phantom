@@ -6,6 +6,7 @@
       "kind": "Http3Settings",
       "base": null,
       "values": {
+        "connection_reuse": "SameOrigin",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "MaxFieldSectionSize", "value": 262144},
@@ -38,6 +39,7 @@
       "kind": "Http3Settings",
       "base": null,
       "values": {
+        "connection_reuse": "AuthorizedOrigins",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "QpackBlockedStreams", "value": 20},

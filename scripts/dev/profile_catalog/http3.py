@@ -13,6 +13,7 @@ MAX_QPACK_TABLE_CAPACITY = (1 << 30) - 1
 
 
 COMPONENT_ENUMS = {
+    "connection_reuse": ("Http3ConnectionReuse", ("SameOrigin", "AuthorizedOrigins")),
     "setting_order": ("Http3SettingOrder", ("Fixed", "Ascending")),
     "qpack_encoding": (
         "Http3QpackEncoding",

@@ -5,9 +5,9 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
-    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3ConnectionReuse, Http3CookieCrumbs,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+    Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<Http3ClientSettings> {
@@ -20,8 +20,11 @@ pub(super) fn parse(v: &Value) -> Result<Http3ClientSettings> {
     ))
 }
 pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
+    let connection_reuse =
+        connection_reuse(v.member("connection_reuse", "http3.connection_reuse")?)?;
     v.record(
         &[
+            "connection_reuse",
             "initial_settings",
             "setting_order",
             "qpack_encoding",
@@ -33,6 +36,7 @@ pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
         "http3.http3",
     )?;
     let settings = Http3Settings {
+        connection_reuse,
         initial_settings: v
             .member("initial_settings", "http3.initial_settings")?
             .list("http3.initial_settings", setting)?,
@@ -89,6 +93,14 @@ pub(super) fn request(v: &Value) -> Result<Http3RequestSettings> {
         .validate()
         .map_err(|error| FingerprintImportError::native("http3.request", error))?;
     Ok(settings)
+}
+
+fn connection_reuse(v: &Value) -> Result<Http3ConnectionReuse> {
+    match v.text("http3.connection_reuse")? {
+        "SameOrigin" => Ok(Http3ConnectionReuse::SameOrigin),
+        "AuthorizedOrigins" => Ok(Http3ConnectionReuse::AuthorizedOrigins),
+        _ => Err(json::unsupported("http3.connection_reuse")),
+    }
 }
 
 fn setting_order(v: &Value) -> Result<Http3SettingOrder> {

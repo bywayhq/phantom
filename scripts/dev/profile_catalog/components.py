@@ -153,6 +153,7 @@ COMPONENT_FIELDS = {
         "idle_timeout",
     ),
     "Http3Settings": (
+        "connection_reuse",
         "initial_settings",
         "setting_order",
         "qpack_encoding",

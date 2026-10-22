@@ -7,6 +7,7 @@ use super::{
 
 fn settings() -> Http3Settings {
     Http3Settings {
+        connection_reuse: crate::Http3ConnectionReuse::SameOrigin,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::MaxFieldSectionSize(262_144),

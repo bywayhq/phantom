@@ -21,6 +21,7 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let request = Request::get("https://server.phantom.test/").body(())?;
     let settings = Http3Settings {
+        connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         initial_settings: vec![Http3Setting::QpackMaxTableCapacity(1 << 30)],
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
@@ -243,6 +244,7 @@ async fn chrome_profile_emits_seeded_grease_varint_widths() -> TestResult<()> {
 #[tokio::test(flavor = "current_thread")]
 async fn local_field_section_limit_is_not_advertised() -> TestResult<()> {
     let settings = Http3Settings {
+        connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(0),
             Http3Setting::QpackBlockedStreams(0),
