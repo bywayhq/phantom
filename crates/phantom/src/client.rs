@@ -1210,7 +1210,9 @@ impl ClientBuilder {
     /// up, and a connection whose file cannot be created fails before its
     /// handshake with
     /// [`RequestErrorKind::Http3`](crate::RequestErrorKind::Http3). Writes are
-    /// buffered, so the file is complete only after the connection closes.
+    /// buffered. Write or final flush failures can truncate the file without
+    /// failing requests. Files have no size or retention limit. You manage
+    /// their cleanup.
     #[cfg(feature = "diagnostics")]
     pub fn qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
         self.qlog_dir = Some(dir.into());

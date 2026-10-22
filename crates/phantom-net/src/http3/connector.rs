@@ -730,6 +730,9 @@ impl Http3Connector {
     /// Each file holds one connection's QUIC events as JSON-SEQ, without
     /// request fields or payloads. A connection whose file cannot be created
     /// fails with a configuration error.
+    /// Writes are buffered. Write or final flush failures can truncate the
+    /// file without failing requests. Files have no size or retention limit.
+    /// You manage their cleanup.
     #[cfg(feature = "qlog")]
     #[must_use]
     pub fn with_qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {

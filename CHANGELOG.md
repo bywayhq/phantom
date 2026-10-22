@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Clarify qlog file retention and write-failure behavior.
+
 - Capture ordered HTTP/2 script, stylesheet, image and font requests with the
   lifecycle tool's `resources` scenario.
 
