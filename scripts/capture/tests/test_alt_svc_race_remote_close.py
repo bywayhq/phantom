@@ -88,34 +88,44 @@ class RemoteCloseTests(unittest.IsolatedAsyncioTestCase):
         self.peer.remote.replies.clear()
         cleanup = OSError("controlled cancellation retirement failure")
         actual_close = self.connection_type.close
+        cancellations = []
 
         async def close(connection):
             await actual_close(connection)
             raise cleanup
 
+        async def close_browser():
+            try:
+                await race.close_headful_browser(self.profile, "chrome", self.run)
+            except asyncio.CancelledError as error:
+                # Python 3.10 may replace the exception at the Task boundary.
+                cancellations.append(error)
+                raise
+
         with (
             patch.object(race, "RemoteConnection", self.connection),
             patch.object(self.connection_type, "close", close),
         ):
-            task = asyncio.create_task(
-                race.close_headful_browser(self.profile, "chrome", self.run)
-            )
+            task = asyncio.create_task(close_browser())
             self.peer.calls.append(task)
             await command_seen(self.peer.remote, "Browser.close")
             task.cancel("controlled headful-close cancellation")
-            with self.assertRaises(asyncio.CancelledError) as raised:
-                await asyncio.wait_for(task, DEADLINE)
+            try:
+                with self.assertRaises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, DEADLINE)
+            finally:
+                self.peer.observed_cancellations.add(task)
+                self.assert_retired(self.connections[0])
 
-        self.peer.observed_cancellations.add(task)
-        retained = raised.exception.__cause__
-        self.assertEqual(
-            raised.exception.args, ("controlled headful-close cancellation",)
-        )
+        self.assertTrue(task.cancelled())
+        self.assertEqual(len(cancellations), 1)
+        cancellation = cancellations[0]
+        retained = cancellation.__cause__
+        self.assertEqual(cancellation.args, ("controlled headful-close cancellation",))
         self.assertIsInstance(retained, race.RemoteCloseCleanupError)
-        self.assertIs(retained.primary, raised.exception)
+        self.assertIs(retained.primary, cancellation)
         self.assertIs(retained.owner, self.connections[0])
         self.assertEqual(retained.cleanup, (cleanup,))
-        self.assert_retired(retained.owner)
 
     async def test_constructor_failure_still_retires_and_retains_the_socket(self):
         original = RuntimeError("controlled remote constructor failure")
