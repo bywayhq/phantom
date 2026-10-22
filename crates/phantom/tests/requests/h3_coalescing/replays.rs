@@ -1,6 +1,7 @@
-use std::{net::Ipv4Addr, num::NonZeroUsize};
+use std::{net::Ipv4Addr, num::NonZeroUsize, panic::AssertUnwindSafe};
 
 use bytes::Bytes;
+use futures_util::FutureExt;
 use h3::ext::OrderedHeaders;
 use http::{Response, StatusCode};
 use phantom::{
@@ -131,9 +132,22 @@ async fn rejected_donor_continues_with_checked_fields_and_the_shared_attempt_bud
             }
         }
     };
-    let result = match timeout(DEADLINE, async { tokio::try_join!(caller, tcp, h3) }).await {
-        Ok(result) => result.map(|_| ()),
-        Err(error) => Err(error.into()),
+    let result = match AssertUnwindSafe(timeout(DEADLINE, async {
+        tokio::try_join!(caller, tcp, h3)
+    }))
+    .catch_unwind()
+    .await
+    {
+        Ok(Ok(result)) => result.map(|_| ()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| payload.downcast_ref::<&str>().copied())
+                .unwrap_or("coalesced rejection assertion panicked");
+            Err(std::io::Error::other(message.to_owned()).into())
+        }
     };
     finish(peer, client, result).await
 }
@@ -276,9 +290,22 @@ async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_activ
             }
         }
     };
-    let result = match timeout(DEADLINE, async { tokio::try_join!(caller, tcp, h3) }).await {
-        Ok(result) => result.map(|_| ()),
-        Err(error) => Err(error.into()),
+    let result = match AssertUnwindSafe(timeout(DEADLINE, async {
+        tokio::try_join!(caller, tcp, h3)
+    }))
+    .catch_unwind()
+    .await
+    {
+        Ok(Ok(result)) => result.map(|_| ()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| payload.downcast_ref::<&str>().copied())
+                .unwrap_or("coalesced 421 assertion panicked");
+            Err(std::io::Error::other(message.to_owned()).into())
+        }
     };
     finish(peer, client, result).await
 }
