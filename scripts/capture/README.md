@@ -1519,6 +1519,14 @@ The page drives these server paths:
   result `--dump-dom` exits cleanly, and the NetLog ends with `polledData`,
   whose Alt-Svc mappings give each broken alternative's expiry.
 
+With `--observe-images`, fixtures retain `/hold` HTTP/2 fields in wire order,
+including duplicates, fetch metadata and the `priority` header. They also record
+the stream and initial HEADERS priority. `none` means that HEADERS carried no
+priority, not that the stream received no later priority updates. Credentials
+are rejected; the known authority and page referrer use `<port>` in place of
+the listener's ephemeral port. HPACK encoding and HTTP/3 image fields are not
+retained. Other race fields are unchanged.
+
 | Scenario | QUIC listener | Question |
 | --- | --- | --- |
 | `race-after-learning` | serves H3 | First new connection after learning on a fresh profile |

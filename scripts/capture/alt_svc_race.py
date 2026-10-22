@@ -10,8 +10,9 @@ The QUIC listener's behavior is the scenario's variable: it serves H3, drops
 every datagram, presents a certificate the browser does not accept, or offers
 no common ALPN. A scenario can also list QUIC-only alternatives on ports of
 their own ahead of the origin's port in `Alt-Svc`, to see which one the
-browser uses. Retained fixtures hold only derived times and decisions;
-NetLogs stay wherever `--netlog-dir` points.
+browser uses. With `--observe-images`, fixtures also retain ordered fields and
+initial HEADERS priority for the page's HTTP/2 image request. NetLogs stay
+wherever `--netlog-dir` points.
 """
 
 from __future__ import annotations
@@ -53,7 +54,14 @@ from h2.errors import ErrorCodes
 from .browser_launch import BrowserDriver, LaunchPlan
 from .chrome_netlog import NetLog, RaceObservation, broken_until_seconds, observe_races
 from .fixture_file import write_text_fixture
-from .http2_session import Certificate, generate_certificate, server_context
+from .http2_analysis import Priority
+from .http2_session import (
+    MAX_HEADER_FIELDS,
+    MAX_REQUEST_HEAD,
+    Certificate,
+    generate_certificate,
+    server_context,
+)
 from .reserved_ports import open_past_reserved_ports
 
 FORMAT = "phantom-alt-svc-race-v1"
@@ -276,6 +284,15 @@ def render_page(scenario: Scenario) -> bytes:
 # -- Server-side records ----------------------------------------------------
 
 
+@dataclass(frozen=True)
+class H2ImageRequest:
+    connection: int
+    stream_id: int
+    headers: tuple[tuple[bytes, bytes], ...]
+    # Only the priority carried by this request's HEADERS frame, not later updates.
+    headers_priority: Priority | None
+
+
 @dataclass
 class RequestRecord:
     received_ms: float
@@ -319,6 +336,7 @@ class RunRecord:
     tcp: list[TcpRecord] = field(default_factory=list)
     udp: dict[tuple[str, tuple[str, int]], UdpPeerRecord] = field(default_factory=dict)
     requests: list[RequestRecord] = field(default_factory=list)
+    images: list[H2ImageRequest] | None = None
     page_results: list[dict[str, object]] | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
@@ -360,10 +378,16 @@ class Origin:
     """Routes requests for one scenario and owns connection retirement."""
 
     def __init__(
-        self, scenario: Scenario, port: int, earlier_ports: Sequence[int] = ()
+        self,
+        scenario: Scenario,
+        port: int,
+        earlier_ports: Sequence[int] = (),
+        *,
+        observe_images: bool = False,
     ) -> None:
         self.scenario = scenario
         self.port = port
+        self.observe_images = observe_images
         self.earlier_ports = tuple(earlier_ports)
         self.page = render_page(scenario)
         self.run: RunRecord | None = None
@@ -379,6 +403,7 @@ class Origin:
 
     def begin(self, run: RunRecord) -> None:
         self.run = run
+        run.images = [] if self.observe_images else None
         self.retirers.clear()
         self.holds.clear()
         self.finished.clear()
@@ -847,7 +872,11 @@ class Http2Origin:
         self, stream: TlsStream, record: TcpRecord, run: RunRecord
     ) -> None:
         connection = H2Connection(
-            H2Configuration(client_side=False, header_encoding=None)
+            H2Configuration(
+                client_side=False,
+                header_encoding=None,
+                normalize_inbound_headers=not self.origin.observe_images,
+            )
         )
         connection.initiate_connection()
         stream.write(connection.data_to_send())
@@ -912,6 +941,15 @@ class Http2Origin:
         fields = dict(event.headers or [])
         target = fields.get(b":path", b"/").decode("latin-1")
         stream_id = event.stream_id
+        run = self.origin.run
+        images = None if run is None else run.images
+        image = None
+        if images is not None and target == "/hold":
+            try:
+                image = observe_image_request(record.index, event, self.origin.port)
+            except ValueError as error:
+                self.origin.fail(error)
+                return
 
         def respond(response: Response) -> None:
             try:
@@ -931,6 +969,64 @@ class Http2Origin:
                 self.response_failures.append(error)
 
         self.origin.request("h2", record.index, target, respond, retire)
+        if images is not None and image is not None and self.origin.failure is None:
+            images.append(image)
+
+
+def observe_image_request(
+    connection: int, event: h2.events.RequestReceived, port: int
+) -> H2ImageRequest:
+    headers = tuple(event.headers)
+    if (
+        len(headers) > MAX_HEADER_FIELDS
+        or sum(len(name) + len(value) for name, value in headers) > MAX_REQUEST_HEAD
+    ):
+        raise ValueError("image request headers exceed the capture limit")
+
+    required = {
+        b":method": b"GET",
+        b":scheme": b"https",
+        b":authority": f"{HOSTNAME}:{port}".encode(),
+        b":path": b"/hold",
+    }
+    for name, value in required.items():
+        if [
+            field_value for field_name, field_value in headers if field_name == name
+        ] != [value]:
+            raise ValueError(f"image request has an unexpected {name.decode()} field")
+
+    authority = required[b":authority"]
+    origin = b"https://" + authority
+    replacements = {
+        b":authority": (authority, f"{HOSTNAME}:<port>".encode()),
+        b"host": (authority, f"{HOSTNAME}:<port>".encode()),
+        b"referer": (origin + b"/start", f"https://{HOSTNAME}:<port>/start".encode()),
+        b"origin": (origin, f"https://{HOSTNAME}:<port>".encode()),
+    }
+    retained = []
+    for name, value in headers:
+        lowered = name.lower()
+        if lowered in {b"cookie", b"authorization", b"proxy-authorization"}:
+            raise ValueError("refusing to retain an image credential field")
+
+        if lowered in replacements:
+            expected, replacement = replacements[lowered]
+            if value != expected:
+                raise ValueError(
+                    f"image request has an unexpected {lowered.decode()} field"
+                )
+            value = replacement
+        retained.append((name, value))
+
+    priority = event.priority_updated
+    observed_priority = (
+        None
+        if priority is None
+        else Priority(priority.exclusive, priority.depends_on, priority.weight)
+    )
+    return H2ImageRequest(
+        connection, event.stream_id, tuple(retained), observed_priority
+    )
 
 
 def goaway_frame(last_stream_id: int) -> bytes:
@@ -1476,6 +1572,7 @@ async def capture_run(
     headless: bool,
     netlog: Path,
     timeout: float,
+    observe_images: bool = False,
 ) -> RunResult:
     if not math.isfinite(timeout):
         raise ValueError("capture timeout must be finite")
@@ -1500,7 +1597,9 @@ async def capture_run(
                 earlier_sockets.append(sock)
 
             earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
-            origin = Origin(scenario, port, earlier_ports)
+            origin = Origin(
+                scenario, port, earlier_ports, observe_images=observe_images
+            )
             tcp = Http2Origin(origin, certificate)
             udp = UdpAlternative(origin, certificate, scenario.quic)
             udp_owners.append((udp, udp_socket))
@@ -1731,6 +1830,7 @@ class RunSummary:
     broken_lifetimes_s: tuple[int, ...]
     # Per UDP listener that saw datagrams: name, peers, datagrams, requests.
     udp_listeners: tuple[tuple[str, int, int, int], ...] = ()
+    images: tuple[H2ImageRequest, ...] | None = None
 
 
 def summarize_run(index: int, result: RunResult, netlog: NetLog) -> RunSummary:
@@ -1796,6 +1896,7 @@ def summarize_run(index: int, result: RunResult, netlog: NetLog) -> RunSummary:
         netlog_complete=netlog.complete,
         broken_lifetimes_s=lifetimes,
         udp_listeners=udp_listeners(run),
+        images=None if run.images is None else tuple(run.images),
     )
 
 
@@ -1868,6 +1969,29 @@ def render_fixture(
             f"{prefix}_server_requests="
             + ";".join(f"{path}>{transport}" for path, transport in summary.requests)
         )
+        if summary.images is not None:
+            lines.append(f"{prefix}_image_h2_count={len(summary.images)}")
+        for index, image in enumerate(summary.images or ()):
+            key = f"{prefix}_image_h2_{index}"
+            lines += [
+                f"{key}_connection={image.connection}",
+                f"{key}_stream={image.stream_id}",
+                f"{key}_header_count={len(image.headers)}",
+            ]
+            for position, (name, value) in enumerate(image.headers):
+                lines.append(
+                    f"{key}_header_{position}=name_hex:{name.hex()},value_hex:{value.hex()}"
+                )
+            priority = image.headers_priority
+            lines.append(
+                f"{key}_initial_headers_priority="
+                + (
+                    "none"
+                    if priority is None
+                    else f"exclusive:{str(priority.exclusive).lower()},"
+                    f"depends_on:{priority.depends_on},weight:{priority.weight}"
+                )
+            )
         lines.append(
             f"{prefix}_connections=tcp:{summary.tcp_connections},"
             f"idle_tcp:{summary.idle_tcp_connections},udp_peers:{summary.udp_peers}"
@@ -1966,6 +2090,11 @@ def main() -> None:
     parser.add_argument("--netlog-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument(
+        "--observe-images",
+        action="store_true",
+        help="retain HTTP/2 image request fields",
+    )
     args = parser.parse_args()
     if args.repeat <= 0:
         parser.error("--repeat must be positive")
@@ -1995,6 +2124,7 @@ def main() -> None:
                     headless=not args.headful,
                     netlog=netlog_path,
                     timeout=args.timeout + scenario.page_milliseconds / 1000,
+                    observe_images=args.observe_images,
                 )
             )
             arguments = result.launch_arguments
