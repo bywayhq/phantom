@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Start SSE QUIC shutdown while workers finish, and retire the UDP endpoint
+  after a failed graceful close. Cleanup timeouts include connection timings.
+
 - Add Chrome 156 Windows script, stylesheet, image and font request templates,
   including CLI contexts and live HTTP/2 priority dependencies.
 - Breaking: use `Http2RequestPriority` for template and per-request HTTP/2
