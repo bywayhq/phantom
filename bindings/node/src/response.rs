@@ -234,16 +234,13 @@ impl Exchange {
         if self.terminal.load(Ordering::Acquire) == EOF {
             return Ok(None);
         }
-        if let Err(error) = self.check() {
-            self.fail();
-            return Err(error);
-        }
-        let mut body = self
-            .body
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
-            .ok_or_else(|| failure("BodyClosed", "response body is closed"))?;
+        let mut body = match self.acquire_body() {
+            Ok(body) => body,
+            Err(error) => {
+                self.fail();
+                return Err(error);
+            }
+        };
         let next = async {
             loop {
                 if !body.pending.is_empty() {
@@ -290,16 +287,13 @@ impl Exchange {
         if self.terminal.load(Ordering::Acquire) == EOF {
             return Ok(Vec::new());
         }
-        if let Err(error) = self.check() {
-            self.fail();
-            return Err(error);
-        }
-        let mut body = self
-            .body
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
-            .ok_or_else(|| failure("BodyClosed", "response body is closed"))?;
+        let mut body = match self.acquire_body() {
+            Ok(body) => body,
+            Err(error) => {
+                self.fail();
+                return Err(error);
+            }
+        };
         let collect = async {
             let mut output = Vec::new();
             let mut consumed = 0usize;
@@ -338,6 +332,15 @@ impl Exchange {
             Err(_) => self.fail(),
         }
         result
+    }
+
+    fn acquire_body(&self) -> Result<Body> {
+        let mut body = self.body.lock().unwrap_or_else(PoisonError::into_inner);
+        // Cancellation removes the idle body under this lock. Check while it is
+        // held so that removal cannot turn a cancellation into BodyClosed.
+        self.check()?;
+        body.take()
+            .ok_or_else(|| failure("BodyClosed", "response body is closed"))
     }
 
     fn start_reading(self: &Arc<Self>) -> Result<Reading> {
@@ -460,6 +463,56 @@ mod tests {
         assert_eq!(admission.available_permits(), 0);
         upload.settled();
         assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn cancellation_after_a_precheck_keeps_its_category_when_the_body_is_absent() -> Result<()> {
+        let exchange = Exchange::new();
+        exchange.check()?;
+        exchange.cancel();
+        assert!(
+            exchange
+                .body
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_none()
+        );
+
+        let error = exchange
+            .acquire_body()
+            .err()
+            .ok_or_else(|| failure("TestBody", "cancelled acquisition succeeded"))?;
+        assert_eq!(error.reason, "PHANTOM:Cancelled:request was cancelled");
+        Ok(())
+    }
+
+    #[test]
+    fn a_deadline_after_a_precheck_keeps_its_category_when_the_body_is_absent() -> Result<()> {
+        let exchange = Exchange::new();
+        exchange.check()?;
+        *exchange
+            .deadline
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(Instant::now());
+
+        let error = exchange
+            .acquire_body()
+            .err()
+            .ok_or_else(|| failure("TestBody", "expired acquisition succeeded"))?;
+        assert_eq!(error.reason, total_timeout().reason);
+        Ok(())
+    }
+
+    #[test]
+    fn an_absent_body_without_cancellation_or_deadline_remains_closed() -> Result<()> {
+        let exchange = Exchange::new();
+        exchange.check()?;
+        let error = exchange
+            .acquire_body()
+            .err()
+            .ok_or_else(|| failure("TestBody", "absent body acquisition succeeded"))?;
+        assert_eq!(error.reason, "PHANTOM:BodyClosed:response body is closed");
         Ok(())
     }
 
