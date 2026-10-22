@@ -365,9 +365,13 @@ class CatalogDeclarationTests(unittest.TestCase):
             "fixtures/websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt",
         )
         self.assertEqual(capture["build"], "153.1.95.104")
-        self.assertTrue(
-            any("Android 15 (API 35)" in item for item in layer["limitations"])
-        )
+        with (REPO / capture["location"]).open(encoding="utf-8") as fixture:
+            operating_system = next(
+                line.partition("=")[2]
+                for line in fixture.read(8192).splitlines()
+                if line.startswith("operating_system=")
+            )
+        self.assertTrue(operating_system.startswith("Android 15 (API 35) "))
         self.assertTrue(any(ref["kind"] == "Reused" for ref in layer["references"]))
         generator.validate(self.document)
 

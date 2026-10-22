@@ -58,9 +58,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
             }
-          ],
-          "limitations": [
-            "Comparison uses the Android 15 (API 35) emulator"
           ]
         },
         {
@@ -791,9 +788,6 @@
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.95"
             }
-          ],
-          "limitations": [
-            "Sequential resumption capture only"
           ]
         },
         {
@@ -937,9 +931,6 @@
           "verified_fields": [
             "header values",
             "HTTP/1.1 navigation header order"
-          ],
-          "limitations": [
-            "Headless navigation captures"
           ]
         },
         {
@@ -2992,7 +2983,6 @@
             "fresh and reused navigation headers"
           ],
           "limitations": [
-            "Comparison uses two sequential GETs",
             "SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"
           ]
         }
@@ -3081,9 +3071,6 @@
             "pseudo-header order",
             "HEADERS without priority",
             "fresh and reused navigation headers"
-          ],
-          "limitations": [
-            "Comparison uses two sequential GETs"
           ]
         }
       ],
@@ -3168,7 +3155,6 @@
             "HPACK full-table insertion and marker retention"
           ],
           "limitations": [
-            "Comparison uses sequential bodyless GETs",
             "DATA frames use the transport default",
             "SETTINGS ACK order differs from httpcloak"
           ]

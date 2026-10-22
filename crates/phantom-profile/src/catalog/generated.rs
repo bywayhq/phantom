@@ -94,7 +94,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Comparison uses the Android 15 (API 35) emulator"],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -811,7 +811,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Sequential resumption capture only"],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
@@ -971,7 +971,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["header values", "HTTP/1.1 navigation header order"],
-                limitations: &["Headless navigation captures"],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
@@ -1382,7 +1382,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["SETTINGS order and values", "connection window and HEADERS priority", "fresh and reused navigation fields", "HPACK full-table insertion and marker retention"],
-                limitations: &["Comparison uses sequential bodyless GETs", "DATA frames use the transport default", "SETTINGS ACK order differs from httpcloak"],
+                limitations: &["DATA frames use the transport default", "SETTINGS ACK order differs from httpcloak"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -3241,7 +3241,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
-                limitations: &["Comparison uses two sequential GETs", "SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"],
+                limitations: &["SETTINGS processing order and shutdown GOAWAY differ from curl-impersonate"],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
@@ -3394,7 +3394,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &["SETTINGS order and values", "connection window", "pseudo-header order", "HEADERS without priority", "fresh and reused navigation headers"],
-                limitations: &["Comparison uses two sequential GETs"],
+                limitations: &[],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,
