@@ -207,13 +207,32 @@ class StreamCapture:
         instructions = encoder_instructions(bytes(encoder))
         check_inserted_fields(instructions)
         allowed_values = {value for values in fields.values() for _, value in values}
+        inserted: dict[int, tuple[bytes, bytes]] = {}
+        static_decoder = pylsqpack.Decoder(0, 0)
         for item in instructions:
-            if (
-                item.name is not None
-                and item.name.decoded().decode("ascii") not in SAFE_FIELDS
-            ):
+            if item.inserted is None:
+                continue
+            if item.name is not None:
+                name = item.name.decoded()
+            elif item.table == "static":
+                # Resolve the RFC static table through the same pinned decoder.
+                index = item.index
+                reference = (
+                    bytes([0xC0 | index]) if index < 63 else bytes([0xFF, index - 63])
+                )
+                _, entry = static_decoder.feed_header(0, b"\x00\x00" + reference)
+                name = entry[0][0]
+            else:
+                name = inserted[item.inserted - 1 - item.index][0]
+            value = (
+                item.value.decoded()
+                if item.value is not None
+                else inserted[item.inserted - 1 - item.index][1]
+            )
+            inserted[item.inserted] = (name, value)
+            if name.decode("ascii") not in SAFE_FIELDS:
                 raise ValueError("resource QPACK insert has an unapproved field name")
-            if item.value is not None and item.value.decoded() not in allowed_values:
+            if value not in allowed_values:
                 raise ValueError("resource QPACK insert has an unowned field value")
         decoder_stream = self.streams.get(critical.get(3, -1), bytearray())
         if decoder_stream:
@@ -510,10 +529,13 @@ class ResourceServer(QuicServer):
                 self.failed(error)
                 lifecycle._raise_lifecycle_failures(primary, self.errors, self)
             self.cleanup.add_done_callback(self.observe_cleanup)
-        try:
-            await asyncio.shield(self.cleanup)
-        except BaseException as error:
-            self.failed(error)
+        # An interrupted caller still joins the owned, deadline-bounded cleanup.
+        while not self.cleanup.done():
+            try:
+                await asyncio.shield(self.cleanup)
+            except BaseException as error:
+                self.failed(error)
+        self.observe_cleanup(self.cleanup)
         lifecycle._raise_lifecycle_failures(primary, self.errors, self)
 
     def observe_cleanup(self, task: asyncio.Task) -> None:

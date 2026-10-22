@@ -140,6 +140,44 @@ class StreamReplayTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 capture.replay({})
 
+    def test_unused_static_name_references_require_an_approved_name(self) -> None:
+        expected = tuple(fields(12345, "/start?run=token"))
+        _, payload = pylsqpack.Encoder().encode(0, list(expected))
+        capacity = pylsqpack.Encoder().apply_settings(4096, 16)
+        value = b"/start?run=token"
+        # RFC 9204 static entries: location, content-type and server.
+        for index in (12, 44, 92):
+            name = bytes([0xC0 | index]) if index < 63 else bytes([0xFF, index - 63])
+            with self.subTest(index=index):
+                capture, _ = retained(
+                    [
+                        event(2, CONTROL),
+                        event(
+                            6, b"\x02" + capacity + name + bytes([len(value)]) + value
+                        ),
+                        event(0, encode_frame(1, payload), True),
+                    ]
+                )
+                with self.assertRaisesRegex(ValueError, "unapproved field name"):
+                    capture.replay({0: expected})
+
+    def test_static_dynamic_and_duplicate_approved_names_replay(self) -> None:
+        expected = tuple(fields(12345, "/start?run=token"))
+        _, payload = pylsqpack.Encoder().encode(0, list(expected))
+        capacity = pylsqpack.Encoder().apply_settings(4096, 16)
+        value = b"/start?run=token"
+        # Static user-agent (95), dynamic name reference (0), then duplicate (0).
+        inserts = b"\xff\x20" + bytes([len(value)]) + value
+        inserts += b"\x80" + bytes([len(value)]) + value + b"\x00"
+        capture, _ = retained(
+            [
+                event(2, CONTROL),
+                event(6, b"\x02" + capacity + inserts),
+                event(0, encode_frame(1, payload), True),
+            ]
+        )
+        capture.replay({0: expected})
+
     def test_bounds_apply_before_retaining_and_zero_byte_events_are_bounded(
         self,
     ) -> None:
@@ -453,6 +491,68 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(stopped.is_set())
         self.assertTrue(owner.cleanup.done())
         self.assertTrue(owner.retired.done())
+
+    async def test_cancel_during_close_joins_retirement_and_keeps_later_errors(
+        self,
+    ) -> None:
+        run = lifecycle.Run("resources", "token", 100)
+        owner = h3.ResourceServer(run, QuicConfiguration(is_client=False))
+        waiting = asyncio.Event()
+        release = asyncio.Event()
+        aborted = asyncio.Event()
+        cleanup_error = OSError("controlled UDP retirement failure")
+
+        async def wait_closed() -> None:
+            waiting.set()
+            await release.wait()
+
+        owner.protocols.append(
+            SimpleNamespace(
+                close=lambda: None,
+                wait_closed=wait_closed,
+                _timer=None,
+                _transmit_task=None,
+            )
+        )
+
+        class Transport:
+            def abort(self) -> None:
+                aborted.set()
+                owner.connection_lost(cleanup_error)
+
+        owner._transport = Transport()
+        interrupted = []
+
+        async def close() -> None:
+            try:
+                await owner.close()
+            except asyncio.CancelledError as error:
+                interrupted.append(error)
+                raise
+
+        closing = asyncio.create_task(close())
+        try:
+            await waiting.wait()
+            closing.cancel("controlled interruption")
+            await asyncio.sleep(0)
+            still_joining = not closing.done()
+            closing.cancel("second interruption")
+            release.set()
+            with self.assertRaises(asyncio.CancelledError):
+                await closing
+            self.assertTrue(still_joining)
+            self.assertIs(interrupted[0], owner.errors[0])
+            self.assertIsInstance(owner.errors[1], asyncio.CancelledError)
+            self.assertTrue(aborted.is_set())
+            self.assertTrue(owner.retired.done())
+            self.assertTrue(owner.cleanup.done())
+            self.assertIsInstance(interrupted[0].__cause__, lifecycle.LifecycleFailures)
+            self.assertIn(cleanup_error, interrupted[0].__cause__.cleanup)
+        finally:
+            release.set()
+            await asyncio.gather(closing, return_exceptions=True)
+            if owner.cleanup is not None:
+                await owner.cleanup
 
     async def test_missing_udp_retirement_is_a_cleanup_failure(self) -> None:
         run = lifecycle.Run("resources", "token", 100)
