@@ -1,14 +1,16 @@
 use std::{net::Ipv4Addr, num::NonZeroUsize, panic::AssertUnwindSafe};
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use futures_util::FutureExt;
 use h3::ext::OrderedHeaders;
 use http::{Response, StatusCode};
-use phantom::{
-    AltSvcPolicy, Client, HttpAttemptBudget, HttpProtocol, ResponseInfo, profile::browser::firefox,
-};
+use http_body_util::Full;
 #[cfg(feature = "cookies")]
-use phantom::{RequestHeader, RetryPolicy};
+use phantom::RetryPolicy;
+use phantom::{
+    AltSvcPolicy, Client, HttpAttemptBudget, HttpProtocol, RequestErrorKind, RequestHeader,
+    ResponseInfo, profile::browser::firefox,
+};
 #[cfg(feature = "cookies")]
 use tokio::sync::oneshot;
 use tokio::{io::AsyncWriteExt, sync::watch, time::timeout};
@@ -34,7 +36,12 @@ async fn rejected_donor_continues_with_checked_fields_and_the_shared_attempt_bud
 -> TestResult<()> {
     let identity = TestIdentity::generate_for_dns_names(&[DONOR, OTHER])?;
     let peer = Peer::bind(&identity, &identity).await?;
-    let client = builder(&identity)?.cookies().build()?;
+    let client = builder(
+        &identity,
+        phantom::profile::Http3MisdirectedRequest::RetryFirst,
+    )?
+    .cookies()
+    .build()?;
     let other_url = url(&peer, OTHER, "/rejected");
     client
         .cookie_jar()
@@ -157,7 +164,11 @@ async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_activ
 -> TestResult<()> {
     let identity = TestIdentity::generate_for_dns_names(&[DONOR, OTHER])?;
     let peer = Peer::bind(&identity, &identity).await?;
-    let client = builder(&identity)?.build()?;
+    let client = builder(
+        &identity,
+        phantom::profile::Http3MisdirectedRequest::ReturnResponse,
+    )?
+    .build()?;
     let allowance = HttpAttemptBudget::new(1);
     let (stop, stopped) = watch::channel(false);
     let caller = async {
@@ -310,8 +321,257 @@ async fn coalesced_421_retires_the_donor_without_replaying_or_interrupting_activ
     finish(peer, client, result).await
 }
 
-fn builder(identity: &TestIdentity) -> TestResult<phantom::ClientBuilder> {
-    Ok(Client::builder(firefox::v157_windows())
+#[derive(Clone, Copy)]
+enum MisdirectedReply {
+    Success,
+    Repeated,
+    Exhausted,
+    OneShot,
+}
+
+#[tokio::test]
+async fn coalesced_421_restarts_once_on_the_origin_with_checked_credentials() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::Success).await
+}
+
+#[tokio::test]
+async fn a_second_421_returns_without_a_third_http_attempt() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::Repeated).await
+}
+
+#[tokio::test]
+async fn exhausted_shared_allowance_prevents_the_421_restart_send() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::Exhausted).await
+}
+
+#[tokio::test]
+async fn a_one_shot_upload_keeps_its_original_421_response_and_body() -> TestResult<()> {
+    misdirected_exchange(MisdirectedReply::OneShot).await
+}
+
+async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
+    let identity = TestIdentity::generate_for_dns_names(&[DONOR, OTHER])?;
+    let peer = Peer::bind(&identity, &identity).await?;
+    let client = builder(
+        &identity,
+        phantom::profile::Http3MisdirectedRequest::RetryFirst,
+    )?
+    .build()?;
+    let maximum = match reply {
+        MisdirectedReply::Success | MisdirectedReply::Repeated => 2,
+        MisdirectedReply::Exhausted | MisdirectedReply::OneShot => 1,
+    };
+    let allowance = HttpAttemptBudget::new(maximum);
+    let (stop, stopped) = watch::channel(false);
+    let caller = async {
+        settle(&client, &peer).await?;
+        let request = client
+            .get_negotiated(&url(&peer, OTHER, "/misdirected"))?
+            .headers(vec![
+                RequestHeader::new("x-first", "one"),
+                RequestHeader::new("authorization", "Basic dGVzdDp0ZXN0"),
+                RequestHeader::new("cookie", "sid=caller"),
+            ])
+            .attempt_budget(allowance.clone());
+        let request = if matches!(reply, MisdirectedReply::OneShot) {
+            request.streaming_body(Full::new(Bytes::from_static(b"one-shot")))
+        } else {
+            request
+        };
+        let sent = request.send().await;
+        if matches!(reply, MisdirectedReply::Exhausted) {
+            let error = sent
+                .err()
+                .ok_or("exhausted 421 restart unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
+        } else {
+            let response = sent?;
+            let (protocol, status, payload) = match reply {
+                MisdirectedReply::Success => (HttpProtocol::Http1, StatusCode::OK, "ok"),
+                MisdirectedReply::Repeated => {
+                    (HttpProtocol::Http1, StatusCode::MISDIRECTED_REQUEST, "no")
+                }
+                MisdirectedReply::OneShot => {
+                    (HttpProtocol::Http3, StatusCode::MISDIRECTED_REQUEST, "no")
+                }
+                MisdirectedReply::Exhausted => {
+                    return Err("exhausted branch reached response handling".into());
+                }
+            };
+            assert_protocol(&response, protocol)?;
+            assert_eq!(response.status(), status);
+            assert_eq!(response.into_body().collect_with_limit(2).await?, payload);
+        }
+        assert_eq!(allowance.remaining(), 0);
+        let alternatives = client.export_alt_svc().ok_or("Alt-Svc store disabled")?;
+        assert!(
+            alternatives.entries().iter().all(|entry| {
+                entry.origin() != format!("https://{OTHER}:{}", peer.address.port())
+            }),
+            "421 taught B's Alt-Svc mapping"
+        );
+        stop.send(true)
+            .map_err(|_| "421 peers stopped before caller completion")?;
+        TestResult::Ok(())
+    };
+    let tcp = async {
+        answer_learn(&peer).await?;
+        if matches!(
+            reply,
+            MisdirectedReply::Success | MisdirectedReply::Repeated
+        ) {
+            let (mut stream, record) = peer.accept_tcp_request().await?;
+            assert_target(&record, OTHER, "/misdirected", peer.address.port())?;
+            assert_421_credentials(&record)?;
+            let response = if matches!(reply, MisdirectedReply::Success) {
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".as_slice()
+            } else {
+                b"HTTP/1.1 421 Misdirected Request\r\nContent-Length: 2\r\nConnection: close\r\n\r\nno".as_slice()
+            };
+            stream.write_all(response).await?;
+            stream.shutdown().await?;
+        }
+        no_more_tcp(&peer, stopped.clone()).await
+    };
+    let h3 = async {
+        let (identity, mut connection) = accept_connection(&peer).await?;
+        let (record, mut stream) = accept_h3(&mut connection, identity).await?;
+        assert_target(&record, DONOR, "/settled", peer.address.port())?;
+        answer_ok(&mut stream).await?;
+        let resolver = connection
+            .accept()
+            .await?
+            .ok_or("421 peer closed before B request")?;
+        let (request, mut stream) = resolver.resolve_request().await?;
+        assert_eq!(request.method(), "GET");
+        assert_eq!(
+            request
+                .uri()
+                .authority()
+                .ok_or("B omitted authority")?
+                .as_str(),
+            format!("{OTHER}:{}", peer.address.port())
+        );
+        assert_eq!(request.uri().path(), "/misdirected");
+        assert_421_credentials(&Observation {
+            connection: Some(identity),
+            stream: Some(stream.id().into_inner()),
+            method: request.method().to_string(),
+            authority: request
+                .uri()
+                .authority()
+                .ok_or("B omitted authority")?
+                .to_string(),
+            path: request.uri().path().to_owned(),
+            fields: request
+                .extensions()
+                .get::<OrderedHeaders>()
+                .ok_or("B omitted ordered fields")?
+                .as_slice()
+                .iter()
+                .map(|(name, value)| (name.to_string(), value.as_bytes().to_vec()))
+                .collect(),
+        })?;
+        let mut received = Vec::new();
+        while let Some(mut chunk) = stream.recv_data().await? {
+            if received.len() + chunk.remaining() > b"one-shot".len() {
+                return Err("421 fixture upload exceeded eight bytes".into());
+            }
+            received.extend_from_slice(&chunk.copy_to_bytes(chunk.remaining()));
+        }
+        if matches!(reply, MisdirectedReply::OneShot) {
+            assert_eq!(received, b"one-shot");
+        } else {
+            assert!(received.is_empty(), "bodyless 421 request carried data");
+        }
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::MISDIRECTED_REQUEST)
+                    .header("alt-svc", format!("h3=\":{}\"; ma=60", peer.address.port()))
+                    .header("content-length", "2")
+                    .body(())?,
+            )
+            .await?;
+        stream.send_data(Bytes::from_static(b"no")).await?;
+        stream.finish().await?;
+        let mut stopped = stopped.clone();
+        let mut closed = false;
+        loop {
+            tokio::select! {
+                biased;
+                incoming = peer.endpoint.accept() => {
+                    drop(incoming);
+                    return Err("421 restart opened an unadvertised B QUIC connection".into());
+                }
+                request = connection.accept(), if !closed => {
+                    match request {
+                        Ok(Some(_)) => return Err("421 request replayed on its rejected donor".into()),
+                        Ok(None) => closed = true,
+                        Err(h3::error::ConnectionError::Remote(h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code }, ..))
+                            if error_code == h3::error::Code::H3_NO_ERROR.value() => closed = true,
+                        Err(error) => return Err(error.into()),
+                    }
+                }
+                result = stopped.wait_for(|done| *done) => {
+                    result.map_err(|_| "caller stopped before 421 completion")?;
+                    return TestResult::Ok(());
+                }
+            }
+        }
+    };
+    let result = match AssertUnwindSafe(timeout(DEADLINE, async {
+        tokio::try_join!(caller, tcp, h3)
+    }))
+    .catch_unwind()
+    .await
+    {
+        Ok(Ok(result)) => result.map(|_| ()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| payload.downcast_ref::<&str>().copied())
+                .unwrap_or("misdirected request assertion panicked");
+            Err(std::io::Error::other(message.to_owned()).into())
+        }
+    };
+    finish(peer, client, result).await
+}
+
+fn assert_421_credentials(record: &Observation) -> TestResult<()> {
+    let credentials = record
+        .fields
+        .iter()
+        .filter(|(name, _)| matches!(name.as_str(), "x-first" | "authorization" | "cookie"))
+        .map(|(name, value)| (name.as_str(), value.as_slice()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        credentials,
+        [
+            ("x-first", b"one".as_slice()),
+            ("authorization", b"Basic dGVzdDp0ZXN0".as_slice()),
+            ("cookie", b"sid=caller".as_slice()),
+        ]
+    );
+    assert!(record.fields.iter().all(|(name, _)| name != "alt-used"));
+    Ok(())
+}
+
+fn builder(
+    identity: &TestIdentity,
+    policy: phantom::profile::Http3MisdirectedRequest,
+) -> TestResult<phantom::ClientBuilder> {
+    let mut http3 = firefox::v157_http3();
+    http3.misdirected_request = policy;
+    let profile = firefox::v157_windows().with_http3(phantom::profile::Http3ClientSettings::new(
+        firefox::v157_http3_tls(),
+        firefox::v157_quic(),
+        http3,
+        firefox::v157_http3_request(),
+    ));
+    Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .resolve(DONOR, [Ipv4Addr::LOCALHOST.into()])
         .resolve(OTHER, [Ipv4Addr::LOCALHOST.into()])

@@ -55,7 +55,11 @@ pub(super) async fn send_reused(
     let mut fields = None;
     let mut origin_fields = None;
     let mut started = false;
-    let mapping_generation = client.origin_alt_svc_generation(&request.endpoint, route);
+    let mapping_generation = if retries_misdirected(client, request) {
+        client.origin_alt_svc_generation(&request.endpoint, route)
+    } else {
+        None
+    };
 
     loop {
         let Some(candidates) = client

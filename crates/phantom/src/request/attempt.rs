@@ -167,7 +167,12 @@ async fn send_once_exact(
     let mut authentication_redialed = false;
     let mut proxy_attempts = 0_u64;
     let mut frozen_headers = None;
-    let mapping_generation = client.origin_alt_svc_generation(&request.endpoint, route);
+    let mapping_generation =
+        if protocol == HttpProtocol::Http3 && retries_misdirected(client, request) {
+            client.origin_alt_svc_generation(&request.endpoint, route)
+        } else {
+            None
+        };
     loop {
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
         let target = match protocol {
