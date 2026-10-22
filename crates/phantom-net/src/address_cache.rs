@@ -614,7 +614,12 @@ impl AddressCache {
                 .publications
                 .get(host)
                 .and_then(Weak::upgrade)
-                .is_some_and(|identity| Arc::ptr_eq(&identity, &publication.identity))
+                .is_some_and(|identity| {
+                    publication
+                        .identity
+                        .as_ref()
+                        .is_some_and(|current| Arc::ptr_eq(&identity, current))
+                })
             || state.configuration != *configuration
             || Self::check_configuration(configuration).is_err()
         {
@@ -775,8 +780,10 @@ impl AddressCache {
 struct PublicationGuard {
     cache: AddressCache,
     host: Box<str>,
-    identity: Arc<()>,
+    identity: Option<Arc<()>>,
     generation: u64,
+    #[cfg(test)]
+    drop_barrier: Option<Arc<std::sync::Barrier>>,
 }
 
 impl PublicationGuard {
@@ -795,8 +802,10 @@ impl PublicationGuard {
         Self {
             cache: cache.clone(),
             host,
-            identity,
+            identity: Some(identity),
             generation: state.generation,
+            #[cfg(test)]
+            drop_barrier: None,
         }
     }
 }
@@ -804,13 +813,25 @@ impl PublicationGuard {
 impl Drop for PublicationGuard {
     fn drop(&mut self) {
         let mut state = self.cache.lock();
-        if Arc::strong_count(&self.identity) == 1
-            && state
-                .publications
-                .get(&self.host)
-                .is_some_and(|identity| identity.ptr_eq(&Arc::downgrade(&self.identity)))
-        {
-            state.publications.remove(&self.host);
+        if let Some(identity) = self.identity.take() {
+            let weak = Arc::downgrade(&identity);
+            // Release this owner under the same lock as the last-owner check.
+            // Otherwise concurrent destructors can both observe two owners.
+            drop(identity);
+            if weak.strong_count() == 0
+                && state
+                    .publications
+                    .get(&self.host)
+                    .is_some_and(|current| current.ptr_eq(&weak))
+            {
+                state.publications.remove(&self.host);
+            }
+        }
+        drop(state);
+        #[cfg(test)]
+        if let Some(barrier) = &self.drop_barrier {
+            // Exercise the interval before remaining fields are destroyed.
+            barrier.wait();
         }
     }
 }
