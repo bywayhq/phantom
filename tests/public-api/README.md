@@ -33,7 +33,7 @@ inventory uses the Windows name.
 | `phantom-http` | 1,408 | Application client, ordered requests, responses, state, custom profile import |
 | `phantom-net` | 1,751 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 1,041 | Browser recipes and typed settings |
-| `phantom-quic-btls` | 291 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
+| `phantom-quic-btls` | 306 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
 | `phantom-testkit` | 428 | Wire inspection and loopback test tools |
 
 The QUIC snapshots confirm the nine retired packet-crypto exports are

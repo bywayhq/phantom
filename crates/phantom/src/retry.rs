@@ -75,7 +75,9 @@ use delay::RetryDelay;
 ///   `ERR_HTTP2_PING_FAILED`. The server may have processed it.
 ///
 /// Safe `Critical-CH` replays and proxy authentication exchanges also run
-/// independently of this policy. Address attempts, background discovery and
+/// independently of this policy. When a body cannot be replayed, a
+/// `Critical-CH` response is returned without another attempt. Address
+/// attempts, background discovery and
 /// connector-managed ECH retries do not consume the shared caller cap.
 ///
 /// [`RequestBuilder::attempt_budget`](crate::RequestBuilder::attempt_budget)

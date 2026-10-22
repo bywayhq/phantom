@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Return the original `Critical-CH` response when its request body cannot
+  be replayed.
+
 - Breaking: add `Http3Settings::connection_reuse` to select same-origin or
   authorized-origin connection reuse. Firefox recipes reuse eligible direct
   HTTP/3 connections across origins. A coalesced 421 retires the connection
