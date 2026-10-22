@@ -443,7 +443,7 @@ class ResourceH1EvidenceTests(unittest.TestCase):
         )
         for changes in (
             {"resource_protocol": "h1"},
-            {"scenario": "resources", "resource_protocol": "h3"},
+            {"scenario": "resources", "resource_protocol": "h4"},
         ):
             with (
                 self.subTest(changes=changes),

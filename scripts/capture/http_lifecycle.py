@@ -13,7 +13,7 @@ asks about.
 | `idle-ping` | h2 | Fetches, waits `--idle` seconds on the open connection, fetches again |
 | `ping-unanswered` | h2 | Fetches, waits 11.5 s, fetches again; the server goes silent on that connection |
 | `close` | h2 and http/1.1 | Fetches over both, aborts an HTTP/1.1 response, then the tool closes the browser over its remote protocol |
-| `resources` | h2 (default), http/1.1 (explicit) | Loads one local script, stylesheet, image and font |
+| `resources` | h2 (default), http/1.1 or h3 (explicit) | Loads one local script, stylesheet, image and font |
 """
 
 from __future__ import annotations
@@ -34,7 +34,12 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
+from .browser_launch import (
+    CHROMIUM_BROWSERS,
+    DESKTOP_CHROMIUM_BROWSERS,
+    BrowserDriver,
+    LaunchPlan,
+)
 from .browser_remote import (
     RemoteConnection,
     RemoteSocket,
@@ -1342,8 +1347,12 @@ def launch_plan(
         extra = [
             f"--host-resolver-rules=MAP {HOSTNAME} {replacement}, EXCLUDE localhost",
             "--ignore-certificate-errors-spki-list=" + certificate.spki_sha256_base64,
-            "--disable-quic",
+            "--enable-quic"
+            if getattr(args, "resource_protocol", "h2") == "h3"
+            else "--disable-quic",
         ]
+        if getattr(args, "resource_protocol", "h2") == "h3":
+            extra.append(f"--origin-to-force-quic-on={HOSTNAME}:{ports[0]}")
         if remote:
             extra.append("--remote-debugging-port=0")
         if args.scenario == "resources":
@@ -1414,6 +1423,8 @@ def fixture(
     arguments: str,
     run: Run,
     remote_close: float | None,
+    *,
+    resource_lines: list[str] | None = None,
 ) -> str:
     lines = [
         f"format={FORMAT}",
@@ -1445,16 +1456,24 @@ def fixture(
         f"request_{n}={request.line()}" for n, request in enumerate(run.requests)
     )
     if run.resources is not None:
-        lines.extend(run.resources.lines(run.page_result))
+        lines.extend(
+            run.resources.lines(run.page_result)
+            if resource_lines is None
+            else resource_lines
+        )
     return "\n".join(lines) + "\n"
 
 
 def validate_options(args: argparse.Namespace) -> None:
     protocol = getattr(args, "resource_protocol", "h2")
-    if protocol not in {"h1", "h2"}:
-        raise ValueError("--resource-protocol must be h1 or h2")
+    if protocol not in {"h1", "h2", "h3"}:
+        raise ValueError("--resource-protocol must be h1, h2 or h3")
     if protocol != "h2" and args.scenario != "resources":
-        raise ValueError("--resource-protocol h1 requires --scenario resources")
+        raise ValueError(
+            f"--resource-protocol {protocol} requires --scenario resources"
+        )
+    if protocol == "h3" and args.browser not in DESKTOP_CHROMIUM_BROWSERS:
+        raise ValueError("HTTP/3 resources require a desktop Chromium browser")
     address = ipaddress.ip_address(args.listen)
     if not address.is_loopback:
         raise ValueError("the capture listener must be a loopback address")
@@ -1470,6 +1489,11 @@ def validate_options(args: argparse.Namespace) -> None:
 
 async def capture(args: argparse.Namespace) -> None:
     validate_options(args)
+    if getattr(args, "resource_protocol", "h2") == "h3":
+        from .http_lifecycle_resources_h3 import capture as capture_h3
+
+        await capture_h3(args)
+        return
     certificate = generate_certificate()
     main_context = server_context(certificate)
     main_context.set_alpn_protocols(
@@ -1554,7 +1578,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--scenario", choices=SCENARIOS, required=True)
     parser.add_argument(
         "--resource-protocol",
-        choices=("h1", "h2"),
+        choices=("h1", "h2", "h3"),
         default="h2",
         help="HTTPS protocol for the resources scenario (default: h2)",
     )

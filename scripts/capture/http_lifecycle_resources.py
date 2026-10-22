@@ -97,8 +97,8 @@ class ResourceCapture:
             raise ValueError("resource token must be bounded ASCII letters and digits")
         if not 1 <= port <= 65535:
             raise ValueError("resource origin must have a valid listener port")
-        if protocol not in {"h1", "h2"}:
-            raise ValueError("resource protocol must be h1 or h2")
+        if protocol not in {"h1", "h2", "h3"}:
+            raise ValueError("resource protocol must be h1, h2 or h3")
         self.protocol = protocol
         self.token = token
         self.authority = f"{HOSTNAME}:{port}".encode("ascii")
@@ -255,7 +255,7 @@ class ResourceCapture:
             self.requests[-1], fields=tuple(fields), raw_head=raw_head
         )
 
-    def lines(self, page_result: str | None) -> list[str]:
+    def check_complete(self, page_result: str | None) -> None:
         expected = {"/start", "/done", *ASSETS}
         if (
             page_result != "resources:ok"
@@ -265,8 +265,13 @@ class ResourceCapture:
             raise ValueError(
                 "resource page did not complete every owned asset successfully"
             )
+
+    def lines(self, page_result: str | None) -> list[str]:
+        self.check_complete(page_result)
         if self.protocol == "h1":
             return self._h1_lines()
+        if self.protocol == "h3":
+            raise ValueError("resource HTTP/3 evidence requires its stream owner")
         actual = {(r.connection, r.stream): r for r in self.requests}
         observed = set()
         lines = []
@@ -326,6 +331,11 @@ class ResourceCapture:
                 )
         if observed != set(actual):
             raise ValueError("resource HTTP/2 bytes omit an owned request")
+        lines.extend(self.field_lines())
+        return lines
+
+    def field_lines(self) -> list[str]:
+        lines = []
         for request in self.requests:
             if request.path not in ASSETS:
                 continue

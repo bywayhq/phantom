@@ -1085,20 +1085,21 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 | `idle-ping` | `h2` | Fetches, leaves the connection idle for `--idle` seconds (75), fetches again |
 | `ping-unanswered` | `h2` | Fetches, waits 11.5 s, fetches again; from that request on the server writes nothing on the connection |
 | `close` | `h2` and `http/1.1` | Fetches over HTTP/2, aborts an HTTP/1.1 response at a second origin, fetches there again, then the tool closes the browser over CDP or WebDriver BiDi |
-| `resources` | `h2` or explicit `http/1.1` | Loads one local script, stylesheet, image and licensed Ahem font |
+| `resources` | `h2` or explicit `http/1.1` or `h3` | Loads one local script, stylesheet, image and licensed Ahem font |
 
 `resources` defaults to HTTP/2 and retains each request's initial HEADERS
 priority. Add `--resource-protocol h1` to observe HTTPS over HTTP/1.1 instead.
 H1 retains raw request lines and headers, including case, order and duplicates.
-Both modes retain at most 512 KiB of plaintext peer bytes. They accept only six
+Use `--resource-protocol h3` with desktop Chromium for HTTP/3. It retains client
+stream bytes, ordered fields and QPACK state for independent request decoding.
+All modes retain at most 512 KiB of plaintext peer bytes. They accept only six
 owned paths with the exact run token and reject credentials or unrelated
 headers. The page verifies script execution, image decoding and font loading
 before reporting success. Both asset values and raw bytes require review before
 publication. This scenario uses no NetLog and creates no profile or template.
 Select `http_lifecycle` with `scenarios: ["resources"]` and `repeat: 1` in a
-matrix manifest. Use a separate output directory for each protocol; both write
-`resources.txt`. H1 output includes `resource_protocol=http/1.1`. HTTP/3 is not
-supported by this scenario.
+matrix manifest. Use a separate output directory for each protocol; each writes
+`resources.txt`. H1 and H3 output identify their selected protocol.
 
 Capture Chrome and Firefox on Windows:
 
