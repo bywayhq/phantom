@@ -147,7 +147,15 @@ jobs:
           printf 'PHANTOM_H3_PEER_PYTHON=%s\n' "$peer" >> "$GITHUB_ENV"
 
       - name: Install project toolchain
-        run: rustc --version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            RUSTUP_HOME=$(mktemp -d "$RUNNER_TEMP/phantom-rustup.XXXXXX")
+            export RUSTUP_HOME
+            printf 'RUSTUP_HOME=%s\n' "$RUSTUP_HOME" >> "$GITHUB_ENV"
+          fi
+          rustc --version
 
       - name: Install NASM on Windows
         if: runner.os == 'Windows'
