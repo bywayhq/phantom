@@ -42,8 +42,8 @@ if chrome_drift 152.0.7977.83 153 >/dev/null 2>&1; then
   exit 1
 fi
 
-# The built-in recipe lookup reads the platform-neutral rustdoc lines, picks
-# the newest version, and resolves its retained Windows fixture directory.
+# The built-in recipe lookup reads catalog capture references and resolves
+# the newest retained Windows fixture directory.
 chrome_recipe=$(scripts/ci/report-upstream-freshness.sh --chrome-recipe)
 [[ "$chrome_recipe" == $'154.0.8037.58\twindows-11-26200' ]] \
   || { echo "unexpected built-in Chrome recipe: $chrome_recipe" >&2; exit 1; }

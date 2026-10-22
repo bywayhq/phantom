@@ -78,33 +78,41 @@ latest_registry_record() {
 }
 
 latest_chrome_recipe() {
-  local protocol=$1 description
+  local protocol=$1 layer fixture
   case "$protocol" in
-    tls) description="TLS settings captured" ;;
-    http2) description="HTTP/2 settings observed" ;;
+    tls) layer=TcpTls; fixture=client-hello.txt ;;
+    http2) layer=Http2; fixture=client-startup.txt ;;
     *) die "unknown Chrome recipe protocol $protocol" ;;
   esac
 
-  # A macOS line names the retained macOS fixture platform; a trailing Windows
-  # clause records cross-platform parity and has no separate fixture check
-  # here. A Windows-only line names the Windows major version; the fixture
-  # directory, which also carries the build number, is resolved afterwards.
-  sed -nE \
-    -e "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on macOS ([0-9]+(\\.[0-9]+)+)( and Windows [0-9]+)?\\.$|\\1\tmacos-\\3|p" \
-    -e "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on Windows ([0-9]+)\\.$|\\1\twindows-\\3|p" \
-    crates/phantom-profile/src/browser/chrome.rs \
-    | jq -Rrs '
-        split("\n")
-        | map(select(length > 0) | split("\t"))
-        | map({
-            version: .[0],
-            platform: .[1],
-            precedence: (.[0] | split(".") | map(tonumber))
-          })
-        | max_by(.precedence)
-        | [.version, .platform]
-        | @tsv
-      '
+  # Layer references can name an older build than the profile's identity.
+  jq -er --arg layer "$layer" --arg protocol "$protocol" --arg fixture "$fixture" '
+    [
+      .profiles[]
+      | select(.metadata.browser == "Chrome"
+          and .metadata.platform == "Windows"
+          and .metadata.identity.kind == "Observed")
+      | .layers[]
+      | select(.layer == $layer and .support == "Configured")
+      | .references[]
+      | select(.kind == "Capture")
+      | . as $reference
+      | .location
+      | capture("^fixtures/" + $protocol
+          + "/chrome/(?<version>[0-9]+(\\.[0-9]+){3})/(?<platform>windows-[0-9]+-[^/]+)/"
+          + ($fixture | gsub("\\."; "\\.")) + "$")
+      | select(.version == $reference.build)
+      | {version, platform,
+          precedence: (.version | split(".") | map(tonumber))}
+    ]
+    | unique_by(.version, .platform)
+    | if length == 0 then error("no retained Windows Chrome " + $layer + " capture")
+      else max_by(.precedence) as $latest
+        | map(select(.version == $latest.version))
+        | if length != 1 then error("multiple Windows Chrome capture platforms for " + $latest.version)
+          else .[0] | [.version, .platform] | @tsv end
+      end
+  ' crates/phantom-profile/catalog/profiles.json
 }
 
 write_output() {
@@ -127,16 +135,11 @@ chrome_major_drift() {
   fi
 }
 
-# The newest built-in Chrome TLS and HTTP/2 recipes must share one build, have
-# platform-neutral functions, and have exact retained branded-Chrome fixtures:
-# the Windows ClientHello and raw H2 startup capture. Phantom carries one
-# Windows version per browser, so a macOS Chrome recipe is rejected here rather
-# than resolved: the macOS branch read a `pingly-api-all.txt` third-party
-# observation, a fixture kind the tree no longer contains.
+# The newest configured Windows Chrome TLS and HTTP/2 layers must share one
+# captured build and have platform-neutral functions and exact branded fixtures.
 built_in_chrome_recipe() {
   local tls_recipe http2_recipe chrome_recipe_version chrome_platform chrome_major
   local tls_fixture http2_fixture expected_os tls_os http2_os windows_major
-  local -a windows_directories
   tls_recipe=$(latest_chrome_recipe tls)
   http2_recipe=$(latest_chrome_recipe http2)
   [[ -n "$tls_recipe" && "$tls_recipe" == "$http2_recipe" ]] \
@@ -153,15 +156,8 @@ built_in_chrome_recipe() {
   case "$chrome_platform" in
     windows-*)
       windows_major=${chrome_platform#windows-}
+      windows_major=${windows_major%%-*}
       expected_os="Windows $windows_major"
-      shopt -s nullglob
-      windows_directories=(
-        "fixtures/tls/chrome/$chrome_recipe_version/windows-$windows_major-"*/
-      )
-      shopt -u nullglob
-      [[ ${#windows_directories[@]} == 1 ]] \
-        || die "Chrome $chrome_recipe_version needs one Windows $windows_major TLS fixture directory"
-      chrome_platform=$(basename "${windows_directories[0]}")
       http2_fixture=client-startup.txt
       ;;
     *) die "unsupported built-in Chrome recipe platform $chrome_platform" ;;

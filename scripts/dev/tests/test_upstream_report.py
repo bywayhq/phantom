@@ -41,6 +41,102 @@ exec bash "$1" target/report
 
 @unittest.skipIf(BASH is None or shutil.which("jq") is None, "needs POSIX bash and jq")
 class UpstreamReportTests(unittest.TestCase):
+    def copy_recipe(self, root: Path) -> Path:
+        names = [
+            "scripts/ci/report-upstream-freshness.sh",
+            "crates/phantom-profile/catalog/profiles.json",
+            "crates/phantom-profile/src/browser/chrome.rs",
+            "fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt",
+            "fixtures/http2/chrome/154.0.8037.58/windows-11-26200/client-startup.txt",
+        ]
+        for name in names:
+            destination = root / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(REPO / name, destination)
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+        return root / names[0]
+
+    def test_recipe_lookup_uses_catalog_captures_without_documentation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = self.copy_recipe(root)
+            (root / "crates/phantom-profile/src/browser/chrome.rs").write_text(
+                "pub fn v154_tcp_tls() {}\npub fn v154_http2() {}\n"
+            )
+            result = subprocess.run(
+                [BASH, str(script), "--chrome-recipe"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(result.stdout.strip(), "154.0.8037.58\twindows-11-26200")
+
+    def test_recipe_lookup_requires_matching_capture_references(self) -> None:
+        for field, value in [("kind", "Source"), ("build", "155.0.1.2")]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                script = self.copy_recipe(root)
+                path = root / "crates/phantom-profile/catalog/profiles.json"
+                catalog = json.loads(path.read_text())
+                for profile in catalog["profiles"]:
+                    metadata = profile["metadata"]
+                    if (
+                        metadata["browser"] != "Chrome"
+                        or metadata["platform"] != "Windows"
+                    ):
+                        continue
+                    for layer in profile["layers"]:
+                        if layer["layer"] == "TcpTls":
+                            for reference in layer["references"]:
+                                if reference["kind"] == "Capture":
+                                    reference[field] = value
+                path.write_text(json.dumps(catalog))
+                result = subprocess.run(
+                    [BASH, str(script), "--chrome-recipe"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(
+                    "no retained Windows Chrome TcpTls capture", result.stderr
+                )
+
+    def test_recipe_lookup_rejects_a_missing_exact_capture_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = self.copy_recipe(root)
+            path = root / "crates/phantom-profile/catalog/profiles.json"
+            catalog = json.loads(path.read_text())
+            for profile in catalog["profiles"]:
+                metadata = profile["metadata"]
+                if metadata["browser"] != "Chrome" or metadata["platform"] != "Windows":
+                    continue
+                for layer in profile["layers"]:
+                    if layer["layer"] in {"TcpTls", "Http2"}:
+                        for reference in layer["references"]:
+                            if reference["kind"] == "Capture":
+                                reference["location"] = reference["location"].replace(
+                                    "windows-11-26200", "windows-11-99999"
+                                )
+            path.write_text(json.dumps(catalog))
+            result = subprocess.run(
+                [BASH, str(script), "--chrome-recipe"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "missing exact Chrome TLS fixture "
+                "fixtures/tls/chrome/154.0.8037.58/windows-11-99999/client-hello.txt",
+                result.stderr,
+            )
+
     def test_full_offline_report_writes_validated_fixtures_and_workflow_outputs(
         self,
     ) -> None:
@@ -48,6 +144,7 @@ class UpstreamReportTests(unittest.TestCase):
             root = Path(directory)
             names = [
                 "scripts/ci/report-upstream-freshness.sh",
+                "crates/phantom-profile/catalog/profiles.json",
                 "crates/phantom-profile/src/browser/chrome.rs",
                 "vendor/wreq-proto/Cargo.toml",
                 "vendor/http2/Cargo.toml",
