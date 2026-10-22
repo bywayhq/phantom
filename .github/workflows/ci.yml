@@ -183,6 +183,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
+          cache-dependency-path: bindings/go/go.mod
 
       - name: Test native Go adapter
         run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_go_binding.py
@@ -499,6 +500,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.26.5"
+          cache-dependency-path: bindings/go/go.mod
 
       - name: Test native Go adapter
         shell: bash
