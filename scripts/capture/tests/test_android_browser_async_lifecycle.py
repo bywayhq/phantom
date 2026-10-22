@@ -33,9 +33,8 @@ import time
 from pathlib import Path
 
 ready, release, arguments = sys.argv[1:]
-pending = Path(ready).with_suffix(".tmp")
-pending.write_text(json.dumps({"pid": os.getpid(), "arguments": json.loads(arguments)}))
-pending.replace(ready)
+Path(ready).write_text(json.dumps({"pid": os.getpid(), "arguments": json.loads(arguments)}))
+Path(ready).with_suffix(".published").touch()
 deadline = time.monotonic() + 20
 while not Path(release).exists():
     if time.monotonic() >= deadline:
@@ -58,6 +57,7 @@ class HostCommand:
     def __init__(self, directory: Path, arguments: tuple[str, ...]) -> None:
         self.arguments = arguments
         self.ready = directory / "ready.json"
+        self.published = self.ready.with_suffix(".published")
         self.release = directory / "release"
         self.process: subprocess.Popen[bytes] | None = None
         self.output: bytes | None = None
@@ -187,7 +187,7 @@ class ProgressMonitor:
     def observe(self) -> None:
         try:
             deadline = time.monotonic() + READY_SECONDS
-            while not self.command.ready.exists():
+            while not self.command.published.exists():
                 if self.stop.wait(0.01):
                     return
                 if time.monotonic() >= deadline:
@@ -371,8 +371,10 @@ class AndroidAsyncResources:
         monitor = self.monitor
         self.case.assertIsNotNone(monitor)
         self.case.assertTrue(monitor.done.is_set())
-        self.case.assertIsNone(monitor.failure)
-        self.case.assertIsNone(monitor.release_failure)
+        if monitor.failure is not None:
+            raise monitor.failure
+        if monitor.release_failure is not None:
+            raise monitor.release_failure
         self.case.assertEqual(
             monitor.ready_observation["pid"], self.command.process.pid
         )
