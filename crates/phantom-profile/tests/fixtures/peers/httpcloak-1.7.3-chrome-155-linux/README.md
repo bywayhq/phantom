@@ -8,8 +8,8 @@ navigation pairs and three nine-request cookie/HPACK boundary sequences.
 
 The browser build and Linux release were not observed. There is no TCP/IP,
 HTTP/1, QUIC, upload, DNS, WebSocket or resumption comparison. The source-only
-16,375-byte DATA cap is unported and unverified. Existing TLS ticket and HTTP/2
-idle defaults are not claimed equivalent. `phantom/` retains the public-client
+16,375-byte DATA cap is not ported. TLS ticket and HTTP/2 idle defaults are
+outside this comparison. `phantom/` retains the public-client
 comparison and its observed differences. The original `provenance.json` records
 the peer preparation stage.
 
@@ -20,7 +20,7 @@ two crumbs before priority and reuse their dynamic entries.
 
 `consumer/`, `capture.py`, commands, Go sums and binary module metadata identify
 execution. The binary and private keys are excluded. `independent-review.md`
-records a separate raw-byte review. Original failed preparation receipts remain.
+records a separate raw-byte review. Failed preparation receipts remain.
 The initial prep manifest records a larger historical set; top-level
 `sha256.json` covers the exact retained capsule instead.
 

@@ -1,9 +1,8 @@
 # Safari iOS 26 preset
 
-This capsule records wreq-util's `SafariIos26` preset, not a Safari browser.
-It supports the catalog's TLS, HTTP/2 and navigation settings. It establishes
-no observed iOS build, TCP policy, HTTP/1 casing, QUIC, resumption or other
-request context.
+The catalog adapts wreq-util's `SafariIos26` TLS, HTTP/2 and navigation preset.
+These files record the peer's execution. The iOS build is unknown; other
+connection layers and request contexts are absent.
 
 The Apache-2.0 preset comes from [wreq-util at 5715529](https://github.com/0x676e67/wreq-util/tree/5715529002738f46eea86a7271f918f9374d3582).
 `LICENSE` retains its terms. Unchanged source files are in `upstream/`;
@@ -35,8 +34,8 @@ raw ClientHello, decrypted streams and HPACK blocks are retained.
 
 All three ClientHellos match the retained Safari macOS preset after masking
 only random/session-ID bytes, GREASE values and key-exchange bytes. Group and
-key widths, extension bodies and ordering remain compared. This justifies
-sharing the TLS component. It does not establish a browser observation.
+key widths, extension bodies and ordering remain compared. The two presets
+share a TLS component.
 
 SETTINGS are ordered `2=0;3=100;4=2097152;9=1`, followed by a 10420225 connection
 window increment. The resolved wreq-proto 0.2.5 builder omits frame/header size
@@ -48,9 +47,8 @@ The eight navigation fields preserve their observed order and values. The
 first block inserts ordinary fields; the second reuses their dynamic entries.
 Both encode the path without indexing. Literal values use Huffman encoding.
 Neither block sends a table-size update for the unchanged server value 4096.
-Whole-cookie handling and other HPACK input classes are source-derived,
-not exercised here. These runs do not establish timing, throughput, frame
-scheduling under other workloads, or shutdown parity.
+Whole-cookie handling and other HPACK input classes are source-derived and
+not exercised here.
 
 `observations.json` keeps the decoded projection. Only the assigned authority
 port is normalized in headers; raw HPACK bytes retain it. `provenance.json`

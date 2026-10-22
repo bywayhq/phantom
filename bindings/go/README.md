@@ -53,7 +53,7 @@ v14 runtime at least as recent as the recorded build tools; runtime DLLs are
 not bundled. Keep the included notices when redistributing.
 
 `Response.Headers` preserves ordered names, raw bytes and retained `Sensitive` markers.
-A false marker does not establish absence when a protocol decoder does not retain it.
+A false marker can mean the protocol decoder did not retain it.
 
 ## Build from source
 
@@ -323,7 +323,7 @@ These core limits are separate from the binding capacities below.
 Process-wide limits are 64 each for clients, budgets, transfer controls,
 response handles and ordinary operations, plus 64 separate shutdown operations.
 Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each
-and 16 MiB aggregate native custody until responses close. Metadata limits are
+and 16 MiB total in native buffers until responses close. Metadata limits are
 64 KiB per command, 256 response fields/32 KiB and 256 KiB per encoded reply.
 
 ## Next

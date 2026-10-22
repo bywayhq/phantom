@@ -5,18 +5,15 @@ fixture under [`fixtures/`](../../fixtures/). For a new browser version,
 start with a [quick fingerprint snapshot](#quick-fingerprint-snapshot), then
 see [Which tool to run](#which-tool-to-run).
 
-> For contributors recording browser evidence.
-
-A fixture is raw evidence recorded on the capture machine, not a report from a
-third-party fingerprinting service. Keep capture provenance and reproduction
-commands with the fixture.
+Keep the browser build, platform, launch settings and reproduction commands
+with each fixture.
 Run every command from the repository root; the Python tools need Python
 3.10 or later. Windows SSE captures over HTTP/3 require CPython 3.12.3 or
 later. Every listener refuses a non-loopback address.
 
 ## Quick fingerprint snapshot
 
-`snapshot.py` records a desktop browser's fingerprint at every layer from one
+`snapshot.py` records a desktop browser's TLS and HTTP startup from one
 headless launch on a fresh profile, and `snapshot_compare.py` compares it
 with the browser's retained fixtures:
 
@@ -88,10 +85,8 @@ Each QUIC connection also records up to eight of the client's Initial
 datagrams in arrival order, one
 `quic_connection_<i>_initial_datagram_<n>=size:<bytes>,version:<hex>,destination_cid_length:<n>,source_cid_length:<n>`
 line each, after `quic_connection_<i>_initial_datagram_count`. A datagram
-counts when its first packet is a version 1 or version 2 Initial. Version 1
-of the format gained these lines without a new number, because no snapshot
-had been retained without them; `--split` and `snapshot_compare.py` still
-read a snapshot that lacks them.
+counts when its first packet is a version 1 or version 2 Initial. `--split`
+and `snapshot_compare.py` also read older snapshots without these lines.
 
 `--split <snapshot> --output-dir <directory>` writes the two drop-in
 fixtures. The tool exits 1 when a run timed out, did not use HTTP/3, or has
@@ -770,10 +765,9 @@ stream replaces the H1 reset stimulus.
 On Windows, HTTP/3 requires CPython 3.12.3 or later. The tool rejects older
 runtimes, whose asynchronous ICMP completion can stop the receive loop.
 The pinned runtime can still report a synchronous receive reset after a peer
-closes. During verified completed-run cleanup, the tool records that reset
+closes. After the run completes, cleanup records that reset
 and replaces the stopped listener within the original cleanup deadline.
-Active-run errors still fail the capture. The original failed attempts remain
-retained.
+Active-run errors still fail the capture.
 Use the same pinned interpreter as the Windows capture tests:
 
 ```sh
@@ -899,8 +893,8 @@ Exceeding a limit fails the capture before its fixture is written.
 Run timeouts must be finite and positive. Observation times must be finite
 and nonnegative. Android requires IPv4 loopback. Desktop captures support
 either loopback family. Shutdown attempts every owned connection and
-listener, and reports serving or cleanup failures. A cleanup deadline
-reports failure without proving that every owner has finished.
+listener, and reports serving or cleanup failures. Cleanup that exceeds its
+deadline fails; some owners may still be running.
 
 Offline frame and header analysis lives in `http2_analysis.py`. Import its
 analysis types and helpers there; `http2_session.py` owns the live recorder.

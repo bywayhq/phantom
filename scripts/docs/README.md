@@ -3,8 +3,6 @@
 `check_docs.py` checks Markdown links, page shape, and prose. CI runs it
 on every change.
 
-> For contributors who edit documentation.
-
 ## Run the checker
 
 Run it from the repository root with Python 3.10 or later. It needs only the

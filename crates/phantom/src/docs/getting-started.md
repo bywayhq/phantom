@@ -48,7 +48,6 @@ tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 
 The published package is `phantom-http`; the dependency name above lets your code
 import it as `phantom`. No optional Phantom features are needed for this request.
-Phantom is pre-1.0, so commit your lockfile and read the changelog when upgrading.
 
 ## Send a request
 

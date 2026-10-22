@@ -17,9 +17,7 @@ The [CLI artifact workflow](../../scripts/release/README.md#cli-archives) also
 prepares checked ZIP/tar archives for Windows x64, Linux x64 and macOS arm64.
 Download a successful workflow artifact, check `SHA256SUMS`, then extract its
 platform archive and put `phantom` on your path. Keep the included notices.
-Each receipt names the tested runtime and native dependencies; older systems
-are not yet verified. These workflow candidates are separate from published
-releases.
+Check the archive's receipt for its runtime and native dependencies.
 
 Windows archives require Microsoft's
 [x64 Visual C++ v14 runtime](https://aka.ms/vc14/vc_redist.x64.exe), at least as
@@ -44,11 +42,11 @@ The selected template still controls generated fields and their placement.
 The default route is direct. `--proxy URI` accepts `http`, `https`, `socks4`,
 `socks4a`, `socks5` and `socks5h` proxy URIs. Proxy environment variables are not
 read. Credentials in proxy URIs, proxy authentication flags and CONNECT-UDP
-configuration are not supported by this CLI slice.
+configuration are not supported by the CLI.
 
 `--upload FILE` streams the opened file in 8 KiB chunks. It does not change the
 method. Uploads are one-shot: a policy requiring a body resend returns the
-library's replay error. There is no hidden buffering or file reopening.
+library's replay error.
 
 The response body goes to stdout, or to `--output FILE`. File outputs refuse
 existing paths. A failed or interrupted download can leave a partial file.
@@ -57,8 +55,8 @@ Response trailers are consumed but not printed. Use a pipe for binary stdout.
 
 `--timeout-ms N` bounds send and download, including waits writing output.
 `--attempts N` caps origin HTTP attempt admissions, including the initial request
-and internal resends. Zero rejects the initial attempt. Admission does not prove
-bytes were sent. DNS, TCP/TLS setup and proxy negotiation are separate work.
+and internal resends. Zero rejects the initial attempt. An admitted attempt can
+fail before sending bytes. DNS, TCP/TLS setup and proxy negotiation are separate.
 
 Control-C drops the pending request or body and starts bounded client shutdown.
 Output or diagnostics failures also return an error. Exit codes are 0 for success,
@@ -80,9 +78,9 @@ browser build, platform release and recipe revision.
 
 Export produces editable `phantom.custom-profile` JSON. Import validates the
 complete document and exports its supported settings with ordering preserved.
-Input is limited to 16 MiB. Neither operation creates browser evidence or saves
-an installed profile registry. Profile documents include configured literal
-header values, so inspect them before sharing.
+Input is limited to 16 MiB. Import writes a file; it does not install a registry
+entry. Profile documents include literal header values, so inspect them before
+sharing.
 
 ## Offline bundles
 

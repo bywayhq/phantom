@@ -14,8 +14,7 @@ transport settings. The application must handle replayable requests safely.
 Use `QuicClientConfig` with your BoringSSL context and Phantom's TLS and QUIC
 settings. Handshake metadata, certificates, ECH, session state, reset keys,
 and typed errors remain public. The `keylog` feature adds bounded key-log
-queues. Packet keys, key derivation, version helpers, and Retry helpers are
-private; Quinn receives them through its crypto traits.
+queues.
 
 Ticket transfer uses the cache owner's prepared capture and replacement
 types. Capture keeps source tickets available and seals records after the

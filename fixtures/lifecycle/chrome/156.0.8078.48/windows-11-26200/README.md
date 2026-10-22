@@ -12,7 +12,6 @@ Both runs record ordered HTTP/2 stylesheet, script, image and font headers,
 raw peer bytes and initial HEADERS priorities. All six requests completed.
 The ordered fields, hints and priorities agree, except the headless UA names
 HeadlessChrome. Headful accepted three connections, headless two; all ended.
-These observations do not establish other protocols or a complete profile.
 
 Reproduce with a manifest, substituting the exact executable and fresh paths:
 

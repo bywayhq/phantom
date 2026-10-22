@@ -173,7 +173,7 @@ add its DER certificate with
 [`add_proxy_root_certificate_der`](crate::ClientBuilder::add_proxy_root_certificate_der).
 This also applies to CONNECT-UDP. Origin certificates keep their own trust
 checks inside the tunnel. Unsupported route/protocol combinations fail
-before network I/O; Phantom does not switch to a direct route.
+before network I/O.
 
 To restrict secure proxy keys, set
 [`proxy_server_spki_pins`](crate::ClientBuilder::proxy_server_spki_pins).

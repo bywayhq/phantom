@@ -6,14 +6,13 @@ template, verified the retained loopback certificate, and read bounded bodies.
 
 Normalized TLS settings match the pinned peer. Actual extension orders and ECH
 payload lengths differ and remain recorded. Observed lengths were 218, 250 and
-282 bytes; pinned sources also permit 186. Six samples do not establish matching
-distributions. GREASE bodies and ordered trust-anchor bytes match exactly.
+282 bytes; pinned sources also permit 186. GREASE bodies and ordered
+trust-anchor bytes match exactly. Sampling does not measure the distribution.
 
 HTTP/2 settings, window credit, ordered fields, priority, HPACK representations
 and dynamic table states match. Full-table insertion and oversized-marker cases
 pass. SETTINGS ACK ordering differs: Phantom sends ACK before WINDOW_UPDATE;
 the peer sends it later. The comparator returns 1 for these retained differences.
-This is a partial controlled comparison, with no browser or full-wire claim.
 
 `provenance.json` identifies the build, binary, source and comparison limits.
 `observations/` retains raw bytes, decoded fields, bodies, exits and public

@@ -88,36 +88,16 @@ transaction and releases each only once the matching request has been written,
 so a second transaction reaches a second response head — the path that resets
 the ordered-header observer — rather than end of stream.
 
-Two targets also assert a policy invariant that a real confusion would break.
-`cookie_jar` marks every stored field `Secure` and asserts that no request to
-an origin that is not potentially trustworthy receives a `Cookie` field and
-that no such origin can store one. `alt_svc_snapshot` asserts that a snapshot
-the client exported passes the client's own import revalidation; the origin
-half of that round trip is the real cross-check, because a stored
-alternative's host is revalidated against the request host on the way in and
-re-emitted verbatim on the way out.
+`alt_svc_snapshot` checks that exported snapshots pass import revalidation,
+including the alternative host's relationship to the request host.
 
-`cookie_jar` asserts those two rules over named hosts, which no rule makes
-trustworthy over `http://`. Loopback and `localhost` authorities are
-trustworthy under either scheme, so
-[`TRUSTWORTHY_URL_PAIRS`](src/cookie_jar.rs) carries a third assertion
-instead: for each authority, the same fields stored over `http://` and over
-`https://` must leave the same number of cookies and produce the same `Cookie`
-field. That guards the symmetry between the jar's storage gate and its
-matching gate, and it fails whichever of the two a change inverts.
-
-Both pairs are needed, because the two gates fail on different hosts. The
-`cookie_store` crate's own secure test accepts a loopback IP literal, so the
-matching gate agrees on `127.0.0.1` whatever the jar does, and that pair
-constrains storage alone. It accepts the exact host `localhost` and nothing
-beneath it, so on `app.localhost` an `http://` request sees a `Secure` cookie
-only through the jar's own trustworthy test, and that pair constrains both
-gates. A loopback-only assertion stays green against a jar that has lost the
-matching side entirely.
-
-Each jar is read back over the scheme it was filled from, because a
-`Partitioned` cookie's key is schemeful; the seed carries a `Partitioned`
-field so the fuzzer reaches that path.
+`cookie_jar` checks that untrustworthy origins can neither store nor receive
+`Secure` cookies. For loopback and `localhost`, which are trustworthy under
+either scheme, [`TRUSTWORTHY_URL_PAIRS`](src/cookie_jar.rs) checks that HTTP
+and HTTPS store and return the same cookies. The `127.0.0.1` case checks
+storage; `app.localhost` also checks matching, where the dependency's own
+secure-host rule differs. Each jar is read over its original scheme to keep
+schemeful `Partitioned` cookie keys intact.
 
 `cookie_snapshot` covers the import path `cookie_jar` does not: entries a
 caller persisted and hands back through `Client::import_cookies`. It asserts

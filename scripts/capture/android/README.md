@@ -4,8 +4,6 @@ Build the two emulators that the
 [Android captures](../README.md#android-browsers) run on, and keep them in the
 state a capture expects.
 
-> For contributors who set up or repair a capture emulator.
-
 | Emulator | Host | System image | Emulator version tested |
 | --- | --- | --- | --- |
 | `phantom-pixel7` | Windows, x86_64 | `system-images;android-37.0;google_apis_playstore;x86_64` revision 6 | 36.6.11 |

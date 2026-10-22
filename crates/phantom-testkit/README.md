@@ -32,13 +32,11 @@ fn check_request(received: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
 
 The selected request retains its browser name, exact build, platform, run,
 request index, request kind, launch mode, and capture timestamp. The included
-requests use headless browsers. A match covers that request head only. It does
-not establish TLS, HTTP/2, HTTP/3, or server acceptance.
+requests use headless browsers. The comparison covers the request head.
 
 Adjustments are explicit. You can replace the target or one indexed Host or
 User-Agent value. Header names and positions stay unchanged. Value bytes
-include whitespace after the colon. Comparison does not drop Host, rewrite
-headless User-Agent values, trim whitespace, or reorder headers.
+include whitespace after the colon.
 
 Mismatch errors identify a request-line byte, header-name byte, header-value
 byte, or header count. Error formatting omits request bytes.

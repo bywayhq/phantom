@@ -18,9 +18,8 @@ The capture tool is `scripts/capture/client_hints.py`, described in the
 
 The `phantom-client-hints-v2` document retains three HTTP/1.1 runs, with
 `run_0_first_field_order` and `run_0_second_field_order` for the first run.
-It records ordered field names and client-hint values, not a raw request
-head. It does not establish other field values, HTTP/2 or HTTP/3 ordering,
-TLS behavior, or live server acceptance.
+It records ordered field names and client-hint values rather than raw request
+heads.
 
 ## Next
 

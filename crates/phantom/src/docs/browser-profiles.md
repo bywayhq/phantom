@@ -28,9 +28,8 @@ The composed constructor selects connection settings and client hints. The
 order. The client prepares that template once and uses it for ordinary requests
 unless an individual request overrides it.
 
-The bare `chrome::v154_windows()` constructor leaves the ordinary request
-template unset. Select one explicitly rather than assuming a connection profile
-also chooses between navigation, fetch, and upload headers.
+Choose the template for your operation: navigation, fetch, or upload. The bare
+constructor leaves it unset.
 
 For selection by name, use [`catalog::profile`](crate::profile::catalog::profile):
 
@@ -63,8 +62,7 @@ constructor's API documentation for the included layers and any limitations:
 
 These profiles do not all cover the same layers. For example, the Chrome Android
 profile leaves HTTP/1.1 connection policy and proxy CONNECT templates at generic
-defaults. Its constructor documents those omissions. A browser version in a
-function name is not a promise of complete browser behavior.
+defaults. Its constructor documents those omissions.
 
 ## Choose the request kind
 
@@ -85,10 +83,8 @@ For Chrome on Windows, choose the template that matches your operation:
 | Same-origin fetch GET with `cache: "no-store"` | [No-store fetch](crate::profile::browser::chrome::v154_windows_fetch_no_store_template) |
 | Same-origin fetch POST upload | [Fetch upload](crate::profile::browser::chrome::v154_windows_fetch_upload_template) |
 
-A template describes request fields; it does not execute JavaScript or load a
-page's resources. Fetch templates describe specific request contexts, not every
-possible browser fetch. Read their API documentation before using one for a
-different context.
+Templates supply request fields. Choose one for the request context documented
+in its API reference.
 
 ## Override the template for one request
 
@@ -141,15 +137,13 @@ does not compare `User-Agent` and client-hint values for consistency.
 
 To send one request without the client's default template, use
 [without_template](crate::RequestBuilder::without_template). Automatic client
-hints still follow the profile's settings. This is not a switch that disables
-every header Phantom supplies.
+hints still follow the profile's settings.
 
 For changes to connection behavior, start with a built-in profile and replace
 only the relevant settings through methods such as
 [with_http2](crate::profile::ClientProfile::with_http2). Use
 [ClientProfile::new](crate::profile::ClientProfile::new) when you deliberately
-want to assemble the configuration yourself. Changed protocol settings describe
-your custom client; they no longer reproduce the unchanged built-in recipe.
+want to assemble the configuration yourself.
 
 ## Import custom settings
 
@@ -179,7 +173,6 @@ an error with a field path.
 TLS imports check their supported fields against a fresh ClientHello generated
 in memory. Resumption, destination type and protocol-specific ALPN can change
 later handshakes. Imports create custom settings without a browser identity.
-They do not establish an exact browser match.
 
 ## Load an offline bundle
 
@@ -199,8 +192,8 @@ let client = Client::builder(settings.clone()).build()?;
 ```
 
 Pin `bundle.sha256()` to identify its exact bytes, including whitespace.
-A revision label and publisher references do not authenticate a publisher or
-establish browser fidelity. Entries contain one selected request template.
+A revision label and publisher references do not authenticate a publisher.
+Entries contain one selected request template.
 Loading a different bundle never changes an existing client. The CLI can install
 bundle files and select older digests for offline rollback.
 

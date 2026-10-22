@@ -41,8 +41,7 @@ Maturin 1.15.0. The package includes type hints and `py.typed`.
 
 To install a source archive, run `pip install ./phantom_http-VERSION.tar.gz`.
 It needs the same native tools and pins Rust 1.99.1 in `rust-toolchain.toml`.
-Overriding that compiler is outside its verified build and runtime-license
-coverage.
+If you override that compiler, recheck the build and runtime licenses.
 
 ## Streaming and lifetime
 
@@ -69,12 +68,11 @@ or `None` at EOF on async responses. Its limit is 1 byte through 1 MiB.
 `read(max_bytes=N)`, `text(max_bytes=N)` and
 `json(max_bytes=N)` consume the remaining body. Overflow closes the response.
 `response.headers` is a tuple of immutable `ResponseHeader(name, value, sensitive)`
-records, keeping order, duplicate names, raw bytes and retained compression markers.
+records, keeping order, duplicate names, raw bytes and compression markers.
 `response.trailers` never reads the body. Its immutable snapshot is `pending`,
 `unavailable` after failure or abandonment, or `complete` after validated EOF.
-Complete `headers` contain ordered `ResponseHeader` names, raw bytes and retained
-compression markers; an empty tuple means no fields. Completion survives later
-close and text/JSON parse errors.
+Complete `headers` use the same records; an empty tuple means no fields.
+Completion survives later close and text/JSON parse errors.
 
 Content stays encoded unless you pass request-only
 `content_decoding=ContentDecoding.advertised(N)` and an `Accept-Encoding` header.

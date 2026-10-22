@@ -257,9 +257,10 @@ The binding's `maximumActiveRequests` limit remains independent.
 Attach `diagnostics: new RequestDiagnostics({maximumEvents: 128})` and keep the
 owner to call `snapshot()`, including after failure or cancellation. It returns
 `null` before attachment; `response_head` means send success, not body completion.
-Events retain order, exact bigint nanoseconds and dropped counts. Missing phases
-are unobserved. Frozen records contain owned, editable ALPN/DER buffers, within
-a 16 MiB copy limit. Each owner is single-use and does not enable secret logs.
+Events keep order, bigint nanoseconds and dropped counts. Missing phases are
+unobserved. Records are frozen; their ALPN/DER buffers are editable copies.
+The snapshot copy limit is 16 MiB. Each owner is single-use. Secret logging
+stays disabled.
 
 ## Edit a profile
 

@@ -5,9 +5,8 @@ then reuse a [`Client`](crate::Client) across requests. It supports HTTP/1.1,
 HTTP/2, and HTTP/3. Request templates select headers for tasks such as loading
 a page or making a fetch request.
 
-Phantom does not execute JavaScript or render pages. A profile configures
-network behavior; it does not reproduce an entire browser or guarantee that
-a server will accept a request.
+Phantom configures network behavior. It does not execute JavaScript or render
+pages.
 
 ## First request
 

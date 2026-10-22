@@ -50,10 +50,6 @@ require a catch-all match arm. Reject an unknown policy when applying settings.
 
 Equality compares stored values, including list order. Equal settings do not
 promise equal bytes across connections with random draws or different peers.
-Settings and validation errors provide Clone, Debug, Eq, Send, and Sync where
-those traits appear on the type. Network errors may retain runtime or backend
-sources and are outside this contract. Defaults, builders, and Hash apply only
-to types that provide them.
 
 ## Next
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Start with a small change, add evidence for the behavior it affects, and run the
+Start with a small change, test the behavior it affects, and run the
 relevant checks before opening a pull request. [AGENTS.md](AGENTS.md) is the
 working agreement for humans and coding agents.
 

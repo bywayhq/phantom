@@ -14,10 +14,6 @@ The **CLI artifacts** workflow prepares candidates for these native targets:
 | `x86_64-unknown-linux-gnu` | Ubuntu 24.04, x64 |
 | `aarch64-apple-darwin` | macOS 15, arm64 |
 
-The local Windows checkpoint passed on Windows 11 x64, build 26200. Each hosted
-runner still needs its own successful receipt; that local check does not verify
-Windows Server 2022, Linux or macOS.
-
 Windows binaries link to `MSVCP140.dll` and `VCRUNTIME140.dll`. Install Microsoft's
 [x64 Visual C++ v14 runtime](https://aka.ms/vc14/vc_redist.x64.exe), at least as
 recent as the archive's build tools. These runtime DLLs are not bundled. See
@@ -43,13 +39,11 @@ Build and command logs remain in `logs/`, including failed checks.
 
 Verification extracts outside the checkout and runs version/profile checks,
 an HTTP/1 request with ordered headers, file upload, chunked download and a
-stalled-body deadline that must disconnect. These are installation checks,
-not browser captures, throughput measurements or Control-C signal tests.
+stalled-body deadline that must disconnect.
 
 Only successful candidates are uploaded. This workflow does not publish a
-GitHub Release or upload packages to any registry. No older runtime floor,
-fully static binary, cross-compilation or code-signing support is claimed.
-Inspect each receipt's actual runtime and dependency output before deployment.
+GitHub Release or upload packages to any registry. Builds are native and require
+the runtime dependencies listed in their receipts. Check those before deployment.
 
 ## Prepare and verify
 
@@ -101,8 +95,7 @@ manage other owners. See [Cargo's ownership rules](https://doc.rust-lang.org/car
 
 The publisher checks all names before uploading anything. After each package,
 it adds the Byway team and verifies the registry owner list before continuing.
-An ownership failure stops the release. Setting a repository URL or authors
-field does not give Byway registry ownership.
+An ownership failure stops the release.
 
 ## Publish after approval
 
@@ -123,5 +116,4 @@ repairs missing team ownership before moving on. A version from a different
 commit stops the run; do not overwrite it or silently skip it.
 
 After a successful publish and install check, tag the release commit with `v`
-followed by its workspace version and retain the workflow evidence. A failed
-partial release remains partial until every planned version and owner is verified.
+followed by its workspace version and retain the workflow evidence.

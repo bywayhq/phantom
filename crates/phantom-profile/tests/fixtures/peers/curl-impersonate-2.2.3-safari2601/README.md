@@ -1,9 +1,8 @@
 # curl-impersonate Safari2601
 
-These are executions of curl-impersonate, not captures of a Safari browser.
-The catalog ports its Safari 26.0.1 preset for TLS and HTTP/2, with its specific
-navigation headers. It does not establish a macOS build, TCP recipe, HTTP/3,
-HTTP/1 header casing, resumption, or other request contexts.
+The catalog adapts curl-impersonate's Safari 26.0.1 TLS, HTTP/2 and navigation
+preset. These files record the peer's execution. Browser build and macOS
+release are unknown; other connection layers and request contexts are absent.
 
 The MIT-licensed preset comes from [curl-impersonate 2.2.3](https://github.com/lexiforest/curl-impersonate/tree/6e8f87760a4dd96771e96fc9d55440dcd8845243).
 `LICENSE` preserves its notice. `upstream-preset.patch.txt` is the unchanged
@@ -45,7 +44,6 @@ HTTP/2 preface and navigation template. `phantom/` retains three public-client
 runs, their source/build identities and raw streams. TLS shapes, ordered settings
 and request fields match the peer. SETTINGS processing occurred earlier, moving
 the 4096 table-size update to the first request. Shutdown GOAWAY also differs.
-These runs do not establish identical frame scheduling or connection shutdown.
 Cookie splitting and other HPACK input classes remain source-derived.
 The retained consumer and stdout predate the selector rename to
 `safari-26-macos`; their original bytes are preserved.

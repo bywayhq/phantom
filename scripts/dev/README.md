@@ -47,14 +47,9 @@ lets the integration owner check the lane's commit while the lane retains
 its branch. If `main` advances, rebase the lane again and repeat the checks.
 After pushing `main`, require its CI to pass before integrating another lane.
 
-Run the full gate after the rebase, not before. Two lanes can each pass alone
-and still break together: for example, one adds an enum variant and the other
-adds an exhaustive `match` on that enum.
-
 Never chain the merge onto the gate. A command list joined with `;` or piped
-through `tail` or `grep` exits with the status of its last command, so a
-green exit status does not prove that Cargo passed. Search the gate output for
-`error`, `FAILED`, and `warning` first.
+through `tail` or `grep` exits with the status of its last command. Search the
+gate output for `error`, `FAILED`, and `warning` first.
 
 ## Integration gate
 
@@ -166,8 +161,7 @@ builds for Linux in WSL: `linux-clippy` runs the gate's Clippy command, and
 the full gate also runs `linux-msrv`, `cargo +<MSRV> check --workspace
 --all-targets --locked`. Neither runs tests or the feature rows, which stay
 with CI. The option is off by default, because a Windows host can have WSL
-without a distribution that has Rust: `wsl.exe` alone proves nothing, and the
-default distribution can be one without Rust or even `bash`, such as Docker
+without a Rust installation in its default distribution, such as Docker
 Desktop's `docker-desktop`. The gate stops
 before any step when WSL cannot run `cargo --version`.
 
