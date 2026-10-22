@@ -8,7 +8,8 @@
   Retain the failed connection; a complete page and cleanup are still required.
 
 - Capture ordered HTTP/2 script, stylesheet, image and font requests with the
-  lifecycle tool's `resources` scenario.
+  lifecycle tool's `resources` scenario. Retain Chrome 156 Windows captures
+  from headful and headless runs.
 
 - Reduce repeated parsing of fragmented HTTP/1 response headers.
 
