@@ -177,7 +177,9 @@
     "client_hints": null,
     "websocket": null,
     "proxy_connect": null,
-    "cookie_placement": null,
+    "cookie_placement": {
+      "before": []
+    },
     "request_template": null
   }
 }
