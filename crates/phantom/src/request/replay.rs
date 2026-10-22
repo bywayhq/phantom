@@ -49,6 +49,8 @@ impl ReplayClass {
 /// and [`ReplayClass::Http2PingFailure`] replays at most once per redirect
 /// hop; the last replays up to the profile's limit per hop.
 pub(super) struct ReplayState {
+    restarted: bool,
+    misdirected: bool,
     critical_client_hints: bool,
     proxy_authentication: bool,
     proxy_stale: bool,
@@ -65,6 +67,8 @@ impl ReplayState {
     /// `http2_ping_failure_limit` times per hop after a PING failure.
     pub(super) const fn new(http2_ping_failure_limit: u8) -> Self {
         Self {
+            restarted: false,
+            misdirected: false,
             critical_client_hints: false,
             proxy_authentication: false,
             proxy_stale: false,
@@ -79,6 +83,25 @@ impl ReplayState {
 
     pub(super) fn start_hop(&mut self) {
         *self = Self::new(self.http2_ping_failure_limit);
+    }
+
+    /// Marks a connection's ALPS restart, which sends no request bytes.
+    pub(super) fn record_accept_ch_restart(&mut self) {
+        self.restarted = true;
+    }
+
+    /// A misdirected response may restart only the transaction's first attempt.
+    pub(super) fn try_begin_misdirected(&mut self) -> bool {
+        if self.restarted {
+            return false;
+        }
+        self.restarted = true;
+        self.misdirected = true;
+        true
+    }
+
+    pub(super) const fn misdirected(&self) -> bool {
+        self.misdirected
     }
 
     /// Returns whether a PING failure may ever be replayed, so an attempt
@@ -100,10 +123,12 @@ impl ReplayState {
             ReplayClass::Http2Fallback => &mut self.http2_fallback,
             ReplayClass::Unprocessed => {
                 self.unprocessed += 1;
+                self.restarted = true;
                 return true;
             }
             ReplayClass::Status => {
                 self.status += 1;
+                self.restarted = true;
                 return true;
             }
             ReplayClass::Http2PingFailure => {
@@ -111,6 +136,7 @@ impl ReplayState {
                     return false;
                 }
                 self.http2_ping_failures += 1;
+                self.restarted = true;
                 return true;
             }
         };
@@ -118,6 +144,7 @@ impl ReplayState {
             return false;
         }
         *performed = true;
+        self.restarted = true;
         true
     }
 
@@ -141,6 +168,46 @@ mod tests {
     use http::Method;
 
     use super::{ReplayClass, ReplayState};
+
+    #[test]
+    fn misdirected_response_restarts_only_the_first_transaction_attempt() {
+        let mut replays = ReplayState::new(1);
+        assert!(replays.try_begin_misdirected());
+        assert!(replays.misdirected());
+        assert!(!replays.try_begin_misdirected());
+        replays.start_hop();
+        assert!(!replays.misdirected());
+        assert!(replays.try_begin_misdirected());
+    }
+
+    #[test]
+    fn any_prior_transaction_restart_prevents_misdirected_replay() {
+        for class in [
+            ReplayClass::CriticalClientHints,
+            ReplayClass::ProxyAuthentication,
+            ReplayClass::ProxyStale,
+            ReplayClass::ReusedConnection,
+            ReplayClass::Http2Fallback,
+            ReplayClass::Unprocessed,
+            ReplayClass::Status,
+            ReplayClass::Http2PingFailure,
+        ] {
+            let mut replays = ReplayState::new(1);
+            assert!(replays.try_begin(class, &Method::GET));
+            assert!(!replays.try_begin_misdirected());
+        }
+        let mut replays = ReplayState::new(0);
+        replays.record_accept_ch_restart();
+        assert!(!replays.try_begin_misdirected());
+    }
+
+    #[test]
+    fn declined_replay_does_not_consume_the_first_restart() {
+        let mut replays = ReplayState::new(0);
+        assert!(!replays.try_begin(ReplayClass::CriticalClientHints, &Method::POST));
+        assert!(!replays.try_begin(ReplayClass::Http2PingFailure, &Method::GET));
+        assert!(replays.try_begin_misdirected());
+    }
 
     #[test]
     fn critical_hint_replay_requires_a_safe_method() {

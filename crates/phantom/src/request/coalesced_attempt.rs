@@ -4,8 +4,9 @@ use super::{
     RequestBodyFraming, ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, attempt_client_hints,
-        begin_accept_ch_restart, begin_status_retry, begin_unprocessed_replay, client_hint_origin,
-        may_replay_unanswered, observe_response, prepare_attempt, store_cookies,
+        begin_accept_ch_restart, begin_misdirected_retry, begin_status_retry,
+        begin_unprocessed_replay, client_hint_origin, may_replay_unanswered, observe_response,
+        prepare_attempt, retries_misdirected, store_cookies,
     },
     field_lists::{self, AttemptFields},
     replay::ReplayClass,
@@ -49,9 +50,12 @@ pub(super) async fn send_reused(
     let hint_origin = client_hint_origin(client, request);
     let mut restart_hints = RestartHints::default();
     let keeps_fields = may_replay_unanswered(lifecycle.retries, attempt.body);
+    let keeps_origin_fields =
+        keeps_fields || (retries_misdirected(client, request) && attempt.body.can_replay());
     let mut fields = None;
     let mut origin_fields = None;
     let mut started = false;
+    let mapping_generation = client.origin_alt_svc_generation(&request.endpoint, route);
 
     loop {
         let Some(candidates) = client
@@ -84,7 +88,7 @@ pub(super) async fn send_reused(
                 let fields = field_lists::reused_fields(client, request, route, &inputs)?;
                 // If this donor disappears after an unanswered dispatch,
                 // origin negotiation must retain this attempt's cookies and hints.
-                origin_fields = if keeps_fields {
+                origin_fields = if keeps_origin_fields {
                     Some(field_lists::negotiated(client, request, &inputs)?)
                 } else {
                     None
@@ -129,7 +133,12 @@ pub(super) async fn send_reused(
         let (mut response, sent_headers) = match sent {
             Ok(Dispatched::Sent(sent)) => sent,
             Ok(Dispatched::Restart(restart)) => {
-                begin_accept_ch_restart(restart, &mut restart_hints, attempt.body);
+                begin_accept_ch_restart(
+                    restart,
+                    &mut restart_hints,
+                    attempt.body,
+                    lifecycle.replays,
+                );
                 origin_fields = None;
                 continue;
             }
@@ -148,8 +157,23 @@ pub(super) async fn send_reused(
             }
         };
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
-            // The pool retires this donor for future joins. Return its 421
-            // without replaying the request or learning response policies.
+            if retries_misdirected(client, request) {
+                client.invalidate_origin_alt_svc(&request.endpoint, route, mapping_generation);
+            }
+            if begin_misdirected_retry(
+                client,
+                request,
+                &response,
+                attempt.body,
+                lifecycle.retries,
+                lifecycle.replays,
+            )? {
+                drop(response);
+                return Ok(ReusedOutcome::Origin {
+                    fields: origin_fields,
+                    restart_hints,
+                });
+            }
             if let Some(control) = &request.transfer {
                 response.body_mut().apply_transfer(control.clone());
             }
@@ -274,6 +298,7 @@ mod tests {
             },
             &mut restart_hints,
             &mut body,
+            &mut ReplayState::new(0),
         );
 
         let ReusedOutcome::Origin {

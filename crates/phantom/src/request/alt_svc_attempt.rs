@@ -13,8 +13,9 @@ use super::{
     ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, DispatchOutcome,
-        begin_accept_ch_restart, begin_status_retry, begin_unprocessed_replay, client_hint_origin,
-        may_replay_unanswered, observe_response, prepare_attempt, send_once_origin, store_cookies,
+        begin_accept_ch_restart, begin_misdirected_retry, begin_status_retry,
+        begin_unprocessed_replay, client_hint_origin, may_replay_unanswered, observe_response,
+        prepare_attempt, retries_misdirected, send_once_origin, store_cookies,
     },
     field_lists::{self, AttemptFields, RacedFields},
     replay::ReplayClass,
@@ -142,6 +143,7 @@ pub(super) async fn send_once_alt_svc(
         route,
         lifecycle,
         &alternative,
+        None,
         None,
         None,
         &mut false,
@@ -303,6 +305,7 @@ pub(super) async fn send_once_raced(
                     winner,
                     Some(leased),
                     winner_fields,
+                    Some(fields.negotiated),
                     &mut false,
                 )
                 .await;
@@ -565,9 +568,13 @@ async fn send_after_early_win(
         winner,
         Some(leased),
         winner_fields,
+        Some(negotiated.clone()),
         &mut responded,
     )
     .await;
+    if replays.misdirected() {
+        return result;
+    }
     if result
         .as_ref()
         .is_err_and(|error| error.kind() == crate::RequestErrorKind::AttemptBudgetExhausted)
@@ -857,10 +864,11 @@ async fn send_on_alternative(
     alternative: &AlternativeTarget,
     mut leased: Option<Http3Lease>,
     mut fields: Option<Http3Fields>,
+    mut origin_fields: Option<crate::session::http1_or_2_pool::NegotiatedFields>,
     responded: &mut bool,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
-        request_span: _,
+        request_span,
         timeout_budget,
         retries: request_retries,
         replays,
@@ -885,6 +893,19 @@ async fn send_on_alternative(
             &restart_hints,
             body,
         )?;
+        if origin_fields.is_none() && retries_misdirected(client, request) && body.can_replay() {
+            origin_fields = Some(field_lists::negotiated(
+                client,
+                request,
+                &AttemptFields {
+                    method: &method,
+                    headers: &request_headers,
+                    trailers: &request_trailers,
+                    client_hints: prepared.client_hints,
+                    body: prepared.body.as_ref(),
+                },
+            )?);
+        }
         let attempt_fields = match fields.take() {
             Some(fields) => fields,
             None => field_lists::alternative_fields(
@@ -928,7 +949,8 @@ async fn send_on_alternative(
             }
             // The list is built again with the connection's hints.
             Ok(Dispatched::Restart(restart)) => {
-                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                begin_accept_ch_restart(restart, &mut restart_hints, body, replays);
+                origin_fields = None;
                 continue;
             }
             Err(error) => {
@@ -950,8 +972,33 @@ async fn send_on_alternative(
         let sent_headers = dispatched.sent_headers;
 
         if response.status() == http::StatusCode::MISDIRECTED_REQUEST {
-            store_cookies(client, request, &response);
             client.invalidate_alternative(endpoint, route, alternative);
+            if begin_misdirected_retry(client, request, &response, body, request_retries, replays)?
+            {
+                drop(response);
+                return box_send(send_once_origin(
+                    client,
+                    request,
+                    AttemptRequest {
+                        method,
+                        headers: request_headers,
+                        trailers: request_trailers,
+                        body,
+                    },
+                    route,
+                    AttemptLifecycle {
+                        request_span,
+                        timeout_budget,
+                        retries: request_retries,
+                        replays,
+                    },
+                    None,
+                    origin_fields,
+                    restart_hints,
+                ))
+                .await;
+            }
+            store_cookies(client, request, &response);
             return Ok(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,
@@ -978,6 +1025,7 @@ async fn send_on_alternative(
                 "retrying alternative-service request with client hints"
             );
             drop(response);
+            origin_fields = None;
             continue;
         }
         // A status retry stays on this alternative; it never falls back.
@@ -990,6 +1038,7 @@ async fn send_on_alternative(
             replays,
         ) {
             drop(response);
+            origin_fields = None;
             request_retries.ensure_http_attempt_available(Some(HttpProtocol::Http3))?;
             timeout_budget
                 .delay(delay, Some(HttpProtocol::Http3))

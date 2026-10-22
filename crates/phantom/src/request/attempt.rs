@@ -166,6 +166,8 @@ async fn send_once_exact(
     let forwarded = route.forwards(&request.uri);
     let mut authentication_redialed = false;
     let mut proxy_attempts = 0_u64;
+    let mut frozen_headers = None;
+    let mapping_generation = client.origin_alt_svc_generation(&request.endpoint, route);
     loop {
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
         let target = match protocol {
@@ -194,14 +196,16 @@ async fn send_once_exact(
                 }),
         };
         let alt_used = pinned_alt_used(client, request, protocol);
-        let prepared_headers = route_attempt_headers(
-            client,
-            request,
-            protocol,
-            &request_headers,
-            forwarding,
-            alt_used.as_deref(),
-        );
+        let prepared_headers = frozen_headers.take().unwrap_or_else(|| {
+            route_attempt_headers(
+                client,
+                request,
+                protocol,
+                &request_headers,
+                forwarding,
+                alt_used.as_deref(),
+            )
+        });
         // Checked before the attempt takes a one-shot body.
         // A pinned alternative is the caller's choice of where QUIC goes, so
         // its failure never moves the request to the origin over HTTP/2.
@@ -260,7 +264,7 @@ async fn send_once_exact(
         let dispatched = match dispatched {
             Ok(Dispatched::Sent(dispatched)) => dispatched,
             Ok(Dispatched::Restart(restart)) => {
-                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                begin_accept_ch_restart(restart, &mut restart_hints, body, replays);
                 continue;
             }
             Err(error) => {
@@ -303,6 +307,24 @@ async fn send_once_exact(
         };
         let mut response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
+
+        if protocol == HttpProtocol::Http3
+            && response.status() == http::StatusCode::MISDIRECTED_REQUEST
+        {
+            if retries_misdirected(client, request) {
+                client.invalidate_origin_alt_svc(&request.endpoint, route, mapping_generation);
+            }
+            if begin_misdirected_retry(client, request, &response, body, retries, replays)? {
+                frozen_headers = Some(sent_headers);
+                drop(response);
+                continue;
+            }
+            if let Some(control) = &request.transfer {
+                response.body_mut().apply_transfer(control.clone());
+            }
+            store_cookies(client, request, &response);
+            return Ok(AttemptOutcome { response, protocol });
+        }
 
         if let Some(authentication) = &mut forward_authentication {
             if response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED {
@@ -533,7 +555,7 @@ pub(super) async fn send_once_origin(
             Ok(Dispatched::Sent(sent)) => sent,
             // The lists are built again with the connection's hints.
             Ok(Dispatched::Restart(restart)) => {
-                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                begin_accept_ch_restart(restart, &mut restart_hints, body, replays);
                 continue;
             }
             Err(error) => {
@@ -558,6 +580,14 @@ pub(super) async fn send_once_origin(
                 return Err(error);
             }
         };
+
+        if replays.misdirected() && response.status() == http::StatusCode::MISDIRECTED_REQUEST {
+            if let Some(control) = &request.transfer {
+                response.body_mut().apply_transfer(control.clone());
+            }
+            store_cookies(client, request, &response);
+            return Ok(AttemptOutcome { response, protocol });
+        }
 
         // The response may store cookies and client hints, so a later
         // attempt builds its lists again.
@@ -614,7 +644,9 @@ pub(super) fn begin_accept_ch_restart(
     restart: AcceptChRestart,
     restart_hints: &mut RestartHints,
     body: &mut RequestBodySource,
+    replays: &mut ReplayState,
 ) {
+    replays.record_accept_ch_restart();
     let restarts = restart_hints.add(&restart.hints);
     body.restore(restart.body);
     tracing::debug!(
@@ -623,6 +655,38 @@ pub(super) fn begin_accept_ch_restart(
         reason = "accept_ch",
         "restarting request with the client hints its connection's ACCEPT_CH asks for"
     );
+}
+
+pub(super) fn retries_misdirected(client: &Client, request: &ResolvedRequest) -> bool {
+    client
+        .inner
+        .connectors_for(&request.endpoint)
+        .http3
+        .is_some_and(|connector| {
+            connector.misdirected_request_policy()
+                == phantom_profile::Http3MisdirectedRequest::RetryFirst
+        })
+}
+
+/// Restarts a first, replayable H3 transaction on a fresh connection.
+pub(super) fn begin_misdirected_retry(
+    client: &Client,
+    request: &ResolvedRequest,
+    response: &Response<ResponseBody>,
+    body: &RequestBodySource,
+    retries: &ConnectionSetupRetryState,
+    replays: &mut ReplayState,
+) -> Result<bool, RequestError> {
+    if !retries_misdirected(client, request) {
+        return Ok(false);
+    }
+    client.invalidate_origin_dns(&request.endpoint);
+    if !body.can_replay() || !replays.try_begin_misdirected() {
+        return Ok(false);
+    }
+    http3_pool::retire_response_connection(response);
+    retries.ensure_http_attempt_available(Some(HttpProtocol::Http3))?;
+    Ok(true)
 }
 
 /// Starts a replay after the request's HTTP/2 connection closed itself on an
