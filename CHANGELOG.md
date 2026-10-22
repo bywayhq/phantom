@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Shorten profile descriptions, API documentation, guides and binding READMEs.
+  Remove repeated caveats and capture history.
+
 - Clarify qlog file retention and write-failure behavior.
 
 - Keep snapshot captures running when a browser closes a complete TLS opening.
@@ -25,7 +28,7 @@
   HPACK table while retaining existing entries when a larger field is sent.
 
 - Correct Firefox TCP documentation for retained backup connections, address
-  family memory and failed-address history. Keep capture limits explicit.
+  family memory and failed-address history.
 
 - Add `--observe-images` to retain ordered HTTP/2 image fields and initial
   HEADERS priority in Alt-Svc captures, rejecting credentials and normalizing
@@ -36,8 +39,7 @@
   when a browser closes before replying.
 
 - Add `safari-26-macos` and `safari-26-ios` for TLS, HTTP/2 and navigation
-  headers, adapted from pinned curl-impersonate and wreq-util presets. Catalog
-  descriptions retain their sources and distinguish them from browser captures.
+  headers, adapted from pinned curl-impersonate and wreq-util presets.
 
 - Breaking: catalog identities distinguish observed browsers from peer presets.
   Migrate: `ProfileMetadata::build`, `platform_release` and `environment` return
