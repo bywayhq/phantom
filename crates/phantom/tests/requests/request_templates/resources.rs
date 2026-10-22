@@ -109,7 +109,7 @@ async fn observe(
     let server = TemplateOrigin::new(server, None);
     let referer = format!("{url}caller-page?fresh=1");
     let origin = url.trim_end_matches('/').to_owned();
-    let operation: TestResult<Client> = async {
+    let operation: TestResult<Client> = match timeout(TEST_TIMEOUT, async {
         let client = Client::builder(profile()?)
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
@@ -120,14 +120,18 @@ async fn observe(
         if kind == RequestTemplateKind::Font {
             request = request.header(RequestHeader::new("origin", origin.as_str()));
         }
-        let response = timeout(TEST_TIMEOUT, configure(request).send()).await??;
+        let response = configure(request).send().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
         // The peer may already have exited if the request failed.
         let _ = done.send(());
-        Ok(client)
-    }
-    .await;
+        Ok::<_, Box<dyn Error + Send + Sync>>(client)
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
     match operation {
         Ok(client) => {
             let result = server.complete(Ok(())).await;
@@ -268,7 +272,7 @@ async fn untrustworthy_http_resource_requests_omit_hints_and_fetch_metadata() ->
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(fields)
         });
-        let operation: TestResult<()> = async {
+        let operation: TestResult<()> = match timeout(TEST_TIMEOUT, async {
             let client = Client::builder(profile()?)
                 .resolve(
                     "untrusted.phantom.invalid",
@@ -282,14 +286,14 @@ async fn untrustworthy_http_resource_requests_omit_hints_and_fetch_metadata() ->
             if kind == RequestTemplateKind::Font {
                 request = request.header(RequestHeader::new("origin", origin.as_str()));
             }
-            timeout(TEST_TIMEOUT, request.send())
-                .await??
-                .into_body()
-                .collect()
-                .await?;
-            Ok(())
-        }
-        .await;
+            request.send().await?.into_body().collect().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        })
+        .await
+        {
+            Ok(result) => result,
+            Err(error) => Err(error.into()),
+        };
         let ((), observed) = complete_peer(peer, operation).await?;
         let mut expected = resource_fields(HttpProtocol::Http1, resource)?;
         expected.retain(|(name, _)| !name.to_ascii_lowercase().starts_with("sec-"));
