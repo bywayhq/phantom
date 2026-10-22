@@ -65,7 +65,7 @@ class CompositionDeclarationTests(unittest.TestCase):
             profiles = cli.validate(document)
             composition.validate_composition_bindings(profiles, self.components)
 
-    def test_current_ten_compositions_retain_explicit_configured_and_absent_layers(
+    def test_current_compositions_retain_explicit_configured_and_absent_layers(
         self,
     ):
         profiles = cli.validate(self.document)
@@ -76,11 +76,33 @@ class CompositionDeclarationTests(unittest.TestCase):
             if entry["target"] not in ("EdgeWindows153", "ChromeMacos154")
             and entry["metadata"]["identity"]["kind"] == "Observed"
         ]
-        self.assertEqual(len(original), 10)
+        chrome156 = next(
+            entry for entry in original if entry["target"] == "ChromeWindows156"
+        )
+        self.assertEqual(
+            chrome156["composition"],
+            {
+                "TcpTls": "chromium_154_tcp_tls",
+                "Tcp": None,
+                "Udp": None,
+                "Dns": None,
+                "Http1": None,
+                "Http2": "chromium_154_http2",
+                "QuicTls": "chromium_154_quic_tls",
+                "QuicTransport": "chromium_154_quic",
+                "Http3": "chromium_154_http3",
+                "Http3Request": "chromium_154_http3_request",
+                "ClientHints": "chrome_windows_156_client_hints",
+                "WebSocket": None,
+                "ProxyConnect": None,
+                "CookiePlacement": None,
+            },
+        )
+        self.assertEqual(len(original), 11)
         pairs = [value for entry in original for value in entry["composition"].values()]
-        self.assertEqual(len(pairs), 140)
-        self.assertEqual(sum(value is not None for value in pairs), 97)
-        self.assertEqual(sum(value is None for value in pairs), 43)
+        self.assertEqual(len(pairs), 154)
+        self.assertEqual(sum(value is not None for value in pairs), 104)
+        self.assertEqual(sum(value is None for value in pairs), 50)
         before_edge_websocket = copy.deepcopy(original)
         edge = next(
             entry
@@ -94,8 +116,8 @@ class CompositionDeclarationTests(unittest.TestCase):
             for entry in before_edge_websocket
             for value in entry["composition"].values()
         ]
-        self.assertEqual(sum(value is not None for value in prior_pairs), 96)
-        self.assertEqual(sum(value is None for value in prior_pairs), 44)
+        self.assertEqual(sum(value is not None for value in prior_pairs), 103)
+        self.assertEqual(sum(value is None for value in prior_pairs), 51)
         self.assertEqual(
             cli.COMPOSITION_OUTPUT.read_text(encoding="utf-8"),
             composition.generate_compositions(profiles),
@@ -212,7 +234,8 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 15)
+        self.assertEqual(generated.count("static "), 16)
+        self.assertIn("static CHROMEWINDOWS156:", generated)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
         self,

@@ -42,8 +42,11 @@ class SafariIosPeerTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(p["metadata"]["identity"]["kind"] == "Observed" for p in original),
-            12,
+            13,
         )
+        chrome156 = next(p for p in original if p["target"] == "ChromeWindows156")
+        self.assertEqual(chrome156["metadata"]["identity"]["kind"], "Observed")
+        self.assertEqual(chrome156["id"], "chrome/156.0.8078.48/windows-11-26200/r1")
 
     def test_fixture_hashes_cover_every_retained_file(self):
         hashes = json.loads(

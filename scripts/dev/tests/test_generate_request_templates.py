@@ -60,8 +60,37 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 24)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 28)
+        self.assertEqual(len(templates), 25)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 29)
+        chrome156 = next(row for row in profiles if row["target"] == "ChromeWindows156")
+        self.assertEqual(
+            chrome156["templates"], {"Navigation": "chrome_windows156_navigation"}
+        )
+        navigation = templates["chrome_windows156_navigation"]
+        self.assertEqual(
+            [
+                len(navigation[name])
+                for name in ("http1_fields", "http2_fields", "http3_fields")
+            ],
+            [14, 13, 12],
+        )
+        for protocol in ("http1_fields", "http2_fields", "http3_fields"):
+            fields = {
+                field["name"].lower(): field["value"]
+                for field in navigation[protocol]
+                if field["variant"] == "Literal"
+            }
+            self.assertEqual(
+                fields["user-agent"],
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+            )
+            self.assertEqual(
+                fields["accept"],
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8,"
+                "application/signed-exchange;v=b3;q=0.7",
+            )
         original = [
             row
             for row in profiles
@@ -74,7 +103,7 @@ class TemplateDeclarationTests(unittest.TestCase):
             for identifier in profile["templates"].values()
             for name in ("http1_fields", "http2_fields", "http3_fields")
         )
-        self.assertEqual(count, 730)
+        self.assertEqual(count, 769)
         self.assertEqual(
             domain.generate_templates(templates),
             cli.REQUEST_TEMPLATE_OUTPUT.read_text(encoding="utf-8"),
