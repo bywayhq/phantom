@@ -36,7 +36,6 @@ impl HttpProxyAuthentication<'_> {
     ///
     /// Native code compares these inputs using the authenticated source owner's
     /// private key. Digest challenges and nonce state do not affect the input.
-    /// This input does not prove successful proxy authentication.
     ///
     /// # Errors
     ///

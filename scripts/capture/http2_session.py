@@ -1409,7 +1409,7 @@ class CaptureServer:
             try:
                 task.result()
             except asyncio.CancelledError as cancellation:
-                # cancel() does not establish whether another owner cancelled first.
+                # Another owner may have cancelled the handler first.
                 error = original if original is not None else cancellation
                 failures.append(error)
 

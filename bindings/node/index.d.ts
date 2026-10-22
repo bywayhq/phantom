@@ -382,7 +382,7 @@ export interface RequestTimeline {
   /** Start order; intervals can overlap. Missing phases are unobserved, not zero. */
   readonly events: readonly RequestTiming[];
   readonly droppedEvents: bigint;
-  /** Admission does not prove bytes were sent. */
+  /** Includes attempts that fail before sending bytes. */
   readonly admittedAttempts: bigint;
 }
 export class RequestDiagnostics {

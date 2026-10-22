@@ -218,8 +218,8 @@ impl ConfigurationObserver {
 
 type Reply = mpsc::SyncSender<Result<ConfigurationGeneration, WatchError>>;
 
-/// One joined thread. Ordinary Drop synchronously joins, so final owners must
-/// be released outside async executors/cache locks; no bounded OS-cancel claim.
+/// Owns a thread joined synchronously on drop. Release the final owner outside
+/// async executors and cache locks. OS cancellation has no deadline.
 pub(crate) struct ConfigurationWatch {
     dirty: Arc<Dirty>,
     control: Mutex<Option<UnixStream>>,

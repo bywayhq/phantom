@@ -373,8 +373,7 @@ impl Http3Connector {
     /// When the TLS profile enables `session_tickets`, connections opened by
     /// the clone retain the TLS 1.3 tickets their peers issue and present one
     /// on a later connection to the same server name under the same
-    /// authentication policy, resuming the session. With authentication
-    /// disabled, a ticket does not prove a trusted peer identity. Tickets never
+    /// authentication policy, resuming the session. Tickets never
     /// leave the clone: give each origin and route its own clone, as Phantom's
     /// client pool does, so a ticket learned through
     /// one proxy is never presented directly or through another route. The

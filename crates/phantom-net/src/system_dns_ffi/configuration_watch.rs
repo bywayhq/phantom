@@ -610,7 +610,7 @@ impl Notification {
         let code = (self.cancel)(self.handle);
         if code != ERROR_SUCCESS {
             context.cancellation_codes[self.slot].store(code, Ordering::Release);
-            // An arbitrary cancellation failure does not establish quiescence.
+            // Callbacks may still run after a cancellation error.
             // At most one strong state reference per failed registration is
             // quarantined per failed owner (not globally); never detach a worker
             // or free callback storage early.
