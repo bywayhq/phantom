@@ -12,6 +12,8 @@
   value format, or `OmitDefault` to omit the HTTPS default port. Custom-profile
   JSON with HTTP/3 now requires `request.alt_used_port` as `"Explicit"` or
   `"OmitDefault"`; imports missing the field are rejected.
+  Ticket-policy encoding advances to version 6; recreate saved ticket state
+  and session checkpoints.
 
 - Shorten profile descriptions, API documentation, guides and binding READMEs.
   Remove repeated caveats and capture history.
