@@ -54,6 +54,9 @@ pub use authority::RequestOrigin;
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use content_coding::{ContentCoding, ContentDecoding};
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use content_coding::{FuzzContentDecode, fuzz_content_decode};
 #[cfg(feature = "diagnostics")]
 pub use diagnostics::KeyLog;
 pub use environment_proxy::{EnvironmentProxies, EnvironmentProxyError, EnvironmentProxyErrorKind};

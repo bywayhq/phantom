@@ -18,9 +18,13 @@ use inflate::DeflateDecoder;
 use zstd_stream::ZstdDecoder;
 
 pub(crate) use field::AdvertisedContentCodings;
+#[cfg(feature = "fuzzing")]
+pub use fuzzing::{FuzzContentDecode, fuzz_content_decode};
 
 mod brotli_stream;
 mod field;
+#[cfg(feature = "fuzzing")]
+mod fuzzing;
 mod gzip;
 mod inflate;
 mod zstd_stream;

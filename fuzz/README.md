@@ -11,6 +11,7 @@ WebSocket engines.
 | --- | --- | --- |
 | `client_hello` | TLS ClientHello capture and profile-import decoder | `phantom_testkit::tls` re-export of `phantom_profile::client_hello` |
 | `sse` | Incremental SSE event decoding and encoded-byte limits | Private `SseStream` decoder through an opt-in fuzzing seam |
+| `content_coding` | Coding fields, chained decompression and decoded-byte limits | Production content decoder through an opt-in fuzzing seam |
 | `http2_frame` | Test-kit HTTP/2 frame capture | `phantom_testkit::http2` |
 | `quic_transport_parameters` | Quinn transport parameters (production) | `TransportParameters::read` |
 | `http1_response` | HTTP/1.1 response heads and bodies (production) | `Http1Connection::connect` and `send_get` over an in-memory origin |
@@ -162,6 +163,12 @@ independent byte-limit controls cover BOM, CRLF, UTF-8 replacement and incomplet
 EOF. Inputs and both decoder limits are bounded at 64 KiB. This target does not
 exercise HTTP, reconnect timing or idle deadlines.
 
+`content_coding` uses the same feature to drive production coding-field parsing
+and chained decoding. Literal streams decode to known bytes. Input and decoded
+output are limited to 64 KiB; a separate pump budget stops excessive intermediate
+work as inconclusive. Completed bytes must agree across chunk boundaries. The
+target does not exercise transport cancellation, trailers or deadlines.
+
 ## Not fuzzed yet
 
 These peer-facing production parsers have no pure public entry point. Fuzzing
@@ -172,7 +179,5 @@ them needs a reviewed fuzzing seam, not new public API:
 - SOCKS5 negotiation replies (the public API is TCP-only);
 - the HTTP/2 and HTTP/3 ALPS decoders;
 - the CONNECT-UDP Capsule Protocol decoder;
-- the `Content-Encoding` and `Accept-Encoding` field grammar, with its chained
-  `ContentDecoder`;
 - `CookieJar::store_response_headers`, the step above `cookie_jar` that
   converts response `Set-Cookie` header bytes to text.

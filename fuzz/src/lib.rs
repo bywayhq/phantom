@@ -7,6 +7,7 @@
 //! silently weakening every fuzz iteration.
 
 pub mod alt_svc_snapshot;
+pub mod content_coding;
 pub mod cookie_jar;
 pub mod cookie_snapshot;
 pub mod ech_config_list;

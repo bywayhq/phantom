@@ -82,6 +82,8 @@ jobs:
             max_len: 16384
           - target: client_hello
             max_len: 65536
+          - target: content_coding
+            max_len: 65536
           - target: cookie_jar
             max_len: 16384
           - target: cookie_snapshot

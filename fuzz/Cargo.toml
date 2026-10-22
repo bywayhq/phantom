@@ -96,6 +96,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "content_coding"
+path = "fuzz_targets/content_coding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "sse"
 path = "fuzz_targets/sse.rs"
 test = false
