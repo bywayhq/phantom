@@ -28,13 +28,14 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .browser_failures import raise_browser_failures
+from .browser_failures import CleanupFailures, raise_browser_failures
 from .browser_launch import (
     CLIENT_NAMES,
     DESKTOP_CHROMIUM_BROWSERS,
@@ -1718,7 +1719,8 @@ class HookedBrowser:
             else:
                 timer.start()
 
-            result = operation(*arguments, cancellable=cancellable)
+            with cancellable:
+                result = operation(*arguments)
         except BaseException as failure:
             error = failure
         finally:
@@ -2319,6 +2321,14 @@ async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bo
     return text, failed
 
 
+def _report_cleanup_failures(error: CleanupFailures) -> None:
+    for failure in (error.primary, *error.cleanup):
+        if isinstance(failure, CleanupFailures):
+            _report_cleanup_failures(failure)
+        elif failure is not None:
+            traceback.print_exception(type(failure), failure, failure.__traceback__)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--browser", choices=DESKTOP_CHROMIUM_BROWSERS, required=True)
@@ -2357,7 +2367,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     failed = False
     for name in names:
-        text, run_failed = asyncio.run(capture(args, SCENARIOS[name]))
+        try:
+            text, run_failed = asyncio.run(capture(args, SCENARIOS[name]))
+        except CleanupFailures as error:
+            _report_cleanup_failures(error)
+            raise
+
         write_text_fixture(args.output_dir / f"hooks-{name}.txt", text)
         failed = failed or run_failed
     if failed:

@@ -103,7 +103,8 @@ class NativeSession:
 
         return self.script
 
-    def detach(self, *, cancellable):
+    def detach(self):
+        cancellable = NativeCancellation.current.stack[-1]
         if self.block_detach and not cancellable.cancelled.wait(WAIT_SECONDS):
             raise AssertionError("native detach did not receive deadline cancellation")
 
@@ -193,7 +194,10 @@ class NativeDevice:
         elif pid == 11:
             self.child_resumed.set()
 
-    def enumerate_pending_children(self, *, cancellable):
+    def enumerate_pending_children(self):
+        if not NativeCancellation.current.stack:
+            raise AssertionError("pending children requires a cancellation context")
+
         self.pending_queried_after_root_kill = 10 in self.killed
         return self.pending_children
 
@@ -215,7 +219,7 @@ class BrowserBoundary:
             {"slow_ipv6_refusal": False},
         )
         module = SimpleNamespace(
-            __version__="controlled 17.9.10 interface",
+            __version__="controlled 17.23.3 interface",
             Cancellable=NativeCancellation,
             OperationCancelledError=CancelledNativeCall,
             get_local_device=lambda: self.device,

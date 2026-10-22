@@ -1,8 +1,12 @@
 import asyncio
+import io
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.capture import socket_hooks
+from scripts.capture.browser_failures import BrowserLaunchFailures
 from scripts.capture.socket_hooks import (
     AGENT,
     FORMAT,
@@ -251,6 +255,41 @@ class FallbackTests(unittest.TestCase):
 
 
 class LaunchTests(unittest.TestCase):
+    def test_cli_reports_each_cleanup_cause_and_preserves_the_original_failure(self):
+        primary = OSError("original browser failure")
+        detach = TypeError("detach rejected its arguments")
+        pending = TimeoutError("owned process has not exited")
+        failure = BrowserLaunchFailures(
+            primary, (BrowserLaunchFailures(None, (detach, pending)),)
+        )
+        output = io.StringIO()
+        with (
+            patch.object(socket_hooks.sys, "platform", "win32"),
+            patch.object(socket_hooks, "capture", side_effect=failure),
+            patch.object(Path, "mkdir"),
+            redirect_stderr(output),
+            self.assertRaises(BrowserLaunchFailures) as raised,
+        ):
+            socket_hooks.main(
+                [
+                    "--browser",
+                    "chrome",
+                    "--browser-path",
+                    "controlled-browser",
+                    "--client-version",
+                    "1",
+                    "--scenario",
+                    "single",
+                    "--output-dir",
+                    "controlled-output",
+                ]
+            )
+
+        self.assertIs(raised.exception, failure)
+        self.assertIn("OSError: original browser failure", output.getvalue())
+        self.assertIn("TypeError: detach rejected its arguments", output.getvalue())
+        self.assertIn("TimeoutError: owned process has not exited", output.getvalue())
+
     def test_disabled_features_join_the_existing_switch(self) -> None:
         arguments = ["--a", "--disable-features=MediaRouter,OptimizationHints", "url"]
         self.assertEqual(
