@@ -176,6 +176,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             [
                 "catalog",
                 "chrome_linux_peer",
+                "chrome_windows156",
                 "client_hints_components",
                 "compositions",
                 "constructors",
