@@ -1113,6 +1113,7 @@ impl Inner {
             send_buffer,
             &mut self.store,
             &mut self.counts,
+            self.peer_ignores_rfc7540_priorities,
             dst
         ))?;
 

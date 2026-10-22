@@ -403,6 +403,11 @@ impl Headers {
         self.stream_dep = Some(stream_dep);
     }
 
+    pub(crate) fn clear_stream_dependency(&mut self) {
+        self.flags.0 &= !PRIORITY;
+        self.stream_dep = None;
+    }
+
     pub(crate) fn set_ordered_fields(&mut self, fields: Vec<(HeaderName, HeaderValue)>) {
         self.header_block.ordered_fields = Some(fields);
     }

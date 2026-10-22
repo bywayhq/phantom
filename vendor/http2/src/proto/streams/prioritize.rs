@@ -576,6 +576,7 @@ impl Prioritize {
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         counts: &mut Counts,
+        peer_ignores_rfc7540_priorities: bool,
         dst: &mut Codec<T, Prioritized<B>>,
     ) -> Poll<io::Result<()>>
     where
@@ -604,7 +605,15 @@ impl Prioritize {
             }
 
             match self.pop_frame(buffer, store, max_frame_len, counts) {
-                Some(frame) => {
+                Some(mut frame) => {
+                    // SETTINGS can disable priorities after these frames were queued.
+                    if peer_ignores_rfc7540_priorities {
+                        match &mut frame {
+                            Frame::Priority(_) => continue,
+                            Frame::Headers(headers) => headers.clear_stream_dependency(),
+                            _ => {}
+                        }
+                    }
                     tracing::trace!(?frame, "writing");
 
                     debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);

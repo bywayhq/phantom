@@ -32,4 +32,6 @@ completed-response-reset.patch
 received-trailers.patch
 full-table-indexing.patch
 queued-priority-suppression-tests.patch
+queued-priority-suppression.patch
+queued-priority-cancel-tests.patch
 publish-identity.patch

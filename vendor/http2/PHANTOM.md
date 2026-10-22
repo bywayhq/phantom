@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.21`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.22`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -992,6 +992,18 @@ The other insertion limits retain their behavior. Encoder controls cover
 3,073/4,096/4,097-byte entries, marker reuse, zero capacity and table changes.
 This choice reproduces the pinned httpcloak v1.7.3 peer's observed boundary
 behavior; profile selection belongs to the dependent crates.
+
+## Queued priority suppression
+
+`queued-priority-suppression.patch` checks the peer's
+SETTINGS_NO_RFC7540_PRIORITIES when selecting queued frames for the codec.
+A received value of 1 discards unsent PRIORITY frames and removes the priority
+fields from unsent HEADERS. END_STREAM and header-block fragmentation remain
+unchanged. Frames already accepted by the codec are not retracted.
+
+The adjacent test patch queues requests before the first peer SETTINGS is read.
+It covers connection defaults, request overrides, the initial priority tree,
+fragmented headers, zero/absent settings and already-emitted priority fields.
 
 ## Refreshing the vendor copy
 

@@ -389,14 +389,21 @@ impl Send {
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         counts: &mut Counts,
+        peer_ignores_rfc7540_priorities: bool,
         dst: &mut Codec<T, Prioritized<B>>,
     ) -> Poll<io::Result<()>>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
     {
-        self.prioritize
-            .poll_complete(cx, buffer, store, counts, dst)
+        self.prioritize.poll_complete(
+            cx,
+            buffer,
+            store,
+            counts,
+            peer_ignores_rfc7540_priorities,
+            dst,
+        )
     }
 
     /// Request capacity to send data

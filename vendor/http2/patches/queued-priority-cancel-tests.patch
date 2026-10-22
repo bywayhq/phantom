@@ -1,0 +1,48 @@
+diff --git a/src/client/tests/queued_priority_suppression.rs b/src/client/tests/queued_priority_suppression.rs
+index 19a796931..ab9c52b63 100644
+--- a/src/client/tests/queued_priority_suppression.rs
++++ b/src/client/tests/queued_priority_suppression.rs
+@@ -237,3 +237,43 @@ async fn priority_already_emitted_before_settings_is_not_retracted() {
+     .await
+     .expect("already-emitted priority control timed out");
+ }
++
++#[tokio::test]
++async fn discarded_priorities_preserve_queued_headers_before_cancel_reset() {
++    timeout(Duration::from_secs(3), async {
++        let (client_io, mut peer) = duplex(16 * 1024);
++        let (mut sender, connection) = builder(true)
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let (_response, mut upload) = sender
++            .send_request(request_with_headers(), true)
++            .expect("request was rejected");
++        upload.send_reset(crate::Reason::CANCEL);
++        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(9, 1)])).await;
++        let driver = Driver(tokio::spawn(connection));
++        read_client_preface(&mut peer).await;
++        let mut stream_frames = Vec::new();
++        loop {
++            let frame = read_raw_frame(&mut peer).await;
++            assert_ne!(frame.kind, 2, "cancelled request sent PRIORITY");
++            assert_ne!(frame.kind, 7, "unexpected GOAWAY: {:?}", frame.payload);
++            let reset = frame.kind == 3;
++            if frame.stream_id != 0 {
++                stream_frames.push(frame);
++            }
++            if reset {
++                break;
++            }
++        }
++        assert_eq!(stream_frames.len(), 2);
++        assert_headers(&stream_frames[..1], None, false);
++        assert_eq!(stream_frames[0].stream_id, 3);
++        assert_eq!(stream_frames[1].stream_id, 3);
++        assert_eq!(stream_frames[1].payload, 8_u32.to_be_bytes());
++        assert_connection_open(&mut peer).await;
++        driver.close().await;
++    })
++    .await
++    .expect("queued priority-cancellation control timed out");
++}

@@ -1,0 +1,70 @@
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -402,4 +402,9 @@
+         self.flags = HeadersFlag(END_HEADERS | PRIORITY);
+         self.stream_dep = Some(stream_dep);
++    }
++
++    pub(crate) fn clear_stream_dependency(&mut self) {
++        self.flags.0 &= !PRIORITY;
++        self.stream_dep = None;
+     }
+
+diff --git a/src/proto/streams/prioritize.rs b/src/proto/streams/prioritize.rs
+--- a/src/proto/streams/prioritize.rs
++++ b/src/proto/streams/prioritize.rs
+@@ -577,4 +577,5 @@
+         store: &mut Store,
+         counts: &mut Counts,
++        peer_ignores_rfc7540_priorities: bool,
+         dst: &mut Codec<T, Prioritized<B>>,
+     ) -> Poll<io::Result<()>>
+@@ -605,5 +606,13 @@
+
+             match self.pop_frame(buffer, store, max_frame_len, counts) {
+-                Some(frame) => {
++                Some(mut frame) => {
++                    // SETTINGS can disable priorities after these frames were queued.
++                    if peer_ignores_rfc7540_priorities {
++                        match &mut frame {
++                            Frame::Priority(_) => continue,
++                            Frame::Headers(headers) => headers.clear_stream_dependency(),
++                            _ => {}
++                        }
++                    }
+                     tracing::trace!(?frame, "writing");
+
+diff --git a/src/proto/streams/send.rs b/src/proto/streams/send.rs
+--- a/src/proto/streams/send.rs
++++ b/src/proto/streams/send.rs
+@@ -390,4 +390,5 @@
+         store: &mut Store,
+         counts: &mut Counts,
++        peer_ignores_rfc7540_priorities: bool,
+         dst: &mut Codec<T, Prioritized<B>>,
+     ) -> Poll<io::Result<()>>
+@@ -396,6 +397,12 @@
+         B: Buf,
+     {
+-        self.prioritize
+-            .poll_complete(cx, buffer, store, counts, dst)
++        self.prioritize.poll_complete(
++            cx,
++            buffer,
++            store,
++            counts,
++            peer_ignores_rfc7540_priorities,
++            dst,
++        )
+     }
+
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -1114,4 +1114,5 @@
+             &mut self.store,
+             &mut self.counts,
++            self.peer_ignores_rfc7540_priorities,
+             dst
+         ))?;
