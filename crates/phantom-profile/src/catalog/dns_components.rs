@@ -9,6 +9,7 @@ pub(crate) fn chromium_154_dns_cache() -> crate::DnsCacheSettings {
         max_entries: const { match std::num::NonZeroUsize::new(1000) { Some(value) => value, None => panic!("invalid nonzero component literal") } },
         ttl: std::time::Duration::new(60, 0),
         min_record_ttl: std::time::Duration::new(60, 0),
+        stale_grace: std::time::Duration::new(0, 0),
         negative_ttl: None,
     }
 }
@@ -21,6 +22,7 @@ pub(crate) fn firefox_157_dns_cache() -> crate::DnsCacheSettings {
         max_entries: const { match std::num::NonZeroUsize::new(1600) { Some(value) => value, None => panic!("invalid nonzero component literal") } },
         ttl: std::time::Duration::new(60, 0),
         min_record_ttl: std::time::Duration::new(0, 0),
+        stale_grace: std::time::Duration::new(600, 0),
         negative_ttl: Some(std::time::Duration::new(60, 0)),
     }
 }

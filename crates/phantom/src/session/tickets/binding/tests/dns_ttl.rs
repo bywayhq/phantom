@@ -20,3 +20,17 @@ fn native_dns_ttl_policy_changes_the_ticket_binding() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn dns_grace_changes_the_ticket_binding() -> TestResult {
+    let mut settings = chrome::v154_dns_cache();
+    let mut encoder = Encoder::new();
+    super::super::http::dns(&mut encoder, &settings)?;
+    let original = encoder.finish();
+    settings.stale_grace = Duration::from_secs(600);
+    let mut encoder = Encoder::new();
+    super::super::http::dns(&mut encoder, &settings)?;
+
+    assert_ne!(original, encoder.finish());
+    Ok(())
+}

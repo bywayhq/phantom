@@ -85,6 +85,7 @@ COMPONENT_FIELDS = {
         "max_entries",
         "ttl",
         "min_record_ttl",
+        "stale_grace",
         "negative_ttl",
     ),
     "UdpSettings": ("port_randomization",),

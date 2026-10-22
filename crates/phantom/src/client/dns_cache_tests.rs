@@ -80,6 +80,7 @@ fn settings() -> DnsCacheSettings {
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(600),
         min_record_ttl: Duration::ZERO,
+        stale_grace: Duration::ZERO,
         negative_ttl: None,
     }
 }

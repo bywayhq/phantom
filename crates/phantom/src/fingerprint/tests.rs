@@ -1,6 +1,7 @@
 mod address_failure;
 mod authoring;
 mod compact;
+mod dns_grace;
 mod invalid;
 mod json;
 mod policies;

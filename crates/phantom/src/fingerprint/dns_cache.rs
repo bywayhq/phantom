@@ -13,6 +13,7 @@ pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
             "max_entries",
             "ttl",
             "min_record_ttl",
+            "stale_grace",
             "negative_ttl",
             "system_ttl",
         ],
@@ -39,6 +40,9 @@ pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
         min_record_ttl: v
             .member("min_record_ttl", "dns_cache.min_record_ttl")?
             .duration("dns_cache.min_record_ttl")?,
+        stale_grace: v
+            .member("stale_grace", "dns_cache.stale_grace")?
+            .duration("dns_cache.stale_grace")?,
         negative_ttl: v
             .member("negative_ttl", "dns_cache.negative_ttl")?
             .optional(|v| v.duration("dns_cache.negative_ttl"))?,

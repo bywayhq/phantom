@@ -54,7 +54,7 @@ def validate_dns_values(values):
         )
     choice(values["system_ttl"], ("Ignore", "FirefoxWindows"), "system DNS TTL policy")
     bounded_integer(values["max_entries"], 1, MAX_U32, "DNS cache entry limit")
-    for field in ("ttl", "min_record_ttl"):
+    for field in ("ttl", "min_record_ttl", "stale_grace"):
         validate_duration(values[field], field)
     if values["negative_ttl"] is not None:
         validate_duration(values["negative_ttl"], "negative_ttl")

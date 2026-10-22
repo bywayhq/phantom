@@ -527,6 +527,7 @@ fn cache_for(ttl: Duration) -> DnsCacheSettings {
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl,
         min_record_ttl: Duration::ZERO,
+        stale_grace: Duration::ZERO,
         negative_ttl: None,
     }
 }

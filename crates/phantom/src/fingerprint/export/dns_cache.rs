@@ -34,5 +34,6 @@ record!(
     max_entries,
     ttl,
     min_record_ttl,
+    stale_grace,
     negative_ttl
 );

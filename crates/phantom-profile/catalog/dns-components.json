@@ -20,6 +20,10 @@
           "seconds": 60,
           "nanoseconds": 0
         },
+        "stale_grace": {
+          "seconds": 0,
+          "nanoseconds": 0
+        },
         "negative_ttl": null
       }
     },
@@ -40,6 +44,10 @@
         },
         "min_record_ttl": {
           "seconds": 0,
+          "nanoseconds": 0
+        },
+        "stale_grace": {
+          "seconds": 600,
           "nanoseconds": 0
         },
         "negative_ttl": {

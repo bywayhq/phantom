@@ -75,6 +75,7 @@ impl Application {
                 max_entries: NonZeroUsize::MIN,
                 ttl: Duration::from_secs(60),
                 min_record_ttl: Duration::from_secs(60),
+                stale_grace: Duration::ZERO,
                 negative_ttl: Some(Duration::from_secs(60)),
             });
         } else {

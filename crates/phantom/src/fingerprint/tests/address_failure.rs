@@ -10,7 +10,8 @@ fn dns_document() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         "address_failure_policy":{"kind":"Ignore","max_unusable_addresses":null},
         "system_ttl":"Ignore", "max_entries":1000,
         "ttl":{"seconds":60,"nanoseconds":0},
-        "min_record_ttl":{"seconds":60,"nanoseconds":0},"negative_ttl":null
+        "min_record_ttl":{"seconds":60,"nanoseconds":0},
+        "stale_grace":{"seconds":0,"nanoseconds":0},"negative_ttl":null
     });
     Ok(value)
 }

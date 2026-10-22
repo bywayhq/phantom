@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Breaking: add `DnsCacheSettings::stale_grace`. Firefox recipes reuse
+  positive DNS answers for up to ten minutes while refreshing them in the
+  background. Caller-supplied hard lifetimes stay strict.
+  Migrate: add `stale_grace: Duration::ZERO` to custom settings and
+  `"stale_grace": {"seconds": 0, "nanoseconds": 0}` to profile JSON to keep
+  the previous expiry behavior.
+
 - Include I/O error kinds and OS codes in Node connection failures.
 
 - Start SSE QUIC shutdown while workers finish, and retire the UDP endpoint
@@ -13,7 +20,7 @@
   priorities. Migrate: wrap fixed `Http2Priority` values in `Fixed`; use
   `WeightBand` to choose a live dependency. Template JSON now requires
   `variant: "Fixed"` or `variant: "WeightBand"`. Recreate saved ticket state
-  and session checkpoints for ticket-policy version 7.
+  and session checkpoints for ticket-policy version 8.
 - Breaking: remove `LayerEvidence::verified_fields()` and the catalog's
   `verified_fields` lists. Migrate: use `support()`, `references()` and
   `limitations()` to inspect a recipe; comparison details live in the tests.

@@ -312,6 +312,7 @@ pub(super) fn dns(e: &mut Encoder, value: &DnsCacheSettings) -> Result<(), Prepa
         max_entries,
         ttl,
         min_record_ttl,
+        stale_grace,
         negative_ttl,
         system_ttl,
     } = value;
@@ -331,6 +332,7 @@ pub(super) fn dns(e: &mut Encoder, value: &DnsCacheSettings) -> Result<(), Prepa
     e.usize(max_entries.get())?;
     e.duration(*ttl)?;
     e.duration(*min_record_ttl)?;
+    e.duration(*stale_grace)?;
     e.option(negative_ttl.as_ref(), |e, value| e.duration(*value))
 }
 

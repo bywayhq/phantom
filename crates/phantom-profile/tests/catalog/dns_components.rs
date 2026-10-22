@@ -1,5 +1,4 @@
-//! Legacy DNS values frozen at 51cd42aeaf9274cc59650846df1eebd7f3cc4c4c.
-//! Native TTL policy is checked alongside those unchanged values.
+//! Browser DNS lifetimes and resource limits.
 
 use phantom_profile::{DnsCacheSettings, SystemDnsTtlPolicy, browser};
 use std::{num::NonZeroUsize, time::Duration};
@@ -42,6 +41,7 @@ fn chrome_original() -> DnsCacheSettings {
         max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
         min_record_ttl: Duration::from_secs(60),
+        stale_grace: Duration::ZERO,
         negative_ttl: None,
     }
 }
@@ -55,6 +55,7 @@ fn firefox_original() -> DnsCacheSettings {
         max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
         min_record_ttl: Duration::ZERO,
+        stale_grace: Duration::from_secs(600),
         negative_ttl: Some(Duration::from_secs(60)),
     }
 }

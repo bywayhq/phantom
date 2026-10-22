@@ -11,8 +11,7 @@ pub enum SystemDnsTtlPolicy {
     ///
     /// Uses Firefox's native DNS query options, which permit network queries.
     /// Other platforms keep the configured fallback lifetime. Custom resolvers
-    /// are unaffected. Background refresh and stale-answer grace periods are
-    /// unsupported.
+    /// are unaffected. TTLs are obtained before returning the first answer.
     FirefoxWindows,
 }
 
@@ -51,14 +50,16 @@ pub enum DnsAddressFailurePolicy {
 /// proxy resolves, through `socks5h://`, an HTTP proxy, or CONNECT-UDP, is
 /// never resolved or cached locally.
 ///
-/// [`Self::system_ttl`] can obtain a native remaining lifetime on Windows,
-/// which the cache never extends. Without one, a system answer is kept for
+/// [`Self::system_ttl`] can obtain a native remaining lifetime on Windows.
+/// Without one, a system answer is kept for
 /// [`Self::ttl`], as is a caller's `AddressResolver::from_fn` answer.
 /// An answer from a resolver that sends its own
 /// DNS queries through `AddressResolver::system_nameservers` carries the
 /// smallest record TTL and is kept for that TTL or [`Self::min_record_ttl`],
-/// whichever is longer. A caller using `AddressResolver::from_answer_fn`
-/// supplies a remaining DNS lifetime, which the cache never extends.
+/// whichever is longer. [`Self::stale_grace`] allows those positive answers
+/// to be used while they are refreshed. A caller using
+/// `AddressResolver::from_answer_fn` supplies a hard remaining lifetime,
+/// which the cache never extends.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DnsCacheSettings {
     /// Failed-address history for locally resolved, cached DNS records.
@@ -75,17 +76,25 @@ pub struct DnsCacheSettings {
     pub max_entries: NonZeroUsize,
     /// How long a successful answer without a record TTL is reused.
     ///
-    /// A zero duration keeps nothing, though concurrent lookups of one name
-    /// still share one resolution.
+    /// A zero duration enters [`Self::stale_grace`] immediately. If both are
+    /// zero, concurrent lookups still share one resolution but keep no answer.
     pub ttl: Duration,
     /// The shortest time a successful answer with a record TTL is reused.
     ///
     /// Such an answer is kept for its record TTL or this, whichever is
     /// longer, and [`Self::ttl`] does not apply to it. A zero duration keeps
-    /// the record TTL as it is, and a record TTL of zero then keeps nothing.
+    /// the record TTL as it is, including immediate entry into the grace period.
     /// This floor does not apply to native remaining lifetimes or to
     /// `AddressResolver::from_answer_fn`.
     pub min_record_ttl: Duration,
+    /// How long a positive answer can be reused after its fresh lifetime ends.
+    ///
+    /// A lookup during this period returns the old answer and starts a bounded
+    /// background refresh. Concurrent lookups share that refresh. After this
+    /// period, lookups wait for resolution. Zero disables stale reuse.
+    /// Failed lookups and hard lifetimes from `AddressResolver::from_answer_fn`
+    /// never receive grace.
+    pub stale_grace: Duration,
     /// How long a failed lookup is remembered, or `None` to resolve again on
     /// the next connection.
     ///
@@ -117,6 +126,7 @@ mod tests {
         assert_eq!(settings.max_entries.get(), 1000);
         assert_eq!(settings.ttl, Duration::from_secs(60));
         assert_eq!(settings.min_record_ttl, Duration::from_secs(60));
+        assert_eq!(settings.stale_grace, Duration::ZERO);
         assert_eq!(settings.negative_ttl, None);
     }
 
@@ -140,6 +150,7 @@ mod tests {
         assert_eq!(settings.max_entries.get(), 1600);
         assert_eq!(settings.ttl, Duration::from_secs(60));
         assert_eq!(settings.min_record_ttl, Duration::ZERO);
+        assert_eq!(settings.stale_grace, Duration::from_secs(600));
         assert_eq!(settings.negative_ttl, Some(Duration::from_secs(60)));
     }
 

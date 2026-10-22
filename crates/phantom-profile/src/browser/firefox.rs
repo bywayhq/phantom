@@ -101,9 +101,9 @@ pub fn v157_linux_tcp() -> TcpSettings {
 /// 60 seconds. On Windows, uses the smallest native A/AAAA TTL without a
 /// minimum. Non-ASCII names use the standard resolver without optional TTLs.
 ///
-/// Phantom obtains the TTL before publishing an answer and resolves expired
-/// entries before connecting. Firefox can obtain TTLs in a second lookup and
-/// serve stale answers while refreshing them.
+/// Reuses positive answers for another ten minutes while refreshing them in
+/// the background. Phantom obtains native TTLs before publishing an answer;
+/// Firefox can obtain them in a second lookup.
 ///
 /// See `netwerk/dns/nsHostResolver.cpp` at `FIREFOX_157_0_RELEASE`.
 #[must_use]

@@ -114,7 +114,7 @@ class ConnectionComponentTests(unittest.TestCase):
             {"seconds": 1},
             {"seconds": 1, "nanoseconds": 0, "clock": "host"},
         ):
-            for field in ("ttl", "min_record_ttl", "negative_ttl"):
+            for field in ("ttl", "min_record_ttl", "stale_grace", "negative_ttl"):
                 if invalid is None and field == "negative_ttl":
                     continue
                 document = copy.deepcopy(self.dns)
@@ -130,7 +130,7 @@ class ConnectionComponentTests(unittest.TestCase):
             {"seconds": 0, "nanoseconds": 0},
             {"seconds": (1 << 64) - 1, "nanoseconds": 999999999},
         ):
-            for field in ("ttl", "min_record_ttl", "negative_ttl"):
+            for field in ("ttl", "min_record_ttl", "stale_grace", "negative_ttl"):
                 values[field] = duration
             generator.validate_components(self.dns, ("DnsCacheSettings",))
         values["negative_ttl"] = None
