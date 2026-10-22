@@ -750,7 +750,7 @@ impl PoolEntry {
         // own; each waits for the answer unless it may go out early. A
         // rejected or failed connection is invalidated by the first request
         // that sees it.
-        let leased = slot.lease();
+        let leased = slot.lease(self);
         let mut slots = self.lock_slots();
         let retained = MAX_TRANSPORT_LOCATIONS_PER_ENTRY * slots.spread.max_connections().get();
         if slots.connections.len() >= retained {
@@ -810,7 +810,7 @@ impl PoolEntry {
     /// after the server's GOAWAY, leave the pool first; they do not count
     /// toward the location's connection limit.
     fn choose(
-        &self,
+        self: &Arc<Self>,
         connector: &Http3Connector,
         location: &TransportLocation,
     ) -> Option<(ConnectionLease, OpenStream)> {
@@ -838,7 +838,7 @@ impl PoolEntry {
             return None;
         };
         let slot = connections.remove(position)?;
-        let leased = slot.lease();
+        let leased = slot.lease(self);
         connections.push_back(slot);
         drop(slots);
         debug!(
@@ -1465,6 +1465,7 @@ impl Http3Admission {
 
 /// A pooled H3 connection admitted for one request and not yet dispatched.
 pub(crate) struct Http3Lease {
+    /// The request's logical origin-and-route entry, which owns admission.
     entry: Arc<PoolEntry>,
     lease: ConnectionLease,
     /// Counts the request's stream against the connection until the
@@ -1528,7 +1529,7 @@ impl Http3Lease {
         match settled {
             Ok(()) => Ok(self),
             Err(error) => {
-                self.entry.invalidate(&self.lease.token);
+                self.lease.owner.invalidate(&self.lease.token);
                 Err(RequestError::http3_early_data_setup(error))
             }
         }
@@ -1558,7 +1559,7 @@ impl Http3Lease {
         timeout_budget: TimeoutBudget,
     ) -> Result<Http3ExtendedConnect, RequestError> {
         let Self {
-            entry,
+            entry: _entry,
             lease,
             stream,
             permit,
@@ -1597,7 +1598,7 @@ impl Http3Lease {
                 }
                 // The stream count drops first, so the request the permit
                 // admits next sees this stream ended.
-                tunnel.retain_until_stream_complete((stream, permit));
+                tunnel.retain_until_stream_complete((stream, permit, lease.owner));
                 Ok(Http3ExtendedConnect::Accepted {
                     response: Box::new(response),
                     stream: tunnel,
@@ -1611,7 +1612,7 @@ impl Http3Lease {
                 Ok(Http3ExtendedConnect::Rejected(Box::new(
                     http::Response::from_parts(
                         parts,
-                        ResponseBody::http3_with_guard(body, (stream, permit)),
+                        ResponseBody::http3_with_guard(body, (stream, permit, lease.owner)),
                     ),
                 )))
             }
@@ -1619,7 +1620,7 @@ impl Http3Lease {
                 drop(stream);
                 drop(permit);
                 if !connector.can_reuse_now(&lease.connection) {
-                    entry.invalidate(&lease.token);
+                    lease.owner.invalidate(&lease.token);
                 }
                 Err(RequestError::http3_stream(error))
             }
@@ -1631,7 +1632,7 @@ impl Http3Lease {
             Ok(Ok(_)) => {
                 drop(stream);
                 drop(permit);
-                entry.invalidate(&lease.token);
+                lease.owner.invalidate(&lease.token);
                 Err(RequestError::unsupported_transport_outcome())
             }
         }
@@ -1759,7 +1760,7 @@ async fn dispatch(
 ) -> Result<Dispatched<Http3Response>, RequestError> {
     retries.admit_http_attempt(Some(HttpProtocol::Http3))?;
     let Http3Lease {
-        entry,
+        entry: _entry,
         lease,
         stream,
         permit,
@@ -1816,7 +1817,7 @@ async fn dispatch(
                 // admits next sees this stream ended.
                 http::Response::from_parts(
                     parts,
-                    ResponseBody::http3_with_guard(body, (stream, permit)),
+                    ResponseBody::http3_with_guard(body, (stream, permit, lease.owner)),
                 ),
                 sent_headers,
             )))
@@ -1834,7 +1835,7 @@ async fn dispatch(
                     && error.is_unprocessed_request()
                     && !error.is_http3_early_data_rejected())
             {
-                entry.invalidate(&lease.token);
+                lease.owner.invalidate(&lease.token);
             }
             Err(error)
         }
@@ -1904,9 +1905,10 @@ struct ConnectionSlot {
 impl ConnectionSlot {
     /// Leases the connection for one stream, counted until the returned
     /// guard drops.
-    fn lease(&self) -> (ConnectionLease, OpenStream) {
+    fn lease(&self, owner: &Arc<PoolEntry>) -> (ConnectionLease, OpenStream) {
         (
             ConnectionLease {
+                owner: Arc::clone(owner),
                 connection: self.connection.clone(),
                 publication: self.publication.clone(),
                 token: Arc::clone(&self.token),
@@ -1933,6 +1935,8 @@ impl ConnectionSlot {
 
 #[derive(Clone)]
 struct ConnectionLease {
+    /// The entry whose slots own this connection, even for another origin's lease.
+    owner: Arc<PoolEntry>,
     connection: Http3Connection,
     publication: Option<Arc<Publication>>,
     token: Arc<()>,
