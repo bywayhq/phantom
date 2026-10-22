@@ -817,6 +817,7 @@ fn pinned_alt_used<'a>(
     if protocol != HttpProtocol::Http3 {
         return None;
     }
+
     let connector = client.inner.connectors_for(&request.endpoint).http3?;
     if !matches!(
         connector.alt_used_policy(),
@@ -824,6 +825,7 @@ fn pinned_alt_used<'a>(
     ) {
         return None;
     }
+
     request
         .alternative
         .as_ref()

@@ -289,8 +289,7 @@ pub enum Http3CookieCrumbs {
 /// brackets. [`Http3RequestSettings::alt_used_port`] controls the port.
 /// A caller-supplied `Alt-Used` field or trailer is rejected under every
 /// setting. Automatic client-hint settings cannot generate, move or request
-/// a hint replay for
-/// this field on any protocol. Other custom hint names retain their
+/// a hint replay for this field. Other custom hint names retain their
 /// configured behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -317,18 +316,13 @@ pub enum Http3AltUsed {
 
 /// How a generated `Alt-Used` field writes the alternative's port.
 ///
-/// This changes only the field value. The alternative's connection location,
-/// origin authority and TLS name remain unchanged.
+/// Connection targets always retain their port.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http3AltUsedPort {
     /// Include the port, including HTTPS's default port 443.
     Explicit,
     /// Omit port 443 on HTTPS requests. Keep every other port.
-    ///
-    /// Phantom's HTTP/3 requests use HTTPS. Firefox 157 omits the alternative
-    /// port when it equals the origin scheme's default port
-    /// (`nsHttpChannel.cpp`, `FIREFOX_157_0_RELEASE`).
     OmitDefault,
 }
 
