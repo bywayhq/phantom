@@ -26,7 +26,7 @@ type Response struct {
 	// client hints and protocol fallback.
 	ConnectionSetupRetries uint64
 	// DecodedContentCodings records the applied chain in header order: gzip,
-	// deflate, br or zstd. It does not promise successful body completion.
+	// deflate, br or zstd.
 	DecodedContentCodings []string
 	// RedirectHistory is nil unless requested. An enabled zero-hop response has
 	// a non-nil history with no entries. No history is returned on request errors.

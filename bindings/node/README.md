@@ -276,8 +276,7 @@ const custom = Profile.fromDescription(document);
 
 Pass `custom` as the client profile and request `context: 'profile'` to use
 its attached template. `raw` omits template headers. Named contexts require
-catalog ownership. `catalogId` is `null` for imports; settings alone carry no
-browser-fidelity claim. `contexts` lists choices.
+catalog ownership. `catalogId` is `null` for imports. `contexts` lists choices.
 
 Profiles are immutable. `describe()` returns a fresh document and uses `bigint`
 for large integers. Use `fromDescription()` to preserve them; ordinary
@@ -321,7 +320,7 @@ pools with selected live state. Close each client. Selectors are `cookies`,
 learning, expiry and clearing are shared; other state starts empty. Sharing does
 not enable disabled features. Profile, routes, trust and timeouts are retained.
 Admission and shutdown stay independent. You can fork a closed source into an
-open client. Shared tickets remain single-use; this does not save a checkpoint.
+open client. Shared tickets remain single-use.
 
 ## Encrypted session checkpoints
 

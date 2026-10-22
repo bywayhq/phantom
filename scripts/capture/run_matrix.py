@@ -1,9 +1,8 @@
 """Run a manifest of desktop browser captures in parallel, unattended.
 
 A manifest lists capture tools, browsers, scenarios, and repeat counts. The
-runner expands it into jobs, one tool invocation per (tool, browser,
-scenario), and runs them as subprocesses of this interpreter. Each tool still
-writes its own fixture, so fixture bytes are what the tool alone would write.
+runner starts one subprocess per (tool, browser, scenario). Each tool writes
+its own fixtures.
 
 Every job gets its own temporary directory, which becomes the process's
 TEMP, so its browser profiles and certificate files never share a path with

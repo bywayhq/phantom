@@ -1545,8 +1545,7 @@ async def capture(args: argparse.Namespace) -> None:
                 try:
                     await asyncio.wait_for(all_ended(run), CLOSE_GRACE)
                 except asyncio.TimeoutError as error:
-                    # An open connection at the end of this observation window is
-                    # part of the recording, not evidence that the browser closed it.
+                    # Record connections still open when the observation window ends.
                     run.grace_timeout = error
                     if args.scenario == "resources":
                         raise

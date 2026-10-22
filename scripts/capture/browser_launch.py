@@ -719,8 +719,7 @@ def signal_process_group(pid: int, signum: int) -> None:
 def terminate_profile_processes(profile: Path) -> None:
     """Kill processes still using `profile` after their launcher exited.
 
-    Browsers can re-parent their main process away from the launched process,
-    so a process-tree kill alone does not prove the run's browser is gone.
+    Browsers can re-parent their main process away from the launcher.
     Only a process whose command line names this run's profile, or a path
     inside it, is killed. run_matrix.py passes a job's temporary directory,
     which holds every profile the job's tool created.

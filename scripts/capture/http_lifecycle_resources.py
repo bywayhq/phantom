@@ -1,4 +1,4 @@
-"""Local assets and owned HTTPS evidence for the lifecycle resource scenario."""
+"""Serve local assets and record lifecycle resource requests."""
 
 from __future__ import annotations
 

@@ -195,7 +195,7 @@ class _CryptoStream:
 def client_hello_from_initials(datagrams: Sequence[bytes]) -> bytes | None:
     """Read the first authenticated Initial connection.
 
-    Initial keys are public and do not establish browser identity.
+    Initial keys are public.
     """
     if len(datagrams) > MAX_DATAGRAMS or sum(map(len, datagrams)) > MAX_CAPTURE_BYTES:
         raise ValueError("Initial datagrams exceed the capture limit")

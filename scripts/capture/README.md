@@ -413,13 +413,10 @@ Jobs that run at the same time share nothing the runner or the tools write:
 - A tool that uses machine-wide state always runs with no other job:
   `chrome_ech` and `alt_svc_race`.
 
-A job runs alone by default when its tool's fixtures keep connection counts,
-connection or request order, or delays, because load on the host can change
-them. Only `client_hints` and `startup_capture` share the host by default.
-Use `--jobs 1`, or keep the default, for a capture whose evidence is a count,
-an order, or a timing. Set `"exclusive": false` only for a capture whose
-evidence is the content of what the browser sent, such as a ClientHello or
-field values.
+A job runs alone by default when host load can change its connection counts,
+request order or timing. Only `client_hints` and `startup_capture` share the
+host by default. Set `"exclusive": false` for captures of ClientHello or header
+values, and keep timing-sensitive jobs exclusive.
 
 On the capture host (16 cores, 32 threads), 15 jobs of `client_hints` and
 `tls_resumption` for Chrome 154, Edge 154, Brave 154, Opera 135, and
@@ -428,10 +425,8 @@ with the default `--jobs 8`, where the `tls_resumption` jobs ran alone. With
 `"exclusive": false` for `tls_resumption` they took 26 seconds at `--jobs 8`,
 and each job took about 25% longer than alone. The number of resumed
 ClientHellos, and in `methods-http1` whether a run had 7 or 8 connections,
-differed between these three passes, including between runs made alone, so
-the passes do not show whether sharing the host changes them. The runner has
-been run with up to 16 jobs; at 16 each job took about 70% longer than
-alone. Measured September 2026.
+differed even between runs made alone. At 16 jobs each took about 70% longer
+than alone. Measured September 2026.
 
 ### Add a tool to the runner
 
@@ -494,12 +489,10 @@ take turns. Each holds a lock file in that directory until
 `sessionstore-windows-restored`, which Firefox writes at about the moment it
 requests the page, until the process exits, or for at most 15 seconds. The
 wait runs in a worker thread, so the tool's server answers the page while
-Firefox starts. Jobs that run alone, and every job under `--jobs 1`, do not
-get the variable. On the capture
-host, Firefox 156 processes started three at a time at the same moment loaded
-their page in 5 of 9 launches; with the lock, 12 of 12 loaded in groups of
-four. Chromium browsers started four at a time loaded 8 of 8 and do not take
-turns. A tool run on its own does not see the variable and launches at once.
+Firefox starts. Standalone tools and `--jobs 1` launch at once. On the capture
+host, Firefox 156 loaded its page in 5 of 9 launches in groups of three,
+versus 12 of 12 in groups of four with the lock. Chromium loaded 8 of 8
+in groups of four.
 
 `client_hints.py` and `http2_websocket.py` take `--browser-switch=<switch>`,
 repeatable, for a Chromium browser. The switch is appended to the launch
@@ -741,10 +734,9 @@ Limits:
   new ones from the host, so the listener sees the host's SYN, window, and
   socket options, never the device's. No TCP-layer setting can be captured
   this way.
-- An emulator is not a phone. The Magisk module changes the identity the
-  device reports, not its hardware: the CPU of `phantom-pixel7` is x86_64
-  rather than a phone's ARM core, which Chromium's AES hardware check reads,
-  and `phantom-pixel7-arm` runs on a Mac.
+- Chromium's AES hardware check sees an x86_64 CPU on `phantom-pixel7`.
+  `phantom-pixel7-arm` runs on a Mac. The Magisk module changes reported
+  identity fields.
 
 ## EventSource reconnects
 
@@ -779,8 +771,7 @@ uv run --no-project \
 Pass `args: ["--protocol", "h3"]` in a `sse_reconnect` manifest entry. The
 runner appends the protocol to its job ID. Files still use `<scenario>.txt`,
 so give each protocol a separate output directory. Use fresh work and output
-directories for new experiments; historical capture manifests and outputs
-remain evidence, not resume targets.
+directories for new experiments.
 
 Use finite positive run timeouts and single-line printable ASCII metadata.
 Cleanup attempts to collect accepted response workers within a five-second
@@ -1460,7 +1451,7 @@ the recording deadline ends.
 QUIC reconstruction selects the first authenticated Initial connection.
 Matching CRYPTO overlaps preserve all bytes; conflicting overlaps fail.
 The tool stops parsing a packet at an unsupported frame. Initial keys are
-public, so authentication does not establish which browser sent the packet.
+public.
 
 Worker and socket failures remain errors even after a ClientHello arrives.
 Cleanup waits up to five seconds for cooperative worker completion.
@@ -1607,8 +1598,8 @@ The tool uses the secure scenarios and five echo messages of
 exchange separately from the origin's TLS and ordered WebSocket headers.
 The `phantom-tunnelled-websocket-v1` fixture includes the actual origin ALPN,
 response, echo results and cleanup outcomes. It rejects credentials and
-cookies before publication. A mixed ALPN offer does not itself prove an H2
-WebSocket; inspect the decoded origin events.
+cookies before publication. Inspect decoded origin events for the selected
+WebSocket protocol.
 
 For desktop captures, save a new manifest such as this one. Replace the
 browser path, installed version and scratch paths for the capture host:

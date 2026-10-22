@@ -1,4 +1,4 @@
-"""Owned HTTP/3 resource requests and replayable client stream evidence."""
+"""Record HTTP/3 resource requests and replayable client streams."""
 
 from __future__ import annotations
 

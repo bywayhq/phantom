@@ -293,8 +293,8 @@ JSON bytes. Import validates the schema, ordering and 16 MiB input limit.
 `ProfileError.kind` and `.field` identify failures without supplied values.
 Documents can contain literal headers; treat them as sensitive.
 
-Profiles are immutable. Import creates new settings with `catalog_id=None`
-and no browser-fidelity claim. Use `context="profile"` for an attached template.
+Profiles are immutable. Import creates new settings with `catalog_id=None`.
+Use `context="profile"` for an attached template.
 Named contexts require a catalog-owned profile; imports cannot borrow them.
 
 Use `Profile.import_ja3(text, base=profile)`, `import_akamai`,

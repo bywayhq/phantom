@@ -31,10 +31,8 @@ python -m scripts.capture.sse_reconnect \
   --output-dir target/macos-headful-capture/fixtures
 ```
 
-The existing tool owns the disposable profile, browser and loopback peer.
-The workflow does not change TLS trust, hosts files, installed browser
-settings or the machine's network configuration. The tool's existing launch
-flags stay recorded in the fixture. There is no process-wide cleanup command.
+The tool creates a disposable profile and cleans up its browser and loopback
+peer. Launch flags appear in the fixture.
 
 ## Inspect the attempt
 
@@ -51,9 +49,7 @@ after the colon. It never overrides them.
 An early capture failure can leave no fixture; its logs and provenance
 remain part of the failed attempt. Cleanup failures remain failures.
 
-These are discrete hosted VM observations. They establish neither physical
-Mac behavior nor TLS/H2/H3 results, Safari behavior or Phantom wire parity.
-Keep the installed Chrome build separate from existing recipe versions.
+Compare captures by their recorded Chrome build and runner image.
 
 ## Next
 
