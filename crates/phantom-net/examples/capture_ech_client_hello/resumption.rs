@@ -168,7 +168,7 @@ impl Run {
 
     pub(super) async fn serve(
         &self,
-        mut tls: SslStream<Replayed<TcpStream>>,
+        mut tls: SslStream<Replayed>,
         acceptor: SslAcceptor,
         captured: Arc<Captured>,
         slot: usize,
@@ -442,7 +442,7 @@ impl EarlyPlaintext {
 }
 
 async fn read_head(
-    tls: &mut SslStream<Replayed<TcpStream>>,
+    tls: &mut SslStream<Replayed>,
     run: &Run,
     slot: usize,
     early: &mut EarlyPlaintext,
@@ -467,7 +467,7 @@ async fn read_head(
 }
 
 async fn finish_server_handshake(
-    tls: &mut SslStream<Replayed<TcpStream>>,
+    tls: &mut SslStream<Replayed>,
     run: &Run,
     slot: usize,
     early: &mut EarlyPlaintext,
@@ -642,4 +642,5 @@ impl<'a> Cursor<'a> {
 }
 
 #[cfg(test)]
+#[path = "resumption/tests.rs"]
 mod tests;

@@ -194,4 +194,5 @@ fn resumption_arguments_preserve_first_contact_and_reject_other_transports() -> 
     Ok(())
 }
 
+#[path = "tests/native.rs"]
 mod native;
