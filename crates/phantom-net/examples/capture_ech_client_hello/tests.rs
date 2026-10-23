@@ -47,11 +47,12 @@ struct Server {
 
 impl Server {
     async fn start(mode: ServerMode) -> CaptureResult<Self> {
-        Self::start_with_ech(mode, Some(Vec::new())).await
+        Self::start_with_ech(mode, None, Some(Vec::new())).await
     }
 
     async fn start_with_ech(
         mode: ServerMode,
+        origin: Option<SocketAddr>,
         ech_config_list: Option<Vec<u8>>,
     ) -> CaptureResult<Self> {
         let (identity, trust_root) = test_identity()?;
@@ -60,9 +61,10 @@ impl Server {
         let acceptor = identity.acceptor(None)?;
         let queries = Arc::new(Mutex::new(Vec::new()));
         let recorded = Arc::clone(&queries);
+        let origin = origin.unwrap_or(address);
         let answers = DnsAnswers {
-            address: address.ip(),
-            port: address.port(),
+            address: origin.ip(),
+            port: origin.port(),
             ech_config_list,
             quic: false,
         };

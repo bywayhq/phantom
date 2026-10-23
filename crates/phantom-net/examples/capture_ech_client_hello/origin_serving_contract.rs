@@ -218,13 +218,14 @@ async fn a_trusted_tcp_peer_receives_the_literal_capture_page() -> TestResult {
 #[tokio::test]
 async fn https_nodata_still_allows_a_verified_origin_get() -> TestResult {
     let mut origin = OriginResources::start().await?;
-    let mut dns = super::Server::start_with_ech(super::ServerMode::Capture, None).await?;
+    let address = origin.listener.local_addr()?;
+    let mut dns =
+        super::Server::start_with_ech(super::ServerMode::Capture, Some(address), None).await?;
     let result = async {
         if crate::Scenario::NoHttpsRecord.ech_setup()?.is_some() {
             return Err("no-record scenario created an ECH setup".into());
         }
         let mut resolver = dns.client().await?;
-        let address = origin.listener.local_addr()?;
         let name = format!("_{}._https.{HOSTNAME}", address.port());
         let response = super::exchange(&mut resolver, &name, 65).await?;
         if super::dns_header(&response)? != [0x1234, 0x8180, 1, 0, 0, 0]
