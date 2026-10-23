@@ -493,4 +493,5 @@ impl AlternativeHost {
 }
 
 #[cfg(test)]
+#[path = "alternative_host/tests.rs"]
 mod tests;

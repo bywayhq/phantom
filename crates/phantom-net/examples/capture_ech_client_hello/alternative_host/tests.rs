@@ -3,7 +3,9 @@ use std::sync::Arc;
 use super::{AlternativeHost, HOST_B, PROBE_BODY, SerializedIndexes};
 use crate::{CaptureResult, Captured, DnsAnswers, HOSTNAME, Scenario, dns_response};
 
+#[path = "tests/native.rs"]
 mod native;
+#[path = "tests/native_bootstrap.rs"]
 mod native_bootstrap;
 
 fn state() -> CaptureResult<AlternativeHost> {
