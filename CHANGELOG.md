@@ -9,6 +9,9 @@
 
 - Randomize UDP source ports with the Chrome 156 Windows recipe.
 
+- Update Rust dependencies, capture tooling and CI actions; preserve Python
+  3.10 dependency hashes and synchronized fuzz locks.
+
 - Accept reserved HTTP/3 frame padding in resource captures.
 
 - Apply Chrome 156 Windows HTTP/1 connection limits and idle policy.

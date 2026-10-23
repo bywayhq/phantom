@@ -50,16 +50,16 @@ class CiCheckTests(unittest.TestCase):
             destination = self.root / "scripts/ci" / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(REPO / "scripts/ci" / name, destination)
-        self.write("scripts/requirements.in", "ruff==0.17.0\n")
-        self.write("scripts/requirements.txt", "ruff==0.17.0\n")
-        self.write("pyproject.toml", 'required-version = "==0.17.0"\n')
+        self.write("scripts/requirements.in", "ruff==0.17.1\n")
+        self.write("scripts/requirements.txt", "ruff==0.17.1\n")
+        self.write("pyproject.toml", 'required-version = "==0.17.1"\n')
         self.write(".github/workflows/ci.yml", "  SHELLCHECK_VERSION: v0.11.0\n")
         self.write(
             ".config/nextest.toml", 'nextest-version = { recommended = "0.9.145" }\n'
         )
         self.write(
             "tools.md",
-            "ruff@0.17.0 --with ruff==0.17.0 nightly-2026-09-01\n"
+            "ruff@0.17.1 --with ruff==0.17.1 nightly-2026-09-01\n"
             "ShellCheck 0.11.0 cargo-nextest@0.9.145\n",
         )
         self.write(

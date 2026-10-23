@@ -445,7 +445,7 @@ capture_tests() {
     --with hpack==4.2.0 python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 }
 chain_python() {
-  local ruff=(uvx ruff@0.17.0) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
+  local ruff=(uvx ruff@0.17.1) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release bindings/python)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   [[ $defer_capture == true ]] || capture_tests
