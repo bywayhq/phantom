@@ -6,6 +6,8 @@
 
 - Capture WebSocket openings through HTTP/2 HTTPS proxies.
 
+- Capture ECH discovery for an alternative HTTP/3 host.
+
 - Add a Firefox SOCKS5 proxy capture scenario.
 
 - Retain Firefox 157 early-data rejection and ECH key-rotation captures.
