@@ -397,7 +397,7 @@ fn ech_value_types_are_hashable_send_and_sync() {
 }
 
 #[test]
-fn only_the_desktop_chromium_recipes_use_ech_from_https_records() {
+fn browser_ech_record_policies_match_their_supported_transports() {
     assert!(
         crate::browser::chrome::v154_tcp_tls()
             .ech
@@ -474,7 +474,17 @@ fn only_the_desktop_chromium_recipes_use_ech_from_https_records() {
             .uses_https_records()
     );
     assert!(
-        !crate::browser::firefox::v157_tcp_tls()
+        crate::browser::firefox::v157_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::firefox::v157_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::firefox::v156_android_tcp_tls()
             .ech
             .uses_https_records()
     );
