@@ -1,3 +1,4 @@
+//! HTTP proxy Basic authentication challenge validation.
 #![no_main]
 
 use http::{HeaderMap, HeaderValue, header::PROXY_AUTHENTICATE};

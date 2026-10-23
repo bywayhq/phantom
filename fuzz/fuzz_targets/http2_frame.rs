@@ -1,3 +1,4 @@
+//! HTTP/2 SETTINGS and WINDOW_UPDATE frame parsing.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;

@@ -1,3 +1,4 @@
+//! TLS ClientHello parsing and summary extraction.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;

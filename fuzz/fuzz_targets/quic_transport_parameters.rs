@@ -1,3 +1,4 @@
+//! QUIC transport parameter parsing for both connection sides.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;

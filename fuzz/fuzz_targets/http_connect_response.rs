@@ -1,3 +1,4 @@
+//! HTTP CONNECT response parsing against a controlled proxy.
 #![no_main]
 
 use std::{
