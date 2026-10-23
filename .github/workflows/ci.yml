@@ -347,7 +347,9 @@ jobs:
           tool: cargo-deny@0.19.6
 
       - name: Check dependency bans, advisories, and licenses
-        run: cargo deny --locked check bans advisories licenses
+        run: |
+          cargo deny --locked check bans advisories licenses
+          cargo deny --manifest-path fuzz/Cargo.toml --locked check --config deny.toml bans advisories licenses
 
       - name: Check path and git downstream consumers
         run: scripts/ci/check-downstream.sh path git

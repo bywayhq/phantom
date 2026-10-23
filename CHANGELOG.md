@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Omit unused Zstandard array, dictionary-training and pre-standard format
+  support from the default build.
+
 - Clarify certificate revocation, Certificate Transparency and legacy TLS
   policy in the authentication docs.
 

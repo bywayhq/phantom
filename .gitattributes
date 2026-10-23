@@ -3,5 +3,6 @@
 vendor/tungstenite/CHANGELOG.md -whitespace
 vendor/tungstenite/patches/*.patch -whitespace
 fixtures/** -text
+crates/phantom-net/src/tls/compression/fixtures/** -text
 vendor/** -text
 scripts/release/notices/** -text

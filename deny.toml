@@ -46,6 +46,9 @@ allow = [
     "Zlib",
 ]
 exceptions = [
+    # libfuzzer-sys metadata names NCSA; its bundled LLVM sources also carry
+    # Apache-2.0 with the LLVM exception. Recheck both on a version change.
+    { crate = "libfuzzer-sys@0.4.13", allow = ["NCSA", "Apache-2.0 WITH LLVM-exception"] },
     # PyO3's build configuration uses target-lexicon. Its LICENSE contains
     # Apache-2.0 plus the LLVM exception for compiled object redistribution.
     { crate = "target-lexicon@0.13.5", allow = ["Apache-2.0 WITH LLVM-exception"] },

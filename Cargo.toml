@@ -54,7 +54,7 @@ tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-
 tungstenite = { package = "phantom-tungstenite", version = "=0.30.0-phantom.3", path = "vendor/tungstenite", default-features = false }
 wreq-proto = { package = "phantom-wreq-proto", version = "=0.2.5-phantom.23", path = "vendor/wreq-proto" }
 zeroize = "=1.9.0"
-zstd = "0.14.0"
+zstd = { version = "0.14.0", default-features = false }
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

@@ -96,6 +96,8 @@ mod tests {
 
     const CERTIFICATE_MESSAGE: &[u8] =
         b"certificate chain bytes with repeated repeated repeated fields";
+    const ZSTD_FRAME: &[u8] = include_bytes!("compression/fixtures/example.txt.v8.zst");
+    const ZSTD_TEXT: &[u8] = include_bytes!("compression/fixtures/example.txt");
 
     #[test]
     fn all_certificate_compressors_round_trip() -> io::Result<()> {
@@ -111,6 +113,34 @@ mod tests {
             error.err().map(|error| error.kind()),
             Some(io::ErrorKind::Other)
         );
+    }
+
+    #[test]
+    fn zstd_decodes_an_independent_standard_frame() -> io::Result<()> {
+        let mut output = Vec::new();
+        ZstdCertificateCompression.decompress(ZSTD_FRAME, &mut output)?;
+        assert_eq!(output, ZSTD_TEXT);
+        Ok(())
+    }
+
+    #[test]
+    fn zstd_rejects_truncated_standard_frames() {
+        for length in [0, 3, ZSTD_FRAME.len() - 1] {
+            let result =
+                ZstdCertificateCompression.decompress(&ZSTD_FRAME[..length], &mut Vec::new());
+            assert!(result.is_err(), "accepted a {length}-byte truncated frame");
+        }
+    }
+
+    #[test]
+    fn zstd_preserves_bounded_output_failures() {
+        let mut output = [0; 16];
+        let result = ZstdCertificateCompression.decompress(ZSTD_FRAME, &mut output.as_mut_slice());
+        assert_eq!(
+            result.err().map(|error| error.kind()),
+            Some(io::ErrorKind::WriteZero)
+        );
+        assert_eq!(output.as_slice(), &ZSTD_TEXT[..output.len()]);
     }
 
     struct RejectWrites;
