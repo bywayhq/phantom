@@ -12,6 +12,7 @@ use phantom_profile::{
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+mod http1;
 mod startup;
 
 const SNAPSHOTS: [&str; 3] = [
@@ -99,6 +100,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
             layer.layer(),
             ProfileLayer::TcpTls
                 | ProfileLayer::Tcp
+                | ProfileLayer::Http1
                 | ProfileLayer::Http2
                 | ProfileLayer::QuicTls
                 | ProfileLayer::QuicTransport
@@ -138,7 +140,6 @@ fn windows156_selects_its_captured_layers() -> TestResult {
     );
     assert!(selected.udp().is_none());
     assert!(selected.dns_cache().is_none());
-    assert!(selected.http1().is_none());
     assert!(selected.websocket().is_none());
     assert!(selected.proxy_connect().is_none());
     assert!(selected.request_template().is_none());

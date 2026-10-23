@@ -1460,8 +1460,38 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
             LayerEvidence {
                 layer: ProfileLayer::Http1,
-                support: LayerSupport::Unavailable,
+                support: LayerSupport::Configured,
                 references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/chrome/156.0.8078.48/windows-11-26200/hooks-parallel.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/chrome/156.0.8078.48/windows-11-26200/hooks-idle.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/client_socket_pool.cc",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/client_socket_pool_manager.cc",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/transport_client_socket_pool.cc",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
                 ],
                 limitations: &[],
             },

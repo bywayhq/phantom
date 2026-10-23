@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Apply Chrome 156 Windows HTTP/1 connection limits and idle policy.
+
 - Recognize already-exited socket-capture processes during cleanup.
 
 - Allow headful Chromium socket captures with `--headful`.

@@ -2984,6 +2984,42 @@
           ]
         },
         {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/156.0.8078.48/windows-11-26200/hooks-parallel.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/156.0.8078.48/windows-11-26200/hooks-idle.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Source",
+              "location": "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/client_socket_pool.cc",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Source",
+              "location": "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/client_socket_pool_manager.cc",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Source",
+              "location": "https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/transport_client_socket_pool.cc",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
           "layer": "ClientHints",
           "support": "Configured",
           "references": [
@@ -3008,7 +3044,7 @@
         "Tcp": "chromium_154_tcp",
         "Udp": null,
         "Dns": null,
-        "Http1": null,
+        "Http1": "chromium_154_http1",
         "Http2": "chromium_154_http2",
         "QuicTls": "chromium_154_quic_tls",
         "QuicTransport": "chromium_154_quic",

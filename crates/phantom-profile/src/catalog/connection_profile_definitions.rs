@@ -409,7 +409,7 @@ pub(super) static CHROMEWINDOWS156: ConnectionProfileDefinition = ConnectionProf
     tcp: Some(TcpComponent::Chromium154),
     udp: None,
     dns_cache: None,
-    http1: None,
+    http1: Some(Http1Component::Chromium154),
     http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
         tls: TlsComponent::Chromium154Quic,
