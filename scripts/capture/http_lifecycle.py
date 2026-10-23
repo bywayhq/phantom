@@ -34,6 +34,7 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .browser_failures import CleanupFailures
 from .browser_launch import (
     CHROMIUM_BROWSERS,
     DESKTOP_CHROMIUM_BROWSERS,
@@ -901,7 +902,7 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
             run.finish(target, record.index)
 
 
-class LifecycleFailures(Exception):
+class LifecycleFailures(CleanupFailures):
     """Original operation errors and owners whose retirement needs retry."""
 
     def __init__(
@@ -910,14 +911,8 @@ class LifecycleFailures(Exception):
         cleanup: Sequence[BaseException],
         owner: LifecycleServer | RemoteConnection | RemoteSocket,
     ) -> None:
-        self.primary = primary
-        self.cleanup = tuple(cleanup)
         self.owner = owner
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause = None
-        self.interruption_context = None
-        super().__init__("lifecycle capture cleanup failed")
+        super().__init__(primary, tuple(cleanup), "lifecycle capture cleanup failed")
 
 
 def _raise_lifecycle_failures(
@@ -928,20 +923,7 @@ def _raise_lifecycle_failures(
     cleanup = tuple(error for error in cleanup if error is not primary)
     if cleanup:
         combined = LifecycleFailures(primary, cleanup, owner)
-        interruption = next(
-            (
-                error
-                for error in (primary, *cleanup)
-                if isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-                )
-            ),
-            None,
-        )
-        if interruption is not None:
-            combined.interruption_cause = interruption.__cause__
-            combined.interruption_context = interruption.__context__
-            raise interruption from combined
+        combined.raise_interruption()
         if primary is not None:
             raise primary from combined
         raise combined from cleanup[0]
