@@ -121,7 +121,7 @@ class Scenario:
     name: str
     question: str
     limit_seconds: float
-    # "https-connect" uses H1 TLS through a plaintext HTTP CONNECT proxy.
+    # "https-connect" and "https-socks5" use H1 TLS through a plaintext proxy.
     target: str
     script: str
     # Answer the lookup of TARGET_HOST as REWRITE_TO does.
@@ -135,11 +135,16 @@ class Scenario:
             "websocket": "ws",
             "wss": "wss",
             "https-connect": "https",
+            "https-socks5": "https",
         }[self.target]
 
     @property
+    def proxy_mode(self) -> str | None:
+        return {"https-connect": "http", "https-socks5": "socks5"}.get(self.target)
+
+    @property
     def hostname(self) -> str:
-        if self.target == "https-connect":
+        if self.proxy_mode is not None:
             from .http2_session import HOSTNAME  # noqa: PLC0415
 
             return HOSTNAME
@@ -164,6 +169,18 @@ def _readable_get(path: str) -> str:
         f"fetch(T + '{path}', {{mode: 'cors', cache: 'no-store'}})"
         ".then(r => { if (!r.ok) throw new Error('target HTTP status ' + r.status); "
         "return r.text(); })"
+    )
+
+
+def _proxy_backup_script() -> str:
+    return (
+        _readable_get("/fast?i=0")
+        + ".then(() => Promise.all(["
+        + ",".join(_readable_get(f"/slow?i={i}") for i in (1, 2, 3))
+        + "]))"
+        + ".then(() => fetch('/drop', {cache: 'no-store'}))"
+        + f".then(() => {_readable_get('/fast?i=4')})"
+        + f".then(() => {DONE})"
     )
 
 
@@ -313,13 +330,16 @@ SCENARIOS = {
             "concurrent H1 TLS requests and a new request after origin disconnect",
             40,
             "https-connect",
-            _readable_get("/fast?i=0")
-            + ".then(() => Promise.all(["
-            + ",".join(_readable_get(f"/slow?i={i}") for i in (1, 2, 3))
-            + "]))"
-            + ".then(() => fetch('/drop', {cache: 'no-store'}))"
-            + f".then(() => {_readable_get('/fast?i=4')})"
-            + f".then(() => {DONE})",
+            _proxy_backup_script(),
+            rewrite_lookup=True,
+        ),
+        Scenario(
+            "socks5-backup",
+            "SOCKS5 proxy attempts with [::1] then 127.0.0.1, remote origin "
+            "names, concurrent H1 TLS requests and origin disconnect",
+            40,
+            "https-socks5",
+            _proxy_backup_script(),
             rewrite_lookup=True,
         ),
     )
@@ -915,11 +935,17 @@ class Origins:
                     ]
                     for connection, target in targets:
                         connection.close_kind = "server"
-                        if self.scenario.name in ("h2-backup", "http-connect-backup"):
+                        if (
+                            self.scenario.name == "h2-backup"
+                            or self.scenario.proxy_mode is not None
+                        ):
                             target.transport.abort()
                         else:
                             target.close()
-                    if self.scenario.name in ("h2-backup", "http-connect-backup"):
+                    if (
+                        self.scenario.name == "h2-backup"
+                        or self.scenario.proxy_mode is not None
+                    ):
                         if len(closing) != len(targets):
                             raise RuntimeError(
                                 "Firefox target close has no owning peer"
@@ -956,16 +982,16 @@ class Origins:
             connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
             self.connections.append(connection)
             self.open.append((connection, writer))
-            if self.scenario.target in ("wss", "https-connect"):
+            if self.scenario.target == "wss" or self.scenario.proxy_mode is not None:
                 tls = writer.get_extra_info("ssl_object")
                 if tls is None:
                     raise ValueError(
                         "Firefox CONNECT origin requires TLS"
-                        if self.scenario.target == "https-connect"
+                        if self.scenario.proxy_mode is not None
                         else "Firefox WSS origin requires TLS"
                     )
                 connection.alpn = tls.selected_alpn_protocol()
-                if self.scenario.target == "https-connect":
+                if self.scenario.proxy_mode is not None:
                     if connection.alpn != "http/1.1":
                         raise ValueError(
                             "Firefox CONNECT origin requires HTTP/1.1 ALPN"
@@ -1761,11 +1787,19 @@ async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
             super().failed(error, run)
             origins.remember_failure(error)
 
-    proxy = ConnectProxy("http", certificate, ("127.0.0.1", origins.port))
+    mode = origins.scenario.proxy_mode
+    if mode is None:
+        raise ValueError("Firefox proxy scenario is required")
+    proxy = ConnectProxy(mode, certificate, ("127.0.0.1", origins.port))
     # Retain ownership before either admission or listener startup can fail.
     origins.proxy = proxy
     proxy.begin_run(
-        CaptureRun("firefox-connect", ServerPolicy(), {}, clock=lambda: now_ms() / 1000)
+        CaptureRun(
+            "firefox-connect" if mode == "http" else "firefox-socks5",
+            ServerPolicy(),
+            {},
+            clock=lambda: now_ms() / 1000,
+        )
     )
     await proxy.start()
 
@@ -1774,7 +1808,9 @@ def connect_pac(origins: Origins) -> bytes:
     if origins.proxy is None or origins.proxy.address is None:
         raise RuntimeError("Firefox CONNECT proxy has no listener")
     host = json.dumps(origins.scenario.hostname)
-    route = json.dumps(f"PROXY {TARGET_HOST}:{origins.proxy.address[1]}")
+    # Firefox157's PAC SOCKS5 always requests remote-name resolution.
+    kind = "SOCKS5" if origins.scenario.proxy_mode == "socks5" else "PROXY"
+    route = json.dumps(f"{kind} {TARGET_HOST}:{origins.proxy.address[1]}")
     origin = json.dumps(f"{origins.target_url}/")
     return (
         f"function FindProxyForURL(url, host) {{\n"
@@ -1820,7 +1856,7 @@ async def run_once(
         origins.page_port = page.sockets[0].getsockname()[1]
         context = None
         files: tuple[tuple[str, str], ...] = ()
-        if scenario.target in ("h2", "wss", "https-connect"):
+        if scenario.target in ("h2", "wss") or scenario.proxy_mode is not None:
             from .http2_session import (  # noqa: PLC0415
                 generate_certificate,
                 server_context,
@@ -1836,7 +1872,7 @@ async def run_once(
         )
         origins.listeners.append(target)
         origins.port = target.sockets[0].getsockname()[1]
-        if scenario.target in ("h2", "wss", "https-connect"):
+        if scenario.target in ("h2", "wss") or scenario.proxy_mode is not None:
             files = (
                 (
                     "cert_override.txt",
@@ -1847,7 +1883,7 @@ async def run_once(
             )
         preferences: tuple[tuple[str, bool | int | str], ...] = ()
         measured_port = origins.port
-        if scenario.target == "https-connect":
+        if scenario.proxy_mode is not None:
             await start_connect_proxy(origins, certificate)
             preferences = connect_preferences(origins)
             measured_port = origins.proxy.address[1]
@@ -1884,7 +1920,7 @@ async def run_once(
             await owner.wait(origins.done, scenario.limit_seconds)
         except asyncio.TimeoutError:
             timed_out = True
-        if scenario.target == "https-connect" and not timed_out:
+        if scenario.proxy_mode is not None and not timed_out:
             validate_connect_run(origins)
         await asyncio.sleep(1.0)
         result = timed_out
@@ -2071,6 +2107,20 @@ def connect_observations(origins: Origins, start_ms: int) -> list[dict[str, Any]
 
 def validate_connect_run(origins: Origins) -> None:
     observations = connect_observations(origins, 0)
+    if origins.scenario.proxy_mode == "socks5":
+        host = origins.scenario.hostname.encode("ascii")
+        expected = (
+            b"\x05\x01\x00\x05\x01\x00\x03"
+            + bytes((len(host),))
+            + host
+            + origins.port.to_bytes(2, "big")
+        )
+        if any(
+            record["upstream"] is not None
+            and bytes.fromhex(record["opening_hex"]) != expected
+            for record in observations
+        ):
+            raise ValueError("Firefox SOCKS5 origin must use the remote hostname")
     linked = [
         record["origin_connection"]
         for record in observations
@@ -2134,7 +2184,10 @@ def render_run(index: int, result: RunResult) -> list[str]:
         family = "ipv6" if connection.peer.startswith("::") else "ipv4"
         alpn = (
             f",alpn:{connection.alpn or '-'}"
-            if result.origins.scenario.target in ("wss", "https-connect")
+            if (
+                result.origins.scenario.target == "wss"
+                or result.origins.scenario.proxy_mode is not None
+            )
             else ""
         )
         lines.append(
@@ -2214,16 +2267,20 @@ def render_fixture(
         f"hook_intervention={scenario.intervention}",
         f"run_count={len(runs)}",
     ]
-    if scenario.target == "https-connect":
+    if scenario.proxy_mode is not None:
         header.extend(
             (
                 f"proxy_hostname={TARGET_HOST}",
-                "proxy_mode=http-connect",
+                "proxy_mode=socks5"
+                if scenario.proxy_mode == "socks5"
+                else "proxy_mode=http-connect",
                 "proxy_configuration=PAC exact origin; other names direct; direct failover disabled",
                 "origin_alpn_offer=http/1.1",
                 "origin_trust=disposable-profile cert_override.txt",
             )
         )
+        if scenario.proxy_mode == "socks5":
+            header.append("proxy_dns=remote")
     return "\n".join([*header, *(line for run in runs for line in run)]) + "\n"
 
 

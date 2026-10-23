@@ -2239,6 +2239,7 @@ cleanup failures prevent fixture publication.
 | `websocket` | `ws://`; the origin sends a frame every 5 s; the page closes after 20 s | Keepalive after the 101 response |
 | `websocket-backup` | Two `ws://` upgrades, then two HTTP requests | Address selection while a WebSocket remains active and after both close |
 | `wss-backup` | Two `wss://` upgrades over HTTP/1.1, then two HTTPS requests | TLS completion and closure of an unused backup connection |
+| `socks5-backup` | H1 TLS through a named SOCKS5 proxy; concurrent requests, origin close and another request | Physical proxy address attempts and remote-name SOCKS5 openings |
 | `backup` | HTTP/1.1; `/fast`, then three concurrent `/slow` (3 s each), then `/fast` after the origin closed every connection | Connection attempts when the name resolves to `[::1]` then `127.0.0.1` and only `127.0.0.1` listens, and the family of later connections |
 | `dns-cache` | HTTP/1.1; `/close` at 0, 30, 65, and 95 s | How long Firefox keeps the name's answer |
 
@@ -2262,6 +2263,11 @@ Use an isolated Firefox 157 executable if your installed browser has updated.
 Run the WebSocket backup scenarios separately with
 `run --scenario websocket-backup --headful` or
 `run --scenario wss-backup --headful`.
+
+Run `socks5-backup` with `run --scenario socks5-backup --repeat 1 --headful`.
+Its exact-origin PAC uses `SOCKS5` for remote origin names. Only the physical
+proxy lookup is rewritten to `localhost`; bootstrap and control requests stay
+direct. Raw records distinguish proxy sockets, SOCKS bytes and origin TLS.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and
 its SHA-256 (`hook_agent_extension_sha256`), `decoder_sha256` for
