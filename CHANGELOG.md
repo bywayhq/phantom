@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Report live DoH connection phases and request counts when a capture
+  reaches its connection limit.
+
 - Allow a fixed secure port in snapshot captures; retain Firefox 157
   default-port `Alt-Used` observations.
 
