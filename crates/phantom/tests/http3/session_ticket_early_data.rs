@@ -125,7 +125,11 @@ async fn imported_with_budget(accept: bool, maximum: Option<usize>) -> TestResul
         arrived_tx,
         read,
         closed_tx,
-        denied,
+        if denied {
+            ImportedReply::BudgetDenied
+        } else {
+            ImportedReply::Normal
+        },
     ));
     let outcome = AssertUnwindSafe(timeout(DEADLINE, async {
         let source = client(&identity)?;
@@ -303,25 +307,31 @@ async fn send_budgeted(
     Ok(())
 }
 
+enum ImportedReply {
+    Normal,
+    BudgetDenied,
+    AcceptedMisdirected,
+}
+
 async fn serve(
     endpoint: quinn::Endpoint,
     gate: watch::Receiver<bool>,
     arrived: mpsc::Sender<(usize, String, bool)>,
     mut read: mpsc::Receiver<()>,
     closed: mpsc::Sender<usize>,
-    denied: bool,
+    reply: ImportedReply,
 ) -> TestResult<()> {
     for index in 0..2 {
         let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
         connecting.handshake_data().await?;
-        let quic = match connecting.into_0rtt() {
-            Ok((connection, _accepted)) => connection,
-            Err(connecting) => connecting.await?,
+        let (quic, accepted) = match connecting.into_0rtt() {
+            Ok((connection, accepted)) => (connection, Some(accepted)),
+            Err(connecting) => (connecting.await?, None),
         };
         let mut connection =
             h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(quic.clone()))
                 .await?;
-        if denied && index == 1 {
+        if matches!(reply, ImportedReply::BudgetDenied) && index == 1 {
             read.recv()
                 .await
                 .ok_or("client stopped before acknowledgement")?;
@@ -349,12 +359,27 @@ async fn serve(
         arrived
             .send((index, request.uri().path().to_owned(), gate_was_open))
             .await?;
-        stream
-            .send_response(Response::builder().status(StatusCode::OK).body(())?)
-            .await?;
-        stream
-            .send_data(Bytes::copy_from_slice(request.uri().path().as_bytes()))
-            .await?;
+        let misdirected = index == 1 && matches!(reply, ImportedReply::AcceptedMisdirected);
+        let mut response = Response::builder().status(StatusCode::OK);
+        if misdirected {
+            // On the server this future fences handshake completion. Early
+            // acceptance is witnessed by decoding the request behind the gate.
+            if !accepted
+                .ok_or("missing imported handshake completion")?
+                .await
+            {
+                return Err("imported handshake did not complete".into());
+            }
+            response = response
+                .status(StatusCode::MISDIRECTED_REQUEST)
+                .header("alt-svc", "h3=\":1\"; ma=60");
+        }
+        stream.send_response(response.body(())?).await?;
+        if !misdirected {
+            stream
+                .send_data(Bytes::copy_from_slice(request.uri().path().as_bytes()))
+                .await?;
+        }
         stream.finish().await?;
         read.recv()
             .await
