@@ -138,24 +138,13 @@ impl Client {
             );
             Arc::clone(&self.state.tickets)
         });
-        let mut state = options.build_with_tickets(&inner, tickets);
+        let mut state = options.build_with_tickets(
+            &inner,
+            tickets,
+            sharing.discovery.then_some(self.state.as_ref()),
+        );
         if sharing.client_hints {
             state.client_hints.clone_from(&self.state.client_hints);
-        }
-        if sharing.discovery {
-            state.alt_svc.clone_from(&self.state.alt_svc);
-            state.rtt_history.clone_from(&self.state.rtt_history);
-            state.http3.set_rtt_history(state.rtt_history.clone());
-            #[cfg(feature = "https-records")]
-            {
-                state.https_records.clone_from(&self.state.https_records);
-                state.http1.set_https_records(state.https_records.clone());
-                state
-                    .http1_or_2
-                    .set_https_records(state.https_records.clone());
-                state.http2.set_https_records(state.https_records.clone());
-                state.http3.set_https_records(state.https_records.clone());
-            }
         }
         Self {
             inner,

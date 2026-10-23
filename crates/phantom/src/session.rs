@@ -222,7 +222,7 @@ pub(crate) struct ClientState {
     pub(crate) http1: http1_pool::Http1Pool,
     pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
     pub(crate) http2: http2_pool::Http2Pool,
-    pub(crate) http3: http3_pool::Http3Pool,
+    pub(crate) http3: Arc<http3_pool::Http3Pool>,
     alt_svc: Option<Arc<alt_svc::AltSvcStore>>,
     alt_svc_policy: AltSvcPolicy,
     pub(crate) rtt_history: Option<Arc<alt_svc::rtt_history::RttHistory>>,
@@ -504,20 +504,27 @@ impl ClientOptions {
     }
 
     fn build(self, inner: &ClientInner) -> ClientState {
-        self.build_with_tickets(inner, None)
+        self.build_with_tickets(inner, None, None)
     }
 
     fn build_with_tickets(
         self,
         inner: &ClientInner,
         shared_tickets: Option<Arc<tickets::TicketOwner>>,
+        shared_discovery: Option<&ClientState>,
     ) -> ClientState {
         let options = self.clone();
         #[cfg(feature = "https-records")]
-        let https_records = self
-            .https_record_resolver
-            .zip(self.max_alt_svc_origins)
-            .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity));
+        let https_records = shared_discovery.map_or_else(
+            || {
+                self.https_record_resolver
+                    .zip(self.max_alt_svc_origins)
+                    .map(|(resolver, capacity)| {
+                        alt_svc::HttpsRecordDiscovery::new(resolver, capacity)
+                    })
+            },
+            |state| state.https_records.clone(),
+        );
         let tickets = shared_tickets.unwrap_or_else(|| {
             Arc::new(tickets::TicketOwner::with_preparation(
                 inner.ticket_preparation.clone(),
@@ -568,15 +575,19 @@ impl ClientOptions {
         .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
         http2.set_https_records(https_records.clone());
-        let rtt_history =
-            self.alt_svc_policy
-                .race_settings()
-                .and_then(|race| match race.origin_delay_policy() {
-                    AltSvcOriginDelay::Fixed(_) => None,
-                    AltSvcOriginDelay::Rtt(settings) => {
-                        Some(alt_svc::rtt_history::RttHistory::new(settings))
+        let rtt_history = shared_discovery.map_or_else(
+            || {
+                self.alt_svc_policy.race_settings().and_then(|race| {
+                    match race.origin_delay_policy() {
+                        AltSvcOriginDelay::Fixed(_) => None,
+                        AltSvcOriginDelay::Rtt(settings) => {
+                            Some(alt_svc::rtt_history::RttHistory::new(settings))
+                        }
                     }
-                });
+                })
+            },
+            |state| state.rtt_history.clone(),
+        );
         let mut http3 = http3_pool::Http3Pool::new(
             self.max_retained_http3_connections,
             self.max_concurrent_http3_requests_per_origin,
@@ -599,10 +610,14 @@ impl ClientOptions {
             http1,
             http1_or_2,
             http2,
-            http3,
-            alt_svc: self
-                .max_alt_svc_origins
-                .map(|capacity| Arc::new(alt_svc::AltSvcStore::new(capacity))),
+            http3: Arc::new(http3),
+            alt_svc: shared_discovery.map_or_else(
+                || {
+                    self.max_alt_svc_origins
+                        .map(|capacity| Arc::new(alt_svc::AltSvcStore::new(capacity)))
+                },
+                |state| state.alt_svc.clone(),
+            ),
             alt_svc_policy: self.alt_svc_policy,
             rtt_history,
             #[cfg(feature = "https-records")]
