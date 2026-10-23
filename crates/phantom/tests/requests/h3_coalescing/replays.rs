@@ -729,7 +729,7 @@ fn builder(
     http3.misdirected_request = policy;
     let profile = firefox::v157_windows()
         .with_http3(phantom::profile::Http3ClientSettings::new(
-            firefox::v157_http3_tls(),
+            firefox::v157_quic_tls(),
             firefox::v157_quic(),
             http3,
             firefox::v157_http3_request(),
