@@ -1,4 +1,9 @@
-use std::{num::NonZeroUsize, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    sync::mpsc,
+    task::{Context, Waker},
+    time::Duration,
+};
 
 use phantom_profile::browser::firefox;
 use tokio::runtime::Builder;
@@ -357,11 +362,16 @@ fn missing_runtime_rejects_and_releases_candidate_without_spawning() -> TestResu
 fn dropped_refresh_retains_unobserved_task_failure_for_the_owner() -> TestResult {
     let runtime = Builder::new_current_thread().enable_all().build()?;
     let owner = AltSvcValidationJobs::default();
+    let (panicking, observed) = tokio::sync::oneshot::channel();
     owner.lock_tasks().active.spawn_on(
-        async { panic!("validation failure control") },
+        async move {
+            // The receiving test may already have failed during cleanup.
+            let _ = panicking.send(());
+            panic!("validation failure control");
+        },
         runtime.handle(),
     );
-    runtime.block_on(tokio::task::yield_now());
+    runtime.block_on(observed)?;
 
     let refresh = owner.begin_refresh();
     drop(refresh);
@@ -373,6 +383,172 @@ fn dropped_refresh_retains_unobserved_task_failure_for_the_owner() -> TestResult
     drop(owner.begin_refresh());
     assert!(owner.lock_tasks().retired.is_empty());
     Ok(())
+}
+
+#[test]
+fn concurrent_shutdowns_wait_for_the_same_task_destruction() -> TestResult {
+    let worker = Builder::new_multi_thread().worker_threads(1).build()?;
+    let runtime = Builder::new_current_thread().enable_all().build()?;
+    let owner = AltSvcValidationJobs::default();
+    let mut gate = TaskDropGate::spawn(&owner, worker.handle());
+
+    runtime.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut context = Context::from_waker(Waker::noop());
+            let mut first = Box::pin(owner.shutdown());
+            let first_waited = first.as_mut().poll(&mut context).is_pending();
+            (&mut gate.entered).await?;
+            let mut second = Box::pin(owner.shutdown());
+            let second_waited = second.as_mut().poll(&mut context).is_pending();
+
+            gate.release();
+            tokio::join!(first, second);
+
+            assert!(first_waited);
+            assert!(second_waited, "second shutdown bypassed unfinished cleanup");
+            gate.assert_destroyed();
+            assert!(owner.lock_tasks().is_empty());
+            Ok::<(), Box<dyn std::error::Error>>(())
+        })
+        .await?
+    })
+}
+
+#[test]
+fn shutdown_waits_for_task_destruction_and_the_outer_refresh_guard() -> TestResult {
+    let worker = Builder::new_multi_thread().worker_threads(1).build()?;
+    let runtime = Builder::new_current_thread().enable_all().build()?;
+    let owner = AltSvcValidationJobs::default();
+    let mut gate = TaskDropGate::spawn(&owner, worker.handle());
+    let mut refresh = owner.begin_refresh();
+
+    runtime.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut context = Context::from_waker(Waker::noop());
+            let mut observing = Box::pin(refresh.observe_cancelled());
+            let refresh_waited = observing.as_mut().poll(&mut context).is_pending();
+            (&mut gate.entered).await?;
+            let mut shutdown = Box::pin(owner.shutdown());
+            let shutdown_waited = shutdown.as_mut().poll(&mut context).is_pending();
+
+            gate.release();
+            observing.as_mut().await;
+            drop(observing);
+            let outer_guard_waited = shutdown.as_mut().poll(&mut context).is_pending();
+            drop(refresh);
+            shutdown.await;
+
+            assert!(refresh_waited);
+            assert!(shutdown_waited, "shutdown bypassed refresh task cleanup");
+            assert!(
+                outer_guard_waited,
+                "shutdown bypassed the pool refresh guard"
+            );
+            gate.assert_destroyed();
+            assert!(owner.lock_tasks().is_empty());
+            Ok::<(), Box<dyn std::error::Error>>(())
+        })
+        .await?
+    })
+}
+
+#[test]
+fn cancelled_shutdown_restores_tasks_before_releasing_the_cleanup_turn() -> TestResult {
+    let worker = Builder::new_multi_thread().worker_threads(1).build()?;
+    let runtime = Builder::new_current_thread().enable_all().build()?;
+    let owner = AltSvcValidationJobs::default();
+    let mut gate = TaskDropGate::spawn(&owner, worker.handle());
+
+    runtime.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut context = Context::from_waker(Waker::noop());
+            let mut first = Box::pin(owner.shutdown());
+            let first_waited = first.as_mut().poll(&mut context).is_pending();
+            (&mut gate.entered).await?;
+            drop(first);
+            let mut second = Box::pin(owner.shutdown());
+            let second_waited = second.as_mut().poll(&mut context).is_pending();
+
+            gate.release();
+            second.await;
+
+            assert!(first_waited);
+            assert!(second_waited, "cancelled shutdown lost its unfinished task");
+            gate.assert_destroyed();
+            assert!(owner.lock_tasks().is_empty());
+            Ok::<(), Box<dyn std::error::Error>>(())
+        })
+        .await?
+    })
+}
+
+struct TaskDropGate {
+    entered: tokio::sync::oneshot::Receiver<()>,
+    release: Option<mpsc::Sender<()>>,
+    destroyed: Arc<AtomicBool>,
+    expired: Arc<AtomicBool>,
+}
+
+impl TaskDropGate {
+    fn spawn(owner: &AltSvcValidationJobs, runtime: &Handle) -> Self {
+        let (entered, receiver) = tokio::sync::oneshot::channel();
+        let (release, wait) = mpsc::channel();
+        let destroyed = Arc::new(AtomicBool::new(false));
+        let expired = Arc::new(AtomicBool::new(false));
+        let held = HeldTaskDrop {
+            entered: Some(entered),
+            release: wait,
+            destroyed: Arc::clone(&destroyed),
+            expired: Arc::clone(&expired),
+        };
+        owner.lock_tasks().active.spawn_on(
+            async move {
+                let _held = held;
+                std::future::pending::<()>().await;
+            },
+            runtime,
+        );
+        Self {
+            entered: receiver,
+            release: Some(release),
+            destroyed,
+            expired,
+        }
+    }
+
+    fn release(&mut self) {
+        // Disconnecting also releases a destructor during an early test error.
+        drop(self.release.take());
+    }
+
+    fn assert_destroyed(&self) {
+        assert!(self.destroyed.load(Ordering::SeqCst));
+        assert!(!self.expired.load(Ordering::SeqCst));
+    }
+}
+
+struct HeldTaskDrop {
+    entered: Option<tokio::sync::oneshot::Sender<()>>,
+    release: mpsc::Receiver<()>,
+    destroyed: Arc<AtomicBool>,
+    expired: Arc<AtomicBool>,
+}
+
+impl Drop for HeldTaskDrop {
+    fn drop(&mut self) {
+        if let Some(entered) = self.entered.take() {
+            // A cancelled test may have dropped its observation receiver.
+            let _ = entered.send(());
+        }
+        self.expired.store(
+            matches!(
+                self.release.recv_timeout(Duration::from_secs(2)),
+                Err(mpsc::RecvTimeoutError::Timeout)
+            ),
+            Ordering::SeqCst,
+        );
+        self.destroyed.store(true, Ordering::SeqCst);
+    }
 }
 
 fn endpoint(index: usize) -> Result<Endpoint, Box<dyn std::error::Error>> {

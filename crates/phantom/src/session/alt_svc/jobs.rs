@@ -13,6 +13,7 @@ use std::{
 use phantom_net::http3::Http3Connector;
 use tokio::{
     runtime::{Handle, Id},
+    sync::{Mutex as AsyncMutex, OwnedMutexGuard},
     task::{JoinError, JoinSet},
 };
 use tracing::debug;
@@ -42,6 +43,7 @@ pub(crate) struct AltSvcValidationJob {
 pub(crate) struct AltSvcValidationJobs {
     control: Arc<Control>,
     tasks: Arc<Mutex<TaskSets>>,
+    cleanup_turn: Arc<AsyncMutex<()>>,
 }
 
 #[derive(Default)]
@@ -101,6 +103,8 @@ pub(crate) struct ValidationPermit<'a> {
 pub(crate) struct AltSvcValidationRefresh {
     _refresh: Arc<()>,
     registry: Weak<Mutex<TaskSets>>,
+    cleanup_turn: Arc<AsyncMutex<()>>,
+    turn: Option<OwnedMutexGuard<()>>,
     tasks: Vec<JoinSet<()>>,
 }
 
@@ -149,19 +153,13 @@ impl AltSvcValidationJobs {
 
     /// Closes admission, cancels setups, and observes their terminal outcomes.
     pub(crate) async fn shutdown(&self) {
-        let tasks = {
-            let mut tasks = self.lock_tasks();
-            let mut state = self.control.lock();
-            state.closed = true;
-            state.epoch = Arc::new(());
-            drop(state);
-            tasks.abort_all();
-            tasks.take_all()
-        };
+        self.close();
         let mut refresh = AltSvcValidationRefresh {
             _refresh: Arc::new(()),
             registry: Arc::downgrade(&self.tasks),
-            tasks,
+            cleanup_turn: Arc::clone(&self.cleanup_turn),
+            turn: None,
+            tasks: Vec::new(),
         };
         refresh.observe_cancelled().await;
     }
@@ -173,8 +171,8 @@ impl AltSvcValidationJobs {
     /// releases the enqueue block.
     pub(crate) fn begin_refresh(&self) -> AltSvcValidationRefresh {
         let refresh = Arc::new(());
-        let tasks = {
-            let mut tasks = self.lock_tasks();
+        {
+            let tasks = self.lock_tasks();
             let mut state = self.control.lock();
             state
                 .refreshes
@@ -183,12 +181,13 @@ impl AltSvcValidationJobs {
             state.epoch = Arc::new(());
             drop(state);
             tasks.abort_all();
-            tasks.take_all()
-        };
+        }
         AltSvcValidationRefresh {
             _refresh: refresh,
             registry: Arc::downgrade(&self.tasks),
-            tasks,
+            cleanup_turn: Arc::clone(&self.cleanup_turn),
+            turn: None,
+            tasks: Vec::new(),
         }
     }
 }
@@ -201,7 +200,21 @@ impl Drop for AltSvcValidationJobs {
 
 impl AltSvcValidationRefresh {
     /// Observes cancelled setups while keeping enqueue blocked.
+    ///
+    /// The cleanup turn stays owned until this guard is dropped after pool
+    /// refresh, so concurrent refresh and shutdown callers cannot bypass it.
     pub(crate) async fn observe_cancelled(&mut self) {
+        if self.turn.is_none() {
+            self.turn = Some(Arc::clone(&self.cleanup_turn).lock_owned().await);
+            if let Some(registry) = self.registry.upgrade() {
+                self.tasks.extend(
+                    registry
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .take_all(),
+                );
+            }
+        }
         for tasks in &mut self.tasks {
             observe_cancelled(tasks).await;
         }
@@ -220,6 +233,7 @@ impl Drop for AltSvcValidationRefresh {
                 .extend(self.tasks.drain(..).filter(|tasks| !tasks.is_empty()));
         }
         // If the owner is gone, dropping its final sets aborts remaining work.
+        drop(self.turn.take());
     }
 }
 
