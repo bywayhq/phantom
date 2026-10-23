@@ -20,14 +20,21 @@ class CleanupFailures(Exception):
         self.interruption_context: BaseException | None = None
         super().__init__(message)
 
-    def raise_interruption(self) -> None:
-        """Re-raise the first cancellation, keyboard interrupt or process exit."""
+    def raise_interruption(
+        self, *, include_other_base_exceptions: bool = False
+    ) -> None:
+        """Re-raise interruptions, optionally retaining broader legacy callers."""
         interruption = next(
             (
                 error
                 for error in (self.primary, *self.cleanup)
-                if isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                if error is not None
+                and (
+                    not isinstance(error, Exception)
+                    if include_other_base_exceptions
+                    else isinstance(
+                        error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                    )
                 )
             ),
             None,

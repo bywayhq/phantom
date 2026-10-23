@@ -53,6 +53,7 @@ from aioquic.quic.events import (
 )
 from aioquic.quic.packet import QuicPacketType, pull_quic_header
 
+from .browser_failures import CleanupFailures
 from .browser_launch import (
     CHROMIUM_BROWSERS,
     BrowserDriver,
@@ -978,19 +979,22 @@ class RunResult:
     timed_out: bool
 
 
-class ResumptionFailures(Exception):
-    def __init__(self, primary, cleanup, owner):
-        self.primary = primary
-        self.cleanup = cleanup
+class ResumptionFailures(CleanupFailures):
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+        owner: ResumptionServer | None,
+    ) -> None:
         self.owner = owner
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause = None
-        self.interruption_context = None
-        super().__init__("QUIC capture cleanup failed")
+        super().__init__(primary, cleanup, "QUIC capture cleanup failed")
 
 
-def raise_resumption_failures(primary, cleanup, owner) -> None:
+def raise_resumption_failures(
+    primary: BaseException | None,
+    cleanup: tuple[BaseException, ...],
+    owner: ResumptionServer | None,
+) -> None:
     if not cleanup:
         if primary is not None:
             raise primary
@@ -999,18 +1003,7 @@ def raise_resumption_failures(primary, cleanup, owner) -> None:
         raise cleanup[0]
 
     failure = ResumptionFailures(primary, cleanup, owner)
-    interruption = next(
-        (
-            error
-            for error in (primary, *cleanup)
-            if error is not None and not isinstance(error, Exception)
-        ),
-        None,
-    )
-    if interruption is not None:
-        failure.interruption_cause = interruption.__cause__
-        failure.interruption_context = interruption.__context__
-        raise interruption from failure
+    failure.raise_interruption(include_other_base_exceptions=True)
     raise failure from primary
 
 

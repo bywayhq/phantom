@@ -36,6 +36,7 @@ from aioquic.buffer import Buffer
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 
+from .browser_failures import CleanupFailures
 from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
 from .http2_session import (
@@ -1160,7 +1161,7 @@ class Connection:
                 self.server.failed(cleanup)
 
 
-class CaptureFailures(Exception):
+class CaptureFailures(CleanupFailures):
     """Retain original caller/cleanup causes and unfinished capture owners."""
 
     def __init__(
@@ -1169,14 +1170,8 @@ class CaptureFailures(Exception):
         cleanup: Sequence[BaseException],
         server: CaptureServer,
     ) -> None:
-        self.primary = primary
-        self.cleanup = tuple(cleanup)
         self.server = server
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause: BaseException | None = None
-        self.interruption_context: BaseException | None = None
-        super().__init__("TLS capture cleanup failed")
+        super().__init__(primary, tuple(cleanup), "TLS capture cleanup failed")
 
 
 def independent_failures(error: BaseException) -> tuple[BaseException, ...]:
@@ -1219,18 +1214,7 @@ def raise_capture_failures(
         cleanup = ()
 
     failure = CaptureFailures(primary, cleanup, server)
-    interruption = next(
-        (
-            error
-            for error in (primary, *cleanup)
-            if error is not None and not isinstance(error, Exception)
-        ),
-        None,
-    )
-    if interruption is not None:
-        failure.interruption_cause = interruption.__cause__
-        failure.interruption_context = interruption.__context__
-        raise interruption from failure
+    failure.raise_interruption(include_other_base_exceptions=True)
     if primary is not None:
         raise primary from failure
     raise failure from cleanup[0]
