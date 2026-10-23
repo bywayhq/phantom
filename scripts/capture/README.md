@@ -2228,6 +2228,8 @@ is trusted through `cert_override.txt` in the run's profile.
 Run `h2-backup` separately with `run --scenario h2-backup --repeat 1 --headful`.
 Omit `--headful` for the default headless mode. Its requests read each response
 body before continuing; a failed response cannot signal completion.
+Its `/drop` probe aborts the origin transport to force a new connection; it
+does not measure graceful TLS or HTTP/2 shutdown.
 Use an isolated Firefox 157 executable if your installed browser has updated.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and

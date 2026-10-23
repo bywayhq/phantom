@@ -22,6 +22,13 @@ class DropFailureTests(unittest.IsolatedAsyncioTestCase):
         cause = ssl.SSLError("independent target shutdown failure")
 
         class Target:
+            @property
+            def transport(self) -> "Target":
+                return self
+
+            def abort(self) -> None:
+                close_started.set()
+
             def close(self) -> None:
                 close_started.set()
 

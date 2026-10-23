@@ -789,7 +789,10 @@ class Origins:
                     ]
                     for connection, target in targets:
                         connection.close_kind = "server"
-                        target.close()
+                        if self.scenario.name == "h2-backup":
+                            target.transport.abort()
+                        else:
+                            target.close()
                     if self.scenario.name == "h2-backup":
                         if len(closing) != len(targets):
                             raise RuntimeError(

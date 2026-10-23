@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from h2.config import H2Configuration
 from h2.connection import H2Connection
-from h2.events import DataReceived, ResponseReceived, StreamEnded
+from h2.events import DataReceived, PingAckReceived, ResponseReceived, StreamEnded
 
 from scripts.capture import firefox_socket_hooks as hooks
 from scripts.capture.firefox_socket_hooks import SCENARIOS, TARGET_HOST, Origins
@@ -16,6 +16,167 @@ from scripts.capture.http2_session import generate_certificate, server_context
 
 
 class H2BackupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_drop_with_pending_h2_control_allows_a_fresh_connection(self) -> None:
+        origins = Origins(SCENARIOS["h2-backup"])
+        self.addAsyncCleanup(origins.shutdown)
+        certificate = generate_certificate(TARGET_HOST)
+        context = server_context(certificate)
+        context.set_alpn_protocols(["h2"])
+        listener = await asyncio.start_server(
+            origins.accept_target, "127.0.0.1", 0, ssl=context
+        )
+        origins.listeners.append(listener)
+        origins.port = listener.sockets[0].getsockname()[1]
+        page = await asyncio.start_server(origins.accept_page, "127.0.0.1", 0)
+        origins.listeners.append(page)
+        client = ssl.create_default_context(cadata=certificate.certificate_pem.decode())
+        client.minimum_version = ssl.TLSVersion.TLSv1_3
+        client.set_alpn_protocols(["h2"])
+
+        async def connect() -> tuple[
+            asyncio.StreamReader,
+            asyncio.StreamWriter,
+            ssl.SSLObject,
+            ssl.MemoryBIO,
+            ssl.MemoryBIO,
+        ]:
+            incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+            tls = client.wrap_bio(
+                incoming, outgoing, server_side=False, server_hostname=TARGET_HOST
+            )
+            reader, writer = await asyncio.open_connection("127.0.0.1", origins.port)
+            self.addAsyncCleanup(hooks.close_writer, writer, None)
+            while True:
+                try:
+                    tls.do_handshake()
+                    await flush(writer, outgoing)
+                    break
+                except ssl.SSLWantReadError:
+                    await flush(writer, outgoing)
+                    incoming.write(await ciphertext(reader))
+
+            self.assertEqual(tls.selected_alpn_protocol(), "h2")
+            return reader, writer, tls, incoming, outgoing
+
+        async def flush(writer: asyncio.StreamWriter, outgoing: ssl.MemoryBIO) -> None:
+            if outgoing.pending:
+                writer.write(outgoing.read())
+                await writer.drain()
+
+        async def ciphertext(reader: asyncio.StreamReader) -> bytes:
+            data = await asyncio.wait_for(reader.read(65536), 2)
+            self.assertTrue(data, "origin closed before completing the H2 exchange")
+            return data
+
+        async def request(peer: tuple, path: str) -> H2Connection:
+            reader, writer, tls, incoming, outgoing = peer
+            session = H2Connection(H2Configuration(client_side=True))
+            session.initiate_connection()
+            session.send_headers(
+                1,
+                [
+                    (":method", "GET"),
+                    (":scheme", "https"),
+                    (":authority", TARGET_HOST),
+                    (":path", path),
+                ],
+                end_stream=True,
+            )
+            tls.write(session.data_to_send())
+            await flush(writer, outgoing)
+            ended = acknowledged = ping_sent = False
+            body = bytearray()
+            while not (ended and acknowledged):
+                try:
+                    data = tls.read(65536)
+                except ssl.SSLWantReadError:
+                    incoming.write(await ciphertext(reader))
+                    continue
+                for event in session.receive_data(data):
+                    if isinstance(event, ResponseReceived):
+                        self.assertIn((b":status", b"200"), event.headers)
+                    elif isinstance(event, DataReceived):
+                        body.extend(event.data)
+                    elif isinstance(event, StreamEnded):
+                        ended = True
+                    elif isinstance(event, PingAckReceived):
+                        self.assertEqual(event.ping_data, b"before12")
+                        acknowledged = True
+                if ended and not ping_sent:
+                    # This ACK fences the SETTINGS ACK queued before this PING.
+                    session.ping(b"before12")
+                    ping_sent = True
+                queued = session.data_to_send()
+                if queued:
+                    tls.write(queued)
+                    await flush(writer, outgoing)
+
+            self.assertEqual(body, b"ok\n")
+            return session
+
+        first = await connect()
+        session = await request(first, "/fast?i=0")
+        target = origins.open[0][1]
+        closing = asyncio.Event()
+        original_close = target.close
+        original_abort = target.transport.abort
+
+        def close() -> None:
+            original_close()
+            closing.set()
+
+        def abort() -> None:
+            original_abort()
+            closing.set()
+
+        page_reader, page_writer = await asyncio.open_connection(
+            "127.0.0.1", page.sockets[0].getsockname()[1]
+        )
+        self.addAsyncCleanup(hooks.close_writer, page_writer, None)
+        with (
+            patch.object(target, "close", close),
+            patch.object(target.transport, "abort", abort),
+        ):
+            page_writer.write(b"GET /drop HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await page_writer.drain()
+            await asyncio.wait_for(closing.wait(), 2)
+            # Queue a valid control before this client processes close_notify.
+            session.ping(b"during12")
+            first[2].write(session.data_to_send())
+            await flush(first[1], first[4])
+            try:
+                response = await asyncio.wait_for(page_reader.readuntil(b"\r\n\r\n"), 2)
+            except asyncio.IncompleteReadError as error:
+                causes = [
+                    (
+                        getattr(failure, "primary", failure),
+                        getattr(failure, "cleanup", ()),
+                    )
+                    for failure in origins.failures
+                ]
+                raise AssertionError(
+                    f"/drop closed without a response: {causes!r}"
+                ) from error
+
+        self.assertTrue(response.startswith(b"HTTP/1.1 200 "))
+        self.assertEqual(origins.connections[0].close_kind, "server")
+        self.assertFalse(origins.open)
+        self.assertFalse(origins.failures)
+        await hooks.close_writer(first[1], None)
+
+        second = await connect()
+        await request(second, "/fast?i=1")
+        self.assertEqual(len(origins.connections), 2)
+        self.assertEqual(
+            [[path for _, path in peer.requests] for peer in origins.connections],
+            [["/fast?i=0"], ["/fast?i=1"]],
+        )
+        await hooks.close_writer(second[1], None)
+        await origins.shutdown()
+        self.assertFalse(origins.peers)
+        self.assertFalse(origins.writers)
+        self.assertFalse(origins.failures)
+
     async def test_launch_mode_reaches_the_native_plan(self) -> None:
         cause = OSError("stop before starting the native worker")
         plans: list[hooks.LaunchPlan] = []

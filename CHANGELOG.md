@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Abort the Firefox HTTP/2 reconnect probe's origin transport so pending
+  control frames cannot turn its forced disconnect into a TLS close error.
+
 - Wait for Firefox HTTP/2 peers to close before the reconnect probe; retain
   partial hook reports and failure details with `--raw-dir`.
 
