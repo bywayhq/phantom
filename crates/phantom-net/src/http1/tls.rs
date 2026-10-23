@@ -1340,101 +1340,117 @@ impl Http1TlsConnector {
                 tcp,
                 server_name,
                 setup,
-            }) => match (tcp, setup) {
-                #[cfg(feature = "https-records")]
-                (TcpRoute::Direct(_), DirectTlsSetup::EchRetry(retry)) => {
-                    let stream =
-                        crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry)
-                            .await?;
-                    connect_over_tls(stream).await
-                }
-                (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
-                    let (stream, attempt) = connect_tcp_keeping_slower(
-                        endpoint.host,
-                        endpoint.port,
-                        self.dialer(),
-                        Some(family),
-                    )
-                    .await
-                    .map_err(Http1TlsError::from_direct)?;
-                    *slower = attempt;
-                    let handshake = async {
-                        let stream = self
-                            .tls
-                            .connect_offering_early_data(server_name, stream)
-                            .await?;
-                        connect_over_tls(stream).await
-                    };
-                    match slower.as_mut() {
-                        Some(attempt) => attempt.alongside(handshake).await,
-                        None => handshake.await,
-                    }
-                }
-                #[cfg(feature = "https-records")]
-                (
-                    TcpRoute::Direct(endpoint),
-                    DirectTlsSetup::EchKeepingSlower { lookup, family },
-                ) => {
-                    let (stream, attempt, selected) =
-                        crate::direct::connect_tls_with_ech_retaining(
-                            &self.tls,
-                            self.dialer(),
-                            endpoint,
-                            server_name,
-                            lookup,
-                            if offer_early_data {
-                                crate::direct::EchEarlyData::Allowed
-                            } else {
-                                crate::direct::EchEarlyData::Disabled
-                            },
-                            Some(family),
-                        )
+            }) => {
+                // Keep origin TLS/ECH setup out of plaintext connection poll frames.
+                Box::pin(self.open_tls_connection(
+                    tcp,
+                    server_name,
+                    setup,
+                    offer_early_data,
+                    slower,
+                    #[cfg(feature = "https-records")]
+                    selected_ech,
+                ))
+                .await
+            }
+        }
+    }
+
+    async fn open_tls_connection(
+        &self,
+        tcp: TcpRoute<'_>,
+        server_name: &str,
+        setup: DirectTlsSetup<'_>,
+        offer_early_data: bool,
+        slower: &mut Option<SlowerAttempt>,
+        #[cfg(feature = "https-records")] selected_ech: &mut Option<crate::direct::SelectedEch>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        match (tcp, setup) {
+            #[cfg(feature = "https-records")]
+            (TcpRoute::Direct(_), DirectTlsSetup::EchRetry(retry)) => {
+                let stream =
+                    crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry).await?;
+                connect_over_tls(stream).await
+            }
+            (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
+                let (stream, attempt) = connect_tcp_keeping_slower(
+                    endpoint.host,
+                    endpoint.port,
+                    self.dialer(),
+                    Some(family),
+                )
+                .await
+                .map_err(Http1TlsError::from_direct)?;
+                *slower = attempt;
+                let handshake = async {
+                    let stream = self
+                        .tls
+                        .connect_offering_early_data(server_name, stream)
                         .await?;
-                    *slower = attempt;
-                    *selected_ech = Some(selected);
-                    let protocol = connect_over_tls(stream);
-                    match slower.as_mut() {
-                        Some(attempt) => attempt.alongside(protocol).await,
-                        None => protocol.await,
-                    }
-                }
-                #[cfg(feature = "https-records")]
-                (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
-                    let stream = crate::direct::connect_tls_with_ech(
-                        &self.tls,
-                        self.dialer(),
-                        endpoint.host,
-                        endpoint.port,
-                        server_name,
-                        ech,
-                        if offer_early_data {
-                            crate::direct::EchEarlyData::Allowed
-                        } else {
-                            crate::direct::EchEarlyData::Disabled
-                        },
-                    )
-                    .await?;
                     connect_over_tls(stream).await
+                };
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(handshake).await,
+                    None => handshake.await,
                 }
-                (tcp, DirectTlsSetup::Default) => {
-                    let direct = matches!(tcp, TcpRoute::Direct(_));
-                    let stream = connection_leg::connect(
-                        tcp,
-                        self.dialer(),
-                        self.proxy_credentials.as_ref(),
-                    )
-                    .await?;
-                    let stream = if (direct || self.tcp_connector.is_some()) && offer_early_data {
-                        self.tls
-                            .connect_offering_early_data(server_name, stream)
-                            .await?
+            }
+            #[cfg(feature = "https-records")]
+            (TcpRoute::Direct(endpoint), DirectTlsSetup::EchKeepingSlower { lookup, family }) => {
+                let (stream, attempt, selected) = crate::direct::connect_tls_with_ech_retaining(
+                    &self.tls,
+                    self.dialer(),
+                    endpoint,
+                    server_name,
+                    lookup,
+                    if offer_early_data {
+                        crate::direct::EchEarlyData::Allowed
                     } else {
-                        self.tls.connect(server_name, stream).await?
-                    };
-                    connect_over_tls(stream).await
+                        crate::direct::EchEarlyData::Disabled
+                    },
+                    Some(family),
+                )
+                .await?;
+                *slower = attempt;
+                *selected_ech = Some(selected);
+                let protocol = connect_over_tls(stream);
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(protocol).await,
+                    None => protocol.await,
                 }
-                _ => Err(invalid_route("direct TLS setup requires a direct route")),
-            },
+            }
+            #[cfg(feature = "https-records")]
+            (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
+                let stream = crate::direct::connect_tls_with_ech(
+                    &self.tls,
+                    self.dialer(),
+                    endpoint.host,
+                    endpoint.port,
+                    server_name,
+                    ech,
+                    if offer_early_data {
+                        crate::direct::EchEarlyData::Allowed
+                    } else {
+                        crate::direct::EchEarlyData::Disabled
+                    },
+                )
+                .await?;
+                connect_over_tls(stream).await
+            }
+            (tcp, DirectTlsSetup::Default) => {
+                let direct = matches!(tcp, TcpRoute::Direct(_));
+                let stream =
+                    connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref())
+                        .await?;
+                let stream = if (direct || self.tcp_connector.is_some()) && offer_early_data {
+                    self.tls
+                        .connect_offering_early_data(server_name, stream)
+                        .await?
+                } else {
+                    self.tls.connect(server_name, stream).await?
+                };
+                connect_over_tls(stream).await
+            }
+            _ => Err(invalid_route("direct TLS setup requires a direct route")),
         }
     }
 
