@@ -23,6 +23,8 @@ pub(super) enum CallbackInstallError {
     StateInstallation,
 }
 
+// BoringSSL retains this immutable table; mutable callback data belongs to
+// each SSL's ex-data allocation and is synchronized by `CallbackState`.
 pub(super) static QUIC_METHOD: ffi::SSL_QUIC_METHOD = ffi::SSL_QUIC_METHOD {
     set_read_secret: Some(set_read_secret),
     set_write_secret: Some(set_write_secret),
@@ -57,7 +59,8 @@ fn callback_ex_index() -> Result<c_int, CallbackInstallError> {
 
 fn allocate_state(state: CallbackState) -> Result<NonNull<CallbackState>, CallbackInstallError> {
     let layout = Layout::new::<CallbackState>();
-    // SAFETY: the allocation is checked before it is initialized.
+    // SAFETY: `CallbackState` contains an `Arc`, so its layout is nonzero.
+    // `Layout::new` supplies its alignment; null is checked before initialization.
     let allocation = unsafe { alloc(layout).cast::<CallbackState>() };
     let Some(allocation) = NonNull::new(allocation) else {
         return Err(CallbackInstallError::StateAllocation);
@@ -70,7 +73,8 @@ fn allocate_state(state: CallbackState) -> Result<NonNull<CallbackState>, Callba
 }
 
 unsafe fn release_uninstalled_state(state: NonNull<CallbackState>) {
-    // SAFETY: `state` came from `allocate_state` and has not been transferred to SSL ex-data.
+    // SAFETY: `allocate_state` used the global allocator with this exact type's
+    // layout and initialized it. No ownership was transferred to SSL ex-data.
     unsafe {
         drop(Box::from_raw(state.as_ptr()));
     }
@@ -81,6 +85,7 @@ unsafe fn release_uninstalled_state(state: NonNull<CallbackState>) {
 /// # Safety
 ///
 /// `ssl` must be a live, uniquely borrowed SSL handle.
+/// Its shared context must not be reconfigured while connections use it.
 /// `StateInstallation` requires the caller to discard `ssl`; its method remains attached.
 pub(super) unsafe fn install_on_ssl(
     ssl: NonNull<ffi::SSL>,

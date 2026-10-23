@@ -225,13 +225,6 @@ impl Drop for AesHeaderCipher {
     }
 }
 
-// SAFETY: BoringSSL documents AES block encryption as read-only with respect
-// to an initialized `AES_KEY`; the wrapper never exposes mutable access.
-unsafe impl Send for AesHeaderCipher {}
-// SAFETY: concurrent calls only read the fully initialized expanded key and
-// write to caller-owned, non-overlapping output arrays.
-unsafe impl Sync for AesHeaderCipher {}
-
 pub(crate) struct ChaChaHeaderCipher {
     key: Secret<CHACHA20_KEY_LEN>,
 }
