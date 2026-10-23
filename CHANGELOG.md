@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Allow headful Chromium socket captures with `--headful`.
+
 - Share capture cleanup error handling across lifecycle scenarios.
 
 - Export `Http3ConnectionReuse` through `phantom::profile` with the other

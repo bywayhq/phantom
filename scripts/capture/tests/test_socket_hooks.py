@@ -1,5 +1,6 @@
 import asyncio
 import io
+import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -265,6 +266,158 @@ class FallbackTests(unittest.TestCase):
 
 
 class LaunchTests(unittest.TestCase):
+    def test_headful_conflict_is_rejected_before_capture(self) -> None:
+        for switch in (
+            "--headless",
+            "--headless=new",
+            "--headless=old",
+            "--HEADLESS=new",
+        ):
+            with self.subTest(switch=switch):
+                output = io.StringIO()
+                with (
+                    patch.object(socket_hooks.sys, "platform", "win32"),
+                    patch.object(socket_hooks, "capture") as capture,
+                    patch.object(Path, "mkdir") as mkdir,
+                    redirect_stderr(output),
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    socket_hooks.main(
+                        [
+                            "--browser",
+                            "chrome",
+                            "--browser-path",
+                            "controlled-browser",
+                            "--client-version",
+                            "1",
+                            "--scenario",
+                            "parallel",
+                            "--output-dir",
+                            "controlled-output",
+                            "--headful",
+                            f"--browser-switch={switch}",
+                        ]
+                    )
+
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn(
+                    "headful mode conflicts with --headless", output.getvalue()
+                )
+                capture.assert_not_called()
+                mkdir.assert_not_called()
+                self.assertEqual(
+                    socket_hooks._socket_hook_switches([switch]), (switch,)
+                )
+
+    def test_cli_records_the_selected_mode_and_passes_it_to_each_run(self) -> None:
+        selected = []
+        for switches, mode, headless in (
+            ([], "headless", True),
+            (["--headful"], "headful", False),
+        ):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as output:
+                selected.clear()
+
+                async def controlled_run(
+                    scenario: socket_hooks.Scenario,
+                    executable: Path,
+                    extra: tuple[str, ...],
+                    *,
+                    headless: bool = True,
+                ) -> tuple[socket_hooks.RunResult, list[str]]:
+                    selected.append((scenario.name, executable, extra, headless))
+                    arguments = socket_hooks.chromium_arguments(
+                        Path("controlled-profile"),
+                        "http://127.0.0.1:8080/",
+                        headless=headless,
+                        extra=extra,
+                    )
+                    result = socket_hooks.RunResult(
+                        [{"kind": "ready", "time_ms": 1000}],
+                        Origin(scenario, port=8080),
+                        [],
+                        None,
+                        False,
+                        "controlled-frida",
+                    )
+                    return result, arguments
+
+                with (
+                    patch.object(socket_hooks.sys, "platform", "win32"),
+                    patch.object(socket_hooks, "run_once", controlled_run),
+                ):
+                    socket_hooks.main(
+                        [
+                            "--browser",
+                            "chrome",
+                            "--browser-path",
+                            "controlled-browser",
+                            "--client-version",
+                            "1",
+                            "--scenario",
+                            "parallel",
+                            "idle",
+                            "--repeat",
+                            "2",
+                            "--output-dir",
+                            output,
+                            *switches,
+                        ]
+                    )
+
+                self.assertEqual(
+                    selected,
+                    [
+                        (name, Path("controlled-browser"), (), headless)
+                        for name in ("parallel", "parallel", "idle", "idle")
+                    ],
+                )
+                for name in ("parallel", "idle"):
+                    fields = dict(
+                        line.split("=", 1)
+                        for line in (Path(output) / f"hooks-{name}.txt")
+                        .read_text(encoding="utf-8")
+                        .splitlines()
+                    )
+                    self.assertEqual(fields["launch_mode"], mode)
+                    self.assertEqual(fields["run_count"], "2")
+                    self.assertEqual(
+                        "--headless=new" in fields["launch_arguments"], headless
+                    )
+                    self.assertIn("<temporary-profile>", fields["launch_arguments"])
+
+    def test_run_uses_the_selected_mode_and_cleans_up_a_launch_failure(self) -> None:
+        for options, headless in (({}, True), ({"headless": False}, False)):
+            with self.subTest(headless=headless):
+                failure = OSError("controlled browser construction failure")
+                with (
+                    patch.object(
+                        socket_hooks, "HookedBrowser", side_effect=failure
+                    ) as browser,
+                    self.assertRaises(OSError) as raised,
+                ):
+                    asyncio.run(
+                        socket_hooks.run_once(
+                            SCENARIOS["lookups-system"],
+                            Path("controlled-browser"),
+                            [],
+                            **options,
+                        )
+                    )
+
+                self.assertIs(raised.exception, failure)
+                executable, arguments, profile, config = browser.call_args.args
+                self.assertEqual(executable, Path("controlled-browser"))
+                self.assertEqual("--headless=new" in arguments, headless)
+                self.assertIn(f"--user-data-dir={profile}", arguments)
+                self.assertTrue(arguments[-1].startswith("http://127.0.0.1:"))
+                self.assertIn(
+                    "--disable-features=MediaRouter,OptimizationHints,AsyncDns",
+                    arguments,
+                )
+                self.assertEqual(config, {"slow_ipv6_refusal": False})
+                self.assertFalse(profile.exists())
+
     def test_cli_reports_each_cleanup_cause_and_preserves_the_original_failure(self):
         primary = OSError("original browser failure")
         detach = TypeError("detach rejected its arguments")

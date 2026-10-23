@@ -1251,7 +1251,9 @@ def is_network_service(argv: Sequence[str] | None) -> bool:
     return bool(argv) and NETWORK_SERVICE_SWITCH in argv
 
 
-def _socket_hook_switches(extra: Sequence[str]) -> tuple[str, ...]:
+def _socket_hook_switches(
+    extra: Sequence[str], *, headless: bool = True
+) -> tuple[str, ...]:
     """Keep the disposable profile and page URL under the run's ownership."""
     switches = tuple(extra)
     for switch in switches:
@@ -1261,6 +1263,9 @@ def _socket_hook_switches(extra: Sequence[str]) -> tuple[str, ...]:
         name = switch.partition("=")[0]
         if re.fullmatch(r"--[a-zA-Z][a-zA-Z0-9-]*", name) is None:
             raise ValueError("browser-switch must use --name or --name=value")
+
+        if not headless and name.lower() == "--headless":
+            raise ValueError("headful mode conflicts with --headless browser-switch")
 
         # Chromium's Windows command-line parser lowercases switch names.
         if name.lower() in ("--user-data-dir", "--single-argument"):
@@ -1872,9 +1877,9 @@ def localhost_ipv6_free(port: int) -> bool:
 
 
 async def run_once(
-    scenario: Scenario, executable: Path, extra: Sequence[str]
+    scenario: Scenario, executable: Path, extra: Sequence[str], *, headless: bool = True
 ) -> tuple[RunResult, list[str]]:
-    extra = _socket_hook_switches(extra)
+    extra = _socket_hook_switches(extra, headless=headless)
     origin = Origin(scenario)
     server = None
     target = None
@@ -1910,7 +1915,7 @@ async def run_once(
 
         url = f"http://127.0.0.1:{origin.port}/"
         profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
-        arguments = chromium_arguments(profile, url, headless=True, extra=extra)
+        arguments = chromium_arguments(profile, url, headless=headless, extra=extra)
         arguments = merged_disabled_features(arguments, scenario.disabled_features)
         config = {"slow_ipv6_refusal": scenario.slow_ipv6_refusal}
         browser = HookedBrowser(executable, arguments, profile, config)
@@ -2258,6 +2263,7 @@ def render_fixture(
     launch_arguments: str,
     scenario: Scenario,
     runs: Sequence[Sequence[str]],
+    headless: bool = True,
 ) -> str:
     """The fixture text: provenance header first, then each run."""
     header = [
@@ -2272,7 +2278,7 @@ def render_fixture(
         f"hook_agent_sha256={file_digest(AGENT)}",
         f"capture_tool_sha256={file_digest(Path(__file__))}",
         f"hooked_process={NETWORK_SERVICE_SWITCH}",
-        "launch_mode=headless",
+        f"launch_mode={'headless' if headless else 'headful'}",
         f"launch_arguments={launch_arguments}",
         f"scenario={scenario.name}",
         f"question={scenario.question}",
@@ -2283,13 +2289,15 @@ def render_fixture(
 
 
 async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bool]:
-    extra = _socket_hook_switches(args.browser_switch)
+    extra = _socket_hook_switches(args.browser_switch, headless=not args.headful)
     runs = []
     recorded = ""
     frida_version = ""
     failed = False
     for index in range(args.repeat):
-        result, arguments = await run_once(scenario, args.browser_path, extra)
+        result, arguments = await run_once(
+            scenario, args.browser_path, extra, headless=not args.headful
+        )
         profile = next(
             argument.split("=", 1)[1]
             for argument in arguments
@@ -2317,6 +2325,7 @@ async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bo
         launch_arguments=recorded,
         scenario=scenario,
         runs=runs,
+        headless=not args.headful,
     )
     return text, failed
 
@@ -2340,6 +2349,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument(
+        "--headful", action="store_true", help="show the browser window"
+    )
+    parser.add_argument(
         "--browser-switch",
         action="append",
         default=[],
@@ -2359,7 +2371,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("--repeat must be at least 1")
 
     try:
-        _socket_hook_switches(args.browser_switch)
+        _socket_hook_switches(args.browser_switch, headless=not args.headful)
     except ValueError as error:
         parser.error(str(error))
 

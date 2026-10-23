@@ -2034,6 +2034,9 @@ evidence beside the hook evidence. It writes one
 `hooks-<scenario>.txt`. Windows only: the agent hooks `ws2_32.dll` and
 `dnsapi.dll`.
 
+The browser runs headless by default. Add `--headful` to show its window;
+the fixture records the selected mode in `launch_mode`.
+
 Capture Opera on Windows:
 
 ```sh
