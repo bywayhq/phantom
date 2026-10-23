@@ -33,6 +33,8 @@ Snapshot capture restores your event-loop error handler when it finishes,
 including failures and cancellation. Unrelated callback errors reach your
 handler while capture is running.
 Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
+Use `--secure-port 443` to check default-port behavior. The tool fails if
+that port is unavailable; omit it to choose a port automatically.
 Keep `--client-version`, `--operating-system` and rendered metadata on one
 line of printable ASCII.
 

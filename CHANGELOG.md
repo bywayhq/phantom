@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Allow a fixed secure port in snapshot captures; retain Firefox 157
+  default-port `Alt-Used` observations.
+
 - Breaking: Firefox 157 desktop TCP uses ECH from caller-supplied HTTPS
   records. Migrate: replace the r1 profile ID or selector with
   `firefox/157.0/windows-11-26200/r2` or `firefox-157-windows-r2`.
