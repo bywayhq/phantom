@@ -1434,10 +1434,7 @@ fn doh_child_result(
     result: Result<(Id, CaptureResult<()>), JoinError>,
     active: &mut BTreeMap<Id, Arc<Mutex<DohProgress>>>,
 ) -> CaptureResult<()> {
-    let (id, result) = match result {
-        Ok(joined) => joined,
-        Err(error) => return Err(error.into()),
-    };
+    let (id, result) = result?;
     active.remove(&id);
     match result {
         Err(error) if is_peer_close(&*error) => Ok(()),
