@@ -163,8 +163,9 @@ run_step() {
     fi
   } >"$log" 2>&1
   status=$?
-  grep -E -- "$failure_pattern" "$log" |
-    grep -Ev -m 5 -- "$native_progress_pattern" >"$logs/$name.flags"
+  # WSL can mix UTF-16 diagnostics with Cargo output; retain matching lines.
+  grep -aE -- "$failure_pattern" "$log" |
+    grep -aEv -m 5 -- "$native_progress_pattern" >"$logs/$name.flags"
   printf '%s %s\n' "$status" "$(($(date +%s) - start))" >"$logs/$name.status"
 }
 
