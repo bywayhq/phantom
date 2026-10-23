@@ -196,6 +196,44 @@ SCENARIOS = {
             f"ws.onclose = () => setTimeout(() => {DONE}, 2000);",
         ),
         Scenario(
+            "websocket-backup",
+            "Direct WebSocket connection attempts with [::1] then 127.0.0.1, "
+            "a second upgrade while the first is active, and HTTP reuse after "
+            "both WebSockets close",
+            40,
+            "websocket",
+            "const sockets = [];"
+            "const opened = i => new Promise((resolve, reject) => {"
+            "const ws = new WebSocket(T + '/ws?i=' + i);"
+            "sockets.push(ws);"
+            "ws.onopen = () => resolve(ws);"
+            "ws.onerror = () => reject(new Error('WebSocket opening failed'));"
+            "ws.onclose = () => reject(new Error('WebSocket closed before opening'));"
+            "});"
+            "const message = ws => new Promise((resolve, reject) => {"
+            "ws.onmessage = event => event.data === 'tick' ? resolve() : "
+            "reject(new Error('unexpected WebSocket message'));"
+            "ws.onclose = () => reject(new Error('WebSocket closed before its message'));"
+            "ws.onerror = () => reject(new Error('WebSocket message failed'));"
+            "});"
+            "const closed = ws => new Promise((resolve, reject) => {"
+            "ws.onclose = event => event.wasClean && event.code === 1000 ? "
+            "resolve() : reject(new Error('WebSocket close failed'));"
+            "ws.onerror = () => reject(new Error('WebSocket close failed'));"
+            "ws.close(1000);"
+            "});"
+            "const H = T.replace('ws:', 'http:');"
+            "const get = i => fetch(H + '/fast?i=' + i, "
+            "{mode: 'cors', cache: 'no-store'}).then(r => {"
+            "if (!r.ok) throw new Error('target HTTP status ' + r.status);"
+            "return r.text(); });"
+            "opened(0).then(message).then(() => opened(1))"
+            ".then(() => Promise.all(sockets.map(closed)))"
+            ".then(() => get(2)).then(() => get(3))"
+            f".then(() => {DONE})",
+            rewrite_lookup=True,
+        ),
+        Scenario(
             "backup",
             "Connection attempts when the name resolves to [::1] then 127.0.0.1 "
             "and only 127.0.0.1 listens; then for a third concurrent request while "
