@@ -23,8 +23,8 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use super::{
-    CaptureResult, DnsAnswers, DohCapture, HOSTNAME, Identity, finish_capture, serve_doh,
-    serve_doh_connection,
+    CaptureResult, DnsAnswers, DohCapture, DohProgress, HOSTNAME, Identity, finish_capture,
+    serve_doh, serve_doh_connection,
 };
 
 const IO_TIMEOUT: Duration = Duration::from_secs(3);
@@ -73,10 +73,11 @@ impl Server {
         let task = tokio::spawn(async move {
             match mode {
                 ServerMode::Connection => {
-                    let (tcp, _) = listener.accept().await?;
+                    let (tcp, peer) = listener.accept().await?;
                     // The test sends hundreds of small exchanges, not packet timings.
                     tcp.set_nodelay(true)?;
-                    serve_doh_connection(tcp, &acceptor, &recorded, &answers).await
+                    let progress = Mutex::new(DohProgress::new(peer));
+                    serve_doh_connection(tcp, &acceptor, &recorded, &answers, &progress).await
                 }
                 ServerMode::Capture => {
                     serve_doh(listener, acceptor, recorded, answers, stopped).await
@@ -276,18 +277,64 @@ async fn ninth_live_doh_connection_fails_capture_without_detaching_children() ->
         peers.push(peer);
     }
     assert_eq!(server.descriptions().len(), 8);
+    let repeated = peers.first_mut().ok_or("missing DNS client")?;
+    exchange(repeated, HOSTNAME, 28).await?;
+    exchange(repeated, "private-background.invalid", 65).await?;
 
     let ninth = server.client().await;
-    assert!(ninth.is_err(), "ninth live DNS child was admitted");
     let failure = server
         .finish(IO_TIMEOUT)
         .await
         .err()
         .ok_or("ninth live DNS child did not fail the capture")?;
-    assert!(failure.to_string().contains("connection limit"));
     for peer in &mut peers {
         assert_closed(peer).await?;
     }
+    assert!(ninth.is_err(), "ninth live DNS child was admitted");
+    let diagnostic = failure.to_string();
+    assert!(diagnostic.contains("connection limit exceeded: active=8 recorded_queries=10"));
+    assert_eq!(diagnostic.matches("stage=WaitingRequest ").count(), 8);
+    assert_eq!(
+        diagnostic
+            .matches("queries=1 origin_queries=1 other_queries=0 responses=1")
+            .count(),
+        7,
+    );
+    assert!(diagnostic.contains("queries=3 origin_queries=2 other_queries=1 responses=3"));
+    assert!(!diagnostic.contains("private-background.invalid"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn doh_connection_limit_distinguishes_pending_tls_from_idle_keep_alive() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut stalled = TcpStream::connect(server.address).await?;
+    let mut peers = Vec::new();
+    for _ in 0..7 {
+        let mut peer = server.client().await?;
+        exchange(&mut peer, HOSTNAME, 1).await?;
+        peers.push(peer);
+    }
+
+    let ninth = server.client().await;
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("ninth live DNS child did not fail the capture")?;
+    for peer in &mut peers {
+        assert_closed(peer).await?;
+    }
+    let mut byte = [0_u8; 1];
+    let stalled_read = timeout(IO_TIMEOUT, stalled.read(&mut byte)).await?;
+
+    assert!(ninth.is_err(), "ninth live DNS child was admitted");
+    assert!(matches!(stalled_read, Ok(0) | Err(_)));
+    let diagnostic = failure.to_string();
+    assert!(diagnostic.contains("connection limit exceeded: active=8 recorded_queries=7"));
+    assert_eq!(diagnostic.matches("stage=TlsHandshake ").count(), 1);
+    assert_eq!(diagnostic.matches("stage=WaitingRequest ").count(), 7);
+    assert!(diagnostic.contains("queries=0 origin_queries=0 other_queries=0 responses=0"));
     Ok(())
 }
 

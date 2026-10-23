@@ -37,6 +37,7 @@
 //! for the grace period.
 
 use std::{
+    collections::BTreeMap,
     env,
     error::Error,
     fmt,
@@ -70,7 +71,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{Notify, oneshot},
-    task::{JoinError, JoinHandle, JoinSet},
+    task::{Id, JoinError, JoinHandle, JoinSet},
     time::{Instant, sleep_until, timeout},
 };
 use tokio_btls::SslStream;
@@ -1429,11 +1430,67 @@ fn capture_errors(mut errors: Vec<Box<dyn Error + Send + Sync>>) -> CaptureResul
     }
 }
 
-fn doh_child_result(result: Result<CaptureResult<()>, JoinError>) -> CaptureResult<()> {
+fn doh_child_result(
+    result: Result<(Id, CaptureResult<()>), JoinError>,
+    active: &mut BTreeMap<Id, Arc<Mutex<DohProgress>>>,
+) -> CaptureResult<()> {
+    let (id, result) = match result {
+        Ok(joined) => joined,
+        Err(error) => return Err(error.into()),
+    };
+    active.remove(&id);
     match result {
-        Ok(Err(error)) if is_peer_close(&*error) => Ok(()),
-        Ok(result) => result,
-        Err(error) => Err(error.into()),
+        Err(error) if is_peer_close(&*error) => Ok(()),
+        result => result,
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum DohStage {
+    TlsHandshake,
+    WaitingRequest,
+    RequestHead,
+    RequestBody,
+    Response,
+}
+
+struct DohProgress {
+    peer: SocketAddr,
+    stage: DohStage,
+    changed: Instant,
+    queries: usize,
+    origin_queries: usize,
+    responses: usize,
+}
+
+impl DohProgress {
+    fn new(peer: SocketAddr) -> Self {
+        Self {
+            peer,
+            stage: DohStage::TlsHandshake,
+            changed: Instant::now(),
+            queries: 0,
+            origin_queries: 0,
+            responses: 0,
+        }
+    }
+
+    fn enter(&mut self, stage: DohStage) {
+        self.stage = stage;
+        self.changed = Instant::now();
+    }
+
+    fn describe(&self) -> String {
+        format!(
+            "peer={} stage={:?} stage_ms={} queries={} origin_queries={} other_queries={} responses={}",
+            self.peer,
+            self.stage,
+            self.changed.elapsed().as_millis(),
+            self.queries,
+            self.origin_queries,
+            self.queries - self.origin_queries,
+            self.responses,
+        )
     }
 }
 
@@ -1474,14 +1531,15 @@ async fn serve_doh(
     mut shutdown: oneshot::Receiver<()>,
 ) -> CaptureResult<()> {
     let mut children = JoinSet::new();
+    let mut active = BTreeMap::new();
     let result: CaptureResult<()> = async {
         loop {
             tokio::select! {
                 biased;
                 _ = &mut shutdown => return Ok(()),
-                result = children.join_next(), if !children.is_empty() => {
+                result = children.join_next_with_id(), if !children.is_empty() => {
                     if let Some(result) = result {
-                        doh_child_result(result)?;
+                        doh_child_result(result, &mut active)?;
                     }
                 }
                 accepted = listener.accept() => {
@@ -1490,18 +1548,28 @@ async fn serve_doh(
                         continue;
                     }
                     // Completed children no longer consume a live connection slot.
-                    while let Some(result) = children.try_join_next() {
-                        doh_child_result(result)?;
+                    while let Some(result) = children.try_join_next_with_id() {
+                        doh_child_result(result, &mut active)?;
                     }
                     if children.len() == MAX_CONNECTIONS {
-                        return Err("DNS-over-HTTPS connection limit exceeded".into());
+                        let details = active.values().map(|progress| {
+                            progress.lock().unwrap_or_else(PoisonError::into_inner).describe()
+                        }).collect::<Vec<_>>().join("; ");
+                        let recorded = queries.lock().unwrap_or_else(PoisonError::into_inner).len();
+                        return Err(format!(
+                            "DNS-over-HTTPS connection limit exceeded: active={} recorded_queries={recorded}; {details}",
+                            children.len(),
+                        ).into());
                     }
                     let acceptor = acceptor.clone();
                     let queries = Arc::clone(&queries);
                     let answers = answers.clone();
-                    children.spawn(async move {
-                        serve_doh_connection(tcp, &acceptor, &queries, &answers).await
+                    let progress = Arc::new(Mutex::new(DohProgress::new(peer)));
+                    let observed = Arc::clone(&progress);
+                    let child = children.spawn(async move {
+                        serve_doh_connection(tcp, &acceptor, &queries, &answers, &observed).await
                     });
+                    active.insert(child.id(), progress);
                 }
             }
         }
@@ -1512,12 +1580,12 @@ async fn serve_doh(
         errors.push(error);
     }
     children.abort_all();
-    while let Some(result) = children.join_next().await {
+    while let Some(result) = children.join_next_with_id().await {
         // Cancellation is expected only for children stopped by this owner.
         if matches!(&result, Err(error) if error.is_cancelled()) {
             continue;
         }
-        if let Err(error) = doh_child_result(result) {
+        if let Err(error) = doh_child_result(result, &mut active) {
             errors.push(error);
         }
     }
@@ -1529,6 +1597,7 @@ async fn serve_doh_connection(
     acceptor: &SslAcceptor,
     queries: &Mutex<Vec<String>>,
     answers: &DnsAnswers,
+    progress: &Mutex<DohProgress>,
 ) -> CaptureResult<()> {
     let mut tls = SslStream::new(Ssl::new(acceptor.context())?, tcp)?;
     timeout(HANDSHAKE_TIMEOUT, Pin::new(&mut tls).accept())
@@ -1540,12 +1609,19 @@ async fn serve_doh_connection(
             )
         })??;
     loop {
+        progress
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .enter(DohStage::WaitingRequest);
         // One deadline covers the header, body, response and flush together.
-        let keep_alive = timeout(HANDSHAKE_TIMEOUT, doh_exchange(&mut tls, queries, answers))
-            .await
-            .map_err(|_| {
-                io::Error::new(io::ErrorKind::TimedOut, "DNS-over-HTTPS request timed out")
-            })??;
+        let keep_alive = timeout(
+            HANDSHAKE_TIMEOUT,
+            doh_exchange(&mut tls, queries, answers, progress),
+        )
+        .await
+        .map_err(|_| {
+            io::Error::new(io::ErrorKind::TimedOut, "DNS-over-HTTPS request timed out")
+        })??;
         if !keep_alive {
             return Ok(());
         }
@@ -1556,8 +1632,19 @@ async fn doh_exchange(
     tls: &mut SslStream<TcpStream>,
     queries: &Mutex<Vec<String>>,
     answers: &DnsAnswers,
+    progress: &Mutex<DohProgress>,
 ) -> CaptureResult<bool> {
-    let Some(head) = read_request_head(tls).await? else {
+    // Reading the first byte separately distinguishes an idle keep-alive from
+    // a request whose header has started, under the same exchange deadline.
+    let mut first = [0_u8; 1];
+    if tls.read(&mut first).await? == 0 {
+        return Ok(false);
+    }
+    progress
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .enter(DohStage::RequestHead);
+    let Some(head) = read_request_head(&mut first.as_slice().chain(&mut *tls)).await? else {
         return Ok(false);
     };
     let head = String::from_utf8_lossy(&head).into_owned();
@@ -1573,6 +1660,10 @@ async fn doh_exchange(
             return Err("DNS message too long".into());
         }
         let mut body = vec![0; content_length];
+        progress
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .enter(DohStage::RequestBody);
         tls.read_exact(&mut body).await?;
         body
     } else {
@@ -1593,6 +1684,15 @@ async fn doh_exchange(
         if description.len() > MAX_DOH_QUERY_BYTES - retained_bytes {
             return Err("DNS-over-HTTPS query metadata byte limit exceeded".into());
         }
+        let mut progress = progress.lock().unwrap_or_else(PoisonError::into_inner);
+        progress.queries += 1;
+        let origin_name = format!("_{}._https.{HOSTNAME}", answers.port);
+        if description.split_once(' ').is_some_and(|(_, name)| {
+            name == HOSTNAME || (answers.port != 443 && name == origin_name)
+        }) {
+            progress.origin_queries += 1;
+        }
+        progress.enter(DohStage::Response);
         queries.push(description);
     }
     let head = format!(
@@ -1602,6 +1702,10 @@ async fn doh_exchange(
     tls.write_all(head.as_bytes()).await?;
     tls.write_all(&response).await?;
     tls.flush().await?;
+    progress
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .responses += 1;
     Ok(true)
 }
 
