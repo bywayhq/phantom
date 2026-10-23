@@ -8,18 +8,18 @@
 //! `HttpsRecord::from_rdata` alone, the parser a caller's
 //! `HttpsRecordResolver::from_fn` lookup uses.
 //!
-//! Every record that parses must satisfy the RFC 9460 rules the parser
-//! promises, and every answer of one lookup must share one owner, the end of
-//! the query's CNAME chain. The facade's selection of `h3` from these
-//! records, and its TTL cap, are private to `phantom` and not reached here;
-//! neither is the resolver's own response handling (ID and question
-//! matching, truncation retry, and follow-up queries).
+//! Parsed answers also reach the facade's origin HTTP/3 selection, ECH endpoint
+//! choice and cache-deadline cap. The resolver's response matching, truncation
+//! retry and follow-up queries remain outside this target.
 
 #[cfg(test)]
 mod tests;
 
+use std::time::{Duration, Instant};
+
+use phantom::fuzz_https_selection;
 use phantom_net::dns::{
-    HttpsLookupError, HttpsRecord, HttpsRecordLookup, ServiceRecord, TargetName,
+    HttpsLookupError, HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup, ServiceRecord, TargetName,
 };
 
 use crate::seed;
@@ -77,6 +77,23 @@ pub const RESPONSE: &[u8] = &[
     3, b'n', b'e', b't', 0,
 ];
 
+/// Two origin ServiceMode records, in descending priority, with distinct opaque
+/// ECH values. Unlike [`RESPONSE`], this seed has no AliasMode exclusion.
+#[rustfmt::skip]
+pub const SERVICE_RESPONSE: &[u8] = &[
+    0x00, 0x01, 0x81, 0x80, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+    6, b'o', b'r', b'i', b'g', b'i', b'n', 7, b'e', b'x', b'a', b'm', b'p', b'l', b'e',
+    4, b't', b'e', b's', b't', 0, 0x00, 0x41, 0x00, 0x01,
+    // Priority 2, TTL 60, h3, ECH ending in AA.
+    0xC0, 0x0C, 0x00, 0x41, 0x00, 0x01, 0x00, 0x00, 0x00, 0x3C, 0x00, 0x18,
+    0x00, 0x02, 0x00, 0x00, 0x01, 0x00, 0x03, 2, b'h', b'3',
+    0x00, 0x05, 0x00, 0x0A, 0x00, 0x08, 0xFE, 0x0D, 0x00, 0x04, 0xDE, 0xAD, 0xBE, 0xAA,
+    // Priority 1, TTL 30, h3, ECH ending in BB.
+    0xC0, 0x0C, 0x00, 0x41, 0x00, 0x01, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x18,
+    0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x03, 2, b'h', b'3',
+    0x00, 0x05, 0x00, 0x0A, 0x00, 0x08, 0xFE, 0x0D, 0x00, 0x04, 0xDE, 0xAD, 0xBE, 0xBB,
+];
+
 /// Extracts the HTTPS answers of `message` for [`HOST`] on port 443 and
 /// checks every invariant a successful extraction promises.
 pub fn drive(message: &[u8]) -> Result<HttpsRecordLookup, HttpsLookupError> {
@@ -93,7 +110,38 @@ pub fn drive(message: &[u8]) -> Result<HttpsRecordLookup, HttpsLookupError> {
     for answer in answers {
         check_record(answer.record());
     }
+    check_selection(&lookup);
     Ok(lookup)
+}
+
+fn check_selection(lookup: &HttpsRecordLookup) {
+    let before = Instant::now();
+    let selection = fuzz_https_selection(lookup, HOST, 443);
+    if let Some(ech) = &selection.ech {
+        assert!(
+            selection.advertises_h3,
+            "ECH selected without an h3 endpoint"
+        );
+        assert!(lookup.answers().iter().any(|answer| {
+            matches!(answer.record(), HttpsRecord::Service(service) if service.ech() == Some(ech))
+        }));
+    }
+    if let Some(deadline) = selection.cache_deadline {
+        let ttl = lookup
+            .answers()
+            .iter()
+            .map(|answer| answer.ttl())
+            .min()
+            .or(lookup.negative_ttl())
+            .unwrap_or(0);
+        assert_ne!(ttl, 0, "zero TTL became reusable");
+        assert!(
+            before
+                .checked_add(Duration::from_secs(u64::from(ttl).min(86_400)))
+                .is_some_and(|maximum| deadline <= maximum),
+            "lookup freshness exceeded the record TTL or one-day cap"
+        );
+    }
 }
 
 /// Asserts the RFC 9460 rules `HttpsRecord::from_rdata` promises of a record
@@ -168,11 +216,16 @@ fn check_service(service: &ServiceRecord) {
 }
 
 /// Drives the raw input as RDATA and as a message, then the perturbed seed
-/// response.
+/// responses. The existing fuzz invocation bounds input to 64 KiB.
 pub fn exercise(input: &[u8]) {
     if let Ok(record) = HttpsRecord::from_rdata(input) {
         check_record(&record);
+        check_selection(&HttpsRecordLookup::new(
+            vec![HttpsRecordAnswer::new(HOST, 60, record)],
+            None,
+        ));
     }
     let _ = drive(input);
     let _ = drive(&seed::perturb(RESPONSE, input));
+    let _ = drive(&seed::perturb(SERVICE_RESPONSE, input));
 }

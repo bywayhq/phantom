@@ -769,6 +769,44 @@ fn summarize(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> RecordS
     }
 }
 
+/// Origin discovery selected by the production HTTPS-record rules.
+#[cfg(feature = "fuzzing")]
+#[derive(Debug, Eq, PartialEq)]
+#[doc(hidden)]
+pub struct FuzzHttpsSelection {
+    /// Whether the usable records advertise HTTP/3.
+    pub advertises_h3: bool,
+    /// Opaque ECH bytes of the first usable HTTP/3 endpoint.
+    pub ech: Option<EchConfigList>,
+    /// Reusable freshness under the production one-day cap.
+    pub cache_deadline: Option<Instant>,
+}
+
+/// Runs origin selection and freshness projection for the HTTPS-record target.
+///
+/// A result with no reusable deadline may still serve the current lookup.
+/// This performs no resolver, connection or cache work.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+#[must_use]
+pub fn fuzz_https_selection(
+    lookup: &HttpsRecordLookup,
+    host: &str,
+    port: u16,
+) -> FuzzHttpsSelection {
+    let answers = lookup
+        .answers()
+        .iter()
+        .map(|answer| (answer.owner(), answer.record()))
+        .collect::<Vec<_>>();
+    let summary = summarize(&answers, host, port);
+    FuzzHttpsSelection {
+        advertises_h3: summary.advertises_h3,
+        ech: summary.quic_ech(),
+        cache_deadline: lookup.cache_deadline(MAX_RESULT_TTL),
+    }
+}
+
 #[cfg(test)]
 fn advertises_h3(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> bool {
     summarize(answers, host, port).advertises_h3

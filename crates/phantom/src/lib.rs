@@ -95,6 +95,9 @@ pub use route::{
     Socks4ProxyConfigError, Socks4ProxyConfigErrorKind, Socks5DnsMode, Socks5Proxy,
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,
 };
+#[cfg(all(feature = "fuzzing", feature = "https-records"))]
+#[doc(hidden)]
+pub use session::alt_svc::{FuzzHttpsSelection, fuzz_https_selection};
 pub use session::{
     AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
     AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,

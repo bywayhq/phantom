@@ -1443,6 +1443,9 @@ mod https_records;
 pub(crate) use https_records::snapshot as https_record_snapshot;
 #[cfg(feature = "https-records")]
 pub(crate) use https_records::{Discovery, HttpsRecordDiscovery, PendingLookup};
+#[cfg(all(feature = "fuzzing", feature = "https-records"))]
+#[doc(hidden)]
+pub use https_records::{FuzzHttpsSelection, fuzz_https_selection};
 
 /// An HTTPS-record lookup; none can exist without the `https-records` feature.
 #[cfg(not(feature = "https-records"))]
