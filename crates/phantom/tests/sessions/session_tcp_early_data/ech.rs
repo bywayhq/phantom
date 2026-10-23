@@ -13,9 +13,11 @@ use phantom::{
 };
 use phantom_testkit::tls::{TEST_ECH_KEYS, ech_config, ech_config_list};
 use tokio::sync::watch;
+use tracing::instrument::WithSubscriber;
 
 use super::*;
 use crate::support::ech::{ORIGIN_NAME, PUBLIC_NAME, https_rdata_with_alpn, origin_identity};
+use crate::support::tracing::OutcomeSubscriber;
 
 mod lifecycle;
 mod peer;
@@ -158,14 +160,42 @@ async fn canceling_a_one_shot_post_retires_unauthenticated_h1() -> TestResult<()
                     frame
                 });
             let url = format!("https://{ORIGIN_NAME}:{port}/cancelled");
+            let subscriber = OutcomeSubscriber::default();
+            let budget = HttpAttemptBudget::new(1);
             let mut send = Box::pin(transport.request(&session, Method::POST, &url)?
-                .streaming_body(body).send());
+                .streaming_body(body).attempt_budget(budget.clone()).send()
+                .with_subscriber(subscriber.dispatch()));
             tokio::select! {
                 biased;
                 _ = &mut send => return Err("unauthenticated POST finished before cancellation".into()),
                 result = authentication_waiting => result?,
             }
+            // Successful protocol setup followed by Pending puts this same
+            // future in the authentication wait before cancellation.
+            let connect_span = match transport {
+                Transport::Http1 => "http1.tls.connect",
+                Transport::NegotiatedHttp1 => "http1_or_2.tls.connect",
+                _ => return Err("cancellation control requires HTTP/1".into()),
+            };
+            poll_fn(|context| -> Poll<TestResult<()>> {
+                if send.as_mut().poll(context).is_ready() {
+                    return Poll::Ready(Err("POST finished before its authentication wait".into()));
+                }
+                if subscriber.outcomes_for(connect_span) == ["ok"] {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
+            }).await?;
+            if matches!(transport, Transport::NegotiatedHttp1)
+                && subscriber.selected_protocols_for("client.request") != ["http/1.1"]
+            {
+                return Err("POST did not acquire its negotiated HTTP/1 lease".into());
+            }
             drop(send);
+            if budget.remaining() != 0 {
+                return Err("POST did not spend exactly its initial HTTP attempt".into());
+            }
             if polls.load(Ordering::Relaxed) != 0 {
                 return Err("unauthenticated POST consumed its one-shot body".into());
             }
