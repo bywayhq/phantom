@@ -862,7 +862,8 @@ class Origins:
             or (
                 proxy is not None
                 and (
-                    proxy.handlers
+                    proxy.servers
+                    or proxy.handlers
                     or proxy.writers
                     or proxy.writer_waits
                     or proxy.listener_waits
@@ -1672,8 +1673,7 @@ class _FirefoxRun:
             self.cleanup is not None
             and self.cleanup.done()
             and (
-                self.origins.peers
-                or self.origins.writers
+                self.origins.cleanup_pending()
                 or (self.native is not None and self.native.cleanup_failed)
             )
         ):

@@ -151,6 +151,46 @@ class ConnectBackupTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.origins.connections)
         self.assertFalse(self.origins.failures)
 
+    async def test_retry_collects_listener_retained_after_failed_proxy_close(
+        self,
+    ) -> None:
+        owner = hooks._FirefoxRun(hooks.SCENARIOS["http-connect-backup"])
+        owner.origins = self.origins
+        self.origins.changed = owner.changed
+        listener = self.proxy.servers[0]
+        original_close = listener.close
+        cause = OSError("independent proxy listener close failure")
+        calls = 0
+
+        def close() -> None:
+            nonlocal calls
+            calls += 1
+            original_close()
+            if calls == 1:
+                raise cause
+
+        with patch.object(listener, "close", side_effect=close):
+            first = await owner.finish()
+
+            self.assertIn(cause, self.proxy.cleanup_failures)
+            self.assertTrue(first)
+            self.assertEqual(self.proxy.servers, [listener])
+            self.assertFalse(self.proxy.listener_waits)
+            self.assertFalse(self.origins.peers)
+            self.assertFalse(self.origins.writers)
+            self.assertTrue(self.origins.cleanup_pending())
+
+            second = await owner.finish()
+
+        self.assertEqual(calls, 2)
+        self.assertFalse(self.origins.cleanup_pending())
+        self.assertFalse(self.proxy.servers)
+        self.assertIn(cause, self.proxy.cleanup_failures)
+        self.assertIn(cause, first)
+        self.assertIn(cause, second)
+        self.assertIsInstance(first[0], hooks._FirefoxCapturePending)
+        self.assertIs(first[0].owner, owner)
+
     async def test_unowned_connect_target_is_rejected_without_origin_io(self) -> None:
         connection = await self.proxy_socket()
         loop = asyncio.get_running_loop()
