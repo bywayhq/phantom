@@ -8,6 +8,7 @@
       "values": {
         "connection_reuse": "SameOrigin",
         "misdirected_request": "ReturnResponse",
+        "alt_svc_validation": "OnRequest",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "MaxFieldSectionSize", "value": 262144},
@@ -42,6 +43,7 @@
       "values": {
         "connection_reuse": "AuthorizedOrigins",
         "misdirected_request": "RetryFirst",
+        "alt_svc_validation": "OnAdvertisement",
         "initial_settings": [
           {"kind": "QpackMaxTableCapacity", "value": 65536},
           {"kind": "QpackBlockedStreams", "value": 20},

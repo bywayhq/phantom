@@ -5,10 +5,10 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    Http3AltUsed, Http3AltUsedPort, Http3ClientSettings, Http3ConnectionReuse, Http3CookieCrumbs,
-    Http3MisdirectedRequest, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
-    Http3SettingOrder, Http3Settings,
+    Http3AltSvcValidation, Http3AltUsed, Http3AltUsedPort, Http3ClientSettings,
+    Http3ConnectionReuse, Http3CookieCrumbs, Http3MisdirectedRequest, Http3PseudoHeader,
+    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
+    Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<Http3ClientSettings> {
@@ -25,10 +25,13 @@ pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
         connection_reuse(v.member("connection_reuse", "http3.connection_reuse")?)?;
     let misdirected_request =
         misdirected_request(v.member("misdirected_request", "http3.misdirected_request")?)?;
+    let alt_svc_validation =
+        alt_svc_validation(v.member("alt_svc_validation", "http3.alt_svc_validation")?)?;
     v.record(
         &[
             "connection_reuse",
             "misdirected_request",
+            "alt_svc_validation",
             "initial_settings",
             "setting_order",
             "qpack_encoding",
@@ -42,6 +45,7 @@ pub(super) fn settings(v: &Value) -> Result<Http3Settings> {
     let settings = Http3Settings {
         connection_reuse,
         misdirected_request,
+        alt_svc_validation,
         initial_settings: v
             .member("initial_settings", "http3.initial_settings")?
             .list("http3.initial_settings", setting)?,
@@ -98,6 +102,14 @@ pub(super) fn request(v: &Value) -> Result<Http3RequestSettings> {
         .validate()
         .map_err(|error| FingerprintImportError::native("http3.request", error))?;
     Ok(settings)
+}
+
+fn alt_svc_validation(v: &Value) -> Result<Http3AltSvcValidation> {
+    match v.text("http3.alt_svc_validation")? {
+        "OnRequest" => Ok(Http3AltSvcValidation::OnRequest),
+        "OnAdvertisement" => Ok(Http3AltSvcValidation::OnAdvertisement),
+        _ => Err(json::unsupported("http3.alt_svc_validation")),
+    }
 }
 
 fn misdirected_request(v: &Value) -> Result<Http3MisdirectedRequest> {

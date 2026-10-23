@@ -11,6 +11,7 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
     let mut settings = Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
+        alt_svc_validation: phantom_profile::Http3AltSvcValidation::OnRequest,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(4_096),
             Http3Setting::QpackBlockedStreams(16),

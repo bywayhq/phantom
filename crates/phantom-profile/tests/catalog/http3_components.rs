@@ -2,7 +2,8 @@
 //!
 //! The baselines below were copied from the browser factories at
 //! ae2aba3d42b29ddb881e119a4710c75dc757a66d, independently of declarations.
-//! Firefox now uses mapping-time Alt-Used eligibility and omits port 443.
+//! Firefox uses mapping-time Alt-Used eligibility, omits port 443, and validates
+//! advertised alternatives before selection.
 //! Other values retain that baseline.
 
 use phantom_profile::{
@@ -81,6 +82,7 @@ fn chromium_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
+        alt_svc_validation: phantom_profile::Http3AltSvcValidation::OnRequest,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::MaxFieldSectionSize(262_144),
@@ -116,6 +118,7 @@ fn firefox_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::AuthorizedOrigins,
         misdirected_request: phantom_profile::Http3MisdirectedRequest::RetryFirst,
+        alt_svc_validation: phantom_profile::Http3AltSvcValidation::OnAdvertisement,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::QpackBlockedStreams(20),

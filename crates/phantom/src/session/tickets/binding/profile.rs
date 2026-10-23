@@ -9,7 +9,7 @@ pub(super) fn encode(
 ) -> Result<Vec<u8>, PreparationError> {
     let mut e = Encoder::new();
     e.bytes(b"phantom-ticket-profile-policy")?;
-    e.u16(10)?;
+    e.u16(11)?;
     e.option(value.tcp(), http::tcp)?;
     e.option(value.udp(), http::udp)?;
     e.option(value.dns_cache(), http::dns)?;

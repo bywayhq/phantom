@@ -29,7 +29,7 @@ pub use http2::{
     InvalidHttp2Settings,
 };
 pub use http3::{
-    Http3AltUsed, Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs,
+    Http3AltSvcValidation, Http3AltUsed, Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs,
     Http3MisdirectedRequest, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
     Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
     Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,

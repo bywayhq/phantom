@@ -9,6 +9,7 @@ fn settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: crate::Http3ConnectionReuse::SameOrigin,
         misdirected_request: crate::Http3MisdirectedRequest::ReturnResponse,
+        alt_svc_validation: crate::Http3AltSvcValidation::OnRequest,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
             Http3Setting::MaxFieldSectionSize(262_144),

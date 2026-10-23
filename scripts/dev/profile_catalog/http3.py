@@ -18,6 +18,7 @@ COMPONENT_ENUMS = {
         "Http3MisdirectedRequest",
         ("ReturnResponse", "RetryFirst"),
     ),
+    "alt_svc_validation": ("Http3AltSvcValidation", ("OnRequest", "OnAdvertisement")),
     "setting_order": ("Http3SettingOrder", ("Fixed", "Ascending")),
     "qpack_encoding": (
         "Http3QpackEncoding",

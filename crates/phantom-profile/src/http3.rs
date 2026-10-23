@@ -168,6 +168,16 @@ pub enum Http3ConnectionReuse {
     AuthorizedOrigins,
 }
 
+/// When to validate an advertised HTTP/3 alternative.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3AltSvcValidation {
+    /// Validate the alternative when a request selects it.
+    OnRequest,
+    /// Start validation when a response advertises the alternative.
+    OnAdvertisement,
+}
+
 /// How to handle an HTTP/3 `421 Misdirected Request` response.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -190,6 +200,8 @@ pub struct Http3Settings {
     pub connection_reuse: Http3ConnectionReuse,
     /// Response policy for HTTP/3 421.
     pub misdirected_request: Http3MisdirectedRequest,
+    /// When to validate alternatives learned from Alt-Svc responses.
+    pub alt_svc_validation: Http3AltSvcValidation,
     /// Initial SETTINGS entries. Position is wire order when order is fixed.
     pub initial_settings: Vec<Http3Setting>,
     /// Ordering applied after per-connection settings are materialized.

@@ -139,6 +139,16 @@ class Http3ComponentTests(unittest.TestCase):
         del document["components"][0]["values"]["misdirected_request"]
         self.reject(document)
 
+    def test_alt_svc_validation_requires_a_known_explicit_policy(self):
+        for value in (None, "Always", True, {"kind": "OnAdvertisement"}):
+            with self.subTest(value=value):
+                document = copy.deepcopy(self.document)
+                document["components"][0]["values"]["alt_svc_validation"] = value
+                self.reject(document)
+        document = copy.deepcopy(self.document)
+        del document["components"][0]["values"]["alt_svc_validation"]
+        self.reject(document)
+
     def test_setting_types_limits_duplicates_and_datagram_consistency_are_checked(self):
         invalid = (
             [{"kind": "QpackMaxTableCapacity", "value": 1 << 30}],

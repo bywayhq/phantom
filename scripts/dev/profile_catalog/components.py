@@ -155,6 +155,7 @@ COMPONENT_FIELDS = {
     "Http3Settings": (
         "connection_reuse",
         "misdirected_request",
+        "alt_svc_validation",
         "initial_settings",
         "setting_order",
         "qpack_encoding",

@@ -7,6 +7,7 @@ use serde_json::Value;
 tokens!(Http3SettingOrder, Fixed, Ascending);
 tokens!(Http3ConnectionReuse, SameOrigin, AuthorizedOrigins);
 tokens!(Http3MisdirectedRequest, ReturnResponse, RetryFirst);
+tokens!(Http3AltSvcValidation, OnRequest, OnAdvertisement);
 tokens!(
     Http3QpackEncoding,
     Stateless,
@@ -24,6 +25,7 @@ record!(
     Http3Settings,
     connection_reuse,
     misdirected_request,
+    alt_svc_validation,
     initial_settings,
     setting_order,
     qpack_encoding,

@@ -154,6 +154,82 @@ fn http3_misdirected_requires_a_known_explicit_policy() -> TestResult {
 }
 
 #[test]
+fn edited_http3_alt_svc_validation_policy_round_trips_without_changing_other_settings() -> TestResult
+{
+    use super::super::{describe_profile, export_profile_json, import_profile_json};
+    use phantom_profile::{Http3AltSvcValidation, Http3ClientSettings, browser::chrome};
+
+    let profile = chrome::v154_windows();
+    let http3 = profile.http3().ok_or("missing HTTP/3 settings")?;
+    for (name, policy) in [
+        ("OnRequest", Http3AltSvcValidation::OnRequest),
+        ("OnAdvertisement", Http3AltSvcValidation::OnAdvertisement),
+    ] {
+        let mut document = describe_profile(&profile)?;
+        document["profile"]["http3"]["http3"]["alt_svc_validation"] = json!(name);
+        let mut settings = http3.http3().clone();
+        settings.alt_svc_validation = policy;
+        let expected = profile.clone().with_http3(Http3ClientSettings::new(
+            http3.tls().clone(),
+            http3.quic_transport().clone(),
+            settings,
+            http3.request().clone(),
+        ));
+
+        let actual = import(&document)?;
+
+        assert_eq!(actual, expected);
+        assert_eq!(
+            import_profile_json(&export_profile_json(&actual)?)?,
+            expected
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn http3_alt_svc_validation_requires_a_known_explicit_policy() -> TestResult {
+    use super::super::{FingerprintImportErrorKind, describe_profile};
+    use phantom_profile::browser::chrome;
+
+    let document = describe_profile(&chrome::v154_windows())?;
+    for (value, kind) in [
+        (None, FingerprintImportErrorKind::MissingField),
+        (
+            Some(json!("Always")),
+            FingerprintImportErrorKind::UnsupportedSetting,
+        ),
+        (Some(json!(null)), FingerprintImportErrorKind::InvalidValue),
+        (Some(json!(true)), FingerprintImportErrorKind::InvalidValue),
+        (
+            Some(json!({"kind": "OnAdvertisement"})),
+            FingerprintImportErrorKind::InvalidValue,
+        ),
+    ] {
+        let mut edited = document.clone();
+        let settings = edited["profile"]["http3"]["http3"]
+            .as_object_mut()
+            .ok_or("missing HTTP/3 settings")?;
+        match value {
+            Some(value) => {
+                settings.insert("alt_svc_validation".into(), value);
+            }
+            None => {
+                settings.remove("alt_svc_validation");
+            }
+        }
+
+        let error = import_profile_json(&serde_json::to_vec(&edited)?)
+            .err()
+            .ok_or("invalid HTTP/3 Alt-Svc validation policy was accepted")?;
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(error.field(), "http3.alt_svc_validation");
+    }
+    Ok(())
+}
+
+#[test]
 fn drawn_anchor_candidates_preserve_duplicates_weights_and_order() -> TestResult {
     let mut value = document(0)?;
     value["profile"]["tls"]["requested_trust_anchor_ids"] =

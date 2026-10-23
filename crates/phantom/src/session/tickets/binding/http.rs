@@ -1,10 +1,11 @@
 use phantom_profile::{
     DnsAddressFailurePolicy, Http2CookieCrumbs, Http2FieldIndexing, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2PseudoHeader, Http2SensitiveProxyAuthorization,
-    Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
-    Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs, Http3MisdirectedRequest,
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
-    Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy, TcpAddressAdvance,
+    Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltSvcValidation,
+    Http3AltUsed, Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs,
+    Http3MisdirectedRequest, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy,
+    TcpAddressAdvance,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -466,6 +467,7 @@ pub(super) fn http3(e: &mut Encoder, value: &Http3Settings) -> Result<(), Prepar
     let Http3Settings {
         connection_reuse,
         misdirected_request,
+        alt_svc_validation,
         initial_settings,
         setting_order,
         qpack_encoding,
@@ -483,6 +485,11 @@ pub(super) fn http3(e: &mut Encoder, value: &Http3Settings) -> Result<(), Prepar
         Http3MisdirectedRequest::ReturnResponse => 0,
         Http3MisdirectedRequest::RetryFirst => 1,
         _ => return Err(PreparationError::Unsupported("Http3MisdirectedRequest")),
+    })?;
+    e.u8(match alt_svc_validation {
+        Http3AltSvcValidation::OnRequest => 0,
+        Http3AltSvcValidation::OnAdvertisement => 1,
+        _ => return Err(PreparationError::Unsupported("Http3AltSvcValidation")),
     })?;
     e.list(initial_settings, http3_setting)?;
     http3_setting_order(e, setting_order)?;

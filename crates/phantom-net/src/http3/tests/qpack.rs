@@ -409,6 +409,7 @@ fn dynamic_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
+        alt_svc_validation: phantom_profile::Http3AltSvcValidation::OnRequest,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(256),
             Http3Setting::MaxFieldSectionSize(65_536),
@@ -428,6 +429,7 @@ fn unadvertised_settings() -> Http3Settings {
     Http3Settings {
         connection_reuse: phantom_profile::Http3ConnectionReuse::SameOrigin,
         misdirected_request: phantom_profile::Http3MisdirectedRequest::ReturnResponse,
+        alt_svc_validation: phantom_profile::Http3AltSvcValidation::OnRequest,
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(EXPANSION_TABLE_CAPACITY),
             Http3Setting::QpackBlockedStreams(1),
