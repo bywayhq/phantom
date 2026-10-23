@@ -426,7 +426,9 @@ impl AltSvcStore {
             .iter()
             .position(|entry| entry.key == key && entry.generation == generation)
         {
-            entries.remove(position);
+            if !entries[position].retain_pending() {
+                entries.remove(position);
+            }
             debug!(
                 outcome = "cleared",
                 "removed rejected origin's Alt-Svc advertisement"
@@ -455,7 +457,7 @@ impl AltSvcStore {
             entries[position]
                 .alternatives
                 .retain(|alternative| &alternative.location != location);
-            if entries[position].alternatives.is_empty() {
+            if entries[position].alternatives.is_empty() && !entries[position].retain_pending() {
                 entries.remove(position);
             }
             debug!(outcome = "cleared", "removed attempted Alt-Svc alternative");
@@ -940,6 +942,19 @@ struct PendingAdvertisement {
 }
 
 impl Entry {
+    /// Retires the old advertisement without discarding its newer validation.
+    fn retain_pending(&mut self) -> bool {
+        match std::mem::replace(&mut self.validation, MappingValidation::Idle) {
+            MappingValidation::Replacement(pending) => {
+                self.alternatives = vec![pending.alternative];
+                self.generation = pending.generation;
+                self.validation = MappingValidation::Initial;
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn pending(&self) -> Option<&PendingAdvertisement> {
         match &self.validation {
             MappingValidation::Replacement(pending) => Some(pending),
