@@ -63,6 +63,10 @@ These profiles do not all cover the same layers. For example, the Chrome Android
 profile leaves HTTP/1.1 connection policy and proxy CONNECT templates at generic
 defaults. Its constructor documents those omissions.
 
+With Alt-Svc enabled, Firefox recipes validate advertised HTTP/3 alternatives
+in the background. Validation opens a connection without sending a request.
+Later requests select the alternative after validation succeeds.
+
 Firefox recipes share eligible HTTP/3 connections across HTTPS origins. They
 retry replayable requests after a first-attempt 421 response. Exact HTTP/3
 requests keep their selected protocol and endpoint. See

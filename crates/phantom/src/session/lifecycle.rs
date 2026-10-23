@@ -38,11 +38,15 @@ impl Lifecycle {
             .closed
     }
 
-    pub(crate) async fn shutdown(&self) {
+    pub(crate) fn close(&self) {
         self.state
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .closed = true;
+    }
+
+    pub(crate) async fn shutdown(&self) {
+        self.close();
         loop {
             // Register before checking the count so the final owner cannot
             // leave between the check and registration. All waiters are woken.

@@ -1059,7 +1059,9 @@ pub(super) fn observe_response(
         response.body_mut().apply_transfer(control.clone());
     }
     store_cookies(client, request, response);
-    if path.learns_alt_svc() {
+    if request.uri.scheme_str() == Some("https")
+        && (path.learns_alt_svc() || client.validates_alt_svc_on_advertisement(&request.endpoint))
+    {
         client.learn_alt_svc(&request.endpoint, route, response);
     }
     (!path.requires_trustworthy_origin_for_client_hints()

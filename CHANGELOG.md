@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Breaking: add `Http3Settings::alt_svc_validation`. Firefox recipes validate
+  advertised HTTP/3 alternatives in the background before selecting them.
+  Validation opens no HTTP request and spends no attempt budget. Refresh,
+  clear and shutdown cancel pending validation.
+  Migrate: add `alt_svc_validation: Http3AltSvcValidation::OnRequest` to
+  custom settings, or `"alt_svc_validation": "OnRequest"` to profile JSON,
+  to retain request-time validation. Recreate saved tickets and checkpoints.
+
 - Return the original `Critical-CH` response when its request body cannot
   be replayed.
 

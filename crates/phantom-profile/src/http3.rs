@@ -175,6 +175,11 @@ pub enum Http3AltSvcValidation {
     /// Validate the alternative when a request selects it.
     OnRequest,
     /// Start validation when a response advertises the alternative.
+    ///
+    /// The client authenticates HTTP/3 setup without sending a request. Only
+    /// validated mappings are selected. Applies to direct connections and
+    /// HTTP/3 CONNECT-UDP proxies when the origin used no ECH configuration.
+    /// Pending setups are bounded and cancelled on clear, refresh or shutdown.
     OnAdvertisement,
 }
 

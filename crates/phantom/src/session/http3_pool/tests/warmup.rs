@@ -27,6 +27,7 @@ async fn a_warmup_without_a_mapping_witness_does_not_create_a_pool_entry() -> Te
                 &Route::Direct,
                 Http3TransportTarget::for_origin(&endpoint),
                 budget()?,
+                None,
             )
             .await?
     );
@@ -60,6 +61,7 @@ async fn stale_waiting_warmup(refresh: bool) -> TestResult {
         &Route::Direct,
         Http3TransportTarget::for_alternative(&target),
         budget()?,
+        None,
     ));
     assert!(poll_once(warmup.as_mut()).is_none());
     assert_eq!(entry.admission.available_active(), 1);
@@ -99,6 +101,7 @@ async fn cancelling_a_waiting_warmup_releases_its_connect_turn() -> TestResult {
         &Route::Direct,
         Http3TransportTarget::for_alternative(&target),
         budget()?,
+        None,
     ));
     assert!(poll_once(warmup.as_mut()).is_none());
     drop(warmup);

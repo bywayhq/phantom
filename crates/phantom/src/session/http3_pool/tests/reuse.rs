@@ -66,6 +66,7 @@ async fn warmup_authenticates_without_request_admission_or_a_stream() -> TestRes
                         &Route::Direct,
                         Http3TransportTarget::for_alternative(&target),
                         budget()?,
+                        None,
                     )
                     .await?
             );
@@ -92,6 +93,7 @@ async fn warmup_authenticates_without_request_admission_or_a_stream() -> TestRes
                         &Route::Direct,
                         Http3TransportTarget::for_alternative(&target),
                         budget()?,
+                        None,
                     )
                     .await?
             );
@@ -131,6 +133,7 @@ async fn warmup_and_a_request_share_the_same_in_progress_setup() -> TestResult {
                             &Route::Direct,
                             Http3TransportTarget::for_alternative(&target),
                             budget()?,
+                            None,
                         )
                         .await?,
                 )
@@ -164,6 +167,7 @@ async fn refresh_during_warmup_dns_does_not_install_or_validate_the_late_connect
             &Route::Direct,
             Http3TransportTarget::for_alternative(&target),
             budget()?,
+            None,
         ));
         assert!(poll_once(warmup.as_mut()).is_none());
         assert_eq!(gate.entered.load(Ordering::SeqCst), 1);

@@ -223,6 +223,7 @@ pub(crate) struct ClientState {
     pub(crate) http1_or_2: http1_or_2_pool::Http1Or2Pool,
     pub(crate) http2: http2_pool::Http2Pool,
     pub(crate) http3: Arc<http3_pool::Http3Pool>,
+    alt_svc_validation: alt_svc::jobs::AltSvcValidationJobs,
     alt_svc: Option<Arc<alt_svc::AltSvcStore>>,
     alt_svc_policy: AltSvcPolicy,
     pub(crate) rtt_history: Option<Arc<alt_svc::rtt_history::RttHistory>>,
@@ -611,6 +612,7 @@ impl ClientOptions {
             http1_or_2,
             http2,
             http3: Arc::new(http3),
+            alt_svc_validation: alt_svc::jobs::AltSvcValidationJobs::default(),
             alt_svc: shared_discovery.map_or_else(
                 || {
                     self.max_alt_svc_origins
@@ -652,7 +654,11 @@ impl Client {
     /// waiting and connection cleanup. Use an external timeout to bound the wait;
     /// cancelling shutdown does not abort active work. Client state such as TLS
     /// tickets and cookies remains available for export.
+    /// Pending Alt-Svc validation is cancelled and joined before draining.
     pub async fn shutdown(&self) {
+        self.state.lifecycle.close();
+        self.state.alt_svc_validation.close();
+        self.state.alt_svc_validation.shutdown().await;
         self.state.lifecycle.shutdown().await;
         self.refresh_connections().await;
     }
@@ -675,10 +681,13 @@ impl Client {
     /// shared with other clients are refreshed too. Previously evicted entries
     /// remain available only to their existing owners. Cancelling this future
     /// can leave some pools unvisited; it does not cancel active work.
+    /// Pending Alt-Svc validation is cancelled before pools are refreshed.
     ///
     /// Shutdown of old transport drivers is asynchronous. This operation does
     /// not wait for active work to finish or report graceful drain completion.
     pub async fn refresh_connections(&self) {
+        let mut validation_refresh = self.state.alt_svc_validation.begin_refresh();
+        validation_refresh.observe_cancelled().await;
         self.state.http1.refresh_connections().await;
         self.state.http1_or_2.refresh_connections().await;
         self.state.http2.refresh_connections().await;
@@ -696,6 +705,7 @@ impl Client {
             }
         }
         self.inner.refresh_proxy_connections();
+        drop(validation_refresh);
     }
 
     /// Releases idle origin and proxy connections retained by this client.
@@ -840,8 +850,12 @@ impl Client {
         max: usize,
     ) -> Vec<alt_svc::AlternativeTarget> {
         self.state.alt_svc.as_ref().map_or_else(Vec::new, |store| {
-            store
-                .get_up_to(endpoint, route, max)
+            let locations = if self.validates_alt_svc_on_advertisement(endpoint) {
+                store.get_validated_up_to(endpoint, route, max)
+            } else {
+                store.get_up_to(endpoint, route, max)
+            };
+            locations
                 .iter()
                 .map(alt_svc::AlternativeTarget::new)
                 .collect()
@@ -1035,6 +1049,19 @@ impl Client {
         self.state.alt_svc.is_some()
     }
 
+    pub(crate) fn validates_alt_svc_on_advertisement(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+    ) -> bool {
+        self.inner
+            .connectors_for(endpoint)
+            .http3
+            .is_some_and(|connector| {
+                connector.alt_svc_validation_policy()
+                    == phantom_profile::Http3AltSvcValidation::OnAdvertisement
+            })
+    }
+
     pub(crate) fn learn_alt_svc<B>(
         &self,
         endpoint: &crate::authority::Endpoint,
@@ -1044,6 +1071,10 @@ impl Client {
         let Some(store) = &self.state.alt_svc else {
             return;
         };
+        if self.validates_alt_svc_on_advertisement(endpoint) {
+            self.learn_validating_alt_svc(store, endpoint, route, response);
+            return;
+        }
         // A route without a UDP path could never dial an `h3` alternative, so
         // its advertisements are not stored.
         if !route.carries_quic_alternative() {
@@ -1064,6 +1095,59 @@ impl Client {
             return;
         };
         store.learn(endpoint, route, headers);
+    }
+
+    fn learn_validating_alt_svc<B>(
+        &self,
+        store: &alt_svc::AltSvcStore,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+        response: &http::Response<B>,
+    ) {
+        if self.is_closed()
+            || !matches!(route, crate::Route::Direct)
+                && !matches!(route, crate::Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none())
+            || response
+                .extensions()
+                .get::<alt_svc::OriginEchConfigured>()
+                .and_then(|configured| configured.0)
+                != Some(false)
+        {
+            return;
+        }
+        let Some(connector) = self.inner.connectors_for(endpoint).http3 else {
+            return;
+        };
+        let start = |candidate| {
+            self.state
+                .alt_svc_validation
+                .start(alt_svc::jobs::AltSvcValidationJob {
+                    pool: Arc::clone(&self.state.http3),
+                    connector: Arc::clone(connector),
+                    connect_udp_proxy: self.inner.connect_udp_proxy.clone(),
+                    endpoint: endpoint.clone(),
+                    route: route.clone(),
+                    candidate,
+                    timeouts: self.state.request_timeouts,
+                });
+        };
+        // Frames precede the response HEADERS. A later field may supersede a
+        // frame's candidate before its task is polled.
+        if let Some(frames) = response
+            .extensions()
+            .get::<phantom_net::http2::AltSvcFrames>()
+        {
+            for candidate in store.learn_frames_for_validation(endpoint, route, frames) {
+                start(candidate);
+            }
+        }
+        if let Some(headers) = response
+            .extensions()
+            .get::<phantom_net::OrderedResponseHeaders>()
+            && let Some(candidate) = store.learn_for_validation(endpoint, route, headers)
+        {
+            start(candidate);
+        }
     }
 
     /// Starts a bounded server-sent event source using this client's state.
@@ -1206,12 +1290,14 @@ impl Client {
         }
     }
 
-    /// Clears learned alternatives and the client's RTT racing history.
+    /// Clears learned alternatives and RTT history, cancelling their validation.
     pub fn clear_alt_svc(&self) {
+        let validation_refresh = self.state.alt_svc_validation.begin_refresh();
         self.clear_alt_svc_racing_history();
         if let Some(alt_svc) = &self.state.alt_svc {
             alt_svc.clear();
         }
+        drop(validation_refresh);
     }
 
     /// Exports this client's unexpired Alt-Svc alternatives for caller-owned

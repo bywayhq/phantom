@@ -31,6 +31,7 @@ use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     alt_svc::{
         AltSvcValidationPublication, DEFAULT_ALTERNATIVE_SETUP_LIMIT, OriginEchConfigured,
+        jobs::ValidationEpoch,
         rtt_history::{Publication, RttHistory},
     },
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
@@ -324,6 +325,7 @@ impl Http3Pool {
     /// Missing or retired state returns false. No request stream is reserved.
     /// Connect and total deadlines, and the alternative setup limit, cover
     /// waiting for the connect turn and the completed handshake.
+    #[allow(clippy::too_many_arguments)] // Keeps setup identity and its owner fence explicit.
     pub(crate) async fn warmup(
         &self,
         connector: &Http3Connector,
@@ -332,6 +334,7 @@ impl Http3Pool {
         route: &Route,
         transport: Http3TransportTarget<'_>,
         timeout_budget: TimeoutBudget,
+        owner: Option<&ValidationEpoch>,
     ) -> Result<bool, RequestError> {
         if transport.validation.is_none() || !connector.server_authentication().verifies() {
             return Ok(false);
@@ -346,6 +349,7 @@ impl Http3Pool {
                         endpoint,
                         route,
                         transport,
+                        owner,
                     ),
                 )
                 .await?
@@ -363,6 +367,7 @@ impl Http3Pool {
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
+        owner: Option<&ValidationEpoch>,
     ) -> Result<bool, RequestError> {
         let Some(validation) = transport.validation else {
             return Ok(false);
@@ -428,6 +433,15 @@ impl Http3Pool {
         if !state.retains(&key, &generation, &entry) || !connector.can_reuse_now(&connection) {
             return Ok(false);
         }
+        // Close and refresh fence only this synchronous publication. Setup
+        // polls caller-owned DNS without holding the job owner's lock.
+        let owner_permit = match owner {
+            Some(epoch) => match epoch.lock_current() {
+                Some(permit) => Some(permit),
+                None => return Ok(false),
+            },
+            None => None,
+        };
         let mut slots = entry.lock_slots();
         if let Some(token) = token {
             let Some(slot) = slots
@@ -450,9 +464,9 @@ impl Http3Pool {
             publication.record(connection.completed_handshake_rtt());
         }
         let retained = MAX_TRANSPORT_LOCATIONS_PER_ENTRY * slots.spread.max_connections().get();
-        if slots.connections.len() >= retained {
+        let evicted = slots.connections.len() >= retained;
+        if evicted {
             slots.connections.pop_front();
-            debug!(outcome = "evicted", "HTTP/3 pooled connection evicted");
         }
         let streams = if slots.spread.max_connections().get() > 1 {
             StreamCount::notifying(Arc::clone(&entry.stream_ended))
@@ -467,6 +481,12 @@ impl Http3Pool {
             streams,
             peer_limit: None,
         });
+        drop(slots);
+        drop(owner_permit);
+        drop(state);
+        if evicted {
+            debug!(outcome = "evicted", "HTTP/3 pooled connection evicted");
+        }
         Ok(true)
     }
 
