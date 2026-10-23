@@ -1890,8 +1890,19 @@ uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
 
 The peer records the certificate DER hash, ECH acceptance and each TCP
 handshake. Repeat with `--scenario reject` to observe its retry configuration.
-This peer captures a first connection; use `tls_resumption.py` for ticket and
-TCP early-data sequences.
+Add `--resumption early-accept`, `--resumption early-reject` or
+`--resumption ech-retry` to the Firefox `accept` command for one seed page
+and one same-origin GET on fresh TCP. The peer closes the seed connection,
+keeps its ticket context, and either accepts early data, disables it on new
+connections after the seed, or rotates the ECH key after flushing the seed
+response. Browser early-data preferences remain unchanged.
+
+Output links offered PSK hashes to tickets issued on the actual seed request,
+records decrypted bytes read before Finished, native final completion and
+served probe GETs. Rejected early plaintext is discarded by the TLS backend;
+the rejected offer and the later served request are recorded separately.
+Speculative connections and a run with no early-data offer keep their actual
+results. `tls_resumption.py` also provides broader TCP resumption sequences.
 
 Build the example, then capture both scenarios:
 

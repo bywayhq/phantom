@@ -91,6 +91,7 @@ POLL_SECONDS = 0.02
 POLICY_TIMEOUT_SECONDS = 5
 MAX_IDENTITY_BYTES = 128 * 1024
 MAX_CERT9_BYTES = 4 * 1024 * 1024
+RESUMPTION_SEQUENCES = ("early-accept", "early-reject", "ech-retry")
 FIREFOX_DNS_CONFIGURATION = (
     "user.js network.trr.mode=3 network.trr.uri=<doh_template> "
     "network.trr.allow-rfc1918=true network.http.http3.enable=false"
@@ -208,6 +209,7 @@ class CaptureRun:
     certificate_sha256: str | None = None
     cert9_db: Path | None = None
     cert9_sha256: str | None = None
+    resumption: str | None = None
 
 
 def quic_arguments(spki: str) -> tuple[str, ...]:
@@ -232,6 +234,11 @@ def origin_url(origin: str) -> str:
     return f"https://{HOSTNAME}{suffix}/"
 
 
+def capture_url(run: CaptureRun, origin: str) -> str:
+    url = origin_url(origin)
+    return url + "seed" if run.resumption is not None else url
+
+
 def checked_input(path: Path, limit: int, digest: str | None = None) -> bytes:
     with path.open("rb") as source:
         data = source.read(limit + 1)
@@ -246,6 +253,13 @@ def checked_input(path: Path, limit: int, digest: str | None = None) -> bytes:
 
 
 def capture_inputs(run: CaptureRun) -> tuple[bytes, bytes, bytes] | None:
+    if run.resumption is not None and (
+        run.resumption not in RESUMPTION_SEQUENCES
+        or run.browser != "firefox"
+        or run.quic
+        or run.scenario != "accept"
+    ):
+        raise ValueError("ECH resumption requires Firefox TCP with --scenario accept")
     if run.browser != "firefox":
         if any(
             (
@@ -353,6 +367,7 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
             if run.browser == "firefox"
             else []
         ),
+        *(["--resumption", run.resumption] if run.resumption is not None else []),
         run.scenario,
         run.origin,
         plan.client_name,
@@ -361,7 +376,7 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
         dns_configuration,
         plan.launch_mode,
         plan.recorded_arguments(
-            origin_url(run.origin) if run.browser == "firefox" else URL
+            capture_url(run, run.origin) if run.browser == "firefox" else URL
         ),
     ]
 
@@ -461,7 +476,9 @@ def capture(
                     )
                 _check_capture_deadline(deadline, command)
                 browser = (
-                    _TrustedFirefox(configured, origin_url(actual_origin), inputs[2])
+                    _TrustedFirefox(
+                        configured, capture_url(run, actual_origin), inputs[2]
+                    )
                     if inputs is not None
                     else LaunchedBrowser(configured, URL)
                 )
@@ -625,6 +642,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--certificate-sha256")
     parser.add_argument("--cert9-db", type=Path)
     parser.add_argument("--cert9-sha256")
+    parser.add_argument("--resumption", choices=RESUMPTION_SEQUENCES)
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args(argv)
     fixture = capture(
@@ -645,6 +663,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             certificate_sha256=arguments.certificate_sha256,
             cert9_db=arguments.cert9_db,
             cert9_sha256=arguments.cert9_sha256,
+            resumption=arguments.resumption,
         )
     )
     write_text_fixture(arguments.output, fixture)

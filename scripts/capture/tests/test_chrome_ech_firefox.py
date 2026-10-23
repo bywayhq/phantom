@@ -229,3 +229,74 @@ class FirefoxEchTests(unittest.TestCase):
         ):
             ech.capture(self.run)
         owner.close.assert_called_once_with()
+
+
+class FirefoxEchResumptionTests(unittest.TestCase):
+    setUp = FirefoxEchTests.setUp
+
+    def test_sequences_use_the_actual_seed_url_without_changing_preferences(
+        self,
+    ) -> None:
+        for sequence in ("early-accept", "early-reject", "ech-retry"):
+            with self.subTest(sequence=sequence):
+                run = replace(self.run, resumption=sequence)
+                plan = ech.launch_plan(run)
+                self.assertEqual(plan, ech.launch_plan(self.run))
+                arguments = ech.capture_arguments(run, plan)
+                self.assertEqual(arguments[4:6], ["--resumption", sequence])
+                self.assertEqual(arguments[6], "accept")
+                self.assertTrue(
+                    arguments[-1].endswith(
+                        "'https://server.phantom.test:<origin-port>/seed'"
+                    )
+                )
+                self.assertEqual(
+                    ech.capture_url(run, "127.0.0.1:32124"),
+                    "https://server.phantom.test:32124/seed",
+                )
+                self.assertIsNotNone(ech.capture_inputs(run))
+
+    def test_sequence_validation_precedes_peer_acquisition(self) -> None:
+        for changes in (
+            {"resumption": "unknown"},
+            {"resumption": "early-accept", "scenario": "reject"},
+            {"resumption": "early-accept", "quic": True},
+            {"resumption": "early-accept", "browser": "chrome"},
+        ):
+            with (
+                self.subTest(changes=changes),
+                patch.object(ech, "ProcessContainer") as owner,
+            ):
+                with self.assertRaisesRegex(ValueError, "Firefox TCP"):
+                    ech.capture(replace(self.run, **changes))
+                owner.assert_not_called()
+
+    def test_sequence_launch_uses_reported_port_and_keeps_no_offer_output(self) -> None:
+        run = replace(self.run, resumption="early-accept")
+        observer = Mock()
+        observer.ready = ("https://127.0.0.1:32123/dns-query", "127.0.0.1:32124", None)
+        owner = Mock()
+        owner.start.return_value = True
+        owner.poll.return_value = 0
+        output = b"resumption_sequence=early-accept\nresumption_served_probe_gets=1\nresumption_slot_5_early_plaintext_bytes=0\n"
+
+        def container(command: list[str], *, stdout: object, stderr: object) -> Mock:
+            self.assertEqual(command[4:6], ["--resumption", "early-accept"])
+            stdout.write(output)
+            stdout.flush()
+            return owner
+
+        with (
+            patch.object(ech, "ProcessContainer", side_effect=container),
+            patch.object(ech, "_CaptureOutput", return_value=observer),
+            patch.object(ech, "_TrustedFirefox") as browser,
+        ):
+            fixture = ech.capture(run)
+        self.assertEqual(
+            browser.call_args.args[1], "https://server.phantom.test:32124/seed"
+        )
+        self.assertIn(output.decode("ascii"), fixture)
+        self.assertNotIn("early_data_offered=true", fixture)
+        self.assertNotIn("early_data_accepted=true", fixture)
+        owner.close.assert_called_once_with()
+        browser.return_value.__exit__.assert_called_once()

@@ -53,8 +53,8 @@ use btls::{
     hpke::HpkeKey,
     pkey::PKey,
     ssl::{
-        AlpnError, ErrorCode, NameType, Ssl, SslAcceptor, SslContextBuilder, SslEchKeys, SslMethod,
-        SslVersion, select_next_proto,
+        AlpnError, ErrorCode, NameType, Ssl, SslAcceptor, SslAcceptorBuilder, SslContextBuilder,
+        SslEchKeys, SslMethod, SslVersion, select_next_proto,
     },
     x509::X509,
 };
@@ -94,6 +94,9 @@ const DNS_TTL: u32 = 60;
 
 type CaptureResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+#[path = "capture_ech_client_hello/resumption.rs"]
+mod resumption;
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> CaptureResult<()> {
     let arguments = Arguments::parse(env::args().skip(1))?;
@@ -130,7 +133,15 @@ async fn main() -> CaptureResult<()> {
         HpkeKey::dhkem_p256_sha256(&server_key.private_key)?,
     )?;
     let keys = keys.build();
-    let origin_acceptor = identity.acceptor(Some(&keys))?;
+    let resumption = arguments.resumption.map(resumption::Run::new).transpose()?;
+    let origin_acceptor = if let Some(run) = &resumption {
+        let mut builder = identity.acceptor_builder(Some(&keys))?;
+        builder.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+        run.observe(&mut builder);
+        builder.build()
+    } else {
+        identity.acceptor(Some(&keys))?
+    };
     let quic = if arguments.quic {
         let crypto = identity.quic_server(&keys)?;
         let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
@@ -157,7 +168,10 @@ async fn main() -> CaptureResult<()> {
         }
         None => eprintln!("ready doh_template={doh_template} origin={origin_address}"),
     }
-    let captured = Arc::new(Captured::default());
+    let captured = Arc::new(Captured {
+        resumption: resumption.clone(),
+        ..Captured::default()
+    });
     let mut tasks = JoinSet::new();
     let started = Instant::now();
     let mut last_event = started;
@@ -275,6 +289,9 @@ async fn main() -> CaptureResult<()> {
     for (index, connection) in quic_connections.iter().enumerate() {
         connection.write(&mut output, index)?;
     }
+    if let Some(run) = &resumption {
+        run.write(&mut output)?;
+    }
     output.flush()?;
     Ok(())
 }
@@ -346,6 +363,7 @@ struct Slots {
 /// The connections recorded so far, each in its arrival slot.
 #[derive(Default)]
 struct Captured {
+    resumption: Option<Arc<resumption::Run>>,
     slots: Mutex<Slots>,
     page_served: std::sync::atomic::AtomicBool,
     served: Notify,
@@ -381,7 +399,7 @@ impl Captured {
     fn store_tcp(&self, slot: usize, connection: Connection) {
         let served = connection.request_served;
         self.lock().tcp[slot] = Some(connection);
-        if served {
+        if served && self.resumption.is_none() {
             self.mark_served();
         }
     }
@@ -433,6 +451,7 @@ struct Arguments {
     doh_port: u16,
     quic: bool,
     identity: Option<(PathBuf, PathBuf)>,
+    resumption: Option<resumption::Mode>,
     scenario: Scenario,
     origin: SocketAddr,
     browser: String,
@@ -446,7 +465,7 @@ struct Arguments {
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
-            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] <accept|reject> ",
+            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] [--resumption <early-accept|early-reject|ech-retry>] <accept|reject> ",
             "<loopback-address:port> ",
             "<browser> <browser-version> <operating-system> <dns-configuration> <launch-mode> ",
             "<launch-arguments>"
@@ -470,6 +489,13 @@ impl Arguments {
         } else {
             None
         };
+        let resumption = if first == "--resumption" {
+            let mode = values.next().ok_or(usage)?.parse::<resumption::Mode>()?;
+            first = values.next().ok_or(usage)?;
+            Some(mode)
+        } else {
+            None
+        };
         let scenario = match first.as_str() {
             "accept" => Scenario::Accept,
             "reject" => Scenario::Reject,
@@ -481,6 +507,7 @@ impl Arguments {
             doh_port,
             quic,
             identity,
+            resumption,
             scenario,
             origin,
             browser: text()?,
@@ -492,6 +519,11 @@ impl Arguments {
         };
         if values.next().is_some() {
             return Err(usage.into());
+        }
+        if parsed.resumption.is_some()
+            && (parsed.quic || matches!(parsed.scenario, Scenario::Reject))
+        {
+            return Err("resumption requires the TCP accept scenario".into());
         }
         for value in [
             &parsed.browser,
@@ -583,6 +615,10 @@ impl Identity {
     }
 
     fn acceptor(&self, ech_keys: Option<&SslEchKeys>) -> CaptureResult<SslAcceptor> {
+        Ok(self.acceptor_builder(ech_keys)?.build())
+    }
+
+    fn acceptor_builder(&self, ech_keys: Option<&SslEchKeys>) -> CaptureResult<SslAcceptorBuilder> {
         let mut builder = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
         let certificate = X509::from_der(&self.certificate)?;
         builder.set_certificate(&certificate)?;
@@ -595,7 +631,7 @@ impl Identity {
         if let Some(keys) = ech_keys {
             builder.set_ech_keys(keys)?;
         }
-        Ok(builder.build())
+        Ok(builder)
     }
 
     /// A TLS 1.3 QUIC server that selects `h3` and holds `ech_keys`.
@@ -756,7 +792,14 @@ async fn record_tcp(
         offset: 0,
         inner: tcp,
     };
-    let mut tls = SslStream::new(Ssl::new(acceptor.context())?, replayed)?;
+    let mut ssl = Ssl::new(acceptor.context())?;
+    if let Some(run) = &captured.resumption {
+        run.configure(&mut ssl, slot, &records.concat());
+    }
+    let mut tls = SslStream::new(ssl, replayed)?;
+    if let Some(run) = captured.resumption.clone() {
+        return run.serve(tls, acceptor, captured, slot, connection).await;
+    }
     match timeout(HANDSHAKE_TIMEOUT, Pin::new(&mut tls).accept()).await {
         Ok(Ok(())) => {}
         Ok(Err(error)) => {
