@@ -1,7 +1,10 @@
 //! Windows 156 declarations compared with retained browser observations.
 
+use std::time::Duration;
+
 use phantom_profile::{
-    ClientHintDelivery, RequestField, RequestTemplate, browser,
+    ClientHintDelivery, RequestField, RequestTemplate, TcpAddressRacing, TcpAddressSelection,
+    TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization, TcpSettings, browser,
     catalog::{
         CaptureEnvironment, CatalogError, LayerSupport, ProfileLayer, RequestTemplateKind, profile,
     },
@@ -95,6 +98,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
         let configured = matches!(
             layer.layer(),
             ProfileLayer::TcpTls
+                | ProfileLayer::Tcp
                 | ProfileLayer::Http2
                 | ProfileLayer::QuicTls
                 | ProfileLayer::QuicTransport
@@ -115,7 +119,23 @@ fn windows156_selects_its_captured_layers() -> TestResult {
     }
     let selected = definition.instantiate(&[])?;
     assert_eq!(selected, browser::chrome::v156_windows());
-    assert!(selected.tcp().is_none());
+    assert_eq!(
+        selected.tcp(),
+        Some(&TcpSettings {
+            nodelay: true,
+            send_buffer_size: None,
+            keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
+                idle: Duration::from_secs(45),
+                interval: Some(Duration::from_secs(45)),
+            }),
+            address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
+                fallback_delay: Duration::from_millis(300),
+            }),
+            port_randomization: Some(TcpPortRandomization {
+                minimum_windows_build: 22_621,
+            }),
+        })
+    );
     assert!(selected.udp().is_none());
     assert!(selected.dns_cache().is_none());
     assert!(selected.http1().is_none());

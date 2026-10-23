@@ -406,7 +406,7 @@ pub(super) static CHROMELINUX155: ConnectionProfileDefinition = ConnectionProfil
 #[rustfmt::skip]
 pub(super) static CHROMEWINDOWS156: ConnectionProfileDefinition = ConnectionProfileDefinition {
     tls: TlsComponent::Chromium154Tcp,
-    tcp: None,
+    tcp: Some(TcpComponent::Chromium154),
     udp: None,
     dns_cache: None,
     http1: None,
