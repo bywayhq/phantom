@@ -177,7 +177,8 @@ async fn rejection(case: RejectionCase) -> TestResult<()> {
                             "authenticated deferred rejection lost its ECH classification".into(),
                         );
                     }
-                    let expected = publish_retry.then(|| ech_config_list(&[retry_config.clone()]));
+                    let expected =
+                        publish_retry.then(|| ech_config_list(std::slice::from_ref(&retry_config)));
                     if error.take_ech_retry_configs().as_deref() != expected.as_deref() {
                         return Err(
                             "authenticated deferred rejection changed its retry decision".into(),
