@@ -56,7 +56,7 @@ async fn explicit_opening_without_websocket_settings_keeps_shared_state() -> Tes
 #[tokio::test]
 async fn two_websocket_openings_keep_their_family_and_unused_backup_out_of_http() -> TestResult {
     timeout(WAIT, async {
-        let timer = PruneTimer::unscheduled(std::time::Duration::ZERO);
+        let timer = PruneTimer::unscheduled(std::time::Duration::from_secs(170));
         let pool = Http1Pool::new(bound(4)?, NonZeroUsize::MIN, NonZeroUsize::MIN)
             .with_prune_timer(Some(Arc::clone(&timer)));
         let endpoint = Endpoint::new("origin.test:80".parse()?, 80)?;
