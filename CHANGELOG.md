@@ -4,6 +4,8 @@
 
 - Add Chrome 156 Linux startup settings, client hints and resource templates.
 
+- Randomize UDP source ports with the Chrome 156 Windows recipe.
+
 - Accept reserved HTTP/3 frame padding in resource captures.
 
 - Apply Chrome 156 Windows HTTP/1 connection limits and idle policy.

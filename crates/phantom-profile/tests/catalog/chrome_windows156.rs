@@ -14,6 +14,7 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 mod http1;
 pub(super) mod startup;
+mod udp;
 
 const SNAPSHOTS: [&str; 3] = [
     include_str!(
@@ -100,6 +101,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
             layer.layer(),
             ProfileLayer::TcpTls
                 | ProfileLayer::Tcp
+                | ProfileLayer::Udp
                 | ProfileLayer::Http1
                 | ProfileLayer::Http2
                 | ProfileLayer::QuicTls
@@ -138,7 +140,12 @@ fn windows156_selects_its_captured_layers() -> TestResult {
             }),
         })
     );
-    assert!(selected.udp().is_none());
+    assert!(
+        selected
+            .udp()
+            .ok_or("missing UDP settings")?
+            .port_randomization
+    );
     assert!(selected.dns_cache().is_none());
     assert!(selected.websocket().is_none());
     assert!(selected.proxy_connect().is_none());

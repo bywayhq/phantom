@@ -1,4 +1,4 @@
-# Chrome 156 Windows TCP and HTTP/1.1
+# Chrome 156 Windows sockets and HTTP/1.1
 
 `hooks-single.txt` records Chrome 156.0.8078.48 on Windows 11 Home
 10.0.26200 x64. The headless browser ran with Frida 17.23.3 and Python 3.12.10
@@ -13,6 +13,8 @@ IPv4-only run. Loopback SYN retry settings use the system default in Phantom.
 Capture source: `dde964d60a5332fbae1da0502ddad00c1dd77074`. The run completed
 without hook errors and removed its owned browser and profile. UDP entries
 are background traffic, separate from the controlled TCP origin.
+Both headed and headless runs record `SO_RANDOMIZE_PORT=1` on UDP sockets.
+The shared UDP component requests this option, as does [Chromium 156][udp-source].
 
 `hooks-parallel.txt` records ten slow requests using six connections.
 `hooks-idle.txt` records reuse after 290 seconds and replacement on a request
@@ -53,3 +55,5 @@ SHA256:
 
 [source]: https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/
 [idle-source]: https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/client_socket_pool.cc
+
+[udp-source]: https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/socket/udp_socket_win.cc
