@@ -188,17 +188,13 @@ impl Run {
                 connection.handshake = Ok(());
             }
             captured.store_tcp(slot, connection.clone());
-            let (head, early_bytes) = read_head(&mut tls, self, slot).await?;
+            let mut early = EarlyPlaintext::new();
+            let head = read_head(&mut tls, self, slot, &mut early).await?;
             let Some(head) = head else {
                 return Ok::<(), Box<dyn Error + Send + Sync>>(());
             };
             let path = request_path(&head)?;
-            // SSL_accept may return with early data still pending. The next
-            // handshake call consumes EndOfEarlyData/Finished after this head.
-            Pin::new(&mut tls).do_handshake().await?;
-            if !tls.ssl().is_init_finished() {
-                return Err("TLS handshake did not reach Finished".into());
-            }
+            finish_server_handshake(&mut tls, self, slot, &mut early).await?;
             connection.handshake = Ok(());
             connection.ech_accepted = tls.ssl().ech_accepted();
             connection.inner_server_name =
@@ -222,7 +218,7 @@ impl Run {
                 observed.requests.push(Request {
                     path,
                     head_sha256: digest(&head),
-                    early_bytes,
+                    early_bytes: early.bytes,
                     served: false,
                 });
                 is_seed
@@ -414,43 +410,97 @@ fn digest(bytes: &[u8]) -> String {
     hex(&btls::sha::sha256(bytes))
 }
 
+struct EarlyPlaintext {
+    bytes: usize,
+    hash: btls::sha::Sha256,
+}
+
+impl EarlyPlaintext {
+    fn new() -> Self {
+        Self {
+            bytes: 0,
+            hash: btls::sha::Sha256::new(),
+        }
+    }
+
+    fn observe(&mut self, run: &Run, slot: usize, byte: u8) -> io::Result<()> {
+        if self.bytes == MAX_EARLY_BYTES {
+            return Err(io::Error::other("early data exceeds capture limit"));
+        }
+        self.bytes += 1;
+        self.hash.update(&[byte]);
+        let mut state = run.lock();
+        let observed = state
+            .connections
+            .get_mut(&slot)
+            .ok_or_else(|| io::Error::other("missing TLS observation"))?;
+        // Preserve partial plaintext facts when the existing owner cancels.
+        observed.early_bytes = self.bytes;
+        observed.early_sha256 = Some(hex(&self.hash.clone().finish()));
+        Ok(())
+    }
+}
+
 async fn read_head(
     tls: &mut SslStream<Replayed<TcpStream>>,
     run: &Run,
     slot: usize,
-) -> io::Result<(Option<Vec<u8>>, usize)> {
+    early: &mut EarlyPlaintext,
+) -> io::Result<Option<Vec<u8>>> {
     let mut head = Vec::new();
-    let mut early_bytes = 0;
-    let mut early_hash = btls::sha::Sha256::new();
     while !head.ends_with(b"\r\n\r\n") {
         if head.len() == MAX_REQUEST_HEAD {
             return Err(io::Error::other("request head exceeds capture limit"));
         }
         let mut byte = [0];
         if tls.read(&mut byte).await? == 0 {
-            return Ok((None, early_bytes));
+            return Ok(None);
         }
         // The native record layer has returned plaintext while Finished is
         // still pending; ciphertext lengths/ClientHello intent are not used.
         if !tls.ssl().is_init_finished() {
-            if early_bytes == MAX_EARLY_BYTES {
-                return Err(io::Error::other("early data exceeds capture limit"));
-            }
-            early_bytes += 1;
-            early_hash.update(&byte);
-            let mut state = run.lock();
-            let observed = state
-                .connections
-                .get_mut(&slot)
-                .ok_or_else(|| io::Error::other("missing TLS observation"))?;
-            // Retain partial plaintext facts if the existing owner cancels an
-            // incomplete speculative request during capture grace.
-            observed.early_bytes = early_bytes;
-            observed.early_sha256 = Some(hex(&early_hash.clone().finish()));
+            early.observe(run, slot, byte[0])?;
         }
         head.push(byte[0]);
     }
-    Ok((Some(head), early_bytes))
+    Ok(Some(head))
+}
+
+async fn finish_server_handshake(
+    tls: &mut SslStream<Replayed<TcpStream>>,
+    run: &Run,
+    slot: usize,
+    early: &mut EarlyPlaintext,
+) -> io::Result<()> {
+    std::future::poll_fn(|cx| {
+        if tls.ssl().is_init_finished() {
+            return Poll::Ready(Ok(()));
+        }
+        let mut byte = [0];
+        let mut buffer = ReadBuf::new(&mut byte);
+        let result = Pin::new(&mut *tls).poll_read(cx, &mut buffer);
+        match result {
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Ready(Ok(())) if !buffer.filled().is_empty() => {
+                if !tls.ssl().is_init_finished() {
+                    early.observe(run, slot, buffer.filled()[0])?;
+                }
+                Poll::Ready(Err(io::Error::other(
+                    "unexpected application data after request head",
+                )))
+            }
+            Poll::Ready(Ok(())) => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "peer closed before the resumption response",
+            ))),
+            // Server SSL_do_handshake returns early while can_early_read is
+            // set. SSL_read consumes EndOfEarlyData/Finished, then may wait
+            // for application data. Finished is sufficient for this GET.
+            Poll::Pending if tls.ssl().is_init_finished() => Poll::Ready(Ok(())),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
 }
 
 fn request_path(head: &[u8]) -> CaptureResult<&'static str> {

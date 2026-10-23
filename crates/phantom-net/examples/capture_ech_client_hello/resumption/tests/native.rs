@@ -92,6 +92,8 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
                     tls.flush().await?;
                 } else {
                     completion?;
+                    // No more application bytes follow the early GET. The
+                    // server must consume Finished and respond without one.
                 }
                 assert!(tls.ssl().is_init_finished());
                 assert!(tls.ssl().session_reused());
@@ -143,6 +145,19 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
     }));
     assert_eq!(resumed.early_accepted, mode == Mode::EarlyAccept);
     assert_eq!(resumed.early_bytes > 0, mode == Mode::EarlyAccept);
+    let request = format!("GET {RESUME} HTTP/1.1\r\nhost: {HOSTNAME}\r\n\r\n");
+    if mode == Mode::EarlyAccept {
+        assert_eq!(resumed.early_bytes, request.len());
+        assert_eq!(
+            resumed.early_sha256.as_deref(),
+            Some(digest(request.as_bytes()).as_str())
+        );
+    } else {
+        assert_eq!(resumed.early_sha256, None);
+    }
+    assert_eq!(resumed.requests.len(), 1);
+    assert_eq!(resumed.requests[0].head_sha256, digest(request.as_bytes()));
+    assert_eq!(resumed.requests[0].early_bytes, resumed.early_bytes);
     assert_eq!(
         resumed
             .requests
