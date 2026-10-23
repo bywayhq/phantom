@@ -499,7 +499,8 @@ fn discovering_client_with_slots(
     http1.max_connections_per_origin = http1_connections;
     let profile = ClientProfile::new(tls)
         .with_http1(http1)
-        .with_http2(firefox::v157_http2());
+        .with_http2(firefox::v157_http2())
+        .with_http3(crate::support::h3::client_settings());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .alt_svc(NonZeroUsize::MIN)
