@@ -171,11 +171,21 @@ class BrowserProfileReleaseTests(unittest.TestCase):
                     agent.attach.side_effect = native.stop_requested.set
                     listing = [
                         {
-                            "ProcessId": selected_pid,
-                            "ParentProcessId": 0,
+                            "ProcessId": tool_pid,
+                            "ParentProcessId": container.pid,
+                            "ExecutablePath": str(browser.plan.executable),
                             "CommandLine": "tool",
                         }
                     ]
+                    if selected_pid != tool_pid:
+                        listing.append(
+                            {
+                                "ProcessId": selected_pid,
+                                "ParentProcessId": tool_pid,
+                                "ExecutablePath": str(browser.plan.executable),
+                                "CommandLine": "browser parent",
+                            }
+                        )
                     with (
                         mock.patch.object(browser, "__enter__", return_value=browser),
                         mock.patch.object(browser, "__exit__"),
@@ -187,11 +197,12 @@ class BrowserProfileReleaseTests(unittest.TestCase):
                         ),
                         mock.patch.object(
                             firefox_socket_hooks, "Hooks", return_value=agent
-                        ),
+                        ) as hooks_factory,
                     ):
                         native.work()
                     self.assertEqual(native.failures, [])
                     self.assertEqual(native.launcher, selected_pid != tool_pid)
+                    hooks_factory.assert_called_once_with(selected_pid, {})
                     agent.attach.assert_called_once()
                     agent.detach.assert_called_once()
 
