@@ -262,6 +262,12 @@ async fn main() -> CaptureResult<()> {
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .clone();
+    let alternative_indexes = alternative.as_ref().map(|alternative| {
+        (
+            alternative,
+            alternative_host::SerializedIndexes::new(&captured),
+        )
+    });
     let (connections, quic_connections) = captured.take();
     if !captured.page_served() {
         return Err(format!(
@@ -346,8 +352,8 @@ async fn main() -> CaptureResult<()> {
     if let Some(run) = &resumption {
         run.write(&mut output)?;
     }
-    if let Some(alternative) = &alternative {
-        alternative.write(&mut output)?;
+    if let Some((alternative, indexes)) = alternative_indexes {
+        alternative.write(&mut output, &indexes)?;
     }
     output.flush()?;
     Ok(())

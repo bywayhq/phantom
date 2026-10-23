@@ -12,7 +12,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use super::super::{AlternativeHost, HOST_B};
+use super::super::{AlternativeHost, HOST_B, SerializedIndexes};
 use crate::{
     CaptureResult, Captured, HOSTNAME, capture_errors, spawn_origin_tcp, tests::test_identity,
 };
@@ -41,6 +41,31 @@ async fn verified_http1_origin_advertises_destination_b_without_completing_captu
     let connector = connector.build();
     let mut tasks = JoinSet::new();
     let result: CaptureResult<()> = timeout(Duration::from_secs(5), async {
+        let empty = TcpStream::connect(listener.local_addr()?).await?;
+        let (accepted, peer) = listener.accept().await?;
+        let (empty_slot, empty_worker) = spawn_origin_tcp(
+            &mut tasks,
+            accepted,
+            peer,
+            acceptor.clone(),
+            Arc::clone(&captured),
+        );
+        empty_worker.abort();
+        match tasks.join_next().await {
+            Some(Err(error)) if error.is_cancelled() => {}
+            _ => return Err("empty ClientHello worker was not cancelled and joined".into()),
+        }
+        if empty_slot != 0
+            || captured
+                .lock()
+                .tcp
+                .get(empty_slot)
+                .is_none_or(Option::is_some)
+        {
+            return Err("cancelled empty worker unexpectedly retained a ClientHello".into());
+        }
+        drop(empty);
+
         let tcp = TcpStream::connect(listener.local_addr()?).await?;
         let (accepted, peer) = listener.accept().await?;
         spawn_origin_tcp(&mut tasks, accepted, peer, acceptor, Arc::clone(&captured));
@@ -72,9 +97,21 @@ async fn verified_http1_origin_advertises_destination_b_without_completing_captu
             Some(Err(error)) => return Err(error.into()),
             None => return Err("bootstrap owner disappeared".into()),
         }
+        let indexes = SerializedIndexes::new(&captured);
         let (tcp, quic) = captured.take();
         if tcp.len() != 1 || !quic.is_empty() || !tcp[0].request_served || tcp[0].ech_accepted {
             return Err("bootstrap peer observations differ".into());
+        }
+        let mut fixture = Vec::new();
+        tcp[0].write(&mut fixture, 0)?;
+        alternative.write(&mut fixture, &indexes)?;
+        let fixture = String::from_utf8(fixture)?;
+        if !fixture.contains("connection_0_handshake=ok\n")
+            || !fixture.contains("alternative_tcp_arrival_slot_1_serialized_index=0\n")
+            || !fixture.contains("http/1.1 tcp_arrival_slot=1 authority=")
+            || fixture.contains("alternative_tcp_arrival_slot_0_serialized_index=")
+        {
+            return Err("cancelled ClientHello gap lost the serialized connection mapping".into());
         }
         Ok(())
     })

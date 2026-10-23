@@ -100,6 +100,30 @@ pub(super) struct Response {
     index: usize,
 }
 
+pub(super) struct SerializedIndexes {
+    tcp: Vec<(usize, usize)>,
+    quic: Vec<(usize, usize)>,
+}
+
+impl SerializedIndexes {
+    pub(super) fn new(captured: &Captured) -> Self {
+        let slots = captured.lock();
+        let mut tcp = Vec::new();
+        for (arrival, record) in slots.tcp.iter().enumerate() {
+            if record.is_some() {
+                tcp.push((arrival, tcp.len()));
+            }
+        }
+        let mut quic = Vec::new();
+        for (arrival, record) in slots.quic.iter().enumerate() {
+            if record.is_some() {
+                quic.push((arrival, quic.len()));
+            }
+        }
+        Self { tcp, quic }
+    }
+}
+
 fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
@@ -379,13 +403,29 @@ impl AlternativeHost {
         Ok(true)
     }
 
-    pub(super) fn write(&self, output: &mut impl io::Write) -> io::Result<()> {
+    pub(super) fn write(
+        &self,
+        output: &mut impl io::Write,
+        indexes: &SerializedIndexes,
+    ) -> io::Result<()> {
         writeln!(output, "alternative_origin={}", self.origin)?;
         writeln!(output, "alternative_destination_name={HOST_B}")?;
         writeln!(output, "alternative_destination={}", self.destination)?;
         writeln!(output, "alternative_origin_https=nodata")?;
         writeln!(output, "alternative_destination_config_id=2")?;
         writeln!(output, "alternative_probe_body_hex={}", hex(PROBE_BODY))?;
+        for (arrival, index) in &indexes.tcp {
+            writeln!(
+                output,
+                "alternative_tcp_arrival_slot_{arrival}_serialized_index={index}"
+            )?;
+        }
+        for (arrival, index) in &indexes.quic {
+            writeln!(
+                output,
+                "alternative_quic_arrival_slot_{arrival}_serialized_index={index}"
+            )?;
+        }
         let handshakes = self
             .handshakes
             .lock()
@@ -398,7 +438,7 @@ impl AlternativeHost {
         for (index, handshake) in handshakes.iter().enumerate() {
             writeln!(
                 output,
-                "alternative_authenticated_{index}=connection={} logical_name={HOSTNAME} alpn_hex={} ech_accepted={} at_ms={}",
+                "alternative_authenticated_{index}=quic_arrival_slot={} logical_name={HOSTNAME} alpn_hex={} ech_accepted={} at_ms={}",
                 handshake.connection,
                 hex(&handshake.alpn),
                 handshake.ech_accepted,
@@ -425,9 +465,14 @@ impl AlternativeHost {
         let requests = self.requests.lock().unwrap_or_else(PoisonError::into_inner);
         writeln!(output, "alternative_request_count={}", requests.len())?;
         for (index, request) in requests.iter().enumerate() {
+            let slot_kind = if request.transport == "h3" {
+                "quic_arrival_slot"
+            } else {
+                "tcp_arrival_slot"
+            };
             writeln!(
                 output,
-                "alternative_request_{index}={} connection={} authority={} path={} completed={} at_ms={}",
+                "alternative_request_{index}={} {slot_kind}={} authority={} path={} completed={} at_ms={}",
                 request.transport,
                 request.connection,
                 request.authority,

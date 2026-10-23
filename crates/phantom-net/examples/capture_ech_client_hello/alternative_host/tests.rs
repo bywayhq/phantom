@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{AlternativeHost, HOST_B, PROBE_BODY};
+use super::{AlternativeHost, HOST_B, PROBE_BODY, SerializedIndexes};
 use crate::{CaptureResult, Captured, DnsAnswers, HOSTNAME, Scenario, dns_response};
 
 mod native;
@@ -101,7 +101,7 @@ fn logical_origin_nodata_and_destination_https_have_distinct_wire_answers() -> C
 fn dns_evidence_is_bounded_without_requiring_any_destination_query() -> CaptureResult<()> {
     let alternative = state()?;
     let mut output = Vec::new();
-    alternative.write(&mut output)?;
+    alternative.write(&mut output, &SerializedIndexes::new(&Captured::default()))?;
     assert!(String::from_utf8(output)?.contains("alternative_dns_count=0\n"));
     assert!(
         alternative
@@ -167,7 +167,7 @@ async fn only_a_completed_h3_probe_then_final_report_completes_capture() -> Capt
     alternative.completed(&response, &captured)?;
     assert!(captured.page_served());
     let mut output = Vec::new();
-    alternative.write(&mut output)?;
+    alternative.write(&mut output, &SerializedIndexes::new(&captured))?;
     let output = String::from_utf8(output)?;
     assert!(output.contains("authority=server.phantom.test:8443 path=/probe completed=true"));
     assert!(
@@ -258,5 +258,24 @@ fn alternative_arguments_require_firefox_quic_identity_without_resumption() -> C
     let mut resumed = prefix;
     resumed.extend(["--resumption", "early-accept"]);
     assert!(parse(resumed, &metadata).is_err());
+    Ok(())
+}
+
+#[test]
+fn quic_arrival_mapping_survives_an_unfilled_slot_before_a_retained_record() -> CaptureResult<()> {
+    let captured = Captured::default();
+    captured.reserve_quic();
+    let retained = captured.reserve_quic();
+    captured.store_quic(retained, crate::QuicConnection::new(None));
+    let indexes = SerializedIndexes::new(&captured);
+    let (_, records) = captured.take();
+    assert_eq!(records.len(), 1);
+    let mut fixture = Vec::new();
+    records[0].write(&mut fixture, 0)?;
+    state()?.write(&mut fixture, &indexes)?;
+    let fixture = String::from_utf8(fixture)?;
+    assert!(fixture.contains("quic_connection_0_client_hello_hex=\n"));
+    assert!(fixture.contains("alternative_quic_arrival_slot_1_serialized_index=0\n"));
+    assert!(!fixture.contains("alternative_quic_arrival_slot_0_serialized_index="));
     Ok(())
 }
