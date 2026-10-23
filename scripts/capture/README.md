@@ -2288,7 +2288,7 @@ Its exact-origin PAC uses `SOCKS5` for remote origin names. Only the physical
 proxy lookup is rewritten to `localhost`; bootstrap and control requests stay
 direct. Raw records distinguish proxy sockets, SOCKS bytes and origin TLS.
 
-Run `https-connect-backup` with `run --scenario https-connect-backup --headful`.
+Run `https-connect-backup` with `--scenario https-connect-backup --headful`.
 Its exact-origin PAC uses `HTTPS` without direct failover. Only the proxy
 lookup is rewritten. Separate proxy and origin leaf exceptions live in the
 throwaway profile. Records distinguish outer TLS ALPN from inner origin TLS.
