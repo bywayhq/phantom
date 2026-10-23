@@ -60,8 +60,8 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 29)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 33)
+        self.assertEqual(len(templates), 34)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 38)
         chrome156 = next(row for row in profiles if row["target"] == "ChromeWindows156")
         self.assertEqual(
             chrome156["templates"],
@@ -101,7 +101,8 @@ class TemplateDeclarationTests(unittest.TestCase):
         original = [
             row
             for row in profiles
-            if row["target"] not in ("EdgeWindows153", "ChromeMacos154")
+            if row["target"]
+            not in ("EdgeWindows153", "ChromeMacos154", "ChromeLinux156")
             and row["metadata"]["identity"]["kind"] == "Observed"
         ]
         count = sum(

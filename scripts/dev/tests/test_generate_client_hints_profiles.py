@@ -48,12 +48,16 @@ class ClientHintComponentTests(unittest.TestCase):
             c
             for c in components
             if c["id"]
-            not in ("edge_windows_153_client_hints", "chrome_windows_156_client_hints")
+            not in (
+                "edge_windows_153_client_hints",
+                "chrome_windows_156_client_hints",
+                "chrome_linux_156_client_hints",
+            )
         ]
         self.assertEqual(len(original), 11)
         self.assertEqual(sum(len(c["values"]["hints"]) for c in original), 117)
-        self.assertEqual(len(components), 13)
-        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 139)
+        self.assertEqual(len(components), 14)
+        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 150)
         models = []
         for component in components:
             hints = component["values"]["hints"]

@@ -1229,6 +1229,103 @@
           }
         ]
       }
+    },
+    {
+      "id": "chrome_linux_156_client_hints",
+      "kind": "ClientHintSettings",
+      "base": "chrome_windows_154_client_hints",
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"156.0.8078.47\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Linux\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Not:A-Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"156.0.8078.47\", \"Google Chrome\";v=\"156.0.8078.47\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
     }
   ]
 }

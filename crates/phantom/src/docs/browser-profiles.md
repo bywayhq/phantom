@@ -45,6 +45,10 @@ build, platform and revision; full identifiers remain accepted too.
 `chrome-155-linux` adapts a pinned external preset for TLS, HTTP/2 and
 navigation headers. Its catalog definition lists the available layers.
 
+`chrome-156-linux` provides Chrome 156.0.8078.47 TLS, HTTP/2, HTTP/3, client
+hints and request templates from headed Ubuntu 24.04.4 captures on WSL2/WSLg
+x86_64. Select it with `chrome::v156_linux()` or the catalog.
+
 ## Match the browser, version, and platform
 
 The [browser modules](crate::profile::browser) group constructors by browser.
@@ -94,7 +98,7 @@ For Chrome on Windows, choose the template that matches your operation:
 Templates supply request fields. Choose one for the request context documented
 in its API reference.
 
-`chrome-156-windows` also offers `Script`, `Stylesheet`, `Image` and `Font`
+`chrome-156-windows` and `chrome-156-linux` also offer `Script`, `Stylesheet`, `Image` and `Font`
 through [`RequestTemplateKind`](crate::profile::catalog::RequestTemplateKind).
 These same-origin templates require a caller-supplied `Referer`. Fonts also
 require `Origin`, with the stylesheet URL as `Referer`.

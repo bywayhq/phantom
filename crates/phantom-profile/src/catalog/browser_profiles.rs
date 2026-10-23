@@ -9,6 +9,14 @@ pub(crate) mod chrome {
         crate::catalog::connection_profile_definitions::CHROMEANDROID154.instantiate()
     }
 
+    /// Returns Chrome 156 settings for Linux, without a request template.
+    ///
+    /// Catalog: [`chrome-156-linux`](crate::catalog::profile).
+    #[must_use]
+    pub fn v156_linux() -> crate::ClientProfile {
+        crate::catalog::connection_profile_definitions::CHROMELINUX156.instantiate()
+    }
+
     /// Returns Chrome 154 settings for macOS, without a request template.
     ///
     /// Catalog: [`chrome-154-macos`](crate::catalog::profile).

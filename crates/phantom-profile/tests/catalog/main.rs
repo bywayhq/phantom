@@ -3,6 +3,7 @@
 //! Covers exact catalog definitions and original component values.
 
 mod catalog;
+mod chrome_linux156;
 mod chrome_linux_peer;
 mod chrome_windows156;
 mod client_hints_components;

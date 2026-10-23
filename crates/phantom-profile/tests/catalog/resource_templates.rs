@@ -44,7 +44,7 @@ fn unhex(value: &str) -> TestResult<Vec<u8>> {
         .collect()
 }
 
-fn captured_fields(capture: &str, context: &str) -> TestResult<Fields> {
+pub(super) fn captured_fields(capture: &str, context: &str) -> TestResult<Fields> {
     let prefix = format!("resource_{context}");
     let count = field(capture, &format!("{prefix}_field_count"))?.parse::<usize>()?;
     let mut fields = Vec::with_capacity(count);
@@ -64,7 +64,7 @@ fn captured_fields(capture: &str, context: &str) -> TestResult<Fields> {
 }
 
 // Supply only the captured caller values; every automatic value comes from the declaration.
-fn declared_fields(
+pub(super) fn declared_fields(
     fields: &[RequestField],
     hints: &[ClientHint],
     caller: &Fields,
@@ -249,11 +249,14 @@ fn resource_weight_bands_match_captured_initial_priorities() -> TestResult {
 }
 
 #[test]
-fn resource_contexts_are_available_only_on_the_observed_windows_recipe() -> TestResult {
-    let observed = profile("chrome-156-windows")?;
+fn resource_contexts_are_available_only_on_the_observed_156_recipes() -> TestResult {
+    let observed = [
+        profile("chrome-156-windows")?.id(),
+        profile("chrome-156-linux")?.id(),
+    ];
     for definition in profiles()
         .iter()
-        .filter(|definition| definition.id() != observed.id())
+        .filter(|definition| !observed.contains(&definition.id()))
     {
         for (kind, _) in CONTEXTS {
             assert_eq!(

@@ -13,7 +13,7 @@ use phantom_profile::{
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 mod http1;
-mod startup;
+pub(super) mod startup;
 
 const SNAPSHOTS: [&str; 3] = [
     include_str!(
@@ -38,7 +38,7 @@ const RESOURCES: [&str; 3] = [
     ),
 ];
 
-fn field<'a>(capture: &'a str, key: &str) -> TestResult<&'a str> {
+pub(super) fn field<'a>(capture: &'a str, key: &str) -> TestResult<&'a str> {
     capture
         .lines()
         .filter_map(|line| line.split_once('='))
@@ -46,7 +46,7 @@ fn field<'a>(capture: &'a str, key: &str) -> TestResult<&'a str> {
         .ok_or_else(|| format!("missing capture field {key}").into())
 }
 
-fn unhex(value: &str) -> TestResult<Vec<u8>> {
+pub(super) fn unhex(value: &str) -> TestResult<Vec<u8>> {
     if !value.len().is_multiple_of(2) || !value.is_ascii() {
         return Err("invalid capture hex".into());
     }
@@ -189,7 +189,11 @@ fn windows156_hint_values_delivery_and_order_match_all_headful_snapshots() -> Te
 }
 
 // Project the declaration's initial-navigation and restarted-hint slots.
-fn declared_names(fields: &[RequestField], hints: &[String], restart: bool) -> Vec<String> {
+pub(super) fn declared_names(
+    fields: &[RequestField],
+    hints: &[String],
+    restart: bool,
+) -> Vec<String> {
     let mut names = Vec::new();
     for field in fields {
         match field {

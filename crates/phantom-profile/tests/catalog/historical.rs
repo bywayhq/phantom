@@ -13,7 +13,7 @@ const ID: &str = "edge/153.0.4234.48/windows-11-26200/r1";
 #[test]
 fn second_edge_version_keeps_exact_selection_and_every_missing_layer_error() -> TestResult {
     let definition = profile(ID)?;
-    assert_eq!(profiles().len(), 16);
+    assert_eq!(profiles().len(), 17);
     assert_eq!(definition.metadata().build(), Some("153.0.4234.48"));
     assert_eq!(definition.metadata().architecture(), None);
     assert_ne!(

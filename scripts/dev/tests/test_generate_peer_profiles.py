@@ -48,7 +48,7 @@ class PeerCatalogTests(unittest.TestCase):
         observed = [
             p for p in profiles if p["metadata"]["identity"]["kind"] == "Observed"
         ]
-        self.assertEqual(len(observed), 13)
+        self.assertEqual(len(observed), 14)
 
     def test_adopted_recipe_name_depends_on_browser_not_source_project(self):
         metadata = copy.deepcopy(self.peer["metadata"])

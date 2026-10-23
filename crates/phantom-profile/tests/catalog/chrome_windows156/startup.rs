@@ -13,7 +13,7 @@ fn without_grease(values: &[u16]) -> Vec<u16> {
         .collect()
 }
 
-fn compare_tls(settings: &TlsSettings, hello: &ClientHelloSummary) -> TestResult {
+pub(crate) fn compare_tls(settings: &TlsSettings, hello: &ClientHelloSummary) -> TestResult {
     settings.validate()?;
     assert_eq!(
         settings
@@ -125,136 +125,151 @@ fn varint(bytes: &mut &[u8]) -> TestResult<u64> {
     Ok(value)
 }
 
+pub(crate) fn compare_http_startup(
+    selected: &phantom_profile::ClientProfile,
+    capture: &str,
+) -> TestResult {
+    let h2 = selected.http2().ok_or("missing HTTP/2")?;
+    let h3 = selected.http3().ok_or("missing HTTP/3")?;
+    let settings = unhex(field(capture, "h2.frame_0_hex")?)?;
+    assert_eq!(
+        settings.get(..9),
+        Some([0, 0, 24, 4, 0, 0, 0, 0, 0].as_slice())
+    );
+    let (entries, remainder) = settings
+        .get(9..)
+        .ok_or("missing SETTINGS")?
+        .as_chunks::<6>();
+    assert!(remainder.is_empty());
+    let captured: TestResult<Vec<_>> = entries
+        .iter()
+        .map(|entry| {
+            let value = u32::from_be_bytes(entry[2..].try_into()?);
+            Ok(match u16::from_be_bytes(entry[..2].try_into()?) {
+                1 => Http2Setting::HeaderTableSize(value),
+                2 => Http2Setting::EnablePush(value != 0),
+                4 => Http2Setting::InitialWindowSize(value),
+                6 => Http2Setting::MaxHeaderListSize(value),
+                _ => return Err("unexpected captured HTTP/2 setting".into()),
+            })
+        })
+        .collect();
+    assert_eq!(h2.initial_settings, captured?);
+    let update = unhex(field(capture, "h2.frame_1_hex")?)?;
+    assert_eq!(
+        update.get(..9),
+        Some([0, 0, 4, 8, 0, 0, 0, 0, 0].as_slice())
+    );
+    let increment = u32::from_be_bytes(update.get(9..).ok_or("missing window")?.try_into()?);
+    assert_eq!(h2.initial_connection_window_size, 65_535 + increment);
+    assert_eq!(
+        h2.headers_priority,
+        Some(Http2Priority {
+            dependency_stream_id: 0,
+            weight: 256,
+            exclusive: true,
+        })
+    );
+    assert_eq!(
+        h2.pseudo_header_order,
+        [H2::Method, H2::Authority, H2::Scheme, H2::Path]
+    );
+    assert_eq!(
+        h3.request().pseudo_header_order,
+        [H3::Method, H3::Authority, H3::Scheme, H3::Path]
+    );
+    assert!(
+        field(capture, "request_0_field_order")?.starts_with(":method,:authority,:scheme,:path,")
+    );
+    assert!(
+        field(capture, "h2.client_frame_2")?.contains("exclusive:true,depends_on:0,weight:256")
+    );
+    let bytes = unhex(field(capture, "h3.settings_frame_hex")?)?;
+    let mut input = bytes.as_slice();
+    assert_eq!(varint(&mut input)?, 4);
+    assert_eq!(usize::try_from(varint(&mut input)?)?, input.len());
+    let mut settings = Vec::new();
+    while !input.is_empty() {
+        let id = varint(&mut input)?;
+        let value = varint(&mut input)?;
+        settings.push(match id {
+            1 => Http3Setting::QpackMaxTableCapacity(value),
+            6 => Http3Setting::MaxFieldSectionSize(value),
+            7 => Http3Setting::QpackBlockedStreams(value),
+            51 => {
+                assert_eq!(value, 1);
+                Http3Setting::H3Datagram(true)
+            }
+            grease if grease >= 33 && (grease - 33).is_multiple_of(31) => {
+                Http3Setting::RandomizedGrease
+            }
+            _ => return Err("unexpected captured HTTP/3 setting".into()),
+        });
+    }
+    assert_eq!(h3.http3().initial_settings, settings);
+    Ok(())
+}
+
 #[test]
 fn windows156_http2_and_http3_startup_match_retained_frame_bytes() -> TestResult {
     let selected = browser::chrome::v156_windows();
-    let h2 = selected.http2().ok_or("missing HTTP/2")?;
-    let h3 = selected.http3().ok_or("missing HTTP/3")?;
     for capture in SNAPSHOTS {
-        let settings = unhex(field(capture, "h2.frame_0_hex")?)?;
-        assert_eq!(
-            settings.get(..9),
-            Some([0, 0, 24, 4, 0, 0, 0, 0, 0].as_slice())
-        );
-        let (entries, remainder) = settings
-            .get(9..)
-            .ok_or("missing SETTINGS")?
-            .as_chunks::<6>();
-        assert!(remainder.is_empty());
-        let captured: TestResult<Vec<_>> = entries
-            .iter()
-            .map(|entry| {
-                let value = u32::from_be_bytes(entry[2..].try_into()?);
-                Ok(match u16::from_be_bytes(entry[..2].try_into()?) {
-                    1 => Http2Setting::HeaderTableSize(value),
-                    2 => Http2Setting::EnablePush(value != 0),
-                    4 => Http2Setting::InitialWindowSize(value),
-                    6 => Http2Setting::MaxHeaderListSize(value),
-                    _ => return Err("unexpected captured HTTP/2 setting".into()),
-                })
-            })
-            .collect();
-        assert_eq!(h2.initial_settings, captured?);
-        let update = unhex(field(capture, "h2.frame_1_hex")?)?;
-        assert_eq!(
-            update.get(..9),
-            Some([0, 0, 4, 8, 0, 0, 0, 0, 0].as_slice())
-        );
-        let increment = u32::from_be_bytes(update.get(9..).ok_or("missing window")?.try_into()?);
-        assert_eq!(h2.initial_connection_window_size, 65_535 + increment);
-        assert_eq!(
-            h2.headers_priority,
-            Some(Http2Priority {
-                dependency_stream_id: 0,
-                weight: 256,
-                exclusive: true,
-            })
-        );
-        assert_eq!(
-            h2.pseudo_header_order,
-            [H2::Method, H2::Authority, H2::Scheme, H2::Path]
-        );
-        assert_eq!(
-            h3.request().pseudo_header_order,
-            [H3::Method, H3::Authority, H3::Scheme, H3::Path]
-        );
-        assert!(
-            field(capture, "request_0_field_order")?
-                .starts_with(":method,:authority,:scheme,:path,")
-        );
-        assert!(
-            field(capture, "h2.client_frame_2")?.contains("exclusive:true,depends_on:0,weight:256")
-        );
-        let bytes = unhex(field(capture, "h3.settings_frame_hex")?)?;
-        let mut input = bytes.as_slice();
-        assert_eq!(varint(&mut input)?, 4);
-        assert_eq!(usize::try_from(varint(&mut input)?)?, input.len());
-        let mut settings = Vec::new();
-        while !input.is_empty() {
-            let id = varint(&mut input)?;
-            let value = varint(&mut input)?;
-            settings.push(match id {
-                1 => Http3Setting::QpackMaxTableCapacity(value),
-                6 => Http3Setting::MaxFieldSectionSize(value),
-                7 => Http3Setting::QpackBlockedStreams(value),
-                51 => {
-                    assert_eq!(value, 1);
-                    Http3Setting::H3Datagram(true)
-                }
-                grease if grease >= 33 && (grease - 33).is_multiple_of(31) => {
-                    Http3Setting::RandomizedGrease
-                }
-                _ => return Err("unexpected captured HTTP/3 setting".into()),
-            });
-        }
-        assert_eq!(h3.http3().initial_settings, settings);
+        compare_http_startup(&selected, capture)?;
     }
+    Ok(())
+}
+
+pub(crate) fn compare_quic_parameters(
+    selected: &phantom_profile::ClientProfile,
+    capture: &str,
+) -> TestResult {
+    let h3 = selected.http3().ok_or("missing HTTP/3")?;
+    let settings = h3.quic_transport();
+    let bytes = unhex(field(capture, "h3.transport_parameters_hex")?)?;
+    let hello = unhex(field(capture, "quic_client_hello.handshake_hex")?)?;
+    assert!(hello.windows(bytes.len()).any(|window| window == bytes));
+    let mut input = bytes.as_slice();
+    let mut observed = Vec::new();
+    while !input.is_empty() {
+        let id = varint(&mut input)?;
+        let length = usize::try_from(varint(&mut input)?)?;
+        let value = input.get(..length).ok_or("short transport parameter")?;
+        input = &input[length..];
+        if matches!(id, 1 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 32) {
+            let mut value_input = value;
+            let value = varint(&mut value_input)?;
+            assert!(value_input.is_empty());
+            observed.push((id, value));
+        }
+    }
+    observed.sort_unstable();
+    assert_eq!(
+        observed,
+        [
+            (1, settings.max_idle_timeout_ms),
+            (3, settings.max_udp_payload_size),
+            (4, settings.initial_max_data),
+            (5, settings.initial_max_stream_data_bidi_local),
+            (6, settings.initial_max_stream_data_bidi_remote),
+            (7, settings.initial_max_stream_data_uni),
+            (8, settings.initial_max_streams_bidi),
+            (9, settings.initial_max_streams_uni),
+            (
+                32,
+                settings
+                    .max_datagram_frame_size
+                    .ok_or("missing DATAGRAM limit")?
+            ),
+        ]
+    );
     Ok(())
 }
 
 #[test]
 fn windows156_quic_initial_parameter_values_match_retained_crypto() -> TestResult {
     let selected = browser::chrome::v156_windows();
-    let h3 = selected.http3().ok_or("missing HTTP/3")?;
-    let settings = h3.quic_transport();
     for capture in SNAPSHOTS {
-        let bytes = unhex(field(capture, "h3.transport_parameters_hex")?)?;
-        let hello = unhex(field(capture, "quic_client_hello.handshake_hex")?)?;
-        assert!(hello.windows(bytes.len()).any(|window| window == bytes));
-        let mut input = bytes.as_slice();
-        let mut observed = Vec::new();
-        while !input.is_empty() {
-            let id = varint(&mut input)?;
-            let length = usize::try_from(varint(&mut input)?)?;
-            let value = input.get(..length).ok_or("short transport parameter")?;
-            input = &input[length..];
-            if matches!(id, 1 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 32) {
-                let mut value_input = value;
-                let value = varint(&mut value_input)?;
-                assert!(value_input.is_empty());
-                observed.push((id, value));
-            }
-        }
-        observed.sort_unstable();
-        assert_eq!(
-            observed,
-            [
-                (1, settings.max_idle_timeout_ms),
-                (3, settings.max_udp_payload_size),
-                (4, settings.initial_max_data),
-                (5, settings.initial_max_stream_data_bidi_local),
-                (6, settings.initial_max_stream_data_bidi_remote),
-                (7, settings.initial_max_stream_data_uni),
-                (8, settings.initial_max_streams_bidi),
-                (9, settings.initial_max_streams_uni),
-                (
-                    32,
-                    settings
-                        .max_datagram_frame_size
-                        .ok_or("missing DATAGRAM limit")?
-                ),
-            ]
-        );
+        compare_quic_parameters(&selected, capture)?;
     }
     Ok(())
 }

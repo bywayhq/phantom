@@ -206,6 +206,7 @@ pub(super) enum ClientHintsComponent {
     BraveAndroid153,
     BraveWindows154,
     ChromeAndroid154,
+    ChromeLinux156,
     ChromeMacos154,
     ChromeWindows154,
     ChromeWindows156,
@@ -223,6 +224,7 @@ impl ClientHintsComponent {
             Self::BraveAndroid153 => super::client_hints_components::brave_android_153_client_hints(),
             Self::BraveWindows154 => super::client_hints_components::brave_windows_154_client_hints(),
             Self::ChromeAndroid154 => super::client_hints_components::chrome_android_154_client_hints(),
+            Self::ChromeLinux156 => super::client_hints_components::chrome_linux_156_client_hints(),
             Self::ChromeMacos154 => super::client_hints_components::chrome_macos_154_client_hints(),
             Self::ChromeWindows154 => super::client_hints_components::chrome_windows_154_client_hints(),
             Self::ChromeWindows156 => super::client_hints_components::chrome_windows_156_client_hints(),
@@ -401,6 +403,26 @@ pub(super) static CHROMELINUX155: ConnectionProfileDefinition = ConnectionProfil
     websocket: None,
     proxy_connect: None,
     cookie_placement: Some(CookieComponent::Chromium154),
+};
+
+#[rustfmt::skip]
+pub(super) static CHROMELINUX156: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Chromium154Tcp,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::Chromium154),
+    http3: Some(Http3Definition {
+        tls: TlsComponent::Chromium154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
+    }),
+    client_hints: Some(ClientHintsComponent::ChromeLinux156),
+    websocket: None,
+    proxy_connect: None,
+    cookie_placement: None,
 };
 
 #[rustfmt::skip]

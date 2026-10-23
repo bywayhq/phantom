@@ -3055,6 +3055,155 @@
         "ProxyConnect": null,
         "CookiePlacement": null
       }
+    },
+    {
+      "id": "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
+      "selector": "chrome-156-linux",
+      "metadata": {
+        "browser": "Chrome",
+        "platform": "Linux",
+        "revision": 1,
+        "identity": {
+          "kind": "Observed",
+          "build": "156.0.8078.47",
+          "platform_release": "ubuntu-24.04.4-wsl2",
+          "architecture": "x86_64",
+          "environment": "Desktop"
+        }
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+              "build": "156.0.8078.47"
+            }
+          ]
+        }
+      ],
+      "target": "ChromeLinux156",
+      "templates": {
+        "Navigation": "chrome_linux156_navigation",
+        "Script": "chrome_linux156_script",
+        "Stylesheet": "chrome_linux156_stylesheet",
+        "Image": "chrome_linux156_image",
+        "Font": "chrome_linux156_font"
+      },
+      "composition": {
+        "TcpTls": "chromium_154_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_linux_156_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      }
     }
   ]
 }

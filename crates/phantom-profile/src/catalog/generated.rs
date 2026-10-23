@@ -1381,6 +1381,194 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1"),
+        selector: "chrome-156-linux",
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            platform: ProfilePlatform::Linux,
+            identity: ProfileIdentity::Observed {
+                build: "156.0.8078.47",
+                platform_release: "ubuntu-24.04.4-wsl2",
+                architecture: Some("x86_64"),
+                environment: CaptureEnvironment::Desktop,
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/snapshot-1.txt",
+                        build: "156.0.8078.47",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMELINUX156,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_LINUX156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_LINUX156_SCRIPT },
+            RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_LINUX156_STYLESHEET },
+            RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_LINUX156_IMAGE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Font, definition: &request_template_definitions::CHROME_LINUX156_FONT },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("chrome/156.0.8078.48/windows-11-26200/r1"),
         selector: "chrome-156-windows",
         metadata: ProfileMetadata {
