@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Capture Firefox HTTP/2 address fallback, reuse and reconnect attempts.
+- Capture Firefox HTTP/2 address fallback, reuse and reconnect attempts;
+  allow headed socket captures with `--headful`.
 
 - Accept validated resource completion on a new HTTP/2 or HTTP/3 connection.
 

@@ -143,6 +143,14 @@ def _get(path: str) -> str:
     return f"fetch(T + '{path}', {{mode: 'no-cors', cache: 'no-store'}}).then(r => r.text())"
 
 
+def _readable_get(path: str) -> str:
+    return (
+        f"fetch(T + '{path}', {{mode: 'cors', cache: 'no-store'}})"
+        ".then(r => { if (!r.ok) throw new Error('target HTTP status ' + r.status); "
+        "return r.text(); })"
+    )
+
+
 def _at(seconds: float, body: str) -> str:
     return f"setTimeout(() => {{ {body}; }}, {int(seconds * 1000)});"
 
@@ -207,10 +215,10 @@ SCENARIOS = {
             "and a new request after the origin closes its connections",
             40,
             "h2",
-            _get("/fast?i=0")
-            + f".then(() => {_get('/fast?i=1')})"
+            _readable_get("/fast?i=0")
+            + f".then(() => {_readable_get('/fast?i=1')})"
             + ".then(() => fetch('/drop', {cache: 'no-store'}))"
-            + f".then(() => {_get('/fast?i=2')})"
+            + f".then(() => {_readable_get('/fast?i=2')})"
             + f".then(() => {DONE})",
             rewrite_lookup=True,
         ),
@@ -1541,7 +1549,9 @@ class _FirefoxCapturePending(RuntimeError):
         )
 
 
-async def run_once(scenario: Scenario, executable: Path) -> tuple[RunResult, str]:
+async def run_once(
+    scenario: Scenario, executable: Path, *, headful: bool = False
+) -> tuple[RunResult, str]:
     validate_waits(scenario)
     owner = _FirefoxRun(scenario)
     origins = owner.origins
@@ -1584,7 +1594,10 @@ async def run_once(scenario: Scenario, executable: Path) -> tuple[RunResult, str
 
         url = f"http://127.0.0.1:{origins.page_port}/"
         plan = LaunchPlan(
-            browser="firefox", executable=executable, headless=True, profile_files=files
+            browser="firefox",
+            executable=executable,
+            headless=not headful,
+            profile_files=files,
         )
         owner.log_directory = Path(tempfile.mkdtemp(prefix="phantom-capture-moz-log-"))
         owner.environment = {
@@ -1751,6 +1764,7 @@ def render_fixture(
     launch_arguments: str,
     scenario: Scenario,
     runs: Sequence[Sequence[str]],
+    headful: bool = False,
 ) -> str:
     """The fixture text: provenance header first, then each run."""
     for name, value in (
@@ -1782,7 +1796,7 @@ def render_fixture(
         f"decoder_sha256={file_digest(DECODER)}",
         "hooked_process=parent process, attached after the first page request",
         f"moz_log={MOZ_LOG_MODULES}",
-        "launch_mode=headless",
+        f"launch_mode={'headful' if headful else 'headless'}",
         f"launch_arguments={launch_arguments}",
         f"target={TARGET_HOST}",
         f"scenario={scenario.name}",
@@ -1804,7 +1818,9 @@ async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bo
     frida_version = ""
     failed = False
     for index in range(args.repeat):
-        result, arguments = await run_once(scenario, args.browser_path)
+        result, arguments = await run_once(
+            scenario, args.browser_path, headful=args.headful
+        )
         recorded = arguments
         runs.append(render_run(index, result))
         frida_version = result.frida_version or frida_version
@@ -1833,6 +1849,7 @@ async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bo
         launch_arguments=recorded_arguments_placeholder(recorded),
         scenario=scenario,
         runs=runs,
+        headful=args.headful,
     )
     return text, failed
 
@@ -1851,6 +1868,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--scenario", nargs="+", choices=[*SCENARIOS, "all"], required=True
     )
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument(
+        "--headful", action="store_true", help="show the browser window"
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
         "--raw-dir",

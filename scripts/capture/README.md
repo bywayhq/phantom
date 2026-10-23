@@ -2221,8 +2221,9 @@ Windows, which keeps the `[::1]` attempt pending past Firefox's backup timer.
 The page uses `127.0.0.1` itself, and the TLS origin's throwaway certificate
 is trusted through `cert_override.txt` in the run's profile.
 
-Run `h2-backup` separately with `run --scenario h2-backup --repeat 1`.
-Its requests form a success chain; a failed request cannot signal completion.
+Run `h2-backup` separately with `run --scenario h2-backup --repeat 1 --headful`.
+Omit `--headful` for the default headless mode. Its requests read each response
+body before continuing; a failed response cannot signal completion.
 Use an isolated Firefox 157 executable if your installed browser has updated.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and
