@@ -202,6 +202,19 @@ SCENARIOS = {
             rewrite_lookup=True,
         ),
         Scenario(
+            "h2-backup",
+            "HTTP/2 connection attempts with [::1] then 127.0.0.1, reuse, "
+            "and a new request after the origin closes its connections",
+            40,
+            "h2",
+            _get("/fast?i=0")
+            + f".then(() => {_get('/fast?i=1')})"
+            + ".then(() => fetch('/drop', {cache: 'no-store'}))"
+            + f".then(() => {_get('/fast?i=2')})"
+            + f".then(() => {DONE})",
+            rewrite_lookup=True,
+        ),
+        Scenario(
             "dns-cache",
             f"Lookups of {TARGET_HOST} for new connections 0, 30, 65, and 95 s "
             "after the first",

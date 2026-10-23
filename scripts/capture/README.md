@@ -2207,17 +2207,23 @@ cleanup failures prevent fixture publication.
 | `http1-idle` | HTTP/1.1; `/fast` at once and 90 s later, then idle | Keepalive on a pooled connection past the short-lived period, and when Firefox closes it |
 | `http1-long` | HTTP/1.1; `/trickle` sends one chunk every 5 s for 85 s | When an active connection switches to long-lived keepalive |
 | `h2` | TLS with ALPN `h2` only; `/fast` twice | Keepalive before and after HTTP/2 is negotiated |
+| `h2-backup` | TLS with ALPN `h2` only; two sequential requests, origin close, then reconnect | Dual-stack fallback, reuse and the family of a later connection |
 | `websocket` | `ws://`; the origin sends a frame every 5 s; the page closes after 20 s | Keepalive after the 101 response |
 | `backup` | HTTP/1.1; `/fast`, then three concurrent `/slow` (3 s each), then `/fast` after the origin closed every connection | Connection attempts when the name resolves to `[::1]` then `127.0.0.1` and only `127.0.0.1` listens, and the family of later connections |
 | `dns-cache` | HTTP/1.1; `/close` at 0, 30, 65, and 95 s | How long Firefox keeps the name's answer |
 
-The `backup` scenario makes `getaddrinfo` resolve `localhost` in place of
-`127.0.0.1.nip.io` and drops the answer's canonical name, so Firefox's TTL
+The `backup` and `h2-backup` scenarios make `getaddrinfo` resolve
+`localhost` in place of `127.0.0.1.nip.io` and drop the answer's canonical
+name, so Firefox's TTL
 lookup still names `127.0.0.1.nip.io`; the fixture names the change in
 `hook_intervention`. A refused loopback connect takes about two seconds on
 Windows, which keeps the `[::1]` attempt pending past Firefox's backup timer.
 The page uses `127.0.0.1` itself, and the TLS origin's throwaway certificate
 is trusted through `cert_override.txt` in the run's profile.
+
+Run `h2-backup` separately with `run --scenario h2-backup --repeat 1`.
+Its requests form a success chain; a failed request cannot signal completion.
+Use an isolated Firefox 157 executable if your installed browser has updated.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and
 its SHA-256 (`hook_agent_extension_sha256`), `decoder_sha256` for
