@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Add an HTTPS no-record comparison to the ECH capture tool.
+- Add an HTTPS no-record comparison to the ECH capture tool and retain
+  Firefox 157 TCP observations for ECH acceptance and HTTPS NODATA.
 
 - Preserve repeated signature algorithms when importing raw JA4, including
   Safari profiles.

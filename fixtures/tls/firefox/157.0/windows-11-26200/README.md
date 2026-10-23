@@ -1,0 +1,13 @@
+# Firefox 157 ECH
+
+Firefox 157.0, build `20260924084938`, on Windows 25H2 build 26200.9457.
+Recorded October 23, 2026 with fresh headful profiles, TRR mode 3, HTTP/3
+disabled and a profile-local capture CA. Certificate verification stays enabled.
+
+`ech-accept.txt` accepts ECH config 1. `ech-no-https-record.txt` returns HTTPS
+NODATA and retains ECH GREASE. Each run serves one HTTP/1.1 response.
+
+Use the Firefox command in the
+[ECH capture instructions](../../../../../scripts/capture/README.md), with
+`--scenario accept` or `--scenario no-https-record`. Peer and driver source:
+`1bd257c4b32302e2ab7c6e494408f2d99e9a1a30`.
