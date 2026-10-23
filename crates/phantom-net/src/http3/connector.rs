@@ -809,6 +809,7 @@ impl Http3Connector {
     #[cfg_attr(not(feature = "qlog"), expect(clippy::needless_update))]
     fn connection_options(&self) -> super::ConnectionOptions {
         super::ConnectionOptions {
+            ech_configured: Some(false),
             source: self.source.clone(),
             udp: self.udp,
             #[cfg(feature = "qlog")]
@@ -1123,7 +1124,15 @@ impl Http3Connector {
                 "QUIC connection may offer ECH"
             );
             let result = self
-                .connect_to_addresses_with_crypto(addresses, server_name, crypto, None)
+                .connect_to_addresses_with_crypto(
+                    addresses,
+                    server_name,
+                    crypto,
+                    None,
+                    offer
+                        .as_ref()
+                        .is_some_and(|offer| !offer.config_list().is_empty()),
+                )
                 .await
                 .map_err(Http3ConnectorError::transaction);
             match (result, offer.as_ref().and_then(EchOffer::outcome)) {
@@ -2202,6 +2211,7 @@ impl Http3Connector {
             server_name,
             Arc::clone(&self.crypto),
             path_mtu,
+            false,
         )
         .await
     }
@@ -2215,6 +2225,7 @@ impl Http3Connector {
         server_name: &str,
         crypto: Arc<QuicClientConfig>,
         path_mtu: Option<u16>,
+        ech_configured: bool,
     ) -> Result<Http3Connection, Http3Error> {
         let addresses = match &self.source {
             Some(source) => {
@@ -2266,7 +2277,10 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 path_mtu,
-                self.connection_options(),
+                super::ConnectionOptions {
+                    ech_configured: Some(ech_configured),
+                    ..self.connection_options()
+                },
             )
             .await
             {

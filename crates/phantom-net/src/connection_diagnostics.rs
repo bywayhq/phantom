@@ -108,6 +108,7 @@ pub(crate) enum TlsPeerRole {
 pub(crate) struct TlsMetadata {
     pub(crate) role: TlsPeerRole,
     verified: bool,
+    ech_configured: bool,
     completed: OnceLock<TlsFacts>,
     encoded: OnceLock<Arc<TlsConnectionInfo>>,
 }
@@ -121,10 +122,11 @@ struct TlsFacts {
 }
 
 impl TlsMetadata {
-    pub(crate) fn new(role: TlsPeerRole, verified: bool) -> Arc<Self> {
+    pub(crate) fn new(role: TlsPeerRole, verified: bool, ech_configured: bool) -> Arc<Self> {
         Arc::new(Self {
             role,
             verified,
+            ech_configured,
             completed: OnceLock::new(),
             encoded: OnceLock::new(),
         })
@@ -183,6 +185,10 @@ pub(crate) struct ConnectionMetadata {
 }
 
 impl ConnectionMetadata {
+    fn origin_ech_configured(&self) -> Option<bool> {
+        self.origin_tls.as_ref().map(|tls| tls.ech_configured)
+    }
+
     fn snapshot(&self, reused: bool) -> RequestConnection {
         RequestConnection {
             reused,
@@ -221,6 +227,12 @@ pub(crate) struct ConnectionRecord {
 }
 
 impl ConnectionRecord {
+    pub(crate) fn origin_ech_configured(&self) -> Option<bool> {
+        self.metadata
+            .get()
+            .and_then(ConnectionMetadata::origin_ech_configured)
+    }
+
     pub(crate) fn mark_used(&self) {
         self.used.store(true, Ordering::Relaxed);
     }
@@ -271,8 +283,31 @@ mod tests {
         }
         .snapshot(false);
         assert!(matches!(plain.origin_tls, TlsConnectionState::NotUsed));
-        let tls = TlsMetadata::new(TlsPeerRole::Origin, true);
+        let tls = TlsMetadata::new(TlsPeerRole::Origin, true, false);
         assert!(matches!(tls.snapshot(), TlsConnectionState::Pending));
+    }
+
+    #[test]
+    fn origin_ech_configuration_is_retained_separately_from_proxy_tls() {
+        let unknown = ConnectionMetadata::default();
+        assert_eq!(unknown.origin_ech_configured(), None);
+        let proxy = ConnectionMetadata {
+            proxy_tls: Some(TlsMetadata::new(TlsPeerRole::Proxy, true, true)),
+            layers_known: true,
+            ..Default::default()
+        };
+        assert_eq!(proxy.origin_ech_configured(), None);
+        for selected in [false, true] {
+            let record = ConnectionRecord::default();
+            record.set(ConnectionMetadata {
+                origin_tls: Some(TlsMetadata::new(TlsPeerRole::Origin, true, selected)),
+                ..proxy.clone()
+            });
+            let retained = record.metadata();
+            assert_eq!(record.origin_ech_configured(), Some(selected));
+            drop(record);
+            assert_eq!(retained.origin_ech_configured(), Some(selected));
+        }
     }
 
     #[test]

@@ -967,6 +967,7 @@ impl TlsConnector {
             let metadata = crate::connection_diagnostics::TlsMetadata::new(
                 self.peer_role,
                 self.server_authentication.verifies(),
+                ech_config_list.is_some_and(|list| !list.is_empty()),
             );
             if !in_early_data {
                 metadata.complete(stream.ssl());

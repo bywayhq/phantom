@@ -222,6 +222,23 @@ async fn connect(
     .await?)
 }
 
+fn assert_origin_ech(connection: Http1Or2Connection, expected: bool) {
+    match connection {
+        Http1Or2Connection::Http1(connection) => {
+            assert_eq!(connection.origin_ech_configured(), Some(expected));
+            let retained = connection.clone();
+            drop(connection);
+            assert_eq!(retained.origin_ech_configured(), Some(expected));
+        }
+        Http1Or2Connection::Http2(connection) => {
+            assert_eq!(connection.origin_ech_configured(), Some(expected));
+            let retained = connection.clone();
+            drop(connection);
+            assert_eq!(retained.origin_ech_configured(), Some(expected));
+        }
+    }
+}
+
 fn identity() -> TestResult<TestIdentity> {
     TestIdentity::generate_for_names(&[INNER_NAME, PUBLIC_NAME])
 }
@@ -238,6 +255,7 @@ async fn accepted_ech_sends_the_public_name_outside_and_the_origin_inside() -> T
     .await??;
 
     assert!(matches!(connection, Http1Or2Connection::Http1(_)));
+    assert_origin_ech(connection, true);
     let observed = server.await??;
     let [only] = &observed[..] else {
         return Err(format!("expected one connection, saw {observed:?}").into());
@@ -260,10 +278,11 @@ async fn rejection_retries_once_with_the_servers_retry_configurations() -> TestR
     ])
     .await?;
 
-    connect(&identity, address, async {
+    let connection = connect(&identity, address, async {
         Some(published(1, &TEST_ECH_KEYS[0]))
     })
     .await??;
+    assert_origin_ech(connection, true);
 
     let observed = server.await??;
     let [rejected, retried] = &observed[..] else {
@@ -285,10 +304,11 @@ async fn rejection_without_retry_configurations_retries_with_grease() -> TestRes
     let (address, server) =
         serve(vec![acceptor(&identity, None)?, acceptor(&identity, None)?]).await?;
 
-    connect(&identity, address, async {
+    let connection = connect(&identity, address, async {
         Some(published(1, &TEST_ECH_KEYS[0]))
     })
     .await??;
+    assert_origin_ech(connection, false);
 
     let observed = server.await??;
     let [rejected, retried] = &observed[..] else {
@@ -300,6 +320,24 @@ async fn rejection_without_retry_configurations_retries_with_grease() -> TestRes
     assert!(retried.ech.is_some());
     assert!(retried.handshake_completed);
     assert!(!retried.ech_accepted);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unsupported_config_is_retained_without_ech_acceptance() -> TestResult<()> {
+    let identity = identity()?;
+    let (address, server) = serve(vec![acceptor(&identity, None)?]).await?;
+    let connection = connect(&identity, address, async {
+        // One valid ECHConfig with an unsupported version and empty contents.
+        Some(EchConfigList::new(vec![0, 4, 0xff, 0xff, 0, 0]))
+    })
+    .await??;
+    assert_origin_ech(connection, true);
+    let observed = server.await??;
+    assert_eq!(observed.len(), 1);
+    assert!(observed[0].handshake_completed);
+    assert!(!observed[0].ech_accepted);
+    assert_eq!(observed[0].inner_server_name.as_deref(), Some(INNER_NAME));
     Ok(())
 }
 
@@ -356,7 +394,8 @@ async fn a_lookup_still_running_is_abandoned_after_the_bounded_wait() -> TestRes
     let (address, server) = serve(vec![acceptor(&identity, None)?]).await?;
 
     let started = Instant::now();
-    connect(&identity, address, std::future::pending()).await??;
+    let connection = connect(&identity, address, std::future::pending()).await??;
+    assert_origin_ech(connection, false);
     let elapsed = started.elapsed();
 
     // The wait is at most 50 ms; the rest is loopback TCP and TLS.

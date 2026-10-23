@@ -199,12 +199,58 @@ async fn accepted_ech_carries_the_origin_inside_the_quic_client_hello() -> TestR
         }),
         observe(&endpoint),
     );
-    let _connection = connection??;
+    let connection = connection??;
+    assert_eq!(connection.origin_ech_configured(), Some(true));
+    assert_eq!(connection.clone().origin_ech_configured(), Some(true));
     let observed = observed?;
     assert_eq!(observed.outer_server_name()?.as_deref(), Some(PUBLIC_NAME));
     let ech = observed.ech()?.ok_or("the outer ClientHello lacks ECH")?;
     assert_eq!((ech.kdf_id, ech.config_id, ech.enc_length), (1, 1, 32));
     assert!(observed.ech_accepted);
+    assert_eq!(observed.server_name.as_deref(), Some(INNER_NAME));
+    Ok(())
+}
+
+#[tokio::test]
+async fn caller_supplied_quic_configuration_keeps_ech_selection_unknown() -> TestResult<()> {
+    let identity = identity()?;
+    let (address, endpoint) = server(&identity, None)?;
+    let offer = phantom_quic_btls::EchOffer::new(&[0, 4, 0xff, 0xff, 0, 0]);
+    let crypto = Arc::new(super::client_config(&identity)?.with_ech(&offer));
+    let settings = super::test_settings();
+    let (connection, observed) = tokio::join!(
+        timeout(
+            TEST_TIMEOUT,
+            super::super::connect_direct(address, INNER_NAME, crypto, &settings),
+        ),
+        observe(&endpoint),
+    );
+    let connection = connection??;
+    assert_eq!(connection.origin_ech_configured(), None);
+    assert_eq!(connection.clone().origin_ech_configured(), None);
+    assert!(!observed?.ech_accepted);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unsupported_config_is_retained_without_ech_acceptance() -> TestResult<()> {
+    let identity = identity()?;
+    let (address, endpoint) = server(&identity, None)?;
+    let connector = connector_with(&chrome::v154_quic_tls(), &identity)?;
+    let (connection, observed) = tokio::join!(
+        connect(&connector, "127.0.0.1", address, INNER_NAME, async {
+            // One valid ECHConfig with an unsupported version and empty contents.
+            Some(EchConfigList::new(vec![0, 4, 0xff, 0xff, 0, 0]))
+        }),
+        observe(&endpoint),
+    );
+    let connection = connection??;
+    assert_eq!(connection.origin_ech_configured(), Some(true));
+    let retained = connection.clone();
+    drop(connection);
+    assert_eq!(retained.origin_ech_configured(), Some(true));
+    let observed = observed?;
+    assert!(!observed.ech_accepted);
     assert_eq!(observed.server_name.as_deref(), Some(INNER_NAME));
     Ok(())
 }
@@ -306,7 +352,9 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
         }),
         observe(&endpoint),
     );
-    let _connection = connection??;
+    let connection = connection??;
+    assert_eq!(connection.origin_ech_configured(), Some(true));
+    assert_eq!(connection.clone().origin_ech_configured(), Some(true));
     let observed = observed?;
     assert_eq!(observed.outer_server_name()?.as_deref(), Some(PUBLIC_NAME));
     assert!(observed.ech_accepted);
@@ -325,7 +373,9 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
         }),
         observe(&endpoint),
     );
-    let _connection = connection??;
+    let connection = connection??;
+    assert_eq!(connection.origin_ech_configured(), Some(false));
+    assert_eq!(connection.clone().origin_ech_configured(), Some(false));
     let observed = observed?;
     assert_eq!(observed.outer_server_name()?.as_deref(), Some(INNER_NAME));
     assert!(observed.ech()?.is_some());

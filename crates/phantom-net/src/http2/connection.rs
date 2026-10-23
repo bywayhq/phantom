@@ -47,6 +47,15 @@ pub struct Http2Connection {
 }
 
 impl Http2Connection {
+    /// Returns whether origin TLS selected a nonempty ECH configuration list.
+    ///
+    /// This records configuration, independently of ECH acceptance or GREASE.
+    /// Returns `None` when origin TLS metadata is unavailable or TLS is not used.
+    #[must_use]
+    pub fn origin_ech_configured(&self) -> Option<bool> {
+        self.inner.diagnostics.origin_ech_configured()
+    }
+
     pub(crate) fn with_connection_metadata(
         self,
         metadata: crate::connection_diagnostics::ConnectionMetadata,

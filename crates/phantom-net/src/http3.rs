@@ -435,6 +435,7 @@ async fn connect(
         Some((race, observed)) => (Some(race), Some(observed)),
         None => (None, None),
     };
+    let ech_configured = options.ech_configured;
     let proxy_tls_unavailable = socket.is_some();
     let endpoint = endpoint_with_socket(remote, crypto, options, socket, path_mtu, server_name)?;
 
@@ -726,6 +727,7 @@ async fn connect(
         remembered_settings.is_some(),
         local_address,
         proxy_tls_unavailable,
+        ech_configured,
     ))
 }
 
@@ -1309,6 +1311,8 @@ struct PendingRequest {
 /// Per-connection choices that are not part of the QUIC or HTTP/3 profile.
 #[derive(Default)]
 pub(super) struct ConnectionOptions {
+    /// Whether this origin connection selected a nonempty ECH configuration.
+    pub(super) ech_configured: Option<bool>,
     /// Where the connection's own UDP socket binds; a SOCKS5 or CONNECT-UDP
     /// socket is bound by its proxy leg instead.
     pub(super) source: Option<crate::source_binding::SourceBinding>,

@@ -99,6 +99,7 @@ struct ConnectionInner {
     local_address: Option<std::net::SocketAddr>,
     tls_diagnostics: OnceLock<Arc<crate::TlsConnectionInfo>>,
     proxy_tls_unavailable: bool,
+    ech_configured: Option<bool>,
     session: Arc<Session>,
     driver: DriverTask,
     datagrams: Option<DatagramRouter>,
@@ -114,6 +115,15 @@ struct ConnectionInner {
 }
 
 impl Http3Connection {
+    /// Returns whether origin TLS selected a nonempty ECH configuration list.
+    ///
+    /// This records configuration, independently of ECH acceptance or GREASE.
+    /// Returns `None` when the connection used caller-supplied QUIC configuration.
+    #[must_use]
+    pub fn origin_ech_configured(&self) -> Option<bool> {
+        self.inner.ech_configured
+    }
+
     fn observe_connection(&self) {
         self.inner
             .diagnostics
@@ -196,6 +206,7 @@ impl Http3Connection {
         remembered_settings: bool,
         local_address: Option<std::net::SocketAddr>,
         proxy_tls_unavailable: bool,
+        ech_configured: Option<bool>,
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
@@ -203,6 +214,7 @@ impl Http3Connection {
                 local_address,
                 tls_diagnostics: OnceLock::new(),
                 proxy_tls_unavailable,
+                ech_configured,
                 session,
                 driver,
                 datagrams,
