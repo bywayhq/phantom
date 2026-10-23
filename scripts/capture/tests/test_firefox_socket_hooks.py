@@ -47,6 +47,12 @@ RETAINED_SOURCE_OVERRIDES = {
         "bda2b7412a7f44f801566cc26c3da5c483d8ce1dd174d5974114c055c42c38f9",
         "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
     ),
+    "157.0/windows-11-26200/hooks-wss-backup.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",
+        "645f423c9b336bac9f0797043ee0a794a7f0340355de5e1f5e21618fc22aee94",
+        "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
+    ),
 }
 
 
