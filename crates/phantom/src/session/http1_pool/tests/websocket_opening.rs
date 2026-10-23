@@ -23,23 +23,35 @@ enum End {
     Cancelled,
     Rejected,
     Upgraded,
+    InvalidUpgrade,
 }
 
 async fn lifecycle(end: End, policy: bool) -> TestResult {
+    let profile = ClientProfile::new(firefox::v157_tcp_tls())
+        .with_tcp(firefox::v157_tcp())
+        .with_http1(firefox::v157_http1())
+        .with_http2(firefox::v157_http2())
+        .with_websocket(chrome::v154_websocket());
+    lifecycle_with_profile(end, policy, profile).await
+}
+
+async fn lifecycle_with_profile(end: End, policy: bool, profile: ClientProfile) -> TestResult {
+    let separate = profile.websocket().is_some_and(|settings| {
+        settings.connection.cleartext_state == phantom_profile::WebSocketCleartextState::Separate
+    });
     timeout(WAIT, async {
         let timer = PruneTimer::unscheduled(Duration::ZERO);
-        let profile = ClientProfile::new(firefox::v157_tcp_tls())
-            .with_tcp(firefox::v157_tcp())
-            .with_http1(firefox::v157_http1())
-            .with_http2(firefox::v157_http2())
-            .with_websocket(chrome::v154_websocket());
         let mut client = Client::builder(profile).build()?;
         let state = Arc::get_mut(&mut client.state).ok_or("new client state already shared")?;
         state.http1 = super::super::Http1Pool::new(std::num::NonZeroUsize::MIN, std::num::NonZeroUsize::MIN, std::num::NonZeroUsize::MIN).with_prune_timer(Some(Arc::clone(&timer)));
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let endpoint = Endpoint::new(address.to_string().parse()?, 80)?;
-        let entry = client.state.http1.entry(super::super::PoolKey::new(&endpoint, &Route::Direct, super::super::Http1ConnectionMode::PlaintextOrigin)).await;
+        let mut key = super::super::PoolKey::new(&endpoint, &Route::Direct, super::super::Http1ConnectionMode::PlaintextOrigin);
+        if separate {
+            key.purpose = super::super::PoolPurpose::WebSocket;
+        }
+        let entry = client.state.http1.entry(key).await;
         let (seen, head_seen) = oneshot::channel();
         let uri = format!("ws://{address}/opening");
         let builder = if policy {
@@ -74,6 +86,12 @@ async fn lifecycle(end: End, policy: bool) -> TestResult {
                 timer.fire();
                 assert_eq!(entry.connections.family.family(), Some(AddressFamily::Ipv4));
                 drop(response);
+            } else if matches!(end, End::InvalidUpgrade) {
+                let error = match opening.await {
+                    Err(error) => error,
+                    Ok(_) => return Err("invalid handshake upgraded a socket".into()),
+                };
+                assert_eq!(error.kind(), crate::WebSocketErrorKind::InvalidHandshake);
             } else {
                 let socket = opening.await?;
                 // The accepted WebSocket has left the HTTP pool even while alive.
@@ -99,7 +117,7 @@ async fn lifecycle(end: End, policy: bool) -> TestResult {
             if matches!(end, End::Rejected) {
                 // Keep the body incomplete so the rejection still owns HTTP.
                 stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 1\r\n\r\n").await?;
-            } else if matches!(end, End::Upgraded) {
+            } else if matches!(end, End::Upgraded | End::InvalidUpgrade) {
                 let text = std::str::from_utf8(&head)?;
                 let key = text.lines().find_map(|line| {
                     let (name, value) = line.split_once(':')?;
@@ -107,7 +125,11 @@ async fn lifecycle(end: End, policy: bool) -> TestResult {
                 }).ok_or("missing WebSocket key")?;
                 let mut bytes = key.as_bytes().to_vec();
                 bytes.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-                let accept = btls::base64::encode_block(&btls::sha::sha1(&bytes));
+                let accept = if matches!(end, End::InvalidUpgrade) {
+                    "invalid".into()
+                } else {
+                    btls::base64::encode_block(&btls::sha::sha1(&bytes))
+                };
                 stream.write_all(format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n").as_bytes()).await?;
             }
             let mut remaining = Vec::new();
@@ -178,3 +200,5 @@ async fn cancelled_opening_leaves_pending_spare_owned_until_last_pool_drop() -> 
 async fn plaintext_policy_opening_uses_exact_http1_owner() -> TestResult {
     lifecycle(End::Cancelled, true).await
 }
+
+mod state;

@@ -66,9 +66,10 @@ pub use udp::UdpSettings;
 pub use url_trust::UrlTrust;
 pub use validation::ValidationErrorKind;
 pub use websocket::{
-    InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-    WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+    InvalidWebSocketSettings, WebSocketCleartextState, WebSocketConnectionPolicy,
+    WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
+    WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+    WebSocketSettings,
 };
 
 pub mod browser;

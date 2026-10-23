@@ -197,10 +197,10 @@ pub mod profile {
         TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
         TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
         TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders, UdpSettings,
-        UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketConnectionPolicy,
-        WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
-        WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-        WebSocketSettings,
+        UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketCleartextState,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
+        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
+        WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
     /// Exact catalog selection, metadata and supported layers.

@@ -192,3 +192,22 @@ fn imported_template_invalid_field_is_rejected_by_native_validator() -> TestResu
     assert!(!format!("{failure} {failure:?}").contains("secret"));
     Ok(())
 }
+
+#[test]
+fn websocket_cleartext_state_requires_a_known_explicit_policy() -> TestResult {
+    let mut value = document(0)?;
+    let connection = &mut value["profile"]["websocket"]["connection"];
+    connection
+        .as_object_mut()
+        .ok_or("missing WebSocket policy")?
+        .remove("cleartext_state");
+    let failure = error(&value)?;
+    assert_eq!(failure.kind(), Kind::MissingField);
+    assert_eq!(failure.field(), "websocket.connection.cleartext_state");
+
+    value["profile"]["websocket"]["connection"]["cleartext_state"] = json!("Unknown");
+    let failure = error(&value)?;
+    assert_eq!(failure.kind(), Kind::UnsupportedSetting);
+    assert_eq!(failure.field(), "websocket.connection.cleartext_state");
+    Ok(())
+}

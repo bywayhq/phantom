@@ -300,7 +300,20 @@ pub enum WebSocketProxiedSession {
     Ignore,
 }
 
-/// How a client chooses the connection for a `wss://` WebSocket.
+/// Connection state shared by direct cleartext WebSocket openings.
+///
+/// Applies only to direct `ws://` connections. TLS and proxy routes keep
+/// their existing connection selection and session state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WebSocketCleartextState {
+    /// Shares address-family memory and unused backup sockets with HTTP.
+    Shared,
+    /// Keeps that state with other WebSocket openings to the same origin.
+    Separate,
+}
+
+/// How a client chooses WebSocket connections and shared state.
 ///
 /// A pooled HTTP/2 session to the same origin and route whose peer enabled
 /// `SETTINGS_ENABLE_CONNECT_PROTOCOL` carries the WebSocket as an extended
@@ -328,6 +341,11 @@ pub struct WebSocketConnectionPolicy {
     pub refused_stream_retry: WebSocketRefusedStreamRetry,
     /// Whether a pooled HTTP/2 session carries the WebSocket on a proxy route.
     pub proxied_http2_session: WebSocketProxiedSession,
+    /// Whether direct `ws://` openings share HTTP connection state.
+    ///
+    /// An accepted Upgrade releases its HTTP opening owner. An unused backup
+    /// socket can keep the learned address family alive for another opening.
+    pub cleartext_state: WebSocketCleartextState,
 }
 
 impl WebSocketConnectionPolicy {

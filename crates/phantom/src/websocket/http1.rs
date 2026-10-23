@@ -8,6 +8,7 @@ use phantom_net::route::{
     DirectTlsSetup, Http1Route, Http1Target, HttpConnectRoute, OriginRoute, ProxyTransport,
     Socks5Target, TcpRoute,
 };
+use phantom_profile::WebSocketCleartextState;
 
 use phantom_net::{
     http1::{
@@ -133,7 +134,34 @@ async fn direct_opening(
             .map_err(setup)?;
         return Ok((connector, OpeningOwner::Negotiated(owner)));
     }
-    let owner = client.state.http1.origin_opening(endpoint, plaintext).await;
+    let cleartext_state = client
+        .inner
+        .websocket
+        .as_ref()
+        .map_or(WebSocketCleartextState::Shared, |settings| {
+            settings.connection.cleartext_state
+        });
+    let owner = if plaintext {
+        match cleartext_state {
+            WebSocketCleartextState::Shared => {
+                client.state.http1.origin_opening(endpoint, true).await
+            }
+            WebSocketCleartextState::Separate => {
+                client
+                    .state
+                    .http1
+                    .cleartext_websocket_opening(endpoint)
+                    .await
+            }
+            _ => {
+                return Err(WebSocketError::invalid_request(
+                    "unsupported cleartext WebSocket state",
+                ));
+            }
+        }
+    } else {
+        client.state.http1.origin_opening(endpoint, false).await
+    };
     let mut connector = if plaintext {
         base.clone()
     } else {

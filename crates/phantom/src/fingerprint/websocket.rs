@@ -5,9 +5,9 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-    WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-    WebSocketSettings,
+    WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+    WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<WebSocketSettings> {
@@ -92,6 +92,14 @@ fn proxied_http2_session(v: &Value) -> Result<WebSocketProxiedSession> {
 }
 
 pub(super) fn connection(v: &Value) -> Result<WebSocketConnectionPolicy> {
+    let cleartext_state = match v
+        .member("cleartext_state", "websocket.connection.cleartext_state")?
+        .text("websocket.connection.cleartext_state")?
+    {
+        "Shared" => WebSocketCleartextState::Shared,
+        "Separate" => WebSocketCleartextState::Separate,
+        _ => return Err(json::unsupported("websocket.connection.cleartext_state")),
+    };
     v.record(
         &[
             "without_http2_session",
@@ -99,10 +107,12 @@ pub(super) fn connection(v: &Value) -> Result<WebSocketConnectionPolicy> {
             "refused_stream_retry",
             "proxied_http2_session",
             "http1_alpn_protocols",
+            "cleartext_state",
         ],
         "websocket.connection",
     )?;
     let settings = WebSocketConnectionPolicy {
+        cleartext_state,
         without_http2_session: without_http2_session(v.member(
             "without_http2_session",
             "websocket.connection.without_http2_session",

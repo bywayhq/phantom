@@ -55,13 +55,15 @@ tokens!(
     ReacquireTwice
 );
 tokens!(WebSocketProxiedSession, Reuse, Ignore);
+tokens!(WebSocketCleartextState, Shared, Separate);
 record!(
     WebSocketConnectionPolicy,
     without_http2_session,
     with_incapable_http2_session,
     http1_alpn_protocols,
     refused_stream_retry,
-    proxied_http2_session
+    proxied_http2_session,
+    cleartext_state
 );
 record!(
     WebSocketSettings,

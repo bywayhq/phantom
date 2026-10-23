@@ -4,9 +4,9 @@ use std::{
 };
 
 use super::{
-    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-    WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-    WebSocketSettings,
+    WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+    WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
 use crate::{
     AlpsSettings, ClientProfile, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings,
@@ -961,6 +961,7 @@ fn policy_type_is_plain_profile_data() {
         http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
         refused_stream_retry: WebSocketRefusedStreamRetry::None,
         proxied_http2_session: WebSocketProxiedSession::Reuse,
+        cleartext_state: WebSocketCleartextState::Separate,
     };
     assert_eq!(policy, firefox::v157_websocket().connection);
 }

@@ -24,6 +24,21 @@ class WebSocketComponentTests(unittest.TestCase):
         with self.assertRaises(generator.DeclarationError):
             self.resolve(document)
 
+    def test_cleartext_state_is_explicit_and_rejects_unknown_values(self):
+        for state in ("Shared", "Separate"):
+            self.values["connection"]["cleartext_state"] = state
+            generated = generator.generate_components(
+                self.resolve(), "websocket-components.json"
+            )
+            self.assertIn("WebSocketCleartextState::" + state, generated)
+        for state in ("Unknown", None, False):
+            self.values["connection"]["cleartext_state"] = state
+            with self.assertRaises(generator.DeclarationError):
+                self.resolve()
+        del self.values["connection"]["cleartext_state"]
+        with self.assertRaises(generator.DeclarationError):
+            self.resolve()
+
     def test_original_field_counts_and_committed_output_are_deterministic(self):
         resolved = self.resolve()
         self.assertEqual(
@@ -347,6 +362,7 @@ class WebSocketComponentTests(unittest.TestCase):
                 "http1_alpn_protocols": [list(b"http/1.1")],
                 "refused_stream_retry": "ReacquireTwice",
                 "proxied_http2_session": "Reuse",
+                "cleartext_state": "Shared",
             },
         )
         self.assertEqual(

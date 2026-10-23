@@ -1442,3 +1442,17 @@ fn alt_used_port_policy_changes_ticket_identity_independently_of_emission() -> T
     }
     Ok(())
 }
+
+#[test]
+fn ticket_policy_distinguishes_websocket_cleartext_state() -> TestResult {
+    let profile = chrome::v154_windows();
+    let mut websocket = profile
+        .websocket()
+        .ok_or("missing WebSocket settings")?
+        .clone();
+    let shared = profile::encode(&profile, None, None)?;
+    websocket.connection.cleartext_state = phantom_profile::WebSocketCleartextState::Separate;
+    let separate = profile::encode(&profile.with_websocket(websocket), None, None)?;
+    assert_ne!(shared, separate);
+    Ok(())
+}

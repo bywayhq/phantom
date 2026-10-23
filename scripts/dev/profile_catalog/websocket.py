@@ -45,6 +45,7 @@ CONNECTION_ENUMS = {
         ("None", "SameSessionOnce", "ReacquireTwice"),
     ),
     "proxied_http2_session": ("WebSocketProxiedSession", ("Reuse", "Ignore")),
+    "cleartext_state": ("WebSocketCleartextState", ("Shared", "Separate")),
 }
 
 

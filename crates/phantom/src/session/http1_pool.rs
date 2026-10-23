@@ -712,9 +712,25 @@ impl Http1Pool {
         } else {
             Http1ConnectionMode::TlsOrigin
         };
-        let entry = self
-            .entry(PoolKey::new(endpoint, &Route::Direct, mode))
-            .await;
+        self.opening(PoolKey::new(endpoint, &Route::Direct, mode))
+            .await
+    }
+
+    /// Holds a direct cleartext opening outside ordinary HTTP state.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn cleartext_websocket_opening(&self, endpoint: &Endpoint) -> OriginOpening {
+        let mut key = PoolKey::new(
+            endpoint,
+            &Route::Direct,
+            Http1ConnectionMode::PlaintextOrigin,
+        );
+        key.purpose = PoolPurpose::WebSocket;
+        self.opening(key).await
+    }
+
+    #[cfg(feature = "websocket")]
+    async fn opening(&self, key: PoolKey) -> OriginOpening {
+        let entry = self.entry(key).await;
         {
             let mut state = entry.connections.lock();
             entry.connections.family.mark_active();
@@ -781,9 +797,10 @@ impl Http1Pool {
             state.entries.pop_front();
             debug!(outcome = "evicted", "HTTP/1 pool entry evicted");
         }
-        let admission = state
-            .admissions
-            .get(&key.origin(), self.max_active, self.max_pending);
+        let admission =
+            state
+                .admissions
+                .get(&key.admission_origin(), self.max_active, self.max_pending);
         let family = state.families.get(&key.origin());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
@@ -1067,6 +1084,13 @@ struct PoolState {
     families: AddressFamilies<PoolKey>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PoolPurpose {
+    Http,
+    #[cfg(feature = "websocket")]
+    WebSocket,
+}
+
 /// The client certificate depends only on host and port
 /// ([`ClientBuilder::client_certificate_for`](crate::ClientBuilder::client_certificate_for)),
 /// so the connections and TLS session tickets of one key share a certificate.
@@ -1076,6 +1100,7 @@ struct PoolKey {
     port: u16,
     route: Route,
     mode: Http1ConnectionMode,
+    purpose: PoolPurpose,
     runtime: Option<tokio::runtime::Id>,
 }
 
@@ -1086,11 +1111,20 @@ impl PoolKey {
             port: endpoint.port(),
             route: route.clone(),
             mode,
+            purpose: PoolPurpose::Http,
             runtime: super::current_runtime(),
         }
     }
-    /// This key without its runtime: the origin and route that per-origin
-    /// admission and learned protocol state belong to across runtimes.
+
+    /// Existing per-origin admission is shared across connection contexts.
+    fn admission_origin(&self) -> Self {
+        Self {
+            purpose: PoolPurpose::Http,
+            ..self.origin()
+        }
+    }
+
+    /// The address family belongs to this origin, route and purpose.
     fn origin(&self) -> Self {
         Self {
             runtime: None,

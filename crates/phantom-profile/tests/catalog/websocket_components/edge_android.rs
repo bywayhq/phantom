@@ -1,9 +1,9 @@
 //! Independent ordered values from the two retained openings and pinned source.
 
 use phantom_profile::{
-    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-    WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-    WebSocketSettings,
+    WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+    WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
 use std::time::Duration;
 
@@ -15,6 +15,7 @@ pub(crate) fn original() -> WebSocketSettings {
             http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
             refused_stream_retry: WebSocketRefusedStreamRetry::ReacquireTwice,
             proxied_http2_session: WebSocketProxiedSession::Reuse,
+            cleartext_state: WebSocketCleartextState::Shared,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),

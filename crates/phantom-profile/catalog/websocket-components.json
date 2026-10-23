@@ -22,7 +22,8 @@
             ]
           ],
           "refused_stream_retry": "ReacquireTwice",
-          "proxied_http2_session": "Reuse"
+          "proxied_http2_session": "Reuse",
+          "cleartext_state": "Shared"
         },
         "http1_fields": [
           {
@@ -162,7 +163,8 @@
             ]
           ],
           "refused_stream_retry": "None",
-          "proxied_http2_session": "Reuse"
+          "proxied_http2_session": "Reuse",
+          "cleartext_state": "Separate"
         },
         "http1_fields": [
           {
@@ -347,7 +349,8 @@
             ]
           ],
           "refused_stream_retry": "ReacquireTwice",
-          "proxied_http2_session": "Reuse"
+          "proxied_http2_session": "Reuse",
+          "cleartext_state": "Shared"
         },
         "http1_fields": [
           {

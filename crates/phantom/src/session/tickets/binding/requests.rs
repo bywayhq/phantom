@@ -1,7 +1,7 @@
 use phantom_profile::{
     ClientHintDelivery, Http2ProxyConnections, Http2RejectedConnect, Http2RequestPriority,
-    ProxyAuthorizationAttempt, WebSocketEmptyMessageCompression, WebSocketNewConnection,
-    WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+    ProxyAuthorizationAttempt, WebSocketCleartextState, WebSocketEmptyMessageCompression,
+    WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -259,12 +259,18 @@ pub(super) fn websocket(
         http1_alpn_protocols,
         refused_stream_retry,
         proxied_http2_session,
+        cleartext_state,
     } = connection;
     web_socket_new_connection(e, without_http2_session)?;
     web_socket_new_connection(e, with_incapable_http2_session)?;
     e.list(http1_alpn_protocols, |e, value| e.bytes(value))?;
     web_socket_refused_stream_retry(e, refused_stream_retry)?;
     web_socket_proxied_session(e, proxied_http2_session)?;
+    match cleartext_state {
+        WebSocketCleartextState::Shared => e.u8(0)?,
+        WebSocketCleartextState::Separate => e.u8(1)?,
+        _ => return Err(PreparationError::Unsupported("websocket_cleartext_state")),
+    }
     e.list(http1_fields, websocket_field)?;
     e.list(http2_fields, websocket_field)?;
     e.list(permessage_deflate_offer, |e, parameter| match parameter {

@@ -7,6 +7,12 @@ mod originals;
 pub(super) use edge_android::original as edge_android_original;
 use originals::{chrome_original, firefox_original};
 
+fn firefox_expected() -> phantom_profile::WebSocketSettings {
+    let mut expected = firefox_original();
+    expected.connection.cleartext_state = phantom_profile::WebSocketCleartextState::Separate;
+    expected
+}
+
 pub(super) fn chromium_expected() -> phantom_profile::WebSocketSettings {
     let mut expected = chrome_original();
     assert_eq!(
@@ -24,7 +30,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 fn browser_websocket_factories_preserve_every_ordered_field_and_policy() -> TestResult {
     for (actual, original) in [
         (browser::chrome::v154_websocket(), chromium_expected()),
-        (browser::firefox::v157_websocket(), firefox_original()),
+        (browser::firefox::v157_websocket(), firefox_expected()),
     ] {
         actual.validate()?;
         original.validate()?;
@@ -38,8 +44,8 @@ fn browser_websocket_factories_preserve_every_ordered_field_and_policy() -> Test
             .refused_stream_retry,
         phantom_profile::WebSocketRefusedStreamRetry::None
     );
-    assert_eq!(firefox_original().http1_fields.len(), 17);
-    assert_eq!(firefox_original().http2_fields.len(), 14);
+    assert_eq!(firefox_expected().http1_fields.len(), 17);
+    assert_eq!(firefox_expected().http2_fields.len(), 14);
     Ok(())
 }
 
@@ -70,7 +76,7 @@ fn eight_composed_profiles_keep_websocket_and_two_android_profiles_keep_absence(
         browser::firefox::v157_windows()
             .websocket()
             .ok_or("lost Firefox WebSocket")?,
-        &firefox_original()
+        &firefox_expected()
     );
     assert_eq!(
         browser::chrome::v154_android_websocket(),
@@ -97,7 +103,7 @@ fn eight_composed_profiles_keep_websocket_and_two_android_profiles_keep_absence(
 fn generated_websocket_fields_keep_both_trust_defaults_and_absence() {
     for (actual, original) in [
         (browser::chrome::v154_websocket(), chromium_expected()),
-        (browser::firefox::v157_websocket(), firefox_original()),
+        (browser::firefox::v157_websocket(), firefox_expected()),
     ] {
         for (fields, original_fields) in [
             (&actual.http1_fields, &original.http1_fields),
@@ -150,6 +156,6 @@ fn customized_websocket_values_remain_owned_and_keep_native_input_ranges() -> Te
         custom.permessage_deflate_offer.clear();
     }
     assert_eq!(browser::chrome::v154_websocket(), chromium_expected());
-    assert_eq!(browser::firefox::v157_websocket(), firefox_original());
+    assert_eq!(browser::firefox::v157_websocket(), firefox_expected());
     Ok(())
 }
