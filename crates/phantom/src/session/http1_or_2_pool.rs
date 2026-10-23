@@ -320,9 +320,8 @@ impl Http1Or2Pool {
                     );
                     #[cfg(feature = "https-records")]
                     if let Some((recovery, connect)) = ech_recovery.take() {
-                        // Keep the cold recovery state out of every request's future.
                         connect
-                            .run(super::box_send(async {
+                            .run(async {
                                 let selection = admission.await?;
                                 entry
                                     .recover_ech(
@@ -348,7 +347,7 @@ impl Http1Or2Pool {
                                     .await?;
                                 selected.connect = Some(connect);
                                 Ok(selected)
-                            }))
+                            })
                             .await?
                     } else {
                         let selection = admission.await?;
@@ -444,7 +443,9 @@ impl Http1Or2Pool {
                     http1_wire_headers: fields.http1_wire_headers.clone(),
                     http2_headers: fields.http2_headers.clone(),
                 };
-                let send = entry.dispatch_on_lease(
+                // The authentication wrapper owns its send future by value.
+                // Keep this cold dispatch out of the ordinary request's frame.
+                let send = super::box_send(entry.dispatch_on_lease(
                     lease,
                     permit,
                     request.clone(),
@@ -452,7 +453,7 @@ impl Http1Or2Pool {
                     None,
                     retire_unprocessed,
                     timeout_budget,
-                );
+                ));
                 match send_while_authenticating(deferred_connect, early_data.answered(), async {
                     Ok(send.await)
                 })
