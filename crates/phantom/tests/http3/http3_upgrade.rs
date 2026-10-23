@@ -40,6 +40,7 @@ use tls_support::{TestIdentity, TestResult, tls_settings};
 
 mod alt_used;
 mod mapping_alt_used;
+mod validation;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";

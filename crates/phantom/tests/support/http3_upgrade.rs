@@ -201,6 +201,7 @@ pub(crate) struct UpgradeScript {
     advertisement: AltSvcAdvertisement,
     alternative_ip: IpAddr,
     origin_http3_responses: Option<Vec<PlannedResponse>>,
+    alternative_handshake_gate: Option<watch::Receiver<bool>>,
 }
 
 impl UpgradeScript {
@@ -223,7 +224,14 @@ impl UpgradeScript {
             advertisement: AltSvcAdvertisement::default(),
             alternative_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
             origin_http3_responses: None,
+            alternative_handshake_gate: None,
         }
+    }
+
+    /// Hold the server's first handshake reply until the supplied gate opens.
+    pub(crate) fn hold_alternative_handshake(mut self, gate: watch::Receiver<bool>) -> Self {
+        self.alternative_handshake_gate = Some(gate);
+        self
     }
 
     pub(crate) fn advertisement(mut self, advertisement: AltSvcAdvertisement) -> Self {
@@ -255,6 +263,7 @@ pub(crate) struct ObservedRequest {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct UpgradeObservations {
     pub(crate) origin_connections: usize,
+    pub(crate) origin_ech_connections: usize,
     pub(crate) alternative_connections: usize,
     /// Every origin request; the raw ALTSVC origin records no request fields.
     pub(crate) origin_request_count: usize,
@@ -265,13 +274,40 @@ pub(crate) struct UpgradeObservations {
     pub(crate) origin_http3_requests: Vec<ObservedRequest>,
 }
 
-#[derive(Default)]
+/// Events count actual transport completion separately from HTTP requests.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct AlternativeProgress {
+    pub(crate) incoming: usize,
+    pub(crate) handshakes: usize,
+    pub(crate) h3_sessions: usize,
+    pub(crate) streams: usize,
+    pub(crate) requests: usize,
+}
+
 struct SharedObservations {
     origin_connections: AtomicUsize,
+    origin_ech_connections: AtomicUsize,
     origin_request_count: AtomicUsize,
     alternative_connections: AtomicUsize,
     origin_requests: Mutex<Vec<ObservedRequest>>,
     alternative_requests: Mutex<Vec<ObservedRequest>>,
+    alternative_progress: watch::Sender<AlternativeProgress>,
+    alternative_handshake_gate: Option<watch::Receiver<bool>>,
+}
+
+impl Default for SharedObservations {
+    fn default() -> Self {
+        Self {
+            origin_connections: AtomicUsize::default(),
+            origin_ech_connections: AtomicUsize::default(),
+            origin_request_count: AtomicUsize::default(),
+            alternative_connections: AtomicUsize::default(),
+            origin_requests: Mutex::default(),
+            alternative_requests: Mutex::default(),
+            alternative_progress: watch::channel(AlternativeProgress::default()).0,
+            alternative_handshake_gate: None,
+        }
+    }
 }
 
 /// Owns both listeners. Call [`Self::finish`] after dropping the client under test.
@@ -304,6 +340,16 @@ impl Http3UpgradeFixture {
         origin_name: impl Into<String>,
         script: UpgradeScript,
     ) -> TestResult<Self> {
+        Self::spawn_with_origin_acceptor(identity, origin_name, script, identity.acceptor(H2_ALPN)?)
+            .await
+    }
+
+    pub(crate) async fn spawn_with_origin_acceptor(
+        identity: &TestIdentity,
+        origin_name: impl Into<String>,
+        script: UpgradeScript,
+        origin_acceptor: btls::ssl::SslAcceptor,
+    ) -> TestResult<Self> {
         let origin_name = origin_name.into();
         let (listener, origin_endpoints) = if script.origin_http3_responses.is_some() {
             let (listener, endpoints) = bind_shared_origin_port(identity).await?;
@@ -321,13 +367,16 @@ impl Http3UpgradeFixture {
             .iter()
             .any(|response| !response.altsvc_frames.is_empty())
             .then(|| format!("https://{origin_name}:{}", origin_address.port()));
-        let observations = Arc::new(SharedObservations::default());
+        let observations = Arc::new(SharedObservations {
+            alternative_handshake_gate: script.alternative_handshake_gate,
+            ..SharedObservations::default()
+        });
         let origin_responses = Arc::new(Mutex::new(VecDeque::from(script.origin_responses)));
         let (shutdown, shutdown_rx) = watch::channel(false);
 
         let origin_task = tokio::spawn(run_origin(
             listener,
-            identity.acceptor(H2_ALPN)?,
+            origin_acceptor,
             origin_responses,
             OriginPlan {
                 alt_svc,
@@ -393,6 +442,10 @@ impl Http3UpgradeFixture {
             self.origin_name,
             self.origin_address.port()
         )
+    }
+
+    pub(crate) fn alternative_progress(&self) -> watch::Receiver<AlternativeProgress> {
+        self.observations.alternative_progress.subscribe()
     }
 
     pub(crate) fn snapshot(&self) -> TestResult<UpgradeObservations> {
@@ -613,6 +666,11 @@ async fn serve_origin_connection(
     observations
         .origin_connections
         .fetch_add(1, Ordering::SeqCst);
+    if stream.ssl().ech_accepted() {
+        observations
+            .origin_ech_connections
+            .fetch_add(1, Ordering::SeqCst);
+    }
     let alt_svc = plan.alt_svc;
     if let Some(canonical_origin) = plan.raw_canonical_origin {
         return raw_http2::serve(
@@ -785,7 +843,24 @@ async fn serve_alternative_connection(
     observations: Arc<SharedObservations>,
     mut shutdown: watch::Receiver<bool>,
 ) -> TestResult<()> {
-    let connection = incoming.await?;
+    observations
+        .alternative_progress
+        .send_modify(|seen| seen.incoming += 1);
+    if let Some(mut gate) = observations.alternative_handshake_gate.clone() {
+        while !*gate.borrow_and_update() {
+            tokio::select! {
+                _ = shutdown.changed() => return Ok(()),
+                changed = gate.changed() => changed?,
+            }
+        }
+    }
+    let connection = tokio::select! {
+        _ = shutdown.changed() => return Ok(()),
+        connection = async { incoming.await } => connection?,
+    };
+    observations
+        .alternative_progress
+        .send_modify(|seen| seen.handshakes += 1);
     observations
         .alternative_connections
         .fetch_add(1, Ordering::SeqCst);
@@ -801,6 +876,9 @@ async fn serve_alternative_connection(
 
     let responses = responses.ok_or_else(|| io::Error::other("missing HTTP/3 response script"))?;
     let mut h3 = h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+    observations
+        .alternative_progress
+        .send_modify(|seen| seen.h3_sessions += 1);
     loop {
         let accepted = tokio::select! {
             _ = shutdown.changed() => {
@@ -818,8 +896,14 @@ async fn serve_alternative_connection(
         let Some(resolver) = accepted else {
             return Ok(());
         };
+        observations
+            .alternative_progress
+            .send_modify(|seen| seen.streams += 1);
         let (request, mut stream) = resolver.resolve_request().await?;
         lock(&observations.alternative_requests)?.push(observe_request(&request, &server_name));
+        observations
+            .alternative_progress
+            .send_modify(|seen| seen.requests += 1);
         let response = pop_response(&responses, "alternative")?;
         stream
             .send_response(response_head(&response, None)?)
@@ -899,6 +983,7 @@ fn snapshot(
 ) -> TestResult<UpgradeObservations> {
     Ok(UpgradeObservations {
         origin_connections: observations.origin_connections.load(Ordering::SeqCst),
+        origin_ech_connections: observations.origin_ech_connections.load(Ordering::SeqCst),
         origin_request_count: observations.origin_request_count.load(Ordering::SeqCst),
         alternative_connections: observations.alternative_connections.load(Ordering::SeqCst),
         origin_requests: lock(&observations.origin_requests)?.clone(),
