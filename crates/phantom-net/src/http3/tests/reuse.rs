@@ -15,7 +15,8 @@ use tokio::{sync::oneshot, time::timeout};
 
 use super::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, server_endpoint};
 use crate::{
-    AddressResolver, DestinationDenied, DestinationPolicy, HostResolver,
+    DestinationDenied, DestinationPolicy,
+    host_resolver::{AddressResolver, HostResolver},
     http3::{Http3Connector, Http3ConnectorErrorKind},
     route::{DatagramRoute, Endpoint},
 };
