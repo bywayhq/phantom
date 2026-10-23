@@ -10,6 +10,8 @@ from unittest.mock import patch
 
 from h2.events import DataReceived, StreamEnded
 from h2.settings import SettingCodes
+from hpack import Encoder
+from hyperframe.frame import HeadersFrame
 
 from scripts.capture.http2_session import (
     CaptureRun,
@@ -99,6 +101,51 @@ class HalfClosedOrigin(RawOrigin):
 
 
 class Http2ProxyWireTests(unittest.IsolatedAsyncioTestCase):
+    async def test_partial_sensitive_headers_cannot_be_published(self):
+        for truncated in (False, True):
+            with self.subTest(truncated_frame=truncated):
+                async with servers("https", proxy_alpn="h2") as (
+                    _,
+                    proxy,
+                    _,
+                    tunnels,
+                    _,
+                    certificate,
+                ):
+                    peer = await ProxyH2.open(proxy, certificate)
+                    await peer.ping()
+                    header = HeadersFrame(1)
+                    header.data = Encoder().encode(
+                        [
+                            (b":method", b"CONNECT"),
+                            (b":authority", b"elsewhere.invalid:443"),
+                            (b"cookie", b"private scripted field"),
+                        ],
+                        huffman=False,
+                    )
+                    frame = header.serialize()
+                    peer.writer.write(frame[:-1] if truncated else frame)
+                    await peer.writer.drain()
+                    await peer.close()
+                    await proxy.stop_connections()
+                    self.assertIn(
+                        b"private scripted",
+                        tunnels.proxy_connections[0].connection.client_stream(),
+                    )
+                    metadata = CaptureMetadata(
+                        "scripted", "0", "test", "owned", "owned", "scripted", "none"
+                    )
+                    with self.assertRaisesRegex(ValueError, "incomplete H2 proxy"):
+                        fixture(
+                            SCENARIOS["accept"],
+                            [tunnels],
+                            metadata,
+                            mode="https",
+                            proxy_alpn="h2",
+                            origin_alpn="h1",
+                            proxy_address="127.0.0.1:0",
+                        )
+
     async def check_origin_half_close(self, window):
         async with raw_servers(HalfClosedOrigin()) as (origin, proxy, certificate):
             peer = await ProxyH2.open(proxy, certificate, window=window)

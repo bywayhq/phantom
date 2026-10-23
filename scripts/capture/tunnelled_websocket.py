@@ -169,6 +169,12 @@ def fixture(
                 raise ValueError("the proxy capture did not negotiate HTTP/2")
             for opening in run.proxy_connections:
                 analysis = analyze_http2(opening.connection)
+                headers = sum(
+                    frame.direction == "client" and frame.frame_type == 0x1
+                    for frame in analysis.frames
+                )
+                if analysis.client_trailing or headers != len(analysis.client_headers):
+                    raise ValueError("incomplete H2 proxy frame or header block")
                 if any(
                     item.name in SENSITIVE
                     for block in analysis.client_headers
