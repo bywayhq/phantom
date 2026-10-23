@@ -52,12 +52,14 @@ class ClientHintComponentTests(unittest.TestCase):
                 "edge_windows_153_client_hints",
                 "chrome_windows_156_client_hints",
                 "chrome_linux_156_client_hints",
+                "chrome_macos_156_client_hints",
+                "chrome_macos_intel_156_client_hints",
             )
         ]
         self.assertEqual(len(original), 11)
         self.assertEqual(sum(len(c["values"]["hints"]) for c in original), 117)
-        self.assertEqual(len(components), 14)
-        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 150)
+        self.assertEqual(len(components), 16)
+        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 172)
         models = []
         for component in components:
             hints = component["values"]["hints"]

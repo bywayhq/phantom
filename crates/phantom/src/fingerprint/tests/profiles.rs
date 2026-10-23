@@ -18,7 +18,7 @@ pub(super) fn import(
 
 #[test]
 fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestResult {
-    assert_eq!(PROFILES.len(), 17);
+    assert_eq!(PROFILES.len(), 19);
     assert_eq!(catalog::profiles().len(), PROFILES.len());
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
@@ -43,7 +43,7 @@ fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestRes
 
 #[test]
 fn retained_template_exports_preserve_fields_flags_priority_and_protocol_absences() -> TestResult {
-    assert_eq!(TEMPLATES.len(), 30);
+    assert_eq!(TEMPLATES.len(), 32);
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
         for kind in [
@@ -271,6 +271,14 @@ pub(super) const PROFILES: &[(&str, &str)] = &[
         "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
         include_str!("fixtures/chrome-156-linux.json"),
     ),
+    (
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        include_str!("fixtures/chrome-156-macos.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+        include_str!("fixtures/chrome-156-macos-intel.json"),
+    ),
 ];
 
 const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
@@ -423,6 +431,16 @@ const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
         "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
         RequestTemplateKind::Navigation,
         include_str!("fixtures/chrome-156-linux-navigation.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        RequestTemplateKind::Navigation,
+        include_str!("fixtures/chrome-156-macos-navigation.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+        RequestTemplateKind::Navigation,
+        include_str!("fixtures/chrome-156-macos-intel-navigation.json"),
     ),
 ];
 

@@ -25,6 +25,22 @@ pub(crate) mod chrome {
         crate::catalog::connection_profile_definitions::CHROMEMACOS154.instantiate()
     }
 
+    /// Returns Chrome 156 settings for macOS, without a request template.
+    ///
+    /// Catalog: [`chrome-156-macos`](crate::catalog::profile).
+    #[must_use]
+    pub fn v156_macos() -> crate::ClientProfile {
+        crate::catalog::connection_profile_definitions::CHROMEMACOS156.instantiate()
+    }
+
+    /// Returns Chrome 156 settings for macOS, without a request template.
+    ///
+    /// Catalog: [`chrome-156-macos-intel`](crate::catalog::profile).
+    #[must_use]
+    pub fn v156_macos_intel() -> crate::ClientProfile {
+        crate::catalog::connection_profile_definitions::CHROMEMACOS156INTEL.instantiate()
+    }
+
     /// Returns Chrome 154 settings for Windows, without a request template.
     ///
     /// Catalog: [`chrome-154-windows`](crate::catalog::profile).

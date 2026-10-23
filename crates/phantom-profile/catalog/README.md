@@ -16,6 +16,11 @@ be unique.
 This generates both the catalog registration and `chrome::v154_windows()`.
 The constructor leaves the request template unset.
 
+For two recipes on the same browser, major version and platform, give the
+additional record a `variant`, such as `"intel"`. Use 1–16 lowercase letters
+or digits, beginning with a letter. It appends `Intel` to the target and
+`_intel` to the constructor; the exact platform stays in identity metadata.
+
 Give each record a fixed `selector`, such as `chrome-154-windows`. Use 1–64
 lowercase ASCII letters or digits, with single hyphens between groups. Selectors
 must be unique. Keep their exact profile mapping when adding newer recipes.

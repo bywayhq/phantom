@@ -1569,6 +1569,382 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("chrome/156.0.8078.48/macos-15.7.9-x86-64/r1"),
+        selector: "chrome-156-macos-intel",
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            platform: ProfilePlatform::Macos,
+            identity: ProfileIdentity::Observed {
+                build: "156.0.8078.48",
+                platform_release: "macos-15.7.9-x86-64",
+                architecture: Some("x86_64"),
+                environment: CaptureEnvironment::Desktop,
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMEMACOS156INTEL,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_MACOS156_SCRIPT },
+            RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_MACOS156_STYLESHEET },
+            RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_MACOS156_IMAGE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Font, definition: &request_template_definitions::CHROME_MACOS156_FONT },
+        ],
+    },
+    ProfileDefinition {
+        id: ProfileId("chrome/156.0.8078.48/macos-26.6.2-arm64/r1"),
+        selector: "chrome-156-macos",
+        metadata: ProfileMetadata {
+            browser: Browser::Chrome,
+            platform: ProfilePlatform::Macos,
+            identity: ProfileIdentity::Observed {
+                build: "156.0.8078.48",
+                platform_release: "macos-26.6.2-arm64",
+                architecture: Some("arm64"),
+                environment: CaptureEnvironment::Desktop,
+            },
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+                        build: "156.0.8078.48",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+        ],
+        composition: &connection_profile_definitions::CHROMEMACOS156,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_MACOS156_SCRIPT },
+            RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_MACOS156_STYLESHEET },
+            RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_MACOS156_IMAGE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Font, definition: &request_template_definitions::CHROME_MACOS156_FONT },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("chrome/156.0.8078.48/windows-11-26200/r1"),
         selector: "chrome-156-windows",
         metadata: ProfileMetadata {

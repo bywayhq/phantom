@@ -132,6 +132,51 @@ class CatalogDeclarationTests(unittest.TestCase):
         added = next(p for p in profiles if p["id"] == entry["id"])
         self.assertEqual(added["metadata"]["revision"], 2)
 
+    def test_same_version_platform_variants_have_distinct_generated_names(self):
+        original = next(
+            p for p in self.document["profiles"] if p["target"] == "ChromeWindows156"
+        )
+        variant = copy.deepcopy(original)
+        variant.update(
+            id="chrome/156.0.8078.48/windows-other/r1",
+            selector="chrome-156-windows-other",
+            variant="other",
+            target="ChromeWindows156Other",
+        )
+        variant["metadata"]["identity"]["platform_release"] = "windows-other"
+        self.document["profiles"].append(variant)
+        profiles = generator.validate(self.document)
+        self.assertEqual(registry.constructor(original), "v156_windows")
+        self.assertEqual(registry.constructor(variant), "v156_windows_other")
+        output = registry.generate_constructors(profiles)
+        self.assertIn("pub fn v156_windows()", output)
+        self.assertIn("pub fn v156_windows_other()", output)
+        self.assertIn("CHROMEWINDOWS156OTHER.instantiate()", output)
+
+        collision = copy.deepcopy(variant)
+        collision["id"] = "chrome/156.0.8078.48/windows-collision/r1"
+        collision["selector"] = "chrome-156-windows-collision"
+        collision["metadata"]["identity"]["platform_release"] = "windows-collision"
+        self.document["profiles"].append(collision)
+        with self.assertRaisesRegex(
+            generator.DeclarationError, "duplicate recipe target"
+        ):
+            generator.validate(self.document)
+
+    def test_variants_reject_invalid_names_and_inconsistent_targets(self):
+        for value in (None, "", "Intel", "a-b", "a_b", "1", "é", "x" * 17):
+            with self.subTest(value=value):
+                document = copy.deepcopy(self.document)
+                document["profiles"][0]["variant"] = value
+                with self.assertRaisesRegex(
+                    generator.DeclarationError, "recipe variant"
+                ):
+                    generator.validate(document)
+        document = copy.deepcopy(self.document)
+        document["profiles"][0]["variant"] = "other"
+        with self.assertRaisesRegex(generator.DeclarationError, "recipe target"):
+            generator.validate(document)
+
     def test_selectors_are_explicit_bounded_names_and_unique_across_identifiers(self):
         for value in (
             "",

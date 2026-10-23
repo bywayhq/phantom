@@ -3225,6 +3225,305 @@
         "ProxyConnect": null,
         "CookiePlacement": null
       }
+    },
+    {
+      "id": "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+      "selector": "chrome-156-macos",
+      "metadata": {
+        "browser": "Chrome",
+        "platform": "Macos",
+        "revision": 1,
+        "identity": {
+          "kind": "Observed",
+          "build": "156.0.8078.48",
+          "platform_release": "macos-26.6.2-arm64",
+          "architecture": "arm64",
+          "environment": "Desktop"
+        }
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-26.6.2-arm64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            }
+          ]
+        }
+      ],
+      "target": "ChromeMacos156",
+      "templates": {
+        "Navigation": "chrome_macos156_navigation",
+        "Script": "chrome_macos156_script",
+        "Stylesheet": "chrome_macos156_stylesheet",
+        "Image": "chrome_macos156_image",
+        "Font": "chrome_macos156_font"
+      },
+      "composition": {
+        "TcpTls": "chromium_154_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_macos_156_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      }
+    },
+    {
+      "id": "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+      "selector": "chrome-156-macos-intel",
+      "metadata": {
+        "browser": "Chrome",
+        "platform": "Macos",
+        "revision": 1,
+        "identity": {
+          "kind": "Observed",
+          "build": "156.0.8078.48",
+          "platform_release": "macos-15.7.9-x86-64",
+          "architecture": "x86_64",
+          "environment": "Desktop"
+        }
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/156.0.8078.48/macos-15.7.9-x86-64/snapshot-1.txt",
+              "build": "156.0.8078.48"
+            }
+          ]
+        }
+      ],
+      "target": "ChromeMacos156Intel",
+      "templates": {
+        "Navigation": "chrome_macos156_navigation",
+        "Script": "chrome_macos156_script",
+        "Stylesheet": "chrome_macos156_stylesheet",
+        "Image": "chrome_macos156_image",
+        "Font": "chrome_macos156_font"
+      },
+      "composition": {
+        "TcpTls": "chromium_154_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_macos_intel_156_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      },
+      "variant": "intel"
     }
   ]
 }

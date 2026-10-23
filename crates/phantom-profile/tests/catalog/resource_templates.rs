@@ -253,6 +253,8 @@ fn resource_contexts_are_available_only_on_the_observed_156_recipes() -> TestRes
     let observed = [
         profile("chrome-156-windows")?.id(),
         profile("chrome-156-linux")?.id(),
+        profile("chrome-156-macos")?.id(),
+        profile("chrome-156-macos-intel")?.id(),
     ];
     for definition in profiles()
         .iter()

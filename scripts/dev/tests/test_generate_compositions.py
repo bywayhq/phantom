@@ -74,7 +74,13 @@ class CompositionDeclarationTests(unittest.TestCase):
             entry
             for entry in profiles
             if entry["target"]
-            not in ("EdgeWindows153", "ChromeMacos154", "ChromeLinux156")
+            not in (
+                "EdgeWindows153",
+                "ChromeMacos154",
+                "ChromeLinux156",
+                "ChromeMacos156",
+                "ChromeMacos156Intel",
+            )
             and entry["metadata"]["identity"]["kind"] == "Observed"
         ]
         chrome156 = next(
@@ -235,7 +241,7 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 17)
+        self.assertEqual(generated.count("static "), 19)
         self.assertIn("static CHROMEWINDOWS156:", generated)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(

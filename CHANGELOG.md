@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add Chrome 156 Mac startup settings, client hints and resource templates
+  for hosted arm64 and Intel captures.
+
 - Retain Firefox 157 Windows HTTP/2 fallback, reuse and reconnect observations.
 
 - Abort the Firefox HTTP/2 reconnect probe's origin transport so pending

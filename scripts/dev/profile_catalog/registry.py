@@ -49,7 +49,8 @@ def constructor(entry):
     """Derive the public name from a structurally checked catalog identity."""
     metadata = entry["metadata"]
     major = metadata["identity"]["build"].split(".", 1)[0]
-    return f"v{major}_{metadata['platform'].lower()}"
+    suffix = f"_{entry['variant']}" if "variant" in entry else ""
+    return f"v{major}_{metadata['platform'].lower()}{suffix}"
 
 
 def capture_prefix(path):
@@ -80,7 +81,7 @@ def capture_build(path):
     return versions[0]
 
 
-def validate_identity(metadata, identifier, target):
+def validate_identity(metadata, identifier, target, variant=None):
     """Keep browser observations separate from pinned external presets."""
     keys(metadata, ("browser", "platform", "identity", "revision"), identifier)
     browser = choice(metadata["browser"], BROWSERS, "browser")
@@ -136,6 +137,14 @@ def validate_identity(metadata, identifier, target):
             raise DeclarationError(f"{identifier}: invalid peer advertised release")
         expected_target = browser + platform + release.split(".", 1)[0]
         expected_id = f"{browser.lower()}/{release}/{platform.lower()}/r{revision}"
+    if variant is not None:
+        if (
+            kind != "Observed"
+            or not isinstance(variant, str)
+            or not re.fullmatch(r"[a-z][a-z0-9]{0,15}", variant)
+        ):
+            raise DeclarationError(f"{identifier}: invalid recipe variant")
+        expected_target += variant.capitalize()
     if target != expected_target:
         raise DeclarationError(f"{identifier}: incompatible recipe target")
     if identifier != expected_id:
@@ -174,6 +183,7 @@ def validate(document, repo=REPO):
     ids = set()
     selectors = set()
     targets = set()
+    constructors = set()
     validated = []
     for entry in profiles:
         keys(
@@ -186,7 +196,8 @@ def validate(document, repo=REPO):
                 "layers",
                 "templates",
                 "composition",
-            ),
+            )
+            + (("variant",) if isinstance(entry, dict) and "variant" in entry else ()),
             "profile",
         )
         entry = dict(entry)
@@ -222,13 +233,20 @@ def validate(document, repo=REPO):
 
         metadata = entry["metadata"]
         target = text(entry["target"], "recipe target")
-        validate_identity(metadata, identifier, target)
+        validate_identity(metadata, identifier, target, entry.get("variant"))
+        if "variant" in entry and entry["variant"] is None:
+            raise DeclarationError(f"{identifier}: invalid recipe variant")
         browser = metadata["browser"]
         identity = metadata["identity"]
         peer = identity["kind"] == "Peer"
         if target in targets:
             raise DeclarationError(f"{identifier}: duplicate recipe target")
         targets.add(target)
+        if not peer:
+            name = (browser, constructor(entry))
+            if name in constructors:
+                raise DeclarationError(f"{identifier}: duplicate recipe constructor")
+            constructors.add(name)
 
         layers = entry["layers"]
         if not isinstance(layers, list) or len(layers) > len(LAYERS):

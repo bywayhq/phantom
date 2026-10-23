@@ -143,6 +143,16 @@ fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTe
         RequestTemplateKind::Navigation,
         super::chrome_linux156::navigation::expected_navigation(),
     ));
+    for id in [
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+    ] {
+        expected.push((
+            id,
+            RequestTemplateKind::Navigation,
+            super::chrome_macos156::navigation::expected_navigation(),
+        ));
+    }
     expected
 }
 
@@ -198,7 +208,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (27, 29));
+    assert_eq!((supported, unsupported), (29, 35));
     Ok(())
 }
 

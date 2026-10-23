@@ -49,6 +49,11 @@ navigation headers. Its catalog definition lists the available layers.
 hints and request templates from headed Ubuntu 24.04.4 captures on WSL2/WSLg
 x86_64. Select it with `chrome::v156_linux()` or the catalog.
 
+`chrome-156-macos` and `chrome-156-macos-intel` provide Chrome 156.0.8078.48
+startup settings, client hints and request templates for hosted macOS 26.6.2
+arm64 and macOS 15.7.9 x86_64. Their constructors are `chrome::v156_macos()`
+and `chrome::v156_macos_intel()`.
+
 ## Match the browser, version, and platform
 
 The [browser modules](crate::profile::browser) group constructors by browser.
@@ -98,7 +103,7 @@ For Chrome on Windows, choose the template that matches your operation:
 Templates supply request fields. Choose one for the request context documented
 in its API reference.
 
-`chrome-156-windows` and `chrome-156-linux` also offer `Script`, `Stylesheet`, `Image` and `Font`
+The Chrome 156 recipes also offer `Script`, `Stylesheet`, `Image` and `Font`
 through [`RequestTemplateKind`](crate::profile::catalog::RequestTemplateKind).
 These same-origin templates require a caller-supplied `Referer`. Fonts also
 require `Origin`, with the stylesheet URL as `Referer`.

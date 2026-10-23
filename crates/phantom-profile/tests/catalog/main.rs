@@ -5,6 +5,7 @@
 mod catalog;
 mod chrome_linux156;
 mod chrome_linux_peer;
+mod chrome_macos156;
 mod chrome_windows156;
 mod client_hints_components;
 mod compositions;

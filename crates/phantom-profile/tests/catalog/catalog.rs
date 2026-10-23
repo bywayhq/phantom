@@ -54,6 +54,14 @@ fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
     let mappings = [
         ("chrome-155-linux", "chrome/155.0.0.0/linux/r1"),
         (
+            "chrome-156-macos",
+            "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        ),
+        (
+            "chrome-156-macos-intel",
+            "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+        ),
+        (
             "chrome-156-linux",
             "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
         ),
@@ -172,7 +180,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::opera::v102_android,
         ),
     ];
-    assert_eq!(profiles().len(), factories.len() + 6);
+    assert_eq!(profiles().len(), factories.len() + 8);
 
     for &(id, factory) in factories {
         let definition = profile(id)?;
