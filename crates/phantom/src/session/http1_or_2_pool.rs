@@ -320,8 +320,9 @@ impl Http1Or2Pool {
                     );
                     #[cfg(feature = "https-records")]
                     if let Some((recovery, connect)) = ech_recovery.take() {
+                        // Keep the cold recovery state out of every request's future.
                         connect
-                            .run(async {
+                            .run(super::box_send(async {
                                 let selection = admission.await?;
                                 entry
                                     .recover_ech(
@@ -347,7 +348,7 @@ impl Http1Or2Pool {
                                     .await?;
                                 selected.connect = Some(connect);
                                 Ok(selected)
-                            })
+                            }))
                             .await?
                     } else {
                         let selection = admission.await?;
