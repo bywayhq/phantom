@@ -1,7 +1,7 @@
 """Capture decrypted wss openings through an explicit loopback proxy route.
 
-HTTPS CONNECT uses an HTTP/1.1-only TLS proxy. Origin TLS negotiates separately;
-only actual decoded origin events establish an H1 or H2 WebSocket opening.
+Proxy and origin ALPN are selected independently. Only actual decoded origin
+events establish an H1 or H2 WebSocket opening.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .browser_launch import DESKTOP_CHROMIUM_BROWSERS, LaunchPlan, render_preferences
 from .fixture_file import write_text_fixture
+from .http2_analysis import analyze_http2
 from .http2_session import (
     HOSTNAME,
     MAX_RUNS,
@@ -49,6 +50,7 @@ from .proxy_route import ProxyBrowserDriver, recorded_arguments
 from .websocket_tunnel import (
     MODES,
     PROXY_HOST,
+    SENSITIVE,
     TunnelOrigin,
     TunnelRun,
     TunnelServer,
@@ -155,9 +157,24 @@ def fixture(
     mode: str,
     origin_alpn: str,
     proxy_address: str,
+    proxy_alpn: str = "h1",
 ) -> str:
     for run in runs:
         validate_retained_fields(run.origin)
+        if proxy_alpn == "h2":
+            if not run.proxy_connections or any(
+                opening.connection.alpn != "h2" or opening.connection.protocol != "h2"
+                for opening in run.proxy_connections
+            ):
+                raise ValueError("the proxy capture did not negotiate HTTP/2")
+            for opening in run.proxy_connections:
+                analysis = analyze_http2(opening.connection)
+                if any(
+                    item.name in SENSITIVE
+                    for block in analysis.client_headers
+                    for item in block.fields
+                ):
+                    raise ValueError("credential or cookie field in H2 proxy capture")
     lines = [
         f"format={FORMAT}",
         f"captured_at_unix={int(time.time())}",
@@ -171,7 +188,9 @@ def fixture(
         f"capture_tool={capture_tool()}",
         f"proxy_mode={mode}",
         f"proxy_listen_address={proxy_address}",
-        "proxy_alpn_offer=http/1.1" if mode == "https" else "proxy_alpn_offer=none",
+        f"proxy_alpn_offer={'h2' if proxy_alpn == 'h2' else 'http/1.1'}"
+        if mode == "https"
+        else "proxy_alpn_offer=none",
         f"origin_hostname={HOSTNAME}",
         f"origin_tls_listen_address={capture.tls_listen_address}",
         f"origin_alpn_offer={'http/1.1' if origin_alpn == 'h1' else 'h2;http/1.1'}",
@@ -190,6 +209,10 @@ def fixture(
     lines.append(f"repeat_count={len(runs)}")
     for index, run in enumerate(runs):
         prefix = f"run_{index}"
+        if proxy_alpn == "h2":
+            lines.extend(h2_proxy_lines(prefix, run))
+            lines.extend(run_lines(prefix + "_origin", run.origin))
+            continue
         lines.append(f"{prefix}_proxy_connection_count={len(run.openings)}")
         for number, opening in enumerate(run.openings):
             key = f"{prefix}_proxy_{number}"
@@ -216,6 +239,52 @@ def fixture(
             )
         lines.extend(run_lines(prefix + "_origin", run.origin))
     return "\n".join(lines) + "\n"
+
+
+def h2_proxy_lines(prefix: str, run: TunnelRun) -> list[str]:
+    lines = [
+        f"{prefix}_proxy_connection_count={len(run.proxy_connections)}",
+        f"{prefix}_proxy_stream_count={len(run.openings)}",
+    ]
+    for number, opening in enumerate(run.proxy_connections):
+        key = f"{prefix}_proxy_{number}"
+        lines.extend(connection_lines(key, opening.connection))
+        hello = opening.connection.client_hello
+        if hello is not None:
+            length = 4 + int.from_bytes(hello.handshake[1:4], "big")
+            lines.append(
+                f"{key}_client_hello_handshake_hex={bytes(hello.handshake[:length]).hex()}"
+            )
+        lines.extend(
+            (
+                f"{key}_tls_version={opening.tls_version or 'none'}",
+                f"{key}_peer={authority(*opening.peer[:2])}",
+                f"{key}_client_stream_hex={opening.connection.client_stream().hex()}",
+                f"{key}_server_stream_hex={b''.join(data for _, data in opening.connection.server_chunks).hex()}",
+                f"{key}_outcome={opening.outcome}",
+                f"{key}_finished_ms={opening.finished * 1000:.3f}"
+                if opening.finished is not None
+                else f"{key}_finished_ms=none",
+            )
+        )
+    for number, opening in enumerate(run.openings):
+        key = f"{prefix}_proxy_stream_{number}"
+        lines.extend(
+            (
+                f"{key}=connection:{opening.proxy_connection},stream:{opening.stream_id},status:{opening.status},outcome:{opening.outcome}",
+                f"{key}_header_count={len(opening.headers)}",
+                f"{key}_upstream={authority(*opening.upstream[:2]) if opening.upstream else 'none'}",
+                f"{key}_origin_connection={opening.origin_connection if opening.origin_connection is not None else 'none'}",
+                f"{key}_finished_ms={opening.finished * 1000:.3f}"
+                if opening.finished is not None
+                else f"{key}_finished_ms=none",
+            )
+        )
+        lines.extend(
+            f"{key}_header_{index}={name.hex()}:{value.hex()}"
+            for index, (name, value) in enumerate(opening.headers)
+        )
+    return lines
 
 
 async def capture_through_proxy(
@@ -267,7 +336,9 @@ async def run(args) -> None:
         if args.origin_alpn == "h1":
             origin.context.set_alpn_protocols(["http/1.1"])
         await origin.start(args.listen)
-        proxy = TunnelServer(args.proxy, proxy_certificate, origin.tls_address)
+        proxy = TunnelServer(
+            args.proxy, proxy_certificate, origin.tls_address, alpn=args.proxy_alpn
+        )
         await proxy.start()
         plan = launch_plan(args, origin, proxy, origin_certificate, proxy_certificate)
         for name in names:
@@ -295,7 +366,8 @@ async def run(args) -> None:
             )
             captures.append(
                 (
-                    args.output_dir / f"{args.proxy}-{args.origin_alpn}-{name}.txt",
+                    args.output_dir
+                    / f"{args.proxy}{'-h2' if args.proxy_alpn == 'h2' else ''}-{args.origin_alpn}-{name}.txt",
                     fixture(
                         scenario,
                         runs,
@@ -303,6 +375,7 @@ async def run(args) -> None:
                         mode=args.proxy,
                         origin_alpn=args.origin_alpn,
                         proxy_address=authority(*proxy.address),
+                        proxy_alpn=args.proxy_alpn,
                     ),
                 )
             )
@@ -332,6 +405,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", default=platform.platform())
     parser.add_argument("--proxy", choices=MODES, required=True)
+    parser.add_argument("--proxy-alpn", choices=("h1", "h2"), default="h1")
     parser.add_argument(
         "--origin-alpn", choices=("h1", "negotiate"), default="negotiate"
     )
@@ -346,6 +420,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     if unknown or ("all" in args.scenario and len(args.scenario) > 1):
         parser.error("unknown or mixed scenarios")
     try:
+        if args.proxy_alpn == "h2" and args.proxy != "https":
+            raise ValueError("HTTP/2 proxy ALPN requires an HTTPS proxy")
         if not ipaddress.ip_address(args.listen).is_loopback:
             raise ValueError("the capture listener must be loopback")
         validate_capture_arguments(args.repeat, args.run_timeout, args.observation)

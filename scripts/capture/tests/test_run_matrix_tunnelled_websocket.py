@@ -27,6 +27,40 @@ def manifest(*captures):
 
 
 class TunnelledWebSocketManifestTests(unittest.TestCase):
+    def test_http2_proxy_leg_has_an_independent_job_and_output(self):
+        jobs = expand_manifest(
+            manifest(
+                capture(["--proxy=https", "--origin-alpn=h1"]),
+                capture(["--proxy=https", "--proxy-alpn=h2", "--origin-alpn=h1"]),
+                capture(["--proxy=https", "--proxy-alpn=h2"]),
+            ),
+            base=Path("owned"),
+        )
+        self.assertEqual(
+            [job.outputs[0].name for job in jobs],
+            [
+                "https-h1-accept.txt",
+                "https-h2-h1-accept.txt",
+                "https-h2-negotiate-accept.txt",
+            ],
+        )
+        self.assertEqual(
+            [job.id for job in jobs],
+            [
+                "tunnelled_websocket/firefox/accept/https/h1",
+                "tunnelled_websocket/firefox/accept/https-h2/h1",
+                "tunnelled_websocket/firefox/accept/https-h2/negotiate",
+            ],
+        )
+        with self.assertRaisesRegex(ManifestError, "appears twice"):
+            expand_manifest(
+                manifest(
+                    capture(["--proxy=https"]),
+                    capture(["--proxy=https", "--proxy-alpn=h1"]),
+                ),
+                base=Path("owned"),
+            )
+
     def test_all_routes_and_origin_offers_have_distinct_jobs_and_outputs(self):
         selections = [
             (proxy, origin)
@@ -88,6 +122,11 @@ class TunnelledWebSocketManifestTests(unittest.TestCase):
             ["--proxy=http", "--prox=https"],
             ["--proxy=http", "--origin-alpn=h1", "--origin-a=negotiate"],
             ["--p", "http"],
+            ["--proxy=http", "--proxy-alpn=h2"],
+            ["--proxy=socks5", "--proxy-alpn=h2"],
+            ["--proxy=https", "--proxy-alpn=h3"],
+            ["--proxy=https", "--proxy-alpn=h1", "--proxy-alpn=h2"],
+            ["--proxy=https", "--proxy-a=h2"],
         ):
             with self.subTest(arguments=arguments), self.assertRaises(ManifestError):
                 expand_manifest(manifest(capture(arguments)), base=Path("owned"))

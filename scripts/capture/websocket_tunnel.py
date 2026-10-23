@@ -61,12 +61,17 @@ class Opening:
     origin_connection: int | None = None
     tls_version: str | None = None
     finished: float | None = None
+    stream_id: int | None = None
+    proxy_connection: int | None = None
+    headers: tuple[tuple[bytes, bytes], ...] = ()
+    status: int | None = None
 
 
 @dataclass
 class TunnelRun:
     origin: CaptureRun
     openings: list[Opening] = field(default_factory=list)
+    proxy_connections: list[Opening] = field(default_factory=list)
 
 
 class OpeningReader:
@@ -134,14 +139,24 @@ def connect_head(head: bytes, listen: str, port: int) -> None:
 class TunnelServer(CaptureServer):
     """One relay listener; the existing capture owner collects every socket."""
 
-    def __init__(self, mode: str, certificate: Certificate, origin: tuple[str, int]):
+    def __init__(
+        self,
+        mode: str,
+        certificate: Certificate,
+        origin: tuple[str, int],
+        *,
+        alpn: str = "h1",
+    ) -> None:
         if mode not in MODES or not ipaddress.ip_address(origin[0]).is_loopback:
             raise ValueError("a loopback origin and explicit proxy mode are required")
         if not 1 <= origin[1] <= 65535:
             raise ValueError("origin must have an actual listener port")
+        if alpn not in {"h1", "h2"} or (alpn == "h2" and mode != "https"):
+            raise ValueError("HTTP/2 proxy ALPN requires an HTTPS proxy")
         super().__init__(certificate)
-        self.context.set_alpn_protocols(["http/1.1"])
+        self.context.set_alpn_protocols(["h2" if alpn == "h2" else "http/1.1"])
         self.mode = mode
+        self.alpn = alpn
         self.origin = origin
         self.address: tuple[str, int] | None = None
         self.tunnel_run: TunnelRun | None = None
@@ -250,7 +265,10 @@ class TunnelServer(CaptureServer):
         )
         if self.tunnel_run is None or self.tunnel_run.origin is not run:
             raise RuntimeError("accepted tunnel lost its retained run")
-        self.tunnel_run.openings.append(record)
+        if self.alpn == "h2":
+            self.tunnel_run.proxy_connections.append(record)
+        else:
+            self.tunnel_run.openings.append(record)
         channel = PlainChannel(reader, writer, record.connection, run.now, run)
         upstream = None
         pumps = []
@@ -263,6 +281,14 @@ class TunnelServer(CaptureServer):
                 )
                 await asyncio.wait_for(channel.handshake(), HANDSHAKE_SECONDS)
                 record.tls_version = channel.tls.version()
+                if self.alpn == "h2":
+                    if record.connection.alpn != "h2":
+                        raise ValueError("the HTTPS proxy did not negotiate HTTP/2")
+                    from .websocket_tunnel_h2 import Http2Tunnel
+
+                    record.connection.protocol = "h2"
+                    await Http2Tunnel(self, channel, record).serve()
+                    return
             try:
                 opening, reply = await asyncio.wait_for(
                     self._opening(channel, record), HANDSHAKE_SECONDS
@@ -364,10 +390,11 @@ class TunnelServer(CaptureServer):
                     except BaseException as error:
                         cleanup.append(error)
             record.finished = run.now()
-            # Bounds are charged before dropping duplicate encrypted origin bytes.
-            # Only the validated proxy opening and ClientHello survive serialization.
-            record.connection.client_chunks.clear()
-            record.connection.server_chunks.clear()
+            if self.alpn != "h2":
+                # Bounds are charged before dropping duplicate encrypted origin bytes.
+                # Only the validated proxy opening and ClientHello survive serialization.
+                record.connection.client_chunks.clear()
+                record.connection.server_chunks.clear()
             raise_capture_failures(primary, tuple(cleanup))
 
 

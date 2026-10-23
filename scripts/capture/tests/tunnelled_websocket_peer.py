@@ -1,8 +1,19 @@
 """Scripted nested TLS client for the tunnelled WebSocket wire controls."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import ssl
+
+from h2.events import (
+    DataReceived,
+    PingAckReceived,
+    RemoteSettingsChanged,
+    StreamEnded,
+    StreamReset,
+)
+from h2.settings import SettingCodes
 
 from scripts.capture.http2_session import (
     HOSTNAME,
@@ -126,11 +137,11 @@ class TunnelTls:
         )
 
 
-async def open_proxy(proxy, proxy_certificate):
+async def open_proxy(proxy, proxy_certificate, *, alpn: str = "http/1.1"):
     kwargs = {}
     if proxy.mode == "https":
         kwargs = {
-            "ssl": context(proxy_certificate, ("http/1.1",)),
+            "ssl": context(proxy_certificate, (alpn,)),
             "server_hostname": PROXY_HOST,
         }
     return await asyncio.wait_for(
@@ -199,8 +210,165 @@ async def open_h2(tls):
         await peer.close(error)
 
 
+class ProxyH2(ScriptedH2):
+    """Actual H2 proxy client, with optional held receive credit."""
+
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        *,
+        auto_credit: bool = True,
+    ) -> None:
+        super().__init__(reader, writer)
+        self.auto_credit = auto_credit
+
+    @classmethod
+    async def open(
+        cls,
+        proxy: TunnelServer,
+        certificate,
+        *,
+        auto_credit: bool = True,
+        window: int | None = None,
+    ) -> ProxyH2:
+        reader, writer = await open_proxy(proxy, certificate, alpn="h2")
+        peer = cls(reader, writer, auto_credit=auto_credit)
+        try:
+            if writer.get_extra_info("ssl_object").selected_alpn_protocol() != "h2":
+                raise AssertionError("proxy did not negotiate HTTP/2")
+            peer.connection.initiate_connection()
+            if window is not None:
+                peer.connection.update_settings(
+                    {SettingCodes.INITIAL_WINDOW_SIZE: window}
+                )
+            await peer.flush()
+            operation = peer.pump()
+            try:
+                peer.task = asyncio.create_task(operation)
+            except BaseException:
+                operation.close()
+                raise
+            await peer.wait(lambda: peer.settings_received)
+            return peer
+        except BaseException as error:
+            await peer.close(error)
+
+    async def pump(self) -> None:
+        try:
+            while data := await self.reader.read(65536):
+                events = self.connection.receive_data(data)
+                for event in events:
+                    if isinstance(event, RemoteSettingsChanged):
+                        self.settings_received = True
+                    if self.auto_credit and isinstance(event, DataReceived):
+                        self.connection.acknowledge_received_data(
+                            event.flow_controlled_length, event.stream_id
+                        )
+                self.events.extend(events)
+                await self.flush()
+                self.changed.set()
+        finally:
+            self.changed.set()
+
+    async def connect(
+        self,
+        proxy: TunnelServer,
+        *,
+        target: bytes | None = None,
+        fields: tuple[tuple[bytes, bytes], ...] = (),
+        status: bytes = b"200",
+    ) -> ProxyStream:
+        from h2.events import ResponseReceived
+
+        stream_id = self.connection.get_next_available_stream_id()
+        self.connection.send_headers(
+            stream_id,
+            [
+                (b":method", b"CONNECT"),
+                (b":authority", target or f"{HOSTNAME}:{proxy.origin[1]}".encode()),
+                *fields,
+            ],
+        )
+        await self.flush()
+        await self.wait(lambda: self.stream_events(stream_id, ResponseReceived))
+        headers = self.stream_events(stream_id, ResponseReceived)[0].headers
+        if dict(headers)[b":status"] != status:
+            raise AssertionError(f"unexpected proxy response: {headers!r}")
+        return ProxyStream(self, stream_id)
+
+    async def ping(self) -> None:
+        payload = b"h2-proxy"
+        seen = len(self.events)
+        self.connection.ping(payload)
+        await self.flush()
+        await self.wait(
+            lambda: any(
+                isinstance(event, PingAckReceived) and event.ping_data == payload
+                for event in self.events[seen:]
+            )
+        )
+
+
+class ProxyStream:
+    """Reader/writer pair for one tunnel, without owning the outer connection."""
+
+    def __init__(self, peer: ProxyH2, stream_id: int) -> None:
+        self.peer, self.stream_id = peer, stream_id
+        self.transport = peer.writer.transport
+        self.output = bytearray()
+        self.input = bytearray()
+        self.consumed = 0
+
+    async def read(self, size: int = 65536) -> bytes:
+        while not self.input:
+            events = self.peer.stream_events(self.stream_id, DataReceived)
+            for event in events[self.consumed :]:
+                self.input.extend(event.data)
+            self.consumed = len(events)
+            if self.input:
+                break
+            if self.peer.stream_events(self.stream_id, StreamEnded):
+                return b""
+            if self.peer.stream_events(self.stream_id, StreamReset):
+                raise ConnectionError("proxy reset the scripted stream")
+            await self.peer.wait(
+                lambda: (
+                    len(self.peer.stream_events(self.stream_id, DataReceived))
+                    > self.consumed
+                    or self.peer.stream_events(self.stream_id, StreamEnded)
+                    or self.peer.stream_events(self.stream_id, StreamReset)
+                )
+            )
+        result = bytes(self.input[:size])
+        del self.input[:size]
+        return result
+
+    def write(self, data: bytes) -> None:
+        self.output.extend(data)
+
+    async def drain(self) -> None:
+        data = bytes(self.output)
+        self.output.clear()
+        await self.peer.send_all(self.stream_id, data)
+
+    def write_eof(self) -> None:
+        self.peer.connection.end_stream(self.stream_id)
+
+    def close(self) -> None:
+        stream = self.peer.connection.streams[self.stream_id]
+        if not stream.closed:
+            self.peer.connection.reset_stream(self.stream_id)
+
+    async def wait_closed(self) -> None:
+        await self.peer.flush()
+
+    def is_closing(self) -> bool:
+        return self.peer.connection.streams[self.stream_id].closed
+
+
 @contextlib.asynccontextmanager
-async def servers(mode):
+async def servers(mode, *, proxy_alpn="h1"):
     certificate, proxy_certificate = (
         generate_certificate(),
         generate_certificate(PROXY_HOST),
@@ -217,7 +385,9 @@ async def servers(mode):
             observation_seconds=0,
         )
         origin.begin_run(run)
-        proxy = TunnelServer(mode, proxy_certificate, origin.tls_address)
+        proxy = TunnelServer(
+            mode, proxy_certificate, origin.tls_address, alpn=proxy_alpn
+        )
         await proxy.start()
         tunnel_run = proxy.begin_run(run)
         yield origin, proxy, run, tunnel_run, certificate, proxy_certificate

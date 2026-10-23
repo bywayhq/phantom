@@ -1593,7 +1593,8 @@ only as the values Chrome logged.
 `tunnelled_websocket.py` records decrypted `wss://` openings through an
 explicit loopback proxy. Select `--proxy http`, `https` or `socks5` and
 `--origin-alpn h1` or `negotiate` (the default). The HTTPS proxy offers H1
-only; the origin negotiates separately. SOCKS5 uses no authentication.
+by default. Add `--proxy-alpn h2` to require H2 on that proxy leg; the
+origin negotiates separately. SOCKS5 uses no authentication.
 
 The tool uses the secure scenarios and five echo messages of
 [WebSocket openings](#websocket-openings). It records the CONNECT or SOCKS
@@ -1602,6 +1603,11 @@ The `phantom-tunnelled-websocket-v1` fixture includes the actual origin ALPN,
 response, echo results and cleanup outcomes. It rejects credentials and
 cookies before publication. Inspect decoded origin events for the selected
 WebSocket protocol.
+
+H2 proxy captures retain each outer connection and its CONNECT streams,
+with their matching origin connections. Their filenames use `https-h2-`
+instead of `https-`. An H2 proxy can carry an H1 or H2 origin WebSocket;
+inspect both ALPN values and the decoded openings.
 
 For desktop captures, save a new manifest such as this one. Replace the
 browser path, installed version and scratch paths for the capture host:

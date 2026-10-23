@@ -127,19 +127,22 @@ def ech_outputs(
 
 
 def tunnelled_websocket_options(args: Sequence[str]) -> tuple[str, str]:
+    names = ("--proxy", "--proxy-alpn", "--origin-alpn")
     for argument in args:
         option = argument.split("=", 1)[0]
-        if option.startswith("--") and any(
-            name.startswith(option) and name != option
-            for name in ("--proxy", "--origin-alpn")
+        if (
+            option.startswith("--")
+            and option not in names
+            and any(name.startswith(option) for name in names)
         ):
             raise ManifestError(
-                "tunnelled_websocket requires full --proxy and --origin-alpn names"
+                "tunnelled_websocket requires full proxy and origin option names"
             )
     values = []
     for name, allowed, default in (
         ("--proxy", ("http", "https", "socks5"), None),
         ("--origin-alpn", ("h1", "negotiate"), "negotiate"),
+        ("--proxy-alpn", ("h1", "h2"), "h1"),
     ):
         occurrences = sum(argument.split("=", 1)[0] == name for argument in args)
         if occurrences > 1:
@@ -150,7 +153,10 @@ def tunnelled_websocket_options(args: Sequence[str]) -> tuple[str, str]:
                 f"tunnelled_websocket {name} must be one of {', '.join(allowed)}"
             )
         values.append(value)
-    return values[0], values[1]
+    proxy, origin, alpn = values
+    if alpn == "h2" and proxy != "https":
+        raise ManifestError("HTTP/2 proxy ALPN requires an HTTPS proxy")
+    return proxy + ("-h2" if alpn == "h2" else ""), origin
 
 
 def tunnelled_websocket_outputs(
