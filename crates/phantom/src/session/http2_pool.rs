@@ -45,10 +45,7 @@ use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
     error::is_unprocessed_http2,
-    retry::{
-        ConnectionSetupRetryState, acquire_with_connect_timeout, acquire_with_retries,
-        send_while_authenticating,
-    },
+    retry::{ConnectionSetupRetryState, acquire_with_connect_timeout, send_while_authenticating},
 };
 
 /// Sends one request, with the request's own HEADERS priority when it has
@@ -2028,7 +2025,7 @@ struct Connections {
 }
 
 enum ConnectionSetup<'a> {
-    Open(SetupReservation<'a>, Option<(Http2ProxyOpening, Instant)>),
+    Open(SetupReservation<'a>, Option<(QuietOpening, Instant)>),
     #[cfg(feature = "https-records")]
     Ech(Arc<EchRecovery>),
 }

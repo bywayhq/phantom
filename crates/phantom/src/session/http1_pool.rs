@@ -46,10 +46,7 @@ use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
-    retry::{
-        ConnectionSetupRetryState, acquire_with_connect_timeout, acquire_with_retries,
-        send_while_authenticating,
-    },
+    retry::{ConnectionSetupRetryState, acquire_with_connect_timeout, send_while_authenticating},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
