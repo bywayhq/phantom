@@ -27,6 +27,15 @@ impl AltSvcValidationCandidate {
     }
 }
 
+#[cfg(test)]
+pub(super) fn candidate_for_test(
+    store: &AltSvcStore,
+    origin: &Endpoint,
+    value: &[u8],
+) -> Option<AltSvcValidationCandidate> {
+    store.learn_validating_fields_at(origin, &Route::Direct, [("alt-svc", value)], Instant::now())
+}
+
 impl AltSvcStore {
     pub(in crate::session) fn learn_for_validation(
         &self,

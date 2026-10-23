@@ -1457,6 +1457,8 @@ impl PendingLookup {
 
 pub(crate) mod rtt_history;
 
+pub(crate) mod jobs;
+
 mod validation;
 pub(crate) use validation::AltSvcValidationCandidate;
 
