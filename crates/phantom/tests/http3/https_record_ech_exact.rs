@@ -512,7 +512,7 @@ async fn firefox_record_policy(opening: Opening, records: FirefoxRecords) -> Tes
             (Ok(()), observed) => observed,
             (Err(error), observed) => finish_with_cleanup(Err(error), observed.map(|_| ())),
         };
-        let observed = finish_with_cleanup(observed, dns.finish().await)?;
+        let observed = finish_with_cleanup(observed, dns.finish().await.map_err(Into::into))?;
         if observed.len() != 2 {
             return Err(format!("expected two Firefox TLS connections, saw {observed:?}").into());
         }
