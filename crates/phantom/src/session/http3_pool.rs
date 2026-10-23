@@ -3,7 +3,7 @@ use std::{
     num::NonZeroUsize,
     pin::pin,
     sync::{
-        Arc, MutexGuard, OnceLock, PoisonError,
+        Arc, MutexGuard, OnceLock, PoisonError, Weak,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -1856,6 +1856,21 @@ pub(crate) struct Http3Fields(Vec<RequestHeader>);
 /// A response and the fields its request carried.
 pub(crate) type Http3Response = (http::Response<ResponseBody>, Vec<RequestHeader>);
 
+#[derive(Clone)]
+struct MisdirectedConnection {
+    owner: Weak<PoolEntry>,
+    token: Arc<()>,
+}
+
+/// Retires the physical connection without interrupting its active bodies.
+pub(crate) fn retire_response_connection<B>(response: &http::Response<B>) {
+    if let Some(connection) = response.extensions().get::<MisdirectedConnection>()
+        && let Some(owner) = connection.owner.upgrade()
+    {
+        owner.invalidate(&connection.token);
+    }
+}
+
 /// Checks one request's H3 and route representation before any I/O and
 /// returns its field list, with its client hints placed, for
 /// [`Http3Pool::send_request`] or [`Http3Pool::send_request_on_lease`].
@@ -1942,7 +1957,7 @@ async fn dispatch(
 ) -> Result<Dispatched<Http3Response>, RequestError> {
     retries.admit_http_attempt(Some(HttpProtocol::Http3))?;
     let Http3Lease {
-        entry,
+        entry: _,
         lease,
         stream,
         permit,
@@ -1993,13 +2008,12 @@ async fn dispatch(
             if let Some(publication) = &lease.publication {
                 publication.record(lease.connection.completed_handshake_rtt());
             }
-            let (parts, body) = response.into_parts();
-            if parts.status == http::StatusCode::MISDIRECTED_REQUEST
-                && !Arc::ptr_eq(&entry, &lease.owner)
-            {
-                // Retire the physical donor without closing its active streams.
-                // This response is returned to the caller without an HTTP replay.
-                lease.owner.invalidate(&lease.token);
+            let (mut parts, body) = response.into_parts();
+            if parts.status == http::StatusCode::MISDIRECTED_REQUEST {
+                parts.extensions.insert(MisdirectedConnection {
+                    owner: Arc::downgrade(&lease.owner),
+                    token: Arc::clone(&lease.token),
+                });
             }
             Ok(Dispatched::Sent((
                 // The stream count drops first, so the request the permit

@@ -405,6 +405,35 @@ impl AltSvcStore {
         self.remove_key(&StoreKey::new(origin, route));
     }
 
+    pub(super) fn generation(&self, origin: &Endpoint, route: &Route) -> Option<u64> {
+        let key = StoreKey::new(origin, route);
+        self.lock_entries()
+            .iter()
+            .find(|entry| entry.key == key)
+            .map(|entry| entry.generation)
+    }
+
+    /// Removes the rejected origin's advertisement without erasing a replacement.
+    pub(super) fn remove_origin_if_current(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        generation: u64,
+    ) {
+        let key = StoreKey::new(origin, route);
+        let mut entries = self.lock_entries();
+        if let Some(position) = entries
+            .iter()
+            .position(|entry| entry.key == key && entry.generation == generation)
+        {
+            entries.remove(position);
+            debug!(
+                outcome = "cleared",
+                "removed rejected origin's Alt-Svc advertisement"
+            );
+        }
+    }
+
     /// Removes `location` from the advertisement that `generation` names,
     /// and the advertisement once it lists no other alternative.
     ///

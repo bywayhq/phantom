@@ -136,6 +136,12 @@ impl Http3Connector {
         self.settings.connection_reuse
     }
 
+    /// Returns how the profile handles a misdirected HTTP/3 response.
+    #[must_use]
+    pub const fn misdirected_request_policy(&self) -> phantom_profile::Http3MisdirectedRequest {
+        self.settings.misdirected_request
+    }
+
     /// Builds a connector using Phantom's bundled public trust roots.
     ///
     /// # Errors

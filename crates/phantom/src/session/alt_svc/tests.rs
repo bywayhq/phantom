@@ -280,6 +280,64 @@ fn stale_failure_does_not_remove_a_newer_advertisement() -> TestResult {
 }
 
 #[test]
+fn misdirected_origin_does_not_remove_a_newer_advertisement() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\"", now);
+    let rejected = store
+        .generation(&origin, &DIRECT)
+        .ok_or("first advertisement missing")?;
+    learn(&store, &origin, b"h3=\":9443\"", now);
+
+    store.remove_origin_if_current(&origin, &DIRECT, rejected);
+
+    assert_eq!(
+        store
+            .get_at(&origin, &DIRECT, now)
+            .ok_or("replacement advertisement was removed")?
+            .port(),
+        9443
+    );
+    Ok(())
+}
+
+#[test]
+fn misdirected_origin_removes_all_its_alternatives_only_on_its_route() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let other = endpoint("other.example:443")?;
+    let proxied = socks5("socks5h://proxy.example:1080")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\", h3=\":9443\"", now);
+    learn(&store, &other, b"h3=\":7443\"", now);
+    learn_on(&store, &origin, &proxied, b"h3=\":6443\"", now);
+    let rejected = store
+        .generation(&origin, &DIRECT)
+        .ok_or("rejected advertisement missing")?;
+
+    store.remove_origin_if_current(&origin, &DIRECT, rejected);
+
+    assert!(store.get_at(&origin, &DIRECT, now).is_none());
+    assert_eq!(store.generation(&origin, &DIRECT), None);
+    assert_eq!(
+        store
+            .get_at(&other, &DIRECT, now)
+            .ok_or("unrelated origin was removed")?
+            .port(),
+        7443
+    );
+    assert_eq!(
+        store
+            .get_at(&origin, &proxied, now)
+            .ok_or("unrelated route was removed")?
+            .port(),
+        6443
+    );
+    Ok(())
+}
+
+#[test]
 fn oversized_delta_seconds_saturate_instead_of_becoming_malformed() -> TestResult {
     let origin = endpoint("origin.example:443")?;
     let store = AltSvcStore::new(NonZeroUsize::MIN);

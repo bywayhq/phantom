@@ -943,6 +943,36 @@ impl Client {
         Some((target, discovery.discover(endpoint)))
     }
 
+    pub(crate) fn origin_alt_svc_generation(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+    ) -> Option<u64> {
+        self.state.alt_svc.as_ref()?.generation(endpoint, route)
+    }
+
+    pub(crate) fn invalidate_origin_alt_svc(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+        generation: Option<u64>,
+    ) {
+        if let (Some(store), Some(generation)) = (&self.state.alt_svc, generation) {
+            store.remove_origin_if_current(endpoint, route, generation);
+        }
+    }
+
+    pub(crate) fn invalidate_origin_dns(&self, endpoint: &crate::authority::Endpoint) {
+        if let Some(cache) = self
+            .inner
+            .host_resolver
+            .as_ref()
+            .and_then(|resolver| resolver.cache())
+        {
+            cache.remove(endpoint.host());
+        }
+    }
+
     /// Stops using `alternative` after its connection failed or it answered
     /// `421`.
     ///
