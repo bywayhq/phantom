@@ -20,6 +20,41 @@ from scripts.capture.tests.test_http_lifecycle_resources_h3 import WireQuic
 
 
 class FailureReportingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_new_resource_connection_requires_its_observed_completion(
+        self,
+    ) -> None:
+        for protocol in ("h2", "h3"):
+            with self.subTest(protocol=protocol):
+                run = lifecycle.Run("resources", "token", 100)
+                run.resources = ResourceCapture("token", 12345, protocol)
+                run.select(0, run.resources.target("/start"))
+                target = run.resources.done_target("resources:ok")
+                try:
+                    with self.assertRaisesRegex(ValueError, "owned path and token"):
+                        run.resources.observe(
+                            1,
+                            1,
+                            fields(12345, target.replace("run=token", "run=other")),
+                            None,
+                        )
+                    run.finish(target, 1)
+                    self.assertIsNone(run.completion)
+                    self.assertIsNone(run.page_result)
+
+                    run.resources.observe(1, 1, fields(12345, target), None)
+                    run.finish(target, 2)
+                    run.finish(target.replace("run=token", "run=other"), 1)
+                    self.assertIsNone(run.completion)
+                    self.assertIsNone(run.page_result)
+
+                    run.finish(target, 1)
+                    self.assertEqual(run.page_result, "resources:ok")
+                    with self.assertRaisesRegex(ValueError, "complete every"):
+                        run.resources.check_complete(run.page_result)
+                finally:
+                    if run.completion is not None:
+                        run.completion.cancel()
+
     async def test_h2_timeout_reports_received_request_and_written_response(
         self,
     ) -> None:

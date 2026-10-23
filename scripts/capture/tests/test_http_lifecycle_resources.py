@@ -405,6 +405,63 @@ class ResourcePeerTests(unittest.IsolatedAsyncioTestCase):
             all(listener.waiter.done() for listener in self.owner.listeners)
         )
 
+    async def test_completion_on_a_new_h2_connection_retains_both_peers(self) -> None:
+        for stream, path in zip(
+            range(1, 10, 2),
+            (
+                "/start",
+                "/resource.js",
+                "/resource.css",
+                "/resource.gif",
+                "/resource.ttf",
+            ),
+            strict=True,
+        ):
+            body = await self.send(stream, self.run.resources.target(path))
+            self.assertEqual(
+                body,
+                http_lifecycle.reply_for("resources", "GET", path, {}, self.run).body,
+            )
+        self.assertEqual(self.run.page_connection, 0)
+        self.writer.transport.abort()
+        await asyncio.wait_for(self.writer.wait_closed(), 5)
+
+        self.reader, self.writer = await asyncio.wait_for(
+            asyncio.open_connection(
+                "127.0.0.1",
+                self.port,
+                ssl=self.client_context,
+                server_hostname=HOSTNAME,
+            ),
+            5,
+        )
+        self.connection = h2.connection.H2Connection(
+            h2.config.H2Configuration(
+                client_side=True, normalize_outbound_headers=False
+            )
+        )
+        self.connection.initiate_connection()
+        self.assertEqual(
+            await self.send(1, self.run.resources.done_target("resources:ok")), b"ok"
+        )
+        self.assertEqual(self.run.page_result, "resources:ok")
+        await self.owner.wait_done(5)
+        await self.retire()
+
+        self.assertEqual(len(self.run.connections), 2)
+        self.assertEqual(self.run.page_connection, 0)
+        self.assertEqual(self.run.resources.requests[-1].connection, 1)
+        lines = dict(
+            line.split("=", 1)
+            for line in self.run.resources.lines(self.run.page_result)
+        )
+        for connection in (0, 1):
+            self.assertGreater(
+                int(lines[f"resource_connection_{connection}_client_chunk_count"]), 0
+            )
+        self.assertFalse(self.owner.protocols)
+        self.assertIsNone(self.run.failure)
+
     async def test_real_credential_failure_is_observed_and_prevents_fixture(
         self,
     ) -> None:

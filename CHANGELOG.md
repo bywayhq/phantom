@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Accept validated resource completion on a new HTTP/2 or HTTP/3 connection.
+
 - Report partial lifecycle progress and QUIC termination details when captures fail.
 
 - Verify Chrome signing requirements as text and allow two minutes for
