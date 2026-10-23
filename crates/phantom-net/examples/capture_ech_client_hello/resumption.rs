@@ -133,7 +133,7 @@ impl Run {
     pub(super) fn configure(&self, ssl: &mut Ssl, slot: usize, outer_records: &[u8]) {
         let mut state = self.lock();
         let after_probe_fence = state.probe_released;
-        let early_enabled = self.mode != Mode::EarlyReject || state.seed.is_none();
+        let early_enabled = self.mode != Mode::EarlyReject || !after_probe_fence;
         state.connections.insert(
             slot,
             Observation {
@@ -147,8 +147,19 @@ impl Run {
         ssl.set_early_data_enabled(early_enabled);
     }
 
-    async fn prepare_probe(&self, _seed: usize) -> CaptureResult<()> {
-        Ok(())
+    async fn prepare_probe(&self, seed: usize) -> CaptureResult<()> {
+        let (released, ready) = oneshot::channel();
+        {
+            let mut state = self.lock();
+            if state.retirement.is_some() || state.probe_released {
+                return Err("probe retirement was requested more than once".into());
+            }
+            state.retirement = Some(Retirement { seed, released });
+        }
+        self.retire.notify_one();
+        ready
+            .await
+            .map_err(|_| "origin owner stopped before probe retirement".into())
     }
 
     pub(super) async fn retirement_requested(run: Option<&Self>) -> Retirement {
@@ -258,7 +269,6 @@ impl Run {
     pub(super) async fn serve(
         &self,
         mut tls: SslStream<Replayed>,
-        acceptor: SslAcceptor,
         captured: Arc<Captured>,
         slot: usize,
         mut connection: Connection,
@@ -290,6 +300,14 @@ impl Run {
                 tls.ssl().servername(NameType::HOST_NAME).map(str::to_owned);
             let seed = {
                 let mut state = self.lock();
+                if path == RESUME
+                    && !state
+                        .connections
+                        .get(&slot)
+                        .is_some_and(|value| value.after_probe_fence)
+                {
+                    return Err("probe used a pre-fence TLS connection".into());
+                }
                 let is_seed = path == SEED && state.seed.is_none();
                 if is_seed {
                     if !connection.ech_accepted {
@@ -319,26 +337,14 @@ impl Run {
             );
             tls.write_all(response.as_bytes()).await?;
             if seed {
+                tls.flush().await?;
                 self.prepare_probe(slot).await?;
             }
             tls.write_all(body).await?;
             tls.flush().await?;
             if seed {
-                // This owner runs on the current-thread executor. Rotate
-                // synchronously after flushing the seed response, before the
-                // next await can admit another native handshake operation.
-                if self.mode == Mode::EchRetry {
-                    let mut keys = SslEchKeys::builder()?;
-                    keys.add_key(
-                        true,
-                        &ech_config(2, &TEST_ECH_KEYS[1], PUBLIC_NAME),
-                        HpkeKey::dhkem_p256_sha256(&TEST_ECH_KEYS[1].private_key)?,
-                    )?;
-                    acceptor.context().set_ech_keys(&keys.build())?;
-                }
                 let mut state = self.lock();
                 state.seed_flushed = true;
-                state.rotated = self.mode == Mode::EchRetry;
             }
             tls.shutdown().await?;
             {

@@ -844,7 +844,7 @@ async fn record_tcp(
     }
     let mut tls = SslStream::new(ssl, replayed)?;
     if let Some(run) = captured.resumption.clone() {
-        return run.serve(tls, acceptor, captured, slot, connection).await;
+        return run.serve(tls, captured, slot, connection).await;
     }
     match timeout(HANDSHAKE_TIMEOUT, Pin::new(&mut tls).accept()).await {
         Ok(Ok(())) => {}
