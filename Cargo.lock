@@ -1570,7 +1570,7 @@ dependencies = [
 name = "phantom-http"
 version = "0.3.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "brotli",
  "bytes",
  "cookie",
