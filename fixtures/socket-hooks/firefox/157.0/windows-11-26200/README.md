@@ -56,3 +56,17 @@ with `--scenario websocket-backup`. The signed executable was unchanged,
 and the disposable browser, profile and listeners were removed.
 
 Fixture SHA256: `b17aa6c4fe19a4e90e8ef2f50892b5a9d17b032e336e6f97b4542f12b7496006`.
+
+## Secure WebSocket connections
+
+`hooks-wss-backup.txt` uses the same Firefox build and Windows host.
+Both WebSockets closed cleanly; two following HTTPS requests reused one
+connection. All accepted TLS peers negotiated HTTP/1.1.
+The unused TLS sibling closed without a request. Its connection entry was
+destroyed before the second opening, which tried IPv6 again. MOZ_LOG reuses
+the allocator address for a new entry, not the original live object.
+The following anonymous HTTPS fetches used a separate entry.
+
+Capture source: `afa13a8c212f1e708a0466f43a882e2918a1a718`, Python 3.12.10,
+Frida 17.24.3. Reproduce with the command above using `--scenario wss-backup`.
+Fixture SHA256: `dfdbd21f223c7a50528c644e1aff257ad74e4134de8c408d4699673e06fb4630`.
