@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Complete Safari WebDriver framed replies before connection close and retain
+  bounded timeout progress.
+
 - Add Chrome 156 Linux startup settings, client hints and resource templates.
 
 - Accept reserved HTTP/3 frame padding in resource captures.

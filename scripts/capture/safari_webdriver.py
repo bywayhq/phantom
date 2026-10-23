@@ -67,6 +67,8 @@ def error_record(error: BaseException, seen=None) -> dict:
         result["cleanup"] = [error_record(e, seen) for e in error.cleanup]
     if error.__cause__ is not None and error.__cause__ is not error:
         result["cause"] = error_record(error.__cause__, seen)
+    if hasattr(error, "webdriver_progress"):
+        result["webdriver_progress"] = error.webdriver_progress
     return result
 
 
@@ -79,22 +81,59 @@ def unique_object(pairs):
     return result
 
 
+class ResponsePending(Exception):
+    """The bounded response snapshot needs more wire bytes."""
+
+
+class ResponseBuffer(io.BytesIO):
+    def __init__(self, data: bytes, eof: bool) -> None:
+        super().__init__(data)
+        self.eof = eof
+
+    def read(self, size: int = -1) -> bytes:
+        data = super().read(size)
+        if not self.eof and (size < 0 or len(data) < size):
+            raise ResponsePending
+        return data
+
+    def readline(self, size: int = -1) -> bytes:
+        data = super().readline(size)
+        if not self.eof and not data.endswith(b"\n") and (size < 0 or len(data) < size):
+            raise ResponsePending
+        return data
+
+
 class ResponseSocket:
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, eof: bool) -> None:
         self.data = data
+        self.eof = eof
 
     def makefile(self, *_args):
-        return io.BytesIO(self.data)
+        return ResponseBuffer(self.data, self.eof)
 
 
-def response_value(wire: bytes):
-    if len(wire) > MAX_WIRE or wire.find(b"\r\n\r\n") > 16 * 1024:
+def response_value(wire: bytes, *, eof: bool = True, progress: dict | None = None):
+    head_end = wire.find(b"\r\n\r\n")
+    if len(wire) > MAX_WIRE or (
+        head_end > 16 * 1024 or (head_end < 0 and len(wire) > 16 * 1024)
+    ):
         raise ValueError("WebDriver response exceeds the wire limit")
-    response = http.client.HTTPResponse(ResponseSocket(wire))
+    response = http.client.HTTPResponse(ResponseSocket(wire, eof))
     try:
         response.begin()
-        # The entire wire buffer is already bounded; read all framing so a
-        # truncated Content-Length cannot masquerade as a complete JSON reply.
+        if progress is not None:
+            progress.update(
+                stage="response_body",
+                framing=(
+                    "chunked"
+                    if response.chunked
+                    else "content_length"
+                    if response.length is not None
+                    else "connection_close"
+                ),
+            )
+        # Let the standard parser decide completion, including chunk trailers.
+        # An incomplete live snapshot raises ResponsePending instead of EOF.
         body = response.read()
         if len(body) > MAX_OUTPUT:
             raise ValueError("WebDriver JSON exceeds the body limit")
@@ -122,11 +161,20 @@ async def request(port: int, method: str, path: str, payload=None):
         raise ValueError("invalid WebDriver command")
     if len(body) > MAX_OUTPUT:
         raise ValueError("WebDriver request exceeds the body limit")
+    progress = {
+        "method": method,
+        "stage": "connect",
+        "wire_bytes": 0,
+        "headers_complete": False,
+        "framing": "unknown",
+        "eof": False,
+    }
 
     async def exchange():
         _reader, _writer = await asyncio.open_connection("127.0.0.1", port)
         primary = None
         try:
+            progress["stage"] = "request_write"
             _writer.write(
                 f"{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n"
                 f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n"
@@ -134,12 +182,20 @@ async def request(port: int, method: str, path: str, payload=None):
                 + body
             )
             await _writer.drain()
+            progress["stage"] = "response_head"
             wire = bytearray()
-            while chunk := await _reader.read(min(8192, MAX_WIRE + 1 - len(wire))):
+            while True:
+                chunk = await _reader.read(min(8192, MAX_WIRE + 1 - len(wire)))
                 wire.extend(chunk)
-                if len(wire) > MAX_WIRE:
-                    raise ValueError("WebDriver response exceeds the wire limit")
-            return response_value(bytes(wire))
+                progress.update(
+                    wire_bytes=len(wire),
+                    headers_complete=b"\r\n\r\n" in wire,
+                    eof=not chunk,
+                )
+                try:
+                    return response_value(bytes(wire), eof=not chunk, progress=progress)
+                except ResponsePending:
+                    pass
         except BaseException as error:
             primary = error
             raise
@@ -152,7 +208,12 @@ async def request(port: int, method: str, path: str, payload=None):
                     raise SafariFailure(primary, [error]) from primary
                 raise
 
-    return await asyncio.wait_for(exchange(), COMMAND_SECONDS)
+    try:
+        return await asyncio.wait_for(exchange(), COMMAND_SECONDS)
+    except asyncio.TimeoutError as error:
+        # No URL, session identity, headers or response body enters diagnostics.
+        error.webdriver_progress = progress.copy()
+        raise
 
 
 async def settle(task: asyncio.Task):
