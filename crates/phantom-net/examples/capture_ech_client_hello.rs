@@ -160,6 +160,7 @@ async fn main() -> CaptureResult<()> {
         ..Captured::default()
     });
     let mut tasks = JoinSet::new();
+    let mut tcp_workers = std::collections::BTreeMap::new();
     let started = Instant::now();
     let mut last_event = started;
     let mut arrivals = 0;
@@ -171,6 +172,10 @@ async fn main() -> CaptureResult<()> {
                 started + ACCEPT_TIMEOUT
             };
             tokio::select! {
+                request = resumption::Run::retirement_requested(resumption.as_deref()) => {
+                    let run = resumption.as_ref().ok_or("resumption owner disappeared")?;
+                    run.retire_workers(request, &mut tasks, &mut tcp_workers, &origin_acceptor).await?;
+                }
                 result = doh_capture.wait() => {
                     result?;
                     return Err("DNS-over-HTTPS listener stopped during capture".into());
@@ -178,13 +183,16 @@ async fn main() -> CaptureResult<()> {
                 accepted = origin.accept() => {
                     let (tcp, peer) = accepted?;
                     require_loopback(peer.ip(), "origin peer")?;
-                    spawn_origin_tcp(
+                    let (slot, handle) = spawn_origin_tcp(
                         &mut tasks,
                         tcp,
                         peer,
                         origin_acceptor.clone(),
                         Arc::clone(&captured),
                     );
+                    if resumption.is_some() {
+                        tcp_workers.insert(handle.id(), (slot, handle));
+                    }
                     arrivals += 1;
                     last_event = Instant::now();
                 }
@@ -777,9 +785,9 @@ fn spawn_origin_tcp(
     peer: SocketAddr,
     acceptor: SslAcceptor,
     captured: Arc<Captured>,
-) {
+) -> (usize, tokio::task::AbortHandle) {
     let slot = captured.reserve_tcp();
-    tasks.spawn(async move {
+    let handle = tasks.spawn(async move {
         match record_tcp(tcp, acceptor, captured, slot).await {
             Ok(()) => Ok(()),
             Err(error) => {
@@ -792,6 +800,7 @@ fn spawn_origin_tcp(
             }
         }
     });
+    (slot, handle)
 }
 
 /// Records one TCP connection's ClientHello and handshake, then serves the

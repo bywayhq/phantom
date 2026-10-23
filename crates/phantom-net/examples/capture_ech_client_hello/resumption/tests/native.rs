@@ -4,7 +4,10 @@ use super::*;
 
 type Tickets = Arc<Mutex<Vec<Result<ScopedSslSession, btls::error::ErrorStack>>>>;
 
-async fn sequence(mode: Mode) -> CaptureResult<()> {
+#[path = "native/spares.rs"]
+mod spares;
+
+async fn sequence(mode: Mode, peers: spares::Peers) -> CaptureResult<()> {
     let (identity, trust_root) = crate::tests::test_identity()?;
     let run = Run::new(mode)?;
     let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -25,15 +28,9 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
         resumption: Some(Arc::clone(&run)),
         ..Captured::default()
     });
-    let server = async {
-        for _ in 0..2 {
-            let (tcp, _) = listener.accept().await?;
-            let slot = captured.reserve_tcp();
-            record_tcp(tcp, acceptor.clone(), Arc::clone(&captured), slot).await?;
-        }
-        Ok::<(), Box<dyn Error + Send + Sync>>(())
-    };
-    let client = async {
+    let (accepted, ready) = oneshot::channel();
+    let mut accepted = (peers != spares::Peers::None).then_some(accepted);
+    let mut client = tokio::spawn(async move {
         let mut builder = SslConnector::bare_builder(SslMethod::tls())?;
         builder.set_verify(SslVerifyMode::PEER);
         builder
@@ -45,7 +42,16 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
         let connector = builder.build();
         let scope = SslSessionScope::default();
         let tickets: Tickets = Arc::default();
+        let spares = spares::connect(peers, &connector, &scope, &list, address, ready).await?;
+        let mut spares = Some(spares);
         for (index, path) in [SEED, RESUME].into_iter().enumerate() {
+            if index == 1 {
+                spares
+                    .take()
+                    .ok_or("spares checked twice")?
+                    .retired(&connector, &scope, &list)
+                    .await?;
+            }
             let session = tickets
                 .lock()
                 .map_err(|_| "test ticket lock poisoned")?
@@ -111,13 +117,61 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
             tls.shutdown().await?;
         }
         Ok::<(), Box<dyn Error + Send + Sync>>(())
-    };
-    // Direct joined futures own both sides; error/timeout drops both endpoints.
-    timeout(Duration::from_secs(3), async {
-        tokio::try_join!(server, client)
-    })
-    .await??;
+    });
+    let mut tasks = JoinSet::new();
+    let mut workers = BTreeMap::new();
+    let mut client_joined = false;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let exchange: CaptureResult<()> = async {
+        tokio::time::timeout_at(deadline, async {
+            loop {
+                tokio::select! {
+                    result = &mut client => {
+                        client_joined = true;
+                        result??;
+                        break;
+                    }
+                    request = Run::retirement_requested(Some(&run)) => {
+                        run.retire_workers(request, &mut tasks, &mut workers, &acceptor).await?;
+                    }
+                    incoming = listener.accept() => {
+                        let (tcp, peer) = incoming?;
+                        let (slot, handle) = spawn_origin_tcp(&mut tasks, tcp, peer, acceptor.clone(), Arc::clone(&captured));
+                        workers.insert(handle.id(), (slot, handle));
+                        if let Some(accepted) = accepted.take() {
+                            accepted.send(()).map_err(|_| "client stopped before accept acknowledgement")?;
+                        }
+                    }
+                }
+            }
+            while let Some(joined) = tasks.join_next().await {
+                joined??;
+            }
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
+        }).await?
+    }.await;
+    let mut errors = exchange.err().into_iter().collect::<Vec<_>>();
+    if !client_joined {
+        client.abort();
+        match client.await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => errors.push(error),
+            Err(error) if error.is_cancelled() => {}
+            Err(error) => errors.push(error.into()),
+        }
+    }
+    tasks.abort_all();
+    while let Some(joined) = tasks.join_next().await {
+        match joined {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => errors.push(error),
+            Err(error) if error.is_cancelled() => {}
+            Err(error) => errors.push(error.into()),
+        }
+    }
+    capture_errors(errors)?;
     let state = run.lock();
+    assert_eq!(state.setup_retired.len(), peers.count());
     let seed = state
         .connections
         .get(&state.seed.ok_or("actual seed not recorded")?)
@@ -172,11 +226,11 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
 #[tokio::test]
 async fn actual_ech_resumption_records_plaintext_before_finished_and_one_served_get()
 -> CaptureResult<()> {
-    sequence(Mode::EarlyAccept).await
+    sequence(Mode::EarlyAccept, spares::Peers::None).await
 }
 
 #[tokio::test]
 async fn actual_rejected_early_data_records_only_the_post_finished_replay_as_served()
 -> CaptureResult<()> {
-    sequence(Mode::EarlyReject).await
+    sequence(Mode::EarlyReject, spares::Peers::None).await
 }

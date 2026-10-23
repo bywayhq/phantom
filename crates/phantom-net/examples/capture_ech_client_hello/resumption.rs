@@ -53,6 +53,7 @@ impl FromStr for Mode {
 struct Observation {
     outer_records_sha256: String,
     early_enabled: bool,
+    after_probe_fence: bool,
     offers: Vec<Offer>,
     tickets: Vec<Ticket>,
     handshake_complete: bool,
@@ -89,12 +90,21 @@ struct State {
     seed: Option<usize>,
     seed_flushed: bool,
     rotated: bool,
+    probe_released: bool,
+    retirement: Option<Retirement>,
+    setup_retired: Vec<usize>,
+}
+
+pub(super) struct Retirement {
+    seed: usize,
+    released: oneshot::Sender<()>,
 }
 
 pub(super) struct Run {
     mode: Mode,
     index: Index<Ssl, usize>,
     state: Mutex<State>,
+    retire: Notify,
 }
 
 impl Run {
@@ -103,6 +113,7 @@ impl Run {
             mode,
             index: Ssl::new_ex_index()?,
             state: Mutex::default(),
+            retire: Notify::new(),
         }))
     }
 
@@ -121,19 +132,97 @@ impl Run {
 
     pub(super) fn configure(&self, ssl: &mut Ssl, slot: usize, outer_records: &[u8]) {
         let mut state = self.lock();
-        // A speculative SSL created before the seed can already exist. Keep
-        // its actual setting rather than relabeling it after a later request.
+        let after_probe_fence = state.probe_released;
         let early_enabled = self.mode != Mode::EarlyReject || state.seed.is_none();
         state.connections.insert(
             slot,
             Observation {
                 early_enabled,
+                after_probe_fence,
                 outer_records_sha256: digest(outer_records),
                 ..Observation::default()
             },
         );
         ssl.set_ex_data(self.index, slot);
         ssl.set_early_data_enabled(early_enabled);
+    }
+
+    async fn prepare_probe(&self, _seed: usize) -> CaptureResult<()> {
+        Ok(())
+    }
+
+    pub(super) async fn retirement_requested(run: Option<&Self>) -> Retirement {
+        let Some(run) = run else {
+            return std::future::pending().await;
+        };
+        loop {
+            let notified = run.retire.notified();
+            if let Some(request) = run.lock().retirement.take() {
+                return request;
+            }
+            notified.await;
+        }
+    }
+
+    /// Join every accepted pre-probe TCP owner, including sockets which have
+    /// not sent a ClientHello. The seed is waiting with its page body withheld.
+    pub(super) async fn retire_workers(
+        &self,
+        request: Retirement,
+        tasks: &mut JoinSet<CaptureResult<()>>,
+        workers: &mut BTreeMap<tokio::task::Id, (usize, tokio::task::AbortHandle)>,
+        acceptor: &SslAcceptor,
+    ) -> CaptureResult<()> {
+        let seed = workers
+            .iter()
+            .find_map(|(id, (slot, _))| (*slot == request.seed).then_some(*id))
+            .ok_or("seed worker missing before probe retirement")?;
+        for (id, (_, handle)) in workers.iter() {
+            if *id != seed {
+                handle.abort();
+            }
+        }
+        timeout(HANDSHAKE_TIMEOUT, async {
+            while workers.len() > 1 {
+                let joined = tasks
+                    .join_next_with_id()
+                    .await
+                    .ok_or("origin workers disappeared during probe retirement")?;
+                let (id, result) = match joined {
+                    Ok((id, result)) => (id, result),
+                    Err(error) if error.is_cancelled() => (error.id(), Ok(())),
+                    Err(error) => return Err(error.into()),
+                };
+                let (slot, _) = workers
+                    .remove(&id)
+                    .ok_or("unknown origin worker joined during probe retirement")?;
+                result?;
+                if id == seed {
+                    return Err("seed worker stopped during probe retirement".into());
+                }
+                self.lock().setup_retired.push(slot);
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        })
+        .await??;
+        if self.mode == Mode::EchRetry {
+            let mut keys = SslEchKeys::builder()?;
+            keys.add_key(
+                true,
+                &ech_config(2, &TEST_ECH_KEYS[1], PUBLIC_NAME),
+                HpkeKey::dhkem_p256_sha256(&TEST_ECH_KEYS[1].private_key)?,
+            )?;
+            acceptor.context().set_ech_keys(&keys.build())?;
+        }
+        {
+            let mut state = self.lock();
+            state.rotated = self.mode == Mode::EchRetry;
+            state.probe_released = true;
+        }
+        request
+            .released
+            .send(())
+            .map_err(|_| "seed stopped before probe release".into())
     }
 
     fn message(&self, slot: usize, message: SslMessage<'_>) {
@@ -229,6 +318,9 @@ impl Run {
                 body.len()
             );
             tls.write_all(response.as_bytes()).await?;
+            if seed {
+                self.prepare_probe(slot).await?;
+            }
             tls.write_all(body).await?;
             tls.flush().await?;
             if seed {
@@ -310,6 +402,17 @@ impl Run {
         )?;
         writeln!(output, "resumption_seed_flushed={}", state.seed_flushed)?;
         writeln!(output, "resumption_ech_rotated={}", state.rotated)?;
+        writeln!(output, "resumption_probe_released={}", state.probe_released)?;
+        writeln!(
+            output,
+            "resumption_setup_retired_slots={}",
+            state
+                .setup_retired
+                .iter()
+                .map(usize::to_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        )?;
         let seed_tickets = state
             .seed
             .and_then(|slot| state.connections.get(&slot))
@@ -332,6 +435,11 @@ impl Run {
                 output,
                 "{prefix}_early_data_enabled={}",
                 observed.early_enabled
+            )?;
+            writeln!(
+                output,
+                "{prefix}_after_probe_fence={}",
+                observed.after_probe_fence
             )?;
             writeln!(
                 output,
