@@ -11,7 +11,9 @@ use std::num::NonZeroUsize;
 #[test]
 fn edited_http3_reuse_policy_round_trips_without_changing_other_settings() -> TestResult {
     use super::super::{describe_profile, export_profile_json, import_profile_json};
-    use phantom_profile::{Http3ClientSettings, Http3ConnectionReuse, browser::chrome};
+    use phantom_profile::{Http3ClientSettings, browser::chrome};
+
+    use crate::profile::Http3ConnectionReuse;
 
     let profile = chrome::v154_windows();
     let http3 = profile.http3().ok_or("missing HTTP/3 settings")?;

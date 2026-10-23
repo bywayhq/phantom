@@ -1,9 +1,7 @@
 # Public API inventory
 
-Review the library exports in these generated files. The inventories include
-the support-crate API consolidation, session-ticket operations, proxy error
-sources, and shared route lookup type. The containing Git commit records
-each snapshot update.
+Review library exports in these generated files. The containing Git commit
+records each snapshot update.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -24,15 +22,16 @@ The paired system resolver constructor depends on the target:
 | --- | --- |
 | Windows | `phantom_net::dns::chromium_windows_resolvers` |
 | Linux | `phantom_net::dns::chromium_linux_resolvers` |
+| macOS | `phantom_net::dns::chromium_macos_resolvers` |
 
 Generate on each native target to include its constructor. The checked-in
 inventory uses the Windows name.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,408 | Application client, ordered requests, responses, state, custom profile import |
-| `phantom-net` | 1,751 | Protocol connections, routes, resolvers, transport errors |
-| `phantom-profile` | 1,041 | Browser recipes and typed settings |
+| `phantom-http` | 1,550 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-net` | 1,796 | Protocol connections, routes, resolvers, transport errors |
+| `phantom-profile` | 1,140 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 306 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
 | `phantom-testkit` | 428 | Wire inspection and loopback test tools |
 

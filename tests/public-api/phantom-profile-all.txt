@@ -38,6 +38,7 @@ pub fn phantom_profile::browser::chrome::v154_http1() -> phantom_profile::Http1S
 pub fn phantom_profile::browser::chrome::v154_http2() -> phantom_profile::Http2Settings
 pub fn phantom_profile::browser::chrome::v154_http3() -> phantom_profile::Http3Settings
 pub fn phantom_profile::browser::chrome::v154_http3_request() -> phantom_profile::Http3RequestSettings
+pub fn phantom_profile::browser::chrome::v154_macos() -> phantom_profile::ClientProfile
 pub fn phantom_profile::browser::chrome::v154_macos_client_hints() -> phantom_profile::ClientHintSettings
 pub fn phantom_profile::browser::chrome::v154_macos_fetch_no_store_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_macos_fetch_template() -> phantom_profile::RequestTemplate
@@ -56,6 +57,7 @@ pub fn phantom_profile::browser::chrome::v154_windows_fetch_no_store_template() 
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_upload_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_navigation_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::chrome::v156_windows() -> phantom_profile::ClientProfile
 pub mod phantom_profile::browser::edge
 pub fn phantom_profile::browser::edge::v153_android() -> phantom_profile::ClientProfile
 pub fn phantom_profile::browser::edge::v153_android_client_hints() -> phantom_profile::ClientHintSettings
@@ -131,6 +133,7 @@ pub phantom_profile::catalog::Browser::Chrome
 pub phantom_profile::catalog::Browser::Edge
 pub phantom_profile::catalog::Browser::Firefox
 pub phantom_profile::catalog::Browser::Opera
+pub phantom_profile::catalog::Browser::Safari
 #[non_exhaustive] pub enum phantom_profile::catalog::CaptureEnvironment
 pub phantom_profile::catalog::CaptureEnvironment::Desktop
 pub phantom_profile::catalog::CaptureEnvironment::Emulator
@@ -148,6 +151,8 @@ impl core::fmt::Display for phantom_profile::catalog::CatalogError
 pub fn phantom_profile::catalog::CatalogError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum phantom_profile::catalog::EvidenceKind
 pub phantom_profile::catalog::EvidenceKind::Capture
+pub phantom_profile::catalog::EvidenceKind::ExternalSource
+pub phantom_profile::catalog::EvidenceKind::PeerCapture
 pub phantom_profile::catalog::EvidenceKind::Recipe
 pub phantom_profile::catalog::EvidenceKind::Reused
 pub phantom_profile::catalog::EvidenceKind::Source
@@ -155,6 +160,17 @@ pub phantom_profile::catalog::EvidenceKind::Source
 pub phantom_profile::catalog::LayerSupport::Configured
 pub phantom_profile::catalog::LayerSupport::IntentionallyAbsent
 pub phantom_profile::catalog::LayerSupport::Unavailable
+#[non_exhaustive] pub enum phantom_profile::catalog::ProfileIdentity
+pub phantom_profile::catalog::ProfileIdentity::Observed
+pub phantom_profile::catalog::ProfileIdentity::Observed::architecture: core::option::Option<&'static str>
+pub phantom_profile::catalog::ProfileIdentity::Observed::build: &'static str
+pub phantom_profile::catalog::ProfileIdentity::Observed::environment: phantom_profile::catalog::CaptureEnvironment
+pub phantom_profile::catalog::ProfileIdentity::Observed::platform_release: &'static str
+pub phantom_profile::catalog::ProfileIdentity::Peer
+pub phantom_profile::catalog::ProfileIdentity::Peer::project: &'static str
+pub phantom_profile::catalog::ProfileIdentity::Peer::recipe: &'static str
+pub phantom_profile::catalog::ProfileIdentity::Peer::release: &'static str
+pub phantom_profile::catalog::ProfileIdentity::Peer::source_revision: &'static str
 #[non_exhaustive] pub enum phantom_profile::catalog::ProfileLayer
 pub phantom_profile::catalog::ProfileLayer::ClientHints
 pub phantom_profile::catalog::ProfileLayer::CookiePlacement
@@ -172,6 +188,7 @@ pub phantom_profile::catalog::ProfileLayer::Udp
 pub phantom_profile::catalog::ProfileLayer::WebSocket
 #[non_exhaustive] pub enum phantom_profile::catalog::ProfilePlatform
 pub phantom_profile::catalog::ProfilePlatform::Android
+pub phantom_profile::catalog::ProfilePlatform::Ios
 pub phantom_profile::catalog::ProfilePlatform::Linux
 pub phantom_profile::catalog::ProfilePlatform::Macos
 pub phantom_profile::catalog::ProfilePlatform::Windows
@@ -179,7 +196,11 @@ pub phantom_profile::catalog::ProfilePlatform::Windows
 pub phantom_profile::catalog::RequestTemplateKind::Fetch
 pub phantom_profile::catalog::RequestTemplateKind::FetchNoStore
 pub phantom_profile::catalog::RequestTemplateKind::FetchUpload
+pub phantom_profile::catalog::RequestTemplateKind::Font
+pub phantom_profile::catalog::RequestTemplateKind::Image
 pub phantom_profile::catalog::RequestTemplateKind::Navigation
+pub phantom_profile::catalog::RequestTemplateKind::Script
+pub phantom_profile::catalog::RequestTemplateKind::Stylesheet
 pub struct phantom_profile::catalog::EvidenceReference
 impl phantom_profile::catalog::EvidenceReference
 pub const fn phantom_profile::catalog::EvidenceReference::build(&self) -> &'static str
@@ -191,7 +212,6 @@ pub const fn phantom_profile::catalog::LayerEvidence::layer(&self) -> phantom_pr
 pub const fn phantom_profile::catalog::LayerEvidence::limitations(&self) -> &'static [&'static str]
 pub const fn phantom_profile::catalog::LayerEvidence::references(&self) -> &'static [phantom_profile::catalog::EvidenceReference]
 pub const fn phantom_profile::catalog::LayerEvidence::support(&self) -> phantom_profile::catalog::LayerSupport
-pub const fn phantom_profile::catalog::LayerEvidence::verified_fields(&self) -> &'static [&'static str]
 pub struct phantom_profile::catalog::ProfileDefinition
 impl phantom_profile::catalog::ProfileDefinition
 pub fn phantom_profile::catalog::ProfileDefinition::evidence(&self, phantom_profile::catalog::ProfileLayer) -> core::option::Option<&'static phantom_profile::catalog::LayerEvidence>
@@ -200,6 +220,7 @@ pub fn phantom_profile::catalog::ProfileDefinition::instantiate(&self, &[phantom
 pub const fn phantom_profile::catalog::ProfileDefinition::layers(&self) -> &'static [phantom_profile::catalog::LayerEvidence]
 pub const fn phantom_profile::catalog::ProfileDefinition::metadata(&self) -> &phantom_profile::catalog::ProfileMetadata
 pub fn phantom_profile::catalog::ProfileDefinition::request_template(&self, phantom_profile::catalog::RequestTemplateKind) -> core::result::Result<phantom_profile::RequestTemplate, phantom_profile::catalog::CatalogError>
+pub const fn phantom_profile::catalog::ProfileDefinition::selector(&self) -> &'static str
 pub struct phantom_profile::catalog::ProfileId(_)
 impl phantom_profile::catalog::ProfileId
 pub const fn phantom_profile::catalog::ProfileId::as_str(self) -> &'static str
@@ -209,13 +230,66 @@ pub struct phantom_profile::catalog::ProfileMetadata
 impl phantom_profile::catalog::ProfileMetadata
 pub const fn phantom_profile::catalog::ProfileMetadata::architecture(&self) -> core::option::Option<&'static str>
 pub const fn phantom_profile::catalog::ProfileMetadata::browser(&self) -> phantom_profile::catalog::Browser
-pub const fn phantom_profile::catalog::ProfileMetadata::build(&self) -> &'static str
-pub const fn phantom_profile::catalog::ProfileMetadata::environment(&self) -> phantom_profile::catalog::CaptureEnvironment
+pub const fn phantom_profile::catalog::ProfileMetadata::build(&self) -> core::option::Option<&'static str>
+pub const fn phantom_profile::catalog::ProfileMetadata::environment(&self) -> core::option::Option<phantom_profile::catalog::CaptureEnvironment>
+pub const fn phantom_profile::catalog::ProfileMetadata::identity(&self) -> phantom_profile::catalog::ProfileIdentity
 pub const fn phantom_profile::catalog::ProfileMetadata::platform(&self) -> phantom_profile::catalog::ProfilePlatform
-pub const fn phantom_profile::catalog::ProfileMetadata::platform_release(&self) -> &'static str
+pub const fn phantom_profile::catalog::ProfileMetadata::platform_release(&self) -> core::option::Option<&'static str>
 pub const fn phantom_profile::catalog::ProfileMetadata::revision(&self) -> u32
+pub const fn phantom_profile::catalog::ProfileMetadata::version(&self) -> &'static str
 pub fn phantom_profile::catalog::profile(&str) -> core::result::Result<&'static phantom_profile::catalog::ProfileDefinition, phantom_profile::catalog::CatalogError>
 pub fn phantom_profile::catalog::profiles() -> &'static [phantom_profile::catalog::ProfileDefinition]
+pub mod phantom_profile::client_hello
+#[non_exhaustive] pub enum phantom_profile::client_hello::ClientHelloDecodeError
+pub phantom_profile::client_hello::ClientHelloDecodeError::DuplicateExtension
+pub phantom_profile::client_hello::ClientHelloDecodeError::DuplicateExtension::extension_type: u16
+pub phantom_profile::client_hello::ClientHelloDecodeError::DuplicateServerNameType
+pub phantom_profile::client_hello::ClientHelloDecodeError::DuplicateServerNameType::name_type: u8
+pub phantom_profile::client_hello::ClientHelloDecodeError::EmptyAlpnProtocol
+pub phantom_profile::client_hello::ClientHelloDecodeError::EmptyServerName
+pub phantom_profile::client_hello::ClientHelloDecodeError::EmptyServerName::name_type: u8
+pub phantom_profile::client_hello::ClientHelloDecodeError::InvalidVectorLength
+pub phantom_profile::client_hello::ClientHelloDecodeError::InvalidVectorLength::element_width: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::InvalidVectorLength::field: &'static str
+pub phantom_profile::client_hello::ClientHelloDecodeError::InvalidVectorLength::length: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::LengthOutOfRange
+pub phantom_profile::client_hello::ClientHelloDecodeError::LengthOutOfRange::field: &'static str
+pub phantom_profile::client_hello::ClientHelloDecodeError::LengthOutOfRange::length: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::LengthOutOfRange::maximum: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::LengthOutOfRange::minimum: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingClientHelloBytes
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingClientHelloBytes::count: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingExtensionBytes
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingExtensionBytes::count: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingExtensionBytes::extension_type: u16
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingHandshakeBytes
+pub phantom_profile::client_hello::ClientHelloDecodeError::TrailingHandshakeBytes::count: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::Truncated
+pub phantom_profile::client_hello::ClientHelloDecodeError::Truncated::field: &'static str
+pub phantom_profile::client_hello::ClientHelloDecodeError::Truncated::needed: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::Truncated::remaining: usize
+pub phantom_profile::client_hello::ClientHelloDecodeError::UnexpectedHandshakeType
+pub phantom_profile::client_hello::ClientHelloDecodeError::UnexpectedHandshakeType::handshake_type: u8
+impl core::error::Error for phantom_profile::client_hello::ClientHelloDecodeError
+impl core::fmt::Display for phantom_profile::client_hello::ClientHelloDecodeError
+pub fn phantom_profile::client_hello::ClientHelloDecodeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::client_hello::ClientHelloSummary
+impl phantom_profile::client_hello::ClientHelloSummary
+pub fn phantom_profile::client_hello::ClientHelloSummary::alpn_protocols(&self) -> &[alloc::vec::Vec<u8>]
+pub fn phantom_profile::client_hello::ClientHelloSummary::cipher_suites(&self) -> &[u16]
+pub fn phantom_profile::client_hello::ClientHelloSummary::ec_point_formats(&self) -> &[u8]
+pub fn phantom_profile::client_hello::ClientHelloSummary::encrypted_client_hello(&self) -> core::option::Option<&[u8]>
+pub fn phantom_profile::client_hello::ClientHelloSummary::extension_layout(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u16, usize)> + '_
+pub fn phantom_profile::client_hello::ClientHelloSummary::extension_types(&self) -> &[u16]
+pub fn phantom_profile::client_hello::ClientHelloSummary::from_handshake_bytes(&[u8]) -> core::result::Result<Self, phantom_profile::client_hello::ClientHelloDecodeError>
+pub fn phantom_profile::client_hello::ClientHelloSummary::key_share_groups(&self) -> &[u16]
+pub fn phantom_profile::client_hello::ClientHelloSummary::legacy_version(&self) -> u16
+pub fn phantom_profile::client_hello::ClientHelloSummary::requested_trust_anchor_ids(&self) -> core::option::Option<&[alloc::vec::Vec<u8>]>
+pub fn phantom_profile::client_hello::ClientHelloSummary::server_name(&self) -> core::option::Option<&[u8]>
+pub fn phantom_profile::client_hello::ClientHelloSummary::signature_algorithms(&self) -> &[u16]
+pub fn phantom_profile::client_hello::ClientHelloSummary::supported_groups(&self) -> &[u16]
+pub fn phantom_profile::client_hello::ClientHelloSummary::supported_versions(&self) -> &[u16]
+pub const fn phantom_profile::client_hello::is_grease(u16) -> bool
 #[non_exhaustive] pub enum phantom_profile::CertificateCompression
 pub phantom_profile::CertificateCompression::Brotli
 pub phantom_profile::CertificateCompression::Zlib
@@ -332,6 +406,7 @@ pub phantom_profile::Http2IdleTimeout::Unlimited
 impl phantom_profile::Http2IdleTimeout
 pub const fn phantom_profile::Http2IdleTimeout::closed_on_timer(self) -> core::option::Option<core::time::Duration>
 #[non_exhaustive] pub enum phantom_profile::Http2IndexingLimit
+pub phantom_profile::Http2IndexingLimit::FullTable
 pub phantom_profile::Http2IndexingLimit::Half
 pub phantom_profile::Http2IndexingLimit::ThreeQuarters
 pub phantom_profile::Http2IndexingLimit::Unlimited
@@ -351,6 +426,13 @@ pub phantom_profile::Http2PseudoHeader::Scheme
 #[non_exhaustive] pub enum phantom_profile::Http2RejectedConnect
 pub phantom_profile::Http2RejectedConnect::EndStream
 pub phantom_profile::Http2RejectedConnect::LeaveOpen
+pub enum phantom_profile::Http2RequestPriority
+pub phantom_profile::Http2RequestPriority::Fixed(phantom_profile::Http2Priority)
+pub phantom_profile::Http2RequestPriority::WeightBand
+pub phantom_profile::Http2RequestPriority::WeightBand::exclusive: bool
+pub phantom_profile::Http2RequestPriority::WeightBand::weight: u16
+impl phantom_profile::Http2RequestPriority
+pub const fn phantom_profile::Http2RequestPriority::weight(self) -> u16
 #[non_exhaustive] pub enum phantom_profile::Http2SensitiveProxyAuthorization
 pub phantom_profile::Http2SensitiveProxyAuthorization::FieldIndexing
 pub phantom_profile::Http2SensitiveProxyAuthorization::NeverIndexed
@@ -372,13 +454,25 @@ pub phantom_profile::Http2TableSizeUpdates::WhenChanged
 #[non_exhaustive] pub enum phantom_profile::Http2UnindexedMatch
 pub phantom_profile::Http2UnindexedMatch::Index
 pub phantom_profile::Http2UnindexedMatch::Literal
+#[non_exhaustive] pub enum phantom_profile::Http3AltSvcValidation
+pub phantom_profile::Http3AltSvcValidation::OnAdvertisement
+pub phantom_profile::Http3AltSvcValidation::OnRequest
 #[non_exhaustive] pub enum phantom_profile::Http3AltUsed
 pub phantom_profile::Http3AltUsed::Append
 pub phantom_profile::Http3AltUsed::Omit
 pub phantom_profile::Http3AltUsed::ValidatedMapping
+#[non_exhaustive] pub enum phantom_profile::Http3AltUsedPort
+pub phantom_profile::Http3AltUsedPort::Explicit
+pub phantom_profile::Http3AltUsedPort::OmitDefault
+#[non_exhaustive] pub enum phantom_profile::Http3ConnectionReuse
+pub phantom_profile::Http3ConnectionReuse::AuthorizedOrigins
+pub phantom_profile::Http3ConnectionReuse::SameOrigin
 #[non_exhaustive] pub enum phantom_profile::Http3CookieCrumbs
 pub phantom_profile::Http3CookieCrumbs::Split
 pub phantom_profile::Http3CookieCrumbs::Whole
+#[non_exhaustive] pub enum phantom_profile::Http3MisdirectedRequest
+pub phantom_profile::Http3MisdirectedRequest::RetryFirst
+pub phantom_profile::Http3MisdirectedRequest::ReturnResponse
 #[non_exhaustive] pub enum phantom_profile::Http3PseudoHeader
 pub phantom_profile::Http3PseudoHeader::Authority
 pub phantom_profile::Http3PseudoHeader::Method
@@ -703,6 +797,7 @@ pub phantom_profile::DnsCacheSettings::address_failure_policy: phantom_profile::
 pub phantom_profile::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroUsize
 pub phantom_profile::DnsCacheSettings::min_record_ttl: core::time::Duration
 pub phantom_profile::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
+pub phantom_profile::DnsCacheSettings::stale_grace: core::time::Duration
 pub phantom_profile::DnsCacheSettings::system_ttl: phantom_profile::SystemDnsTtlPolicy
 pub phantom_profile::DnsCacheSettings::ttl: core::time::Duration
 pub struct phantom_profile::EchGreaseSettings
@@ -764,13 +859,17 @@ pub fn phantom_profile::Http3ClientSettings::request(&self) -> &phantom_profile:
 pub fn phantom_profile::Http3ClientSettings::tls(&self) -> &phantom_profile::TlsSettings
 pub struct phantom_profile::Http3RequestSettings
 pub phantom_profile::Http3RequestSettings::alt_used: phantom_profile::Http3AltUsed
+pub phantom_profile::Http3RequestSettings::alt_used_port: phantom_profile::Http3AltUsedPort
 pub phantom_profile::Http3RequestSettings::cookie_crumbs: phantom_profile::Http3CookieCrumbs
 pub phantom_profile::Http3RequestSettings::extended_connect_pseudo_header_order: core::option::Option<alloc::vec::Vec<phantom_profile::Http3PseudoHeader>>
 pub phantom_profile::Http3RequestSettings::pseudo_header_order: alloc::vec::Vec<phantom_profile::Http3PseudoHeader>
 impl phantom_profile::Http3RequestSettings
 pub fn phantom_profile::Http3RequestSettings::validate(&self) -> core::result::Result<(), phantom_profile::InvalidHttp3RequestSettings>
 pub struct phantom_profile::Http3Settings
+pub phantom_profile::Http3Settings::alt_svc_validation: phantom_profile::Http3AltSvcValidation
+pub phantom_profile::Http3Settings::connection_reuse: phantom_profile::Http3ConnectionReuse
 pub phantom_profile::Http3Settings::initial_settings: alloc::vec::Vec<phantom_profile::Http3Setting>
+pub phantom_profile::Http3Settings::misdirected_request: phantom_profile::Http3MisdirectedRequest
 pub phantom_profile::Http3Settings::qpack_decoder_stream: phantom_profile::Http3QpackDecoderStream
 pub phantom_profile::Http3Settings::qpack_encoder_stream: phantom_profile::Http3QpackEncoderStream
 pub phantom_profile::Http3Settings::qpack_encoding: phantom_profile::Http3QpackEncoding
@@ -909,7 +1008,7 @@ pub phantom_profile::QuicVersionInformation::grease: phantom_profile::QuicVersio
 pub struct phantom_profile::RequestTemplate
 pub phantom_profile::RequestTemplate::http1_fields: alloc::vec::Vec<phantom_profile::RequestField>
 pub phantom_profile::RequestTemplate::http2_fields: alloc::vec::Vec<phantom_profile::RequestField>
-pub phantom_profile::RequestTemplate::http2_priority: core::option::Option<phantom_profile::Http2Priority>
+pub phantom_profile::RequestTemplate::http2_priority: core::option::Option<phantom_profile::Http2RequestPriority>
 pub phantom_profile::RequestTemplate::http3_fields: core::option::Option<alloc::vec::Vec<phantom_profile::RequestField>>
 pub phantom_profile::RequestTemplate::requested_client_hint_placement: bool
 pub phantom_profile::RequestTemplate::restarts_for_connection_accept_ch: bool

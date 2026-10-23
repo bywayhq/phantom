@@ -91,6 +91,10 @@ impl SessionSnapshotError {
         Self { kind, source: None }
     }
 
+    fn backend(source: btls::error::ErrorStack) -> Self {
+        Self::source(SessionSnapshotErrorKind::Backend, source)
+    }
+
     fn source(
         kind: SessionSnapshotErrorKind,
         source: impl StdError + Send + Sync + 'static,
@@ -117,12 +121,6 @@ impl fmt::Display for SessionSnapshotError {
 impl StdError for SessionSnapshotError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         self.source.as_deref().map(|source| source as _)
-    }
-}
-
-impl From<btls::error::ErrorStack> for SessionSnapshotError {
-    fn from(source: btls::error::ErrorStack) -> Self {
-        Self::source(SessionSnapshotErrorKind::Backend, source)
     }
 }
 

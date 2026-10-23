@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Export `Http3ConnectionReuse` through `phantom::profile` with the other
+  HTTP/3 settings.
+- Breaking: keep snapshot backend error conversions private. Migrate: handle
+  `SessionSnapshotError` from snapshot operations and inspect its `source()`
+  instead of converting `btls::error::ErrorStack` into it.
+
 - Breaking: add `Http3Settings::alt_svc_validation`. Firefox recipes validate
   advertised HTTP/3 alternatives in the background before selecting them.
   Validation opens no HTTP request and spends no attempt budget. Refresh,

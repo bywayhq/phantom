@@ -19,13 +19,17 @@ pub(super) fn seal(
     writer.raw(MAGIC)?;
     writer.raw(&2_u16.to_be_bytes())?;
     let mut nonce = [0; 12];
-    btls::rand::rand_bytes(&mut nonce)?;
+    btls::rand::rand_bytes(&mut nonce).map_err(SessionSnapshotError::backend)?;
     writer.raw(&nonce)?;
     writer.raw(&(plaintext.len() as u32).to_be_bytes())?;
-    let derived = Zeroizing::new(hmac_sha256(key, KEY_DOMAIN)?);
-    let cipher = ConcurrentAeadCtx::aes_256_gcm(&*derived)?;
+    let derived =
+        Zeroizing::new(hmac_sha256(key, KEY_DOMAIN).map_err(SessionSnapshotError::backend)?);
+    let cipher =
+        ConcurrentAeadCtx::aes_256_gcm(&*derived).map_err(SessionSnapshotError::backend)?;
     let mut tag = [0; TAG];
-    cipher.seal_in_place(&nonce, &mut plaintext, &mut tag, &writer.0)?;
+    cipher
+        .seal_in_place(&nonce, &mut plaintext, &mut tag, &writer.0)
+        .map_err(SessionSnapshotError::backend)?;
     writer.raw(&plaintext)?;
     writer.raw(&tag)?;
     Ok(writer.0)
@@ -52,8 +56,10 @@ pub(super) fn open(
     if length != bytes.len() - HEADER - TAG {
         return Err(SessionSnapshotError::new(Kind::InvalidSnapshot));
     }
-    let derived = Zeroizing::new(hmac_sha256(key, KEY_DOMAIN)?);
-    let cipher = ConcurrentAeadCtx::aes_256_gcm(&*derived)?;
+    let derived =
+        Zeroizing::new(hmac_sha256(key, KEY_DOMAIN).map_err(SessionSnapshotError::backend)?);
+    let cipher =
+        ConcurrentAeadCtx::aes_256_gcm(&*derived).map_err(SessionSnapshotError::backend)?;
     let mut plaintext = codec::copy(&bytes[HEADER..HEADER + length], MAX_BYTES)?;
     cipher
         .open_in_place(
