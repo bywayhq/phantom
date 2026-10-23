@@ -375,6 +375,45 @@ class ProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(4, self.quic.output)
         self.assertTrue(self.owner.errors)
 
+    async def test_completion_on_another_h3_connection_replays_both_peers(
+        self,
+    ) -> None:
+        self.protocol.handle(event(2, CONTROL))
+        for stream, path in zip(
+            range(0, 20, 4),
+            (
+                "/start",
+                "/resource.js",
+                "/resource.css",
+                "/resource.gif",
+                "/resource.ttf",
+            ),
+            strict=True,
+        ):
+            self.send(stream, self.run.resources.target(path))
+        self.assertEqual(self.run.page_connection, 0)
+
+        self.quic = WireQuic()
+        self.protocol = h3.ResourceProtocol(self.quic, owner=self.owner)
+        self.protocol.transmit = Mock()
+        self.protocol.handle(ProtocolNegotiated(alpn_protocol="h3"))
+        self.protocol.handle(event(2, CONTROL))
+        self.send(0, self.run.resources.done_target("resources:ok"))
+
+        self.assertEqual(self.owner.errors, [])
+        self.assertEqual(self.run.page_result, "resources:ok")
+        self.assertEqual(self.run.page_connection, 0)
+        self.assertEqual(self.run.resources.requests[-1].connection, 1)
+        self.assertIn(0, self.quic.ended)
+        lines = self.owner.evidence()
+        for connection in (0, 1):
+            self.assertTrue(
+                any(
+                    line.startswith(f"resource_connection_{connection}_h3_")
+                    for line in lines
+                )
+            )
+
     async def test_wrong_authority_and_token_fail(self) -> None:
         for extra in (
             [(b":authority", b"other.test:12345")],

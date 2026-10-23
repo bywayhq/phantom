@@ -658,13 +658,9 @@ class Run:
             self.page_connection = connection
 
     def finish(self, target: str, connection: int) -> None:
-        resource_connection = (
-            self.resources is not None
-            and self.resources.protocol == "h1"
-            and any(
-                request.connection == connection and request.path == "/done"
-                for request in self.resources.requests
-            )
+        resource_connection = self.resources is not None and any(
+            request.connection == connection and request.path == "/done"
+            for request in self.resources.requests
         )
         if (
             self.stopping
