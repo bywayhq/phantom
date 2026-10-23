@@ -1895,6 +1895,8 @@ Output keeps actual A/B DNS exchanges, handshake names and request authority.
 No B query or ECH offer is a valid observation. This uses explicit TRR-only DNS
 and enables H3 with profile-local roots; it does not measure default DNS policy.
 Other Firefox scenarios remain TCP-only; this scenario cannot use resumption.
+The [Firefox 157 capture](../../fixtures/tls/firefox/157.0/windows-11-26200/ech-alternative-host-quic.txt)
+resolves B's addresses without querying its HTTPS record.
 
 ```sh
 uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \

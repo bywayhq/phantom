@@ -7,7 +7,8 @@
 - Capture WebSocket openings through HTTP/2 HTTPS proxies; retain a Firefox
   157 observation using the page's inner HTTP/2 session.
 
-- Capture ECH discovery for an alternative HTTP/3 host.
+- Capture DNS and ECH behavior for an alternative HTTP/3 host; retain a
+  Firefox 157 observation.
 
 - Add a Firefox SOCKS5 proxy capture scenario.
 
