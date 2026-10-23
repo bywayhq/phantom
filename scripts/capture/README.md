@@ -1821,8 +1821,8 @@ record also carries `proxy_authorization:none`, `capture-credential`, or
 
 ## Encrypted Client Hello
 
-`chrome_ech.py` records the ClientHellos a Chromium browser sends when the
-origin's HTTPS record carries `ech`, and writes one
+`chrome_ech.py` records the ClientHellos a Chromium browser or Firefox sends
+when the origin's HTTPS record carries `ech`, and writes one
 `format=phantom-ech-client-hello-v2` fixture per run. Version 2 adds the
 `dns_https_alpn` line and the `quic_connection_*` lines to version 1; TCP-only
 runs record `quic_connection_count=0`. It runs the
@@ -1869,6 +1869,29 @@ The DNS-over-HTTPS server uses the origin's self-signed certificate.
 network context's HTTP session, and DNS-over-HTTPS requests go through that
 session. An Edge window started without the switch fails those handshakes,
 and the example logs each failed connection on standard error.
+
+For Firefox TCP captures, supply a CA-signed PEM leaf and key, and an NSS
+SQL `cert9.db` containing that CA. The leaf must cover `server.phantom.test`,
+`public.phantom.test` and IP `127.0.0.1`. Hashes bind the PEM certificate and
+database. The tool stages the key in its temporary peer directory and copies the
+database into its disposable profile, enables TRR-only DoH to its loopback
+listener and disables HTTP/3. It uses normal certificate verification.
+`--quic` and `--dns-from-policy` are unavailable with Firefox.
+
+```sh
+uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+  --browser firefox --browser-path '<firefox>' --client-version 158.0.1 \
+  --operating-system '<host OS>' --headful --scenario accept \
+  --origin 127.0.0.1:0 --capture-binary '<capture_ech_client_hello>' \
+  --certificate '<leaf.pem>' --certificate-sha256 '<PEM SHA-256>' \
+  --private-key '<key.pem>' --cert9-db '<cert9.db>' \
+  --cert9-sha256 '<database SHA-256>' --output '<ech-accept.txt>'
+```
+
+The peer records the certificate DER hash, ECH acceptance and each TCP
+handshake. Repeat with `--scenario reject` to observe its retry configuration.
+This peer captures a first connection; use `tls_resumption.py` for ticket and
+TCP early-data sequences.
 
 Build the example, then capture both scenarios:
 

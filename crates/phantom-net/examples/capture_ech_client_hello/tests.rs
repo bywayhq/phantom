@@ -733,3 +733,100 @@ async fn dripping_request_bytes_do_not_extend_the_exchange_deadline() -> TestRes
 
 pub(super) mod origin_serving_contract;
 pub(super) mod quic_serving_contract;
+
+fn pem_identity(names: &[&str]) -> CaptureResult<(String, String)> {
+    let params = CertificateParams::new(
+        names
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<Vec<_>>(),
+    )?;
+    let key = KeyPair::generate()?;
+    let certificate = params.self_signed(&key)?;
+    Ok((certificate.pem(), key.serialize_pem()))
+}
+
+#[test]
+fn supplied_identity_preserves_the_actual_certificate_and_key() -> TestResult {
+    let (certificate, key) = pem_identity(&[HOSTNAME, super::PUBLIC_NAME, "127.0.0.1"])?;
+    let identity =
+        Identity::from_pem(certificate.as_bytes(), key.as_bytes(), "127.0.0.1".parse()?)?;
+    assert_eq!(
+        identity.certificate,
+        X509::from_pem(certificate.as_bytes())?.to_der()?
+    );
+    identity
+        .acceptor(None)?
+        .context()
+        .certificate()
+        .ok_or("missing certificate")?;
+    Ok(())
+}
+
+#[test]
+fn supplied_identity_rejects_a_different_private_key() -> TestResult {
+    let (certificate, _) = pem_identity(&[HOSTNAME, super::PUBLIC_NAME, "127.0.0.1"])?;
+    let key = KeyPair::generate()?.serialize_pem();
+    let failure = Identity::from_pem(certificate.as_bytes(), key.as_bytes(), "127.0.0.1".parse()?)
+        .err()
+        .ok_or("mismatched identity was accepted")?;
+    assert!(failure.to_string().contains("do not match"));
+    Ok(())
+}
+
+#[test]
+fn supplied_identity_requires_both_names_and_the_actual_doh_ip() -> TestResult {
+    for names in [
+        vec![HOSTNAME, "127.0.0.1"],
+        vec![super::PUBLIC_NAME, "127.0.0.1"],
+        vec![HOSTNAME, super::PUBLIC_NAME, "127.0.0.2"],
+    ] {
+        let (certificate, key) = pem_identity(&names)?;
+        let failure =
+            Identity::from_pem(certificate.as_bytes(), key.as_bytes(), "127.0.0.1".parse()?)
+                .err()
+                .ok_or("incomplete identity was accepted")?;
+        assert!(failure.to_string().contains("must cover"));
+    }
+    Ok(())
+}
+
+#[test]
+fn malformed_and_encrypted_pem_inputs_are_recoverable() -> TestResult {
+    let (certificate, key) = pem_identity(&[HOSTNAME, super::PUBLIC_NAME, "127.0.0.1"])?;
+    let address = "127.0.0.1".parse()?;
+    assert!(Identity::from_pem(b"malformed", key.as_bytes(), address).is_err());
+    assert!(Identity::from_pem(certificate.as_bytes(), b"malformed", address).is_err());
+    let failure = Identity::from_pem(
+        certificate.as_bytes(),
+        b"-----BEGIN ENCRYPTED PRIVATE KEY-----",
+        address,
+    )
+    .err()
+    .ok_or("encrypted key was accepted")?;
+    assert!(failure.to_string().contains("unencrypted"));
+    Ok(())
+}
+
+#[test]
+fn identity_arguments_are_optional_and_require_both_paths() -> TestResult {
+    let metadata = [
+        "accept",
+        "127.0.0.1:0",
+        "Firefox",
+        "158",
+        "Windows",
+        "DoH",
+        "headful",
+        "firefox",
+    ];
+    let parse = |args: Vec<&str>| super::Arguments::parse(args.into_iter().map(str::to_owned));
+    assert!(parse(metadata.to_vec())?.identity.is_none());
+    let args = [vec!["--identity", "cert.pem", "key.pem"], metadata.to_vec()].concat();
+    assert_eq!(
+        parse(args)?.identity,
+        Some(("cert.pem".into(), "key.pem".into()))
+    );
+    assert!(parse(vec!["--identity", "cert.pem"]).is_err());
+    Ok(())
+}

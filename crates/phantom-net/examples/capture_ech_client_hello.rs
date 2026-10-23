@@ -23,6 +23,9 @@
 //! the decrypted inner name, and how the browser ended the handshake are
 //! recorded as well.
 //!
+//! `--identity <certificate.pem> <key.pem>` supplies a CA-signed leaf for
+//! profile-local trust. The default identity is generated for Chromium.
+//!
 //! Standard error gets one `ready doh_template=<url> origin=<address>` line
 //! once the listeners are bound, ending in ` spki=<base64>` with `--quic`:
 //! the SHA-256 of the certificate's public key, for
@@ -36,8 +39,9 @@ use std::{
     env,
     error::Error,
     fmt,
-    io::{self, Write as _},
+    io::{self, Read as _, Write as _},
     net::{IpAddr, SocketAddr},
+    path::{Path, PathBuf},
     pin::Pin,
     sync::{Arc, Mutex, PoisonError},
     task::{Context, Poll},
@@ -93,7 +97,12 @@ type CaptureResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> CaptureResult<()> {
     let arguments = Arguments::parse(env::args().skip(1))?;
-    let identity = Identity::generate()?;
+    let identity = match &arguments.identity {
+        Some((certificate, private_key)) => {
+            Identity::from_files(certificate, private_key, arguments.origin.ip())?
+        }
+        None => Identity::generate()?,
+    };
     let published = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
     let published_list = ech_config_list(std::slice::from_ref(&published));
     let (server_config, server_key) = match arguments.scenario {
@@ -226,9 +235,22 @@ async fn main() -> CaptureResult<()> {
     writeln!(output, "public_name={PUBLIC_NAME}")?;
     writeln!(output, "listen_address={origin_address}")?;
     writeln!(output, "doh_template={doh_template}")?;
+    if arguments.identity.is_some() {
+        writeln!(
+            output,
+            "certificate_sha256={}",
+            hex(&btls::sha::sha256(&identity.certificate))
+        )?;
+    }
     writeln!(output, "dns_configuration={}", arguments.dns_configuration)?;
     writeln!(output, "launch_mode={}", arguments.launch_mode)?;
-    writeln!(output, "launch_arguments={}", arguments.launch_arguments)?;
+    writeln!(
+        output,
+        "launch_arguments={}",
+        arguments
+            .launch_arguments
+            .replace("<origin-port>", &origin_address.port().to_string())
+    )?;
     writeln!(
         output,
         "dns_https_alpn={}",
@@ -410,6 +432,7 @@ impl Scenario {
 struct Arguments {
     doh_port: u16,
     quic: bool,
+    identity: Option<(PathBuf, PathBuf)>,
     scenario: Scenario,
     origin: SocketAddr,
     browser: String,
@@ -423,7 +446,7 @@ struct Arguments {
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
-            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] <accept|reject> ",
+            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] <accept|reject> ",
             "<loopback-address:port> ",
             "<browser> <browser-version> <operating-system> <dns-configuration> <launch-mode> ",
             "<launch-arguments>"
@@ -439,6 +462,14 @@ impl Arguments {
             quic = true;
             first = values.next().ok_or(usage)?;
         }
+        let identity = if first == "--identity" {
+            let certificate = PathBuf::from(values.next().ok_or(usage)?);
+            let private_key = PathBuf::from(values.next().ok_or(usage)?);
+            first = values.next().ok_or(usage)?;
+            Some((certificate, private_key))
+        } else {
+            None
+        };
         let scenario = match first.as_str() {
             "accept" => Scenario::Accept,
             "reject" => Scenario::Reject,
@@ -449,6 +480,7 @@ impl Arguments {
         let parsed = Self {
             doh_port,
             quic,
+            identity,
             scenario,
             origin,
             browser: text()?,
@@ -477,12 +509,63 @@ impl Arguments {
     }
 }
 
+const MAX_IDENTITY_BYTES: u64 = 128 * 1024;
+
+fn read_identity(path: &Path) -> CaptureResult<Vec<u8>> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_IDENTITY_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_IDENTITY_BYTES {
+        return Err("PEM identity exceeds 128 KiB".into());
+    }
+    Ok(bytes)
+}
+
 struct Identity {
     certificate: Vec<u8>,
     private_key: Vec<u8>,
 }
 
 impl Identity {
+    fn from_files(certificate: &Path, private_key: &Path, address: IpAddr) -> CaptureResult<Self> {
+        Self::from_pem(
+            &read_identity(certificate)?,
+            &read_identity(private_key)?,
+            address,
+        )
+    }
+
+    fn from_pem(certificate: &[u8], private_key: &[u8], address: IpAddr) -> CaptureResult<Self> {
+        let certificate = X509::from_pem(certificate)?;
+        if [
+            b"-----BEGIN ENCRYPTED PRIVATE KEY-----".as_slice(),
+            b"Proc-Type: 4,ENCRYPTED".as_slice(),
+        ]
+        .iter()
+        .any(|marker| {
+            private_key
+                .windows(marker.len())
+                .any(|part| part == *marker)
+        }) {
+            return Err("private key must be unencrypted PEM".into());
+        }
+        let private_key = PKey::private_key_from_pem(private_key)?;
+        if !certificate.public_key()?.public_eq(&private_key) {
+            return Err("certificate and private key do not match".into());
+        }
+        if !certificate.check_host(HOSTNAME)?
+            || !certificate.check_host(PUBLIC_NAME)?
+            || !certificate.check_ip_asc(&address.to_string())?
+        {
+            return Err("certificate must cover the origin, ECH public name, and DoH IP".into());
+        }
+        Ok(Self {
+            certificate: certificate.to_der()?,
+            private_key: private_key.private_key_to_der_pkcs8()?,
+        })
+    }
+
     fn generate() -> CaptureResult<Self> {
         let mut params = CertificateParams::new(vec![
             HOSTNAME.to_owned(),

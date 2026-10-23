@@ -1,4 +1,7 @@
-"""Record a Chromium browser's ClientHellos when an HTTPS record carries ECH.
+"""Record browser ClientHellos when an HTTPS record carries ECH.
+
+Firefox uses explicit TRR-only profile preferences and a supplied NSS cert9.db
+for normal certificate verification. Its captures use TCP.
 
 Chrome reads HTTPS records from its own DNS client or from DNS over HTTPS;
 `--host-resolver-rules` cannot produce one. This tool therefore points the
@@ -32,7 +35,9 @@ from __future__ import annotations
 
 import argparse
 import codecs
+import hashlib
 import io
+import ipaddress
 import json
 import re
 import subprocess
@@ -44,6 +49,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import BinaryIO
+from urllib.parse import urlsplit
 
 from .browser_launch import DESKTOP_CHROMIUM_BROWSERS, LaunchedBrowser, LaunchPlan
 from .fixture_file import write_text_fixture
@@ -83,6 +89,12 @@ MAX_CAPTURE_DIAGNOSTICS = 1024 * 1024
 MAX_DIAGNOSTIC_LINE = 16 * 1024
 POLL_SECONDS = 0.02
 POLICY_TIMEOUT_SECONDS = 5
+MAX_IDENTITY_BYTES = 128 * 1024
+MAX_CERT9_BYTES = 4 * 1024 * 1024
+FIREFOX_DNS_CONFIGURATION = (
+    "user.js network.trr.mode=3 network.trr.uri=<doh_template> "
+    "network.trr.allow-rfc1918=true network.http.http3.enable=false"
+)
 
 
 def local_state(template: str, browser: str = "chrome") -> str:
@@ -149,7 +161,29 @@ def parse_ready_line(line: str) -> tuple[str, str, str | None] | None:
         return None
     template, separator, rest = line[len(READY_PREFIX) :].strip().partition(" origin=")
     origin, spki_separator, spki = rest.partition(" spki=")
-    if not separator or not template.startswith("https://127.") or not origin:
+    if not separator:
+        return None
+    try:
+        parsed = urlsplit(template)
+        host, _, port = origin.rpartition(":")
+        if (
+            parsed.scheme != "https"
+            or (
+                parsed.hostname is None
+                or not ipaddress.ip_address(parsed.hostname).is_loopback
+            )
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path != "/dns-query"
+            or parsed.query
+            or parsed.fragment
+            or parsed.port is None
+            or not 1 <= parsed.port <= 65535
+            or not ipaddress.ip_address(host).is_loopback
+            or not 1 <= int(port) <= 65535
+        ):
+            return None
+    except ValueError:
         return None
     if spki_separator and not re.fullmatch(r"[A-Za-z0-9+/]{43}=", spki):
         return None
@@ -169,6 +203,11 @@ class CaptureRun:
     doh_port: int | None = None
     dns_from_policy: bool = False
     quic: bool = False
+    certificate: Path | None = None
+    private_key: Path | None = None
+    certificate_sha256: str | None = None
+    cert9_db: Path | None = None
+    cert9_sha256: str | None = None
 
 
 def quic_arguments(spki: str) -> tuple[str, ...]:
@@ -180,8 +219,109 @@ def quic_arguments(spki: str) -> tuple[str, ...]:
     )
 
 
-def launch_plan(run: CaptureRun, spki: str = SPKI_PLACEHOLDER) -> LaunchPlan:
+def origin_url(origin: str) -> str:
+    host, separator, port = origin.rpartition(":")
+    if (
+        not separator
+        or host != "127.0.0.1"
+        or not port.isdecimal()
+        or not 0 <= int(port) <= 65535
+    ):
+        raise ValueError("Firefox ECH origin must be 127.0.0.1:<port>")
+    suffix = "" if int(port) == 443 else f":{port if int(port) else '<origin-port>'}"
+    return f"https://{HOSTNAME}{suffix}/"
+
+
+def checked_input(path: Path, limit: int, digest: str | None = None) -> bytes:
+    with path.open("rb") as source:
+        data = source.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("ECH identity input exceeds its size limit")
+    if digest is not None:
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+            raise ValueError("ECH input SHA-256 must contain 64 hex digits")
+        if hashlib.sha256(data).hexdigest() != digest.lower():
+            raise ValueError("ECH input SHA-256 mismatch")
+    return data
+
+
+def capture_inputs(run: CaptureRun) -> tuple[bytes, bytes, bytes] | None:
+    if run.browser != "firefox":
+        if any(
+            (
+                run.certificate,
+                run.private_key,
+                run.certificate_sha256,
+                run.cert9_db,
+                run.cert9_sha256,
+            )
+        ):
+            raise ValueError("PEM and NSS inputs require --browser firefox")
+        return None
+    origin_url(run.origin)
+    if run.quic or run.dns_from_policy:
+        raise ValueError("Firefox ECH capture supports TCP and profile DoH only")
+    if not all(
+        (
+            run.certificate,
+            run.private_key,
+            run.certificate_sha256,
+            run.cert9_db,
+            run.cert9_sha256,
+        )
+    ):
+        raise ValueError(
+            "Firefox ECH capture requires PEM identity and hash-bound NSS inputs"
+        )
+    assert (
+        run.certificate is not None
+        and run.private_key is not None
+        and run.cert9_db is not None
+    )
+    certificate = checked_input(
+        run.certificate, MAX_IDENTITY_BYTES, run.certificate_sha256
+    )
+    key = checked_input(run.private_key, MAX_IDENTITY_BYTES)
+    if any(
+        marker in key
+        for marker in (
+            b"-----BEGIN ENCRYPTED PRIVATE KEY-----",
+            b"Proc-Type: 4,ENCRYPTED",
+        )
+    ):
+        raise ValueError("ECH private key must be unencrypted PEM")
+    database = checked_input(run.cert9_db, MAX_CERT9_BYTES, run.cert9_sha256)
+    if not database.startswith(b"SQLite format 3\x00"):
+        raise ValueError("cert9.db must be an NSS SQL database")
+    return certificate, key, database
+
+
+class _TrustedFirefox(LaunchedBrowser):
+    def __init__(self, plan: LaunchPlan, url: str, database: bytes) -> None:
+        super().__init__(plan, url)
+        self.database = database
+
+    def _start(self, profile: Path) -> subprocess.Popen[bytes] | ProcessContainer:
+        (profile / "cert9.db").write_bytes(self.database)
+        return super()._start(profile)
+
+
+def launch_plan(
+    run: CaptureRun, spki: str = SPKI_PLACEHOLDER, *, template: str = "<doh_template>"
+) -> LaunchPlan:
     """The browser launch; with QUIC, `spki` trusts the origin's key."""
+    if run.browser == "firefox":
+        return LaunchPlan(
+            browser="firefox",
+            executable=run.browser_path,
+            headless=run.headless,
+            firefox_preferences=(
+                ("network.trr.mode", 3),
+                ("network.trr.uri", template),
+                ("network.trr.allow-rfc1918", True),
+                ("network.http.http3.enable", False),
+            ),
+        )
     return LaunchPlan(
         browser=run.browser,
         executable=run.browser_path,
@@ -194,7 +334,9 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
     """Arguments for the `capture_ech_client_hello` example."""
     port = [] if run.doh_port is None else ["--doh-port", str(run.doh_port)]
     quic = ["--quic"] if run.quic else []
-    if run.dns_from_policy:
+    if run.browser == "firefox":
+        dns_configuration = FIREFOX_DNS_CONFIGURATION
+    elif run.dns_from_policy:
         dns_configuration = POLICY_DNS_CONFIGURATION.format(
             key=POLICY_KEYS[run.browser]
         )
@@ -206,6 +348,11 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
         str(run.capture_binary),
         *port,
         *quic,
+        *(
+            ["--identity", str(run.certificate), str(run.private_key)]
+            if run.browser == "firefox"
+            else []
+        ),
         run.scenario,
         run.origin,
         plan.client_name,
@@ -213,7 +360,9 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
         run.operating_system,
         dns_configuration,
         plan.launch_mode,
-        plan.recorded_arguments(URL),
+        plan.recorded_arguments(
+            origin_url(run.origin) if run.browser == "firefox" else URL
+        ),
     ]
 
 
@@ -237,12 +386,20 @@ def capture(
     report: Callable[[str], None] = lambda line: print(line, file=sys.stderr),
 ) -> str:
     """Run one capture and return the fixture text."""
+    inputs = capture_inputs(run)
     if run.dns_from_policy:
         check_policy(run)
     plan = launch_plan(run)
-    command = capture_arguments(run, plan)
     deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
     with _output_directory() as directory:
+        if inputs is not None:
+            certificate, key, _database = inputs
+            staged_certificate = directory / "certificate.pem"
+            staged_key = directory / "key.pem"
+            staged_certificate.write_bytes(certificate)
+            staged_key.write_bytes(key)
+            run = replace(run, certificate=staged_certificate, private_key=staged_key)
+        command = capture_arguments(run, plan)
         output_path = directory / "fixture"
         diagnostics_path = directory / "diagnostics"
         # Readers need separate open descriptions: seeking a descriptor shared
@@ -269,7 +426,16 @@ def capture(
                         )
                     _wait_for_capture(deadline, command)
 
-                template, _origin, spki = observer.ready
+                template, actual_origin, spki = observer.ready
+                if run.browser == "firefox":
+                    requested_port = int(run.origin.rsplit(":", 1)[1])
+                    actual_port = int(actual_origin.rsplit(":", 1)[1])
+                    if actual_origin.rsplit(":", 1)[0] != "127.0.0.1" or (
+                        requested_port and requested_port != actual_port
+                    ):
+                        raise RuntimeError(
+                            "the capture server origin does not match the run"
+                        )
                 if run.doh_port is not None and template != doh_template(
                     run.origin, run.doh_port
                 ):
@@ -280,18 +446,26 @@ def capture(
                     )
                 if spki is not None:
                     plan = launch_plan(run, spki)
-                configured = (
-                    plan
-                    if run.dns_from_policy
-                    else replace(
+                if inputs is not None:
+                    if urlsplit(template).hostname != "127.0.0.1":
+                        raise RuntimeError("Firefox DoH listener must use 127.0.0.1")
+                    configured = launch_plan(run, template=template)
+                elif run.dns_from_policy:
+                    configured = plan
+                else:
+                    configured = replace(
                         plan,
                         profile_files=(
                             (LOCAL_STATE, local_state(template, run.browser)),
                         ),
                     )
-                )
                 _check_capture_deadline(deadline, command)
-                with LaunchedBrowser(configured, URL):
+                browser = (
+                    _TrustedFirefox(configured, origin_url(actual_origin), inputs[2])
+                    if inputs is not None
+                    else LaunchedBrowser(configured, URL)
+                )
+                with browser:
                     while True:
                         _check_capture_deadline(deadline, command)
                         code = process.poll()
@@ -322,7 +496,15 @@ def capture(
                 if len(fixture) > MAX_CAPTURE_OUTPUT:
                     raise ValueError("ECH fixture exceeds the capture output limit")
                 with io.TextIOWrapper(io.BytesIO(fixture), encoding="ascii") as text:
-                    return text.read()
+                    result = text.read()
+                if inputs is not None:
+                    result += f"cert9_sha256={run.cert9_sha256.lower()}\n"
+                    result += (
+                        f"certificate_pem_sha256={run.certificate_sha256.lower()}\n"
+                    )
+                if len(result) > MAX_CAPTURE_OUTPUT:
+                    raise ValueError("ECH fixture exceeds the capture output limit")
+                return result
 
 
 @contextmanager
@@ -425,8 +607,9 @@ def port_number(text: str) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    # The DoH preferences go into a desktop profile's `Local State` file.
-    parser.add_argument("--browser", choices=DESKTOP_CHROMIUM_BROWSERS, required=True)
+    parser.add_argument(
+        "--browser", choices=(*DESKTOP_CHROMIUM_BROWSERS, "firefox"), required=True
+    )
     parser.add_argument("--browser-path", type=Path, required=True)
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", required=True)
@@ -437,6 +620,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--doh-port", type=port_number)
     parser.add_argument("--dns-from-policy", action="store_true")
     parser.add_argument("--quic", action="store_true")
+    parser.add_argument("--certificate", type=Path)
+    parser.add_argument("--private-key", type=Path)
+    parser.add_argument("--certificate-sha256")
+    parser.add_argument("--cert9-db", type=Path)
+    parser.add_argument("--cert9-sha256")
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args(argv)
     fixture = capture(
@@ -452,6 +640,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             doh_port=arguments.doh_port,
             dns_from_policy=arguments.dns_from_policy,
             quic=arguments.quic,
+            certificate=arguments.certificate,
+            private_key=arguments.private_key,
+            certificate_sha256=arguments.certificate_sha256,
+            cert9_db=arguments.cert9_db,
+            cert9_sha256=arguments.cert9_sha256,
         )
     )
     write_text_fixture(arguments.output, fixture)
