@@ -22,6 +22,8 @@ pub(crate) mod alt_svc;
 pub(crate) mod client_hints;
 #[cfg(feature = "cookies")]
 mod cookies;
+#[cfg(feature = "https-records")]
+mod ech_retry;
 pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
 mod http2_connections;

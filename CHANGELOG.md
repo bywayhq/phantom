@@ -51,6 +51,10 @@
 
 - Add `AddressCache::remove` to refresh one hostname without clearing
   unrelated answers.
+- Allow direct HTTP requests to resume with ECH and early data. An authenticated
+  ECH rejection gets one fresh handshake at the same address, within the
+  original connection deadline and HTTP attempt allowance.
+
 - Capture Firefox ECH acceptance and retry with profile-local certificate trust.
 
 - Breaking: add `DnsCacheSettings::stale_grace`. Firefox recipes reuse

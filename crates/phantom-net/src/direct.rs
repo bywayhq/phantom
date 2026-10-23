@@ -192,8 +192,9 @@ pub(crate) enum DirectTlsError {
 /// `net/socket/ssl_connect_job.cc` lines 506-525 at `154.0.8037.58`). A
 /// second rejection fails with [`crate::tls::EchFailure::Rejected`].
 ///
-/// With `offer_early_data` set, a connection that offers no ECH configuration
-/// is the one [`crate::tls::TlsConnector::connect_offering_early_data`] makes.
+/// With early data allowed, a cached session can offer early data alongside
+/// ECH. A deferred authenticated rejection retains one fresh retry for the
+/// request owner.
 #[cfg(feature = "https-records")]
 pub(crate) async fn connect_tls_with_ech(
     tls: &crate::tls::TlsConnector,
@@ -202,7 +203,7 @@ pub(crate) async fn connect_tls_with_ech(
     port: u16,
     server_name: &str,
     ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    offer_early_data: bool,
+    early_data: EchEarlyData,
 ) -> Result<crate::tls::TlsStream<ProfileTcpStream>, DirectTlsError> {
     connect_tls_with_ech_retaining(
         tls,
@@ -210,26 +211,43 @@ pub(crate) async fn connect_tls_with_ech(
         crate::route::Endpoint { host, port },
         server_name,
         ech,
-        offer_early_data,
+        early_data,
         None,
     )
     .await
     .map(|(stream, _, _)| stream)
 }
 
+#[derive(Clone, Copy)]
+#[cfg(feature = "https-records")]
+pub(crate) enum EchEarlyData {
+    Disabled,
+    WithoutEch,
+    Allowed,
+}
+
 /// One validated, immutable ECH decision for both connections of a TCP race.
 #[cfg(feature = "https-records")]
-pub(crate) struct SelectedEch(Option<crate::dns::EchConfigList>);
+pub(crate) struct SelectedEch {
+    configs: Option<crate::dns::EchConfigList>,
+    early_data: EchEarlyData,
+}
 
 #[cfg(feature = "https-records")]
 impl SelectedEch {
-    pub(crate) fn new(list: Option<crate::dns::EchConfigList>) -> Result<Self, DirectTlsError> {
+    pub(crate) fn new(
+        list: Option<crate::dns::EchConfigList>,
+        early_data: EchEarlyData,
+    ) -> Result<Self, DirectTlsError> {
         if let Some(Err(error)) = list.as_ref().map(crate::dns::EchConfigList::parse) {
             return Err(DirectTlsError::Tls(
                 crate::tls::TlsError::invalid_ech_config_list(error),
             ));
         }
-        Ok(Self(list))
+        Ok(Self {
+            configs: list,
+            early_data,
+        })
     }
 
     /// Authenticated ECH rejection permits one retry at this stream's address.
@@ -239,15 +257,24 @@ impl SelectedEch {
         dialer: Dialer<'_>,
         server_name: &str,
         stream: ProfileTcpStream,
-        offer_early_data: bool,
     ) -> Result<crate::tls::TlsStream<ProfileTcpStream>, DirectTlsError> {
         let address = stream
             .peer_addr()
             .map_err(|error| DirectTlsError::Direct(DirectConnectError::Connect(error)))?;
-        let offered = self.0.as_ref().map(crate::dns::EchConfigList::as_bytes);
-        let handshake = match offered {
-            None if offer_early_data => tls.connect_offering_early_data(server_name, stream).await,
-            offered => tls.connect_with_ech(server_name, stream, offered).await,
+        let offered = self
+            .configs
+            .as_ref()
+            .map(crate::dns::EchConfigList::as_bytes);
+        let offer_early_data = match self.early_data {
+            EchEarlyData::Disabled => false,
+            EchEarlyData::WithoutEch => offered.is_none(),
+            EchEarlyData::Allowed => true,
+        };
+        let handshake = if offer_early_data {
+            tls.connect_offering_early_data_with_ech(server_name, stream, offered)
+                .await
+        } else {
+            tls.connect_with_ech(server_name, stream, offered).await
         };
         match handshake {
             Ok(mut stream) => {
@@ -298,7 +325,7 @@ pub(crate) async fn connect_tls_with_ech_retaining(
     endpoint: crate::route::Endpoint<'_>,
     server_name: &str,
     ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    offer_early_data: bool,
+    early_data: EchEarlyData,
     family: Option<&AddressFamilyMemory>,
 ) -> Result<
     (
@@ -312,8 +339,8 @@ pub(crate) async fn connect_tls_with_ech_retaining(
         connect_tcp_with_lookup(endpoint.host, endpoint.port, dialer, ech, family)
             .await
             .map_err(DirectTlsError::Direct)?;
-    let selected = SelectedEch::new(list)?;
-    let handshake = selected.connect(tls, dialer, server_name, stream, offer_early_data);
+    let selected = SelectedEch::new(list, early_data)?;
+    let handshake = selected.connect(tls, dialer, server_name, stream);
     let stream = match slower.as_mut() {
         Some(attempt) => attempt.alongside(handshake).await,
         None => handshake.await,

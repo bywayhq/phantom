@@ -25,6 +25,8 @@ use tokio::{
 };
 use tracing::debug;
 
+#[cfg(feature = "https-records")]
+use super::ech_retry::{EchRecoveries, EchRecovery};
 use super::tickets::{
     TicketCacheBinding,
     binding::{TicketCacheLeg, TicketCacheProtocol},
@@ -43,7 +45,10 @@ use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
     error::is_unprocessed_http2,
-    retry::{ConnectionSetupRetryState, acquire_with_retries},
+    retry::{
+        ConnectionSetupRetryState, acquire_with_connect_timeout, acquire_with_retries,
+        send_while_authenticating,
+    },
 };
 
 /// Sends one request, with the request's own HEADERS priority when it has
@@ -286,16 +291,60 @@ impl Http2Pool {
         let retryable_request = method == Method::GET && body.is_none() && trailers.is_empty();
         let mut body = body;
         let mut retried_graceful_goaway = false;
+        #[cfg(feature = "https-records")]
+        let mut ech_recovery: Option<(Arc<EchRecovery>, crate::timeout::PhaseTimeout)> = None;
 
         loop {
             retries.admit_http_attempt(Some(HttpProtocol::Http2))?;
-            let lease =
-                acquire_with_retries(HttpProtocol::Http2, timeout_budget, retries, || async {
-                    entry
-                        .acquire(connector, https_proxy, endpoint, route, mode)
-                        .await
-                })
-                .await?;
+            #[cfg(feature = "https-records")]
+            let recovered = ech_recovery.take();
+            let acquisition = async {
+                #[cfg(feature = "https-records")]
+                if let Some((recovery, connect)) = recovered {
+                    let lease = connect
+                        .run(async {
+                            entry
+                                .recover_ech(&recovery, connector, endpoint, route, mode)
+                                .await?;
+                            entry
+                                .acquire(connector, https_proxy, endpoint, route, mode)
+                                .await
+                        })
+                        .await?;
+                    return Ok((lease, connect));
+                }
+                acquire_with_connect_timeout(
+                    Some(HttpProtocol::Http2),
+                    timeout_budget,
+                    retries,
+                    || async {
+                        entry
+                            .acquire(connector, https_proxy, endpoint, route, mode)
+                            .await
+                    },
+                )
+                .await
+            };
+            let (lease, connect) = acquisition.await?;
+            let replay_safe =
+                phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty());
+            if !replay_safe && lease.connection.early_data_pending() {
+                connect
+                    .run(async {
+                        lease.connection.early_data_answered().await;
+                        Ok(())
+                    })
+                    .await?;
+            }
+            if let Some(failure) = lease.connection.early_data_failure() {
+                #[cfg(feature = "https-records")]
+                if let Some(recovery) = entry.ech_failure(&lease, &failure) {
+                    ech_recovery = Some((recovery, connect));
+                    drop(lease);
+                    continue;
+                }
+                return Err(RequestError::http2_connection_setup(failure));
+            }
             // Nothing is written on a connection whose ACCEPT_CH asks for a
             // hint the request lacks; the request restarts with it.
             if let Some(hints) = client_hints.and_then(|context| {
@@ -308,7 +357,7 @@ impl Http2Pool {
                 drop(permit);
                 return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
             }
-            if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty()) {
+            if replay_safe {
                 lease
                     .connection
                     .register_early_data_attempt_optional(retries.attempt_budget());
@@ -319,12 +368,25 @@ impl Http2Pool {
                 crate::RequestTimingPhase::SendResponseHead,
                 Some(HttpProtocol::Http2.version()),
             );
-            let result = response_timeout
-                .run(async {
-                    Ok::<_, RequestError>(match mode {
-                        Http2ConnectionMode::TlsOrigin => {
-                            send_on(
-                                &lease.connection,
+            let send = response_timeout.run(async {
+                Ok::<_, RequestError>(match mode {
+                    Http2ConnectionMode::TlsOrigin => {
+                        send_on(
+                            &lease.connection,
+                            method.clone(),
+                            authority,
+                            target.clone(),
+                            headers.clone(),
+                            body.take(),
+                            trailers.clone(),
+                            priority,
+                        )
+                        .await
+                    }
+                    Http2ConnectionMode::Forward | Http2ConnectionMode::PlaintextOrigin => {
+                        lease
+                            .connection
+                            .send_forward_request_body_with_trailers(
                                 method.clone(),
                                 authority,
                                 target.clone(),
@@ -334,24 +396,15 @@ impl Http2Pool {
                                 priority,
                             )
                             .await
-                        }
-                        Http2ConnectionMode::Forward | Http2ConnectionMode::PlaintextOrigin => {
-                            lease
-                                .connection
-                                .send_forward_request_body_with_trailers(
-                                    method.clone(),
-                                    authority,
-                                    target.clone(),
-                                    headers.clone(),
-                                    body.take(),
-                                    trailers.clone(),
-                                    priority,
-                                )
-                                .await
-                        }
-                    })
+                    }
                 })
-                .await;
+            });
+            let result = if lease.connection.early_data_pending() {
+                send_while_authenticating(connect, lease.connection.early_data_answered(), send)
+                    .await
+            } else {
+                send.await
+            };
             diagnostic_head.nested_result(&result);
             match result {
                 Ok(Ok(response)) => {
@@ -370,6 +423,14 @@ impl Http2Pool {
                     )));
                 }
                 Ok(Err(error)) => {
+                    #[cfg(feature = "https-records")]
+                    if let Some(failure) = lease.connection.early_data_failure()
+                        && let Some(recovery) = entry.ech_failure(&lease, &failure)
+                    {
+                        ech_recovery = Some((recovery, connect));
+                        drop(lease);
+                        continue;
+                    }
                     // An unprocessed replay must use another connection, so
                     // one that refused a stream is retired when it is enabled.
                     if invalidates_http2_connection(&error)
@@ -681,6 +742,8 @@ impl PoolEntry {
                 next_spare: 0,
                 openings: 0,
                 dedicated: Vec::new(),
+                #[cfg(feature = "https-records")]
+                ech_recoveries: EchRecoveries::default(),
             }),
             setup_done: Arc::new(Notify::new()),
             admission,
@@ -694,7 +757,7 @@ impl PoolEntry {
         }
     }
 
-    #[cfg(feature = "websocket")]
+    #[cfg(any(feature = "websocket", feature = "https-records"))]
     fn origin_connector(
         &self,
         base: &Http2TlsConnector,
@@ -813,6 +876,87 @@ impl PoolEntry {
         }
     }
 
+    #[cfg(feature = "https-records")]
+    fn ech_failure(
+        &self,
+        lease: &ConnectionLease,
+        failure: &Http2TlsError,
+    ) -> Option<Arc<EchRecovery>> {
+        let Http2TlsError::Tls(error) = failure else {
+            return None;
+        };
+        let retry = error.ech_retry()?.clone();
+        let failure = lease.connection.early_data_failure()?;
+        let mut state = self.lock();
+        let recovery = state.ech_recoveries.get_or_insert(
+            &lease.token,
+            retry,
+            RequestError::http2_connection_setup(failure),
+        );
+        state
+            .slots
+            .retain(|slot| !Arc::ptr_eq(&slot.token, &lease.token));
+        Some(recovery)
+    }
+
+    #[cfg(feature = "https-records")]
+    async fn recover_ech(
+        self: &Arc<Self>,
+        recovery: &EchRecovery,
+        connector: &Http2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+        mode: Http2ConnectionMode,
+    ) -> Result<(), RequestError> {
+        let Some(owner) = recovery.claim() else {
+            return recovery.finished().await;
+        };
+        let result = async {
+            if !matches!(route, Route::Direct) || mode != Http2ConnectionMode::TlsOrigin {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+            }
+            let reservation = loop {
+                let mut notified = pin!(self.setup_done.notified());
+                notified.as_mut().enable();
+                {
+                    let mut state = self.lock();
+                    if !state.connecting {
+                        state.connecting = true;
+                        self.family.mark_active();
+                        break SetupReservation {
+                            entry: self,
+                            finished: false,
+                        };
+                    }
+                }
+                notified.await;
+            };
+            let connector = self.origin_connector(connector, endpoint, route)?;
+            let (connection, slower) = super::box_send(connector.connect(
+                phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
+                    tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                        host: endpoint.host(),
+                        port: endpoint.port(),
+                    }),
+                    server_name: endpoint.host(),
+                    setup: phantom_net::route::DirectTlsSetup::EchRetry(recovery.retry()),
+                }),
+            ))
+            .await
+            .map_err(RequestError::http2_connection_setup)?;
+            Ok(reservation.finish(connection, slower))
+        }
+        .await;
+        match result {
+            Ok(lease) => {
+                drop(lease);
+                owner.finish();
+                Ok(())
+            }
+            Err(error) => Err(owner.fail(error)),
+        }
+    }
+
     async fn acquire(
         self: &Arc<Self>,
         connector: &Http2TlsConnector,
@@ -826,84 +970,100 @@ impl PoolEntry {
         // or a stream ends, as the single-connection pool did, and choose
         // again. Waiters are woken together, not in arrival order: after a
         // failed setup, whichever runs first makes the next attempt.
-        let (reservation, proxy_opening) = loop {
-            let expired = self
-                .lock()
-                .take_expired_proxy_spares(Instant::now(), self.http1_used_idle_timeout);
-            let removed = !expired.is_empty();
-            close_proxy_spares(expired);
-            if removed {
-                self.setup_done.notify_waiters();
-            }
-            let mut setup_done = pin!(self.setup_done.notified());
-            // Registered before the check, so a setup finishing in between
-            // still wakes this request.
-            setup_done.as_mut().enable();
-            {
-                let mut connections = self.lock();
-                connections.retain_reusable();
-                if let Choice::Use(index) = connections.choose()
-                    && let Some(slot) = connections.slots.get(index)
+        loop {
+            let setup = loop {
+                let expired = self
+                    .lock()
+                    .take_expired_proxy_spares(Instant::now(), self.http1_used_idle_timeout);
+                let removed = !expired.is_empty();
+                close_proxy_spares(expired);
+                if removed {
+                    self.setup_done.notify_waiters();
+                }
+                let mut setup_done = pin!(self.setup_done.notified());
+                // Registered before the check, so a setup finishing in between
+                // still wakes this request.
+                setup_done.as_mut().enable();
                 {
-                    debug!(
-                        outcome = "hit",
-                        "HTTP/2 connection acquired from client pool"
-                    );
-                    return Ok(slot.lease());
-                }
-                if !connections.connecting {
-                    if let Some(index) = connections
-                        .spares
-                        .iter()
-                        .position(|spare| spare.ready.is_some())
+                    let mut connections = self.lock();
+                    connections.retain_reusable();
+                    if let Choice::Use(index) = connections.choose()
+                        && let Some(slot) = connections.slots.get(index)
                     {
-                        let mut spare = connections.spares.swap_remove(index);
-                        let opening = spare.ready.take();
-                        connections.connecting = true;
-                        break (
-                            SetupReservation {
-                                entry: self,
-                                finished: false,
-                            },
-                            opening.map(|opening| {
-                                (opening, spare.idle_since.unwrap_or_else(Instant::now))
-                            }),
+                        debug!(
+                            outcome = "hit",
+                            "HTTP/2 connection acquired from client pool"
                         );
+                        return Ok(slot.lease());
                     }
-                    if connections.spares.is_empty() {
-                        self.family.mark_active();
-                        connections.connecting = true;
-                        break (
-                            SetupReservation {
-                                entry: self,
-                                finished: false,
-                            },
-                            None,
-                        );
+                    #[cfg(feature = "https-records")]
+                    if let Some(recovery) = connections.ech_recoveries.pending() {
+                        break ConnectionSetup::Ech(recovery);
+                    }
+                    if !connections.connecting {
+                        if let Some(index) = connections
+                            .spares
+                            .iter()
+                            .position(|spare| spare.ready.is_some())
+                        {
+                            let mut spare = connections.spares.swap_remove(index);
+                            let opening = spare.ready.take();
+                            connections.connecting = true;
+                            break ConnectionSetup::Open(
+                                SetupReservation {
+                                    entry: self,
+                                    finished: false,
+                                },
+                                opening.map(|opening| {
+                                    (opening, spare.idle_since.unwrap_or_else(Instant::now))
+                                }),
+                            );
+                        }
+                        if connections.spares.is_empty() {
+                            self.family.mark_active();
+                            connections.connecting = true;
+                            break ConnectionSetup::Open(
+                                SetupReservation {
+                                    entry: self,
+                                    finished: false,
+                                },
+                                None,
+                            );
+                        }
                     }
                 }
-            }
-            setup_done.await;
-        };
-
-        if let Some((opening, since)) = proxy_opening {
-            let claim = ProxyClaim {
-                reservation: Some(reservation),
-                opening: Some(opening),
-                since,
+                setup_done.await;
             };
-            // A proxy claim is connection setup too; keep its CONNECT/TLS
-            // future out of acquire, including when a request reuses H2.
-            return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
-        }
 
-        debug!(outcome = "connect", "HTTP/2 client pool opening connection");
-        // Boxed: opening a connection awaits the largest connector futures,
-        // which would otherwise enlarge the future of every request, including
-        // one that reuses a pooled connection.
-        let (connection, slower) =
-            super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
-        Ok(reservation.finish(connection, slower))
+            let (reservation, proxy_opening) = match setup {
+                ConnectionSetup::Open(reservation, opening) => (reservation, opening),
+                #[cfg(feature = "https-records")]
+                ConnectionSetup::Ech(recovery) => {
+                    self.recover_ech(&recovery, connector, endpoint, route, mode)
+                        .await?;
+                    continue;
+                }
+            };
+
+            if let Some((opening, since)) = proxy_opening {
+                let claim = ProxyClaim {
+                    reservation: Some(reservation),
+                    opening: Some(opening),
+                    since,
+                };
+                // A proxy claim is connection setup too; keep its CONNECT/TLS
+                // future out of acquire, including when a request reuses H2.
+                return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
+            }
+
+            debug!(outcome = "connect", "HTTP/2 client pool opening connection");
+            // Boxed: opening a connection awaits the largest connector futures,
+            // which would otherwise enlarge the future of every request, including
+            // one that reuses a pooled connection.
+            let (connection, slower) =
+                super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+            return Ok(reservation.finish(connection, slower));
+        }
     }
 
     async fn finish_proxy_claim(
@@ -1863,6 +2023,14 @@ struct Connections {
     next_spare: u64,
     openings: usize,
     dedicated: Vec<Weak<Http2Connection>>,
+    #[cfg(feature = "https-records")]
+    ech_recoveries: EchRecoveries,
+}
+
+enum ConnectionSetup<'a> {
+    Open(SetupReservation<'a>, Option<(Http2ProxyOpening, Instant)>),
+    #[cfg(feature = "https-records")]
+    Ech(Arc<EchRecovery>),
 }
 
 /// The key's one connection setup in flight.
@@ -1978,6 +2146,8 @@ impl Connections {
 
     fn retain_reusable(&mut self) {
         self.slots.retain(|slot| slot.connection.is_reusable());
+        #[cfg(feature = "https-records")]
+        self.ech_recoveries.retain_live();
     }
 
     fn choose(&mut self) -> Choice {

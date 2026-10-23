@@ -132,4 +132,6 @@ async fn invalid_upgrade_fields_fail_before_connecting() -> TestResult<()> {
     .await
 }
 
+#[cfg(feature = "https-records")]
+mod ech;
 mod proxy;

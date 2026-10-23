@@ -5,7 +5,7 @@ use tracing::Span;
 
 use crate::{
     HttpProtocol, RequestError,
-    timeout::{TimeoutBudget, TimeoutPhase},
+    timeout::{PhaseTimeout, TimeoutBudget, TimeoutPhase},
 };
 
 mod delay;
@@ -914,8 +914,24 @@ async fn acquire_with_retries_for<Output, Attempt, AttemptFuture>(
     protocol: Option<HttpProtocol>,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
-    mut attempt: Attempt,
+    attempt: Attempt,
 ) -> Result<Output, RequestError>
+where
+    Attempt: FnMut() -> AttemptFuture,
+    AttemptFuture: Future<Output = Result<Output, RequestError>>,
+{
+    acquire_with_connect_timeout(protocol, timeout_budget, retries, attempt)
+        .await
+        .map(|(output, _)| output)
+}
+
+/// Keeps the successful acquisition's deadline for deferred authentication.
+pub(crate) async fn acquire_with_connect_timeout<Output, Attempt, AttemptFuture>(
+    protocol: Option<HttpProtocol>,
+    timeout_budget: TimeoutBudget,
+    retries: &mut ConnectionSetupRetryState,
+    mut attempt: Attempt,
+) -> Result<(Output, PhaseTimeout), RequestError>
 where
     Attempt: FnMut() -> AttemptFuture,
     AttemptFuture: Future<Output = Result<Output, RequestError>>,
@@ -924,17 +940,39 @@ where
         // Connector futures include bounded proxy-authentication state machines.
         // Keep that backend-specific future off this request future's stack.
         let attempt = Box::pin(attempt());
-        let result = timeout_budget
-            .run(TimeoutPhase::Connect, protocol, attempt)
-            .await;
+        let connect = timeout_budget.phase(TimeoutPhase::Connect, protocol)?;
+        let result = connect.run(attempt).await;
         match result {
-            Ok(output) => return Ok(output),
+            Ok(output) => return Ok((output, connect)),
             Err(error)
                 if retries
                     .retry_after(&error, protocol, timeout_budget)
                     .await? => {}
             Err(error) => return Err(error),
         }
+    }
+}
+
+/// Polls an early-data send while its original handshake deadline is active.
+/// Authentication completion leaves the same send future and response timeout
+/// running; this helper neither reconstructs the request nor grants a retry.
+pub(crate) async fn send_while_authenticating<Output>(
+    connect: PhaseTimeout,
+    authenticated: impl Future<Output = ()>,
+    send: impl Future<Output = Result<Output, RequestError>>,
+) -> Result<Output, RequestError> {
+    let authenticated = connect.run(async {
+        authenticated.await;
+        Ok(())
+    });
+    tokio::pin!(authenticated, send);
+    tokio::select! {
+        biased;
+        result = &mut authenticated => {
+            result?;
+            send.await
+        }
+        result = &mut send => result,
     }
 }
 

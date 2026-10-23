@@ -716,8 +716,27 @@ impl TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        self.handshake(server_name, stream, None, SessionOffer::EarlyData)
+        self.connect_offering_early_data_with_ech(server_name, stream, None)
             .await
+    }
+
+    /// Offers ECH and early data through the same authenticated handshake.
+    pub(crate) async fn connect_offering_early_data_with_ech<S>(
+        &self,
+        server_name: &str,
+        stream: S,
+        ech_config_list: Option<&[u8]>,
+    ) -> Result<TlsStream<S>, TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        self.handshake(
+            server_name,
+            stream,
+            ech_config_list,
+            SessionOffer::EarlyData,
+        )
+        .await
     }
 
     /// Completes a fresh authenticated handshake without consuming a cached
@@ -806,8 +825,7 @@ impl TlsConnector {
     }
 
     /// Offers early data when requested, the connector keeps
-    /// early-data sessions, no ECH configuration is offered, and the cached
-    /// session permits it.
+    /// early-data sessions, and the cached session permits it.
     async fn handshake<S>(
         &self,
         server_name: &str,
@@ -867,7 +885,6 @@ impl TlsConnector {
                     .is_some_and(|session| !session.should_be_single_use());
                 let offers_early_data = matches!(session_offer, SessionOffer::EarlyData)
                     && self.early_data
-                    && ech_config_list.is_none()
                     && session
                         .as_ref()
                         .is_some_and(btls::ssl::ScopedSslSession::early_data_capable);

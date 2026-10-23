@@ -1060,7 +1060,11 @@ impl Http2TlsConnector {
                     endpoint,
                     server_name,
                     lookup,
-                    true,
+                    if extended_connect {
+                        crate::direct::EchEarlyData::WithoutEch
+                    } else {
+                        crate::direct::EchEarlyData::Allowed
+                    },
                     Some(family),
                 )
                 .await?;
@@ -1121,13 +1125,7 @@ impl Http2TlsConnector {
                 #[cfg(feature = "https-records")]
                 if let Some(selected) = selected {
                     return selected
-                        .connect(
-                            &connector.tls,
-                            connector.dialer(),
-                            &server_name,
-                            stream,
-                            true,
-                        )
+                        .connect(&connector.tls, connector.dialer(), &server_name, stream)
                         .await
                         .map_err(Http2TlsError::from);
                 }
@@ -1260,7 +1258,13 @@ impl Http2TlsConnector {
                     endpoint.port,
                     server_name,
                     ech,
-                    early_data,
+                    if !early_data {
+                        crate::direct::EchEarlyData::Disabled
+                    } else if extended_connect {
+                        crate::direct::EchEarlyData::WithoutEch
+                    } else {
+                        crate::direct::EchEarlyData::Allowed
+                    },
                 )
                 .await?;
                 let keepalive = stream.tcp_keepalive();

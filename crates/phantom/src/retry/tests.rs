@@ -17,6 +17,81 @@ fn refused_connection() -> RequestError {
     )))
 }
 
+#[tokio::test(start_paused = true)]
+async fn deferred_authentication_and_recovery_keep_the_acquisition_deadline()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut retries = ConnectionSetupRetryState::new(RetryPolicy::none(), Span::none());
+    let budget = crate::timeout::TimeoutBudget::new(
+        RequestTimeouts::new().connect(Duration::from_millis(100)),
+    )?;
+    let started = tokio::time::Instant::now();
+    let (_, connect) = super::acquire_with_connect_timeout(
+        Some(HttpProtocol::Http2),
+        budget,
+        &mut retries,
+        || async {
+            tokio::time::sleep(Duration::from_millis(40)).await;
+            Ok(())
+        },
+    )
+    .await?;
+    // Authentication consumes another 30 ms. Recovery must get the remaining
+    // 30 ms, rather than starting a fresh 100 ms connect allowance.
+    super::send_while_authenticating(
+        connect,
+        async {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+        },
+        async {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            Ok(())
+        },
+    )
+    .await?;
+    let error = connect
+        .run(async {
+            tokio::time::sleep(Duration::from_millis(40)).await;
+            Ok(())
+        })
+        .await
+        .err()
+        .ok_or("recovery received a fresh connect timeout")?;
+
+    assert_eq!(started.elapsed(), Duration::from_millis(100));
+    assert_eq!(error.kind(), RequestErrorKind::Timeout);
+    assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Connect));
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn authenticated_sends_continue_without_the_connect_timer()
+-> Result<(), Box<dyn std::error::Error>> {
+    let budget = crate::timeout::TimeoutBudget::new(
+        RequestTimeouts::new().connect(Duration::from_millis(20)),
+    )?;
+    let connect = budget.phase(TimeoutPhase::Connect, Some(HttpProtocol::Http1))?;
+    let polls = std::cell::Cell::new(0);
+    let send = async {
+        polls.set(polls.get() + 1);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        Ok(7)
+    };
+
+    let result = super::send_while_authenticating(
+        connect,
+        async {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        },
+        send,
+    )
+    .await?;
+
+    assert_eq!(result, 7);
+    assert_eq!(polls.get(), 1);
+    Ok(())
+}
+
 #[test]
 fn alternative_dispatch_shares_the_original_attempt_allowance() -> Result<(), RequestError> {
     let budget = crate::HttpAttemptBudget::new(2);

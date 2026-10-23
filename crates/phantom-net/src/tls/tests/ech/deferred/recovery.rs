@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use btls::ssl::{ExtensionType, SelectCertError, SslAcceptorBuilder};
 
 use super::*;
-use crate::direct::{Dialer, DirectTlsError, retry_ech};
+use crate::direct::{Dialer, DirectConnectError, DirectTlsError, SelectedEch, retry_ech};
+use crate::{dns::EchConfigList, tcp::ProfileTcpStream};
 
 enum RetryCase {
     ReplacementConfigs,
@@ -138,8 +139,14 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
         if cache.len() < 2 {
             return Err("seed did not issue an unused control ticket".into());
         }
-        let mut failed = deferred_stream(&connector, address, &configs).await?;
-        failed.set_ech_retry_peer(&connector, INNER_NAME, address);
+        let selected = SelectedEch::new(Some(EchConfigList::new(configs.clone())), crate::direct::EchEarlyData::Allowed)
+            .map_err(direct_failure)?;
+        let tcp = ProfileTcpStream::new(TcpStream::connect(address).await?);
+        let mut failed = selected.connect(&connector, Dialer::default(), INNER_NAME, tcp)
+            .await.map_err(direct_failure)?;
+        if !failed.inner.ssl().in_early_data() {
+            return Err("production ECH setup did not offer deferred early data".into());
+        }
         let first = failed
             .early_data_wait()
             .ok_or("missing deferred handshake")?;
@@ -223,6 +230,16 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
         }
     );
     Ok(())
+}
+
+fn direct_failure(error: DirectTlsError) -> Box<dyn Error + Send + Sync> {
+    match error {
+        DirectTlsError::Tls(error) => Box::new(error),
+        DirectTlsError::Direct(DirectConnectError::Connect(error)) => Box::new(error),
+        DirectTlsError::Direct(DirectConnectError::RuntimeUnavailable) => {
+            "direct ECH test has no runtime".into()
+        }
+    }
 }
 
 fn recording_acceptor(

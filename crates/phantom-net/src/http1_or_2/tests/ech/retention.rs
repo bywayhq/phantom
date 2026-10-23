@@ -27,8 +27,11 @@ enum Opening {
 }
 
 fn selected() -> TestResult<SelectedEch> {
-    SelectedEch::new(Some(published(1, &TEST_ECH_KEYS[0])))
-        .map_err(|_| "valid ECH configuration rejected".into())
+    SelectedEch::new(
+        Some(published(1, &TEST_ECH_KEYS[0])),
+        crate::direct::EchEarlyData::Allowed,
+    )
+    .map_err(|_| "valid ECH configuration rejected".into())
 }
 
 fn attempt(address: SocketAddr) -> SlowerAttempt {

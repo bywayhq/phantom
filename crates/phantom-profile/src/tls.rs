@@ -991,8 +991,11 @@ pub struct TlsSettings {
     /// `phantom` `Client` WebSocket opening shares the tickets of its
     /// origin's request pool, so it offers early data when it resumes one.
     /// Connections through a proxy never offer early data, as Firefox's never
-    /// do. Phantom also never offers it on connections that offer Encrypted
-    /// Client Hello from an HTTPS record, which Firefox does not exclude.
+    /// do. Direct HTTP requests can offer it with ECH from an HTTPS record.
+    /// An authenticated ECH rejection retries once at the same address with a
+    /// full handshake, within the original connection deadline. Requests with
+    /// bodies wait for authentication and keep their body for that retry.
+    /// WebSocket openings wait for authentication when offering real ECH.
     /// QUIC connections follow
     /// [`crate::quic::QuicTransportSettings::early_data`] instead.
     /// Requires [`Self::session_tickets`] and TLS 1.3.

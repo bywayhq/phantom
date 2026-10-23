@@ -40,6 +40,8 @@ use tokio::{
 };
 use tracing::{Span, debug};
 
+#[cfg(feature = "https-records")]
+use super::ech_retry::{EchRecoveries, EchRecovery};
 use super::tickets::{
     TicketCacheBinding,
     binding::{TicketCacheLeg, TicketCacheProtocol},
@@ -59,7 +61,7 @@ use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
     error::is_unprocessed_http2,
-    retry::ConnectionSetupRetryState,
+    retry::{ConnectionSetupRetryState, send_while_authenticating},
     timeout::{PhaseTimeout, TimeoutBudget, TimeoutPhase, within},
 };
 
@@ -291,6 +293,8 @@ impl Http1Or2Pool {
         // Set once a connection failed after its early data was rejected
         // under another ALPN protocol; later connections offer none.
         let mut restart_connector: Option<Http1Or2TlsConnector> = None;
+        #[cfg(feature = "https-records")]
+        let mut ech_recovery: Option<(Arc<EchRecovery>, PhaseTimeout)> = None;
 
         loop {
             retries.admit_http_attempt(None)?;
@@ -299,7 +303,7 @@ impl Http1Or2Pool {
             // belongs to the connect phase of the attempt that opened the
             // connection; a raced or reused lease starts a fresh one.
             let Selected {
-                lease,
+                mut lease,
                 permit,
                 connect,
             } = match leased.take() {
@@ -309,42 +313,104 @@ impl Http1Or2Pool {
                     connect: None,
                 },
                 None => {
-                    let selection = timeout_budget
-                        .run(
-                            TimeoutPhase::PoolAdmission,
-                            None,
-                            entry.admit_before_selection(),
-                        )
-                        .await?;
-                    entry
-                        .acquire_selected(
-                            connector,
-                            https_proxy,
-                            endpoint,
-                            route,
-                            request_span,
-                            selection,
-                            std::mem::take(&mut fresh_http1_connection),
-                            timeout_budget,
-                            retries,
-                        )
-                        .await?
+                    let admission = timeout_budget.run(
+                        TimeoutPhase::PoolAdmission,
+                        None,
+                        entry.admit_before_selection(),
+                    );
+                    #[cfg(feature = "https-records")]
+                    if let Some((recovery, connect)) = ech_recovery.take() {
+                        connect
+                            .run(async {
+                                let selection = admission.await?;
+                                entry
+                                    .recover_ech(
+                                        &recovery,
+                                        connector,
+                                        endpoint,
+                                        route,
+                                        timeout_budget,
+                                    )
+                                    .await?;
+                                let mut selected = entry
+                                    .acquire_selected(
+                                        connector,
+                                        https_proxy,
+                                        endpoint,
+                                        route,
+                                        request_span,
+                                        selection,
+                                        false,
+                                        timeout_budget,
+                                        retries,
+                                    )
+                                    .await?;
+                                selected.connect = Some(connect);
+                                Ok(selected)
+                            })
+                            .await?
+                    } else {
+                        let selection = admission.await?;
+                        entry
+                            .acquire_selected(
+                                connector,
+                                https_proxy,
+                                endpoint,
+                                route,
+                                request_span,
+                                selection,
+                                std::mem::take(&mut fresh_http1_connection),
+                                timeout_budget,
+                                retries,
+                            )
+                            .await?
+                    }
+                    #[cfg(not(feature = "https-records"))]
+                    {
+                        let selection = admission.await?;
+                        entry
+                            .acquire_selected(
+                                connector,
+                                https_proxy,
+                                endpoint,
+                                route,
+                                request_span,
+                                selection,
+                                std::mem::take(&mut fresh_http1_connection),
+                                timeout_budget,
+                                retries,
+                            )
+                            .await?
+                    }
                 }
             };
             let early_data = EarlyDataConnection::of(&lease);
+            let deferred_connect = match connect {
+                Some(connect) => connect,
+                None => timeout_budget.phase(TimeoutPhase::Connect, None)?,
+            };
+            #[cfg(feature = "https-records")]
+            let early_token = match &lease {
+                ConnectionLease::Http2(stream) => Some(Arc::clone(&stream.token)),
+                ConnectionLease::Http1(_) => None,
+            };
             let restarts_early_data = restart_connector.is_none();
             if early_data.pending() && !replay_safe {
                 // Waiting here keeps the body unsent if the connection fails.
-                let connect = match connect {
-                    Some(connect) => connect,
-                    None => timeout_budget.phase(TimeoutPhase::Connect, None)?,
-                };
-                connect
+                if let ConnectionLease::Http1(lease) = &mut lease {
+                    lease.retire();
+                }
+                deferred_connect
                     .run(async {
                         early_data.answered().await;
                         Ok(())
                     })
                     .await?;
+                if early_data.failure().is_none()
+                    && let ConnectionLease::Http1(lease) = &mut lease
+                {
+                    lease.retired = false;
+                }
             }
             // The server may already have rejected the early data and picked
             // another ALPN protocol, or failed the handshake, before this
@@ -355,6 +421,12 @@ impl Http1Or2Pool {
                 continue;
             }
             if let Some(error) = early_data.failure() {
+                #[cfg(feature = "https-records")]
+                if let Some(recovery) = entry.ech_failure(early_token.as_ref(), &early_data) {
+                    ech_recovery = Some((recovery, deferred_connect));
+                    drop((lease, permit));
+                    continue;
+                }
                 return Err(error);
             }
             if replay_safe {
@@ -371,17 +443,19 @@ impl Http1Or2Pool {
                     http1_wire_headers: fields.http1_wire_headers.clone(),
                     http2_headers: fields.http2_headers.clone(),
                 };
-                match entry
-                    .dispatch_on_lease(
-                        lease,
-                        permit,
-                        request.clone(),
-                        attempt_fields,
-                        None,
-                        retire_unprocessed,
-                        timeout_budget,
-                    )
-                    .await
+                let send = entry.dispatch_on_lease(
+                    lease,
+                    permit,
+                    request.clone(),
+                    attempt_fields,
+                    None,
+                    retire_unprocessed,
+                    timeout_budget,
+                );
+                match send_while_authenticating(deferred_connect, early_data.answered(), async {
+                    Ok(send.await)
+                })
+                .await?
                 {
                     Ok(Dispatched::Sent(response)) => return Ok(Dispatched::Sent(response)),
                     // A replay-safe request has no body; any it had stays here.
@@ -404,6 +478,12 @@ impl Http1Or2Pool {
                         continue;
                     }
                     Err(failure) => {
+                        #[cfg(feature = "https-records")]
+                        if let Some(recovery) = entry.ech_failure(early_token.as_ref(), &early_data)
+                        {
+                            ech_recovery = Some((recovery, deferred_connect));
+                            continue;
+                        }
                         return Err(early_data
                             .failure()
                             .unwrap_or_else(|| RequestError::from(failure)));
@@ -1240,7 +1320,7 @@ impl PoolEntry {
         entry
     }
 
-    #[cfg(feature = "websocket")]
+    #[cfg(any(feature = "websocket", feature = "https-records"))]
     fn origin_connector(
         &self,
         base: &Http1Or2TlsConnector,
@@ -1401,15 +1481,38 @@ impl PoolEntry {
         // One connect deadline covers each setup attempt: waiting for another
         // request's setup and this request's own. A setup retry starts anew.
         let mut connect: Option<PhaseTimeout> = None;
+        #[cfg(feature = "https-records")]
+        let mut recovery_connect: Option<PhaseTimeout> = None;
+        #[cfg(not(feature = "https-records"))]
+        let recovery_connect: Option<PhaseTimeout> = None;
         // Set once the setup wait limit passed; the request then opens its
         // own connection instead of waiting again.
         let mut setup_wait_expired = false;
         loop {
             let slot = match self.connections.before_admission(setup_wait_expired) {
+                #[cfg(feature = "https-records")]
+                BeforeAdmission::Ech(recovery) => {
+                    let deadline = connect_phase(&mut connect, timeout_budget)?;
+                    deadline
+                        .run(self.recover_ech(
+                            &recovery,
+                            connector,
+                            endpoint,
+                            route,
+                            timeout_budget,
+                        ))
+                        .await?;
+                    recovery_connect = Some(deadline);
+                    force_new_connection = false;
+                    continue;
+                }
                 BeforeAdmission::Http2 => {
-                    if let Some((lease, permit)) =
-                        self.try_admit_http2(request_span, timeout_budget).await?
-                    {
+                    let admission = self.try_admit_http2(request_span, timeout_budget);
+                    let admitted = match recovery_connect {
+                        Some(deadline) => deadline.run(admission).await?,
+                        None => admission.await?,
+                    };
+                    if let Some((lease, permit)) = admitted {
                         drop(selection);
                         return Ok(Selected {
                             lease,
@@ -1426,13 +1529,15 @@ impl PoolEntry {
                     continue;
                 }
                 BeforeAdmission::Admit(Some(protocol)) => {
-                    timeout_budget
-                        .run(
-                            TimeoutPhase::PoolAdmission,
-                            Some(protocol),
-                            self.admit_connection_slot(Some(protocol)),
-                        )
-                        .await?
+                    let admission = timeout_budget.run(
+                        TimeoutPhase::PoolAdmission,
+                        Some(protocol),
+                        self.admit_connection_slot(Some(protocol)),
+                    );
+                    match recovery_connect {
+                        Some(deadline) => deadline.run(admission).await?,
+                        None => admission.await?,
+                    }
                 }
                 BeforeAdmission::Admit(None) => {
                     match Arc::clone(&self.http1_admission).try_admit() {
@@ -1440,13 +1545,15 @@ impl PoolEntry {
                         None if self.await_setup(&mut connect, timeout_budget).await? => continue,
                         // Every slot is taken and no setup is in flight.
                         None => {
-                            timeout_budget
-                                .run(
-                                    TimeoutPhase::PoolAdmission,
-                                    None,
-                                    self.admit_connection_slot(None),
-                                )
-                                .await?
+                            let admission = timeout_budget.run(
+                                TimeoutPhase::PoolAdmission,
+                                None,
+                                self.admit_connection_slot(None),
+                            );
+                            match recovery_connect {
+                                Some(deadline) => deadline.run(admission).await?,
+                                None => admission.await?,
+                            }
                         }
                     }
                 }
@@ -1470,6 +1577,9 @@ impl PoolEntry {
                     // A request in a retry delay has no connection, so its
                     // slot goes back before the delay.
                     drop(slot);
+                    if recovery_connect.is_some() {
+                        return Err(error);
+                    }
                     connect = None;
                     if retries.retry_after(&error, None, timeout_budget).await? {
                         continue;
@@ -1478,6 +1588,23 @@ impl PoolEntry {
                 }
             };
             match acquired {
+                #[cfg(feature = "https-records")]
+                Acquired::Ech(recovery) => {
+                    drop(slot);
+                    let deadline = connect_phase(&mut connect, timeout_budget)?;
+                    deadline
+                        .run(self.recover_ech(
+                            &recovery,
+                            connector,
+                            endpoint,
+                            route,
+                            timeout_budget,
+                        ))
+                        .await?;
+                    recovery_connect = Some(deadline);
+                    force_new_connection = false;
+                    continue;
+                }
                 // The slot goes back before waiting, so the setup being
                 // awaited never waits for this request.
                 Acquired::AwaitSetup => {}
@@ -1514,9 +1641,12 @@ impl PoolEntry {
                 Acquired::Http2 => {
                     drop(slot);
                     force_new_connection = false;
-                    if let Some((lease, permit)) =
-                        self.try_admit_http2(request_span, timeout_budget).await?
-                    {
+                    let admission = self.try_admit_http2(request_span, timeout_budget);
+                    let admitted = match recovery_connect {
+                        Some(deadline) => deadline.run(admission).await?,
+                        None => admission.await?,
+                    };
+                    if let Some((lease, permit)) = admitted {
                         drop(selection);
                         return Ok(Selected {
                             lease,
@@ -1622,6 +1752,7 @@ impl PoolEntry {
 
         match lease {
             ConnectionLease::Http1(mut lease) => {
+                lease.retire();
                 // The fields as sent follow the `Host` field `validate_request`
                 // put first.
                 let http1_sent_headers: Vec<_> =
@@ -1653,6 +1784,7 @@ impl PoolEntry {
                 diagnostic_head.nested_result(&result);
                 match result {
                     Ok(Ok(response)) => {
+                        lease.retired = false;
                         let (mut parts, body) = response.into_parts();
                         parts.extensions.insert(OriginEchConfigured(
                             lease.connection.origin_ech_configured(),
@@ -1769,6 +1901,79 @@ impl PoolEntry {
                 }
             }
         }
+    }
+
+    #[cfg(feature = "https-records")]
+    fn ech_failure(
+        &self,
+        token: Option<&Arc<()>>,
+        connection: &EarlyDataConnection,
+    ) -> Option<Arc<EchRecovery>> {
+        let retry = connection.ech_retry()?;
+        let error = connection.failure()?;
+        match token {
+            Some(token) => {
+                let mut state = self.connections.lock();
+                let recovery = state.ech_recoveries.get_or_insert(token, retry, error);
+                state.http2.retain(|slot| !Arc::ptr_eq(&slot.token, token));
+                Some(recovery)
+            }
+            None => Some(Arc::new(EchRecovery::new(retry, error))),
+        }
+    }
+
+    #[cfg(feature = "https-records")]
+    async fn recover_ech(
+        &self,
+        recovery: &EchRecovery,
+        connector: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<(), RequestError> {
+        if let Some(owner) = recovery.claim() {
+            let result = async {
+                if !matches!(route, Route::Direct) {
+                    return Err(RequestError::unsupported_negotiated_route());
+                }
+                let slot = timeout_budget
+                    .run(
+                        TimeoutPhase::PoolAdmission,
+                        None,
+                        self.admit_connection_slot(None),
+                    )
+                    .await?;
+                let reservation = self.connections.reserve_ech_retry();
+                let connector = self.origin_connector(connector, endpoint, route)?;
+                let (connection, slower) = super::box_send(connector.connect(OriginRoute::Tls {
+                    tcp: TcpRoute::Direct(phantom_net::route::Endpoint {
+                        host: endpoint.host(),
+                        port: endpoint.port(),
+                    }),
+                    server_name: endpoint.host(),
+                    setup: DirectTlsSetup::EchRetry(recovery.retry()),
+                }))
+                .await
+                .map_err(RequestError::http1_or_2_connection_setup)?;
+                let acquired = reservation.finish(PooledConnection::try_from(connection)?);
+                if let Some(slower) = slower {
+                    self.connections.adopt(slower);
+                }
+                // Publish before waking followers. An H1 lease returns idle;
+                // an H2 result is already visible through its existing slot.
+                drop(acquired);
+                drop(slot);
+                Ok(())
+            }
+            .await;
+            match result {
+                Ok(()) => owner.finish(),
+                Err(error) => return Err(owner.fail(error)),
+            }
+        } else {
+            recovery.finished().await?;
+        }
+        Ok(())
     }
 
     /// Leases a pooled connection for a request that holds a connection
@@ -2083,6 +2288,8 @@ struct EntryConnections {
 }
 
 struct ConnectionState {
+    #[cfg(feature = "https-records")]
+    ech_recoveries: EchRecoveries,
     /// Direct Upgrade openings that have not handed off their transport.
     openings: usize,
     dedicated: Vec<Weak<Http2Connection>>,
@@ -2163,6 +2370,8 @@ impl ConnectionState {
     /// Chooses among the reusable H2 connections, forgetting closed ones.
     fn choose_http2(&mut self) -> Choice {
         self.http2.retain(|slot| slot.connection.is_reusable());
+        #[cfg(feature = "https-records")]
+        self.ech_recoveries.retain_live();
         self.spread.choose(
             self.http2
                 .iter()
@@ -2231,6 +2440,8 @@ impl ConnectionState {
 
 /// What a request can do before it takes a connection slot.
 enum BeforeAdmission {
+    #[cfg(feature = "https-records")]
+    Ech(Arc<EchRecovery>),
     /// An H2 connection can take the request once H2 admits it.
     Http2,
     AwaitSetup,
@@ -2249,6 +2460,8 @@ enum Checkout {
 /// A connection for a request holding a connection slot, or the need to
 /// wait for another request's setup.
 enum Acquired {
+    #[cfg(feature = "https-records")]
+    Ech(Arc<EchRecovery>),
     Http1(Http1Lease),
     /// An H2 connection can take the request once H2 admits it.
     Http2,
@@ -2599,6 +2812,8 @@ impl EntryConnections {
     /// Starts with the browser default of one H2 connection per key.
     fn new(max_http1: NonZeroUsize, http2_keys: Arc<Http2Keys>, key: PoolKey) -> Self {
         let state = ConnectionState {
+            #[cfg(feature = "https-records")]
+            ech_recoveries: EchRecoveries::default(),
             http2: Vec::new(),
             spread: Http2Spread::new(NonZeroUsize::MIN, NonZeroUsize::MAX),
             http1_idle: Vec::new(),
@@ -2970,6 +3185,10 @@ impl EntryConnections {
         if matches!(state.choose_http2(), Choice::Use(_)) {
             return BeforeAdmission::Http2;
         }
+        #[cfg(feature = "https-records")]
+        if let Some(recovery) = state.ech_recoveries.pending() {
+            return BeforeAdmission::Ech(recovery);
+        }
         if !setup_wait_expired && state.awaits_setup() {
             return BeforeAdmission::AwaitSetup;
         }
@@ -2993,6 +3212,26 @@ impl EntryConnections {
         true
     }
 
+    #[cfg(feature = "https-records")]
+    fn reserve_ech_retry(self: &Arc<Self>) -> Reservation {
+        let mut state = self.lock();
+        let retired = if state.open_http1_or_connecting() >= self.max_http1.get()
+            && !state.http1_idle.is_empty()
+        {
+            Some(state.http1_idle.remove(0))
+        } else {
+            None
+        };
+        self.family.mark_active();
+        state.connecting += 1;
+        drop(state);
+        drop(retired);
+        Reservation {
+            connections: Arc::clone(self),
+            finished: false,
+        }
+    }
+
     /// Leases the H2 connection or the most recently used idle H1
     /// connection, or reserves a slot for a new connection.
     ///
@@ -3011,6 +3250,10 @@ impl EntryConnections {
         let mut state = self.lock();
         if state.current_http2().is_some() {
             return Checkout::Found(Acquired::Http2);
+        }
+        #[cfg(feature = "https-records")]
+        if let Some(recovery) = state.ech_recoveries.pending() {
+            return Checkout::Found(Acquired::Ech(recovery));
         }
         if !setup_wait_expired && state.awaits_setup() {
             return Checkout::Found(Acquired::AwaitSetup);
@@ -3364,6 +3607,20 @@ enum EarlyDataConnection {
 }
 
 impl EarlyDataConnection {
+    #[cfg(feature = "https-records")]
+    fn ech_retry(&self) -> Option<phantom_net::route::EchRetry> {
+        match self {
+            Self::Http1(connection) => match connection.early_data_failure()? {
+                Http1TlsError::Tls(error) => error.ech_retry().cloned(),
+                _ => None,
+            },
+            Self::Http2(connection) => match connection.early_data_failure()? {
+                Http2TlsError::Tls(error) => error.ech_retry().cloned(),
+                _ => None,
+            },
+        }
+    }
+
     fn register_attempt(&self, budget: Option<&crate::HttpAttemptBudget>) {
         match self {
             Self::Http1(connection) => connection.register_early_data_attempt_optional(budget),

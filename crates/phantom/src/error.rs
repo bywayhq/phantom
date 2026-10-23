@@ -1,3 +1,5 @@
+#[cfg(feature = "https-records")]
+use std::sync::Arc;
 use std::{error::Error as StdError, fmt};
 
 use phantom_net::{
@@ -494,6 +496,25 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    #[cfg(feature = "https-records")]
+    pub(crate) fn shared(error: &Arc<Self>) -> Self {
+        Self {
+            kind: error.kind,
+            protocol: error.protocol,
+            timeout_phase: error.timeout_phase,
+            origin: error.origin.clone(),
+            retryability: error.retryability,
+            http3_setup_failed: error.http3_setup_failed,
+            message: error.message,
+            // Retain the typed cause and its ownership through the shared
+            // generation, rather than replacing a TLS failure with text.
+            source: error
+                .source
+                .as_ref()
+                .map(|_| Box::new(Arc::clone(error)) as BoxError),
+        }
+    }
+
     pub(crate) fn transfer(protocol: HttpProtocol, error: crate::TransferError) -> Self {
         Self::with_source(
             RequestErrorKind::Transfer,

@@ -46,7 +46,10 @@ use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
     authority::Endpoint,
-    retry::{ConnectionSetupRetryState, acquire_with_retries},
+    retry::{
+        ConnectionSetupRetryState, acquire_with_connect_timeout, acquire_with_retries,
+        send_while_authenticating,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -260,48 +263,174 @@ impl Http1Pool {
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }
-        retries.admit_http_attempt(Some(HttpProtocol::Http1))?;
         let held = challenged
             .as_mut()
             .and_then(|slot| slot.held.take())
             .filter(|_| !fresh_connection);
-        let (mut lease, permit) = if let Some(held) = held {
-            debug!(
-                outcome = "authentication_retry",
-                "HTTP/1 challenged proxy connection reused"
-            );
-            (held.lease, held.permit)
-        } else {
-            let key = PoolKey::new(endpoint, route, mode);
-            let entry = self.entry(key).await;
-            let permit = timeout_budget
-                .run(
+        let key = PoolKey::new(endpoint, route, mode);
+        let entry = self.entry(key).await;
+        let mut held = held;
+        #[cfg(feature = "https-records")]
+        let mut ech_retry: Option<(
+            phantom_net::route::EchRetry,
+            crate::timeout::PhaseTimeout,
+        )> = None;
+        let replay_safe =
+            phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty());
+
+        loop {
+            retries.admit_http_attempt(Some(HttpProtocol::Http1))?;
+            let (mut lease, permit, connect) = if let Some(held) = held.take() {
+                debug!(
+                    outcome = "authentication_retry",
+                    "HTTP/1 challenged proxy connection reused"
+                );
+                (
+                    held.lease,
+                    held.permit,
+                    timeout_budget.phase(TimeoutPhase::Connect, Some(HttpProtocol::Http1))?,
+                )
+            } else {
+                #[cfg(feature = "https-records")]
+                let retry = ech_retry.take();
+                let admission = timeout_budget.run(
                     TimeoutPhase::PoolAdmission,
                     Some(HttpProtocol::Http1),
                     entry.admit(),
-                )
-                .await?;
-            let lease =
-                acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
-                    entry
-                        .acquire(
-                            connector,
-                            https_proxy,
-                            endpoint,
-                            route,
-                            mode,
-                            fresh_connection,
-                        )
-                        .await
-                })
-                .await?;
-            (lease, permit)
-        };
-        if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty()) {
-            lease
-                .connection
-                .register_early_data_attempt_optional(retries.attempt_budget());
+                );
+                #[cfg(feature = "https-records")]
+                let permit = match retry.as_ref() {
+                    Some((_, connect)) => connect.run(admission).await?,
+                    None => admission.await?,
+                };
+                #[cfg(not(feature = "https-records"))]
+                let permit = admission.await?;
+                let acquisition = async {
+                    #[cfg(feature = "https-records")]
+                    if let Some((retry, connect)) = retry {
+                        let lease = connect
+                            .run(entry.recover_ech(connector, endpoint, route, mode, &retry))
+                            .await?;
+                        return Ok((lease, connect));
+                    }
+                    acquire_with_connect_timeout(
+                        Some(HttpProtocol::Http1),
+                        timeout_budget,
+                        retries,
+                        || async {
+                            entry
+                                .acquire(
+                                    connector,
+                                    https_proxy,
+                                    endpoint,
+                                    route,
+                                    mode,
+                                    fresh_connection,
+                                )
+                                .await
+                        },
+                    )
+                    .await
+                };
+                let (lease, connect) = acquisition.await?;
+                (lease, permit, connect)
+            };
+            if !replay_safe && lease.connection.early_data_pending() {
+                lease.retire();
+                connect
+                    .run(async {
+                        lease.connection.early_data_answered().await;
+                        Ok(())
+                    })
+                    .await?;
+                if lease.connection.early_data_failure().is_none() {
+                    lease.retired = false;
+                }
+            }
+            if let Some(failure) = lease.connection.early_data_failure() {
+                #[cfg(feature = "https-records")]
+                if let Http1TlsError::Tls(error) = &failure
+                    && let Some(retry) = error.ech_retry()
+                {
+                    ech_retry = Some((retry.clone(), connect));
+                    lease.retire();
+                    drop((lease, permit));
+                    continue;
+                }
+                return Err(RequestError::http1_connection_setup(failure));
+            }
+            if replay_safe {
+                lease
+                    .connection
+                    .register_early_data_attempt_optional(retries.attempt_budget());
+            }
+            if replay_safe && lease.connection.early_data_pending() {
+                // Only early-data requests retain their frozen fields. A body
+                // stays here until authentication has completed.
+                let connection = lease.connection.clone();
+                let send = Self::dispatch_on_lease(
+                    lease,
+                    permit,
+                    route,
+                    mode,
+                    method.clone(),
+                    target.clone(),
+                    absolute_target.clone(),
+                    headers.clone(),
+                    trailers.clone(),
+                    None,
+                    challenged.as_deref_mut(),
+                    timeout_budget,
+                );
+                let result =
+                    send_while_authenticating(connect, connection.early_data_answered(), send)
+                        .await;
+                #[cfg(feature = "https-records")]
+                if result.is_err()
+                    && let Some(Http1TlsError::Tls(error)) = connection.early_data_failure()
+                    && let Some(retry) = error.ech_retry()
+                {
+                    ech_retry = Some((retry.clone(), connect));
+                    continue;
+                }
+                return result;
+            }
+            return Self::dispatch_on_lease(
+                lease,
+                permit,
+                route,
+                mode,
+                method,
+                target,
+                absolute_target,
+                headers,
+                trailers,
+                body,
+                challenged,
+                timeout_budget,
+            )
+            .await;
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn dispatch_on_lease(
+        mut lease: ConnectionLease,
+        permit: AdmissionPermit,
+        route: &Route,
+        mode: Http1ConnectionMode,
+        method: Method,
+        target: OriginForm,
+        absolute_target: AbsoluteForm,
+        headers: Vec<RequestHeader>,
+        trailers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        challenged: Option<&mut ChallengedConnection>,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<http::Response<ResponseBody>, RequestError> {
+        // Cancellation before the response head cannot return an in-flight
+        // connection to the idle pool. Successful dispatch transfers it below.
+        lease.retire();
         let mut diagnostic_head = phantom_net::request_diagnostics::PhaseObservation::begin(
             crate::RequestTimingPhase::SendResponseHead,
             Some(HttpProtocol::Http1.version()),
@@ -374,6 +503,7 @@ impl Http1Pool {
                             && !has_close_token(&parts.headers)
                             && connection_is_idle(&lease.connection).await
                         {
+                            lease.retired = false;
                             // The replay takes this connection and admission, so
                             // no other request can use the connection in between.
                             slot.held = Some(HeldConnection { lease, permit });
@@ -398,6 +528,7 @@ impl Http1Pool {
                         ),
                     ));
                 }
+                lease.retired = false;
                 let (mut parts, body) = response.into_parts();
                 parts.extensions.insert(OriginEchConfigured(
                     lease.connection.origin_ech_configured(),
@@ -887,7 +1018,7 @@ impl PoolEntry {
         }
     }
 
-    #[cfg(feature = "websocket")]
+    #[cfg(any(feature = "websocket", feature = "https-records"))]
     fn origin_connector(
         &self,
         base: &Http1TlsConnector,
@@ -969,6 +1100,38 @@ impl PoolEntry {
             setup: DirectTlsSetup::KeepSlower(&self.connections.family),
         })))
         .await
+    }
+
+    #[cfg(feature = "https-records")]
+    async fn recover_ech(
+        &self,
+        base: &Http1TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+        mode: Http1ConnectionMode,
+        retry: &phantom_net::route::EchRetry,
+    ) -> Result<ConnectionLease, RequestError> {
+        if !matches!(route, Route::Direct) || mode != Http1ConnectionMode::TlsOrigin {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+        }
+        let reservation = self.connections.reserve_ech_retry();
+        let connector = self.origin_connector(base, endpoint, route)?;
+        let (connection, slower) = super::box_send(connector.connect(
+            phantom_net::route::Http1Route::Origin(phantom_net::route::OriginRoute::Tls {
+                tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                    host: endpoint.host(),
+                    port: endpoint.port(),
+                }),
+                server_name: endpoint.host(),
+                setup: phantom_net::route::DirectTlsSetup::EchRetry(retry),
+            }),
+        ))
+        .await
+        .map_err(RequestError::http1_connection_setup)?;
+        if let Some(slower) = slower {
+            self.connections.adopt(slower);
+        }
+        Ok(reservation.into_lease(connection))
     }
 
     async fn acquire(
@@ -1886,6 +2049,24 @@ impl EntryConnections {
         });
         drop(set);
         self.idle_added();
+    }
+
+    #[cfg(feature = "https-records")]
+    fn reserve_ech_retry(self: &Arc<Self>) -> Reservation {
+        let mut set = self.lock();
+        let retired = if set.open() >= self.max.get() && !set.idle.is_empty() {
+            Some(set.idle.remove(0))
+        } else {
+            None
+        };
+        self.family.mark_active();
+        set.leased += 1;
+        drop(set);
+        drop(retired);
+        Reservation {
+            connections: Arc::clone(self),
+            released: false,
+        }
     }
 
     /// Leases the most recently used idle connection, or reserves a slot for a

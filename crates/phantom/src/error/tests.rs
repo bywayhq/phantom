@@ -17,6 +17,42 @@ fn io_error() -> std::io::Error {
     std::io::Error::other("test connection failure")
 }
 
+#[cfg(feature = "https-records")]
+#[test]
+fn sharing_a_setup_failure_preserves_metadata_and_the_typed_cause()
+-> Result<(), Box<dyn std::error::Error>> {
+    let endpoint = crate::authority::Endpoint::new("example.test:8443".parse()?, 443)?;
+    let origin = crate::authority::RequestOrigin::from_endpoint(true, &endpoint);
+    let mut original = RequestError::http2_connection_setup(Http2TlsError::Connect(
+        std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "private setup cause"),
+    ))
+    .with_origin(origin.clone());
+    original.timeout_phase = Some(TimeoutPhase::Connect);
+    original.http3_setup_failed = true;
+    let original = std::sync::Arc::new(original);
+    let copy = RequestError::shared(&original);
+
+    assert_eq!(copy.kind(), RequestErrorKind::Connect);
+    assert_eq!(copy.protocol(), Some(HttpProtocol::Http2));
+    assert_eq!(copy.timeout_phase(), Some(TimeoutPhase::Connect));
+    assert_eq!(copy.origin(), Some(&origin));
+    assert_eq!(
+        copy.replay_observation(),
+        super::RequestReplayObservation::ConnectionSetupFailure
+    );
+    assert_eq!(copy.retryability, original.retryability);
+    assert!(copy.http3_setup_failed);
+    assert_eq!(copy.to_string(), original.to_string());
+    assert!(!format!("{copy:?}").contains("private setup cause"));
+    let source = std::error::Error::source(&copy)
+        .and_then(std::error::Error::source)
+        .and_then(|cause| cause.downcast_ref::<Http2TlsError>())
+        .ok_or("shared failure lost its typed TLS setup cause")?;
+    assert!(matches!(source, Http2TlsError::Connect(error)
+        if error.kind() == std::io::ErrorKind::ConnectionRefused));
+    Ok(())
+}
+
 #[test]
 fn zero_connect_udp_port_keeps_its_typed_cause() {
     let error =

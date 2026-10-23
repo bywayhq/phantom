@@ -952,7 +952,7 @@ impl Http1Or2TlsConnector {
                                 endpoint,
                                 server_name,
                                 lookup,
-                                true,
+                                crate::direct::EchEarlyData::Allowed,
                                 Some(family),
                             )
                             .await?;
@@ -980,7 +980,7 @@ impl Http1Or2TlsConnector {
                             endpoint.port,
                             server_name,
                             ech,
-                            true,
+                            crate::direct::EchEarlyData::Allowed,
                         )
                         .await?;
                         select_connection(stream, client).await
@@ -1093,7 +1093,6 @@ impl Http1Or2TlsConnector {
                             },
                             &server_name,
                             stream,
-                            true,
                         )
                         .await
                         .map_err(Http1Or2TlsError::from);

@@ -1076,7 +1076,7 @@ impl Http1TlsConnector {
                                     endpoint,
                                     server_name,
                                     lookup,
-                                    true,
+                                    crate::direct::EchEarlyData::WithoutEch,
                                     Some(family),
                                 )
                                 .await?;
@@ -1092,7 +1092,7 @@ impl Http1TlsConnector {
                                 endpoint.port,
                                 server_name,
                                 lookup,
-                                true,
+                                crate::direct::EchEarlyData::WithoutEch,
                             )
                             .await?,
                             None,
@@ -1226,7 +1226,7 @@ impl Http1TlsConnector {
                                 endpoint.port,
                                 server_name,
                                 ech,
-                                true,
+                                crate::direct::EchEarlyData::WithoutEch,
                             )
                             .await?;
                             upgrade_over_tls(stream, prepared).await
@@ -1382,7 +1382,11 @@ impl Http1TlsConnector {
                             endpoint,
                             server_name,
                             lookup,
-                            offer_early_data,
+                            if offer_early_data {
+                                crate::direct::EchEarlyData::Allowed
+                            } else {
+                                crate::direct::EchEarlyData::Disabled
+                            },
                             Some(family),
                         )
                         .await?;
@@ -1403,7 +1407,11 @@ impl Http1TlsConnector {
                         endpoint.port,
                         server_name,
                         ech,
-                        offer_early_data,
+                        if offer_early_data {
+                            crate::direct::EchEarlyData::Allowed
+                        } else {
+                            crate::direct::EchEarlyData::Disabled
+                        },
                     )
                     .await?;
                     connect_over_tls(stream).await
@@ -1493,7 +1501,6 @@ impl Http1TlsConnector {
                             },
                             &server_name,
                             stream,
-                            true,
                         )
                         .await
                         .map_err(Http1TlsError::from);

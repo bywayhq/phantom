@@ -14,9 +14,8 @@ use tokio_btls::SslStream as BoringStream;
 
 use crate::{
     EchFailure,
-    connection_diagnostics::{TlsMetadata, TlsPeerRole},
     tls::{
-        EarlyData, TlsConnector, TlsErrorKind, TlsStream, negotiated_tls_version,
+        TlsConnector, TlsErrorKind, TlsStream,
         test_support::{TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, loopback_listener},
         tests::session_cache::finish_ticket_control_peer,
     },
@@ -234,46 +233,20 @@ async fn server_stream(
     Ok(BoringStream::new(ssl, tcp)?)
 }
 
-/// Exercise the deferred owner with a real ECH/early-data handshake without
-/// changing either production guard that excludes this combination.
 async fn deferred_stream(
     connector: &TlsConnector,
     address: std::net::SocketAddr,
     configs: &[u8],
 ) -> TestResult<TlsStream<TcpStream>> {
-    let cache = connector
-        .session_cache
-        .as_ref()
-        .ok_or("ticket cache missing")?;
-    let capture = cache.begin_handshake(INNER_NAME);
-    let session = capture.take_session().ok_or("resumption ticket missing")?;
-    let mut configuration = connector.handshake_configuration(INNER_NAME, Some(configs))?;
-    configuration.set_early_data_enabled(true);
-    let callback_capture = capture.clone();
-    let ssl = configuration
-        .into_ssl_with_scoped_session(INNER_NAME, cache.scope(), Some(&session), move |session| {
-            callback_capture.capture(session)
-        })?
-        .ok_or("session scope changed")?;
-    let mut inner = BoringStream::new(ssl, TcpStream::connect(address).await?)?;
-    Pin::new(&mut inner).connect().await?;
-    if !inner.ssl().in_early_data() {
+    let stream = connector
+        .connect_offering_early_data_with_ech(
+            INNER_NAME,
+            TcpStream::connect(address).await?,
+            Some(configs),
+        )
+        .await?;
+    if !stream.inner.ssl().in_early_data() {
         return Err("resumed handshake did not defer authentication for early data".into());
     }
-    let negotiated_alpn = inner.ssl().selected_alpn_protocol().map(Box::from);
-    Ok(TlsStream {
-        ech_accepted: inner.ssl().ech_accepted(),
-        early_data: Some(Box::new(EarlyData::new(
-            negotiated_alpn.clone(),
-            Some(capture),
-        ))),
-        negotiated_alpn,
-        peer_application_settings: inner.ssl().peer_application_settings().map(Box::from),
-        negotiated_tls_version: negotiated_tls_version(inner.ssl().version2()),
-        negotiated_cipher_suite: None,
-        session_reused: inner.ssl().session_reused(),
-        metadata: TlsMetadata::new(TlsPeerRole::Origin, true),
-        close_notify: connector.close_notify,
-        inner,
-    })
+    Ok(stream)
 }
