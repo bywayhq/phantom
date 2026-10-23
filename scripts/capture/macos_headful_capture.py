@@ -22,7 +22,7 @@ PROFILE_VERSION = "156.0.8078.48"
 CHROME_DMG = "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg"
 # Chromium chrome/updater/branding.gni names Google's signing team.
 CHROME_REQUIREMENT = (
-    'anchor apple generic and identifier "com.google.Chrome" '
+    '=anchor apple generic and identifier "com.google.Chrome" '
     'and certificate leaf[subject.OU] = "EQHXZ8M8AV"'
 )
 
@@ -90,7 +90,9 @@ def staged_chrome(
     finally:
         if attached:
             try:
-                command_output(record, "/usr/bin/hdiutil", "detach", str(mount))
+                command_output(
+                    record, "/usr/bin/hdiutil", "detach", str(mount), timeout=120
+                )
             except BaseException as error:
                 cleanup.append(error)
         retain = record.get("capture_started", False) and (

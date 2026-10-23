@@ -156,7 +156,7 @@ class StagingTests(unittest.TestCase):
     def stage(self) -> Iterator[tuple[Path, Path]]:
         return capture.staged_chrome(self.output, self.record, parent=self.root)
 
-    def test_bulk_staging_allowance_does_not_extend_detach(self) -> None:
+    def test_mount_copy_and_detach_have_bounded_bulk_allowance(self) -> None:
         operations = []
 
         def run(args: tuple | list, **kwargs) -> subprocess.CompletedProcess:
@@ -164,7 +164,7 @@ class StagingTests(unittest.TestCase):
                 return self.download(args, **kwargs)
             operation = args[1] if args[0] == "/usr/bin/hdiutil" else "copy"
             operations.append((operation, kwargs["timeout"]))
-            if operation in {"attach", "copy"} and kwargs["timeout"] == 10:
+            if kwargs["timeout"] == 10:
                 raise subprocess.TimeoutExpired(args, 10, output=b"Checksumming")
             return subprocess.CompletedProcess(args, 0, "staging progress", "")
 
@@ -173,11 +173,11 @@ class StagingTests(unittest.TestCase):
             self.stage() as (_chrome, work),
         ):
             self.assertTrue(work.exists())
-        self.assertEqual(operations, [("attach", 120), ("copy", 120), ("detach", 10)])
+        self.assertEqual(operations, [("attach", 120), ("copy", 120), ("detach", 120)])
         self.assertFalse(work.exists())
         self.assertEqual(
             [row["timeout_seconds"] for row in self.record["metadata_commands"]],
-            [120, 120, 10],
+            [120, 120, 120],
         )
 
     def test_staging_cleans_its_mount_and_directory_after_success(self) -> None:
@@ -197,6 +197,23 @@ class StagingTests(unittest.TestCase):
     def test_detach_failure_retains_owner_and_original_capture_failure(self) -> None:
         primary = RuntimeError("capture failed")
         self.detach_error = OSError("mount busy")
+        with (
+            patch.object(capture.subprocess, "run", side_effect=self.download),
+            patch.object(capture, "command_output", side_effect=self.command),
+            self.assertRaises(Exception) as raised,
+            self.stage() as (_chrome, work),
+        ):
+            raise primary
+        self.assertIs(raised.exception.primary, primary)
+        self.assertEqual(raised.exception.cleanup, (self.detach_error,))
+        self.assertTrue(work.exists())
+        self.assertTrue(self.record["staging_retained"])
+
+    def test_detach_timeout_retains_owner_and_original_verification_failure(
+        self,
+    ) -> None:
+        primary = RuntimeError("signature rejected")
+        self.detach_error = subprocess.TimeoutExpired("hdiutil detach", 120)
         with (
             patch.object(capture.subprocess, "run", side_effect=self.download),
             patch.object(capture, "command_output", side_effect=self.command),
@@ -335,6 +352,16 @@ class ProfileIdentityTests(unittest.TestCase):
                     self.run_capture()
                 self.assertEqual(self.cells, [])
                 self.installed[field] = original
+
+    def test_signature_requirement_is_literal_instead_of_a_filename(self) -> None:
+        self.run_capture()
+        signatures = [call for call in self.calls if call[0] == "/usr/bin/codesign"]
+        self.assertEqual(len(signatures), 2)
+        for command in signatures:
+            requirement = command[command.index("-R") + 1]
+            self.assertTrue(requirement.startswith("="))
+            self.assertIn('identifier "com.google.Chrome"', requirement)
+            self.assertIn('certificate leaf[subject.OU] = "EQHXZ8M8AV"', requirement)
 
     def test_signature_and_missing_native_slice_fail_before_capture(self) -> None:
         for error, architectures in (
