@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from scripts.capture import socket_hooks
 from scripts.capture.browser_failures import BrowserLaunchFailures
@@ -503,6 +503,90 @@ class LaunchTests(unittest.TestCase):
 
         self.assertEqual(lines[-1], "run_0_event_count=0")
         self.assertTrue(text.endswith("\n"))
+
+
+class ProcessRetirementTests(unittest.TestCase):
+    def owned_process(self) -> tuple[socket_hooks.HookedBrowser, Mock]:
+        browser = socket_hooks.HookedBrowser(
+            Path("controlled-browser"), [], Path("controlled-profile"), {}
+        )
+        process = Mock()
+        browser._pid = 7
+        browser._processes[7] = process
+        return browser, process
+
+    def test_exit_race_allows_stop_to_release_the_owned_handle(self) -> None:
+        browser, process = self.owned_process()
+        denied = PermissionError("controlled termination denial")
+        denied.winerror = 5
+        process.terminate.side_effect = denied
+        process.wait.side_effect = [False, True]
+
+        with patch.object(socket_hooks, "terminate_profile_processes"):
+            browser.stop()
+
+        process.close.assert_called_once_with()
+        self.assertTrue(browser._stopped)
+        self.assertTrue(browser._profile_retired)
+        self.assertEqual(browser._cleanup_failures, [])
+        self.assertEqual(process.wait.call_count, 2)
+
+    def test_running_process_retains_access_denial_and_its_owner(self) -> None:
+        browser, process = self.owned_process()
+        denied = PermissionError("controlled termination denial")
+        denied.winerror = 5
+        process.terminate.side_effect = denied
+        process.wait.return_value = False
+
+        with (
+            patch.object(socket_hooks, "terminate_profile_processes"),
+            self.assertRaises(BrowserLaunchFailures) as stopped,
+        ):
+            browser.stop()
+
+        self.assertIs(stopped.exception.cleanup[0], denied)
+        pending = stopped.exception.cleanup[1]
+        self.assertIsInstance(pending, socket_hooks._SocketHookProcessPending)
+        self.assertIs(pending.process, process)
+        self.assertIs(pending.owner, browser)
+        process.close.assert_not_called()
+        self.assertFalse(browser._stopped)
+        self.assertFalse(browser._profile_retired)
+
+    def test_unconfirmed_exit_and_other_errors_remain_failures(self) -> None:
+        denied = PermissionError("controlled termination denial")
+        denied.winerror = 5
+        other = OSError("controlled unknown Windows failure")
+        other.winerror = 6
+        ordinary = OSError("controlled termination failure")
+        probe = OSError("controlled exit observation failure")
+        for name, error, waits, expected, retired in (
+            ("later exit", denied, [False, False, True], [denied], True),
+            ("probe failed", denied, [False, probe, False], [denied, probe], False),
+            ("unknown Windows error", other, [False, True], [other], True),
+            ("ordinary error", ordinary, [False, True], [ordinary], True),
+        ):
+            with self.subTest(name=name):
+                browser, process = self.owned_process()
+                process.terminate.side_effect = error
+                process.wait.side_effect = waits
+
+                with patch.object(socket_hooks.time, "monotonic", return_value=10.0):
+                    failures = browser._retire_process(7, 11.0)
+
+                self.assertEqual(list(failures[: len(expected)]), expected)
+                self.assertEqual(7 in browser._retired_pids, retired)
+                if not retired:
+                    self.assertIsInstance(
+                        failures[-1], socket_hooks._SocketHookProcessPending
+                    )
+                    self.assertIs(failures[-1].process, process)
+                self.assertEqual(process.wait.call_count, len(waits))
+                self.assertEqual(process.wait.call_args_list[0].args, (10.0,))
+                if error is denied:
+                    self.assertEqual(process.wait.call_args_list[1].args, (10.0,))
+                self.assertEqual(process.wait.call_args_list[-1].args, (11.0,))
+                process.close.assert_not_called()
 
 
 class OriginTests(unittest.TestCase):
