@@ -80,19 +80,23 @@ async fn firefox_157_tls_recipe_matches_windows_capture_with_chacha20_ech_grease
     .await
 }
 
-/// Firefox 156.0.1 for Android sends the desktop Firefox 156 ClientHello:
-/// the same fixed extension order and a per-connection ECH GREASE AEAD. The
-/// recipes differ only in the order they offer saved tickets.
+/// Android keeps ECH GREASE and offers saved tickets oldest first. Its
+/// fallback ClientHello otherwise matches the desktop recipe.
 #[tokio::test]
 async fn firefox_android_156_tls_recipe_matches_android_captures() -> TestResult<()> {
     let recipe = phantom_profile::browser::firefox::v156_android_tcp_tls();
+    let desktop = v157_tcp_tls();
     assert_eq!(recipe.session_ticket_order, SessionTicketOrder::OldestFirst);
+    assert!(!recipe.ech.uses_https_records());
+    assert!(desktop.ech.uses_https_records());
+    assert_eq!(recipe.ech.grease(), desktop.ech.grease());
     assert_eq!(
         TlsSettings {
-            session_ticket_order: v157_tcp_tls().session_ticket_order,
+            session_ticket_order: desktop.session_ticket_order,
+            ech: desktop.ech.clone(),
             ..recipe.clone()
         },
-        v157_tcp_tls()
+        desktop
     );
     assert_recipe_matches_fixture(ANDROID_FIREFOX_156_FIXTURE, &recipe, 282).await?;
     assert_recipe_matches_fixture(ANDROID_FIREFOX_156_CHACHA20_ECH_FIXTURE, &recipe, 282).await
