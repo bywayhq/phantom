@@ -4,7 +4,8 @@ use std::{io, num::NonZeroUsize, time::SystemTime};
 
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    ClientBuilder, HttpAttemptBudget, ResponseInfo, profile::Http3MisdirectedRequest,
+    ClientBuilder, HttpAttemptBudget, ResponseInfo,
+    profile::{Http3MisdirectedRequest, SessionTickets},
 };
 
 use crate::support::http3_upgrade::{
@@ -219,7 +220,10 @@ fn misdirected_client(identity: &TestIdentity) -> TestResult<ClientBuilder> {
     http3.misdirected_request = Http3MisdirectedRequest::RetryFirst;
     let quic = chrome::v154_quic();
     assert!(quic.early_data);
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+    // Count only the imported QUIC ticket, not new tickets from the H2 fallback.
+    let mut tcp_tls = chrome::v154_tcp_tls();
+    tcp_tls.session_tickets = SessionTickets::disabled();
+    let profile = ClientProfile::new(tcp_tls)
         .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
             chrome::v154_quic_tls(),
