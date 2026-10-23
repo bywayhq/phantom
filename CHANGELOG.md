@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an HTTPS no-record comparison to the ECH capture tool.
+
 - Preserve repeated signature algorithms when importing raw JA4, including
   Safari profiles.
 
