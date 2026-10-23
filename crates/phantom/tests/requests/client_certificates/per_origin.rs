@@ -19,8 +19,8 @@ use btls::{
 use http::{Response, StatusCode};
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, BuildErrorKind, Client, ClientBuilder,
-    ConnectUdpProxy, HttpProtocol, HttpProxy, RedirectPolicy, RequestError, ResponseInfo, Route,
-    Socks5Proxy,
+    ConnectUdpProxy, HttpProtocol, HttpProxy, RedirectPolicy, RequestError, RequestErrorKind,
+    ResponseInfo, Route, Socks5Proxy,
     profile::{ClientProfile, SignatureScheme, TlsVersion, browser::chrome},
 };
 use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384};
@@ -36,7 +36,7 @@ use super::{
     TEST_TIMEOUT, acceptor, finish_certificate_proxy, get,
     origin_outcome::{OriginObservation, OriginResponse},
     peer_outcome::{CallerFault, PeerFailure, PrimaryFailure},
-    serve_one, serve_one_http3, serve_one_with_response, tls,
+    serve_one, serve_one_http3, serve_one_with_response, tcp_missing_certificate_rejected, tls,
 };
 use crate::support::{
     client_certificate::{ClientIdentity, quic_endpoint_requiring},
@@ -200,6 +200,36 @@ async fn an_unmapped_origin_receives_the_client_wide_certificate() -> TestResult
     assert_eq!(other_status?, StatusCode::NO_CONTENT);
     assert_eq!(mapped_presented?, Some(mapped.leaf_der));
     assert_eq!(other_presented?, Some(default.leaf_der));
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unmapped_origin_without_a_default_certificate_is_rejected() -> TestResult<()> {
+    let server = TestIdentity::generate()?;
+    let mapped = ClientIdentity::p256()?;
+    let (listener, address) = bind().await?;
+    let acceptor = acceptor(&server, Some(&mapped.authority_der))?;
+    let client = Client::builder(chrome::v154_windows())
+        .add_root_certificate_der(server.root_der.clone())
+        .client_certificate_for("https://unmapped.test", mapped.certificate()?)
+        .build()?;
+
+    let (served, status) = timeout(TEST_TIMEOUT, async {
+        tokio::join!(
+            serve_one(listener, acceptor),
+            get(&client, format!("https://{address}/")),
+        )
+    })
+    .await?;
+
+    let rejected = status.as_ref().err().is_some_and(|error| {
+        tcp_missing_certificate_rejected(
+            &served,
+            error,
+            &[RequestErrorKind::Tls, RequestErrorKind::Http1],
+        )
+    });
+    assert!(rejected, "peer: {served:?}; client: {status:?}");
     Ok(())
 }
 
