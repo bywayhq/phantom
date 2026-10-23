@@ -79,8 +79,11 @@ def staged_chrome(
             "-mountpoint",
             str(mount),
             str(image),
+            timeout=120,
         )
-        command_output(record, "/usr/bin/ditto", str(mount / app.name), str(app))
+        command_output(
+            record, "/usr/bin/ditto", str(mount / app.name), str(app), timeout=120
+        )
         yield app / "Contents/MacOS/Google Chrome", directory
     except BaseException as error:
         primary = error

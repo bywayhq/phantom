@@ -31,6 +31,7 @@ class CommandReceiptTests(unittest.TestCase):
             [
                 {
                     "argv": ["git", "status"],
+                    "timeout_seconds": 10,
                     "exit": 2,
                     "stdout": "partial\n",
                     "stderr": "bad\n",
@@ -51,6 +52,28 @@ class CommandReceiptTests(unittest.TestCase):
         self.assertIsNone(receipt["exit"])
         self.assertEqual((receipt["stdout"], receipt["stderr"]), ("partial", "error"))
         self.assertEqual(receipt["failure"]["type"], "TimeoutExpired")
+
+    def test_explicit_operation_bound_retains_timed_out_progress(self):
+        error = subprocess.TimeoutExpired(
+            "hdiutil", 120, output=b"Checksumming Apple_HFS", stderr=b"partial"
+        )
+        record = {"metadata_commands": []}
+        with (
+            patch(
+                "scripts.capture.capture_report.subprocess.run", side_effect=error
+            ) as run,
+            self.assertRaises(subprocess.TimeoutExpired) as raised,
+        ):
+            command_output(record, "hdiutil", "attach", timeout=120)
+        self.assertIs(raised.exception, error)
+        run.assert_called_once_with(
+            ("hdiutil", "attach"), capture_output=True, text=True, timeout=120
+        )
+        receipt = record["metadata_commands"][0]
+        self.assertEqual(receipt["timeout_seconds"], 120)
+        self.assertIsNone(receipt["exit"])
+        self.assertEqual(receipt["stdout"], "Checksumming Apple_HFS")
+        self.assertEqual(receipt["stderr"], "partial")
 
     def test_missing_command_retains_failure_receipt(self):
         record = {"metadata_commands": []}

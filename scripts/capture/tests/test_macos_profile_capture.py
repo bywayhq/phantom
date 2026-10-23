@@ -147,7 +147,7 @@ class StagingTests(unittest.TestCase):
         Path(args[args.index("--output") + 1]).write_bytes(b"owned disk image")
         return subprocess.CompletedProcess(args, 0)
 
-    def command(self, record: dict, *args: str) -> str:
+    def command(self, record: dict, *args: str, timeout: float = 10) -> str:
         self.commands.append(args)
         if args[1] == "detach" and self.detach_error:
             raise self.detach_error
@@ -155,6 +155,30 @@ class StagingTests(unittest.TestCase):
 
     def stage(self) -> Iterator[tuple[Path, Path]]:
         return capture.staged_chrome(self.output, self.record, parent=self.root)
+
+    def test_bulk_staging_allowance_does_not_extend_detach(self) -> None:
+        operations = []
+
+        def run(args: tuple | list, **kwargs) -> subprocess.CompletedProcess:
+            if args[0] == "/usr/bin/curl":
+                return self.download(args, **kwargs)
+            operation = args[1] if args[0] == "/usr/bin/hdiutil" else "copy"
+            operations.append((operation, kwargs["timeout"]))
+            if operation in {"attach", "copy"} and kwargs["timeout"] == 10:
+                raise subprocess.TimeoutExpired(args, 10, output=b"Checksumming")
+            return subprocess.CompletedProcess(args, 0, "staging progress", "")
+
+        with (
+            patch.object(capture.subprocess, "run", side_effect=run),
+            self.stage() as (_chrome, work),
+        ):
+            self.assertTrue(work.exists())
+        self.assertEqual(operations, [("attach", 120), ("copy", 120), ("detach", 10)])
+        self.assertFalse(work.exists())
+        self.assertEqual(
+            [row["timeout_seconds"] for row in self.record["metadata_commands"]],
+            [120, 120, 10],
+        )
 
     def test_staging_cleans_its_mount_and_directory_after_success(self) -> None:
         with (
