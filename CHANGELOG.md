@@ -5,12 +5,14 @@
 - Keep HTTP/1 TLS setup within the pinned nightly compiler's `Send` proof
   limit, including SOCKS routes.
 
-- Breaking: add `WebSocketConnectionPolicy::cleartext_state`. Firefox 157
-  keeps direct `ws://` address-family and backup-connection state separate
-  from HTTP. Migrate: add `cleartext_state: WebSocketCleartextState::Shared`
-  to custom policies, or `"cleartext_state": "Shared"` under
-  `websocket.connection` in profile JSON, to retain shared state. Recreate
-  saved tickets and session checkpoints.
+- Breaking: add `cleartext_state` and `http1_tls_backup` to
+  `WebSocketConnectionPolicy`. Firefox 157 keeps direct `ws://` state
+  separate from HTTP and closes unused direct WSS backups after TLS setup.
+  Migrate: add `cleartext_state: WebSocketCleartextState::Shared` and
+  `http1_tls_backup: WebSocketTlsBackup::Keep` to custom policies for the
+  prior behavior. In profile JSON, add `"cleartext_state": "Shared"` and
+  `"http1_tls_backup": "Keep"` under `websocket.connection`. Recreate saved
+  tickets and session checkpoints.
 
 - Capture Firefox 157 direct WebSocket address selection on Windows,
   with and without TLS.
