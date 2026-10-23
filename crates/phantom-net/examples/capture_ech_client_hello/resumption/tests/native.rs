@@ -5,7 +5,7 @@ use super::*;
 type Tickets = Arc<Mutex<Vec<Result<ScopedSslSession, btls::error::ErrorStack>>>>;
 
 async fn sequence(mode: Mode) -> CaptureResult<()> {
-    let identity = Identity::generate()?;
+    let (identity, trust_root) = crate::tests::test_identity()?;
     let run = Run::new(mode)?;
     let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
     let list = ech_config_list(std::slice::from_ref(&config));
@@ -38,7 +38,7 @@ async fn sequence(mode: Mode) -> CaptureResult<()> {
         builder.set_verify(SslVerifyMode::PEER);
         builder
             .cert_store_mut()
-            .add_cert(X509::from_der(&identity.certificate)?)?;
+            .add_cert(X509::from_der(&trust_root)?)?;
         builder.set_min_proto_version(Some(SslVersion::TLS1_3))?;
         builder.set_alpn_protos(HTTP1_ALPN_WIRE)?;
         builder.enable_scoped_client_sessions_with_early_data();

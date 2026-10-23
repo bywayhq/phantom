@@ -145,7 +145,7 @@ impl Drop for Server {
     }
 }
 
-fn test_identity() -> CaptureResult<(Identity, Vec<u8>)> {
+pub(super) fn test_identity() -> CaptureResult<(Identity, Vec<u8>)> {
     let mut root_params = CertificateParams::new(Vec::<String>::new())?;
     root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     root_params.key_usages = vec![
@@ -155,7 +155,11 @@ fn test_identity() -> CaptureResult<(Identity, Vec<u8>)> {
     ];
     let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
 
-    let mut leaf_params = CertificateParams::new(vec![HOSTNAME.to_owned()])?;
+    let mut leaf_params = CertificateParams::new(vec![
+        HOSTNAME.to_owned(),
+        super::PUBLIC_NAME.to_owned(),
+        "127.0.0.1".to_owned(),
+    ])?;
     leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
     leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
     leaf_params.use_authority_key_identifier_extension = true;
