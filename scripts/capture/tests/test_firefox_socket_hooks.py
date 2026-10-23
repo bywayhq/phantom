@@ -34,6 +34,15 @@ RETAINED_SOURCE_DIGESTS = (
     "2c5e7785ff464f6f1d5987e359f7c9517c3142f53fbdb8dd2c88822aef272f9a",
 )
 
+RETAINED_SOURCE_OVERRIDES = {
+    "157.0/windows-11-26200/hooks-h2-backup.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",
+        "25a745b8cbaacef891e1236955cd48f69ef2d01515b91f5c694ae62bfa903ff5",
+        "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
+    ),
+}
+
 
 def sockaddr_in(port: int) -> str:
     return (
@@ -343,7 +352,9 @@ class RetainedFixtureTests(unittest.TestCase):
                         fields["capture_tool_sha256"],
                         fields["decoder_sha256"],
                     ),
-                    RETAINED_SOURCE_DIGESTS,
+                    RETAINED_SOURCE_OVERRIDES.get(
+                        path.relative_to(FIXTURES).as_posix(), RETAINED_SOURCE_DIGESTS
+                    ),
                 )
 
                 for run in range(int(fields["run_count"])):

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain Firefox 157 Windows HTTP/2 fallback, reuse and reconnect observations.
+
 - Abort the Firefox HTTP/2 reconnect probe's origin transport so pending
   control frames cannot turn its forced disconnect into a TLS close error.
 
