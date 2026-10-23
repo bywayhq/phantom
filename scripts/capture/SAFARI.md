@@ -6,7 +6,8 @@ The workflow records the installed browser, ordered requests and cleanup.
 ## Run the capture
 
 Select the **Safari loopback capture** workflow and its reviewed source ref.
-It runs independent HTTP and TLS/H2 jobs on `macos-latest`. Each job opens
+Choose `h1`, `h2` or the default `both`. It runs independent HTTP and TLS/H2
+jobs on `macos-latest`. Each job opens
 one headed automation session and attempts `reconnect-204` once. There are
 no capture retries. Each job has a ten minute limit and installs the pinned
 capture requirements.
@@ -42,6 +43,9 @@ when a page was attempted, `reconnect-204.txt`. TLS/H2 also retains its public
 certificate as `peer-certificate.der`. Inspect failures too. Source hashes,
 Safari and driver versions, Safari build, OS, architecture, runner image,
 returned capabilities and automation mode identify the attempt.
+Command timeouts also retain the exchange stage, received byte count and
+response framing, excluding response bodies and session identifiers. Framed
+REST replies complete without waiting for the driver to close its connection.
 
 ## Interpret the result
 

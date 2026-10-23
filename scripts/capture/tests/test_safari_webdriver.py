@@ -41,6 +41,33 @@ class ResponseTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, "session not created")
         self.assertIn("disabled", str(raised.exception))
 
+    def test_live_framed_prefixes_wait_for_complete_standard_http_framing(self):
+        for chunked in (False, True):
+            wire = response({"ready": True}, chunked=chunked)
+            for length in range(len(wire)):
+                with (
+                    self.subTest(chunked=chunked, length=length),
+                    self.assertRaises(safari.ResponsePending),
+                ):
+                    safari.response_value(wire[:length], eof=False)
+            self.assertEqual(safari.response_value(wire, eof=False), {"ready": True})
+
+    def test_truncated_chunk_and_oversized_live_header_remain_errors(self):
+        wire = response(None, chunked=True)
+        with self.assertRaises(http.client.IncompleteRead):
+            safari.response_value(wire[: wire.index(b"\r\n0\r\n")])
+        with self.assertRaisesRegex(ValueError, "wire limit"):
+            safari.response_value(b"HTTP/1.1 200 OK\r\nX: " + b"x" * 16384, eof=False)
+
+    def test_partial_body_progress_contains_no_session_or_payload(self):
+        wire = response({"sessionId": "private-session", "value": "secret"})[:-1]
+        progress = {}
+        with self.assertRaises(safari.ResponsePending):
+            safari.response_value(wire, eof=False, progress=progress)
+        self.assertEqual(
+            progress, {"stage": "response_body", "framing": "content_length"}
+        )
+
     def test_malformed_duplicate_oversized_and_http_error_responses_fail(self):
         cases = [
             b"not HTTP",
@@ -179,6 +206,43 @@ class ResponseTests(unittest.TestCase):
 
 
 class RestTests(unittest.IsolatedAsyncioTestCase):
+    async def framed_reply_before_peer_close(self, *, chunked: bool) -> None:
+        finished = asyncio.get_running_loop().create_future()
+
+        async def peer(
+            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        ) -> None:
+            failure = None
+            try:
+                await reader.readuntil(b"\r\n\r\n")
+                writer.write(response({"ready": True}, chunked=chunked))
+                await writer.drain()
+                # A response frame is complete before the connection closes.
+                self.assertEqual(await reader.read(), b"")
+            except BaseException as error:
+                failure = error
+            finally:
+                writer.close()
+                await writer.wait_closed()
+                if failure is not None:
+                    finished.set_exception(failure)
+                else:
+                    finished.set_result(None)
+
+        async with await asyncio.start_server(peer, "127.0.0.1", 0) as server:
+            port = server.sockets[0].getsockname()[1]
+            try:
+                value = await safari.request(port, "GET", "/status")
+                self.assertEqual(value, {"ready": True})
+            finally:
+                await asyncio.wait_for(finished, 1)
+
+    async def test_content_length_reply_completes_before_peer_close(self):
+        await self.framed_reply_before_peer_close(chunked=False)
+
+    async def test_chunked_reply_completes_before_peer_close(self):
+        await self.framed_reply_before_peer_close(chunked=True)
+
     async def test_owned_loopback_peer_receives_exact_request_and_closes(self):
         seen = asyncio.get_running_loop().create_future()
         finished = asyncio.Event()
@@ -253,8 +317,22 @@ class RestTests(unittest.IsolatedAsyncioTestCase):
                     await asyncio.wait_for(expired.wait(), 1)
                     [(callback, args, context)] = timeout_callback
                     loop.call_soon(callback, *args, context=context)
-                    with self.assertRaises(asyncio.TimeoutError):
+                    with self.assertRaises(asyncio.TimeoutError) as raised:
                         await operation
+                    progress = safari.error_record(raised.exception)[
+                        "webdriver_progress"
+                    ]
+                    self.assertEqual(
+                        progress,
+                        {
+                            "method": "GET",
+                            "stage": "response_head",
+                            "wire_bytes": 0,
+                            "headers_complete": False,
+                            "framing": "unknown",
+                            "eof": False,
+                        },
+                    )
                 finally:
                     if not operation.done():
                         operation.cancel()

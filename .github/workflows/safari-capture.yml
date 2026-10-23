@@ -2,6 +2,12 @@ name: Safari loopback capture
 
 on:
   workflow_dispatch:
+    inputs:
+      protocol:
+        description: Safari capture protocol
+        type: choice
+        options: [both, h1, h2]
+        default: both
 
 permissions:
   contents: read
@@ -17,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        protocol: [h1, h2]
+        protocol: ${{ fromJSON(inputs.protocol == 'both' && '["h1", "h2"]' || format('["{0}"]', inputs.protocol)) }}
     steps:
       - name: Check out capture source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
