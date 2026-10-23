@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Retain Firefox 157 early-data rejection and ECH key-rotation captures.
+
+- Preserve actual diagnostics in gate logs containing mixed encodings.
+
 - Report live DoH connection phases and request counts when a capture
   reaches its connection limit.
 
