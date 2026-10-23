@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
-use btls::ssl::{ExtensionType, SelectCertError};
+use btls::ssl::{ExtensionType, SelectCertError, SslAcceptorBuilder};
 
 use super::*;
 use crate::direct::{Dialer, DirectTlsError, retry_ech};
@@ -35,21 +35,7 @@ async fn deferred_ech_retry_cannot_retry_a_second_authenticated_rejection() -> T
 async fn recovery(case: RetryCase) -> TestResult<()> {
     let identity = TestIdentity::generate_for_names(&[INNER_NAME, PUBLIC_NAME])?;
     let offers = Arc::new(Mutex::new(Vec::new()));
-    let mut builder = identity.acceptor_builder()?;
-    builder.set_alpn_select_callback(|_, offered| {
-        select_next_proto(b"\x02h2", offered).ok_or(AlpnError::NOACK)
-    });
-    let observed = Arc::clone(&offers);
-    builder.set_select_certificate_callback(move |hello| {
-        observed
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(Offer {
-                psk: hello.get_extension(ExtensionType::PRE_SHARED_KEY).is_some(),
-                early_data: hello.get_extension(ExtensionType::EARLY_DATA).is_some(),
-            });
-        Ok::<_, SelectCertError>(())
-    });
+    let builder = recording_acceptor(&identity, &offers)?;
     let seed_config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
     let retry_config = ech_config(2, &TEST_ECH_KEYS[1], PUBLIC_NAME);
     let mut seed_keys = SslEchKeys::builder()?;
@@ -69,6 +55,12 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
         )?;
     }
     let rotated = rotated.build();
+    // BoringSSL rejects an ECH key set with no retry configuration. Removing
+    // ECH therefore uses an ordinary server context, as the existing native
+    // deferred-authentication control does.
+    let without_ech = matches!(case, RetryCase::RemoveEch)
+        .then(|| recording_acceptor(&identity, &offers).map(|builder| builder.build()))
+        .transpose()?;
     let connector = TlsConnector::new_with_roots(&firefox::v157_tcp_tls(), [identity.root_der()])?
         .with_isolated_session_cache();
     let (address, listener) = loopback_listener().await?;
@@ -80,9 +72,12 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
         assert!(seed.ssl().ech_accepted());
         seed.write_all(b"x").await?;
         seed.flush().await?;
-        acceptor.context().set_ech_keys(&rotated)?;
+        if without_ech.is_none() {
+            acceptor.context().set_ech_keys(&rotated)?;
+        }
         let mut byte = [0_u8; 1];
         assert_eq!(seed.read(&mut byte).await?, 0);
+        let acceptor = without_ech.unwrap_or(acceptor);
 
         let mut rejected = server_stream(&listener, &acceptor).await?;
         let handshake = Pin::new(&mut rejected).accept().await;
@@ -196,7 +191,7 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
                 stream.write_all(b"recovered").await?;
                 stream.flush().await?;
                 stream.read_exact(&mut byte).await?;
-                if byte != [b'y'] {
+                if byte != *b"y" {
                     return Err("recovered origin returned the wrong response".into());
                 }
             }
@@ -228,4 +223,26 @@ async fn recovery(case: RetryCase) -> TestResult<()> {
         }
     );
     Ok(())
+}
+
+fn recording_acceptor(
+    identity: &TestIdentity,
+    offers: &Arc<Mutex<Vec<Offer>>>,
+) -> TestResult<SslAcceptorBuilder> {
+    let mut builder = identity.acceptor_builder()?;
+    builder.set_alpn_select_callback(|_, offered| {
+        select_next_proto(b"\x02h2", offered).ok_or(AlpnError::NOACK)
+    });
+    let observed = Arc::clone(offers);
+    builder.set_select_certificate_callback(move |hello| {
+        observed
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(Offer {
+                psk: hello.get_extension(ExtensionType::PRE_SHARED_KEY).is_some(),
+                early_data: hello.get_extension(ExtensionType::EARLY_DATA).is_some(),
+            });
+        Ok::<_, SelectCertError>(())
+    });
+    Ok(builder)
 }
