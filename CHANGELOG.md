@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve repeated signature algorithms when importing raw JA4, including
+  Safari profiles.
+
 - Add a manual Firefox native DNS capture on Windows Server 2025 with
   automatic restoration of its temporary DNS rule.
 

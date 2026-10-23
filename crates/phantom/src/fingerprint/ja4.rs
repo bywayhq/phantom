@@ -25,6 +25,7 @@ pub enum Ja4RawFormat {
 /// whose ordering is retained. Both check version, SNI, counts and the ALPN
 /// abbreviation against a fresh in-memory ClientHello. Other settings remain
 /// supplemented, including the complete ALPN list and supported groups.
+/// Repeated signature schemes retain their supplied order.
 ///
 /// Pass the raw value without a `JA4_r =` or `JA4_ro =` label. Hashes cannot
 /// reconstruct settings. Validation uses a fresh direct TCP ClientHello for
@@ -62,7 +63,7 @@ pub fn import_ja4_profile(
     }
     let ciphers = hex_list(sections[1], "ja4.ciphers")?;
     let extensions = hex_list(sections[2], "ja4.extensions")?;
-    let signatures = hex_list(sections.get(3).copied().unwrap_or(""), "ja4.signatures")?;
+    let signatures = hex_values(sections.get(3).copied().unwrap_or(""), "ja4.signatures")?;
     let mut settings = base.tls().clone();
     settings.signature_schemes = signatures
         .iter()
@@ -114,6 +115,16 @@ pub fn import_ja4_profile(
 }
 
 fn hex_list(input: &str, field: &str) -> Result<Vec<u16>> {
+    let values = hex_values(input, field)?;
+    for (index, value) in values.iter().enumerate() {
+        if values[..index].contains(value) {
+            return Err(error(Kind::DuplicateField, field));
+        }
+    }
+    Ok(values)
+}
+
+fn hex_values(input: &str, field: &str) -> Result<Vec<u16>> {
     if input.is_empty() {
         return Ok(Vec::new());
     }
@@ -128,9 +139,6 @@ fn hex_list(input: &str, field: &str) -> Result<Vec<u16>> {
         let value = u16::from_str_radix(part, 16).map_err(|_| error(Kind::InvalidValue, field))?;
         if phantom_profile::client_hello::is_grease(value) {
             return Err(error(Kind::InvalidValue, field));
-        }
-        if values.contains(&value) {
-            return Err(error(Kind::DuplicateField, field));
         }
         values.push(value);
     }
