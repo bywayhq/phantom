@@ -1644,7 +1644,8 @@ async fn doh_exchange(
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .enter(DohStage::RequestHead);
-    let Some(head) = read_request_head(&mut first.as_slice().chain(&mut *tls)).await? else {
+    let mut replayed = tokio::io::AsyncReadExt::chain(first.as_slice(), &mut *tls);
+    let Some(head) = read_request_head(&mut replayed).await? else {
         return Ok(false);
     };
     let head = String::from_utf8_lossy(&head).into_owned();
