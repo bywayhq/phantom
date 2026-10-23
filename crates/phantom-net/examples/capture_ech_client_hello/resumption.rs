@@ -466,8 +466,8 @@ fn request_path(head: &[u8]) -> CaptureResult<&'static str> {
 }
 
 fn parse_offer(message: &[u8]) -> Result<Offer, &'static str> {
-    ClientHelloSummary::from_handshake_bytes(message).map_err(|_| "invalid inner ClientHello")?;
     let mut body = Cursor::message(message, 1)?;
+    ClientHelloSummary::from_handshake_bytes(message).map_err(|_| "invalid inner ClientHello")?;
     body.take(34)?;
     body.vector(1)?;
     body.vector(2)?;
