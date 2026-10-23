@@ -23,7 +23,8 @@
           ],
           "refused_stream_retry": "ReacquireTwice",
           "proxied_http2_session": "Reuse",
-          "cleartext_state": "Shared"
+          "cleartext_state": "Shared",
+          "http1_tls_backup": "Keep"
         },
         "http1_fields": [
           {
@@ -164,7 +165,8 @@
           ],
           "refused_stream_retry": "None",
           "proxied_http2_session": "Reuse",
-          "cleartext_state": "Separate"
+          "cleartext_state": "Separate",
+          "http1_tls_backup": "CloseWhenUnused"
         },
         "http1_fields": [
           {
@@ -350,7 +352,8 @@
           ],
           "refused_stream_retry": "ReacquireTwice",
           "proxied_http2_session": "Reuse",
-          "cleartext_state": "Shared"
+          "cleartext_state": "Shared",
+          "http1_tls_backup": "Keep"
         },
         "http1_fields": [
           {

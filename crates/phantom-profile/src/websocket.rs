@@ -313,6 +313,21 @@ pub enum WebSocketCleartextState {
     Separate,
 }
 
+/// What happens to an unused direct TLS backup for an HTTP/1.1 Upgrade.
+///
+/// TLS setup completes without sending an HTTP request. This does not change
+/// TLS session sharing, plaintext, proxy routes or HTTP/2 extended CONNECT.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WebSocketTlsBackup {
+    /// Keeps the authenticated backup available for another request.
+    Keep,
+    /// Closes it unless a request claims and uses it.
+    ///
+    /// A cancelled claim does not leave the unused connection idle.
+    CloseWhenUnused,
+}
+
 /// How a client chooses WebSocket connections and shared state.
 ///
 /// A pooled HTTP/2 session to the same origin and route whose peer enabled
@@ -346,6 +361,8 @@ pub struct WebSocketConnectionPolicy {
     /// An accepted Upgrade releases its HTTP opening owner. An unused backup
     /// socket can keep the learned address family alive for another opening.
     pub cleartext_state: WebSocketCleartextState,
+    /// Whether an unused direct TLS backup stays available after an H1 Upgrade.
+    pub http1_tls_backup: WebSocketTlsBackup,
 }
 
 impl WebSocketConnectionPolicy {

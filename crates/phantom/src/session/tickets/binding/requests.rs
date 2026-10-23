@@ -260,6 +260,7 @@ pub(super) fn websocket(
         refused_stream_retry,
         proxied_http2_session,
         cleartext_state,
+        http1_tls_backup,
     } = connection;
     web_socket_new_connection(e, without_http2_session)?;
     web_socket_new_connection(e, with_incapable_http2_session)?;
@@ -270,6 +271,11 @@ pub(super) fn websocket(
         WebSocketCleartextState::Shared => e.u8(0)?,
         WebSocketCleartextState::Separate => e.u8(1)?,
         _ => return Err(PreparationError::Unsupported("websocket_cleartext_state")),
+    }
+    match http1_tls_backup {
+        phantom_profile::WebSocketTlsBackup::Keep => e.u8(0)?,
+        phantom_profile::WebSocketTlsBackup::CloseWhenUnused => e.u8(1)?,
+        _ => return Err(PreparationError::Unsupported("websocket_http1_tls_backup")),
     }
     e.list(http1_fields, websocket_field)?;
     e.list(http2_fields, websocket_field)?;

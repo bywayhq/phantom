@@ -490,3 +490,151 @@ async fn close_idle_preserves_weak_spare_setup_and_claimed_openings() -> TestRes
     assert!(entry.connections.lock().idle.is_empty());
     Ok(())
 }
+
+#[derive(Clone, Copy, Debug)]
+enum BackupClaim {
+    Unclaimed,
+    Cancelled,
+    Delivered,
+    Undelivered,
+}
+
+#[tokio::test]
+async fn unused_upgrade_backup_closes_after_setup_and_cancelled_delivery() -> TestResult {
+    use phantom_profile::WebSocketTlsBackup;
+    use tokio::io::AsyncReadExt;
+
+    for outcome in [
+        BackupClaim::Unclaimed,
+        BackupClaim::Cancelled,
+        BackupClaim::Delivered,
+        BackupClaim::Undelivered,
+    ] {
+        let connections = connections(bound(6)?);
+        let (slower, _, finish) = gated();
+        connections.adopt_with_policy(slower, WebSocketTlsBackup::CloseWhenUnused);
+        let claim = if matches!(outcome, BackupClaim::Unclaimed) {
+            None
+        } else {
+            let Checkout::Spare(claim) = connections.checkout(false) else {
+                return Err("pending backup was not claimable".into());
+            };
+            Some(claim)
+        };
+        let claim = if matches!(outcome, BackupClaim::Cancelled) {
+            drop(claim);
+            None
+        } else {
+            claim
+        };
+        let (connection, mut peer) = connection().await?;
+        finish
+            .send(Some(connection))
+            .map_err(|_| "backup setup cancelled")?;
+        settled(&connections).await?;
+        // In Undelivered, the completed oneshot owns the lease until its receiver drops.
+        if matches!(outcome, BackupClaim::Delivered) {
+            let lease = timeout(WAIT, claim.ok_or("missing live claim")?.wait())
+                .await?
+                .ok_or("live claim not delivered")?;
+            assert!(lease.connection.is_reusable());
+            assert_eq!(connections.lock().leased, 1);
+            drop(lease);
+        } else {
+            drop(claim);
+        }
+        assert_eq!(
+            timeout(WAIT, peer.read(&mut [0; 1])).await??,
+            0,
+            "{outcome:?}"
+        );
+        assert_eq!(connections.lock().leased, 0, "{outcome:?}");
+        assert!(connections.lock().idle.is_empty(), "{outcome:?}");
+    }
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn closed_upgrade_backup_forgets_family_only_without_other_http_owners() -> TestResult {
+    use phantom_profile::WebSocketTlsBackup;
+
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let connections = timed(&timer)?;
+    connections.family.remember(AddressFamily::Ipv4);
+    let (active, _peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("empty origin had no slot".into());
+    };
+    let mut lease = reservation.into_lease(active);
+    let (slower, _, finish) = gated();
+    connections.adopt_with_policy(slower, WebSocketTlsBackup::CloseWhenUnused);
+    let (backup, _backup_peer) = connection().await?;
+    finish
+        .send(Some(backup))
+        .map_err(|_| "backup setup cancelled")?;
+    settled(&connections).await?;
+    timer.fire();
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
+
+    lease.retire();
+    drop(lease);
+    timer.fire();
+    assert_eq!(connections.family.family(), None);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_live_request_uses_upgrade_backup_then_returns_it_for_reuse() -> TestResult {
+    use phantom_profile::{WebSocketTlsBackup, browser::chrome};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    timeout(WAIT, async {
+        let client = crate::Client::builder(chrome::v154_windows()).build()?;
+        let endpoint = Endpoint::new("claimed.test:443".parse()?, 443)?;
+        let entry = client.state.http1.entry(PoolKey::new(&endpoint, &Route::Direct, Http1ConnectionMode::TlsOrigin)).await;
+        let (slower, _, finish) = gated();
+        entry.connections.adopt_with_policy(slower, WebSocketTlsBackup::CloseWhenUnused);
+        let (connection, mut peer) = connection().await?;
+        let caller = async {
+            let mut request = std::pin::pin!(client.get(crate::HttpProtocol::Http1, "https://claimed.test/one")?.send());
+            tokio::select! {
+                result = &mut request => {
+                    drop(result);
+                    return Err("request finished before backup setup".into());
+                }
+                () = async {
+                    while !entry.connections.lock().spares.iter().any(|spare| spare.claim.is_some()) {
+                        tokio::task::yield_now().await;
+                    }
+                } => {}
+            }
+            finish.send(Some(connection)).map_err(|_| "backup setup cancelled")?;
+            let response = request.await?;
+            assert_eq!(response.status(), 200);
+            response.into_body().collect().await?;
+            client.get(crate::HttpProtocol::Http1, "https://claimed.test/two")?.send().await?.into_body().collect().await?;
+            assert_eq!(entry.connections.lock().idle.len(), 1);
+            client.close_idle_connections().await;
+            TestResult::Ok(())
+        };
+        let peer = async {
+            for path in ["/one", "/two"] {
+                let mut head = Vec::new();
+                while !head.ends_with(b"\r\n\r\n") {
+                    if head.len() == 16 * 1024 {
+                        return Err("HTTP head exceeded test bound".into());
+                    }
+                    let mut byte = [0; 1];
+                    peer.read_exact(&mut byte).await?;
+                    head.push(byte[0]);
+                }
+                assert!(head.starts_with(format!("GET {path} HTTP/1.1\r\n").as_bytes()));
+                peer.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n").await?;
+            }
+            assert_eq!(peer.read(&mut [0; 1]).await?, 0);
+            TestResult::Ok(())
+        };
+        tokio::try_join!(caller, peer)?;
+        Ok(())
+    }).await?
+}

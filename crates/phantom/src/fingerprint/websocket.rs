@@ -7,7 +7,7 @@ use super::{
 use phantom_profile::{
     WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings, WebSocketTlsBackup,
 };
 
 pub(super) fn parse(v: &Value) -> Result<WebSocketSettings> {
@@ -92,6 +92,14 @@ fn proxied_http2_session(v: &Value) -> Result<WebSocketProxiedSession> {
 }
 
 pub(super) fn connection(v: &Value) -> Result<WebSocketConnectionPolicy> {
+    let http1_tls_backup = match v
+        .member("http1_tls_backup", "websocket.connection.http1_tls_backup")?
+        .text("websocket.connection.http1_tls_backup")?
+    {
+        "Keep" => WebSocketTlsBackup::Keep,
+        "CloseWhenUnused" => WebSocketTlsBackup::CloseWhenUnused,
+        _ => return Err(json::unsupported("websocket.connection.http1_tls_backup")),
+    };
     let cleartext_state = match v
         .member("cleartext_state", "websocket.connection.cleartext_state")?
         .text("websocket.connection.cleartext_state")?
@@ -108,10 +116,12 @@ pub(super) fn connection(v: &Value) -> Result<WebSocketConnectionPolicy> {
             "proxied_http2_session",
             "http1_alpn_protocols",
             "cleartext_state",
+            "http1_tls_backup",
         ],
         "websocket.connection",
     )?;
     let settings = WebSocketConnectionPolicy {
+        http1_tls_backup,
         cleartext_state,
         without_http2_session: without_http2_session(v.member(
             "without_http2_session",

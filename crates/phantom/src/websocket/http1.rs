@@ -8,7 +8,7 @@ use phantom_net::route::{
     DirectTlsSetup, Http1Route, Http1Target, HttpConnectRoute, OriginRoute, ProxyTransport,
     Socks5Target, TcpRoute,
 };
-use phantom_profile::WebSocketCleartextState;
+use phantom_profile::{WebSocketCleartextState, WebSocketTlsBackup};
 
 use phantom_net::{
     http1::{
@@ -99,10 +99,10 @@ impl OpeningOwner {
         }
     }
 
-    fn adopt(&self, slower: SlowerConnection<Http1Connection>) {
+    fn adopt(&self, slower: SlowerConnection<Http1Connection>, policy: WebSocketTlsBackup) {
         match self {
-            Self::Exact(owner) => owner.adopt(slower),
-            Self::Negotiated(owner) => owner.adopt(slower),
+            Self::Exact(owner) => owner.adopt(slower, policy),
+            Self::Negotiated(owner) => owner.adopt(slower, policy),
         }
     }
 }
@@ -609,6 +609,26 @@ impl WebSocketRequestBuilder {
         let mut opening_owner = None;
         let outcome = if matches!(route, Route::Direct) {
             let plaintext = request.transport == WebSocketTransport::Plaintext;
+            let tls_backup = if plaintext {
+                WebSocketTlsBackup::Keep
+            } else {
+                match client
+                    .inner
+                    .websocket
+                    .as_ref()
+                    .map_or(WebSocketTlsBackup::Keep, |settings| {
+                        settings.connection.http1_tls_backup
+                    }) {
+                    policy @ (WebSocketTlsBackup::Keep | WebSocketTlsBackup::CloseWhenUnused) => {
+                        policy
+                    }
+                    _ => {
+                        return Err(WebSocketError::invalid_request(
+                            "profile names an unsupported HTTP/1 TLS backup policy",
+                        ));
+                    }
+                }
+            };
             let (connector, owner) = direct_opening(
                 &client,
                 upgrade_connector,
@@ -644,7 +664,7 @@ impl WebSocketRequestBuilder {
             match opened {
                 Ok((opening, slower)) => {
                     if let Some(slower) = slower {
-                        owner.adopt(slower);
+                        owner.adopt(slower, tls_backup);
                     }
                     opening_owner = Some(owner);
                     opening.send().await

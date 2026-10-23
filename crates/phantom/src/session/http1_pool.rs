@@ -27,6 +27,7 @@ use phantom_net::{
     },
     request::{AbsoluteForm, OriginForm, RequestHeader},
 };
+use phantom_profile::WebSocketTlsBackup;
 use tokio::{
     sync::{Mutex, oneshot},
     task::AbortHandle,
@@ -942,8 +943,12 @@ impl OriginOpening {
         self.entry.origin_connector(base, endpoint, &Route::Direct)
     }
 
-    pub(crate) fn adopt(&self, slower: SlowerConnection<phantom_net::http1::Http1Connection>) {
-        self.entry.connections.adopt(slower);
+    pub(crate) fn adopt(
+        &self,
+        slower: SlowerConnection<phantom_net::http1::Http1Connection>,
+        policy: WebSocketTlsBackup,
+    ) {
+        self.entry.connections.adopt_with_policy(slower, policy);
     }
 
     pub(crate) fn proxy_origin_connector(
@@ -1691,6 +1696,7 @@ impl ConnectionSet {
 struct Spare {
     id: u64,
     progress: SlowerProgress,
+    policy: WebSocketTlsBackup,
     claim: Option<oneshot::Sender<SpareDelivery>>,
     ready: Option<QuietOpening>,
     idle_since: Option<Instant>,
@@ -2050,9 +2056,20 @@ impl EntryConnections {
     ///
     /// Outside a Tokio runtime the attempt is closed instead.
     fn adopt(self: &Arc<Self>, slower: SlowerConnection<Http1Connection>) {
-        self.adopt_spare(SlowerConnection::new(slower.progress(), async move {
-            slower.finish().await.map(SpareConnection::Ready)
-        }));
+        self.adopt_with_policy(slower, WebSocketTlsBackup::Keep);
+    }
+
+    fn adopt_with_policy(
+        self: &Arc<Self>,
+        slower: SlowerConnection<Http1Connection>,
+        policy: WebSocketTlsBackup,
+    ) {
+        self.adopt_spare(
+            SlowerConnection::new(slower.progress(), async move {
+                slower.finish().await.map(SpareConnection::Ready)
+            }),
+            policy,
+        );
     }
 
     fn adopt_proxy(self: &Arc<Self>, slower: SlowerConnection<Http1ProxyOpening>) {
@@ -2072,12 +2089,19 @@ impl EntryConnections {
     }
 
     fn adopt_quiet(self: &Arc<Self>, slower: SlowerConnection<QuietOpening>) {
-        self.adopt_spare(SlowerConnection::new(slower.progress(), async move {
-            slower.finish().await.map(SpareConnection::Proxy)
-        }));
+        self.adopt_spare(
+            SlowerConnection::new(slower.progress(), async move {
+                slower.finish().await.map(SpareConnection::Proxy)
+            }),
+            WebSocketTlsBackup::Keep,
+        );
     }
 
-    fn adopt_spare(self: &Arc<Self>, slower: SlowerConnection<SpareConnection>) {
+    fn adopt_spare(
+        self: &Arc<Self>,
+        slower: SlowerConnection<SpareConnection>,
+        policy: WebSocketTlsBackup,
+    ) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
@@ -2091,6 +2115,7 @@ impl EntryConnections {
             set.spares.push(Spare {
                 id,
                 progress,
+                policy,
                 claim: None,
                 ready: None,
                 idle_since: None,
@@ -2155,14 +2180,23 @@ impl EntryConnections {
                 Some(claim) => {
                     set.leased += 1;
                     drop(set);
-                    let lease = Reservation {
+                    let mut lease = Reservation {
                         connections: Arc::clone(self),
                         released: false,
                     }
                     .into_lease(connection);
+                    // A live request restores reuse after receiving its head.
+                    // An undelivered or cancelled claim closes this backup.
+                    lease.retired = spare.policy == WebSocketTlsBackup::CloseWhenUnused;
                     drop(claim.send(SpareDelivery::Ready(lease)));
                 }
                 None => {
+                    if spare.policy == WebSocketTlsBackup::CloseWhenUnused {
+                        drop(set);
+                        drop(connection);
+                        self.prune_empty_family();
+                        return;
+                    }
                     set.idle.push(IdleConnection::new(connection));
                     drop(set);
                     debug!(outcome = "kept", "HTTP/1 slower backup connection idle");
@@ -2185,6 +2219,7 @@ impl EntryConnections {
         set.spares.push(Spare {
             id,
             progress,
+            policy: WebSocketTlsBackup::Keep,
             ready: Some(opening),
             idle_since: Some(since),
             claim: None,

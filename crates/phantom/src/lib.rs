@@ -203,7 +203,7 @@ pub mod profile {
         UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketCleartextState,
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
         WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
-        WebSocketRefusedStreamRetry, WebSocketSettings,
+        WebSocketRefusedStreamRetry, WebSocketSettings, WebSocketTlsBackup,
     };
 
     /// Exact catalog selection, metadata and supported layers.

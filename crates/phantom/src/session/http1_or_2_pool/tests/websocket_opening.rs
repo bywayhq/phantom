@@ -27,6 +27,8 @@ use tokio::{
 use super::TestResult;
 use crate::{Client, Route, authority::Endpoint, session::prune_timer::PruneTimer};
 
+mod tls_backup;
+
 const WAIT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy)]
@@ -191,13 +193,16 @@ async fn cancelled_opening_leaves_pending_spare_owned_until_last_pool_drop() -> 
         family.remember(AddressFamily::Ipv4);
         let (started, running) = oneshot::channel();
         let (dropped, cancelled) = oneshot::channel::<()>();
-        opening.adopt(SlowerConnection::new(SlowerProgress::new(), async move {
-            let _drop_signal = dropped;
-            if started.send(()).is_err() {
-                return None;
-            }
-            std::future::pending().await
-        }));
+        opening.adopt(
+            SlowerConnection::new(SlowerProgress::new(), async move {
+                let _drop_signal = dropped;
+                if started.send(()).is_err() {
+                    return None;
+                }
+                std::future::pending().await
+            }),
+            phantom_profile::WebSocketTlsBackup::Keep,
+        );
         running.await?;
         drop(opening);
         timer.fire();

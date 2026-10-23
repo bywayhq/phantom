@@ -39,6 +39,21 @@ class WebSocketComponentTests(unittest.TestCase):
         with self.assertRaises(generator.DeclarationError):
             self.resolve()
 
+    def test_tls_backup_is_explicit_and_rejects_unknown_values(self):
+        for policy in ("Keep", "CloseWhenUnused"):
+            self.values["connection"]["http1_tls_backup"] = policy
+            generated = generator.generate_components(
+                self.resolve(), "websocket-components.json"
+            )
+            self.assertIn("WebSocketTlsBackup::" + policy, generated)
+        for policy in ("Unknown", None, False):
+            self.values["connection"]["http1_tls_backup"] = policy
+            with self.assertRaises(generator.DeclarationError):
+                self.resolve()
+        del self.values["connection"]["http1_tls_backup"]
+        with self.assertRaises(generator.DeclarationError):
+            self.resolve()
+
     def test_original_field_counts_and_committed_output_are_deterministic(self):
         resolved = self.resolve()
         self.assertEqual(
@@ -363,6 +378,7 @@ class WebSocketComponentTests(unittest.TestCase):
                 "refused_stream_retry": "ReacquireTwice",
                 "proxied_http2_session": "Reuse",
                 "cleartext_state": "Shared",
+                "http1_tls_backup": "Keep",
             },
         )
         self.assertEqual(

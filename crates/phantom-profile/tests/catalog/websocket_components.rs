@@ -10,6 +10,7 @@ use originals::{chrome_original, firefox_original};
 fn firefox_expected() -> phantom_profile::WebSocketSettings {
     let mut expected = firefox_original();
     expected.connection.cleartext_state = phantom_profile::WebSocketCleartextState::Separate;
+    expected.connection.http1_tls_backup = phantom_profile::WebSocketTlsBackup::CloseWhenUnused;
     expected
 }
 

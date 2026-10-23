@@ -211,3 +211,21 @@ fn websocket_cleartext_state_requires_a_known_explicit_policy() -> TestResult {
     assert_eq!(failure.field(), "websocket.connection.cleartext_state");
     Ok(())
 }
+
+#[test]
+fn websocket_tls_backup_requires_a_known_explicit_policy() -> TestResult {
+    let mut value = document(0)?;
+    value["profile"]["websocket"]["connection"]
+        .as_object_mut()
+        .ok_or("missing WebSocket policy")?
+        .remove("http1_tls_backup");
+    let failure = error(&value)?;
+    assert_eq!(failure.kind(), Kind::MissingField);
+    assert_eq!(failure.field(), "websocket.connection.http1_tls_backup");
+
+    value["profile"]["websocket"]["connection"]["http1_tls_backup"] = json!("Unknown");
+    let failure = error(&value)?;
+    assert_eq!(failure.kind(), Kind::UnsupportedSetting);
+    assert_eq!(failure.field(), "websocket.connection.http1_tls_backup");
+    Ok(())
+}

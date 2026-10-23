@@ -32,7 +32,7 @@ use phantom_net::{
     },
     tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress},
 };
-use phantom_profile::Http2RequestPriority;
+use phantom_profile::{Http2RequestPriority, WebSocketTlsBackup};
 use tokio::{
     sync::{Mutex, Notify, oneshot},
     task::AbortHandle,
@@ -974,6 +974,7 @@ impl OriginHttp2Opening {
                 state.spares.push(Spare {
                     id,
                     progress: slower.progress(),
+                    policy: WebSocketTlsBackup::Keep,
                     claim: None,
                     proxy: false,
                     claimed: false,
@@ -1052,13 +1053,18 @@ impl OriginOpening {
         self.entry.origin_connector(base, endpoint, &Route::Direct)
     }
 
-    pub(crate) fn adopt(&self, slower: SlowerConnection<phantom_net::http1::Http1Connection>) {
+    pub(crate) fn adopt(
+        &self,
+        slower: SlowerConnection<phantom_net::http1::Http1Connection>,
+        policy: WebSocketTlsBackup,
+    ) {
         let progress = slower.progress();
-        self.entry
-            .connections
-            .adopt(SlowerConnection::new(progress, async move {
+        self.entry.connections.adopt_with_policy(
+            SlowerConnection::new(progress, async move {
                 slower.finish().await.map(Http1Or2Connection::Http1)
-            }));
+            }),
+            policy,
+        );
     }
 
     pub(crate) fn proxy_origin_connector(
@@ -2486,6 +2492,7 @@ enum Acquired {
 struct Spare {
     id: u64,
     progress: SlowerProgress,
+    policy: WebSocketTlsBackup,
     claim: Option<oneshot::Sender<SpareDelivery>>,
     proxy: bool,
     // A proxy claim keeps its registration until settlement so an H2 winner
@@ -2897,11 +2904,20 @@ impl EntryConnections {
     ///
     /// Outside a Tokio runtime the attempt is closed instead.
     fn adopt(self: &Arc<Self>, slower: SlowerConnection<Http1Or2Connection>) {
+        self.adopt_with_policy(slower, WebSocketTlsBackup::Keep);
+    }
+
+    fn adopt_with_policy(
+        self: &Arc<Self>,
+        slower: SlowerConnection<Http1Or2Connection>,
+        policy: WebSocketTlsBackup,
+    ) {
         self.adopt_spare(
             SlowerConnection::new(slower.progress(), async move {
                 slower.finish().await.map(SpareConnection::Ready)
             }),
             false,
+            policy,
         );
     }
 
@@ -2927,10 +2943,16 @@ impl EntryConnections {
                 slower.finish().await.map(SpareConnection::Proxy)
             }),
             true,
+            WebSocketTlsBackup::Keep,
         );
     }
 
-    fn adopt_spare(self: &Arc<Self>, slower: SlowerConnection<SpareConnection>, proxy: bool) {
+    fn adopt_spare(
+        self: &Arc<Self>,
+        slower: SlowerConnection<SpareConnection>,
+        proxy: bool,
+        policy: WebSocketTlsBackup,
+    ) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
@@ -2949,6 +2971,7 @@ impl EntryConnections {
             state.spares.push(Spare {
                 id,
                 progress,
+                policy,
                 claim: None,
                 proxy,
                 claimed: false,
@@ -3072,12 +3095,22 @@ impl EntryConnections {
                     let lease = Http1Lease {
                         connections: Arc::clone(self),
                         connection,
-                        retired: false,
+                        // Only a successful dispatch may return this backup idle.
+                        retired: spare.policy == WebSocketTlsBackup::CloseWhenUnused,
                     };
-                    // A claimant that just left drops the lease, which
-                    // returns the connection to the idle list.
+                    // A lost receiver drops the lease outside the lock,
+                    // retaining its unused-backup disposition.
                     drop(claimant.send(SpareDelivery::Ready(lease)));
                 } else {
+                    if spare.policy == WebSocketTlsBackup::CloseWhenUnused {
+                        drop(state);
+                        drop(connection);
+                        drop(dedicated);
+                        drop(claim);
+                        self.prune_empty_family();
+                        self.setup_done.notify_waiters();
+                        return;
+                    }
                     state.http1_idle.push(IdleConnection::new(connection));
                     drop(state);
                     debug!(outcome = "kept", "negotiated slower backup connection idle");

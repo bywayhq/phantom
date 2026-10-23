@@ -1456,3 +1456,17 @@ fn ticket_policy_distinguishes_websocket_cleartext_state() -> TestResult {
     assert_ne!(shared, separate);
     Ok(())
 }
+
+#[test]
+fn ticket_policy_distinguishes_websocket_tls_backup_disposition() -> TestResult {
+    let profile = chrome::v154_windows();
+    let mut websocket = profile
+        .websocket()
+        .ok_or("missing WebSocket settings")?
+        .clone();
+    let keep = profile::encode(&profile, None, None)?;
+    websocket.connection.http1_tls_backup = phantom_profile::WebSocketTlsBackup::CloseWhenUnused;
+    let close = profile::encode(&profile.with_websocket(websocket), None, None)?;
+    assert_ne!(keep, close);
+    Ok(())
+}

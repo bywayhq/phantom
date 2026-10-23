@@ -56,6 +56,7 @@ tokens!(
 );
 tokens!(WebSocketProxiedSession, Reuse, Ignore);
 tokens!(WebSocketCleartextState, Shared, Separate);
+tokens!(WebSocketTlsBackup, Keep, CloseWhenUnused);
 record!(
     WebSocketConnectionPolicy,
     without_http2_session,
@@ -63,7 +64,8 @@ record!(
     http1_alpn_protocols,
     refused_stream_retry,
     proxied_http2_session,
-    cleartext_state
+    cleartext_state,
+    http1_tls_backup
 );
 record!(
     WebSocketSettings,

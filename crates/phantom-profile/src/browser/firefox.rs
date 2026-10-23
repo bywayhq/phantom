@@ -158,6 +158,7 @@ pub fn v157_http2() -> Http2Settings {
 /// Returns Firefox 157.0 WebSocket settings.
 ///
 /// Direct `ws://` openings keep their address-family state separate from HTTP.
+/// An unused direct H1 TLS backup finishes its handshake, then closes.
 ///
 /// Reuses a capable HTTP/2 session, including through a proxy. With no
 /// session, opens HTTP/2; if an existing session forbids extended CONNECT,

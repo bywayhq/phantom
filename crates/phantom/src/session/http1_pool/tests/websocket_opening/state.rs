@@ -22,9 +22,13 @@ use crate::{
 
 fn backup(opening: &OriginOpening) -> oneshot::Sender<Option<Http1Connection>> {
     let (finish, result) = oneshot::channel();
-    opening.adopt(SlowerConnection::new(SlowerProgress::new(), async move {
-        result.await.ok().flatten()
-    }));
+    opening.adopt(
+        SlowerConnection::new(
+            SlowerProgress::new(),
+            async move { result.await.ok().flatten() },
+        ),
+        phantom_profile::WebSocketTlsBackup::Keep,
+    );
     finish
 }
 

@@ -3,7 +3,7 @@
 use phantom_profile::{
     WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings, WebSocketTlsBackup,
 };
 use std::time::Duration;
 
@@ -16,6 +16,7 @@ pub(super) fn chrome_original() -> WebSocketSettings {
             refused_stream_retry: WebSocketRefusedStreamRetry::SameSessionOnce,
             proxied_http2_session: WebSocketProxiedSession::Reuse,
             cleartext_state: WebSocketCleartextState::Shared,
+            http1_tls_backup: WebSocketTlsBackup::Keep,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),
@@ -58,6 +59,7 @@ pub(super) fn firefox_original() -> WebSocketSettings {
             refused_stream_retry: WebSocketRefusedStreamRetry::None,
             proxied_http2_session: WebSocketProxiedSession::Reuse,
             cleartext_state: WebSocketCleartextState::Shared,
+            http1_tls_backup: WebSocketTlsBackup::Keep,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),

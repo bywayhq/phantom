@@ -69,7 +69,7 @@ pub use websocket::{
     InvalidWebSocketSettings, WebSocketCleartextState, WebSocketConnectionPolicy,
     WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
     WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-    WebSocketSettings,
+    WebSocketSettings, WebSocketTlsBackup,
 };
 
 pub mod browser;
