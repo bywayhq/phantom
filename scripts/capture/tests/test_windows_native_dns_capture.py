@@ -391,6 +391,27 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(outcome.returncode, 0, outcome.stderr)
         self.assertTrue(json.loads(outcome.stdout)["restored"])
 
+    def test_watchdog_restores_when_owner_identity_becomes_unavailable(self) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-Process { param($Id,$ErrorAction) "
+            "[pscustomobject]@{} | Add-Member -MemberType ScriptProperty -Name StartTime "
+            "-Value { throw 'owner exited during identity lookup' } -PassThru }\n"
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=$DnsAddress;nonce=$nonce;baseline=@();"
+            "rule_name=$null;restored=$false;restored_at=$null;watchdog_pid=$null;owner_pid=999;owner_start='old';deadline='2099-01-01T00:00:00Z'}\n"
+            "Save-State $state\n"
+            "$script:rules=@([pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers=@($DnsAddress);DisplayName=$nonce;Comment=$nonce})\n"
+            "$Action='Watch'\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
+            "if (-not (Read-State).restored -or ($script:removed -join ',') -ne 'owned') { throw 'watchdog did not restore' }\n"
+            "'restored-after-owner-disappeared'\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertIn("owner-identity-unavailable", outcome.stdout)
+        self.assertIn("null-valued expression", outcome.stdout)
+        self.assertIn("restored-after-owner-disappeared", outcome.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

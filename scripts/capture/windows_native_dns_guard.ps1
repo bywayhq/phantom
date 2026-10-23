@@ -111,7 +111,15 @@ if ($Action -eq 'Watch') {
         $state = Read-State
         if ($state.restored) { exit 0 }
         $owner = Get-Process -Id $state.owner_pid -ErrorAction SilentlyContinue
-        $sameOwner = $owner -and $owner.StartTime.ToUniversalTime().ToString('o') -eq $state.owner_start
+        $sameOwner = $false
+        if ($owner) {
+            try { $sameOwner = $owner.StartTime.ToUniversalTime().ToString('o') -eq $state.owner_start }
+            catch {
+                # The process can exit after discovery, before reading its identity.
+                @{ kind = 'owner-identity-unavailable'; owner_pid = $state.owner_pid; error = $_.ToString() } |
+                    ConvertTo-Json -Compress | Write-Output
+            }
+        }
         if (-not $sameOwner -or [DateTime]::UtcNow -ge [DateTime]::Parse($state.deadline)) { break }
         Start-Sleep -Seconds 1
     }

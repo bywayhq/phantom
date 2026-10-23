@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a manual Firefox native DNS capture on Windows Server 2025 with
+  automatic restoration of its temporary DNS rule.
+
 - Keep HTTP/1 TLS setup within the pinned nightly compiler's `Send` proof
   limit, including SOCKS routes.
 
