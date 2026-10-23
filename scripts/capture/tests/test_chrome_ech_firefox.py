@@ -60,6 +60,19 @@ class FirefoxEchTests(unittest.TestCase):
             ech.origin_url("127.0.0.1:32124"), "https://server.phantom.test:32124/"
         )
 
+    def test_no_https_record_uses_the_same_verified_profile_inputs(self) -> None:
+        run = replace(self.run, scenario="no-https-record")
+        self.assertEqual(ech.capture_inputs(run), ech.capture_inputs(self.run))
+        self.assertEqual(ech.launch_plan(run), ech.launch_plan(self.run))
+        arguments = ech.capture_arguments(run, ech.launch_plan(run))
+        self.assertEqual(arguments[4], "no-https-record")
+        for unsupported in (
+            replace(run, resumption="early-accept"),
+            replace(run, quic=True),
+        ):
+            with self.subTest(run=unsupported), self.assertRaises(ValueError):
+                ech.capture_inputs(unsupported)
+
     def test_identity_arguments_and_metadata_record_actual_profile_inputs(self) -> None:
         arguments = ech.capture_arguments(self.run, ech.launch_plan(self.run))
         self.assertEqual(

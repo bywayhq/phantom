@@ -1890,6 +1890,10 @@ uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
 
 The peer records the certificate DER hash, ECH acceptance and each TCP
 handshake. Repeat with `--scenario reject` to observe its retry configuration.
+Use `--scenario no-https-record` for a TCP comparison with HTTPS NODATA.
+It keeps the A answer and trusted origin, but publishes no ECH configuration.
+This scenario cannot use `--resumption` or `--quic`. Firefox still uses the
+explicit TRR-only profile; this does not measure its default DNS policy.
 Add `--resumption early-accept`, `--resumption early-reject` or
 `--resumption ech-retry` to the Firefox `accept` command for one seed page
 and one same-origin GET on fresh TCP. The peer closes the seed connection,

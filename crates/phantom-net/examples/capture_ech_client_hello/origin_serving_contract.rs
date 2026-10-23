@@ -142,7 +142,9 @@ async fn receive_page(peer: &mut Client) -> TestResult {
 
         let mut status = String::new();
         peer.read_line(&mut status).await?;
-        assert_eq!(status, "HTTP/1.1 200 OK\r\n");
+        if status != "HTTP/1.1 200 OK\r\n" {
+            return Err(format!("origin returned unexpected status {status:?}").into());
+        }
         let mut length = None;
         loop {
             let mut line = String::new();
@@ -159,10 +161,16 @@ async fn receive_page(peer: &mut Client) -> TestResult {
         }
 
         let expected = b"<!doctype html><meta charset=utf-8><link rel=icon href=\"data:,\">ok\n";
-        assert_eq!(length, Some(expected.len()));
+        if length != Some(expected.len()) {
+            return Err(
+                format!("origin response length {length:?} differs from literal page").into(),
+            );
+        }
         let mut body = vec![0; expected.len()];
         peer.read_exact(&mut body).await?;
-        assert_eq!(body, expected);
+        if body != expected {
+            return Err("origin response differs from literal page".into());
+        }
         Ok(())
     })
     .await?
@@ -205,6 +213,66 @@ async fn a_trusted_tcp_peer_receives_the_literal_capture_page() -> TestResult {
     let cleanup = resources.stop().await;
 
     with_backup(result, cleanup)
+}
+
+#[tokio::test]
+async fn https_nodata_still_allows_a_verified_origin_get() -> TestResult {
+    let mut origin = OriginResources::start().await?;
+    let mut dns = super::Server::start_with_ech(super::ServerMode::Capture, None).await?;
+    let result = async {
+        if crate::Scenario::NoHttpsRecord.ech_setup()?.is_some() {
+            return Err("no-record scenario created an ECH setup".into());
+        }
+        let mut resolver = dns.client().await?;
+        let address = origin.listener.local_addr()?;
+        let name = format!("_{}._https.{HOSTNAME}", address.port());
+        let response = super::exchange(&mut resolver, &name, 65).await?;
+        if super::dns_header(&response)? != [0x1234, 0x8180, 1, 0, 0, 0]
+            || response.len() != super::query(&name, 65)?.len()
+        {
+            return Err("DoH did not return HTTPS NODATA with one question".into());
+        }
+        let response = super::exchange(&mut resolver, HOSTNAME, 1).await?;
+        if super::dns_header(&response)? != [0x1234, 0x8180, 1, 1, 0, 0]
+            || !response.ends_with(&[127, 0, 0, 1])
+        {
+            return Err("DoH did not preserve the loopback A answer".into());
+        }
+
+        let mut peer = origin.peer().await?;
+        receive_page(&mut peer).await?;
+        origin.record_outcome().await?;
+        let mut byte = [0; 1];
+        if !matches!(
+            timeout(CONTROL_TIMEOUT, peer.read(&mut byte)).await?,
+            Ok(0) | Err(_)
+        ) {
+            return Err("no-record origin sent extra data after the page".into());
+        }
+        let (records, quic) = origin.captured.take();
+        let [record] = records.as_slice() else {
+            return Err("no-record origin did not capture exactly one connection".into());
+        };
+        if record.handshake.is_err()
+            || record.ech_accepted
+            || !record.request_served
+            || record.inner_server_name.as_deref() != Some(HOSTNAME)
+            || !quic.is_empty()
+        {
+            return Err(
+                "no-record origin did not complete the ordinary verified TLS request".into(),
+            );
+        }
+        if dns.descriptions() != [format!("HTTPS {name}"), format!("A {HOSTNAME}")] {
+            return Err("DoH did not retain both actual query descriptions".into());
+        }
+        drop(resolver);
+        Ok(())
+    }
+    .await;
+    let origin_cleanup = origin.stop().await;
+    let dns_cleanup = dns.stop().await;
+    with_backup(with_backup(result, origin_cleanup), dns_cleanup)
 }
 
 #[tokio::test]

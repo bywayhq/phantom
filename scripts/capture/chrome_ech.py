@@ -253,6 +253,10 @@ def checked_input(path: Path, limit: int, digest: str | None = None) -> bytes:
 
 
 def capture_inputs(run: CaptureRun) -> tuple[bytes, bytes, bytes] | None:
+    if run.scenario not in ("accept", "reject", "no-https-record"):
+        raise ValueError("unknown ECH capture scenario")
+    if run.scenario == "no-https-record" and run.quic:
+        raise ValueError("no-https-record requires TCP")
     if run.resumption is not None and (
         run.resumption not in RESUMPTION_SEQUENCES
         or run.browser != "firefox"
@@ -630,7 +634,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--browser-path", type=Path, required=True)
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", required=True)
-    parser.add_argument("--scenario", choices=("accept", "reject"), required=True)
+    parser.add_argument(
+        "--scenario", choices=("accept", "reject", "no-https-record"), required=True
+    )
     parser.add_argument("--origin", default=DEFAULT_ORIGIN)
     parser.add_argument("--capture-binary", type=Path, required=True)
     parser.add_argument("--headful", action="store_true")

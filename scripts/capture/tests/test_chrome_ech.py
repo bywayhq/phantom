@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stderr
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.capture.chrome_ech import (
     DNS_CONFIGURATION,
@@ -13,6 +14,7 @@ from scripts.capture.chrome_ech import (
     URL,
     CaptureRun,
     capture_arguments,
+    capture_inputs,
     check_policy,
     launch_plan,
     local_state,
@@ -167,6 +169,58 @@ class ChromeEchTest(unittest.TestCase):
         arguments = capture_arguments(run, launch_plan(run))
         self.assertNotIn("--doh-port", arguments)
         self.assertEqual(arguments[1], "accept")
+
+    def test_no_https_record_keeps_tcp_launch_and_reaches_the_peer(self) -> None:
+        run = replace(EDGE_RUN, scenario="no-https-record")
+        arguments = capture_arguments(run, launch_plan(run))
+        self.assertEqual(arguments[1:4], ["--doh-port", "65355", "no-https-record"])
+        self.assertNotIn("--quic", arguments)
+        self.assertIsNone(capture_inputs(run))
+
+    def test_no_https_record_refuses_quic_resumption_and_unknown_scenarios(
+        self,
+    ) -> None:
+        for run, message in (
+            (replace(EDGE_RUN, scenario="no-https-record", quic=True), "requires TCP"),
+            (
+                replace(
+                    EDGE_RUN, scenario="no-https-record", resumption="early-accept"
+                ),
+                "resumption requires",
+            ),
+            (replace(EDGE_RUN, scenario="unknown"), "unknown ECH capture scenario"),
+        ):
+            with self.subTest(run=run), self.assertRaisesRegex(ValueError, message):
+                capture_inputs(run)
+
+    def test_no_https_record_cli_passes_the_explicit_scenario(self) -> None:
+        with (
+            patch(
+                "scripts.capture.chrome_ech.capture", return_value="recorded fixture"
+            ) as capture,
+            patch("scripts.capture.chrome_ech.write_text_fixture") as write,
+        ):
+            self.assertEqual(
+                main(
+                    [
+                        "--browser=firefox",
+                        "--browser-path=firefox.exe",
+                        "--client-version=157.0",
+                        "--operating-system=Windows",
+                        "--scenario=no-https-record",
+                        "--capture-binary=capture.exe",
+                        "--output=out.txt",
+                        "--headful",
+                    ]
+                ),
+                0,
+            )
+        run = capture.call_args.args[0]
+        self.assertEqual(run.scenario, "no-https-record")
+        self.assertEqual(run.browser, "firefox")
+        self.assertFalse(run.quic)
+        self.assertIsNone(run.resumption)
+        write.assert_called_once_with(Path("out.txt"), "recorded fixture")
 
     def test_policy_arguments_pass_the_port_and_record_the_policy(self) -> None:
         arguments = capture_arguments(EDGE_RUN, launch_plan(EDGE_RUN))

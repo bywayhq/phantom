@@ -47,6 +47,13 @@ struct Server {
 
 impl Server {
     async fn start(mode: ServerMode) -> CaptureResult<Self> {
+        Self::start_with_ech(mode, Some(Vec::new())).await
+    }
+
+    async fn start_with_ech(
+        mode: ServerMode,
+        ech_config_list: Option<Vec<u8>>,
+    ) -> CaptureResult<Self> {
         let (identity, trust_root) = test_identity()?;
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let address = listener.local_addr()?;
@@ -56,7 +63,7 @@ impl Server {
         let answers = DnsAnswers {
             address: address.ip(),
             port: address.port(),
-            ech_config_list: Vec::new(),
+            ech_config_list,
             quic: false,
         };
 
@@ -832,5 +839,110 @@ fn identity_arguments_are_optional_and_require_both_paths() -> TestResult {
         Some(("cert.pem".into(), "key.pem".into()))
     );
     assert!(parse(vec!["--identity", "cert.pem"]).is_err());
+    Ok(())
+}
+
+fn dns_header(message: &[u8]) -> CaptureResult<[u16; 6]> {
+    let mut words = [0; 6];
+    for (word, bytes) in words.iter_mut().zip(
+        message
+            .get(..12)
+            .ok_or("DNS response is missing its header")?
+            .chunks_exact(2),
+    ) {
+        *word = u16::from_be_bytes(bytes.try_into()?);
+    }
+    Ok(words)
+}
+
+#[test]
+fn no_https_record_returns_nodata_and_preserves_the_address() -> TestResult {
+    assert!(super::Scenario::NoHttpsRecord.ech_setup()?.is_none());
+    let answers = DnsAnswers {
+        address: "127.0.0.1".parse()?,
+        port: 8443,
+        ech_config_list: None,
+        quic: false,
+    };
+    let https = query("_8443._https.server.phantom.test", 65)?;
+    let (response, description) = super::dns_response(&https, &answers)
+        .ok_or("HTTPS query was rejected instead of returning NODATA")?;
+    // RFC 1035: NOERROR, one echoed question, no answer/authority/additional RRs.
+    assert_eq!(dns_header(&response)?, [0x1234, 0x8180, 1, 0, 0, 0]);
+    assert_eq!(response.get(12..), https.get(12..));
+    assert_eq!(description, "HTTPS _8443._https.server.phantom.test");
+
+    let address = query(HOSTNAME, 1)?;
+    let (response, _) = super::dns_response(&address, &answers).ok_or("A query was rejected")?;
+    assert_eq!(dns_header(&response)?, [0x1234, 0x8180, 1, 1, 0, 0]);
+    assert_eq!(
+        response.get(address.len()..),
+        Some(&[0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, 127, 0, 0, 1][..])
+    );
+
+    let (response, _) =
+        super::dns_response(&query(HOSTNAME, 28)?, &answers).ok_or("AAAA query was rejected")?;
+    assert_eq!(dns_header(&response)?, [0x1234, 0x8180, 1, 0, 0, 0]);
+    let (response, _) = super::dns_response(&query("other.phantom.test", 65)?, &answers)
+        .ok_or("unknown name was not answered")?;
+    assert_eq!(dns_header(&response)?, [0x1234, 0x8183, 1, 0, 0, 0]);
+
+    for length in 0..https.len() {
+        assert!(super::dns_response(&https[..length], &answers).is_none());
+    }
+    let compressed = [
+        0x12, 0x34, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0xc0, 0x0c, 0, 65, 0, 1,
+    ];
+    assert!(super::dns_response(&compressed, &answers).is_none());
+    Ok(())
+}
+
+#[test]
+fn accept_and_reject_still_publish_one_https_record() -> TestResult {
+    for scenario in [super::Scenario::Accept, super::Scenario::Reject] {
+        let ech = scenario.ech_setup()?.ok_or("ECH scenario lost its keys")?;
+        let answers = DnsAnswers {
+            address: "127.0.0.1".parse()?,
+            port: 443,
+            ech_config_list: Some(ech.published),
+            quic: false,
+        };
+        let query = query(HOSTNAME, 65)?;
+        let (response, _) =
+            super::dns_response(&query, &answers).ok_or("HTTPS query was rejected")?;
+        assert_eq!(dns_header(&response)?, [0x1234, 0x8180, 1, 1, 0, 0]);
+        // Owner pointer, HTTPS type, IN class, 60-second TTL and an RDATA length.
+        assert_eq!(
+            response.get(query.len()..query.len() + 10),
+            Some(&[0xc0, 0x0c, 0, 65, 0, 1, 0, 0, 0, 60][..])
+        );
+        assert!(response.len() > query.len() + 12);
+    }
+    Ok(())
+}
+
+#[test]
+fn no_https_record_arguments_require_tcp_without_resumption() -> TestResult {
+    let metadata = [
+        "no-https-record",
+        "127.0.0.1:0",
+        "Firefox",
+        "157.0",
+        "Windows",
+        "DoH",
+        "headful",
+        "firefox",
+    ];
+    let parse = |args: Vec<&str>| super::Arguments::parse(args.into_iter().map(str::to_owned));
+    let parsed = parse(metadata.to_vec())?;
+    assert!(matches!(parsed.scenario, super::Scenario::NoHttpsRecord));
+    assert!(!parsed.quic);
+    assert!(parsed.resumption.is_none());
+    for prefix in [vec!["--quic"], vec!["--resumption", "early-accept"]] {
+        assert!(parse([prefix, metadata.to_vec()].concat()).is_err());
+    }
+    let mut unknown = metadata.to_vec();
+    unknown[0] = "unknown";
+    assert!(parse(unknown).is_err());
     Ok(())
 }

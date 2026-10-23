@@ -9,6 +9,7 @@
 //! other name is answered with NXDOMAIN. In the `accept` scenario the origin
 //! holds the published key; in `reject` it holds another key, so the browser
 //! sees a rejection with retry configurations and connects again.
+//! `no-https-record` returns HTTPS NODATA and serves ordinary TLS without ECH.
 //!
 //! The DNS-over-HTTPS server listens on the origin's address, on the port
 //! `--doh-port` names or on an ephemeral one. A fixed port lets a browser
@@ -106,15 +107,7 @@ async fn main() -> CaptureResult<()> {
         }
         None => Identity::generate()?,
     };
-    let published = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
-    let published_list = ech_config_list(std::slice::from_ref(&published));
-    let (server_config, server_key) = match arguments.scenario {
-        Scenario::Accept => (published.clone(), &TEST_ECH_KEYS[0]),
-        Scenario::Reject => (
-            ech_config(2, &TEST_ECH_KEYS[1], PUBLIC_NAME),
-            &TEST_ECH_KEYS[1],
-        ),
-    };
+    let ech = arguments.scenario.ech_setup()?;
 
     // Checked before binding, so the capture never listens beyond loopback.
     require_loopback(arguments.origin.ip(), "origin listener")?;
@@ -126,24 +119,18 @@ async fn main() -> CaptureResult<()> {
 
     let queries = Arc::new(Mutex::new(Vec::new()));
     let doh_acceptor = identity.acceptor(None)?;
-    let mut keys = SslEchKeys::builder()?;
-    keys.add_key(
-        true,
-        &server_config,
-        HpkeKey::dhkem_p256_sha256(&server_key.private_key)?,
-    )?;
-    let keys = keys.build();
+    let keys = ech.as_ref().map(|ech| &ech.keys);
     let resumption = arguments.resumption.map(resumption::Run::new).transpose()?;
     let origin_acceptor = if let Some(run) = &resumption {
-        let mut builder = identity.acceptor_builder(Some(&keys))?;
+        let mut builder = identity.acceptor_builder(keys)?;
         builder.set_min_proto_version(Some(SslVersion::TLS1_3))?;
         run.observe(&mut builder);
         builder.build()
     } else {
-        identity.acceptor(Some(&keys))?
+        identity.acceptor(keys)?
     };
     let quic = if arguments.quic {
-        let crypto = identity.quic_server(&keys)?;
+        let crypto = identity.quic_server(keys.ok_or("QUIC requires an ECH scenario")?)?;
         let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
         Some(quinn::Endpoint::server(config, origin_address)?)
     } else {
@@ -158,7 +145,7 @@ async fn main() -> CaptureResult<()> {
         DnsAnswers {
             address: origin_address.ip(),
             port: origin_address.port(),
-            ech_config_list: published_list.clone(),
+            ech_config_list: ech.as_ref().map(|ech| ech.published.clone()),
             quic: arguments.quic,
         },
     );
@@ -268,10 +255,27 @@ async fn main() -> CaptureResult<()> {
     writeln!(
         output,
         "dns_https_alpn={}",
-        if arguments.quic { "h3,h2" } else { "h2" }
+        match (ech.as_ref(), arguments.quic) {
+            (None, _) => "",
+            (Some(_), true) => "h3,h2",
+            (Some(_), false) => "h2",
+        }
     )?;
-    writeln!(output, "dns_ech_config_list_hex={}", hex(&published_list))?;
-    writeln!(output, "server_ech_config_hex={}", hex(&server_config))?;
+    writeln!(
+        output,
+        "dns_ech_config_list_hex={}",
+        ech.as_ref()
+            .map_or_else(String::new, |ech| hex(&ech.published))
+    )?;
+    writeln!(
+        output,
+        "server_ech_config_hex={}",
+        ech.as_ref()
+            .map_or_else(String::new, |ech| hex(&ech.server))
+    )?;
+    if ech.is_none() {
+        writeln!(output, "dns_https_answer=nodata")?;
+    }
     // Only lookups of the test origin are recorded; the rest are the fresh
     // profile's background requests, which get NXDOMAIN.
     let (origin_queries, other_queries): (Vec<_>, Vec<_>) =
@@ -436,6 +440,7 @@ impl Captured {
 enum Scenario {
     Accept,
     Reject,
+    NoHttpsRecord,
 }
 
 impl Scenario {
@@ -443,8 +448,36 @@ impl Scenario {
         match self {
             Self::Accept => "accept",
             Self::Reject => "reject",
+            Self::NoHttpsRecord => "no-https-record",
         }
     }
+
+    fn ech_setup(self) -> CaptureResult<Option<EchSetup>> {
+        let (config_id, server_key) = match self {
+            Self::Accept => (1, &TEST_ECH_KEYS[0]),
+            Self::Reject => (2, &TEST_ECH_KEYS[1]),
+            Self::NoHttpsRecord => return Ok(None),
+        };
+        let published = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
+        let server = ech_config(config_id, server_key, PUBLIC_NAME);
+        let mut keys = SslEchKeys::builder()?;
+        keys.add_key(
+            true,
+            &server,
+            HpkeKey::dhkem_p256_sha256(&server_key.private_key)?,
+        )?;
+        Ok(Some(EchSetup {
+            published: ech_config_list(&[published]),
+            server,
+            keys: keys.build(),
+        }))
+    }
+}
+
+struct EchSetup {
+    published: Vec<u8>,
+    server: Vec<u8>,
+    keys: SslEchKeys,
 }
 
 struct Arguments {
@@ -465,7 +498,7 @@ struct Arguments {
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
-            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] [--resumption <early-accept|early-reject|ech-retry>] <accept|reject> ",
+            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] [--resumption <early-accept|early-reject|ech-retry>] <accept|reject|no-https-record> ",
             "<loopback-address:port> ",
             "<browser> <browser-version> <operating-system> <dns-configuration> <launch-mode> ",
             "<launch-arguments>"
@@ -499,6 +532,7 @@ impl Arguments {
         let scenario = match first.as_str() {
             "accept" => Scenario::Accept,
             "reject" => Scenario::Reject,
+            "no-https-record" => Scenario::NoHttpsRecord,
             _ => return Err(usage.into()),
         };
         let origin = values.next().ok_or(usage)?.parse::<SocketAddr>()?;
@@ -521,9 +555,12 @@ impl Arguments {
             return Err(usage.into());
         }
         if parsed.resumption.is_some()
-            && (parsed.quic || matches!(parsed.scenario, Scenario::Reject))
+            && (parsed.quic || !matches!(parsed.scenario, Scenario::Accept))
         {
             return Err("resumption requires the TCP accept scenario".into());
+        }
+        if parsed.quic && matches!(parsed.scenario, Scenario::NoHttpsRecord) {
+            return Err("no-https-record requires TCP".into());
         }
         for value in [
             &parsed.browser,
@@ -1296,7 +1333,7 @@ impl AsyncWrite for Replayed {
 struct DnsAnswers {
     address: IpAddr,
     port: u16,
-    ech_config_list: Vec<u8>,
+    ech_config_list: Option<Vec<u8>>,
     quic: bool,
 }
 
@@ -1597,10 +1634,9 @@ fn dns_response(query: &[u8], answers: &DnsAnswers) -> Option<(Vec<u8>, String)>
             records.push((DNS_TYPE_AAAA, address.octets().to_vec()));
         }
     } else if name == https_name && record_type == DNS_TYPE_HTTPS {
-        records.push((
-            DNS_TYPE_HTTPS,
-            https_rdata(&answers.ech_config_list, answers.quic),
-        ));
+        if let Some(configs) = &answers.ech_config_list {
+            records.push((DNS_TYPE_HTTPS, https_rdata(configs, answers.quic)));
+        }
     } else if name != HOSTNAME && name != https_name {
         // NXDOMAIN
         rcode = 3;
