@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Clarify certificate revocation, Certificate Transparency and legacy TLS
+  policy in the authentication docs.
+
 - Add Chrome 156 Mac startup settings, client hints and resource templates
   for hosted arm64 and Intel captures.
 

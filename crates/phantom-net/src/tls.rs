@@ -140,10 +140,18 @@ mod bundled_roots_tests {
 }
 
 /// Policy for authenticating a TLS server certificate.
+///
+/// TLS versions come from the profile. Browser recipes use TLS 1.2 or later.
+/// TLS 1.0/1.1 require a custom TCP profile with an explicit
+/// [`TlsSettings::versions`] range and compatible ciphers. QUIC requires TLS 1.3.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ServerAuthentication {
     /// Verify the certificate chain and the requested server name.
+    ///
+    /// This does not check certificate revocation or enforce Certificate
+    /// Transparency. Requesting OCSP staples or signed certificate timestamps
+    /// does not enable these checks.
     #[default]
     WebPki,
     /// Accept any server certificate, without chain or name verification.
