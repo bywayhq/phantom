@@ -248,20 +248,21 @@ async fn reject_stream(tcp: tokio::net::TcpStream, acceptor: &SslAcceptor) -> Te
         // BoringSSL represents the peer's ech_required alert (121) as 1121.
         // Retain unrelated backend/I/O failures instead of treating them as a
         // successful observation of the authenticated rejection.
-        if !error.ssl_error().is_some_and(|stack| {
-            !stack.errors().is_empty()
-                && stack
-                    .errors()
-                    .iter()
-                    .all(|error| error.reason_code() == 1121)
-        }) {
+        if !is_ech_required(&error) {
             return Err(error.into());
         }
     } else {
+        // The server can finish first; the client's authenticated ECH rejection
+        // then arrives as an alert on this read instead of accept().
         let mut byte = [0; 1];
         match stream.read(&mut byte).await {
             Ok(0) => {}
-            Err(error) if tls_support::is_peer_gone(&error) => {}
+            Err(error)
+                if tls_support::is_peer_gone(&error)
+                    || error
+                        .get_ref()
+                        .and_then(|source| source.downcast_ref::<btls::ssl::Error>())
+                        .is_some_and(is_ech_required) => {}
             Err(error) => return Err(error.into()),
             Ok(_) => {
                 return Err("rejected public-name connection received origin HTTP bytes".into());
@@ -269,6 +270,16 @@ async fn reject_stream(tcp: tokio::net::TcpStream, acceptor: &SslAcceptor) -> Te
         }
     }
     Ok(())
+}
+
+fn is_ech_required(error: &btls::ssl::Error) -> bool {
+    error.ssl_error().is_some_and(|stack| {
+        !stack.errors().is_empty()
+            && stack
+                .errors()
+                .iter()
+                .all(|error| error.library_code() == 16 && error.reason_code() == 1121)
+    })
 }
 
 async fn answer(
