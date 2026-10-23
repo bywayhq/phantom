@@ -77,16 +77,16 @@ fn original_factory(id: &str, kind: RequestTemplateKind) -> Option<RequestTempla
         ("brave/153.1.95.104/android-17-pixel7-emulator/r1", FetchNoStore) => {
             browser::brave::v153_android_fetch_no_store_template()
         }
-        ("firefox/157.0/windows-11-26200/r1", Navigation) => {
+        ("firefox/157.0/windows-11-26200/r2", Navigation) => {
             browser::firefox::v157_windows_navigation_template()
         }
-        ("firefox/157.0/windows-11-26200/r1", FetchNoStore) => {
+        ("firefox/157.0/windows-11-26200/r2", FetchNoStore) => {
             browser::firefox::v157_windows_fetch_no_store_template()
         }
-        ("firefox/157.0/windows-11-26200/r1", Fetch) => {
+        ("firefox/157.0/windows-11-26200/r2", Fetch) => {
             browser::firefox::v157_windows_fetch_template()
         }
-        ("firefox/157.0/windows-11-26200/r1", FetchUpload) => {
+        ("firefox/157.0/windows-11-26200/r2", FetchUpload) => {
             browser::firefox::v157_windows_fetch_upload_template()
         }
         ("opera/136.0.6008.52/windows-11-26200/r1", Navigation) => {

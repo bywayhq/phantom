@@ -280,6 +280,9 @@ def validate_components(document, allowed_kinds=None):
         values.update(component["values"])
         validate_component_values(kind, values)
         resolved[identifier] = {"id": identifier, "kind": kind, "values": values}
+        if kind == "TlsSettings" and component["base"] is not None:
+            resolved[identifier]["base"] = component["base"]
+            resolved[identifier]["overrides"] = tuple(component["values"])
         chain_lengths[identifier] = chain_length
         return resolved[identifier]
 
@@ -431,8 +434,14 @@ def generate_components(components, declaration="http3-components.json"):
                 f"    crate::{kind} {{",
             ]
         )
-        for field in COMPONENT_FIELDS[kind]:
+        # ECH-only children retain their base constructor without allocating
+        # and then replacing the larger algorithm and extension lists.
+        ech_only = kind == "TlsSettings" and component.get("overrides") == ("ech",)
+        fields = ("ech",) if ech_only else COMPONENT_FIELDS[kind]
+        for field in fields:
             expression = rust_component_value(field, component["values"][field], kind)
             lines.append(f"        {field}: {expression},")
+        if ech_only:
+            lines.append(f"        ..{component['base']}()")
         lines.extend(["    }", "}", ""])
     return "\n".join(lines)

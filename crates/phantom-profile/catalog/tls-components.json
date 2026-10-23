@@ -507,6 +507,26 @@
       }
     },
     {
+      "id": "firefox_157_tcp_tls_https_records",
+      "kind": "TlsSettings",
+      "base": "firefox_157_tcp_tls",
+      "values": {
+        "ech": {
+          "kind": "HttpsRecords",
+          "settings": {
+            "payload_length": {
+              "kind": "FromClientHello",
+              "value": 100
+            },
+            "aeads": [
+              "Aes128Gcm",
+              "ChaCha20Poly1305"
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "firefox_157_quic_tls",
       "kind": "TlsSettings",
       "base": "firefox_157_tcp_tls",

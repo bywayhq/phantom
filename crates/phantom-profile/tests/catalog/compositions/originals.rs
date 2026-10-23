@@ -22,7 +22,7 @@ pub(super) fn profiles() -> [(&'static str, ClientProfile); 10] {
             "brave/153.1.95.104/android-17-pixel7-emulator/r1",
             brave_android(),
         ),
-        ("firefox/157.0/windows-11-26200/r1", firefox_windows()),
+        ("firefox/157.0/windows-11-26200/r2", firefox_windows()),
         ("firefox/156.0.1/android-35-emulator/r1", firefox_android()),
         ("opera/136.0.6008.52/windows-11-26200/r1", opera_windows()),
         (

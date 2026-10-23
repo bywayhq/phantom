@@ -9,7 +9,10 @@ fn tcp_and_quic_factories_preserve_every_original_tls_field() -> TestResult {
     for (actual, expected) in [
         (browser::chrome::v154_tcp_tls(), originals::chrome_tcp()?),
         (browser::chrome::v154_quic_tls(), originals::chrome_quic()?),
-        (browser::firefox::v157_tcp_tls(), originals::firefox_tcp()?),
+        (
+            browser::firefox::v157_tcp_tls(),
+            originals::firefox_tcp_https_records()?,
+        ),
         (
             browser::firefox::v157_quic_tls(),
             originals::firefox_quic()?,
@@ -30,7 +33,10 @@ fn generated_tls_values_keep_runtime_policies_and_fresh_ownership() -> TestResul
             originals::chrome_tcp()?,
         ),
         (browser::chrome::v154_quic_tls, originals::chrome_quic()?),
-        (browser::firefox::v157_tcp_tls, originals::firefox_tcp()?),
+        (
+            browser::firefox::v157_tcp_tls,
+            originals::firefox_tcp_https_records()?,
+        ),
         (browser::firefox::v157_quic_tls, originals::firefox_quic()?),
     ] {
         let mut custom = factory();

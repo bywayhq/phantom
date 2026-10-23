@@ -19,7 +19,7 @@ pub(super) enum TlsComponent {
     Edge154Tcp,
     Firefox156AndroidTcp,
     Firefox157Quic,
-    Firefox157Tcp,
+    Firefox157TcpTlsHttpsRecords,
     Opera102AndroidTcp,
     Opera136Quic,
     Opera136Tcp,
@@ -45,7 +45,7 @@ impl TlsComponent {
             Self::Edge154Tcp => crate::tls::components::edge_154_tcp_tls(),
             Self::Firefox156AndroidTcp => crate::tls::components::firefox_156_android_tcp_tls(),
             Self::Firefox157Quic => crate::tls::components::firefox_157_quic_tls(),
-            Self::Firefox157Tcp => crate::tls::components::firefox_157_tcp_tls(),
+            Self::Firefox157TcpTlsHttpsRecords => crate::tls::components::firefox_157_tcp_tls_https_records(),
             Self::Opera102AndroidTcp => crate::tls::components::opera_102_android_tcp_tls(),
             Self::Opera136Quic => crate::tls::components::opera_136_quic_tls(),
             Self::Opera136Tcp => crate::tls::components::opera_136_tcp_tls(),
@@ -566,7 +566,7 @@ pub(super) static FIREFOXANDROID156: ConnectionProfileDefinition = ConnectionPro
 
 #[rustfmt::skip]
 pub(super) static FIREFOXWINDOWS157: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::Firefox157Tcp,
+    tls: TlsComponent::Firefox157TcpTlsHttpsRecords,
     tcp: Some(TcpComponent::Firefox157),
     udp: None,
     dns_cache: Some(DnsComponent::Firefox157),

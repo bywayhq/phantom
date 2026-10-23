@@ -662,7 +662,7 @@ http2_priority: Some(phantom_profile::Http2RequestPriority::Fixed(Http2Priority 
 requested_client_hint_placement: true,
 restarts_for_connection_accept_ch: true,
 }),
-("firefox/157.0/windows-11-26200/r1", RequestTemplateKind::Fetch, RequestTemplate {
+("firefox/157.0/windows-11-26200/r2", RequestTemplateKind::Fetch, RequestTemplate {
 http1_fields: vec![
 RequestField::Literal {name: "User-Agent".into(), value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0".into()},
 RequestField::Literal {name: "Accept".into(), value: "*/*".into()},
@@ -713,7 +713,7 @@ http2_priority: Some(phantom_profile::Http2RequestPriority::Fixed(Http2Priority 
 requested_client_hint_placement: false,
 restarts_for_connection_accept_ch: false,
 }),
-("firefox/157.0/windows-11-26200/r1", RequestTemplateKind::FetchNoStore, RequestTemplate {
+("firefox/157.0/windows-11-26200/r2", RequestTemplateKind::FetchNoStore, RequestTemplate {
 http1_fields: vec![
 RequestField::Literal {name: "User-Agent".into(), value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0".into()},
 RequestField::Literal {name: "Accept".into(), value: "*/*".into()},
@@ -764,7 +764,7 @@ http2_priority: Some(phantom_profile::Http2RequestPriority::Fixed(Http2Priority 
 requested_client_hint_placement: false,
 restarts_for_connection_accept_ch: false,
 }),
-("firefox/157.0/windows-11-26200/r1", RequestTemplateKind::FetchUpload, RequestTemplate {
+("firefox/157.0/windows-11-26200/r2", RequestTemplateKind::FetchUpload, RequestTemplate {
 http1_fields: vec![
 RequestField::Literal {name: "User-Agent".into(), value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0".into()},
 RequestField::Literal {name: "Accept".into(), value: "*/*".into()},
@@ -804,7 +804,7 @@ http2_priority: Some(phantom_profile::Http2RequestPriority::Fixed(Http2Priority 
 requested_client_hint_placement: false,
 restarts_for_connection_accept_ch: false,
 }),
-("firefox/157.0/windows-11-26200/r1", RequestTemplateKind::Navigation, RequestTemplate {
+("firefox/157.0/windows-11-26200/r2", RequestTemplateKind::Navigation, RequestTemplate {
 http1_fields: vec![
 RequestField::Literal {name: "User-Agent".into(), value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0".into()},
 RequestField::Literal {name: "Accept".into(), value: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".into()},

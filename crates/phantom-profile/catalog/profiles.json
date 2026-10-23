@@ -1984,12 +1984,12 @@
       }
     },
     {
-      "id": "firefox/157.0/windows-11-26200/r1",
-      "selector": "firefox-157-windows",
+      "id": "firefox/157.0/windows-11-26200/r2",
+      "selector": "firefox-157-windows-r2",
       "metadata": {
         "browser": "Firefox",
         "platform": "Windows",
-        "revision": 1,
+        "revision": 2,
         "identity": {
           "kind": "Observed",
           "build": "157.0",
@@ -2196,7 +2196,7 @@
       },
       "target": "FirefoxWindows157",
       "composition": {
-        "TcpTls": "firefox_157_tcp_tls",
+        "TcpTls": "firefox_157_tcp_tls_https_records",
         "Tcp": "firefox_157_tcp",
         "Udp": null,
         "Dns": "firefox_157_dns_cache",

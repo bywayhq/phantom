@@ -38,6 +38,9 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// ChaCha20-Poly1305 per connection and sizes its payload from the ClientHello,
 /// using a maximum name length of 100.
 ///
+/// Uses ECH from the caller's HTTPS record resolver when enabled, with GREASE
+/// when no usable record is available. Android and QUIC retain GREASE.
+///
 /// Keeps ten tickets per origin and offers the earliest connection's tickets
 /// first, with that connection's last ticket first. Each ticket is used once.
 /// Replay-safe requests can use early data on direct TCP connections;
@@ -49,7 +52,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// in a TLS 1.3-only ClientHello, as needed by [`v157_quic_tls`].
 #[must_use]
 pub fn v157_tcp_tls() -> TlsSettings {
-    crate::tls::components::firefox_157_tcp_tls()
+    crate::tls::components::firefox_157_tcp_tls_https_records()
 }
 
 /// Returns Firefox 157.0 TCP settings for Windows.

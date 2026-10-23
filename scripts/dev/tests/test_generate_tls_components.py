@@ -95,6 +95,22 @@ class TlsComponentTests(unittest.TestCase):
         del self.document["components"][1]["values"]["alps"]["use_new_codepoint"]
         self.reject()
 
+    def test_firefox_desktop_ech_child_keeps_the_base_and_other_transports(self):
+        resolved = {item["id"]: item for item in self.resolve()}
+        base = resolved["firefox_157_tcp_tls"]["values"]
+        desktop = resolved["firefox_157_tcp_tls_https_records"]
+        expected = copy.deepcopy(base)
+        expected["ech"]["kind"] = "HttpsRecords"
+        self.assertEqual(desktop["values"], expected)
+        self.assertEqual(desktop["base"], "firefox_157_tcp_tls")
+        self.assertEqual(base["ech"]["kind"], "Grease")
+        for name in ("firefox_157_quic_tls", "firefox_156_android_tcp_tls"):
+            self.assertEqual(resolved[name]["values"]["ech"], base["ech"])
+        generated = generator.generate_components([desktop], "tls-components.json")
+        self.assertIn("..firefox_157_tcp_tls()", generated)
+        self.assertIn("EchSettings::HttpsRecords", generated)
+        self.assertNotIn("cipher_suites:", generated)
+
     def test_branded_and_android_overrides_replace_only_original_fields(self):
         resolved = {item["id"]: item["values"] for item in self.resolve()}
         for brand in ("edge", "brave"):

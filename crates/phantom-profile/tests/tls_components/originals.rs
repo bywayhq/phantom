@@ -232,6 +232,13 @@ pub(super) fn firefox_tcp() -> Result<TlsSettings, InvalidTlsSettings> {
     })
 }
 
+pub(super) fn firefox_tcp_https_records() -> Result<TlsSettings, InvalidTlsSettings> {
+    Ok(TlsSettings {
+        ech: EchSettings::HttpsRecords(firefox_ech_grease()?),
+        ..firefox_tcp()?
+    })
+}
+
 pub(super) fn firefox_quic() -> Result<TlsSettings, InvalidTlsSettings> {
     let mut settings = firefox_tcp()?;
     settings.versions = TlsVersionRange::only(TlsVersion::Tls13);

@@ -20,7 +20,10 @@ use http_body_util::BodyExt;
 use phantom::{
     AddressResolver, Client, HttpProtocol, HttpProxy, Route,
     dns::HttpsRecordResolver,
-    profile::{ClientProfile, browser::chrome},
+    profile::{
+        ClientProfile,
+        browser::{chrome, firefox},
+    },
 };
 use phantom_testkit::{
     dns::DnsServer,
@@ -47,6 +50,8 @@ enum Opening {
     Http1,
     /// `Client::get(HttpProtocol::Http2, ..)`.
     Http2,
+    /// `Client::get_negotiated(..)` with a peer that selects HTTP/2.
+    Negotiated,
     /// A `wss://` opening under Chrome's WebSocket policy: an HTTP/1.1
     /// Upgrade on a connection that offers only `http/1.1`.
     #[cfg(feature = "websocket")]
@@ -60,7 +65,7 @@ impl Opening {
     const fn server_alpn(self) -> &'static [u8] {
         match self {
             Self::Http1 => H1_ALPN,
-            Self::Http2 => H2_ALPN,
+            Self::Http2 | Self::Negotiated => H2_ALPN,
             #[cfg(feature = "websocket")]
             Self::WebSocket => H1_ALPN,
             #[cfg(feature = "websocket")]
@@ -101,6 +106,13 @@ impl Opening {
                 let response = client.get(protocol, &url("https"))?.send().await?;
                 response.into_body().collect().await?;
             }
+            Self::Negotiated => {
+                let response = client.get_negotiated(&url("https"))?.send().await?;
+                if response.version() != http::Version::HTTP_2 {
+                    return Err("negotiated ECH peer did not select HTTP/2".into());
+                }
+                response.into_body().collect().await?;
+            }
             #[cfg(feature = "websocket")]
             Self::WebSocket => {
                 drop(
@@ -134,7 +146,7 @@ impl Opening {
                 .await?;
                 tls.shutdown().await?;
             }
-            Self::Http2 => {
+            Self::Http2 | Self::Negotiated => {
                 let mut connection = ::http2::server::handshake(tls).await?;
                 let (_, mut respond) = connection
                     .accept()
@@ -461,6 +473,93 @@ async fn unset_field_keeps_grease(opening: Opening) -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+#[derive(Clone, Copy)]
+enum FirefoxRecords {
+    Published,
+    NoData,
+    NoResolver,
+}
+
+async fn firefox_record_policy(opening: Opening, records: FirefoxRecords) -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let mut dns = match records {
+            FirefoxRecords::Published | FirefoxRecords::NoResolver => published_record().await?,
+            FirefoxRecords::NoData => record_server(Vec::new()).await?,
+        };
+        let acceptor = ech_acceptor(&identity, opening.server_alpn(), 1, &TEST_ECH_KEYS[0])?;
+        let origin = Origin::spawn(acceptor, vec![opening; 2]).await?;
+        let sent: TestResult<()> = async {
+            let profile = firefox::v157_windows();
+            let client = match records {
+                FirefoxRecords::NoResolver => Client::builder(profile)
+                    .add_root_certificate_der(identity.root_der.clone())
+                    .build()?,
+                _ => discovering_client(&identity, &dns, profile, None)?,
+            };
+            for path in ["/first", "/cached"] {
+                opening.send(&client, origin.port, path).await?;
+                // As in the exact-protocol controls, allow the first lookup and
+                // the peer's connection close to settle before the next opening.
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+            Ok(())
+        }
+        .await;
+        let observed = match (sent, origin.finish().await) {
+            (Ok(()), observed) => observed,
+            (Err(error), observed) => finish_with_cleanup(Err(error), observed.map(|_| ())),
+        };
+        let observed = finish_with_cleanup(observed, dns.finish().await)?;
+        if observed.len() != 2 {
+            return Err(format!("expected two Firefox TLS connections, saw {observed:?}").into());
+        }
+        match records {
+            FirefoxRecords::Published => {
+                assert_accepted(observed.last().ok_or("no cached-record connection")?);
+                assert!(!dns.queries().is_empty());
+            }
+            FirefoxRecords::NoData | FirefoxRecords::NoResolver => {
+                for connection in observed {
+                    assert_eq!(connection.outer_server_name.as_deref(), Some(ORIGIN_NAME));
+                    assert_eq!(connection.inner_server_name.as_deref(), Some(ORIGIN_NAME));
+                    assert!(!connection.ech_accepted);
+                }
+                assert_eq!(
+                    dns.queries().is_empty(),
+                    matches!(records, FirefoxRecords::NoResolver)
+                );
+            }
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn firefox_desktop_tcp_uses_the_callers_https_records() -> TestResult<()> {
+    for opening in [Opening::Http1, Opening::Http2, Opening::Negotiated] {
+        firefox_record_policy(opening, FirefoxRecords::Published).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn firefox_desktop_tcp_without_a_record_keeps_ordinary_tls() -> TestResult<()> {
+    for opening in [Opening::Http1, Opening::Http2, Opening::Negotiated] {
+        firefox_record_policy(opening, FirefoxRecords::NoData).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn firefox_desktop_tcp_without_a_resolver_keeps_ordinary_tls() -> TestResult<()> {
+    for opening in [Opening::Http1, Opening::Http2, Opening::Negotiated] {
+        firefox_record_policy(opening, FirefoxRecords::NoResolver).await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

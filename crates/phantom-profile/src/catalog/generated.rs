@@ -3116,8 +3116,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
-        id: ProfileId("firefox/157.0/windows-11-26200/r1"),
-        selector: "firefox-157-windows",
+        id: ProfileId("firefox/157.0/windows-11-26200/r2"),
+        selector: "firefox-157-windows-r2",
         metadata: ProfileMetadata {
             browser: Browser::Firefox,
             platform: ProfilePlatform::Windows,
@@ -3127,7 +3127,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 architecture: None,
                 environment: CaptureEnvironment::Desktop,
             },
-            revision: 1,
+            revision: 2,
         },
         layers: &[
             LayerEvidence {

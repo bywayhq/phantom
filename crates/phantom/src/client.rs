@@ -2127,8 +2127,8 @@ impl ClientBuilder {
     ///
     /// A profile that sets
     /// [`EchSettings::HttpsRecords`](crate::profile::EchSettings::HttpsRecords),
-    /// as the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes do, also
-    /// uses the records for Encrypted Client Hello on every direct TLS
+    /// as the Chrome 154, Edge 154, Brave 154, Opera 136 and desktop Firefox 157
+    /// TCP recipes do, also uses the records for Encrypted Client Hello on direct TLS
     /// connection over TCP: those of negotiated and exact-protocol HTTP/1.1
     /// and HTTP/2 requests and of `wss://` WebSocket openings. Each such connection
     /// starts the origin's lookup when none is cached, and its TLS handshake

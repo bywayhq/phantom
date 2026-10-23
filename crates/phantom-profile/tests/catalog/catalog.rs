@@ -29,6 +29,8 @@ fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestR
         "chrome/154.0.8037.97/macos-15.5-arm64/r1",
         "chrome/154.0.8037.97/windows-11-26200/r2",
         "Chrome/154.0.8037.97/windows-11-26200/r1",
+        "firefox-157-windows",
+        "firefox/157.0/windows-11-26200/r1",
         "",
     ] {
         assert!(matches!(
@@ -98,7 +100,10 @@ fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
             "firefox-156-android",
             "firefox/156.0.1/android-35-emulator/r1",
         ),
-        ("firefox-157-windows", "firefox/157.0/windows-11-26200/r1"),
+        (
+            "firefox-157-windows-r2",
+            "firefox/157.0/windows-11-26200/r2",
+        ),
         (
             "opera-102-android",
             "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
@@ -164,7 +169,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::brave::v153_android,
         ),
         (
-            "firefox/157.0/windows-11-26200/r1",
+            "firefox/157.0/windows-11-26200/r2",
             browser::firefox::v157_windows,
         ),
         (
@@ -230,7 +235,8 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
 
 #[test]
 fn intentional_absence_and_unavailable_support_remain_distinct() -> TestResult {
-    let firefox = profile("firefox/157.0/windows-11-26200/r1")?;
+    let firefox = profile("firefox/157.0/windows-11-26200/r2")?;
+    assert_eq!(firefox.metadata().revision(), 2);
     assert_eq!(
         firefox
             .evidence(ProfileLayer::ClientHints)
