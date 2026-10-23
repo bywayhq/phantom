@@ -1681,12 +1681,24 @@ class HookedBrowser:
             try:
                 process.terminate()
             except BaseException as error:
-                failures.append(error)
+                if isinstance(error, OSError) and getattr(error, "winerror", None) == 5:
+                    # Windows can deny termination after exit. Only this owned
+                    # handle's signalled state confirms that race.
+                    try:
+                        retired = process.wait(time.monotonic())
+                    except BaseException as wait_error:
+                        failures.extend((error, wait_error))
+                    else:
+                        if not retired:
+                            failures.append(error)
+                else:
+                    failures.append(error)
 
-            try:
-                retired = process.wait(deadline)
-            except BaseException as error:
-                failures.append(error)
+            if not retired:
+                try:
+                    retired = process.wait(deadline)
+                except BaseException as error:
+                    failures.append(error)
 
         if retired:
             self._retired_pids.add(pid)

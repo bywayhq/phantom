@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Recognize already-exited socket-capture processes during cleanup.
+
 - Allow headful Chromium socket captures with `--headful`.
 
 - Share capture cleanup error handling across lifecycle scenarios.
