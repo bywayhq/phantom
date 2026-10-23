@@ -13,12 +13,18 @@ def file_digest(path: Path) -> str:
     return value.hexdigest()
 
 
-def command_output(record: dict, *args: str) -> str:
+def command_output(record: dict, *args: str, timeout: float = 10) -> str:
     """Retain command output even when metadata collection fails or times out."""
-    receipt = {"argv": list(args), "exit": None, "stdout": "", "stderr": ""}
+    receipt = {
+        "argv": list(args),
+        "timeout_seconds": timeout,
+        "exit": None,
+        "stdout": "",
+        "stderr": "",
+    }
     record["metadata_commands"].append(receipt)
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as error:
         receipt["failure"] = {"type": type(error).__name__, "message": str(error)}
         if isinstance(error, subprocess.TimeoutExpired):

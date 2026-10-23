@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Allow two minutes to mount and copy Chrome packages on hosted Macs.
+
 - Capture Chrome 156 startup and resource requests on hosted Macs.
 
 - Accept reserved HTTP/3 frame padding in resource captures.
