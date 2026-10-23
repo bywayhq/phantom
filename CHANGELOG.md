@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Complete Safari WebDriver framed replies before connection close and retain
-  bounded timeout progress.
+- Fix Safari capture replies on persistent WebDriver connections and retain
+  Safari 26.6.2 EventSource observations over HTTP/1.1 and HTTP/2.
 
 - Add Chrome 156 Linux startup settings, client hints and resource templates.
 
