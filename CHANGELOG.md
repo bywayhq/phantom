@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Capture Chrome 156 startup and resource requests on hosted Macs.
+
 - Fix Safari capture replies on persistent WebDriver connections and retain
   Safari 26.6.2 EventSource observations over HTTP/1.1 and HTTP/2.
 
