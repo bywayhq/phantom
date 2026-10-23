@@ -1034,7 +1034,9 @@ impl PoolEntry {
                 Some(ConnectionSetup::Open(reservation, opening)) => break (reservation, opening),
                 #[cfg(feature = "https-records")]
                 Some(ConnectionSetup::Ech(recovery)) => {
-                    self.recover_ech(&recovery, connector, endpoint, route, mode)
+                    // Recovery opens a connection too; keep its setup state
+                    // out of requests that reuse a connection.
+                    super::box_send(self.recover_ech(&recovery, connector, endpoint, route, mode))
                         .await?;
                 }
                 None => setup_done.await,
