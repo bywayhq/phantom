@@ -222,20 +222,8 @@ feature_rows() {
 # nightly warnings are not gate failures, so the step log holds only the
 # result, and Cargo's own output goes to nightly-recursion.cargo.log.
 nightly_recursion() {
-  local output="$logs/nightly-recursion.cargo.log" status
-  CARGO_TARGET_DIR="$gate_dir/nightly" "$lock" cargo "+$nightly" check -j "$jobs" \
-    -p phantom-http --all-targets --all-features --locked >"$output" 2>&1
-  status=$?
-  if grep -qE 'recursion_depth_exceeding_limit|overflow evaluating the requirement' "$output"; then
-    grep -E -A 3 '^(warning|error).*overflow evaluating' "$output"
-    echo "error: $nightly reports recursion_depth_exceeding_limit; see $output"
-    return 1
-  fi
-  if ((status != 0)); then
-    echo "error: cargo +$nightly check failed with status $status; see $output"
-    return "$status"
-  fi
-  echo "$nightly reports no recursion_depth_exceeding_limit in phantom-http"
+  CARGO_TARGET_DIR="$gate_dir/nightly" bash "$root/scripts/ci/check-nightly-recursion.sh" \
+    "$nightly" "$jobs" "$logs/nightly-recursion.cargo.log"
 }
 
 # changed_packages: prints the workspace packages that own a file in

@@ -14,6 +14,8 @@
 
 - Retain Firefox 157 direct WebSocket address selection on Windows.
 
+- Check public-client recursion with the pinned nightly in parser-fuzzing CI.
+
 - Omit unused Zstandard array, dictionary-training and pre-standard format
   support from the default build.
 
