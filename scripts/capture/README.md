@@ -1064,7 +1064,7 @@ and header names containing pipes fail before recording.
 
 `--idle` must be finite and positive, up to 2,147,483.647 seconds.
 Completion requires one exact run token on the page's selected connection.
-HTTP/1.1 resources may finish on another owned connection to the same origin.
+Resource captures may finish on another owned connection to the same origin.
 Firefox accepts only `--listen 127.0.0.1` or `--listen ::1`, checked before
 acquiring a certificate or listener. IPv4 disables IPv6. IPv6 prefers IPv6
 without excluding IPv4. Chromium brackets IPv6 resolver addresses.
