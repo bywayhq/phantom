@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Select Firefox's owned parent process without confusing its capture bootstrap
+  with the browser launcher; include process identities in selection failures.
+
 - Capture Firefox HTTP/2 address fallback, reuse and reconnect attempts;
   allow headed socket captures with `--headful`.
 

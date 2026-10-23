@@ -28,6 +28,7 @@ import errno
 import hashlib
 import json
 import math
+import ntpath
 import os
 import platform
 import re
@@ -1092,26 +1093,39 @@ def firefox_cert_override(host: str, port: int, fingerprint: str) -> str:
 # The hooked browser.
 
 
-def browser_process(listing: Sequence[dict[str, Any]]) -> int | None:
-    """The Firefox parent process among the processes of one profile.
+def browser_process(
+    listing: Sequence[dict[str, Any]], *, executable: Path, launcher_pid: int | None
+) -> int | None:
+    """Find the owned Firefox parent, with or without its launcher.
 
-    `listing` holds `ProcessId`, `ParentProcessId`, and `CommandLine` of every
-    process whose command line names the run's profile. Content processes
-    carry `-contentproc`. With the launcher process, the parent process is
-    the launcher's child; without it, the launched process is the parent.
+    The profile listing also contains the Python ownership bootstrap. Only
+    the exact browser executable at the confirmed launch PID, or its single
+    non-content child, can be the parent. Ambiguous ancestry fails closed.
     """
+    executable_path = ntpath.normcase(ntpath.normpath(str(executable.resolve())))
     candidates = [
         entry
         for entry in listing
-        if "-contentproc" not in (entry.get("CommandLine") or "").split()
+        if entry.get("ExecutablePath")
+        and ntpath.normcase(ntpath.normpath(entry["ExecutablePath"])) == executable_path
+        and "-contentproc" not in (entry.get("CommandLine") or "").split()
     ]
     ids = {entry["ProcessId"] for entry in candidates}
-    children = [entry for entry in candidates if entry["ParentProcessId"] in ids]
-    if len(children) == 1:
-        return int(children[0]["ProcessId"])
-    if len(candidates) == 1:
-        return int(candidates[0]["ProcessId"])
-    return None
+    if launcher_pid not in ids or len(ids) != len(candidates):
+        return None
+
+    children = [
+        entry for entry in candidates if entry["ParentProcessId"] == launcher_pid
+    ]
+    if not children:
+        return launcher_pid
+    if len(children) != 1:
+        return None
+
+    parent_pid = int(children[0]["ProcessId"])
+    if any(entry["ParentProcessId"] == parent_pid for entry in candidates):
+        return None
+    return parent_pid
 
 
 def profile_processes(profile: Path) -> list[dict[str, Any]]:
@@ -1121,7 +1135,8 @@ def profile_processes(profile: Path) -> list[dict[str, Any]]:
         "$profile = [Environment]::GetEnvironmentVariable('PHANTOM_FIREFOX_PROFILE'); "
         "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
         "$_.CommandLine.Contains($profile) } | "
-        "Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress"
+        "Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine | "
+        "ConvertTo-Json -Compress"
     )
     result = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
@@ -1311,10 +1326,32 @@ class _FirefoxNative:
             if profile is None:
                 raise RuntimeError("Firefox launch did not retain its profile")
             listing = profile_processes(profile)
-            pid = browser_process(listing)
-            if pid is None:
-                raise RuntimeError("no Firefox parent process for the capture profile")
             launcher_pid = self.browser.launcher_pid
+            pid = browser_process(
+                listing,
+                executable=self.browser.plan.executable,
+                launcher_pid=launcher_pid,
+            )
+            if pid is None:
+                diagnostic = {
+                    "profile": str(profile),
+                    "executable": str(self.browser.plan.executable),
+                    "launcher_pid": launcher_pid,
+                    "processes": [
+                        {
+                            "pid": entry["ProcessId"],
+                            "parent_pid": entry["ParentProcessId"],
+                            "executable": entry.get("ExecutablePath"),
+                            "content_process": "-contentproc"
+                            in (entry.get("CommandLine") or "").split(),
+                        }
+                        for entry in listing
+                    ],
+                }
+                raise RuntimeError(
+                    "no Firefox parent process for the capture profile: "
+                    + json.dumps(diagnostic)
+                )
             self.launcher = launcher_pid is not None and pid != launcher_pid
             self.hooks = Hooks(pid, self.config)
             self.hooks.attach()

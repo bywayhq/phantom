@@ -2158,9 +2158,11 @@ If that ever happens, delete the `<path to firefox.exe>|Launcher`,
 new timestamps, with `|Launcher` lower than `|Browser`.
 
 The tool therefore launches Firefox the way `browser_launch.py` always
-does, waits for the page request, finds the parent process by the run's
-profile path, and attaches then. The page waits on `/go` until the hooks
-report ready, and only then reaches the measured origin on a second
+does, waits for the page request, and finds the parent using the temporary
+profile, exact executable and confirmed launch PID. Selection failures report
+the process identities without their full command lines.
+The page waits on `/go` until the hooks report ready, and only then reaches
+the measured origin on a second
 loopback port as `127.0.0.1.nip.io`. Firefox's own MOZ_LOG
 (`nsSocketTransport:5,nsHttp:5,nsHostResolver:5,GetAddrInfo:5`) runs beside
 the hooks; the log keeps the lines about the measured origin.

@@ -191,20 +191,38 @@ class MozLogTests(unittest.TestCase):
 
 class LaunchTests(unittest.TestCase):
     def test_the_parent_process_is_the_launcher_child(self) -> None:
+        executable = Path("C:/Firefox/firefox.exe").resolve()
         launcher = {
             "ProcessId": 1,
             "ParentProcessId": 9,
+            "ExecutablePath": str(executable),
             "CommandLine": "firefox.exe -p",
         }
-        parent = {"ProcessId": 2, "ParentProcessId": 1, "CommandLine": "firefox.exe -p"}
+        parent = {
+            "ProcessId": 2,
+            "ParentProcessId": 1,
+            "ExecutablePath": str(executable),
+            "CommandLine": "firefox.exe -p",
+        }
         content = {
             "ProcessId": 3,
             "ParentProcessId": 2,
+            "ExecutablePath": str(executable),
             "CommandLine": "firefox.exe -contentproc -p",
         }
-        self.assertEqual(browser_process([launcher, parent, content]), 2)
-        self.assertEqual(browser_process([launcher, content]), 1)
-        self.assertIsNone(browser_process([content]))
+        self.assertEqual(
+            browser_process(
+                [launcher, parent, content], executable=executable, launcher_pid=1
+            ),
+            2,
+        )
+        self.assertEqual(
+            browser_process([launcher, content], executable=executable, launcher_pid=1),
+            1,
+        )
+        self.assertIsNone(
+            browser_process([content], executable=executable, launcher_pid=1)
+        )
 
     def test_recorded_arguments_drop_the_run_port(self) -> None:
         self.assertEqual(
