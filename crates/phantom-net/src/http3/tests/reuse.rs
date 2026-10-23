@@ -80,7 +80,11 @@ async fn reuse_requires_profile_permission_verified_name_and_current_dns() -> Te
                     );
                     assert_eq!(
                         &*seen.lock().unwrap(),
-                        if allowed { &[address][..] } else { &[][..] }
+                        if allowed {
+                            std::slice::from_ref(&address)
+                        } else {
+                            &[]
+                        }
                     );
                     for host in ["wrong.phantom.test", "changed.phantom.test"] {
                         let prepared = connector.resolve_origin_for_reuse(host, 443).await?;
