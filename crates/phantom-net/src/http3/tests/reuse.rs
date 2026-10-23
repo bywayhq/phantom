@@ -48,11 +48,13 @@ async fn reuse_requires_profile_permission_verified_name_and_current_dns() -> Te
         let connector = build_connector(&identity, policy)?.with_host_resolver(resolver);
         let (address, endpoint) = server_endpoint(&identity)?;
         let (done, finished) = oneshot::channel();
+        let (ready, peer_ready) = oneshot::channel();
         let result = timeout(TEST_TIMEOUT, async {
             let peer = async {
                 let connection = endpoint.accept().await.ok_or("endpoint closed")?.await?;
                 let _session: h3::server::Connection<_, bytes::Bytes> =
                     h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+                ready.send(()).map_err(|_| "reuse caller stopped")?;
                 finished.await?;
                 TestResult::Ok(())
             };
@@ -67,6 +69,7 @@ async fn reuse_requires_profile_permission_verified_name_and_current_dns() -> Te
                             TEST_SERVER_NAME,
                         )
                         .await?;
+                    peer_ready.await?;
                     let prepared = connector
                         .resolve_origin_for_reuse("SECOND.PHANTOM.TEST", 443)
                         .await?;
@@ -133,11 +136,13 @@ async fn destination_denial_keeps_its_typed_cause_and_uses_the_actual_peer() -> 
     let connector = build_connector(&identity, Http3ConnectionReuse::AuthorizedOrigins)?;
     let (address, endpoint) = server_endpoint(&identity)?;
     let (done, finished) = oneshot::channel();
+    let (ready, peer_ready) = oneshot::channel();
     let result = timeout(TEST_TIMEOUT, async {
         let peer = async {
             let connection = endpoint.accept().await.ok_or("endpoint closed")?.await?;
             let _session: h3::server::Connection<_, bytes::Bytes> =
                 h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+            ready.send(()).map_err(|_| "reuse caller stopped")?;
             finished.await?;
             TestResult::Ok(())
         };
@@ -152,6 +157,7 @@ async fn destination_denial_keeps_its_typed_cause_and_uses_the_actual_peer() -> 
                         TEST_SERVER_NAME,
                     )
                     .await?;
+                peer_ready.await?;
                 let connector = connector.with_host_resolver(
                     HostResolver::new()
                         .with_override(SECOND, [Ipv4Addr::LOCALHOST.into()])
@@ -206,11 +212,13 @@ async fn configured_client_identity_stays_ineligible_when_the_peer_does_not_requ
     // The existing rustls peer uses with_no_client_auth, so no certificate is requested.
     let (address, endpoint) = server_endpoint(&identity)?;
     let (done, finished) = oneshot::channel();
+    let (ready, peer_ready) = oneshot::channel();
     let result = timeout(TEST_TIMEOUT, async {
         let peer = async {
             let connection = endpoint.accept().await.ok_or("endpoint closed")?.await?;
             let _session: h3::server::Connection<_, bytes::Bytes> =
                 h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+            ready.send(()).map_err(|_| "reuse caller stopped")?;
             finished.await?;
             TestResult::Ok(())
         };
@@ -225,6 +233,7 @@ async fn configured_client_identity_stays_ineligible_when_the_peer_does_not_requ
                         TEST_SERVER_NAME,
                     )
                     .await?;
+                peer_ready.await?;
                 assert!(connector.can_reuse_now(&connection));
                 for derived in [
                     connector.with_isolated_session_cache(),
