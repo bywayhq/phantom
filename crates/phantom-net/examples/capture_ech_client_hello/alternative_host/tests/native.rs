@@ -95,6 +95,9 @@ async fn control(case: Control) -> CaptureResult<()> {
     client.set_default_client_config(quinn::ClientConfig::new(Arc::new(crypto)));
     let mut tasks = JoinSet::<CaptureResult<()>>::new();
     let result: CaptureResult<()> = timeout(DEADLINE, async {
+        if server.local_addr()? != reservation.local_addr()? {
+            return Err("alternative TCP reservation and QUIC endpoint use different ports".into());
+        }
         let name = if matches!(case, Control::WrongName) {
             HOST_B
         } else {

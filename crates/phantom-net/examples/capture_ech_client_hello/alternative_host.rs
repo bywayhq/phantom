@@ -34,10 +34,11 @@ pub(super) async fn bind(
 ) -> CaptureResult<(quinn::Endpoint, TcpListener)> {
     let mut last = None;
     for _ in 0..32 {
-        let udp = phantom_testkit::udp::bind(SocketAddr::new(address, 0))?;
-        let local = udp.local_addr()?;
-        match TcpListener::bind(local).await {
-            Ok(reservation) => {
+        // TCP selects an ephemeral port outside its excluded blocks. Windows
+        // allocates UDP ephemeral ports sequentially, including TCP exclusions.
+        let reservation = TcpListener::bind(SocketAddr::new(address, 0)).await?;
+        match phantom_testkit::udp::bind(reservation.local_addr()?) {
+            Ok(udp) => {
                 udp.set_nonblocking(true)?;
                 let endpoint = quinn::Endpoint::new(
                     quinn::EndpointConfig::default(),
