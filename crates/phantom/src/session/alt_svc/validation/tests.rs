@@ -18,16 +18,16 @@ fn learn(
 
 // Seed checked connection state to test mapping transitions independently
 // from the real connector authentication controls.
-fn seed_checked(store: &AltSvcStore, candidate: &AltSvcValidationCandidate) {
+fn seed_checked(store: &AltSvcStore, candidate: &AltSvcValidationCandidate) -> TestResult {
     let publication = candidate
         .target()
         .validation_publication()
-        .expect("candidate publication");
+        .ok_or("candidate publication missing")?;
     let mut entries = store.lock_entries();
     let entry = entries
         .iter_mut()
         .find(|entry| entry.key == publication.key)
-        .expect("stored origin");
+        .ok_or("stored origin missing")?;
     match &mut entry.validation {
         MappingValidation::Replacement(pending) if pending.generation == publication.generation => {
             pending.alternative.mapping_validated = true;
@@ -37,6 +37,7 @@ fn seed_checked(store: &AltSvcStore, candidate: &AltSvcValidationCandidate) {
             entry.alternatives[0].mapping_validated = true;
         }
     }
+    Ok(())
 }
 
 #[test]
@@ -59,7 +60,7 @@ fn advertisement_starts_once_and_stays_ineligible_until_checked() -> TestResult 
     );
     assert!(learn(&store, &origin, b"h3=\":9443\"; ma=60").is_none());
 
-    seed_checked(&store, &candidate);
+    seed_checked(&store, &candidate)?;
     let selected = store.get_validated_up_to(&origin, &Route::Direct, 1);
     assert_eq!(selected.len(), 1);
     assert_eq!(selected[0].port(), 8443);
@@ -71,7 +72,7 @@ fn validated_route_survives_pending_replacement_and_shorter_advertisements() -> 
     let origin = origin()?;
     let store = AltSvcStore::new(NonZeroUsize::MIN);
     let old = learn(&store, &origin, b"h3=\":8443\"; ma=120").ok_or("missing candidate")?;
-    seed_checked(&store, &old);
+    seed_checked(&store, &old)?;
     assert!(learn(&store, &origin, b"h3=\":9443\"; ma=60").is_none());
     let pending = learn(&store, &origin, b"h3=\":9443\"; ma=180").ok_or("missing replacement")?;
     assert!(learn(&store, &origin, b"h3=\":9443\"; ma=180").is_none());
@@ -86,7 +87,7 @@ fn validated_route_survives_pending_replacement_and_shorter_advertisements() -> 
             .is_current()
     );
 
-    seed_checked(&store, &pending);
+    seed_checked(&store, &pending)?;
     assert_eq!(
         store.get_validated_up_to(&origin, &Route::Direct, 1)[0].port(),
         9443
@@ -112,7 +113,7 @@ fn refresh_clear_and_capacity_keep_validation_tied_to_its_mapping() -> TestResul
     let origin = origin()?;
     let store = AltSvcStore::new(NonZeroUsize::MIN);
     let original = learn(&store, &origin, b"h3=\":8443\"; ma=60").ok_or("missing candidate")?;
-    seed_checked(&store, &original);
+    seed_checked(&store, &original)?;
     assert!(learn(&store, &origin, b"h3=\":8443\"; ma=120").is_none());
     assert!(
         original
@@ -184,7 +185,7 @@ fn restored_unvalidated_mapping_requires_an_actual_advertisement() -> TestResult
             .get_validated_up_to(&origin, &Route::Direct, 1)
             .is_empty()
     );
-    seed_checked(&restored, &candidate);
+    seed_checked(&restored, &candidate)?;
     assert_eq!(
         restored.get_validated_up_to(&origin, &Route::Direct, 1)[0].port(),
         8443
@@ -197,7 +198,7 @@ fn expired_validation_cannot_replace_the_validated_route() -> TestResult {
     let origin = origin()?;
     let store = AltSvcStore::new(NonZeroUsize::MIN);
     let old = learn(&store, &origin, b"h3=\":8443\"; ma=120").ok_or("missing candidate")?;
-    seed_checked(&store, &old);
+    seed_checked(&store, &old)?;
     let pending = learn(&store, &origin, b"h3=\":9443\"; ma=180").ok_or("missing replacement")?;
     let publication = pending
         .target()
@@ -224,7 +225,7 @@ fn rejecting_old_generation_preserves_newer_pending_advertisement() -> TestResul
         let origin = origin()?;
         let store = AltSvcStore::new(NonZeroUsize::MIN);
         let old = learn(&store, &origin, b"h3=\":8443\"; ma=120").ok_or("missing candidate")?;
-        seed_checked(&store, &old);
+        seed_checked(&store, &old)?;
         let pending =
             learn(&store, &origin, b"h3=\":9443\"; ma=180").ok_or("missing replacement")?;
         let generation = old.target().generation().ok_or("missing generation")?;
@@ -251,7 +252,7 @@ fn rejecting_old_generation_preserves_newer_pending_advertisement() -> TestResul
                 .get_validated_up_to(&origin, &Route::Direct, 1)
                 .is_empty()
         );
-        seed_checked(&store, &pending);
+        seed_checked(&store, &pending)?;
         assert_eq!(
             store.get_validated_up_to(&origin, &Route::Direct, 1)[0].port(),
             9443
@@ -297,7 +298,7 @@ fn unfinished_work_expires_promptly_without_erasing_validated_replacements() -> 
 
     let current =
         learn(&store, &origin, b"h3=\":8443\"; ma=120").ok_or("missing current mapping")?;
-    seed_checked(&store, &current);
+    seed_checked(&store, &current)?;
     let pending = learn(&store, &origin, b"h3=\":9443\"; ma=180").ok_or("missing replacement")?;
     pending
         .target()
@@ -317,7 +318,7 @@ fn unfinished_work_expires_promptly_without_erasing_validated_replacements() -> 
     );
     let newer =
         learn(&store, &origin, b"h3=\":10443\"; ma=180").ok_or("missing newer replacement")?;
-    seed_checked(&store, &newer);
+    seed_checked(&store, &newer)?;
     publication.abandon();
     assert!(
         newer

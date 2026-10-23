@@ -13,8 +13,10 @@ use phantom::{
 };
 use tokio::sync::oneshot;
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch, time::timeout};
+use tracing::Dispatch;
 
 use crate::support::{
+    alt_svc_validation::ValidationObservation,
     tls::{TestIdentity, TestResult},
     tunnel_proxy::finish_with_cleanup,
 };
@@ -762,6 +764,10 @@ fn caller_fields() -> Vec<RequestHeader> {
 }
 
 async fn settle(client: &Client, peer: &Peer) -> TestResult<()> {
+    let validation = ValidationObservation::new();
+    let dispatch = Dispatch::new(validation.clone());
+    let _scope = tracing::dispatcher::set_default(&dispatch);
+    tracing::callsite::rebuild_interest_cache();
     for (path, protocol) in [
         ("/learn", HttpProtocol::Http1),
         ("/settled", HttpProtocol::Http3),
@@ -772,6 +778,9 @@ async fn settle(client: &Client, peer: &Peer) -> TestResult<()> {
             .await?;
         assert_protocol(&response, protocol)?;
         assert_eq!(response.into_body().collect_with_limit(2).await?, "ok");
+        if path == "/learn" {
+            validation.validated().await?;
+        }
     }
     Ok(())
 }

@@ -4,8 +4,9 @@ use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{AtomicUsize, Ordering},
+        mpsc,
     },
     task::{Context, Poll, Waker},
 };
@@ -35,15 +36,13 @@ async fn reuse_requires_profile_permission_verified_name_and_current_dns() -> Te
         Http3ConnectionReuse::SameOrigin,
         Http3ConnectionReuse::AuthorizedOrigins,
     ] {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let observed = Arc::clone(&seen);
+        let (observed, seen) = mpsc::channel();
         let resolver = HostResolver::new()
             .with_override(SECOND, [Ipv4Addr::LOCALHOST.into()])
             .with_override("wrong.phantom.test", [Ipv4Addr::LOCALHOST.into()])
             .with_override("changed.phantom.test", [Ipv4Addr::new(127, 0, 0, 2).into()])
             .with_destination_policy(DestinationPolicy::from_fn(move |peer| {
-                observed.lock().unwrap().push(peer);
-                true
+                observed.send(peer).is_ok()
             }));
         let connector = build_connector(&identity, policy)?.with_host_resolver(resolver);
         let (address, endpoint) = server_endpoint(&identity)?;
@@ -75,14 +74,14 @@ async fn reuse_requires_profile_permission_verified_name_and_current_dns() -> Te
                         .await?;
                     assert_eq!(prepared.host(), SECOND);
                     assert_eq!(prepared.port(), 443);
-                    seen.lock().unwrap().clear();
+                    seen.try_iter().for_each(drop);
                     let allowed = policy == Http3ConnectionReuse::AuthorizedOrigins;
                     assert_eq!(
                         connector.can_reuse_for_origin(&connection, &prepared)?,
                         allowed
                     );
                     assert_eq!(
-                        &*seen.lock().unwrap(),
+                        seen.try_iter().collect::<Vec<_>>().as_slice(),
                         if allowed {
                             std::slice::from_ref(&address)
                         } else {

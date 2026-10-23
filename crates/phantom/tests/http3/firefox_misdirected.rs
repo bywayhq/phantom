@@ -1,4 +1,4 @@
-//! Firefox restarts a selected or race-winning misdirected alternative on its origin.
+//! Request-time alternatives retain Firefox's first-421 recovery behavior.
 
 use std::{
     io,
@@ -14,7 +14,9 @@ use http::{HeaderValue, StatusCode};
 use phantom::{
     AddressResolver, AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot,
     AltSvcSnapshotEntry, Client, HttpAttemptBudget, HttpProtocol, RequestHeader, ResponseInfo,
-    profile::{Http3MisdirectedRequest, browser::firefox},
+    profile::{
+        Http3AltSvcValidation, Http3ClientSettings, Http3MisdirectedRequest, browser::firefox,
+    },
 };
 use tokio::{sync::oneshot, time::timeout};
 
@@ -30,13 +32,13 @@ const DEADLINE: Duration = Duration::from_secs(10);
 const ORIGIN: &str = "localhost";
 
 #[tokio::test]
-async fn selected_firefox_421_restarts_on_origin_with_frozen_fields_and_evicts_the_advertisement()
+async fn request_time_selected_421_restarts_with_frozen_fields_and_evicts_the_advertisement()
 -> TestResult<()> {
     restart(AltSvcPolicy::sequential()).await
 }
 
 #[tokio::test]
-async fn race_winning_firefox_421_restarts_on_origin_without_reracing() -> TestResult<()> {
+async fn request_time_race_winning_421_restarts_on_origin_without_reracing() -> TestResult<()> {
     let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
     // The shared peer has no handshake gate. This existing race-policy seam
     // holds only the first origin candidate beyond the request deadline; the
@@ -97,7 +99,17 @@ async fn restart(policy: AltSvcPolicy) -> TestResult<()> {
                 Ok(vec![Ipv4Addr::LOCALHOST.into()])
             }
         });
-        let profile = firefox::v157_windows();
+        let mut settings = firefox::v157_http3();
+        // These imported alternatives exercise request-time selection and racing.
+        // Default Firefox advertisement validation is covered by the upgrade and
+        // coalesced replay controls, which await actual authenticated publication.
+        settings.alt_svc_validation = Http3AltSvcValidation::OnRequest;
+        let profile = firefox::v157_windows().with_http3(Http3ClientSettings::new(
+            firefox::v157_quic_tls(),
+            firefox::v157_quic(),
+            settings,
+            firefox::v157_http3_request(),
+        ));
         assert_eq!(
             profile
                 .http3()

@@ -4,6 +4,8 @@
 // without every feature leaves some of them unused.
 #![allow(dead_code)]
 
+#[path = "support/alt_svc_validation.rs"]
+pub(crate) mod alt_svc_validation;
 #[path = "support/client_certificate.rs"]
 pub(crate) mod client_certificate;
 #[path = "support/deadline.rs"]

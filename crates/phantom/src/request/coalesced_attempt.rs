@@ -22,7 +22,7 @@ use crate::{
 
 pub(super) enum ReusedOutcome {
     Miss,
-    Complete(AttemptOutcome),
+    Complete(Box<AttemptOutcome>),
     /// Continue the same hop on H1/H2 when no authorized H3 donor remains.
     Origin {
         fields: Option<NegotiatedFields>,
@@ -182,10 +182,10 @@ pub(super) async fn send_reused(
                 response.body_mut().apply_transfer(control.clone());
             }
             store_cookies(client, request, &response);
-            return Ok(ReusedOutcome::Complete(AttemptOutcome {
+            return Ok(ReusedOutcome::Complete(Box::new(AttemptOutcome {
                 response,
                 protocol: HttpProtocol::Http3,
-            }));
+            })));
         }
 
         let critical_retry_requested = observe_response(
@@ -229,10 +229,10 @@ pub(super) async fn send_reused(
                 .await?;
             continue;
         }
-        return Ok(ReusedOutcome::Complete(AttemptOutcome {
+        return Ok(ReusedOutcome::Complete(Box::new(AttemptOutcome {
             response,
             protocol: HttpProtocol::Http3,
-        }));
+        })));
     }
 }
 

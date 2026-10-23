@@ -418,7 +418,7 @@ async fn send_once_negotiated(
     )
     .await?
     {
-        super::coalesced_attempt::ReusedOutcome::Complete(outcome) => return Ok(outcome),
+        super::coalesced_attempt::ReusedOutcome::Complete(outcome) => return Ok(*outcome),
         super::coalesced_attempt::ReusedOutcome::Origin {
             fields,
             restart_hints,

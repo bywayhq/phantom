@@ -7,8 +7,10 @@ use phantom::{
     ResponseInfo, profile::browser::firefox,
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch, time::timeout};
+use tracing::Dispatch;
 
 use crate::support::{
+    alt_svc_validation::ValidationObservation,
     tls::{TestIdentity, TestResult, read_head},
     tunnel_proxy::finish_with_cleanup,
 };
@@ -168,6 +170,10 @@ async fn exchange(scope: CertificateScope) -> TestResult<Exchange> {
     };
     let quic_identity = TestIdentity::generate_for_dns_names(quic_names)?;
     let peer = Peer::bind(&tcp_identity, &quic_identity).await?;
+    let validation = ValidationObservation::new();
+    let dispatch = Dispatch::new(validation.clone());
+    let _scope = tracing::dispatcher::set_default(&dispatch);
+    tracing::callsite::rebuild_interest_cache();
     let client = Client::builder(firefox::v157_windows())
         .add_root_certificate_der(tcp_identity.root_der.clone())
         .add_root_certificate_der(quic_identity.root_der.clone())
@@ -194,6 +200,9 @@ async fn exchange(scope: CertificateScope) -> TestResult<Exchange> {
             let body = response.into_body().collect_with_limit(2).await?;
             if body != b"ok"[..] {
                 return Err("coalescing response body differs from the peer payload".into());
+            }
+            if path == "/learn" {
+                validation.validated().await?;
             }
             if host == DONOR && path == "/settled" && protocol != HttpProtocol::Http3 {
                 return Err("donor did not settle on HTTP/3 before the second origin".into());
