@@ -216,7 +216,10 @@ impl AltSvcStore {
         // expiry can only be earlier than the stored one.
         let system_now = SystemTime::now();
         let now = Instant::now();
-        let entries = self.lock_entries();
+        let mut entries = self.lock_entries();
+        for entry in &mut *entries {
+            entry.refresh_validated(now);
+        }
         AltSvcSnapshot::new(
             entries
                 .iter()
@@ -303,6 +306,7 @@ impl AltSvcStore {
             entries.push_front(Entry {
                 key,
                 alternatives,
+                validation: super::MappingValidation::Idle,
                 generation: self
                     .next_generation
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),

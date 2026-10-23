@@ -656,12 +656,29 @@ impl AltSvcStore {
         fields: impl IntoIterator<Item = (&'a str, &'a [u8])>,
         now: Instant,
     ) {
+        let Some(entry) = self.entry_from_fields(origin, route, fields, now) else {
+            return;
+        };
+        if entry.alternatives.is_empty() {
+            self.remove_key(&entry.key);
+            return;
+        }
+        self.replace(entry, now);
+    }
+
+    fn entry_from_fields<'a>(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        fields: impl IntoIterator<Item = (&'a str, &'a [u8])>,
+        now: Instant,
+    ) -> Option<Entry> {
         let update = match parse_response_fields(origin, fields) {
             Ok(Some(update)) => update,
-            Ok(None) => return,
+            Ok(None) => return None,
             Err(()) => {
                 debug!(outcome = "malformed", "ignored Alt-Svc response field");
-                return;
+                return None;
             }
         };
         let key = StoreKey::new(origin, route);
@@ -680,18 +697,12 @@ impl AltSvcStore {
                 })
                 .collect(),
         };
-        if alternatives.is_empty() {
-            self.remove_key(&key);
-            return;
-        }
-        self.replace(
-            Entry {
-                key,
-                alternatives,
-                generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
-            },
-            now,
-        );
+        Some(Entry {
+            key,
+            alternatives,
+            generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
+            validation: MappingValidation::Idle,
+        })
     }
 
     #[cfg(test)]
@@ -717,11 +728,13 @@ impl AltSvcStore {
         let Some(mut entry) = entries.remove(position) else {
             return Vec::new();
         };
-        entry
-            .alternatives
-            .retain(|alternative| alternative.expires_at > now);
+        entry.refresh_validated(now);
         if entry.alternatives.is_empty() {
-            debug!(outcome = "expired", "removed expired Alt-Svc origin");
+            if entry.pending().is_some() {
+                entries.push_back(entry);
+            } else {
+                debug!(outcome = "expired", "removed expired Alt-Svc origin");
+            }
             return Vec::new();
         }
         // Chromium takes the first alternative in field order that is not
@@ -912,6 +925,47 @@ struct Entry {
     /// The advertised alternatives in field order, never empty.
     alternatives: Vec<StoredAlternative>,
     generation: u64,
+    validation: MappingValidation,
+}
+
+enum MappingValidation {
+    Idle,
+    Initial,
+    Replacement(PendingAdvertisement),
+}
+
+struct PendingAdvertisement {
+    alternative: StoredAlternative,
+    generation: u64,
+}
+
+impl Entry {
+    fn pending(&self) -> Option<&PendingAdvertisement> {
+        match &self.validation {
+            MappingValidation::Replacement(pending) => Some(pending),
+            _ => None,
+        }
+    }
+
+    fn refresh_validated(&mut self, now: Instant) {
+        self.alternatives
+            .retain(|alternative| alternative.expires_at > now);
+        if self
+            .pending()
+            .is_some_and(|pending| pending.alternative.expires_at <= now)
+        {
+            self.validation = MappingValidation::Idle;
+        }
+        if self
+            .pending()
+            .is_some_and(|pending| pending.alternative.is_validated())
+            && let MappingValidation::Replacement(pending) =
+                std::mem::replace(&mut self.validation, MappingValidation::Idle)
+        {
+            self.alternatives = vec![pending.alternative];
+            self.generation = pending.generation;
+        }
+    }
 }
 
 /// One alternative of an advertisement, which expires on its own `ma`.
@@ -985,15 +1039,21 @@ impl AltSvcValidationPublication {
         entries: &'a VecDeque<Entry>,
         now: Instant,
     ) -> Option<&'a Http3MappingConfirmation> {
-        entries
-            .iter()
-            .find(|entry| entry.key == self.key && entry.generation == self.generation)?
-            .alternatives
-            .iter()
-            .find(|alternative| {
-                alternative.location == self.location && alternative.expires_at > now
-            })
-            .map(|alternative| &alternative.confirmation)
+        let entry = entries.iter().find(|entry| entry.key == self.key)?;
+        if entry.generation == self.generation {
+            return entry
+                .alternatives
+                .iter()
+                .find(|alternative| {
+                    alternative.location == self.location && alternative.expires_at > now
+                })
+                .map(|alternative| &alternative.confirmation);
+        }
+        let pending = entry.pending()?;
+        (pending.generation == self.generation
+            && pending.alternative.location == self.location
+            && pending.alternative.expires_at > now)
+            .then_some(&pending.alternative.confirmation)
     }
 }
 
@@ -1376,6 +1436,9 @@ impl PendingLookup {
 }
 
 pub(crate) mod rtt_history;
+
+mod validation;
+pub(crate) use validation::AltSvcValidationCandidate;
 
 mod policy;
 pub use policy::{
