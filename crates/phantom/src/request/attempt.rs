@@ -201,16 +201,17 @@ async fn send_once_exact(
                 }),
         };
         let alt_used = pinned_alt_used(client, request, protocol);
-        let prepared_headers = frozen_headers.take().unwrap_or_else(|| {
-            route_attempt_headers(
+        let prepared_headers = match frozen_headers.take() {
+            Some(headers) => DispatchFields::Frozen(headers),
+            None => DispatchFields::Prepare(route_attempt_headers(
                 client,
                 request,
                 protocol,
                 &request_headers,
                 forwarding,
                 alt_used.as_deref(),
-            )
-        });
+            )),
+        };
         // Checked before the attempt takes a one-shot body.
         // A pinned alternative is the caller's choice of where QUIC goes, so
         // its failure never moves the request to the origin over HTTP/2.
@@ -1188,13 +1189,18 @@ struct Http1Connect<'a> {
     challenged: Option<&'a mut ChallengedConnection>,
 }
 
+enum DispatchFields {
+    Prepare(Vec<RequestHeader>),
+    Frozen(Vec<RequestHeader>),
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn dispatch_attempt(
     client: &Client,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
     method: Method,
-    request_headers: Vec<RequestHeader>,
+    fields: DispatchFields,
     request_trailers: Vec<RequestHeader>,
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<RequestBody>,
@@ -1206,6 +1212,12 @@ async fn dispatch_attempt(
 ) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
+    // A 421 replay keeps the fields already sent. Its new connection still
+    // checks ALPS below, but concurrent Accept-CH cannot expand this list.
+    let (request_headers, preparation_hints) = match fields {
+        DispatchFields::Prepare(headers) => (headers, client_hints),
+        DispatchFields::Frozen(headers) => (headers, None),
+    };
 
     match protocol {
         HttpProtocol::Http1 => {
@@ -1214,7 +1226,7 @@ async fn dispatch_attempt(
                 .connectors_for(endpoint)
                 .http1
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-            let sent_headers = prepare_headers(client_hints, request_headers)?;
+            let sent_headers = prepare_headers(preparation_hints, request_headers)?;
             let mut headers = Vec::with_capacity(sent_headers.len() + 1);
             headers.push(RequestHeader::new(
                 "Host",
@@ -1277,7 +1289,7 @@ async fn dispatch_attempt(
                 )
             };
             // The hints are fixed here, before a connection is chosen.
-            let headers = prepare_headers(client_hints, request_headers)?;
+            let headers = prepare_headers(preparation_hints, request_headers)?;
             client
                 .state
                 .http2
@@ -1323,7 +1335,7 @@ async fn dispatch_attempt(
                 &target,
                 request_headers,
                 &request_trailers,
-                client_hints,
+                preparation_hints,
                 body.as_ref(),
             )?;
             // Boxed: HTTP/3's send future is the largest of the three

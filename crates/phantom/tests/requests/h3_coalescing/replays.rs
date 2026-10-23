@@ -11,7 +11,6 @@ use phantom::{
     AltSvcPolicy, Client, HttpAttemptBudget, HttpProtocol, RequestErrorKind, RequestHeader,
     ResponseInfo, profile::browser::firefox,
 };
-#[cfg(feature = "cookies")]
 use tokio::sync::oneshot;
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::watch, time::timeout};
 
@@ -404,6 +403,8 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
     };
     let allowance = HttpAttemptBudget::new(maximum);
     let (stop, stopped) = watch::channel(false);
+    let (observed, first_seen) = oneshot::channel();
+    let (release, hints_learned) = oneshot::channel();
     let caller = async {
         if !exact {
             settle(&client, &peer).await?;
@@ -431,7 +432,28 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
         } else {
             request
         };
-        let sent = request.send().await;
+        let teach = async {
+            if exact {
+                first_seen.await?;
+                for path in ["/teach", "/hint-enabled"] {
+                    let target = format!("https://{OTHER}:{logical_port}{path}");
+                    let request = client.get(HttpProtocol::Http3, &target)?;
+                    let request = if matches!(reply, MisdirectedReply::Pinned) {
+                        request.alt_svc_alternative("127.0.0.1", peer.address.port())
+                    } else {
+                        request
+                    };
+                    let response = request.send().await?;
+                    assert_eq!(response.status(), StatusCode::OK);
+                    assert_eq!(response.into_body().collect_with_limit(2).await?, "ok");
+                }
+                release
+                    .send(())
+                    .map_err(|_| "421 peer stopped before client hints were learned")?;
+            }
+            TestResult::Ok(())
+        };
+        let (sent, ()) = tokio::try_join!(async { TestResult::Ok(request.send().await) }, teach)?;
         if matches!(reply, MisdirectedReply::Exhausted) {
             let error = sent
                 .err()
@@ -550,6 +572,40 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
         } else {
             assert!(received.is_empty(), "bodyless 421 request carried data");
         }
+        let original_fields = record.fields;
+        if exact {
+            assert!(
+                original_fields
+                    .iter()
+                    .all(|(name, _)| name != "sec-ch-ua-arch")
+            );
+            observed
+                .send(())
+                .map_err(|_| "421 caller stopped before the first request")?;
+            for path in ["/teach", "/hint-enabled"] {
+                let (record, mut teaching_stream) = accept_h3(&mut connection, identity).await?;
+                assert_target(&record, OTHER, path, logical_port)?;
+                if path == "/hint-enabled" {
+                    assert!(
+                        record.fields.iter().any(|(name, value)| {
+                            name == "sec-ch-ua-arch" && value == b"\"arm\""
+                        })
+                    );
+                }
+                teaching_stream
+                    .send_response(
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("accept-ch", "Sec-CH-UA-Arch")
+                            .header("content-length", "2")
+                            .body(())?,
+                    )
+                    .await?;
+                teaching_stream.send_data(Bytes::from_static(b"ok")).await?;
+                teaching_stream.finish().await?;
+            }
+            hints_learned.await?;
+        }
         stream
             .send_response(
                 Response::builder()
@@ -579,6 +635,10 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
             let (record, mut stream) = accept_h3(&mut replacement, replacement_id).await?;
             assert_target(&record, OTHER, "/misdirected", logical_port)?;
             assert_421_credentials(&record)?;
+            assert_eq!(
+                record.fields, original_fields,
+                "421 replay changed checked fields"
+            );
             answer_ok(&mut stream).await?;
             connection = replacement;
         }
@@ -667,12 +727,20 @@ fn builder(
 ) -> TestResult<phantom::ClientBuilder> {
     let mut http3 = firefox::v157_http3();
     http3.misdirected_request = policy;
-    let profile = firefox::v157_windows().with_http3(phantom::profile::Http3ClientSettings::new(
-        firefox::v157_http3_tls(),
-        firefox::v157_quic(),
-        http3,
-        firefox::v157_http3_request(),
-    ));
+    let profile = firefox::v157_windows()
+        .with_http3(phantom::profile::Http3ClientSettings::new(
+            firefox::v157_http3_tls(),
+            firefox::v157_quic(),
+            http3,
+            firefox::v157_http3_request(),
+        ))
+        .with_client_hints(phantom::profile::ClientHintSettings::new(vec![
+            phantom::profile::ClientHint::new(
+                "sec-ch-ua-arch",
+                "\"arm\"",
+                phantom::profile::ClientHintDelivery::AcceptCh,
+            ),
+        ]));
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .resolve(DONOR, [Ipv4Addr::LOCALHOST.into()])
