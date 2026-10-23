@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Breaking: Firefox 157 desktop TCP uses ECH from caller-supplied HTTPS
+  records. Migrate: replace the r1 profile ID or selector with
+  `firefox/157.0/windows-11-26200/r2` or `firefox-157-windows-r2`.
+  `firefox::v157_windows()` and `firefox::v157_tcp_tls()` use the new policy.
+  No resolver is enabled automatically.
+
 - Retire speculative connections before Firefox ECH resumption probes and
   retain Firefox 157 early-request acceptance.
 
