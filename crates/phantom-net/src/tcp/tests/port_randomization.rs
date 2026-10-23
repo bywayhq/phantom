@@ -17,7 +17,7 @@ fn port_randomization_starts_at_the_minimum_build() {
 
 #[cfg(windows)]
 mod on_windows {
-    use std::{net::Ipv4Addr, os::windows::io::AsSocket};
+    use std::{io, net::Ipv4Addr, os::windows::io::AsSocket};
 
     use phantom_profile::{
         TcpPortRandomization, TcpSettings,
@@ -25,12 +25,37 @@ mod on_windows {
     };
     use tokio::net::TcpListener;
 
-    use super::super::{TestResult, sets_random_port};
+    use super::super::TestResult;
     use crate::{
         SourceBinding,
         socket_ffi::port_randomization,
-        tcp::{ProfileTcpStream, connect},
+        tcp::{ProfileTcpStream, connect, host_reaches_build},
     };
+
+    enum Observation {
+        Exercised(&'static str),
+        Unavailable,
+        NotApplicable,
+    }
+
+    fn observe(test: &'static str, observation: Observation) {
+        let (status, reason) = match observation {
+            Observation::Exercised(reason) => ("exercised", reason),
+            Observation::Unavailable => ("unavailable", "socket_option_unsupported"),
+            Observation::NotApplicable => ("not_applicable", "host_below_profile_minimum"),
+        };
+        eprintln!(
+            r#"{{"capability":"tcp_port_randomization","test":"{test}","status":"{status}","reason":"{reason}"}}"#
+        );
+    }
+
+    fn recipe_applies(settings: &TcpSettings) -> io::Result<bool> {
+        settings
+            .port_randomization
+            .map_or(Ok(false), |randomization| {
+                host_reaches_build(randomization.minimum_windows_build)
+            })
+    }
 
     /// Opens `count` connections to a loopback listener one after another and
     /// keeps them all open.
@@ -67,8 +92,17 @@ mod on_windows {
     #[tokio::test(flavor = "current_thread")]
     async fn chromium_sockets_read_back_port_randomization() -> TestResult {
         let settings = chrome::v154_tcp();
+        let applies = recipe_applies(&settings)?;
         let streams = connections(settings, None, 1).await?;
-        assert_eq!(random_port(&streams[0])?, sets_random_port(&settings));
+        assert_eq!(random_port(&streams[0])?, applies);
+        observe(
+            "chromium_sockets_read_back_port_randomization",
+            if applies {
+                Observation::Exercised("profile_socket_option_read_back")
+            } else {
+                Observation::NotApplicable
+            },
+        );
         Ok(())
     }
 
@@ -76,6 +110,10 @@ mod on_windows {
     async fn firefox_sockets_leave_port_randomization_off() -> TestResult {
         let streams = connections(firefox::v157_tcp(), None, 1).await?;
         assert!(!random_port(&streams[0])?);
+        observe(
+            "firefox_sockets_leave_port_randomization_off",
+            Observation::Exercised("disabled_profile_socket_option_read_back"),
+        );
         Ok(())
     }
 
@@ -89,32 +127,29 @@ mod on_windows {
         };
         let streams = connections(settings, None, 1).await?;
         assert!(!random_port(&streams[0])?);
+        observe(
+            "a_minimum_build_past_this_host_leaves_port_randomization_off",
+            Observation::Exercised("above_host_minimum_leaves_option_disabled"),
+        );
         Ok(())
     }
 
-    /// Whether the Chromium recipe sets the option on this host; prints a
-    /// skip line naming the host's build when it does not.
-    fn chromium_sets_random_port(settings: &TcpSettings) -> bool {
-        if sets_random_port(settings) {
-            return true;
-        }
-        let build = port_randomization::windows_version()
-            .map_or_else(|| "unknown".to_owned(), |version| version.build.to_string());
-        let minimum = settings
-            .port_randomization
-            .map_or(0, |randomization| randomization.minimum_windows_build);
-        eprintln!("skipped: Windows build {build} is below the recipe's minimum build {minimum}");
-        false
+    fn lacks_the_option(error: &io::Error) -> bool {
+        error.kind() == io::ErrorKind::Unsupported
     }
 
-    /// Whether `error` says this Windows lacks the option; prints a skip line
-    /// when it does.
-    fn lacks_the_option(error: &std::io::Error) -> bool {
-        let lacks = error.kind() == std::io::ErrorKind::Unsupported;
-        if lacks {
-            eprintln!("skipped: this Windows does not support SO_RANDOMIZE_PORT");
+    #[test]
+    fn only_unsupported_means_the_socket_option_is_unavailable() {
+        assert!(lacks_the_option(&io::Error::from(
+            io::ErrorKind::Unsupported
+        )));
+        for kind in [
+            io::ErrorKind::PermissionDenied,
+            io::ErrorKind::InvalidInput,
+            io::ErrorKind::Other,
+        ] {
+            assert!(!lacks_the_option(&io::Error::from(kind)));
         }
-        lacks
     }
 
     /// Windows takes the option only before a socket is bound, and the
@@ -128,11 +163,19 @@ mod on_windows {
             Err(error) => error,
         };
         if lacks_the_option(&error) {
+            observe(
+                "a_bound_socket_rejects_port_randomization",
+                Observation::Unavailable,
+            );
             return Ok(());
         }
         // WSAEINVAL.
         assert_eq!(error.raw_os_error(), Some(10_022));
         assert!(!port_randomization::is_enabled(socket.as_socket())?);
+        observe(
+            "a_bound_socket_rejects_port_randomization",
+            Observation::Exercised("bound_socket_rejected_and_option_disabled"),
+        );
         Ok(())
     }
 
@@ -141,17 +184,31 @@ mod on_windows {
         let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
         match port_randomization::enable(socket.as_socket()) {
             Ok(()) => {}
-            Err(error) if lacks_the_option(&error) => return Ok(()),
+            Err(error) if lacks_the_option(&error) => {
+                observe(
+                    "an_unbound_socket_takes_port_randomization",
+                    Observation::Unavailable,
+                );
+                return Ok(());
+            }
             Err(error) => return Err(error.into()),
         }
         assert!(port_randomization::is_enabled(socket.as_socket())?);
+        observe(
+            "an_unbound_socket_takes_port_randomization",
+            Observation::Exercised("unbound_socket_option_read_back"),
+        );
         Ok(())
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn chromium_connections_take_scattered_local_ports() -> TestResult {
         let settings = chrome::v154_tcp();
-        if !chromium_sets_random_port(&settings) {
+        if !recipe_applies(&settings)? {
+            observe(
+                "chromium_connections_take_scattered_local_ports",
+                Observation::NotApplicable,
+            );
             return Ok(());
         }
         let streams = connections(settings, None, 8).await?;
@@ -159,13 +216,21 @@ mod on_windows {
             assert!(random_port(stream)?);
         }
         assert!(scattered(&streams)?);
+        observe(
+            "chromium_connections_take_scattered_local_ports",
+            Observation::Exercised("connected_ports_scattered_and_option_enabled"),
+        );
         Ok(())
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn source_bound_chromium_connections_take_scattered_local_ports() -> TestResult {
         let settings = chrome::v154_tcp();
-        if !chromium_sets_random_port(&settings) {
+        if !recipe_applies(&settings)? {
+            observe(
+                "source_bound_chromium_connections_take_scattered_local_ports",
+                Observation::NotApplicable,
+            );
             return Ok(());
         }
         let source = SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into());
@@ -174,6 +239,10 @@ mod on_windows {
             assert!(random_port(stream)?);
         }
         assert!(scattered(&streams)?);
+        observe(
+            "source_bound_chromium_connections_take_scattered_local_ports",
+            Observation::Exercised("source_bound_ports_scattered_and_option_enabled"),
+        );
         Ok(())
     }
 }

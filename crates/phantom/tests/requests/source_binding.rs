@@ -548,7 +548,6 @@ async fn interface_binding_reaches_a_loopback_origin() -> TestResult<()> {
                 if cfg!(target_os = "linux")
                     && io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) =>
             {
-                eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
                 Ok(interface_origin::Outcome::CapabilityUnavailable)
             }
             Err(error) => Err(error.into()),
@@ -556,9 +555,15 @@ async fn interface_binding_reaches_a_loopback_origin() -> TestResult<()> {
     }
     .await;
     let Some(peer) = interface_origin::collect(caller, server).await? else {
+        eprintln!(
+            r#"{{"capability":"interface_binding","test":"interface_binding_reaches_a_loopback_origin","status":"unavailable","reason":"interface_binding_permission_denied"}}"#
+        );
         return Ok(());
     };
 
     assert_eq!(peer.ip(), IPV4_LOOPBACK);
+    eprintln!(
+        r#"{{"capability":"interface_binding","test":"interface_binding_reaches_a_loopback_origin","status":"exercised","reason":"origin_observed_loopback_peer"}}"#
+    );
     Ok(())
 }
