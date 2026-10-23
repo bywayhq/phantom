@@ -194,7 +194,15 @@ impl Origin {
                 let _ = sender.send(Event::Failed);
             }
             shutdown.send_replace(true);
+            eprintln!(
+                "HTTP/3 fixture: phase=cleanup-peers-start remaining={}",
+                peers.len()
+            );
             while let Some(joined) = peers.join_next().await {
+                eprintln!(
+                    "HTTP/3 fixture: phase=cleanup-peer-joined remaining={}",
+                    peers.len()
+                );
                 let result = joined.map_err(Into::into).and_then(|result| result);
                 if let Err(error) = result {
                     errors
@@ -204,8 +212,17 @@ impl Origin {
                     let _ = sender.send(Event::Failed);
                 }
             }
+            eprintln!(
+                "HTTP/3 fixture: phase=endpoint-close connections={}",
+                endpoint.0.open_connections()
+            );
             endpoint.0.close(0u32.into(), b"fixture finished");
+            eprintln!(
+                "HTTP/3 fixture: phase=endpoint-wait-idle connections={}",
+                endpoint.0.open_connections()
+            );
             endpoint.0.wait_idle().await;
+            eprintln!("HTTP/3 fixture: phase=endpoint-idle");
             Ok(())
         });
         Ok(Self {
