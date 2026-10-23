@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Allow two minutes to mount and copy Chrome packages on hosted Macs.
+- Verify Chrome signing requirements as text and allow two minutes for
+  mounting, copying and unmounting packages on hosted Macs.
 
 - Capture Chrome 156 startup and resource requests on hosted Macs.
 
