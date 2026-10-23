@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Wait for Firefox HTTP/2 peers to close before the reconnect probe; retain
+  partial hook reports and failure details with `--raw-dir`.
+
 - Select Firefox's owned parent process without confusing its capture bootstrap
   with the browser launcher; include process identities in selection failures.
 

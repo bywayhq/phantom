@@ -2161,6 +2161,8 @@ The tool therefore launches Firefox the way `browser_launch.py` always
 does, waits for the page request, and finds the parent using the temporary
 profile, exact executable and confirmed launch PID. Selection failures report
 the process identities without their full command lines.
+With `--raw-dir`, failed runs keep partial hooks, peer records, MOZ_LOG and
+error details in a `*-failed.json` file, limited to 64 MiB.
 The page waits on `/go` until the hooks report ready, and only then reaches
 the measured origin on a second
 loopback port as `127.0.0.1.nip.io`. Firefox's own MOZ_LOG

@@ -39,7 +39,7 @@ import tempfile
 import threading
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -83,6 +83,7 @@ MAX_HOOK_REPORTS = 100_000
 MAX_HOOK_MESSAGE_BYTES = 16 * 1024
 MAX_MOZ_LOG_BYTES = 64 * 1024 * 1024
 MAX_MOZ_LOG_FILES = 64
+MAX_FAILURE_REPORT_BYTES = 64 * 1024 * 1024
 MAX_WEBSOCKET_FRAME = 64 * 1024
 PEER_CLEANUP_SECONDS = 5.0
 # A pending lookup takes at most 60 s, then browser cleanup has two 60 s
@@ -780,9 +781,32 @@ class Origins:
                 if path == "/go":
                     await self.go.wait()
                 elif path == "/drop":
-                    for connection, target in list(self.open):
+                    targets = list(self.open)
+                    closing = [
+                        task
+                        for task, (writer, _) in self.peers.items()
+                        if any(writer is target for _, target in targets)
+                    ]
+                    for connection, target in targets:
                         connection.close_kind = "server"
                         target.close()
+                    if self.scenario.name == "h2-backup":
+                        if len(closing) != len(targets):
+                            raise RuntimeError(
+                                "Firefox target close has no owning peer"
+                            )
+                        outcomes = await asyncio.gather(
+                            *(asyncio.shield(task) for task in closing),
+                            return_exceptions=True,
+                        )
+                        raise_browser_failures(
+                            None,
+                            tuple(
+                                outcome
+                                for outcome in outcomes
+                                if isinstance(outcome, BaseException)
+                            ),
+                        )
                 await write_response(writer, body, kind, close=False)
                 if path == "/done":
                     self.done.set()
@@ -1587,7 +1611,11 @@ class _FirefoxCapturePending(RuntimeError):
 
 
 async def run_once(
-    scenario: Scenario, executable: Path, *, headful: bool = False
+    scenario: Scenario,
+    executable: Path,
+    *,
+    headful: bool = False,
+    failure_path: Path | None = None,
 ) -> tuple[RunResult, str]:
     validate_waits(scenario)
     owner = _FirefoxRun(scenario)
@@ -1665,6 +1693,11 @@ async def run_once(
 
     cleanup = await owner.finish(primary)
     if primary is not None or cleanup:
+        if failure_path is not None:
+            try:
+                write_failure_report(failure_path, owner, primary, cleanup)
+            except BaseException as error:
+                cleanup = (*cleanup, error)
         if (
             owner.cleanup is not None
             and owner.cleanup.done()
@@ -1695,6 +1728,66 @@ async def run_once(
         primary = error
     raise_browser_failures(primary, owner.remove_log())
     return result, plan.recorded_arguments(url)
+
+
+def write_failure_report(
+    path: Path,
+    owner: _FirefoxRun,
+    primary: BaseException | None,
+    cleanup: tuple[BaseException, ...],
+) -> None:
+    def failure(error: BaseException | None) -> dict | None:
+        if error is None:
+            return None
+        return {
+            "id": id(error),
+            "type": type(error).__name__,
+            "message": str(error),
+            "primary": repr(error.primary)
+            if isinstance(error, BrowserLaunchFailures)
+            else None,
+            "primary_id": id(error.primary)
+            if isinstance(error, BrowserLaunchFailures) and error.primary is not None
+            else None,
+            "cleanup": [repr(item) for item in error.cleanup]
+            if isinstance(error, BrowserLaunchFailures)
+            else [],
+            "cleanup_ids": [id(item) for item in error.cleanup]
+            if isinstance(error, BrowserLaunchFailures)
+            else [],
+        }
+
+    reports, errors = [], []
+    native = owner.native
+    if native is not None and native.hooks is not None:
+        with native.hooks._lock:
+            reports = list(native.hooks.reports)
+            errors = list(native.hooks.errors)
+    report = {
+        "scenario": owner.origins.scenario.name,
+        "origin_port": owner.origins.port,
+        "primary": failure(primary),
+        "cleanup": [failure(error) for error in cleanup],
+        "native_failures": [failure(error) for error in native.failures]
+        if native is not None
+        else [],
+        "origin_failures": [failure(error) for error in owner.origins.failures],
+        "reports": reports,
+        "hook_errors": errors,
+        "connections": [asdict(connection) for connection in owner.origins.connections],
+        "done": owner.origins.done.is_set(),
+        "moz_log": parent_moz_log(owner.log_directory)
+        if owner.log_directory is not None
+        else "",
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    size = 0
+    with path.open("w", encoding="utf-8") as output:
+        for chunk in json.JSONEncoder().iterencode(report):
+            size += len(chunk.encode("utf-8"))
+            if size > MAX_FAILURE_REPORT_BYTES:
+                raise ValueError("Firefox raw failure report exceeds its byte limit")
+            output.write(chunk)
 
 
 def validate_waits(scenario: Scenario) -> None:
@@ -1855,8 +1948,16 @@ async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bo
     frida_version = ""
     failed = False
     for index in range(args.repeat):
+        failure_path = (
+            args.raw_dir / f"firefox-{scenario.name}-{index}-failed.json"
+            if args.raw_dir is not None
+            else None
+        )
         result, arguments = await run_once(
-            scenario, args.browser_path, headful=args.headful
+            scenario,
+            args.browser_path,
+            headful=args.headful,
+            failure_path=failure_path,
         )
         recorded = arguments
         runs.append(render_run(index, result))

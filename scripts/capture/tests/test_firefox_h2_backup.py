@@ -121,12 +121,38 @@ class H2BackupTests(unittest.IsolatedAsyncioTestCase):
         await request(first, "/fast?i=0")
         await request(first, "/fast?i=1")
         self.assertEqual(len(origins.connections), 1)
+        closing = asyncio.Event()
+        release_close = asyncio.Event()
+        response_started = asyncio.Event()
+        target = origins.open[0][1]
+        original_wait_closed = target.wait_closed
+        original_write_response = hooks.write_response
+
+        async def delayed_close() -> None:
+            closing.set()
+            await release_close.wait()
+            await original_wait_closed()
+
+        async def observed_response(*args, **kwargs) -> None:
+            response_started.set()
+            await original_write_response(*args, **kwargs)
+
+        target.wait_closed = delayed_close
         reader, writer = await asyncio.open_connection("127.0.0.1", page_port)
         try:
-            writer.write(b"GET /drop HTTP/1.1\r\nHost: localhost\r\n\r\n")
-            await writer.drain()
-            await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 2)
+            with patch.object(hooks, "write_response", observed_response):
+                writer.write(b"GET /drop HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                await writer.drain()
+                await asyncio.wait_for(closing.wait(), 2)
+                self.assertFalse(
+                    response_started.is_set(),
+                    "/drop acknowledged before the target handler finished closing",
+                )
+                release_close.set()
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 2)
+                self.assertTrue(response_started.is_set())
         finally:
+            release_close.set()
             writer.close()
             await writer.wait_closed()
         self.assertEqual(await asyncio.wait_for(first[0].read(), 2), b"")
@@ -189,7 +215,10 @@ class H2LaunchTests(unittest.TestCase):
                     hooks.main(argv)
 
                 run.assert_awaited_once_with(
-                    SCENARIOS["h2-backup"], Path("unused"), headful=headful
+                    SCENARIOS["h2-backup"],
+                    Path("unused"),
+                    headful=headful,
+                    failure_path=None,
                 )
                 text = (Path(directory) / "hooks-h2-backup.txt").read_text()
                 fields = dict(line.split("=", 1) for line in text.splitlines())
