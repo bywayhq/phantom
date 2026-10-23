@@ -45,6 +45,18 @@ RETAINED_SOURCE_DIGESTS = {
     "edge/154.0.4258.48/windows-11-26200": ORIGINAL_SOURCE_DIGESTS,
     "opera/136.0.6008.52/windows-11-26200": ORIGINAL_SOURCE_DIGESTS,
 }
+RETAINED_FIXTURE_SOURCE_DIGESTS = {
+    # LF source digests at 13f20d82f5bd36016e07d691e7df6cc534d8c9ec.
+    "chrome/156.0.8078.48/windows-11-26200/hooks-parallel.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "58abe3d54add63f2b8a764c4ce198017e31763784b267eb39975ce756e89a457",
+    ),
+    # LF source digests at 0cef515ce453ae48bbe6062af22bbfb49cf110dc.
+    "chrome/156.0.8078.48/windows-11-26200/hooks-idle.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
+    ),
+}
 
 
 def sockaddr_in(address: bytes, port: int) -> str:
@@ -650,11 +662,17 @@ class RetainedFixtureTests(unittest.TestCase):
                 self.assertEqual(fields["run_0_timed_out"], "false")
                 self.assertEqual(fields["run_0_hook_error_count"], "0")
 
+                expected = RETAINED_FIXTURE_SOURCE_DIGESTS.get(
+                    path.relative_to(FIXTURES).as_posix()
+                )
+                if expected is None:
+                    expected = RETAINED_SOURCE_DIGESTS[
+                        path.parent.relative_to(FIXTURES).as_posix()
+                    ]
+
                 self.assertEqual(
                     (fields["hook_agent_sha256"], fields["capture_tool_sha256"]),
-                    RETAINED_SOURCE_DIGESTS[
-                        path.parent.relative_to(FIXTURES).as_posix()
-                    ],
+                    expected,
                 )
 
 
