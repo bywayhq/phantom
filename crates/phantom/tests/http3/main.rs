@@ -14,6 +14,7 @@ mod alt_svc_pinned;
 mod alt_svc_race;
 mod authentication;
 mod connect_udp;
+mod firefox_misdirected;
 mod http2_fallback;
 mod http3;
 mod http3_early_data;
