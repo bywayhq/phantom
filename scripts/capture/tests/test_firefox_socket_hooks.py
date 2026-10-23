@@ -35,6 +35,12 @@ RETAINED_SOURCE_DIGESTS = (
 )
 
 RETAINED_SOURCE_OVERRIDES = {
+    "157.0/windows-11-26200/hooks-http-connect-backup.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",
+        "65f751b0ec357ff271837c0574d9001568b7adc249a1392ff45c4679b64136c5",
+        "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
+    ),
     "157.0/windows-11-26200/hooks-h2-backup.txt": (
         "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
         "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",

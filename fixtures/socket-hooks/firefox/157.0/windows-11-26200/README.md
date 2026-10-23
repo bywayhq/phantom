@@ -70,3 +70,16 @@ The following anonymous HTTPS fetches used a separate entry.
 Capture source: `afa13a8c212f1e708a0466f43a882e2918a1a718`, Python 3.12.10,
 Frida 17.24.3. Reproduce with the command above using `--scenario wss-backup`.
 Fixture SHA256: `dfdbd21f223c7a50528c644e1aff257ad74e4134de8c408d4699673e06fb4630`.
+
+## HTTP CONNECT diagnostic
+
+`hooks-http-connect-backup.txt` uses the same Firefox build and host with
+Python 3.12.10 and Frida 17.24.3. Python was CDB-attached, with a pre-attach
+barrier and line tracing; this is a diagnostic, not an ordinary timing run.
+After hook attachment, the proxy lookup returned IPv6 first; IPv4 backup
+started 250 ms later. Subsequent attempts used IPv4. Five complete GETs used
+four CONNECT tunnels with TLS HTTP/1.1. The final GET used a pre-drop spare,
+not a fresh post-drop dial. The disposable profile held the leaf exception;
+all browser, profile and peer owners were removed.
+Capture source: `87829bd878c28bb1e535e0ddf4c9fb0e6e0a7051`.
+Fixture SHA256: `8adaafef1155688d59f3fd2d218190cd1eb33eb08889f9fc15a8d2477f76b389`.

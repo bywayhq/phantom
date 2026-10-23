@@ -5,6 +5,9 @@
 - Add a manual Firefox native DNS capture on Windows Server 2025 with
   automatic restoration of its temporary DNS rule.
 
+- Capture Firefox 157 HTTP CONNECT proxy address selection and connection
+  reuse on Windows.
+
 - Keep HTTP/1 TLS setup within the pinned nightly compiler's `Send` proof
   limit, including SOCKS routes.
 
