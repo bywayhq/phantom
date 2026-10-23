@@ -143,7 +143,7 @@ impl AltSvcValidationJobs {
 
     /// Permanently closes validation admission and requests task cancellation.
     pub(crate) fn close(&self) {
-        let tasks = self.lock_tasks();
+        let mut tasks = self.lock_tasks();
         let mut state = self.control.lock();
         state.closed = true;
         state.epoch = Arc::new(());
@@ -172,7 +172,7 @@ impl AltSvcValidationJobs {
     pub(crate) fn begin_refresh(&self) -> AltSvcValidationRefresh {
         let refresh = Arc::new(());
         {
-            let tasks = self.lock_tasks();
+            let mut tasks = self.lock_tasks();
             let mut state = self.control.lock();
             state
                 .refreshes
@@ -223,7 +223,7 @@ impl AltSvcValidationRefresh {
 
 impl Drop for AltSvcValidationRefresh {
     fn drop(&mut self) {
-        for tasks in &self.tasks {
+        for tasks in &mut self.tasks {
             tasks.abort_all();
         }
         if let Some(registry) = self.registry.upgrade() {
@@ -253,9 +253,9 @@ impl TaskSets {
         errors
     }
 
-    fn abort_all(&self) {
+    fn abort_all(&mut self) {
         self.active.abort_all();
-        for tasks in &self.retired {
+        for tasks in &mut self.retired {
             tasks.abort_all();
         }
     }
