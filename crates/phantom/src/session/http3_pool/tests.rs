@@ -4,6 +4,7 @@ use super::{Http3Pool, Http3TransportTarget, PoolKey, TransportLocation};
 use crate::{Route, Socks5Proxy, authority::Endpoint};
 
 mod reuse;
+mod warmup;
 
 #[tokio::test]
 async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>> {

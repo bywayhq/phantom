@@ -47,6 +47,180 @@ const DEADLINE: Duration = Duration::from_secs(10);
 const CLEANUP: Duration = Duration::from_secs(5);
 
 #[tokio::test]
+async fn warmup_authenticates_without_request_admission_or_a_stream() -> TestResult {
+    let fixture = Fixture::new(1, 3, None)?;
+    fixture
+        .run(async {
+            let (store, target) = super::warmup::alternative(&fixture.donor)?;
+            let blocked = fixture
+                .pool
+                .admit(&fixture.donor, &Route::Direct, budget()?)
+                .await?;
+            assert!(
+                fixture
+                    .pool
+                    .warmup(
+                        &fixture.connector,
+                        None,
+                        &fixture.donor,
+                        &Route::Direct,
+                        Http3TransportTarget::for_alternative(&target),
+                        budget()?,
+                    )
+                    .await?
+            );
+            assert_eq!(fixture.logical_available(&fixture.donor).await, 0);
+            let owner = fixture.donor_owner().await?;
+            let token = {
+                let slots = owner.lock_slots();
+                let slot = slots.connections.front().ok_or("warmup slot missing")?;
+                assert_eq!(slot.streams.get(), 0);
+                Arc::clone(&slot.token)
+            };
+            assert!(super::warmup::selected(&store, &fixture.donor)?.mapping_validated());
+            drop(blocked);
+
+            let lease = fixture.seed().await?;
+            assert!(Arc::ptr_eq(&token, &lease.lease.token));
+            assert!(
+                fixture
+                    .pool
+                    .warmup(
+                        &fixture.connector,
+                        None,
+                        &fixture.donor,
+                        &Route::Direct,
+                        Http3TransportTarget::for_alternative(&target),
+                        budget()?,
+                    )
+                    .await?
+            );
+            {
+                let slots = owner.lock_slots();
+                assert_eq!(slots.connections.len(), 1);
+                assert_eq!(
+                    slots
+                        .connections
+                        .front()
+                        .ok_or("warmed connection missing")?
+                        .streams
+                        .get(),
+                    1
+                );
+            }
+            assert_eq!(fixture.logical_available(&fixture.donor).await, 0);
+            Ok(())
+        })
+        .await
+}
+
+#[tokio::test]
+async fn warmup_and_a_request_share_the_same_in_progress_setup() -> TestResult {
+    let fixture = Fixture::new(1, 3, None)?;
+    fixture
+        .run(async {
+            let (_store, target) = super::warmup::alternative(&fixture.donor)?;
+            let warmup = async {
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
+                    fixture
+                        .pool
+                        .warmup(
+                            &fixture.connector,
+                            None,
+                            &fixture.donor,
+                            &Route::Direct,
+                            Http3TransportTarget::for_alternative(&target),
+                            budget()?,
+                        )
+                        .await?,
+                )
+            };
+            let (lease, warmed) = tokio::try_join!(fixture.seed(), warmup)?;
+            assert!(warmed);
+            let slots = lease.lease.owner.lock_slots();
+            assert_eq!(slots.connections.len(), 1);
+            let slot = slots
+                .connections
+                .front()
+                .ok_or("shared setup slot missing")?;
+            assert!(Arc::ptr_eq(&slot.token, &lease.lease.token));
+            assert_eq!(slot.streams.get(), 1);
+            Ok(())
+        })
+        .await
+}
+
+#[tokio::test]
+async fn refresh_during_warmup_dns_does_not_install_or_validate_the_late_connection() -> TestResult
+{
+    let gate = Arc::new(DnsGate::default());
+    let fixture = Fixture::new(1, 3, Some(Arc::clone(&gate)))?;
+    let caller = async {
+        let (store, target) = super::warmup::alternative(&fixture.second)?;
+        let mut warmup = Box::pin(fixture.pool.warmup(
+            &fixture.connector,
+            None,
+            &fixture.second,
+            &Route::Direct,
+            Http3TransportTarget::for_alternative(&target),
+            budget()?,
+        ));
+        assert!(poll_once(warmup.as_mut()).is_none());
+        assert_eq!(gate.entered.load(Ordering::SeqCst), 1);
+        fixture.pool.refresh_connections().await;
+        gate.release.notify_one();
+
+        assert!(!warmup.await?);
+        let current = fixture
+            .pool
+            .entry(PoolKey::new(&fixture.second, &Route::Direct))
+            .await;
+        assert!(current.lock_slots().connections.is_empty());
+        assert_eq!(current.admission.available_active(), 1);
+        assert!(!super::warmup::selected(&store, &fixture.second)?.mapping_validated());
+        Ok(())
+    };
+    let peer = async {
+        let incoming = fixture
+            .endpoint
+            .accept()
+            .await
+            .ok_or("missing late setup")?;
+        let connection = match incoming.await {
+            // Refresh deliberately discards the unpooled setup. The client
+            // may finish before this peer polls its completed handshake.
+            Err(quinn::ConnectionError::ApplicationClosed(close))
+                if close.error_code.into_inner() == h3::error::Code::H3_NO_ERROR.value() =>
+            {
+                return Ok(());
+            }
+            connection => connection?,
+        };
+        let mut h3: h3::server::Connection<_, Bytes> =
+            match h3::server::Connection::new(h3_quinn::Connection::new(connection)).await {
+                Err(error) if normal_h3_close(&error) => return Ok(()),
+                connection => connection?,
+            };
+        match h3.accept().await {
+            Ok(None) => Ok(()),
+            Err(error) if normal_h3_close(&error) => Ok(()),
+            Err(error) => Err(error.into()),
+            Ok(Some(_)) => Err("warmup sent an HTTP request".into()),
+        }
+    };
+    fixture.run_with_peer(caller, peer).await
+}
+
+fn normal_h3_close(error: &h3::error::ConnectionError) -> bool {
+    matches!(
+        error,
+        h3::error::ConnectionError::Remote(
+            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code }, ..
+        ) if *error_code == h3::error::Code::H3_NO_ERROR.value()
+    )
+}
+
+#[tokio::test]
 async fn refresh_during_origin_resolution_rejects_the_captured_donor() -> TestResult {
     let gate = Arc::new(DnsGate::default());
     let fixture = Fixture::new(1, 3, Some(Arc::clone(&gate)))?;
@@ -520,9 +694,17 @@ impl Fixture {
             let _ = stop.send(true);
             result
         };
+        self.run_with_peer(caller, self.serve(stopped)).await
+    }
+
+    async fn run_with_peer(
+        &self,
+        caller: impl Future<Output = TestResult>,
+        peer: impl Future<Output = TestResult>,
+    ) -> TestResult {
         // The peer and caller remain children of this future, even on panic.
         let outcome = AssertUnwindSafe(timeout(DEADLINE, async {
-            tokio::try_join!(caller, self.serve(stopped)).map(|_| ())
+            tokio::try_join!(caller, peer).map(|_| ())
         }))
         .catch_unwind()
         .await;

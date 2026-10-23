@@ -316,6 +316,160 @@ impl Http3Pool {
         Ok(Http3Admission { entry, permit })
     }
 
+    /// Authenticates and retains an alternative without admitting a request.
+    ///
+    /// `transport` must carry its advertisement's validation publication.
+    /// Returns true only after the handshake settles, the healthy connection
+    /// remains in the current pool entry, and that publication accepts it.
+    /// Missing or retired state returns false. No request stream is reserved.
+    /// Connect and total deadlines, and the alternative setup limit, cover
+    /// waiting for the connect turn and the completed handshake.
+    pub(crate) async fn warmup(
+        &self,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<bool, RequestError> {
+        if transport.validation.is_none() || !connector.server_authentication().verifies() {
+            return Ok(false);
+        }
+        timeout_budget
+            .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
+                within(
+                    DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+                    self.warmup_connection(
+                        connector,
+                        connect_udp_proxy,
+                        endpoint,
+                        route,
+                        transport,
+                    ),
+                )
+                .await?
+                .ok_or_else(|| {
+                    RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
+                })?
+            })
+            .await
+    }
+
+    async fn warmup_connection(
+        &self,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+    ) -> Result<bool, RequestError> {
+        let Some(validation) = transport.validation else {
+            return Ok(false);
+        };
+        let key = PoolKey::new(endpoint, route);
+        let (entry, generation) = {
+            let mut state = self.state.lock().await;
+            let entry = self.entry_in_state(&mut state, key.clone());
+            (entry, Arc::clone(&state.generation))
+        };
+        let location = TransportLocation::new(transport);
+        let _turn = entry.connect_turn(location.clone()).await;
+        {
+            let state = self.state.lock().await;
+            if !state.retains(&key, &generation, &entry) {
+                return Ok(false);
+            }
+        }
+        let existing = {
+            let mut slots = entry.lock_slots();
+            slots.connections.retain(|slot| {
+                slot.location != location || connector.can_reuse_now(&slot.connection)
+            });
+            slots
+                .connections
+                .iter()
+                .find(|slot| slot.location == location)
+                .map(|slot| (slot.connection.clone(), Arc::clone(&slot.token)))
+        };
+        let publication = self.rtt_history.as_ref().and_then(|history| {
+            history.publication(endpoint, route, transport.host, transport.port, true)
+        });
+        let (connection, token) = match existing {
+            Some((connection, token)) => (connection, Some(token)),
+            None => (
+                super::box_send(entry.open(
+                    connector,
+                    connect_udp_proxy,
+                    endpoint,
+                    route,
+                    transport,
+                    Http3SetupControl {
+                        #[cfg(feature = "https-records")]
+                        purpose: Http3SetupPurpose::AltSvcValidation,
+                        ..Http3SetupControl::default()
+                    },
+                ))
+                .await?,
+                None,
+            ),
+        };
+        if let Err(error) = connector.early_data_settled_on(&connection).await {
+            if let Some(token) = &token {
+                entry.invalidate(token);
+            }
+            return Err(RequestError::http3_early_data_setup(error));
+        }
+
+        // Refresh and eviction replace this witness. Hold the pool lock until
+        // installation and synchronous store registration have both finished.
+        // Store operations never call back into the async pool while locked.
+        let state = self.state.lock().await;
+        if !state.retains(&key, &generation, &entry) || !connector.can_reuse_now(&connection) {
+            return Ok(false);
+        }
+        let mut slots = entry.lock_slots();
+        if let Some(token) = token {
+            let Some(slot) = slots
+                .connections
+                .iter()
+                .find(|slot| Arc::ptr_eq(&slot.token, &token))
+            else {
+                return Ok(false);
+            };
+            let registered = validation.register(connector, &connection);
+            if registered && let Some(publication) = &slot.publication {
+                publication.record(connection.completed_handshake_rtt());
+            }
+            return Ok(registered);
+        }
+        if !validation.register(connector, &connection) {
+            return Ok(false);
+        }
+        if let Some(publication) = &publication {
+            publication.record(connection.completed_handshake_rtt());
+        }
+        let retained = MAX_TRANSPORT_LOCATIONS_PER_ENTRY * slots.spread.max_connections().get();
+        if slots.connections.len() >= retained {
+            slots.connections.pop_front();
+            debug!(outcome = "evicted", "HTTP/3 pooled connection evicted");
+        }
+        let streams = if slots.spread.max_connections().get() > 1 {
+            StreamCount::notifying(Arc::clone(&entry.stream_ended))
+        } else {
+            StreamCount::default()
+        };
+        slots.connections.push_back(ConnectionSlot {
+            connection,
+            publication,
+            token: Arc::new(()),
+            location,
+            streams,
+            peer_limit: None,
+        });
+        Ok(true)
+    }
+
     /// Dispatches one request on a lease from [`Http3Admission::connect`],
     /// with the `fields` that [`validate_request`] returned for the lease's
     /// route and transport and for the same method, authority, target,
@@ -661,6 +815,14 @@ struct PoolState {
 }
 
 impl PoolState {
+    fn retains(&self, key: &PoolKey, generation: &Arc<()>, entry: &Arc<PoolEntry>) -> bool {
+        Arc::ptr_eq(&self.generation, generation)
+            && self
+                .entries
+                .iter()
+                .any(|(candidate, current)| candidate == key && Arc::ptr_eq(current, entry))
+    }
+
     fn admission(
         &mut self,
         key: &PoolKey,
@@ -966,7 +1128,7 @@ impl PoolEntry {
                 endpoint,
                 route,
                 transport,
-                control.early_data,
+                control,
             ));
             match control.attempt_limit {
                 // A runtime without a time driver fails the attempt instead of
@@ -1044,7 +1206,7 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
         transport: Http3TransportTarget<'_>,
-        early_data: bool,
+        control: Http3SetupControl<'_>,
     ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
         let early_origin = self.origin_early.get_or_init(|| {
@@ -1088,7 +1250,7 @@ impl PoolEntry {
         #[cfg(feature = "https-records")]
         let destination = self.destination_plan(connector, route, transport).await?;
         let selected_early =
-            if self.tickets.sharing_enabled() && early_data {
+            if self.tickets.sharing_enabled() && control.early_data {
                 let owner = origin
                     .session_ticket_cache()
                     .and_then(|cache| cache.upgrade());
@@ -1107,7 +1269,7 @@ impl PoolEntry {
             };
         let early_origin = selected_early
             .as_ref()
-            .or_else(|| early_origin.as_ref().filter(|_| early_data));
+            .or_else(|| early_origin.as_ref().filter(|_| control.early_data));
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
                 let base = connect_udp_http3(connect_udp_proxy)?;
@@ -1128,6 +1290,8 @@ impl PoolEntry {
             connect_udp_proxy,
             #[cfg(feature = "https-records")]
             destination.as_ref(),
+            #[cfg(feature = "https-records")]
+            control.purpose,
         ))
         .await;
         match first {
@@ -1146,6 +1310,8 @@ impl PoolEntry {
                     connect_udp_proxy,
                     #[cfg(feature = "https-records")]
                     destination.as_ref(),
+                    #[cfg(feature = "https-records")]
+                    control.purpose,
                 ))
                 .await
                 .map_err(SetupFailure::into_request_error)
@@ -1203,6 +1369,7 @@ impl PoolEntry {
         #[cfg(feature = "https-records")] destination: Option<
             &super::alt_svc::https_policy::DestinationPlan,
         >,
+        #[cfg(feature = "https-records")] purpose: Http3SetupPurpose,
     ) -> Result<Http3Connection, SetupFailure> {
         use phantom_net::route::{
             ConnectUdpRoute, ConnectUdpTransport, DatagramRoute, Endpoint as DialEndpoint,
@@ -1213,7 +1380,8 @@ impl PoolEntry {
             port: transport.port,
         };
         #[cfg(feature = "https-records")]
-        let lookup = if destination.is_none()
+        let lookup = if purpose == Http3SetupPurpose::Request
+            && destination.is_none()
             && matches!(route, Route::Direct)
             && connector.ech_from_https_records()
             && transport.port == endpoint.port()
@@ -1578,9 +1746,19 @@ fn lock_turns(
     }
 }
 
-/// How one admitted setup reports and bounds its connection attempts.
+#[cfg(feature = "https-records")]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Http3SetupPurpose {
+    #[default]
+    Request,
+    AltSvcValidation,
+}
+
+/// How one setup reports and bounds its connection attempts.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Http3SetupControl<'a> {
+    #[cfg(feature = "https-records")]
+    pub(crate) purpose: Http3SetupPurpose,
     /// Set once the setup holds its location's connect turn, the point after
     /// which it may perform network I/O.
     pub(crate) connecting: Option<&'a AtomicBool>,
