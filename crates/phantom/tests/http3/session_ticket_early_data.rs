@@ -364,13 +364,14 @@ async fn serve(
         let misdirected = index == 1 && matches!(reply, ImportedReply::AcceptedMisdirected);
         let mut response = Response::builder().status(StatusCode::OK);
         if misdirected {
-            // On the server this future fences handshake completion. Early
-            // acceptance is witnessed by decoding the request behind the gate.
-            if !accepted
+            // Only completion is meaningful on the server; Quinn's returned
+            // bool describes client-side acceptance. The gated request proves
+            // early acceptance, and a closed handshake retains its real error.
+            let _ = accepted
                 .ok_or("missing imported handshake completion")?
-                .await
-            {
-                return Err("imported handshake did not complete".into());
+                .await;
+            if let Some(error) = quic.close_reason() {
+                return Err(error.into());
             }
             response = response
                 .status(StatusCode::MISDIRECTED_REQUEST)
