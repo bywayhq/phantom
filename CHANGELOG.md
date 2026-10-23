@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a Firefox HTTPS-proxy address-family capture with separate proxy and
+  origin TLS records.
+
 - Add Opera 136 default-fetch templates with captured HTTP/2 validator order.
 
 - Add Brave 154 default-fetch templates with captured HTTP/2 validator order.
