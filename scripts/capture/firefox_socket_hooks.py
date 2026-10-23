@@ -121,7 +121,7 @@ class Scenario:
     name: str
     question: str
     limit_seconds: float
-    # "http1", "h2" (TLS with ALPN h2 only), or "websocket" (HTTP/1.1).
+    # "http1", "h2" (TLS), "websocket" (HTTP/1.1), or "wss" (TLS HTTP/1.1).
     target: str
     script: str
     # Answer the lookup of TARGET_HOST as REWRITE_TO does.
@@ -129,7 +129,9 @@ class Scenario:
 
     @property
     def scheme(self) -> str:
-        return {"http1": "http", "h2": "https", "websocket": "ws"}[self.target]
+        return {"http1": "http", "h2": "https", "websocket": "ws", "wss": "wss"}[
+            self.target
+        ]
 
     @property
     def intervention(self) -> str:
@@ -158,6 +160,42 @@ def _at(seconds: float, body: str) -> str:
 
 
 DONE = "fetch('/done', {cache: 'no-store'})"
+
+
+def _websocket_backup_script(scheme: str) -> str:
+    http_scheme = "https" if scheme == "wss" else "http"
+    return (
+        "const sockets = [];"
+        "const opened = i => new Promise((resolve, reject) => {"
+        "const ws = new WebSocket(T + '/ws?i=' + i);"
+        "sockets.push(ws);"
+        "ws.onopen = () => resolve(ws);"
+        "ws.onerror = () => reject(new Error('WebSocket opening failed'));"
+        "ws.onclose = () => reject(new Error('WebSocket closed before opening'));"
+        "});"
+        "const message = ws => new Promise((resolve, reject) => {"
+        "ws.onmessage = event => event.data === 'tick' ? resolve() : "
+        "reject(new Error('unexpected WebSocket message'));"
+        "ws.onclose = () => reject(new Error('WebSocket closed before its message'));"
+        "ws.onerror = () => reject(new Error('WebSocket message failed'));"
+        "});"
+        "const closed = ws => new Promise((resolve, reject) => {"
+        "ws.onclose = event => event.wasClean && event.code === 1000 ? "
+        "resolve() : reject(new Error('WebSocket close failed'));"
+        "ws.onerror = () => reject(new Error('WebSocket close failed'));"
+        "ws.close(1000);"
+        "});"
+        f"const H = T.replace('{scheme}:', '{http_scheme}:');"
+        "const get = i => fetch(H + '/fast?i=' + i, "
+        "{mode: 'cors', cache: 'no-store'}).then(r => {"
+        "if (!r.ok) throw new Error('target HTTP status ' + r.status);"
+        "return r.text(); });"
+        "opened(0).then(message).then(() => opened(1))"
+        ".then(() => Promise.all(sockets.map(closed)))"
+        ".then(() => get(2)).then(() => get(3))"
+        f".then(() => {DONE})"
+    )
+
 
 SCENARIOS = {
     scenario.name: scenario
@@ -202,35 +240,17 @@ SCENARIOS = {
             "both WebSockets close",
             40,
             "websocket",
-            "const sockets = [];"
-            "const opened = i => new Promise((resolve, reject) => {"
-            "const ws = new WebSocket(T + '/ws?i=' + i);"
-            "sockets.push(ws);"
-            "ws.onopen = () => resolve(ws);"
-            "ws.onerror = () => reject(new Error('WebSocket opening failed'));"
-            "ws.onclose = () => reject(new Error('WebSocket closed before opening'));"
-            "});"
-            "const message = ws => new Promise((resolve, reject) => {"
-            "ws.onmessage = event => event.data === 'tick' ? resolve() : "
-            "reject(new Error('unexpected WebSocket message'));"
-            "ws.onclose = () => reject(new Error('WebSocket closed before its message'));"
-            "ws.onerror = () => reject(new Error('WebSocket message failed'));"
-            "});"
-            "const closed = ws => new Promise((resolve, reject) => {"
-            "ws.onclose = event => event.wasClean && event.code === 1000 ? "
-            "resolve() : reject(new Error('WebSocket close failed'));"
-            "ws.onerror = () => reject(new Error('WebSocket close failed'));"
-            "ws.close(1000);"
-            "});"
-            "const H = T.replace('ws:', 'http:');"
-            "const get = i => fetch(H + '/fast?i=' + i, "
-            "{mode: 'cors', cache: 'no-store'}).then(r => {"
-            "if (!r.ok) throw new Error('target HTTP status ' + r.status);"
-            "return r.text(); });"
-            "opened(0).then(message).then(() => opened(1))"
-            ".then(() => Promise.all(sockets.map(closed)))"
-            ".then(() => get(2)).then(() => get(3))"
-            f".then(() => {DONE})",
+            _websocket_backup_script("ws"),
+            rewrite_lookup=True,
+        ),
+        Scenario(
+            "wss-backup",
+            "Direct TLS WebSocket attempts with [::1] then 127.0.0.1, "
+            "a second upgrade while the first is active, and HTTPS reuse "
+            "after both WebSockets close; HTTP/1.1 only",
+            40,
+            "wss",
+            _websocket_backup_script("wss"),
             rewrite_lookup=True,
         ),
         Scenario(
@@ -657,6 +677,7 @@ class ServerConnection:
     # "fin" when the client's close arrived as end of stream, "reset" when it
     # arrived as a reset, "server" when the origin closed first.
     close_kind: str = "-"
+    alpn: str | None = None
 
 
 @dataclass
@@ -868,6 +889,13 @@ class Origins:
             connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
             self.connections.append(connection)
             self.open.append((connection, writer))
+            if self.scenario.target == "wss":
+                tls = writer.get_extra_info("ssl_object")
+                if tls is None:
+                    raise ValueError("Firefox WSS origin requires TLS")
+                connection.alpn = tls.selected_alpn_protocol()
+                if connection.alpn not in (None, "http/1.1"):
+                    raise ValueError("Firefox WSS origin requires HTTP/1.1")
             if self.scenario.target == "h2":
                 await self.serve_h2(reader, writer, connection)
             else:
@@ -1672,7 +1700,7 @@ async def run_once(
         origins.page_port = page.sockets[0].getsockname()[1]
         context = None
         files: tuple[tuple[str, str], ...] = ()
-        if scenario.target == "h2":
+        if scenario.target in ("h2", "wss"):
             from .http2_session import (  # noqa: PLC0415
                 generate_certificate,
                 server_context,
@@ -1680,13 +1708,15 @@ async def run_once(
 
             certificate = generate_certificate(TARGET_HOST)
             context = server_context(certificate)
-            context.set_alpn_protocols(["h2"])
+            context.set_alpn_protocols(
+                ["h2" if scenario.target == "h2" else "http/1.1"]
+            )
         target = await asyncio.start_server(
             origins.accept_target, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, ssl=context
         )
         origins.listeners.append(target)
         origins.port = target.sockets[0].getsockname()[1]
-        if scenario.target == "h2":
+        if scenario.target in ("h2", "wss"):
             files = (
                 (
                     "cert_override.txt",
@@ -1898,11 +1928,16 @@ def render_run(index: int, result: RunResult) -> list[str]:
             else str(connection.closed_ms - connection.last_response_ms)
         )
         family = "ipv6" if connection.peer.startswith("::") else "ipv4"
+        alpn = (
+            f",alpn:{connection.alpn or '-'}"
+            if result.origins.scenario.target == "wss"
+            else ""
+        )
         lines.append(
             f"{prefix}server_connection_{i}=family:{family},"
             f"accepted:{connection.accepted_ms - start},closed:{closed},"
             f"close:{connection.close_kind},idle_before_close_ms:{idle},"
-            f"requests:{requests or '-'}"
+            f"requests:{requests or '-'}{alpn}"
         )
     lines.append(f"{prefix}moz_log_count={len(result.moz_log)}")
     lines.extend(f"{prefix}moz_log_{i}={line}" for i, line in enumerate(result.moz_log))
