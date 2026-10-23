@@ -12,7 +12,8 @@
   `websocket.connection` in profile JSON, to retain shared state. Recreate
   saved tickets and session checkpoints.
 
-- Retain Firefox 157 direct WebSocket address selection on Windows.
+- Capture Firefox 157 direct WebSocket address selection on Windows,
+  with and without TLS.
 
 - Check public-client recursion with the pinned nightly in parser-fuzzing CI.
 

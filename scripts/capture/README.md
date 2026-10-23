@@ -2213,10 +2213,13 @@ cleanup failures prevent fixture publication.
 | `h2` | TLS with ALPN `h2` only; `/fast` twice | Keepalive before and after HTTP/2 is negotiated |
 | `h2-backup` | TLS with ALPN `h2` only; two sequential requests, origin close, then reconnect | Dual-stack fallback, reuse and the family of a later connection |
 | `websocket` | `ws://`; the origin sends a frame every 5 s; the page closes after 20 s | Keepalive after the 101 response |
+| `websocket-backup` | Two `ws://` upgrades, then two HTTP requests | Address selection while a WebSocket remains active and after both close |
+| `wss-backup` | Two `wss://` upgrades over HTTP/1.1, then two HTTPS requests | TLS completion and closure of an unused backup connection |
 | `backup` | HTTP/1.1; `/fast`, then three concurrent `/slow` (3 s each), then `/fast` after the origin closed every connection | Connection attempts when the name resolves to `[::1]` then `127.0.0.1` and only `127.0.0.1` listens, and the family of later connections |
 | `dns-cache` | HTTP/1.1; `/close` at 0, 30, 65, and 95 s | How long Firefox keeps the name's answer |
 
-The `backup` and `h2-backup` scenarios make `getaddrinfo` resolve
+The `backup`, `h2-backup`, `websocket-backup` and `wss-backup` scenarios make
+`getaddrinfo` resolve
 `localhost` in place of `127.0.0.1.nip.io` and drop the answer's canonical
 name, so Firefox's TTL
 lookup still names `127.0.0.1.nip.io`; the fixture names the change in
@@ -2231,6 +2234,10 @@ body before continuing; a failed response cannot signal completion.
 Its `/drop` probe aborts the origin transport to force a new connection; it
 does not measure graceful TLS or HTTP/2 shutdown.
 Use an isolated Firefox 157 executable if your installed browser has updated.
+
+Run the WebSocket backup scenarios separately with
+`run --scenario websocket-backup --headful` or
+`run --scenario wss-backup --headful`.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and
 its SHA-256 (`hook_agent_extension_sha256`), `decoder_sha256` for
