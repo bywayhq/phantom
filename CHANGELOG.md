@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Share capture cleanup error handling across lifecycle scenarios.
+
 - Export `Http3ConnectionReuse` through `phantom::profile` with the other
   HTTP/3 settings.
 - Breaking: keep snapshot backend error conversions private. Migrate: handle
