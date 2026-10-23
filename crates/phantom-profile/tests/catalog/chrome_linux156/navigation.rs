@@ -13,10 +13,10 @@ pub(crate) fn expected_navigation() -> RequestTemplate {
         .chain(template.http3_fields.iter_mut())
     {
         for field in fields {
-            if let RequestField::Literal { name, value } = field {
-                if name.eq_ignore_ascii_case("user-agent") {
-                    *value = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36".into();
-                }
+            if let RequestField::Literal { name, value } = field
+                && name.eq_ignore_ascii_case("user-agent")
+            {
+                *value = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36".into();
             }
         }
     }

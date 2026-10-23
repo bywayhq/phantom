@@ -85,7 +85,7 @@ class CompositionDeclarationTests(unittest.TestCase):
             {
                 "TcpTls": "chromium_154_tcp_tls",
                 "Tcp": "chromium_154_tcp",
-                "Udp": None,
+                "Udp": "chromium_154_udp",
                 "Dns": None,
                 "Http1": "chromium_154_http1",
                 "Http2": "chromium_154_http2",
@@ -102,8 +102,8 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertEqual(len(original), 11)
         pairs = [value for entry in original for value in entry["composition"].values()]
         self.assertEqual(len(pairs), 154)
-        self.assertEqual(sum(value is not None for value in pairs), 106)
-        self.assertEqual(sum(value is None for value in pairs), 48)
+        self.assertEqual(sum(value is not None for value in pairs), 107)
+        self.assertEqual(sum(value is None for value in pairs), 47)
         before_edge_websocket = copy.deepcopy(original)
         edge = next(
             entry
@@ -117,8 +117,8 @@ class CompositionDeclarationTests(unittest.TestCase):
             for entry in before_edge_websocket
             for value in entry["composition"].values()
         ]
-        self.assertEqual(sum(value is not None for value in prior_pairs), 105)
-        self.assertEqual(sum(value is None for value in prior_pairs), 49)
+        self.assertEqual(sum(value is not None for value in prior_pairs), 106)
+        self.assertEqual(sum(value is None for value in prior_pairs), 48)
         self.assertEqual(
             cli.COMPOSITION_OUTPUT.read_text(encoding="utf-8"),
             composition.generate_compositions(profiles),
