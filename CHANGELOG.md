@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report partial lifecycle progress and QUIC termination details when captures fail.
+
 - Verify Chrome signing requirements as text and allow two minutes for
   mounting, copying and unmounting packages on hosted Macs.
 

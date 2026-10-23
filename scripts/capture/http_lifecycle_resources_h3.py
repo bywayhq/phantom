@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import secrets
 from collections.abc import Sequence
@@ -301,7 +302,11 @@ class ResourceProtocol(QuicConnectionProtocol):
             self.record.eof = self.owner.run.now()
             self.owner.run.connection_ended.set()
             if event.error_code not in {0, 0x100}:
-                raise ValueError(f"resource QUIC connection failed: {event.error_code}")
+                raise ValueError(
+                    f"resource QUIC connection failed: {event.error_code}, "
+                    f"frame_type={event.frame_type}, "
+                    f"reason={json.dumps(event.reason_phrase[:512])}"
+                )
             if not self.owner.stopping and self.owner.run.page_result != "resources:ok":
                 raise ValueError(
                     "resource QUIC connection closed before page completion"
@@ -445,7 +450,10 @@ class ResourceServer(QuicServer):
             if self.errors:
                 raise self.errors[0]
             if not ready:
-                raise TimeoutError("resource HTTP/3 page exceeded its deadline")
+                raise TimeoutError(
+                    "resource HTTP/3 page exceeded its deadline; state="
+                    + self.run.failure_state()
+                )
         finally:
             for task in tasks:
                 task.cancel()

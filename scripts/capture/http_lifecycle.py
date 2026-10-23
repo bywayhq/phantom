@@ -682,6 +682,63 @@ class Run:
             raise ValueError("run exceeds the request limit")
         self.requests.append(request)
 
+    def failure_state(self) -> str:
+        """Describe bounded progress without request fields or URL inputs."""
+        paths = {
+            "/start",
+            "/done",
+            "/resource.js",
+            "/resource.css",
+            "/resource.gif",
+            "/resource.ttf",
+        }
+        connections = []
+        for record in self.connections:
+            tap = record.resource_tap
+            connections.append(
+                {
+                    "connection": record.index,
+                    "alpn": record.alpn,
+                    "end": record.end(),
+                    "frames": len(record.frames),
+                    "last_frame": (
+                        ",".join(record.frames[-1].split(",")[:5])
+                        if record.frames
+                        else None
+                    ),
+                    "data_frames": record.data_frames,
+                    "client_bytes": sum(len(data) for _, data in tap.client_chunks)
+                    if tap
+                    else 0,
+                    "server_bytes": sum(len(data) for _, data in tap.server_chunks)
+                    if tap
+                    else 0,
+                }
+            )
+        state = {
+            "connections": connections,
+            "requests": [
+                {
+                    "connection": request.connection,
+                    "stream": request.stream,
+                    "path": request.path if request.path in paths else "other",
+                    "status": request.status,
+                    "body_bytes": request.body_bytes,
+                }
+                for request in self.requests
+            ],
+            "response_queued": sorted(self.resources.responded & paths)
+            if self.resources
+            else [],
+            "page_done": self.done.is_set(),
+            "completion_scheduled": self.completion is not None,
+            "page_connection": self.page_connection,
+            "page_result": self.page_result
+            if self.page_result in {None, "resources:ok", "resources:error"}
+            else "other",
+        }
+        return json.dumps(state, separators=(",", ":"))
+
     def silences(self, connection: int, path: str) -> bool:
         """Whether the server stops writing on `connection` at this request."""
         return (
@@ -912,7 +969,23 @@ class LifecycleFailures(CleanupFailures):
         owner: LifecycleServer | RemoteConnection | RemoteSocket,
     ) -> None:
         self.owner = owner
-        super().__init__(primary, tuple(cleanup), "lifecycle capture cleanup failed")
+        errors = []
+        seen = set()
+        for role, error in (("primary", primary), *(("cleanup", e) for e in cleanup)):
+            if error is not None and id(error) not in seen:
+                seen.add(id(error))
+                errors.append(
+                    {
+                        "role": role,
+                        "type": type(error).__name__,
+                        "message": str(error)[:512],
+                    }
+                )
+        super().__init__(
+            primary,
+            tuple(cleanup),
+            "lifecycle capture cleanup failed: " + json.dumps(errors),
+        )
 
 
 def _raise_lifecycle_failures(
@@ -1180,7 +1253,10 @@ class LifecycleServer:
             if self.run.failure is not None:
                 raise self.run.failure
             if not done:
-                raise asyncio.TimeoutError("the lifecycle page did not finish")
+                raise asyncio.TimeoutError(
+                    "the lifecycle page did not finish; state="
+                    + self.run.failure_state()
+                )
         finally:
             # Retain the actual observers on the owner until close collects both outcomes.
             self.run.done.set()
