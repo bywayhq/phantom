@@ -94,7 +94,7 @@ impl OwnedSsl {
     /// # Safety
     ///
     /// `context` must point to a live `SSL_CTX`.
-    #[cfg(any(test, feature = "server"))]
+    #[cfg(feature = "server")]
     pub(super) unsafe fn new(context: NonNull<ffi::SSL_CTX>) -> Result<Self, ClientSessionError> {
         // SAFETY: the caller supplies a live context; SSL_new retains its own context reference.
         let ssl = unsafe { ffi::SSL_new(context.as_ptr()) };
