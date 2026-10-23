@@ -8,6 +8,9 @@
   Migrate: add `stale_grace: Duration::ZERO` to custom settings and
   `"stale_grace": {"seconds": 0, "nanoseconds": 0}` to profile JSON to keep
   the previous expiry behavior. Recreate saved tickets and session checkpoints.
+- Add Chrome 156 Windows TCP settings and retain its socket capture.
+- Fix socket-capture cleanup with the pinned Frida API and report nested
+  cleanup errors.
 
 - Include I/O error kinds and OS codes in Node connection failures.
 
