@@ -36,6 +36,7 @@ use tracing::debug;
 
 use super::address_families::AddressFamilies;
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use super::alt_svc::OriginEchConfigured;
 use super::prune_timer::{PruneTimer, Pruned, PrunedEntry};
 use super::tickets::{
     TicketCacheBinding,
@@ -397,7 +398,10 @@ impl Http1Pool {
                         ),
                     ));
                 }
-                let (parts, body) = response.into_parts();
+                let (mut parts, body) = response.into_parts();
+                parts.extensions.insert(OriginEchConfigured(
+                    lease.connection.origin_ech_configured(),
+                ));
                 Ok(http::Response::from_parts(
                     parts,
                     ResponseBody::http1_with_guard(

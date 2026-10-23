@@ -47,6 +47,7 @@ use super::tickets::{
 use super::{
     address_families::AddressFamilies,
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
+    alt_svc::OriginEchConfigured,
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
@@ -1652,7 +1653,10 @@ impl PoolEntry {
                 diagnostic_head.nested_result(&result);
                 match result {
                     Ok(Ok(response)) => {
-                        let (parts, body) = response.into_parts();
+                        let (mut parts, body) = response.into_parts();
+                        parts.extensions.insert(OriginEchConfigured(
+                            lease.connection.origin_ech_configured(),
+                        ));
                         Ok(Dispatched::Sent((
                             Response::from_parts(
                                 parts,
@@ -1729,7 +1733,10 @@ impl PoolEntry {
                 diagnostic_head.nested_result(&result);
                 match result {
                     Ok(Ok(response)) => {
-                        let (parts, body) = response.into_parts();
+                        let (mut parts, body) = response.into_parts();
+                        parts
+                            .extensions
+                            .insert(OriginEchConfigured(connection.origin_ech_configured()));
                         Ok(Dispatched::Sent((
                             Response::from_parts(
                                 parts,

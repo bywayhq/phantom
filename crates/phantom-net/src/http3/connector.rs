@@ -142,6 +142,12 @@ impl Http3Connector {
         self.settings.misdirected_request
     }
 
+    /// Returns when the profile validates advertised HTTP/3 alternatives.
+    #[must_use]
+    pub const fn alt_svc_validation_policy(&self) -> phantom_profile::Http3AltSvcValidation {
+        self.settings.alt_svc_validation
+    }
+
     /// Builds a connector using Phantom's bundled public trust roots.
     ///
     /// # Errors

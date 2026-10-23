@@ -32,6 +32,7 @@ use super::tickets::{
 use super::{
     address_families::AddressFamilies,
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
+    alt_svc::OriginEchConfigured,
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http2_connections::{Choice, Http2Spread},
     prune_timer::{PruneTimer, Pruned, PrunedEntry},
@@ -354,7 +355,10 @@ impl Http2Pool {
             diagnostic_head.nested_result(&result);
             match result {
                 Ok(Ok(response)) => {
-                    let (parts, body) = response.into_parts();
+                    let (mut parts, body) = response.into_parts();
+                    parts.extensions.insert(OriginEchConfigured(
+                        lease.connection.origin_ech_configured(),
+                    ));
                     return Ok(Dispatched::Sent((
                         http::Response::from_parts(
                             parts,

@@ -30,7 +30,7 @@ use super::tickets::{
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     alt_svc::{
-        AltSvcValidationPublication, DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+        AltSvcValidationPublication, DEFAULT_ALTERNATIVE_SETUP_LIMIT, OriginEchConfigured,
         rtt_history::{Publication, RttHistory},
     },
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
@@ -2187,6 +2187,9 @@ async fn dispatch(
                 publication.record(lease.connection.completed_handshake_rtt());
             }
             let (mut parts, body) = response.into_parts();
+            parts.extensions.insert(OriginEchConfigured(
+                lease.connection.origin_ech_configured(),
+            ));
             if parts.status == http::StatusCode::MISDIRECTED_REQUEST {
                 parts.extensions.insert(MisdirectedConnection {
                     owner: Arc::downgrade(&lease.owner),

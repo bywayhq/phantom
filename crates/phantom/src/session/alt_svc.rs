@@ -29,6 +29,11 @@ const MAX_DELTA_SECONDS: u64 = 1 << 31;
 /// store.
 pub(crate) const MAX_ALTERNATIVES_PER_ORIGIN: usize = 8;
 
+/// The selected ECH configuration fact for the response's origin connection.
+/// `None` means the origin TLS configuration is unknown.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OriginEchConfigured(pub(crate) Option<bool>);
+
 pub(super) struct AltSvcSelection {
     location: AltSvcLocation,
     generation: u64,
