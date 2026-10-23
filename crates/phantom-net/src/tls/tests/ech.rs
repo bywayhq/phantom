@@ -7,6 +7,8 @@ use super::{
     TestResult, TlsConnector, TlsErrorKind, capture_client_hello_from, client_hello_fixture,
 };
 
+mod deferred;
+
 #[tokio::test]
 async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<()> {
     let mut settings = v154_tcp_tls();
