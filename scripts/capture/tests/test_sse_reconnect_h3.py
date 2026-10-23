@@ -178,15 +178,9 @@ class H3CleanupTests(unittest.IsolatedAsyncioTestCase):
                 await loop.create_future()
             finally:
                 phases["worker_cleanup"] = loop.time()
-                released = loop.create_future()
-                # This owned cancellation finalizer and the real QUIC drain
-                # each fit five seconds, but their sequential sum does not.
-                release = loop.call_later(3, released.set_result, None)
-                try:
-                    await released
-                finally:
-                    release.cancel()
-                phases["worker_finished"] = loop.time()
+                # Worker collection cannot finish before QUIC closure starts.
+                await protocol.wait_closed()
+                phases["worker_finished_after_drain"] = protocol._closed.is_set()
 
         try:
             await client.start(server)
@@ -206,9 +200,7 @@ class H3CleanupTests(unittest.IsolatedAsyncioTestCase):
             ):
                 await server.close()
             self.assertLessEqual(phases["close"], phases["worker_cleanup"])
-            self.assertGreaterEqual(
-                phases["worker_finished"] - phases["worker_cleanup"], 3
-            )
+            self.assertTrue(phases["worker_finished_after_drain"])
             self.assertTrue(task.done())
             self.assertTrue(protocol._closed.is_set())
             self.assertTrue(server.retired.done())
