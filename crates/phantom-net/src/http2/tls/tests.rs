@@ -39,6 +39,8 @@ use crate::{
 
 mod alps_concurrency_gate;
 mod alps_hpack_last_wins;
+#[cfg(feature = "https-records")]
+mod ech_retention;
 mod extended_connect_retention;
 mod key_update;
 mod ping_close;
