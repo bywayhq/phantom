@@ -1,0 +1,55 @@
+name: Windows native DNS capture
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-native-dns-capture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Check out capture source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+          architecture: x64
+
+      - name: Install pinned capture dependencies before DNS changes
+        run: >-
+          python -m pip install --require-hashes
+          -r scripts/requirements.txt
+          -r scripts/capture/hooks-requirements.txt
+
+      - name: Capture one post-attachment native lookup
+        run: python -m scripts.capture.windows_native_dns_capture
+
+      - name: Restore and verify exact-name DNS policy before upload
+        id: restore
+        if: always()
+        shell: pwsh
+        run: |
+          $output = 'target/windows-native-dns-capture'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+          & scripts/capture/windows_native_dns_guard.ps1 -Action Verify -StatePath "$output/nrpt-state.json" |
+            Set-Content -LiteralPath "$output/workflow-restoration.json" -Encoding utf8
+
+      - name: Retain attempt and failures after restoration
+        if: always() && steps.restore.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: firefox157-native-dns-windows-2025-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/windows-native-dns-capture/
+          if-no-files-found: error
+          retention-days: 14

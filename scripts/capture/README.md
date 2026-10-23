@@ -2140,6 +2140,24 @@ check the current agent and tool hashes separately.
 
 ## Firefox socket hooks
 
+### Hosted native DNS
+
+The manual `Windows native DNS capture` workflow runs one headed Firefox 157
+lookup on a disposable Windows Server 2025 runner. It stages a pinned portable
+browser, then routes only `127.0.0.1.nip.io` to a loopback DNS peer with NRPT.
+A separate watchdog and an always-run workflow step restore that rule before
+artifacts upload. The controller refuses desktop execution.
+
+The page starts on a numeric loopback address and waits for hook attachment.
+Success requires a later A query at the DNS peer and a complete HTTP response
+body. Raw DNS packets, hooks, origin records, MOZ_LOG and restoration results
+stay in `target/windows-native-dns-capture/`. The fresh profile disables TRR
+(`network.trr.mode=5`); no host cache flush or preliminary lookup runs.
+An absent HTTPS query stays absent. This is a native routing check, not a
+Windows 11 observation or a DNS TTL/cache measurement.
+
+### Local captures
+
 `firefox_socket_hooks.py` records the same calls as
 [`socket_hooks.py`](#socket-hooks) inside Firefox, which opens its HTTP
 connections in its parent process and changes their keepalive while they
