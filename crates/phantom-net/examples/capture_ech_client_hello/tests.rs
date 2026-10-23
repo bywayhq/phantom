@@ -67,6 +67,7 @@ impl Server {
             port: origin.port(),
             ech_config_list,
             quic: false,
+            alternative: None,
         };
 
         let (shutdown, stopped) = oneshot::channel();
@@ -912,6 +913,7 @@ fn no_https_record_returns_nodata_and_preserves_the_address() -> TestResult {
         port: 8443,
         ech_config_list: None,
         quic: false,
+        alternative: None,
     };
     let https = query("_8443._https.server.phantom.test", 65)?;
     let (response, description) = super::dns_response(&https, &answers)
@@ -955,6 +957,7 @@ fn accept_and_reject_still_publish_one_https_record() -> TestResult {
             port: 443,
             ech_config_list: Some(ech.published),
             quic: false,
+            alternative: None,
         };
         let query = query(HOSTNAME, 65)?;
         let (response, _) =

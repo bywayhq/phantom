@@ -91,6 +91,7 @@ POLL_SECONDS = 0.02
 POLICY_TIMEOUT_SECONDS = 5
 MAX_IDENTITY_BYTES = 128 * 1024
 MAX_CERT9_BYTES = 4 * 1024 * 1024
+ALTERNATIVE_HOST_SCENARIO = "alternative-host"
 RESUMPTION_SEQUENCES = ("early-accept", "early-reject", "ech-retry")
 FIREFOX_DNS_CONFIGURATION = (
     "user.js network.trr.mode=3 network.trr.uri=<doh_template> "
@@ -253,8 +254,17 @@ def checked_input(path: Path, limit: int, digest: str | None = None) -> bytes:
 
 
 def capture_inputs(run: CaptureRun) -> tuple[bytes, bytes, bytes] | None:
-    if run.scenario not in ("accept", "reject", "no-https-record"):
+    if run.scenario not in (
+        "accept",
+        "reject",
+        "no-https-record",
+        ALTERNATIVE_HOST_SCENARIO,
+    ):
         raise ValueError("unknown ECH capture scenario")
+    if run.scenario == ALTERNATIVE_HOST_SCENARIO and (
+        run.browser != "firefox" or not run.quic or run.resumption is not None
+    ):
+        raise ValueError("alternative-host requires Firefox QUIC without resumption")
     if run.scenario == "no-https-record" and run.quic:
         raise ValueError("no-https-record requires TCP")
     if run.resumption is not None and (
@@ -277,7 +287,7 @@ def capture_inputs(run: CaptureRun) -> tuple[bytes, bytes, bytes] | None:
             raise ValueError("PEM and NSS inputs require --browser firefox")
         return None
     origin_url(run.origin)
-    if run.quic or run.dns_from_policy:
+    if (run.quic and run.scenario != ALTERNATIVE_HOST_SCENARIO) or run.dns_from_policy:
         raise ValueError("Firefox ECH capture supports TCP and profile DoH only")
     if not all(
         (
@@ -327,18 +337,24 @@ class _TrustedFirefox(LaunchedBrowser):
 def launch_plan(
     run: CaptureRun, spki: str = SPKI_PLACEHOLDER, *, template: str = "<doh_template>"
 ) -> LaunchPlan:
-    """The browser launch; with QUIC, `spki` trusts the origin's key."""
+    """The browser launch; Chromium QUIC uses the supplied SPKI exception."""
     if run.browser == "firefox":
+        alternative = run.scenario == ALTERNATIVE_HOST_SCENARIO
+        preferences = (
+            ("network.trr.mode", 3),
+            ("network.trr.uri", template),
+            ("network.trr.allow-rfc1918", True),
+            ("network.http.http3.enable", alternative),
+        )
+        if alternative:
+            preferences += (
+                ("network.http.http3.disable_when_third_party_roots_found", False),
+            )
         return LaunchPlan(
             browser="firefox",
             executable=run.browser_path,
             headless=run.headless,
-            firefox_preferences=(
-                ("network.trr.mode", 3),
-                ("network.trr.uri", template),
-                ("network.trr.allow-rfc1918", True),
-                ("network.http.http3.enable", False),
-            ),
+            firefox_preferences=preferences,
         )
     return LaunchPlan(
         browser=run.browser,
@@ -354,6 +370,13 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
     quic = ["--quic"] if run.quic else []
     if run.browser == "firefox":
         dns_configuration = FIREFOX_DNS_CONFIGURATION
+        if run.scenario == ALTERNATIVE_HOST_SCENARIO:
+            dns_configuration = dns_configuration.replace(
+                "http3.enable=false", "http3.enable=true"
+            )
+            dns_configuration += (
+                " network.http.http3.disable_when_third_party_roots_found=false"
+            )
     elif run.dns_from_policy:
         dns_configuration = POLICY_DNS_CONFIGURATION.format(
             key=POLICY_KEYS[run.browser]
@@ -635,7 +658,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", required=True)
     parser.add_argument(
-        "--scenario", choices=("accept", "reject", "no-https-record"), required=True
+        "--scenario",
+        choices=("accept", "reject", "no-https-record", ALTERNATIVE_HOST_SCENARIO),
+        required=True,
     )
     parser.add_argument("--origin", default=DEFAULT_ORIGIN)
     parser.add_argument("--capture-binary", type=Path, required=True)

@@ -73,6 +73,82 @@ class FirefoxEchTests(unittest.TestCase):
             with self.subTest(run=unsupported), self.assertRaises(ValueError):
                 ech.capture_inputs(unsupported)
 
+    def test_alternative_host_enables_h3_without_bypassing_identity_or_dns(
+        self,
+    ) -> None:
+        run = replace(self.run, scenario="alternative-host", quic=True)
+        self.assertEqual(ech.capture_inputs(run), ech.capture_inputs(self.run))
+        plan = ech.launch_plan(run, template="https://127.0.0.1:32123/dns-query")
+        self.assertEqual(
+            dict(plan.firefox_preferences),
+            {
+                "network.trr.mode": 3,
+                "network.trr.uri": "https://127.0.0.1:32123/dns-query",
+                "network.trr.allow-rfc1918": True,
+                "network.http.http3.enable": True,
+                "network.http.http3.disable_when_third_party_roots_found": False,
+            },
+        )
+        self.assertEqual(plan.extra_arguments, ())
+        self.assertEqual(plan.profile_files, ())
+        arguments = ech.capture_arguments(run, plan)
+        self.assertEqual(arguments[1:3], ["--quic", "--identity"])
+        self.assertEqual(arguments[5], "alternative-host")
+        self.assertIn("http3.enable=true", arguments[-3])
+        self.assertIn("disable_when_third_party_roots_found=false", arguments[-3])
+        self.assertNotIn("ignore-certificate", arguments[-1])
+
+    def test_alternative_host_invalid_inputs_never_acquire_the_peer(self) -> None:
+        run = replace(self.run, scenario="alternative-host", quic=True)
+        for changes in (
+            {"browser": "chrome"},
+            {"quic": False},
+            {"resumption": "early-accept"},
+            {"certificate": None},
+            {"dns_from_policy": True},
+        ):
+            with (
+                self.subTest(changes=changes),
+                patch.object(ech, "ProcessContainer") as owner,
+                self.assertRaises(ValueError),
+            ):
+                ech.capture(replace(run, **changes))
+            owner.assert_not_called()
+
+    def test_alternative_host_uses_reported_origin_and_normal_firefox_cleanup(
+        self,
+    ) -> None:
+        run = replace(self.run, scenario="alternative-host", quic=True)
+        observer = Mock()
+        observer.ready = (
+            "https://127.0.0.1:32123/dns-query",
+            "127.0.0.1:32124",
+            "q" * 43 + "=",
+        )
+        owner = Mock()
+        owner.start.return_value = True
+        owner.poll.return_value = 0
+
+        def container(command: list[str], *, stdout: object, stderr: object) -> Mock:
+            self.assertEqual(command[5], "alternative-host")
+            stdout.write(b"alternative_origin_https=nodata\nalternative_dns_count=0\n")
+            stdout.flush()
+            return owner
+
+        with (
+            patch.object(ech, "ProcessContainer", side_effect=container),
+            patch.object(ech, "_CaptureOutput", return_value=observer),
+            patch.object(ech, "_TrustedFirefox") as browser,
+        ):
+            fixture = ech.capture(run)
+        plan, url, database = browser.call_args.args
+        self.assertEqual(url, "https://server.phantom.test:32124/")
+        self.assertEqual(plan.extra_arguments, ())
+        self.assertEqual(database, self.database.read_bytes())
+        self.assertIn("alternative_dns_count=0", fixture)
+        owner.close.assert_called_once_with()
+        browser.return_value.__exit__.assert_called_once()
+
     def test_identity_arguments_and_metadata_record_actual_profile_inputs(self) -> None:
         arguments = ech.capture_arguments(self.run, ech.launch_plan(self.run))
         self.assertEqual(

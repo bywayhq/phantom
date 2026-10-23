@@ -10,6 +10,9 @@
 //! holds the published key; in `reject` it holds another key, so the browser
 //! sees a rejection with retry configurations and connects again.
 //! `no-https-record` returns HTTPS NODATA and serves ordinary TLS without ECH.
+//! `alternative-host` returns HTTPS NODATA for the logical origin and advertises
+//! a separately named QUIC destination with its own HTTPS/ECH answer. It ends
+//! after a complete labeled HTTP/3 probe and the page's final report.
 //!
 //! The DNS-over-HTTPS server listens on the origin's address, on the port
 //! `--doh-port` names or on an ephemeral one. A fixed port lets a browser
@@ -96,6 +99,8 @@ const DNS_TTL: u32 = 60;
 
 type CaptureResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
+#[path = "capture_ech_client_hello/alternative_host.rs"]
+mod alternative_host;
 #[path = "capture_ech_client_hello/resumption.rs"]
 mod resumption;
 
@@ -130,14 +135,29 @@ async fn main() -> CaptureResult<()> {
     } else {
         identity.acceptor(keys)?
     };
+    let mut alternative_reservation = None;
     let quic = if arguments.quic {
         let crypto = identity.quic_server(keys.ok_or("QUIC requires an ECH scenario")?)?;
         let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
-        Some(quinn::Endpoint::server(config, origin_address)?)
+        if matches!(arguments.scenario, Scenario::AlternativeHost) {
+            let (endpoint, reservation) =
+                alternative_host::bind(config, origin_address.ip()).await?;
+            alternative_reservation = Some(reservation);
+            Some(endpoint)
+        } else {
+            Some(quinn::Endpoint::server(config, origin_address)?)
+        }
     } else {
         None
     };
 
+    let alternative = alternative_reservation
+        .as_ref()
+        .map(|reservation| {
+            alternative_host::AlternativeHost::new(origin_address, reservation.local_addr()?)
+                .map(Arc::new)
+        })
+        .transpose()?;
     let spki = quic.as_ref().map(|_| identity.spki_sha256()).transpose()?;
     let mut doh_capture = DohCapture::start(
         doh,
@@ -146,8 +166,12 @@ async fn main() -> CaptureResult<()> {
         DnsAnswers {
             address: origin_address.ip(),
             port: origin_address.port(),
-            ech_config_list: ech.as_ref().map(|ech| ech.published.clone()),
+            ech_config_list: ech
+                .as_ref()
+                .filter(|_| alternative.is_none())
+                .map(|ech| ech.published.clone()),
             quic: arguments.quic,
+            alternative: alternative.clone(),
         },
     );
     match &spki {
@@ -158,6 +182,7 @@ async fn main() -> CaptureResult<()> {
     }
     let captured = Arc::new(Captured {
         resumption: resumption.clone(),
+        alternative: alternative.clone(),
         ..Captured::default()
     });
     let mut tasks = JoinSet::new();
@@ -218,7 +243,21 @@ async fn main() -> CaptureResult<()> {
     if let Some(endpoint) = &quic {
         endpoint.close(0_u32.into(), b"capture finished");
     }
-    finish_result?;
+    let idle: CaptureResult<()> = async {
+        if let Some(endpoint) = &quic
+            && alternative.is_some()
+        {
+            timeout(HANDSHAKE_TIMEOUT, endpoint.wait_idle()).await?;
+        }
+        Ok(())
+    }
+    .await;
+    capture_errors(
+        [finish_result.err(), idle.err()]
+            .into_iter()
+            .flatten()
+            .collect(),
+    )?;
     let queries = queries
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -266,6 +305,7 @@ async fn main() -> CaptureResult<()> {
         "dns_https_alpn={}",
         match (ech.as_ref(), arguments.quic) {
             (None, _) => "",
+            _ if alternative.is_some() => "",
             (Some(_), true) => "h3,h2",
             (Some(_), false) => "h2",
         }
@@ -274,6 +314,7 @@ async fn main() -> CaptureResult<()> {
         output,
         "dns_ech_config_list_hex={}",
         ech.as_ref()
+            .filter(|_| alternative.is_none())
             .map_or_else(String::new, |ech| hex(&ech.published))
     )?;
     writeln!(
@@ -304,6 +345,9 @@ async fn main() -> CaptureResult<()> {
     }
     if let Some(run) = &resumption {
         run.write(&mut output)?;
+    }
+    if let Some(alternative) = &alternative {
+        alternative.write(&mut output)?;
     }
     output.flush()?;
     Ok(())
@@ -377,6 +421,7 @@ struct Slots {
 #[derive(Default)]
 struct Captured {
     resumption: Option<Arc<resumption::Run>>,
+    alternative: Option<Arc<alternative_host::AlternativeHost>>,
     slots: Mutex<Slots>,
     page_served: std::sync::atomic::AtomicBool,
     served: Notify,
@@ -412,7 +457,7 @@ impl Captured {
     fn store_tcp(&self, slot: usize, connection: Connection) {
         let served = connection.request_served;
         self.lock().tcp[slot] = Some(connection);
-        if served && self.resumption.is_none() {
+        if served && self.resumption.is_none() && self.alternative.is_none() {
             self.mark_served();
         }
     }
@@ -420,7 +465,7 @@ impl Captured {
     fn store_quic(&self, slot: usize, connection: QuicConnection) {
         let served = connection.request_served;
         self.lock().quic[slot] = Some(connection);
-        if served {
+        if served && self.alternative.is_none() {
             self.mark_served();
         }
     }
@@ -450,6 +495,7 @@ enum Scenario {
     Accept,
     Reject,
     NoHttpsRecord,
+    AlternativeHost,
 }
 
 impl Scenario {
@@ -458,16 +504,21 @@ impl Scenario {
             Self::Accept => "accept",
             Self::Reject => "reject",
             Self::NoHttpsRecord => "no-https-record",
+            Self::AlternativeHost => "alternative-host",
         }
     }
 
     fn ech_setup(self) -> CaptureResult<Option<EchSetup>> {
         let (config_id, server_key) = match self {
             Self::Accept => (1, &TEST_ECH_KEYS[0]),
-            Self::Reject => (2, &TEST_ECH_KEYS[1]),
+            Self::Reject | Self::AlternativeHost => (2, &TEST_ECH_KEYS[1]),
             Self::NoHttpsRecord => return Ok(None),
         };
-        let published = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
+        let published = if matches!(self, Self::AlternativeHost) {
+            ech_config(2, &TEST_ECH_KEYS[1], PUBLIC_NAME)
+        } else {
+            ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME)
+        };
         let server = ech_config(config_id, server_key, PUBLIC_NAME);
         let mut keys = SslEchKeys::builder()?;
         keys.add_key(
@@ -507,7 +558,7 @@ struct Arguments {
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
-            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] [--resumption <early-accept|early-reject|ech-retry>] <accept|reject|no-https-record> ",
+            "usage: capture_ech_client_hello [--doh-port <port>] [--quic] [--identity <certificate.pem> <key.pem>] [--resumption <early-accept|early-reject|ech-retry>] <accept|reject|no-https-record|alternative-host> ",
             "<loopback-address:port> ",
             "<browser> <browser-version> <operating-system> <dns-configuration> <launch-mode> ",
             "<launch-arguments>"
@@ -542,6 +593,7 @@ impl Arguments {
             "accept" => Scenario::Accept,
             "reject" => Scenario::Reject,
             "no-https-record" => Scenario::NoHttpsRecord,
+            "alternative-host" => Scenario::AlternativeHost,
             _ => return Err(usage.into()),
         };
         let origin = values.next().ok_or(usage)?.parse::<SocketAddr>()?;
@@ -570,6 +622,17 @@ impl Arguments {
         }
         if parsed.quic && matches!(parsed.scenario, Scenario::NoHttpsRecord) {
             return Err("no-https-record requires TCP".into());
+        }
+        if matches!(parsed.scenario, Scenario::AlternativeHost)
+            && (!parsed.quic
+                || !parsed.browser.eq_ignore_ascii_case("firefox")
+                || parsed.identity.is_none()
+                || parsed.resumption.is_some())
+        {
+            return Err(
+                "alternative-host requires Firefox QUIC with identity and without resumption"
+                    .into(),
+            );
         }
         for value in [
             &parsed.browser,
@@ -865,7 +928,10 @@ async fn record_tcp(
     captured.store_tcp(slot, connection.clone());
     // A browser that rejected the outer handshake closes it with an alert,
     // which surfaces here as a read error or end of stream.
-    let serving = serve_page(&mut tls).await;
+    let serving = match &captured.alternative {
+        Some(alternative) => alternative.serve_tcp(&mut tls, &captured, slot).await,
+        None => serve_page(&mut tls).await,
+    };
     #[cfg(test)]
     let serving = tests::origin_serving_contract::observe_serving(serving, &captured, slot);
     connection.request_served = matches!(serving, Ok(true));
@@ -1067,9 +1133,16 @@ async fn record_quic(
             return Ok(());
         }
     };
+    if let Some(alternative) = &captured.alternative {
+        alternative.authenticated(slot, &connection, data.as_deref())?;
+    }
     captured.store_quic(slot, connection.clone());
     serve_h3(
         established,
+        captured
+            .alternative
+            .as_deref()
+            .map(|alternative| (alternative, &*captured, slot)),
         || {
             connection.request_served = true;
             captured.store_quic(slot, connection.clone());
@@ -1097,6 +1170,7 @@ fn describe_quic_error(error: &quinn::ConnectionError) -> String {
 /// `on_served` after the first, until the client closes it or stays idle.
 async fn serve_h3(
     connection: quinn::Connection,
+    alternative: Option<(&alternative_host::AlternativeHost, &Captured, usize)>,
     mut on_served: impl FnMut(),
     #[cfg(test)] observation: (&Captured, usize),
 ) -> CaptureResult<()> {
@@ -1131,7 +1205,7 @@ async fn serve_h3(
             observation.0,
             observation.1,
         );
-        let (_, mut stream) = match resolved {
+        let (request, mut stream) = match resolved {
             Ok(request) => request,
             Err(error) => {
                 if matches!(&error, h3::error::StreamError::ConnectionError(_)) {
@@ -1161,13 +1235,21 @@ async fn serve_h3(
                 return Err(error.into());
             }
         };
+        let alternative_response = match alternative {
+            Some((alternative, _, slot)) => Some(alternative.response("h3", slot, &request).await?),
+            None => None,
+        };
+        let response_body = alternative_response.as_ref().map_or_else(
+            || Bytes::from_static(PAGE),
+            |response| response.body.clone(),
+        );
         let response = http::Response::builder()
             .status(200)
             .header("content-type", "text/html")
             .body(())?;
         let sent = async {
             stream.send_response(response).await?;
-            stream.send_data(Bytes::from_static(PAGE)).await?;
+            stream.send_data(response_body).await?;
             stream.finish().await
         }
         .await;
@@ -1185,6 +1267,12 @@ async fn serve_h3(
             return sent.map_err(Into::into);
         }
 
+        if sent.is_ok()
+            && let (Some((alternative, captured, _)), Some(response)) =
+                (alternative, &alternative_response)
+        {
+            alternative.completed(response, captured)?;
+        }
         if sent.is_ok() && !served {
             served = true;
             on_served();
@@ -1345,6 +1433,7 @@ struct DnsAnswers {
     port: u16,
     ech_config_list: Option<Vec<u8>>,
     quic: bool,
+    alternative: Option<Arc<alternative_host::AlternativeHost>>,
 }
 
 struct DohCapture {
@@ -1728,27 +1817,45 @@ fn dns_response(query: &[u8], answers: &DnsAnswers) -> Option<(Vec<u8>, String)>
     let question_end = offset + 4;
     let question = query.get(12..question_end)?;
     let name = labels.join(".");
-    let https_name = if answers.port == 443 {
-        HOSTNAME.to_owned()
+    let routed = answers
+        .alternative
+        .as_ref()
+        .filter(|alternative| alternative.owns_destination(&name));
+    let destination_answers;
+    let selected = if let Some(alternative) = routed {
+        destination_answers = alternative.answers();
+        &destination_answers
     } else {
-        format!("_{}._https.{HOSTNAME}", answers.port)
+        answers
+    };
+    let hostname = if routed.is_some() {
+        alternative_host::HOST_B
+    } else {
+        HOSTNAME
+    };
+    let https_name = if selected.port == 443 {
+        hostname.to_owned()
+    } else {
+        format!("_{}._https.{hostname}", selected.port)
     };
 
     let mut records = Vec::new();
     let mut rcode = 0;
-    if name == HOSTNAME && record_type == DNS_TYPE_A {
-        if let IpAddr::V4(address) = answers.address {
+    if name == hostname && record_type == DNS_TYPE_A {
+        if let IpAddr::V4(address) = selected.address {
             records.push((DNS_TYPE_A, address.octets().to_vec()));
         }
-    } else if name == HOSTNAME && record_type == DNS_TYPE_AAAA {
-        if let IpAddr::V6(address) = answers.address {
+    } else if name == hostname && record_type == DNS_TYPE_AAAA {
+        if let IpAddr::V6(address) = selected.address {
             records.push((DNS_TYPE_AAAA, address.octets().to_vec()));
         }
-    } else if name == https_name && record_type == DNS_TYPE_HTTPS {
-        if let Some(configs) = &answers.ech_config_list {
-            records.push((DNS_TYPE_HTTPS, https_rdata(configs, answers.quic)));
+    } else if (name == https_name || (routed.is_some() && name == hostname))
+        && record_type == DNS_TYPE_HTTPS
+    {
+        if let Some(configs) = &selected.ech_config_list {
+            records.push((DNS_TYPE_HTTPS, https_rdata(configs, selected.quic)));
         }
-    } else if name != HOSTNAME && name != https_name {
+    } else if name != hostname && name != https_name {
         // NXDOMAIN
         rcode = 3;
     }
@@ -1769,6 +1876,9 @@ fn dns_response(query: &[u8], answers: &DnsAnswers) -> Option<(Vec<u8>, String)>
         response.extend_from_slice(&DNS_TTL.to_be_bytes());
         response.extend_from_slice(&u16::try_from(rdata.len()).ok()?.to_be_bytes());
         response.extend_from_slice(&rdata);
+    }
+    if let Some(alternative) = &answers.alternative {
+        alternative.record_dns(&name, query, &response)?;
     }
     Some((response, format!("{} {name}", type_name(record_type))))
 }

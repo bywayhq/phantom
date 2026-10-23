@@ -305,6 +305,37 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class AlternativeHostParsingTests(unittest.TestCase):
+    def test_alternative_host_is_parsed_before_capture_validation(self) -> None:
+        with (
+            patch(
+                "scripts.capture.chrome_ech.capture", return_value="observed\n"
+            ) as capture,
+            patch("scripts.capture.chrome_ech.write_text_fixture"),
+        ):
+            main(
+                [
+                    "--browser",
+                    "firefox",
+                    "--browser-path",
+                    "firefox.exe",
+                    "--client-version",
+                    "157.0",
+                    "--operating-system",
+                    "Windows",
+                    "--scenario",
+                    "alternative-host",
+                    "--quic",
+                    "--capture-binary",
+                    "capture.exe",
+                    "--output",
+                    "out.txt",
+                ]
+            )
+        self.assertEqual(capture.call_args.args[0].scenario, "alternative-host")
+        self.assertTrue(capture.call_args.args[0].quic)
+
+
 class AndroidBrowserRefusalTests(unittest.TestCase):
     def test_android_browsers_are_refused(self) -> None:
         for browser in ("chrome-android", "brave-android", "edge-android"):

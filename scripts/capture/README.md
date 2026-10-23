@@ -1884,7 +1884,16 @@ SQL `cert9.db` containing that CA. The leaf must cover `server.phantom.test`,
 database. The tool stages the key in its temporary peer directory and copies the
 database into its disposable profile, enables TRR-only DoH to its loopback
 listener and disables HTTP/3. It uses normal certificate verification.
-`--quic` and `--dns-from-policy` are unavailable with Firefox.
+`--dns-from-policy` is unavailable with Firefox.
+
+Firefox also supports `--scenario alternative-host --quic` with these trust
+inputs. Origin A returns HTTPS NODATA and advertises a separately named QUIC
+destination B, whose HTTPS answer contains ECH config 2. The page waits for an
+authenticated H3 connection, reads the labeled probe body, then reports completion.
+Output keeps actual A/B DNS exchanges, handshake names and request authority.
+No B query or ECH offer is a valid observation. This uses explicit TRR-only DNS
+and enables H3 with profile-local roots; it does not measure default DNS policy.
+Other Firefox scenarios remain TCP-only; this scenario cannot use resumption.
 
 ```sh
 uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
