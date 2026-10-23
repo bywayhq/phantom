@@ -36,6 +36,10 @@ peer. Launch flags appear in the fixture.
 Choose `profile` for ordinary Google Chrome **156.0.8078.48**. This mode
 downloads Google's stable universal DMG, stages an owned copy, and checks its
 signature, system policy, full version and native architectures before use.
+Signature and system-policy checks each allow up to 120 seconds. Staging
+omits resource forks and general extended attributes while preserving
+quarantine information and ACLs. Each hosted job checks this copy behavior
+before using Chrome.
 The existing installed browser stays in place. A different download build
 fails explicitly.
 

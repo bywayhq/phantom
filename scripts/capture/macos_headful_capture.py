@@ -82,7 +82,14 @@ def staged_chrome(
             timeout=120,
         )
         command_output(
-            record, "/usr/bin/ditto", str(mount / app.name), str(app), timeout=120
+            record,
+            "/usr/bin/ditto",
+            "--norsrc",
+            "--qtn",
+            "--acl",
+            str(mount / app.name),
+            str(app),
+            timeout=120,
         )
         yield app / "Contents/MacOS/Google Chrome", directory
     except BaseException as error:
@@ -120,6 +127,7 @@ def verify_profile_browser(record: dict, chrome: Path) -> None:
         "-R",
         CHROME_REQUIREMENT,
         str(chrome.parents[2]),
+        timeout=120,
     )
     command_output(
         record,
@@ -129,6 +137,7 @@ def verify_profile_browser(record: dict, chrome: Path) -> None:
         "execute",
         "--verbose=4",
         str(chrome.parents[2]),
+        timeout=120,
     )
     architectures = command_output(record, "/usr/bin/lipo", "-archs", str(chrome))
     record["browser_architectures"] = architectures.split()
