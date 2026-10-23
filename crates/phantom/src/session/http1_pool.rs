@@ -65,14 +65,23 @@ struct Http1Request {
     body: Option<RequestBody>,
 }
 
-enum AttemptOutcome {
-    Response(http::Response<ResponseBody>),
+enum AttemptError {
+    Request(RequestError),
     #[cfg(feature = "https-records")]
-    Retry {
-        request: Http1Request,
-        retry: phantom_net::route::EchRetry,
-        connect: crate::timeout::PhaseTimeout,
-    },
+    EchRetry(Box<EchRetryAttempt>),
+}
+
+impl From<RequestError> for AttemptError {
+    fn from(error: RequestError) -> Self {
+        Self::Request(error)
+    }
+}
+
+#[cfg(feature = "https-records")]
+struct EchRetryAttempt {
+    request: Http1Request,
+    retry: phantom_net::route::EchRetry,
+    connect: crate::timeout::PhaseTimeout,
 }
 
 /// Exact HTTP/1.1 connections, grouped by origin and route.
@@ -309,18 +318,20 @@ impl Http1Pool {
             #[cfg(feature = "https-records")]
             None,
         )
-        .await?;
+        .await;
         #[cfg(feature = "https-records")]
         {
             let mut outcome = outcome;
             loop {
                 match outcome {
-                    AttemptOutcome::Response(response) => return Ok(response),
-                    AttemptOutcome::Retry {
-                        request,
-                        retry,
-                        connect,
-                    } => {
+                    Ok(response) => return Ok(response),
+                    Err(AttemptError::Request(error)) => return Err(error),
+                    Err(AttemptError::EchRetry(attempt)) => {
+                        let EchRetryAttempt {
+                            request,
+                            retry,
+                            connect,
+                        } = *attempt;
                         outcome = Self::send_attempt(
                             &entry,
                             connector,
@@ -336,15 +347,14 @@ impl Http1Pool {
                             retries,
                             Some((retry, connect)),
                         )
-                        .await?;
+                        .await;
                     }
                 }
             }
         }
         #[cfg(not(feature = "https-records"))]
         {
-            let AttemptOutcome::Response(response) = outcome;
-            Ok(response)
+            outcome.map_err(|AttemptError::Request(error)| error)
         }
     }
 
@@ -366,7 +376,7 @@ impl Http1Pool {
             phantom_net::route::EchRetry,
             crate::timeout::PhaseTimeout,
         )>,
-    ) -> Result<AttemptOutcome, RequestError> {
+    ) -> Result<http::Response<ResponseBody>, AttemptError> {
         let replay_safe = phantom_net::request::is_replay_safe(
             &request.method,
             request.body.is_some(),
@@ -448,13 +458,13 @@ impl Http1Pool {
                 let retry = retry.clone();
                 lease.retire();
                 drop((lease, permit));
-                return Ok(AttemptOutcome::Retry {
+                return Err(AttemptError::EchRetry(Box::new(EchRetryAttempt {
                     request,
                     retry,
                     connect,
-                });
+                })));
             }
-            return Err(RequestError::http1_connection_setup(failure));
+            return Err(RequestError::http1_connection_setup(failure).into());
         }
         if replay_safe {
             lease
@@ -486,13 +496,13 @@ impl Http1Pool {
                 && let Some(Http1TlsError::Tls(error)) = connection.early_data_failure()
                 && let Some(retry) = error.ech_retry()
             {
-                return Ok(AttemptOutcome::Retry {
+                return Err(AttemptError::EchRetry(Box::new(EchRetryAttempt {
                     request,
                     retry: retry.clone(),
                     connect,
-                });
+                })));
             }
-            return result.map(AttemptOutcome::Response);
+            return result.map_err(AttemptError::Request);
         }
         Self::dispatch_on_lease(
             lease,
@@ -509,7 +519,7 @@ impl Http1Pool {
             timeout_budget,
         )
         .await
-        .map(AttemptOutcome::Response)
+        .map_err(AttemptError::Request)
     }
 
     #[allow(clippy::too_many_arguments)]
