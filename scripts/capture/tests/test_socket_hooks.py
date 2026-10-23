@@ -30,10 +30,20 @@ from scripts.capture.socket_hooks import (
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "socket-hooks"
 
 # LF source digests at 15b1603e198f6a5e8ac2bac61d341d93330cfe46.
-RETAINED_SOURCE_DIGESTS = (
+ORIGINAL_SOURCE_DIGESTS = (
     "0c399cf92b4409a89457b6bb668d645e66fb842a5f0feff3c21e782ba3f1db4e",
     "2c5e7785ff464f6f1d5987e359f7c9517c3142f53fbdb8dd2c88822aef272f9a",
 )
+RETAINED_SOURCE_DIGESTS = {
+    "chrome/154.0.8037.58/windows-11-26200": ORIGINAL_SOURCE_DIGESTS,
+    # LF source digests at dde964d60a5332fbae1da0502ddad00c1dd77074.
+    "chrome/156.0.8078.48/windows-11-26200": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "f50305fec3f8806ff4e4961251546ef45e244e9b7738dfd81d833c26e3443c78",
+    ),
+    "edge/154.0.4258.48/windows-11-26200": ORIGINAL_SOURCE_DIGESTS,
+    "opera/136.0.6008.52/windows-11-26200": ORIGINAL_SOURCE_DIGESTS,
+}
 
 
 def sockaddr_in(address: bytes, port: int) -> str:
@@ -405,7 +415,9 @@ class RetainedFixtureTests(unittest.TestCase):
 
                 self.assertEqual(
                     (fields["hook_agent_sha256"], fields["capture_tool_sha256"]),
-                    RETAINED_SOURCE_DIGESTS,
+                    RETAINED_SOURCE_DIGESTS[
+                        path.parent.relative_to(FIXTURES).as_posix()
+                    ],
                 )
 
 
