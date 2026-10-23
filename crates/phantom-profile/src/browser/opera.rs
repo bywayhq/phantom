@@ -3,6 +3,10 @@
 //! Opera 136 uses Chromium connection settings with Opera trust-anchor IDs,
 //! client hints and request fields. Windows and macOS client hints are available.
 //!
+//! Select `Fetch` from the `opera-136-windows` catalog profile for ordinary
+//! same-origin GETs and revalidation. Supply `User-Agent` and any cache
+//! validators.
+//!
 //! Opera 102 Android provides TLS settings and client hints. Other Android
 //! layers are unavailable.
 

@@ -195,8 +195,10 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
                     assert_eq!(definition.request_template(kind)?, *value);
                     supported += 1;
                 }
-                None if definition.selector() == "brave-154-windows"
-                    && kind == RequestTemplateKind::Fetch =>
+                None if matches!(
+                    definition.selector(),
+                    "brave-154-windows" | "opera-136-windows"
+                ) && kind == RequestTemplateKind::Fetch =>
                 {
                     definition.request_template(kind)?.validate()?;
                     supported += 1;
@@ -214,7 +216,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (30, 34));
+    assert_eq!((supported, unsupported), (31, 33));
     Ok(())
 }
 

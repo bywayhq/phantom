@@ -2579,7 +2579,8 @@
       ],
       "templates": {
         "FetchNoStore": "chromium_fetch_no_store_caller_ua",
-        "Navigation": "chromium_navigation_caller_ua"
+        "Navigation": "chromium_navigation_caller_ua",
+        "Fetch": "opera_windows136_fetch"
       },
       "target": "OperaWindows136",
       "composition": {

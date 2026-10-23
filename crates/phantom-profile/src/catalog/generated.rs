@@ -3799,6 +3799,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::OPERA_WINDOWS136_FETCH },
         ],
     },
     ProfileDefinition {

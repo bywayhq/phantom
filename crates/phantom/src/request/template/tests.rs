@@ -733,6 +733,10 @@ const BRAVE_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/lifecycle/brave/154.1.96.59/windows-11-26200/revalidate.txt"
 ));
+const OPERA_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/opera/136.0.6008.52/windows-11-26200/revalidate.txt"
+));
 const FIREFOX_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/lifecycle/firefox/157.0/windows-11-26200/revalidate.txt"
@@ -808,6 +812,28 @@ fn brave_catalog_fetch_places_validators_as_the_revalidation_capture()
         RequestHeader::new("accept-language", "en-US,en;q=0.9"),
         RequestHeader::new("sec-ch-ua-platform", "\"Windows\""),
         RequestHeader::new("sec-ch-ua", "\"Brave\""),
+        RequestHeader::new("sec-ch-ua-mobile", "?0"),
+    ];
+    for names in captured {
+        assert_eq!(expand_revalidation(&template, &names, &caller), names);
+    }
+    Ok(())
+}
+
+#[test]
+fn opera_catalog_fetch_places_validators_as_the_revalidation_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::catalog::{RequestTemplateKind, profile};
+
+    let template = profile("opera-136-windows")?.request_template(RequestTemplateKind::Fetch)?;
+    template.validate()?;
+    let captured = revalidations(OPERA_REVALIDATION);
+    assert_eq!(captured.len(), 3);
+    let caller = [
+        RequestHeader::new("user-agent", CHROME_154),
+        RequestHeader::new("accept-language", "en-US,en;q=0.9"),
+        RequestHeader::new("sec-ch-ua-platform", "\"Windows\""),
+        RequestHeader::new("sec-ch-ua", "\"Opera\""),
         RequestHeader::new("sec-ch-ua-mobile", "?0"),
     ];
     for names in captured {
