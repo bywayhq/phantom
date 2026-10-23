@@ -14,7 +14,11 @@ use std::{
 
 use bytes::Bytes;
 use futures_util::FutureExt;
-use phantom_net::{AddressResolver, HostResolver, http3::Http3Connector, request::OriginForm};
+use phantom_net::{
+    host_resolver::{AddressResolver, HostResolver},
+    http3::Http3Connector,
+    request::OriginForm,
+};
 use phantom_profile::browser::firefox;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
