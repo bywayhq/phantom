@@ -56,6 +56,25 @@ pub(crate) enum Http1ConnectionMode {
     Forward,
 }
 
+struct Http1Request {
+    method: Method,
+    target: OriginForm,
+    absolute_target: AbsoluteForm,
+    headers: Vec<RequestHeader>,
+    trailers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+}
+
+enum AttemptOutcome {
+    Response(http::Response<ResponseBody>),
+    #[cfg(feature = "https-records")]
+    Retry {
+        request: Http1Request,
+        retry: phantom_net::route::EchRetry,
+        connect: crate::timeout::PhaseTimeout,
+    },
+}
+
 /// Exact HTTP/1.1 connections, grouped by origin and route.
 ///
 /// Each pool key keeps up to `max_active` connections, idle ones included.
@@ -266,148 +285,231 @@ impl Http1Pool {
             .filter(|_| !fresh_connection);
         let key = PoolKey::new(endpoint, route, mode);
         let entry = self.entry(key).await;
-        let mut held = held;
+        let request = Http1Request {
+            method,
+            target,
+            absolute_target,
+            headers,
+            trailers,
+            body,
+        };
+        let outcome = Self::send_attempt(
+            &entry,
+            connector,
+            https_proxy,
+            endpoint,
+            route,
+            mode,
+            request,
+            held,
+            fresh_connection,
+            &mut challenged,
+            timeout_budget,
+            retries,
+            #[cfg(feature = "https-records")]
+            None,
+        )
+        .await?;
         #[cfg(feature = "https-records")]
-        let mut ech_retry: Option<(
+        {
+            let mut outcome = outcome;
+            loop {
+                match outcome {
+                    AttemptOutcome::Response(response) => return Ok(response),
+                    AttemptOutcome::Retry {
+                        request,
+                        retry,
+                        connect,
+                    } => {
+                        outcome = Self::send_attempt(
+                            &entry,
+                            connector,
+                            https_proxy,
+                            endpoint,
+                            route,
+                            mode,
+                            request,
+                            None,
+                            fresh_connection,
+                            &mut challenged,
+                            timeout_budget,
+                            retries,
+                            Some((retry, connect)),
+                        )
+                        .await?;
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "https-records"))]
+        {
+            let AttemptOutcome::Response(response) = outcome;
+            Ok(response)
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn send_attempt(
+        entry: &Arc<PoolEntry>,
+        connector: &Http1TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
+        endpoint: &Endpoint,
+        route: &Route,
+        mode: Http1ConnectionMode,
+        request: Http1Request,
+        held: Option<HeldConnection>,
+        fresh_connection: bool,
+        challenged: &mut Option<&mut ChallengedConnection>,
+        timeout_budget: TimeoutBudget,
+        retries: &mut ConnectionSetupRetryState,
+        #[cfg(feature = "https-records")] ech_retry: Option<(
             phantom_net::route::EchRetry,
             crate::timeout::PhaseTimeout,
-        )> = None;
-        let replay_safe =
-            phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty());
-
-        loop {
-            retries.admit_http_attempt(Some(HttpProtocol::Http1))?;
-            let (mut lease, permit, connect) = if let Some(held) = held.take() {
-                debug!(
-                    outcome = "authentication_retry",
-                    "HTTP/1 challenged proxy connection reused"
-                );
-                (
-                    held.lease,
-                    held.permit,
-                    timeout_budget.phase(TimeoutPhase::Connect, Some(HttpProtocol::Http1))?,
-                )
-            } else {
-                #[cfg(feature = "https-records")]
-                let retry = ech_retry.take();
-                let admission = timeout_budget.run(
-                    TimeoutPhase::PoolAdmission,
-                    Some(HttpProtocol::Http1),
-                    entry.admit(),
-                );
-                #[cfg(feature = "https-records")]
-                let permit = match retry.as_ref() {
-                    Some((_, connect)) => connect.run(admission).await?,
-                    None => admission.await?,
-                };
-                #[cfg(not(feature = "https-records"))]
-                let permit = admission.await?;
-                let acquisition = async {
-                    #[cfg(feature = "https-records")]
-                    if let Some((retry, connect)) = retry {
-                        let lease = connect
-                            .run(entry.recover_ech(connector, endpoint, route, mode, &retry))
-                            .await?;
-                        return Ok((lease, connect));
-                    }
-                    acquire_with_connect_timeout(
-                        Some(HttpProtocol::Http1),
-                        timeout_budget,
-                        retries,
-                        || async {
-                            entry
-                                .acquire(
-                                    connector,
-                                    https_proxy,
-                                    endpoint,
-                                    route,
-                                    mode,
-                                    fresh_connection,
-                                )
-                                .await
-                        },
-                    )
-                    .await
-                };
-                let (lease, connect) = acquisition.await?;
-                (lease, permit, connect)
+        )>,
+    ) -> Result<AttemptOutcome, RequestError> {
+        let replay_safe = phantom_net::request::is_replay_safe(
+            &request.method,
+            request.body.is_some(),
+            !request.trailers.is_empty(),
+        );
+        retries.admit_http_attempt(Some(HttpProtocol::Http1))?;
+        let (mut lease, permit, connect) = if let Some(held) = held {
+            debug!(
+                outcome = "authentication_retry",
+                "HTTP/1 challenged proxy connection reused"
+            );
+            (
+                held.lease,
+                held.permit,
+                timeout_budget.phase(TimeoutPhase::Connect, Some(HttpProtocol::Http1))?,
+            )
+        } else {
+            #[cfg(feature = "https-records")]
+            let retry = ech_retry;
+            let admission = timeout_budget.run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http1),
+                entry.admit(),
+            );
+            #[cfg(feature = "https-records")]
+            let permit = match retry.as_ref() {
+                Some((_, connect)) => connect.run(admission).await?,
+                None => admission.await?,
             };
-            if !replay_safe && lease.connection.early_data_pending() {
-                lease.retire();
-                connect
-                    .run(async {
-                        lease.connection.early_data_answered().await;
-                        Ok(())
-                    })
-                    .await?;
-                if lease.connection.early_data_failure().is_none() {
-                    lease.retired = false;
-                }
-            }
-            if let Some(failure) = lease.connection.early_data_failure() {
+            #[cfg(not(feature = "https-records"))]
+            let permit = admission.await?;
+            let acquisition = async {
                 #[cfg(feature = "https-records")]
-                if let Http1TlsError::Tls(error) = &failure
-                    && let Some(retry) = error.ech_retry()
-                {
-                    ech_retry = Some((retry.clone(), connect));
-                    lease.retire();
-                    drop((lease, permit));
-                    continue;
+                if let Some((retry, connect)) = retry {
+                    let lease = connect
+                        .run(entry.recover_ech(connector, endpoint, route, mode, &retry))
+                        .await?;
+                    return Ok((lease, connect));
                 }
-                return Err(RequestError::http1_connection_setup(failure));
-            }
-            if replay_safe {
-                lease
-                    .connection
-                    .register_early_data_attempt_optional(retries.attempt_budget());
-            }
-            if replay_safe && lease.connection.early_data_pending() {
-                // Only early-data requests retain their frozen fields. A body
-                // stays here until authentication has completed.
-                let connection = lease.connection.clone();
-                let send = Self::dispatch_on_lease(
-                    lease,
-                    permit,
-                    route,
-                    mode,
-                    method.clone(),
-                    target.clone(),
-                    absolute_target.clone(),
-                    headers.clone(),
-                    trailers.clone(),
-                    None,
-                    challenged.as_deref_mut(),
+                acquire_with_connect_timeout(
+                    Some(HttpProtocol::Http1),
                     timeout_budget,
-                );
-                let result =
-                    send_while_authenticating(connect, connection.early_data_answered(), send)
-                        .await;
-                #[cfg(feature = "https-records")]
-                if result.is_err()
-                    && let Some(Http1TlsError::Tls(error)) = connection.early_data_failure()
-                    && let Some(retry) = error.ech_retry()
-                {
-                    ech_retry = Some((retry.clone(), connect));
-                    continue;
-                }
-                return result;
+                    retries,
+                    || async {
+                        entry
+                            .acquire(
+                                connector,
+                                https_proxy,
+                                endpoint,
+                                route,
+                                mode,
+                                fresh_connection,
+                            )
+                            .await
+                    },
+                )
+                .await
+            };
+            let (lease, connect) = acquisition.await?;
+            (lease, permit, connect)
+        };
+        if !replay_safe && lease.connection.early_data_pending() {
+            lease.retire();
+            connect
+                .run(async {
+                    lease.connection.early_data_answered().await;
+                    Ok(())
+                })
+                .await?;
+            if lease.connection.early_data_failure().is_none() {
+                lease.retired = false;
             }
-            return Self::dispatch_on_lease(
+        }
+        if let Some(failure) = lease.connection.early_data_failure() {
+            #[cfg(feature = "https-records")]
+            if let Http1TlsError::Tls(error) = &failure
+                && let Some(retry) = error.ech_retry()
+            {
+                let retry = retry.clone();
+                lease.retire();
+                drop((lease, permit));
+                return Ok(AttemptOutcome::Retry {
+                    request,
+                    retry,
+                    connect,
+                });
+            }
+            return Err(RequestError::http1_connection_setup(failure));
+        }
+        if replay_safe {
+            lease
+                .connection
+                .register_early_data_attempt_optional(retries.attempt_budget());
+        }
+        if replay_safe && lease.connection.early_data_pending() {
+            // Only early-data requests retain their frozen fields. A body
+            // stays here until authentication has completed.
+            let connection = lease.connection.clone();
+            let send = Self::dispatch_on_lease(
                 lease,
                 permit,
                 route,
                 mode,
-                method,
-                target,
-                absolute_target,
-                headers,
-                trailers,
-                body,
-                challenged,
+                request.method.clone(),
+                request.target.clone(),
+                request.absolute_target.clone(),
+                request.headers.clone(),
+                request.trailers.clone(),
+                None,
+                challenged.as_deref_mut(),
                 timeout_budget,
-            )
-            .await;
+            );
+            let result =
+                send_while_authenticating(connect, connection.early_data_answered(), send).await;
+            #[cfg(feature = "https-records")]
+            if result.is_err()
+                && let Some(Http1TlsError::Tls(error)) = connection.early_data_failure()
+                && let Some(retry) = error.ech_retry()
+            {
+                return Ok(AttemptOutcome::Retry {
+                    request,
+                    retry: retry.clone(),
+                    connect,
+                });
+            }
+            return result.map(AttemptOutcome::Response);
         }
+        Self::dispatch_on_lease(
+            lease,
+            permit,
+            route,
+            mode,
+            request.method,
+            request.target,
+            request.absolute_target,
+            request.headers,
+            request.trailers,
+            request.body,
+            challenged.as_deref_mut(),
+            timeout_budget,
+        )
+        .await
+        .map(AttemptOutcome::Response)
     }
 
     #[allow(clippy::too_many_arguments)]

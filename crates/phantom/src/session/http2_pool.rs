@@ -967,100 +967,98 @@ impl PoolEntry {
         // or a stream ends, as the single-connection pool did, and choose
         // again. Waiters are woken together, not in arrival order: after a
         // failed setup, whichever runs first makes the next attempt.
-        loop {
-            let setup = loop {
-                let expired = self
-                    .lock()
-                    .take_expired_proxy_spares(Instant::now(), self.http1_used_idle_timeout);
-                let removed = !expired.is_empty();
-                close_proxy_spares(expired);
-                if removed {
-                    self.setup_done.notify_waiters();
-                }
-                let mut setup_done = pin!(self.setup_done.notified());
-                // Registered before the check, so a setup finishing in between
-                // still wakes this request.
-                setup_done.as_mut().enable();
+        let (reservation, proxy_opening) = loop {
+            let expired = self
+                .lock()
+                .take_expired_proxy_spares(Instant::now(), self.http1_used_idle_timeout);
+            let removed = !expired.is_empty();
+            close_proxy_spares(expired);
+            if removed {
+                self.setup_done.notify_waiters();
+            }
+            let mut setup_done = pin!(self.setup_done.notified());
+            // Registered before the check, so a setup finishing in between
+            // still wakes this request.
+            setup_done.as_mut().enable();
+            let setup = {
+                let mut connections = self.lock();
+                connections.retain_reusable();
+                if let Choice::Use(index) = connections.choose()
+                    && let Some(slot) = connections.slots.get(index)
                 {
-                    let mut connections = self.lock();
-                    connections.retain_reusable();
-                    if let Choice::Use(index) = connections.choose()
-                        && let Some(slot) = connections.slots.get(index)
+                    debug!(
+                        outcome = "hit",
+                        "HTTP/2 connection acquired from client pool"
+                    );
+                    return Ok(slot.lease());
+                }
+                let mut setup = None;
+                #[cfg(feature = "https-records")]
+                if let Some(recovery) = connections.ech_recoveries.pending() {
+                    setup = Some(ConnectionSetup::Ech(recovery));
+                }
+                if setup.is_none() && !connections.connecting {
+                    if let Some(index) = connections
+                        .spares
+                        .iter()
+                        .position(|spare| spare.ready.is_some())
                     {
-                        debug!(
-                            outcome = "hit",
-                            "HTTP/2 connection acquired from client pool"
-                        );
-                        return Ok(slot.lease());
-                    }
-                    #[cfg(feature = "https-records")]
-                    if let Some(recovery) = connections.ech_recoveries.pending() {
-                        break ConnectionSetup::Ech(recovery);
-                    }
-                    if !connections.connecting {
-                        if let Some(index) = connections
-                            .spares
-                            .iter()
-                            .position(|spare| spare.ready.is_some())
-                        {
-                            let mut spare = connections.spares.swap_remove(index);
-                            let opening = spare.ready.take();
-                            connections.connecting = true;
-                            break ConnectionSetup::Open(
-                                SetupReservation {
-                                    entry: self,
-                                    finished: false,
-                                },
-                                opening.map(|opening| {
-                                    (opening, spare.idle_since.unwrap_or_else(Instant::now))
-                                }),
-                            );
-                        }
-                        if connections.spares.is_empty() {
-                            self.family.mark_active();
-                            connections.connecting = true;
-                            break ConnectionSetup::Open(
-                                SetupReservation {
-                                    entry: self,
-                                    finished: false,
-                                },
-                                None,
-                            );
-                        }
+                        let mut spare = connections.spares.swap_remove(index);
+                        let opening = spare.ready.take();
+                        connections.connecting = true;
+                        setup = Some(ConnectionSetup::Open(
+                            SetupReservation {
+                                entry: self,
+                                finished: false,
+                            },
+                            opening.map(|opening| {
+                                (opening, spare.idle_since.unwrap_or_else(Instant::now))
+                            }),
+                        ));
+                    } else if connections.spares.is_empty() {
+                        self.family.mark_active();
+                        connections.connecting = true;
+                        setup = Some(ConnectionSetup::Open(
+                            SetupReservation {
+                                entry: self,
+                                finished: false,
+                            },
+                            None,
+                        ));
                     }
                 }
-                setup_done.await;
+                setup
             };
 
-            let (reservation, proxy_opening) = match setup {
-                ConnectionSetup::Open(reservation, opening) => (reservation, opening),
+            match setup {
+                Some(ConnectionSetup::Open(reservation, opening)) => break (reservation, opening),
                 #[cfg(feature = "https-records")]
-                ConnectionSetup::Ech(recovery) => {
+                Some(ConnectionSetup::Ech(recovery)) => {
                     self.recover_ech(&recovery, connector, endpoint, route, mode)
                         .await?;
-                    continue;
                 }
-            };
-
-            if let Some((opening, since)) = proxy_opening {
-                let claim = ProxyClaim {
-                    reservation: Some(reservation),
-                    opening: Some(opening),
-                    since,
-                };
-                // A proxy claim is connection setup too; keep its CONNECT/TLS
-                // future out of acquire, including when a request reuses H2.
-                return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
+                None => setup_done.await,
             }
+        };
 
-            debug!(outcome = "connect", "HTTP/2 client pool opening connection");
-            // Boxed: opening a connection awaits the largest connector futures,
-            // which would otherwise enlarge the future of every request, including
-            // one that reuses a pooled connection.
-            let (connection, slower) =
-                super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
-            return Ok(reservation.finish(connection, slower));
+        if let Some((opening, since)) = proxy_opening {
+            let claim = ProxyClaim {
+                reservation: Some(reservation),
+                opening: Some(opening),
+                since,
+            };
+            // A proxy claim is connection setup too; keep its CONNECT/TLS
+            // future out of acquire, including when a request reuses H2.
+            return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
         }
+
+        debug!(outcome = "connect", "HTTP/2 client pool opening connection");
+        // Boxed: opening a connection awaits the largest connector futures,
+        // which would otherwise enlarge the future of every request, including
+        // one that reuses a pooled connection.
+        let (connection, slower) =
+            super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+        Ok(reservation.finish(connection, slower))
     }
 
     async fn finish_proxy_claim(
