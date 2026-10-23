@@ -465,7 +465,7 @@ impl Http1Pool {
             // Only early-data requests retain their frozen fields. A body
             // stays here until authentication has completed.
             let connection = lease.connection.clone();
-            let send = Self::dispatch_on_lease(
+            let send = super::box_send(Self::dispatch_on_lease(
                 lease,
                 permit,
                 route,
@@ -478,7 +478,7 @@ impl Http1Pool {
                 None,
                 challenged.as_deref_mut(),
                 timeout_budget,
-            );
+            ));
             let result =
                 send_while_authenticating(connect, connection.early_data_answered(), send).await;
             #[cfg(feature = "https-records")]
