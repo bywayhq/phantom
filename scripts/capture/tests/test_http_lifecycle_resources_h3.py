@@ -202,6 +202,36 @@ class StreamReplayTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "after stream FIN"):
             capture.retain(event(0, b"x"), resources)
 
+    def test_nonempty_reserved_control_frames_preserve_captured_bytes(self) -> None:
+        # Chrome 156.0.8078.47 Linux control frames, including their varint widths.
+        for frame in (
+            bytes.fromhex("c0000003a68e75af021b6e"),
+            bytes.fromhex("c00000005d899fdf0272e2"),
+        ):
+            for chunks in ([frame], [bytes([byte]) for byte in frame]):
+                with self.subTest(frame=frame.hex(), chunks=len(chunks)):
+                    capture, _ = retained(
+                        [event(2, CONTROL), *(event(2, chunk) for chunk in chunks)]
+                    )
+                    before = tuple(capture.events)
+                    capture.replay({})
+                    self.assertEqual(tuple(capture.events), before)
+                    self.assertEqual(bytes(capture.streams[2]), CONTROL + frame)
+                    self.assertEqual(
+                        b"".join(item.data for item in capture.events), CONTROL + frame
+                    )
+
+    def test_reserved_control_frame_rejects_every_truncated_boundary(self) -> None:
+        for frame in (
+            bytes.fromhex("c0000003a68e75af021b6e"),
+            bytes.fromhex("c00000005d899fdf0272e2"),
+        ):
+            for length in range(1, len(frame)):
+                with self.subTest(frame=frame.hex(), length=length):
+                    capture, _ = retained([event(2, CONTROL + frame[:length])])
+                    with self.assertRaisesRegex(ValueError, "incomplete frame"):
+                        capture.replay({})
+
     def test_control_stream_retains_valid_priorities_and_rejects_opaque_payloads(
         self,
     ) -> None:
@@ -217,7 +247,7 @@ class StreamReplayTests(unittest.TestCase):
             capture.replay({})
         for kind, payload in (
             (7, b"\x00opaque"),
-            (0x21, b"private"),
+            (0x22, b"private"),
             (0xF0700, encode_uint_var(0) + b"authorization=private"),
         ):
             capture, _ = retained([event(2, CONTROL + encode_frame(kind, payload))])

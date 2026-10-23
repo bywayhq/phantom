@@ -178,7 +178,7 @@ class StreamCapture:
                             raise ValueError(
                                 "resource HTTP/3 priority update is unsupported"
                             )
-                    elif not is_h3_grease(kind) or payload:
+                    elif not is_h3_grease(kind):
                         raise ValueError(
                             "resource HTTP/3 control frame contains unapproved data"
                         )
