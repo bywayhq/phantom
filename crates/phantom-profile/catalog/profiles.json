@@ -471,7 +471,8 @@
       ],
       "templates": {
         "FetchNoStore": "brave_windows154_fetch_no_store",
-        "Navigation": "brave_windows154_navigation"
+        "Navigation": "brave_windows154_navigation",
+        "Fetch": "brave_windows154_fetch"
       },
       "target": "BraveWindows154",
       "composition": {

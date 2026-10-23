@@ -723,11 +723,15 @@ fn template_after_a_cross_origin_hop_keeps_no_credential_slot()
     Ok(())
 }
 
-/// Chrome 154 and Firefox 157 revalidating cached responses with `fetch()`,
+/// Browser requests revalidating cached responses with `fetch()`,
 /// recorded by `scripts/capture/http_lifecycle.py --scenario revalidate`.
 const CHROME_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/revalidate.txt"
+));
+const BRAVE_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/brave/154.1.96.59/windows-11-26200/revalidate.txt"
 ));
 const FIREFOX_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -788,6 +792,28 @@ fn chrome_fetch_template_places_validators_as_the_revalidation_capture() {
             names
         );
     }
+}
+
+#[test]
+fn brave_catalog_fetch_places_validators_as_the_revalidation_capture()
+-> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::catalog::{RequestTemplateKind, profile};
+
+    let template = profile("brave-154-windows")?.request_template(RequestTemplateKind::Fetch)?;
+    template.validate()?;
+    let captured = revalidations(BRAVE_REVALIDATION);
+    assert_eq!(captured.len(), 3);
+    let caller = [
+        RequestHeader::new("user-agent", CHROME_154),
+        RequestHeader::new("accept-language", "en-US,en;q=0.9"),
+        RequestHeader::new("sec-ch-ua-platform", "\"Windows\""),
+        RequestHeader::new("sec-ch-ua", "\"Brave\""),
+        RequestHeader::new("sec-ch-ua-mobile", "?0"),
+    ];
+    for names in captured {
+        assert_eq!(expand_revalidation(&template, &names, &caller), names);
+    }
+    Ok(())
 }
 
 #[test]

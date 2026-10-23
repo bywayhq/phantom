@@ -526,6 +526,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::BRAVE_WINDOWS154_NAVIGATION },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::BRAVE_WINDOWS154_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::BRAVE_WINDOWS154_FETCH },
         ],
     },
     ProfileDefinition {

@@ -4,6 +4,10 @@
 //! hints and request fields. Use a separate client per top-level site to
 //! isolate caches and connections as Brave does.
 //!
+//! Select [`crate::catalog::RequestTemplateKind::Fetch`] from the
+//! `brave-154-windows` catalog recipe for ordinary cached fetches. Supply
+//! `User-Agent`, `Accept-Language` and any validators you want to send.
+//!
 //! Android recipes target Brave 1.95.104. Android TCP, HTTP/1.1 pool,
 //! address-cache, proxy CONNECT and cookie-placement recipes are unavailable.
 

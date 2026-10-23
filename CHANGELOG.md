@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add Brave 154 default-fetch templates with captured HTTP/2 validator order.
+
 - Retain child exit codes and signals in Node test logs.
 
 - Capture WebSocket openings through HTTP/2 HTTPS proxies; retain a Firefox
