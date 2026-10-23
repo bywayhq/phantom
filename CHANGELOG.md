@@ -4,7 +4,8 @@
 
 - Retain child exit codes and signals in Node test logs.
 
-- Capture WebSocket openings through HTTP/2 HTTPS proxies.
+- Capture WebSocket openings through HTTP/2 HTTPS proxies; retain a Firefox
+  157 observation using the page's inner HTTP/2 session.
 
 - Capture ECH discovery for an alternative HTTP/3 host.
 

@@ -1606,8 +1606,9 @@ WebSocket protocol.
 
 H2 proxy captures retain each outer connection and its CONNECT streams,
 with their matching origin connections. Their filenames use `https-h2-`
-instead of `https-`. An H2 proxy can carry an H1 or H2 origin WebSocket;
-inspect both ALPN values and the decoded openings.
+instead of `https-`. Inspect both ALPN values and the decoded openings.
+The [Firefox 157 capture](../../fixtures/tunnelled-websocket/firefox/157.0/windows-11-26200/https-h2-negotiate-accept.txt)
+reuses the page's inner H2 session for the WebSocket.
 
 For desktop captures, save a new manifest such as this one. Replace the
 browser path, installed version and scratch paths for the capture host:
