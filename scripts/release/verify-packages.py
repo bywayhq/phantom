@@ -120,6 +120,28 @@ def installed_package_sources(log, base, versions):
     return selected
 
 
+def consumer_manifest(text: str, versions: dict[str, str]) -> str:
+    workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))[
+        "workspace"
+    ]["package"]
+    text = text.replace(
+        'path = "../../../crates/phantom"',
+        f'version = "={versions["phantom-http"]}", registry = "phantom-staging"',
+    ).replace(
+        'path = "../../../crates/phantom-testkit"',
+        f'version = "={versions["phantom-testkit"]}", registry = "phantom-staging"',
+    )
+    text = text.replace(
+        'edition = "2024"',
+        f'edition = "2024"\nrust-version = {json.dumps(workspace["rust-version"])}',
+    )
+    return text.replace(
+        "https-records = [",
+        'full = ["phantom/full"]\n'
+        'diagnostics = ["phantom/diagnostics"]\nhttps-records = [',
+    )
+
+
 class RegistryHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *_args):
         pass
@@ -212,22 +234,9 @@ def verify(args):
             manifest["package"]["name"]: manifest["package"]["version"]
             for manifest, _ in records
         }
-        text = text.replace(
-            'path = "../../../crates/phantom"',
-            f'version = "={versions["phantom-http"]}", registry = "phantom-staging"',
-        ).replace(
-            'path = "../../../crates/phantom-testkit"',
-            f'version = "={versions["phantom-testkit"]}", registry = "phantom-staging"',
+        (consumer / "Cargo.toml").write_text(
+            consumer_manifest(text, versions), encoding="utf-8"
         )
-        text = text.replace(
-            'edition = "2024"', 'edition = "2024"\nrust-version = "1.88"'
-        )
-        text = text.replace(
-            "https-records = [",
-            'full = ["phantom/full"]\n'
-            'diagnostics = ["phantom/diagnostics"]\nhttps-records = [',
-        )
-        (consumer / "Cargo.toml").write_text(text, encoding="utf-8")
         config = consumer / ".cargo"
         config.mkdir()
         (config / "config.toml").write_text(

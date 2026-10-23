@@ -27,6 +27,38 @@ advisories = load("check_advisories", "check-advisories.py")
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_consumer_inherits_the_workspace_msrv_and_keeps_staged_dependencies(self):
+        text = (verify.ROOT / "tests/downstream/public-api/Cargo.toml").read_text(
+            encoding="utf-8"
+        )
+        versions = {"phantom-http": "0.2.0", "phantom-testkit": "0.3.0"}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for version in ("1.91", "1.92.1"):
+                (root / "Cargo.toml").write_text(
+                    f'[workspace.package]\nrust-version = "{version}"\n',
+                    encoding="utf-8",
+                )
+                with self.subTest(version=version), patch.object(verify, "ROOT", root):
+                    manifest = tomllib.loads(verify.consumer_manifest(text, versions))
+                    self.assertEqual(manifest["package"]["rust-version"], version)
+                    self.assertEqual(manifest["package"]["edition"], "2024")
+                    for alias, package in (
+                        ("phantom", "phantom-http"),
+                        ("phantom-testkit", "phantom-testkit"),
+                    ):
+                        table = (
+                            "dependencies" if alias == "phantom" else "dev-dependencies"
+                        )
+                        dependency = manifest[table][alias]
+                        self.assertEqual(dependency["version"], "=" + versions[package])
+                        self.assertEqual(dependency["registry"], "phantom-staging")
+                        self.assertNotIn("path", dependency)
+                    self.assertEqual(manifest["features"]["full"], ["phantom/full"])
+                    self.assertEqual(
+                        manifest["features"]["diagnostics"], ["phantom/diagnostics"]
+                    )
+
     def test_structured_output_excludes_dependency_download_diagnostics(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

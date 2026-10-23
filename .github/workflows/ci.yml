@@ -541,10 +541,16 @@ jobs:
           python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
 
       - name: Install minimum supported Rust
-        run: rustup toolchain install 1.88.0 --profile minimal
+        shell: bash
+        run: |
+          msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
+          test -n "$msrv"
+          rustup toolchain install "$msrv" --profile minimal
+          echo "MSRV=$msrv" >> "$GITHUB_ENV"
 
       - name: Check native clients on minimum supported Rust
-        run: cargo +1.88.0 check -p phantom-net -p phantom-quic-btls --all-targets --locked
+        shell: bash
+        run: cargo "+$MSRV" check -p phantom-net -p phantom-quic-btls --all-targets --locked
 
   msrv:
     name: MSRV

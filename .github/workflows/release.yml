@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [ubuntu-latest, macos-latest, windows-latest]
-        toolchain: [current, 1.88.0]
+        toolchain: [current, msrv]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,8 +52,13 @@ jobs:
         run: rustc --version
 
       - name: Install minimum supported Rust
-        if: matrix.toolchain != 'current'
-        run: rustup toolchain install 1.88.0 --profile minimal
+        if: matrix.toolchain == 'msrv'
+        shell: bash
+        run: |
+          msrv=$(sed -nE 's/^rust-version = "([^"]+)"/\1/p' Cargo.toml)
+          test -n "$msrv"
+          rustup toolchain install "$msrv" --profile minimal
+          echo "MSRV=$msrv" >> "$GITHUB_ENV"
 
       - name: Install release tooling Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -69,8 +74,8 @@ jobs:
           RELEASE_TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
           args=()
-          if [[ "$RELEASE_TOOLCHAIN" != current ]]; then
-            args+=(--toolchain "$RELEASE_TOOLCHAIN")
+          if [[ "$RELEASE_TOOLCHAIN" == msrv ]]; then
+            args+=(--toolchain "$MSRV")
           fi
           scripts/release/publish-crates.sh --verify --output target/release-check "${args[@]}"
 
