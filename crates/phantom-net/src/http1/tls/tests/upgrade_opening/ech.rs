@@ -95,6 +95,21 @@ async fn control(mode: Opening) -> TestResult<()> {
             .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
             .await?;
         upgraded.flush().await?;
+        // The request may be early data. Keep the socket until the client
+        // has processed the response and closed, including its TLS Finished.
+        let mut trailing = [0; 1];
+        match upgraded.read(&mut trailing).await {
+            Ok(0) => {}
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::BrokenPipe
+                ) => {}
+            Err(error) => return Err(error.into()),
+            Ok(_) => return Err("unexpected bytes after the Upgrade request".into()),
+        }
         TestResult::<()>::Ok(())
     });
     let exchange = timeout(TEST_TIMEOUT, async {
