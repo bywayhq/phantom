@@ -778,6 +778,8 @@ async fn alternative_setup(
                 connecting: Some(&connecting),
                 attempt_limit: Some(setup_limit),
                 early_data,
+                #[cfg(feature = "https-records")]
+                purpose: crate::session::http3_pool::Http3SetupPurpose::Request,
             },
         )
         .await
