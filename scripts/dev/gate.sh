@@ -408,6 +408,13 @@ chain_tests() {
   fi
   run_step nextest test "${runner[@]}" "${scope[@]}" "${tests[@]}"
   [[ $quick == true ]] && return
+  local snapshot_tests=(-p phantom-http --lib --no-default-features --features session-snapshot --locked --no-fail-fast)
+  if [[ ${runner[1]} == nextest ]]; then
+    snapshot_tests+=(-E 'test(session::snapshot::tests::)')
+  else
+    snapshot_tests+=(session::snapshot::tests::)
+  fi
+  run_step snapshot-feature-off test "${runner[@]}" "${snapshot_tests[@]}"
   run_step doctest test cargo test --doc -j "$jobs" --workspace --all-features --locked
   run_step fuzz-test test cargo test -j "$jobs" --manifest-path fuzz/Cargo.toml --locked
   run_step python-binding test env CARGO_BUILD_JOBS="$jobs" \
@@ -470,7 +477,7 @@ if [[ $quick == true ]]; then
     launch chain_linux
   fi
 else
-  steps+=(nextest doctest fuzz-test python-binding go-binding node-binding clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
+  steps+=(nextest snapshot-feature-off doctest fuzz-test python-binding go-binding node-binding clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
     docs-check tool-pins unsafe-boundaries)
   if [[ $nightly_installed == true ]]; then

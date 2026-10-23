@@ -176,6 +176,9 @@ jobs:
       - name: Test
         run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
 
+      - name: Test snapshots without cookie or discovery support
+        run: cargo nextest run --profile ci -p phantom-http --lib --no-default-features --features session-snapshot --locked -E 'test(session::snapshot::tests::)'
+
       - name: Test installed Python wheel
         run: scripts/dev/with-cargo-lock.sh python scripts/dev/check_python_binding.py
 
