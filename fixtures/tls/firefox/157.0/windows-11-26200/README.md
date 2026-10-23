@@ -11,3 +11,7 @@ Use the Firefox command in the
 [ECH capture instructions](../../../../../scripts/capture/README.md), with
 `--scenario accept` or `--scenario no-https-record`. Peer and driver source:
 `1bd257c4b32302e2ab7c6e494408f2d99e9a1a30`.
+
+`ech-early-accept.txt` resumes a seed ticket, accepts 465 early request bytes
+and serves the probe once after completing TLS. The peer retires idle setup
+connections before releasing the seed page. Source: `3365b4021`.

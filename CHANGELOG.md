@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Retire speculative connections before Firefox ECH resumption probes.
+- Retire speculative connections before Firefox ECH resumption probes and
+  retain Firefox 157 early-request acceptance.
 
 - Add an HTTPS no-record comparison to the ECH capture tool and retain
   Firefox 157 TCP observations for ECH acceptance and HTTPS NODATA.
