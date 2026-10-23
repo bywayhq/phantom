@@ -175,6 +175,11 @@ pub enum Http3MisdirectedRequest {
     /// Return the response to the caller.
     ReturnResponse,
     /// Retry a replayable request if its first attempt receives HTTP/3 421.
+    ///
+    /// Earlier automatic restarts suppress this retry. The resend uses the
+    /// request's existing deadline and attempt budget. Negotiated requests
+    /// return to the origin; exact HTTP/3 requests keep their selected location.
+    /// Existing response streams finish on the retired connection.
     RetryFirst,
 }
 

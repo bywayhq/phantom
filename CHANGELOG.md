@@ -5,13 +5,18 @@
 - Return the original `Critical-CH` response when its request body cannot
   be replayed.
 
-- Breaking: add `Http3Settings::connection_reuse` to select same-origin or
-  authorized-origin connection reuse. Firefox recipes reuse eligible direct
-  HTTP/3 connections across origins. A coalesced 421 retires the connection
-  and returns the response without an automatic replay. Migrate: add
-  `connection_reuse: Http3ConnectionReuse::SameOrigin` to custom settings and
-  `"connection_reuse": "SameOrigin"` to HTTP/3 profile JSON. Recreate saved
-  tickets and session checkpoints.
+- Breaking: add `Http3Settings::connection_reuse` and `misdirected_request`.
+  Firefox recipes share eligible direct HTTP/3 connections across origins
+  and retry a replayable request after its first-attempt 421 response.
+  Existing streams finish on the retired connection. Migrate: add
+  `connection_reuse: Http3ConnectionReuse::SameOrigin` and
+  `misdirected_request: Http3MisdirectedRequest::ReturnResponse` to custom
+  settings. HTTP/3 profile JSON requires `"connection_reuse": "SameOrigin"`
+  and `"misdirected_request": "ReturnResponse"` for the previous behavior.
+  Recreate saved tickets and session checkpoints.
+
+- Add `AddressCache::remove` to refresh one hostname without clearing
+  unrelated answers.
 
 - Breaking: add `DnsCacheSettings::stale_grace`. Firefox recipes reuse
   positive DNS answers for up to ten minutes while refreshing them in the

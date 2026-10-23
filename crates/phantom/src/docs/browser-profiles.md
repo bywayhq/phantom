@@ -63,6 +63,11 @@ These profiles do not all cover the same layers. For example, the Chrome Android
 profile leaves HTTP/1.1 connection policy and proxy CONNECT templates at generic
 defaults. Its constructor documents those omissions.
 
+Firefox recipes share eligible HTTP/3 connections across HTTPS origins. They
+retry replayable requests after a first-attempt 421 response. Exact HTTP/3
+requests keep their selected protocol and endpoint. See
+[`Http3MisdirectedRequest`](crate::profile::Http3MisdirectedRequest) for the policy.
+
 ## Choose the request kind
 
 A profile and a request template answer different questions:
