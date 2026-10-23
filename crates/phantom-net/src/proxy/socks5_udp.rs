@@ -12,15 +12,15 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpStream, UdpSocket},
 };
-use zeroize::Zeroizing;
 
-use super::socks5::{Socks5Auth, Socks5Error, Socks5ErrorKind, connect_proxy, trace_connect};
+use super::socks5::{
+    Socks5Auth, Socks5Error, Socks5ErrorKind, connect_proxy,
+    negotiation::{self, Command},
+    trace_connect,
+};
 use crate::direct::Dialer;
 
 const VERSION: u8 = 5;
-const NO_AUTHENTICATION: u8 = 0;
-const USERNAME_PASSWORD: u8 = 2;
-const NO_ACCEPTABLE_METHODS: u8 = 0xff;
 const UDP_ASSOCIATE: u8 = 3;
 const IPV4: u8 = 1;
 const DOMAIN: u8 = 3;
@@ -486,51 +486,7 @@ async fn negotiate_authentication<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    match auth {
-        Socks5Auth::None => write_all(stream, &[VERSION, 1, NO_AUTHENTICATION]).await?,
-        Socks5Auth::UsernamePassword { .. } => {
-            write_all(stream, &[VERSION, 2, NO_AUTHENTICATION, USERNAME_PASSWORD]).await?;
-        }
-    }
-
-    let mut selection = [0; 2];
-    read_exact(stream, &mut selection).await?;
-    if selection[0] != VERSION {
-        return Err(invalid_negotiation(
-            "SOCKS5 method selection used an invalid version",
-        ));
-    }
-    match (selection[1], auth) {
-        (NO_AUTHENTICATION, _) => Ok(()),
-        (USERNAME_PASSWORD, Socks5Auth::UsernamePassword { username, password }) => {
-            let mut request =
-                Zeroizing::new(Vec::with_capacity(3 + username.len() + password.len()));
-            request.push(1);
-            request.push(username.len() as u8);
-            request.extend_from_slice(username.as_bytes());
-            request.push(password.len() as u8);
-            request.extend_from_slice(password.as_bytes());
-            write_all(stream, &request).await?;
-
-            let mut response = [0; 2];
-            read_exact(stream, &mut response).await?;
-            if response[0] != 1 {
-                return Err(invalid_negotiation(
-                    "SOCKS5 authentication response used an invalid version",
-                ));
-            }
-            if response[1] != 0 {
-                return Err(Socks5Error::without_source(Socks5ErrorKind::Authentication));
-            }
-            Ok(())
-        }
-        (NO_ACCEPTABLE_METHODS | USERNAME_PASSWORD, _) => {
-            Err(Socks5Error::without_source(Socks5ErrorKind::Authentication))
-        }
-        _ => Err(invalid_negotiation(
-            "SOCKS5 proxy selected an unsupported authentication method",
-        )),
-    }
+    negotiation::authenticate(stream, auth, Command::Associate).await
 }
 
 async fn write_udp_associate<S>(stream: &mut S, client: SocketAddr) -> Result<(), Socks5Error>

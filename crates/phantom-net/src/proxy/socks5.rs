@@ -8,13 +8,15 @@ use std::{
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use tokio_socks::{IntoTargetAddr, TargetAddr, tcp::Socks5Stream};
+use tokio_socks::{IntoTargetAddr, TargetAddr};
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp, poll_tokio_io},
     host_resolver::resolve,
 };
+
+pub(super) mod negotiation;
 
 /// Stable category of SOCKS5 tunnel failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -301,22 +303,16 @@ pub(super) fn prepare_target(host: &str, port: u16) -> Result<TargetAddr<'_>, So
 }
 
 pub(super) async fn establish<S>(
-    stream: S,
+    mut stream: S,
     target: TargetAddr<'_>,
     auth: Socks5Auth<'_>,
 ) -> Result<S, Socks5Error>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let stream = match auth {
-        Socks5Auth::None => Socks5Stream::connect_with_socket(stream, target).await,
-        Socks5Auth::UsernamePassword { username, password } => {
-            Socks5Stream::connect_with_password_and_socket(stream, target, username, password).await
-        }
-    };
-    stream
-        .map(Socks5Stream::into_inner)
-        .map_err(Socks5Error::negotiation)
+    negotiation::authenticate(&mut stream, auth, negotiation::Command::Connect).await?;
+    negotiation::connect(&mut stream, target).await?;
+    Ok(stream)
 }
 
 #[cfg(test)]
