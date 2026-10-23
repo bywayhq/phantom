@@ -35,7 +35,7 @@ async fn firefox_advertisement_authenticates_without_spending_an_http_attempt_or
     let client = firefox_client(&identity)?;
     let events = ValidationObservation::new();
     let dispatch = Dispatch::new(events.clone());
-    let _scope = tracing::subscriber::set_default(&dispatch);
+    let _scope = tracing::dispatcher::set_default(&dispatch);
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         let allowance = HttpAttemptBudget::new(3);
@@ -118,7 +118,7 @@ async fn importing_a_firefox_snapshot_waits_for_a_real_advertisement_to_start_va
     let client = firefox_client(&identity)?;
     let events = ValidationObservation::new();
     let dispatch = Dispatch::new(events.clone());
-    let _scope = tracing::subscriber::set_default(&dispatch);
+    let _scope = tracing::dispatcher::set_default(&dispatch);
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
@@ -204,7 +204,7 @@ async fn an_ech_authenticated_origin_does_not_start_advertisement_validation() -
     let client = ech::discovering_client(&identity, &dns, profile, None)?;
     let events = ValidationObservation::new();
     let dispatch = Dispatch::new(events.clone());
-    let _scope = tracing::subscriber::set_default(&dispatch);
+    let _scope = tracing::dispatcher::set_default(&dispatch);
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         for path in ["/ech-advertisement", "/same-ech-connection"] {
@@ -260,7 +260,7 @@ async fn cancelled_validation(action: Cancel) -> TestResult<()> {
     let client = firefox_client(&identity)?;
     let events = ValidationObservation::new();
     let dispatch = Dispatch::new(events.clone());
-    let _scope = tracing::subscriber::set_default(&dispatch);
+    let _scope = tracing::dispatcher::set_default(&dispatch);
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         let mut peer = fixture.alternative_progress();
