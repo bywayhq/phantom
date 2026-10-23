@@ -17,6 +17,7 @@ use tokio::sync::watch;
 use super::*;
 use crate::support::ech::{ORIGIN_NAME, PUBLIC_NAME, https_rdata_with_alpn, origin_identity};
 
+mod lifecycle;
 mod peer;
 
 #[derive(Clone, Copy)]
@@ -453,6 +454,14 @@ fn has_ech_rejection(error: &(dyn Error + 'static)) -> bool {
 }
 
 fn discovering_client(identity: &TestIdentity, port: u16) -> TestResult<Client> {
+    discovering_client_with_slots(identity, port, NonZeroUsize::MIN)
+}
+
+fn discovering_client_with_slots(
+    identity: &TestIdentity,
+    port: u16,
+    http1_connections: NonZeroUsize,
+) -> TestResult<Client> {
     let configs = ech_config_list(&[ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME)]);
     let record = HttpsRecord::from_rdata(&https_rdata_with_alpn(&[b"h2", b"http/1.1"], &configs))?;
     let records = HttpsRecordLookup::new(
@@ -487,7 +496,7 @@ fn discovering_client(identity: &TestIdentity, port: u16) -> TestResult<Client> 
     let mut tls = firefox::v157_tcp_tls();
     tls.ech = EchSettings::HttpsRecords(EchGreaseSettings::backend_default());
     let mut http1 = firefox::v157_http1();
-    http1.max_connections_per_origin = NonZeroUsize::MIN;
+    http1.max_connections_per_origin = http1_connections;
     let profile = ClientProfile::new(tls)
         .with_http1(http1)
         .with_http2(firefox::v157_http2());

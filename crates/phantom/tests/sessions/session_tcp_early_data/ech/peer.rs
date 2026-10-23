@@ -10,6 +10,8 @@ use tokio_btls::SslStream;
 use super::*;
 use crate::early_data_server::Server;
 
+pub(super) mod lifecycle;
+
 pub(super) fn set_key(acceptor: &SslAcceptor, id: u8, key: &EchTestKey) -> TestResult<()> {
     let mut keys = SslEchKeys::builder()?;
     keys.add_key(
