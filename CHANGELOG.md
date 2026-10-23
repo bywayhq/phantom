@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain child exit codes and signals in Node test logs.
+
 - Add a Firefox SOCKS5 proxy capture scenario.
 
 - Retain Firefox 157 early-data rejection and ECH key-rotation captures.

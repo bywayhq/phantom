@@ -13,7 +13,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "copy-native": "node scripts/copy-native.cjs",
-    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "test": "node --test --test-concurrency=1 --test-reporter=tap tests/*.test.cjs",
     "check-types": "tsc --noEmit --strict --module NodeNext --target ES2022 --lib ES2022,ESNext.Disposable tests/types.cts tests/types.mts"
   },
   "devDependencies": {
