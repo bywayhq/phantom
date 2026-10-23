@@ -121,7 +121,7 @@ class Scenario:
     name: str
     question: str
     limit_seconds: float
-    # "https-connect" and "https-socks5" use H1 TLS through a plaintext proxy.
+    # Proxy targets use H1 TLS through the named physical proxy.
     target: str
     script: str
     # Answer the lookup of TARGET_HOST as REWRITE_TO does.
@@ -135,12 +135,17 @@ class Scenario:
             "websocket": "ws",
             "wss": "wss",
             "https-connect": "https",
+            "https-proxy-connect": "https",
             "https-socks5": "https",
         }[self.target]
 
     @property
     def proxy_mode(self) -> str | None:
-        return {"https-connect": "http", "https-socks5": "socks5"}.get(self.target)
+        return {
+            "https-connect": "http",
+            "https-proxy-connect": "https",
+            "https-socks5": "socks5",
+        }.get(self.target)
 
     @property
     def hostname(self) -> str:
@@ -330,6 +335,15 @@ SCENARIOS = {
             "concurrent H1 TLS requests and a new request after origin disconnect",
             40,
             "https-connect",
+            _proxy_backup_script(),
+            rewrite_lookup=True,
+        ),
+        Scenario(
+            "https-connect-backup",
+            "HTTPS proxy attempts with [::1] then 127.0.0.1, outer H1 CONNECT, "
+            "concurrent inner H1 TLS requests and origin disconnect",
+            40,
+            "https-proxy-connect",
             _proxy_backup_script(),
             rewrite_lookup=True,
         ),
@@ -1783,6 +1797,11 @@ async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
     from .websocket_tunnel import TunnelServer  # noqa: PLC0415
 
     class ConnectProxy(TunnelServer):
+        async def _opening(self, channel: Any, record: Any) -> Any:
+            if self.mode == "https" and record.connection.alpn != "http/1.1":
+                raise ValueError("Firefox HTTPS proxy requires HTTP/1.1 ALPN")
+            return await super()._opening(channel, record)
+
         def failed(self, error: BaseException, run: CaptureRun | None) -> None:
             super().failed(error, run)
             origins.remember_failure(error)
@@ -1790,12 +1809,16 @@ async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
     mode = origins.scenario.proxy_mode
     if mode is None:
         raise ValueError("Firefox proxy scenario is required")
-    proxy = ConnectProxy(mode, certificate, ("127.0.0.1", origins.port))
+    proxy = ConnectProxy(mode, certificate, ("127.0.0.1", origins.port), alpn="h1")
     # Retain ownership before either admission or listener startup can fail.
     origins.proxy = proxy
     proxy.begin_run(
         CaptureRun(
-            "firefox-connect" if mode == "http" else "firefox-socks5",
+            {
+                "http": "firefox-connect",
+                "https": "firefox-https-connect",
+                "socks5": "firefox-socks5",
+            }[mode],
             ServerPolicy(),
             {},
             clock=lambda: now_ms() / 1000,
@@ -1809,7 +1832,9 @@ def connect_pac(origins: Origins) -> bytes:
         raise RuntimeError("Firefox CONNECT proxy has no listener")
     host = json.dumps(origins.scenario.hostname)
     # Firefox157's PAC SOCKS5 always requests remote-name resolution.
-    kind = "SOCKS5" if origins.scenario.proxy_mode == "socks5" else "PROXY"
+    kind = {"http": "PROXY", "https": "HTTPS", "socks5": "SOCKS5"}[
+        origins.scenario.proxy_mode
+    ]
     route = json.dumps(f"{kind} {TARGET_HOST}:{origins.proxy.address[1]}")
     origin = json.dumps(f"{origins.target_url}/")
     return (
@@ -1884,7 +1909,24 @@ async def run_once(
         preferences: tuple[tuple[str, bool | int | str], ...] = ()
         measured_port = origins.port
         if scenario.proxy_mode is not None:
-            await start_connect_proxy(origins, certificate)
+            proxy_certificate = (
+                generate_certificate(TARGET_HOST)
+                if scenario.proxy_mode == "https"
+                else certificate
+            )
+            await start_connect_proxy(origins, proxy_certificate)
+            if scenario.proxy_mode == "https":
+                files = (
+                    (
+                        "cert_override.txt",
+                        files[0][1]
+                        + firefox_cert_override(
+                            TARGET_HOST,
+                            origins.proxy.address[1],
+                            proxy_certificate.sha256_fingerprint,
+                        ),
+                    ),
+                )
             preferences = connect_preferences(origins)
             measured_port = origins.proxy.address[1]
         if scenario.rewrite_lookup and not localhost_ipv6_free(measured_port):
@@ -2102,6 +2144,9 @@ def connect_observations(origins: Origins, start_ms: int) -> list[dict[str, Any]
                 "outcome": opening.outcome,
             }
         )
+    if origins.scenario.proxy_mode == "https":
+        for observation, opening in zip(observations, run.openings, strict=True):
+            observation["alpn"] = opening.connection.alpn
     return observations
 
 
@@ -2271,9 +2316,11 @@ def render_fixture(
         header.extend(
             (
                 f"proxy_hostname={TARGET_HOST}",
-                "proxy_mode=socks5"
-                if scenario.proxy_mode == "socks5"
-                else "proxy_mode=http-connect",
+                {
+                    "http": "proxy_mode=http-connect",
+                    "https": "proxy_mode=https-connect",
+                    "socks5": "proxy_mode=socks5",
+                }[scenario.proxy_mode],
                 "proxy_configuration=PAC exact origin; other names direct; direct failover disabled",
                 "origin_alpn_offer=http/1.1",
                 "origin_trust=disposable-profile cert_override.txt",
@@ -2281,6 +2328,14 @@ def render_fixture(
         )
         if scenario.proxy_mode == "socks5":
             header.append("proxy_dns=remote")
+        elif scenario.proxy_mode == "https":
+            header.extend(
+                (
+                    "proxy_transport=tls",
+                    "proxy_alpn_offer=http/1.1",
+                    "proxy_trust=separate disposable-profile cert_override.txt leaf",
+                )
+            )
     return "\n".join([*header, *(line for run in runs for line in run)]) + "\n"
 
 
