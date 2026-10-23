@@ -108,7 +108,7 @@ async fn control(mode: Opening) -> TestResult<()> {
             .await?;
         let mut byte = [0; 1];
         seed.read_exact(&mut byte).await?;
-        seed.inner.shutdown().await?;
+        seed.shutdown().await?;
         drop(seed);
         let family = AddressFamilyMemory::new();
         let mut lookup = std::pin::pin!(async { real_ech.then(|| EchConfigList::new(configs)) });
