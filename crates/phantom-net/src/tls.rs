@@ -897,15 +897,8 @@ impl TlsConnector {
                 .map_err(|error| TlsError::backend("stream", error))?;
             if let Err(error) = Pin::new(&mut stream).connect().await {
                 debug!("TLS handshake failed");
-                if is_ech_rejection(&error) {
-                    // BoringSSL releases retry configurations only after
-                    // SSL_R_ECH_REJECTED, which authenticates them.
-                    let retry_configs = stream
-                        .ssl()
-                        .get_ech_retry_configs()
-                        .filter(|configs| !configs.is_empty())
-                        .map(Box::from);
-                    return Err(TlsError::ech_rejected(error, retry_configs));
+                if let Some(rejection) = EchRejection::from_handshake(stream.ssl(), &error) {
+                    return Err(TlsError::ech_rejected(error, rejection));
                 }
                 return Err(TlsError::handshake(error)
                     .with_pin_verification(stream.ssl().spki_pin_verification()));
@@ -1311,6 +1304,28 @@ fn is_ech_rejection(error: &btls::ssl::Error) -> bool {
     })
 }
 
+/// An authenticated rejection, including a server's decision to remove ECH.
+#[derive(Clone, Debug)]
+pub(crate) struct EchRejection {
+    retry_configs: Option<Box<[u8]>>,
+}
+
+impl EchRejection {
+    fn from_handshake(ssl: &btls::ssl::SslRef, error: &btls::ssl::Error) -> Option<Self> {
+        if !is_ech_rejection(error) {
+            return None;
+        }
+        // The getter requires SSL_R_ECH_REJECTED, which authenticates the
+        // public-name handshake. An empty list asks to retry without ECH.
+        Some(Self {
+            retry_configs: ssl
+                .get_ech_retry_configs()
+                .filter(|configs| !configs.is_empty())
+                .map(Box::from),
+        })
+    }
+}
+
 /// Error returned while constructing or using the TLS connector.
 #[derive(Debug)]
 pub struct TlsError {
@@ -1431,7 +1446,10 @@ impl TlsError {
         error
     }
 
-    fn ech_rejected(source: btls::ssl::Error, retry_configs: Option<Box<[u8]>>) -> Self {
+    fn ech_rejected(
+        source: impl StdError + Send + Sync + 'static,
+        rejection: EchRejection,
+    ) -> Self {
         let mut error = Self::new(
             TlsErrorKind::Handshake,
             None,
@@ -1439,7 +1457,7 @@ impl TlsError {
             Some(Box::new(source)),
         );
         error.ech = Some(EchFailure::Rejected);
-        error.ech_retry_configs = retry_configs;
+        error.ech_retry_configs = rejection.retry_configs;
         error
     }
 

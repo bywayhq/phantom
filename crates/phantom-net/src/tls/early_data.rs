@@ -111,6 +111,7 @@ pub(crate) enum EarlyDataFailure {
     Handshake {
         error: Arc<io::Error>,
         pin_verification: btls::ssl::SpkiPinVerification,
+        ech_rejection: Option<super::EchRejection>,
     },
     /// The server rejected the early data and then selected another ALPN
     /// protocol. The server processed no request on the connection.
@@ -128,10 +129,15 @@ impl EarlyDataFailure {
             Self::Handshake {
                 error,
                 pin_verification,
-            } => Some(
-                super::TlsError::after_early_data(SharedError(Arc::clone(error)))
-                    .with_pin_verification(*pin_verification),
-            ),
+                ech_rejection,
+            } => {
+                let source = SharedError(Arc::clone(error));
+                let error = match ech_rejection {
+                    Some(rejection) => super::TlsError::ech_rejected(source, rejection.clone()),
+                    None => super::TlsError::after_early_data(source),
+                };
+                Some(error.with_pin_verification(*pin_verification))
+            }
             Self::AlpnChanged { .. } => None,
         }
     }
@@ -488,11 +494,16 @@ where
         if self.early_data.is_none() {
             return error;
         }
+        let ech_rejection = error
+            .get_ref()
+            .and_then(|source| source.downcast_ref::<btls::ssl::Error>())
+            .and_then(|source| super::EchRejection::from_handshake(self.inner.ssl(), source));
         let kind = error.kind();
         let error = Arc::new(error);
         let failure = EarlyDataFailure::Handshake {
             error: Arc::clone(&error),
             pin_verification: self.inner.ssl().spki_pin_verification(),
+            ech_rejection,
         };
         self.fail_with(io::Error::new(kind, SharedError(error)), Some(failure))
     }
@@ -521,6 +532,43 @@ fn is_rejection(error: &io::Error) -> bool {
 mod tests {
     use super::*;
     use crate::HttpAttemptBudget;
+
+    #[test]
+    fn deferred_handshake_failure_preserves_pin_classification_and_its_source()
+    -> Result<(), Box<dyn StdError + Send + Sync>> {
+        use btls::ssl::SpkiPinVerification;
+
+        for (pin_verification, kind) in [
+            (
+                SpkiPinVerification::Mismatch,
+                super::super::TlsErrorKind::SpkiPinMismatch,
+            ),
+            (
+                SpkiPinVerification::BackendFailure,
+                super::super::TlsErrorKind::SpkiPinVerification,
+            ),
+        ] {
+            let original = Arc::new(io::Error::from(io::ErrorKind::InvalidData));
+            let failure = EarlyDataFailure::Handshake {
+                error: Arc::clone(&original),
+                pin_verification,
+                ech_rejection: None,
+            };
+            let error = failure
+                .tls_error()
+                .ok_or("handshake failure has no TLS error")?;
+            assert_eq!(error.kind(), kind);
+            assert_eq!(error.ech_failure(), None);
+            let source = error
+                .source()
+                .and_then(|source| source.source())
+                .and_then(|source| source.downcast_ref::<io::Error>())
+                .ok_or("TLS failure lost the original I/O source")?;
+            assert_eq!(source.kind(), io::ErrorKind::InvalidData);
+            assert!(std::ptr::eq(source, original.as_ref()));
+        }
+        Ok(())
+    }
 
     #[tokio::test]
     async fn dropping_the_producer_releases_retained_early_data_waiters() -> io::Result<()> {
