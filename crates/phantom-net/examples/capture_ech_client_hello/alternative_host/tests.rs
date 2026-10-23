@@ -234,7 +234,7 @@ fn alternative_arguments_require_firefox_quic_identity_without_resumption() -> C
     let metadata = [
         "alternative-host",
         "127.0.0.1:0",
-        "Firefox",
+        "Mozilla Firefox",
         "157.0",
         "Windows",
         "DoH",
@@ -252,6 +252,12 @@ fn alternative_arguments_require_firefox_quic_identity_without_resumption() -> C
     let prefix = vec!["--quic", "--identity", "leaf.pem", "key.pem"];
     let parsed = parse(prefix.clone(), &metadata)?;
     assert!(matches!(parsed.scenario, Scenario::AlternativeHost));
+    assert_eq!(parsed.browser, "Mozilla Firefox");
+    for name in ["Firefox", "firefox"] {
+        let mut short = metadata;
+        short[2] = name;
+        assert!(parse(prefix.clone(), &short).is_ok());
+    }
     assert!(parse(vec!["--quic"], &metadata).is_err());
     assert!(parse(vec!["--identity", "leaf.pem", "key.pem"], &metadata).is_err());
     let mut other = metadata;

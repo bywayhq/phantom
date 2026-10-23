@@ -631,7 +631,8 @@ impl Arguments {
         }
         if matches!(parsed.scenario, Scenario::AlternativeHost)
             && (!parsed.quic
-                || !parsed.browser.eq_ignore_ascii_case("firefox")
+                || !(parsed.browser.eq_ignore_ascii_case("firefox")
+                    || parsed.browser.eq_ignore_ascii_case("Mozilla Firefox"))
                 || parsed.identity.is_none()
                 || parsed.resumption.is_some())
         {
