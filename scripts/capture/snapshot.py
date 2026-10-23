@@ -1122,16 +1122,26 @@ def quic_server(run: SnapshotRun, configuration):
     return SnapshotQuicServer()
 
 
-def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
+def validate_secure_port(port: int | None) -> None:
+    if port is not None and (type(port) is not int or not 1 <= port <= 65535):
+        raise ValueError("secure_port must be an integer between 1 and 65535")
+
+
+def reserve_shared_port(
+    secure_port: int | None = None,
+) -> tuple[socket.socket, socket.socket]:
     """Bind TCP and UDP on one available loopback port number.
 
     Disperse candidates below the usual ephemeral ranges, as the Rust shared
     port helper does. Sequential Windows ephemeral ports can keep both
-    protocols inside excluded blocks for the entire retry budget.
+    protocols inside excluded blocks for the entire retry budget. An explicit
+    port is attempted once, with its original acquisition failure preserved.
     """
+    validate_secure_port(secure_port)
     first_port, span, stride = 20_000, 12_768, 7_919
-    seed = secrets.randbelow(span)
-    for attempt in range(MAX_PORT_ATTEMPTS):
+    seed = secrets.randbelow(span) if secure_port is None else 0
+    attempts = MAX_PORT_ATTEMPTS if secure_port is None else 1
+    for attempt in range(attempts):
         owned = []
         binding = False
         try:
@@ -1141,7 +1151,11 @@ def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
             owned.append(udp)
             first, second = (tcp, udp) if attempt % 2 == 0 else (udp, tcp)
             binding = True
-            port = first_port + (seed + attempt * stride) % span
+            port = (
+                first_port + (seed + attempt * stride) % span
+                if secure_port is None
+                else secure_port
+            )
             first.bind((HOST, port))
             second.bind((HOST, port))
             binding = False
@@ -1162,12 +1176,23 @@ def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
                 error.errno == errno.EADDRINUSE
                 or getattr(error, "winerror", None) in {10013, 10055}
             )
-            if not binding or not refused or attempt + 1 == MAX_PORT_ATTEMPTS:
+            if (
+                secure_port is not None
+                or not binding
+                or not refused
+                or attempt + 1 == MAX_PORT_ATTEMPTS
+            ):
                 raise
 
 
 @contextlib.asynccontextmanager
-async def serving(certificate: Certificate, token: str, observation: float):
+async def serving(
+    certificate: Certificate,
+    token: str,
+    observation: float,
+    *,
+    secure_port: int | None = None,
+):
     """Serve one run: TLS and QUIC on one port number, plaintext on another."""
     from aioquic.h3.connection import H3_ALPN
     from aioquic.quic.configuration import QuicConfiguration
@@ -1180,7 +1205,7 @@ async def serving(certificate: Certificate, token: str, observation: float):
     restore = None
     primary = None
     try:
-        tcp, udp = reserve_shared_port()
+        tcp, udp = reserve_shared_port(secure_port)
         sockets.extend((tcp, udp))
         plain = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sockets.append(plain)
@@ -1718,7 +1743,12 @@ def page_url(browser: str, port: int, token: str) -> str:
 async def capture_run(args: argparse.Namespace, certificate: Certificate) -> str:
     validate_capture_options(args)
     token = secrets.token_hex(8)
-    async with serving(certificate, token, args.observation) as run:
+    async with serving(
+        certificate,
+        token,
+        args.observation,
+        secure_port=getattr(args, "secure_port", None),
+    ) as run:
         plan = launch_plan(
             args.browser,
             args.browser_path,
@@ -1776,6 +1806,7 @@ async def capture(args: argparse.Namespace) -> int:
 
 
 def validate_capture_options(args: argparse.Namespace) -> None:
+    validate_secure_port(getattr(args, "secure_port", None))
     if not 1 <= args.repeat <= MAX_RUNS:
         raise ValueError(f"--repeat must be between 1 and {MAX_RUNS}")
 
@@ -1797,6 +1828,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--operating-system")
     parser.add_argument("--headful", action="store_true")
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument(
+        "--secure-port",
+        type=int,
+        help="bind TLS and QUIC to this exact loopback port instead of choosing one",
+    )
     parser.add_argument("--run-timeout", type=float, default=20.0)
     parser.add_argument("--observation", type=float, default=0.3)
     parser.add_argument(

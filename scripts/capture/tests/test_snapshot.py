@@ -264,6 +264,9 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
         )
         invalid.append(["--repeat", "0"])
         invalid.append(["--repeat", "129"])
+        invalid.extend(
+            ["--secure-port", value] for value in ("0", "-1", "65536", "1.5", "bad")
+        )
         invalid.append(["--run-timeout", "1e308", "--observation", "1e308"])
         with (
             mock.patch.object(snapshot, "capture") as capture,
@@ -280,6 +283,90 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
 
             capture.assert_not_called()
             version.assert_not_called()
+
+    def test_cli_preserves_the_optional_explicit_secure_port(self):
+        base = [
+            "--browser",
+            "firefox",
+            "--browser-path",
+            "unused-browser",
+            "--client-version",
+            "157.0",
+            "--operating-system",
+            "test",
+            "--output-dir",
+            "unused-output",
+        ]
+        for port in (None, 1, 443, 65535):
+            options = [] if port is None else ["--secure-port", str(port)]
+            with (
+                self.subTest(port=port),
+                mock.patch.object(
+                    snapshot, "capture", new_callable=mock.AsyncMock, return_value=0
+                ) as capture,
+                mock.patch.object(
+                    snapshot.metadata,
+                    "version",
+                    side_effect=snapshot.SUPPORTED.__getitem__,
+                ),
+            ):
+                self.assertEqual(snapshot.main([*base, *options]), 0)
+                self.assertEqual(capture.call_args.args[0].secure_port, port)
+
+    async def test_invalid_secure_port_fails_before_certificate_or_listeners(self):
+        with (
+            mock.patch.object(snapshot, "generate_certificate") as certificate,
+            mock.patch.object(snapshot.socket, "socket") as acquire,
+            mock.patch.object(snapshot, "BrowserDriver") as browser,
+        ):
+            for port in (0, -1, 65536, True, 443.0, "443"):
+                args = argparse.Namespace(
+                    repeat=1,
+                    run_timeout=1.0,
+                    observation=0.0,
+                    client_version="157.0",
+                    operating_system="test",
+                    secure_port=port,
+                )
+                with self.subTest(port=port):
+                    with self.assertRaisesRegex(ValueError, "secure.port"):
+                        await snapshot.capture(args)
+                    with self.assertRaisesRegex(ValueError, "secure.port"):
+                        await snapshot.capture_run(args, CERTIFICATE)
+                    with self.assertRaisesRegex(ValueError, "secure.port"):
+                        async with serving(
+                            CERTIFICATE, "invalid-port", 0, secure_port=port
+                        ):
+                            self.fail("invalid port acquired capture listeners")
+                    with self.assertRaisesRegex(ValueError, "secure.port"):
+                        reserve_shared_port(port)
+
+            certificate.assert_not_called()
+            acquire.assert_not_called()
+            browser.assert_not_called()
+
+    async def test_capture_passes_the_explicit_port_to_shared_socket_acquisition(self):
+        primary = OSError(errno.EADDRINUSE, "requested secure port is occupied")
+        args = argparse.Namespace(
+            repeat=1,
+            run_timeout=1.0,
+            observation=0.0,
+            client_version="157.0",
+            operating_system="test",
+            secure_port=443,
+        )
+        with (
+            mock.patch.object(
+                snapshot, "reserve_shared_port", side_effect=primary
+            ) as reserve,
+            mock.patch.object(snapshot, "BrowserDriver") as browser,
+            self.assertRaises(OSError) as raised,
+        ):
+            await snapshot.capture_run(args, CERTIFICATE)
+
+        self.assertIs(raised.exception, primary)
+        reserve.assert_called_once_with(443)
+        browser.assert_not_called()
 
     async def test_direct_capture_rejects_invalid_waits_before_acquisition(self):
         loop = asyncio.get_running_loop()
@@ -742,8 +829,8 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
         reservation = []
         original_reserve = reserve_shared_port
 
-        def reserve():
-            sockets = original_reserve()
+        def reserve(secure_port=None):
+            sockets = original_reserve(secure_port)
             reservation.extend(sockets)
             return sockets
 
@@ -1628,6 +1715,146 @@ class AndroidLaunchTests(unittest.TestCase):
 
 
 class PortTests(unittest.TestCase):
+    def test_explicit_secure_port_binds_both_protocols_without_random_selection(self):
+        for port in (1, 443, 65535):
+            tcp, udp = mock.Mock(), mock.Mock()
+            with (
+                self.subTest(port=port),
+                mock.patch.object(
+                    snapshot.socket, "socket", side_effect=(tcp, udp)
+                ) as acquire,
+                mock.patch.object(snapshot.secrets, "randbelow") as random,
+            ):
+                self.assertEqual(reserve_shared_port(port), (tcp, udp))
+
+            self.assertEqual(
+                acquire.call_args_list,
+                [
+                    mock.call(socket.AF_INET, socket.SOCK_STREAM),
+                    mock.call(socket.AF_INET, socket.SOCK_DGRAM),
+                ],
+            )
+            random.assert_not_called()
+            tcp.listen.assert_called_once_with(64)
+            for sock in (tcp, udp):
+                sock.bind.assert_called_once_with(("127.0.0.1", port))
+                sock.setblocking.assert_called_once_with(False)
+                sock.close.assert_not_called()
+
+    def test_explicit_available_port_returns_real_shared_loopback_sockets(self):
+        reserved_tcp, reserved_udp = reserve_shared_port()
+        port = reserved_tcp.getsockname()[1]
+        reserved_tcp.close()
+        reserved_udp.close()
+
+        tcp, udp = reserve_shared_port(port)
+        try:
+            self.assertEqual(tcp.getsockname(), ("127.0.0.1", port))
+            self.assertEqual(udp.getsockname(), ("127.0.0.1", port))
+            self.assertFalse(tcp.getblocking())
+            self.assertFalse(udp.getblocking())
+            self.assertEqual(tcp.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN), 1)
+        finally:
+            tcp.close()
+            udp.close()
+
+    def test_occupied_explicit_port_fails_without_trying_another_port(self):
+        create = socket.socket
+        tcp, udp = reserve_shared_port()
+        port = tcp.getsockname()[1]
+        attempted = []
+        try:
+
+            def acquire(*args, **kwargs):
+                sock = create(*args, **kwargs)
+                attempted.append(sock)
+                return sock
+
+            with (
+                mock.patch.object(
+                    snapshot.socket, "socket", side_effect=acquire
+                ) as factory,
+                self.assertRaises(OSError) as raised,
+            ):
+                reserve_shared_port(port)
+
+            self.assertIn(raised.exception.errno, (errno.EADDRINUSE, errno.EACCES))
+            self.assertEqual(factory.call_count, 2)
+            self.assertTrue(all(sock.fileno() == -1 for sock in attempted))
+        finally:
+            for sock in (*attempted, tcp, udp):
+                sock.close()
+
+    def test_explicit_port_partial_acquisition_preserves_errors_and_closes_sockets(
+        self,
+    ):
+        create = socket.socket
+        for operation in ("create", "bind", "listen"):
+            for cleanup_fails in (False, True):
+                primary = OSError(errno.EADDRINUSE, "original explicit port failure")
+                cleanup = OSError(errno.EIO, "original socket close failure")
+                sockets = []
+                proxies = []
+
+                def acquire(
+                    *args,
+                    operation=operation,
+                    cleanup_fails=cleanup_fails,
+                    primary=primary,
+                    cleanup=cleanup,
+                    sockets=sockets,
+                    proxies=proxies,
+                    **kwargs,
+                ):
+                    if operation == "create" and sockets:
+                        raise primary
+                    sock = create(*args, **kwargs)
+                    sockets.append(sock)
+                    proxy = mock.Mock(wraps=sock)
+                    proxies.append(proxy)
+                    # Isolate acquisition faults from host reservations; these
+                    # remain real owned sockets with their original close.
+                    proxy.bind.return_value = None
+                    proxy.listen.return_value = None
+                    if operation == "bind" and len(sockets) == 2:
+                        proxy.bind.side_effect = primary
+                    if operation == "listen" and len(sockets) == 1:
+                        proxy.listen.side_effect = primary
+                    if cleanup_fails and len(sockets) == 1:
+
+                        def close():
+                            sock.close()
+                            raise cleanup
+
+                        proxy.close.side_effect = close
+                    return proxy
+
+                try:
+                    with (
+                        self.subTest(operation=operation, cleanup_fails=cleanup_fails),
+                        mock.patch.object(
+                            snapshot.socket, "socket", side_effect=acquire
+                        ) as factory,
+                        self.assertRaises(
+                            SnapshotFailures if cleanup_fails else OSError
+                        ) as raised,
+                    ):
+                        reserve_shared_port(443)
+
+                    if cleanup_fails:
+                        self.assertIs(raised.exception.primary, primary)
+                        self.assertEqual(raised.exception.cleanup, (cleanup,))
+                    else:
+                        self.assertIs(raised.exception, primary)
+                    self.assertEqual(factory.call_count, 2)
+                    self.assertEqual(len(sockets), 1 if operation == "create" else 2)
+                    self.assertTrue(all(sock.fileno() == -1 for sock in sockets))
+                    for proxy in proxies:
+                        proxy.close.assert_called_once_with()
+                finally:
+                    for sock in sockets:
+                        sock.close()
+
     def test_tcp_and_udp_share_one_loopback_port(self) -> None:
         tcp, udp = reserve_shared_port()
         try:
