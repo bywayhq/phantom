@@ -37,3 +37,22 @@ SHA256:
 - `hooks-h2-backup.txt`: `3ac475709d8681a0c0dfd2a2d8a780555506dadf4e203d1e0bcf2e1868f936fd`
 - `firefox.exe`: `6a6175344a8cb4215d3c5202f718531adc0c13828e36f47a13a934cee61c0c7b`
 - `application.ini`: `e066925e0b377c6842f11f98f2f50da16ca4f6a48da70503e69f52094181c7d2`
+
+## Direct WebSocket connections
+
+`hooks-websocket-backup.txt` uses the same Firefox build and Windows host.
+The first WebSocket tried IPv6, then connected over IPv4. A second opening
+used the same connection entry's IPv4 preference. Both closed cleanly. Two
+following HTTP requests shared a new connection; their separate connection
+entry tried IPv6 again before IPv4. One extra accepted socket carried no
+request.
+
+This cleartext run uses the lookup rewrite described above, with no TLS
+trust override. It covers neither secure WebSockets nor proxies.
+
+Capture source: `17dd80673c148bcc78df18bd17541a6f240e3ca7`, Python 3.12.10
+and Frida 17.24.3. Reproduce with the command above, replacing the scenario
+with `--scenario websocket-backup`. The signed executable was unchanged,
+and the disposable browser, profile and listeners were removed.
+
+Fixture SHA256: `b17aa6c4fe19a4e90e8ef2f50892b5a9d17b032e336e6f97b4542f12b7496006`.

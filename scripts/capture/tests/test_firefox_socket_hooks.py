@@ -41,6 +41,12 @@ RETAINED_SOURCE_OVERRIDES = {
         "25a745b8cbaacef891e1236955cd48f69ef2d01515b91f5c694ae62bfa903ff5",
         "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
     ),
+    "157.0/windows-11-26200/hooks-websocket-backup.txt": (
+        "7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2",
+        "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",
+        "bda2b7412a7f44f801566cc26c3da5c483d8ce1dd174d5974114c055c42c38f9",
+        "40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb",
+    ),
 }
 
 
