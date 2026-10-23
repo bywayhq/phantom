@@ -464,10 +464,11 @@ impl Http3Pool {
             publication.record(connection.completed_handshake_rtt());
         }
         let retained = MAX_TRANSPORT_LOCATIONS_PER_ENTRY * slots.spread.max_connections().get();
-        let evicted = slots.connections.len() >= retained;
-        if evicted {
-            slots.connections.pop_front();
-        }
+        let evicted = if slots.connections.len() >= retained {
+            slots.connections.pop_front()
+        } else {
+            None
+        };
         let streams = if slots.spread.max_connections().get() > 1 {
             StreamCount::notifying(Arc::clone(&entry.stream_ended))
         } else {
@@ -484,9 +485,10 @@ impl Http3Pool {
         drop(slots);
         drop(owner_permit);
         drop(state);
-        if evicted {
+        if evicted.is_some() {
             debug!(outcome = "evicted", "HTTP/3 pooled connection evicted");
         }
+        drop(evicted);
         Ok(true)
     }
 
