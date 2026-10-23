@@ -3,6 +3,7 @@
 
 use std::{sync::Arc, time::Duration};
 
+use http_body_util::BodyExt;
 use phantom_net::{
     http1::Http1Connection,
     tcp::{AddressFamily, SlowerConnection, SlowerProgress},
