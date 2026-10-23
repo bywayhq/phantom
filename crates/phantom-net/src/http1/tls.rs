@@ -1341,17 +1341,18 @@ impl Http1TlsConnector {
                 server_name,
                 setup,
             }) => {
-                // Keep origin TLS/ECH setup out of plaintext connection poll frames.
-                Box::pin(self.open_tls_connection(
-                    tcp,
-                    server_name,
-                    setup,
-                    offer_early_data,
-                    slower,
-                    #[cfg(feature = "https-records")]
-                    selected_ech,
-                ))
-                .await
+                // Keep TLS setup off plaintext poll frames and end its Send proof here.
+                let operation: Pin<Box<dyn Future<Output = _> + Send + '_>> =
+                    Box::pin(self.open_tls_connection(
+                        tcp,
+                        server_name,
+                        setup,
+                        offer_early_data,
+                        slower,
+                        #[cfg(feature = "https-records")]
+                        selected_ech,
+                    ));
+                operation.await
             }
         }
     }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep HTTP/1 TLS setup within the pinned nightly compiler's `Send` proof
+  limit, including SOCKS routes.
+
 - Omit unused Zstandard array, dictionary-training and pre-standard format
   support from the default build.
 
