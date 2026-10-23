@@ -132,6 +132,33 @@ class ConnectBackupTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "bypassed its CONNECT relay"):
             hooks.validate_connect_run(self.origins)
 
+    async def test_pac_is_served_by_the_owned_bootstrap_listener(self) -> None:
+        page = await asyncio.start_server(self.origins.accept_page, "127.0.0.1", 0)
+        self.origins.listeners.append(page)
+        reader, writer = await asyncio.open_connection(
+            "127.0.0.1", page.sockets[0].getsockname()[1]
+        )
+        self.addAsyncCleanup(hooks.close_writer, writer, None)
+        writer.write(b"GET /proxy.pac HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+        await writer.drain()
+        head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 3)
+        self.assertIn(b"Content-Type: application/x-ns-proxy-autoconfig\r\n", head)
+        length = int(hooks.header_value(head, b"content-length"))
+        body = await asyncio.wait_for(reader.readexactly(length), 3)
+        self.assertEqual(
+            body,
+            (
+                "function FindProxyForURL(url, host) {\n"
+                f'  if (host === "server.phantom.test" && '
+                f'url.indexOf("https://server.phantom.test:{self.origins.port}/") === 0) return '
+                f'"PROXY 127.0.0.1.nip.io:{self.proxy.address[1]}";\n'
+                '  return "DIRECT";\n'
+                "}\n"
+            ).encode(),
+        )
+        self.assertFalse(self.origins.page_requested.is_set())
+        self.assertFalse(self.origins.connections)
+
     async def test_quiet_unused_proxy_socket_fin_sends_no_connect_reply(self) -> None:
         connection = await self.proxy_socket()
         connection.shutdown(socket.SHUT_WR)
@@ -286,9 +313,11 @@ class ConnectLaunchTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 dict(plan.firefox_preferences),
                 {
-                    "network.proxy.type": 1,
-                    "network.proxy.ssl": hooks.TARGET_HOST,
-                    "network.proxy.ssl_port": origins.proxy.address[1],
+                    "network.proxy.type": 2,
+                    "network.proxy.autoconfig_url": (
+                        f"http://127.0.0.1:{origins.page_port}/proxy.pac"
+                    ),
+                    "network.proxy.failover_direct": False,
                     "network.proxy.allow_hijacking_localhost": True,
                     "network.proxy.no_proxies_on": "",
                 },

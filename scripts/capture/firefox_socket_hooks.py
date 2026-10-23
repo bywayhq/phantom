@@ -900,6 +900,8 @@ class Origins:
                     self.page_requested.set()
                     self.changed.set()
                     body, kind = self.page(), "text/html"
+                elif path == "/proxy.pac" and self.proxy is not None:
+                    body, kind = connect_pac(self), "application/x-ns-proxy-autoconfig"
                 else:
                     body, kind = b"ok\n", "text/plain"
                 if path == "/go":
@@ -1768,13 +1770,30 @@ async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
     await proxy.start()
 
 
-def connect_preferences(origins: Origins) -> tuple[tuple[str, bool | int | str], ...]:
+def connect_pac(origins: Origins) -> bytes:
     if origins.proxy is None or origins.proxy.address is None:
         raise RuntimeError("Firefox CONNECT proxy has no listener")
+    host = json.dumps(origins.scenario.hostname)
+    route = json.dumps(f"PROXY {TARGET_HOST}:{origins.proxy.address[1]}")
+    origin = json.dumps(f"{origins.target_url}/")
     return (
-        ("network.proxy.type", 1),
-        ("network.proxy.ssl", TARGET_HOST),
-        ("network.proxy.ssl_port", origins.proxy.address[1]),
+        f"function FindProxyForURL(url, host) {{\n"
+        f"  if (host === {host} && url.indexOf({origin}) === 0) return {route};\n"
+        '  return "DIRECT";\n'
+        "}\n"
+    ).encode("ascii")
+
+
+def connect_preferences(origins: Origins) -> tuple[tuple[str, bool | int | str], ...]:
+    if origins.proxy is None or origins.proxy.address is None or not origins.page_port:
+        raise RuntimeError("Firefox CONNECT proxy and PAC listeners are required")
+    return (
+        ("network.proxy.type", 2),
+        (
+            "network.proxy.autoconfig_url",
+            f"http://127.0.0.1:{origins.page_port}/proxy.pac",
+        ),
+        ("network.proxy.failover_direct", False),
         ("network.proxy.allow_hijacking_localhost", True),
         ("network.proxy.no_proxies_on", ""),
     )
@@ -2200,7 +2219,7 @@ def render_fixture(
             (
                 f"proxy_hostname={TARGET_HOST}",
                 "proxy_mode=http-connect",
-                "proxy_configuration=manual ssl proxy only; HTTP bootstrap remains direct",
+                "proxy_configuration=PAC exact origin; other names direct; direct failover disabled",
                 "origin_alpn_offer=http/1.1",
                 "origin_trust=disposable-profile cert_override.txt",
             )
