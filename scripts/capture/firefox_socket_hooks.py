@@ -121,7 +121,7 @@ class Scenario:
     name: str
     question: str
     limit_seconds: float
-    # "http1", "h2" (TLS), "websocket" (HTTP/1.1), or "wss" (TLS HTTP/1.1).
+    # "https-connect" uses H1 TLS through a plaintext HTTP CONNECT proxy.
     target: str
     script: str
     # Answer the lookup of TARGET_HOST as REWRITE_TO does.
@@ -129,9 +129,21 @@ class Scenario:
 
     @property
     def scheme(self) -> str:
-        return {"http1": "http", "h2": "https", "websocket": "ws", "wss": "wss"}[
-            self.target
-        ]
+        return {
+            "http1": "http",
+            "h2": "https",
+            "websocket": "ws",
+            "wss": "wss",
+            "https-connect": "https",
+        }[self.target]
+
+    @property
+    def hostname(self) -> str:
+        if self.target == "https-connect":
+            from .http2_session import HOSTNAME  # noqa: PLC0415
+
+            return HOSTNAME
+        return TARGET_HOST
 
     @property
     def intervention(self) -> str:
@@ -294,6 +306,21 @@ SCENARIOS = {
             + _at(65, _get("/close?i=2"))
             + _at(95, _get("/close?i=3"))
             + _at(100, DONE),
+        ),
+        Scenario(
+            "http-connect-backup",
+            "HTTP CONNECT proxy attempts with [::1] then 127.0.0.1, "
+            "concurrent H1 TLS requests and a new request after origin disconnect",
+            40,
+            "https-connect",
+            _readable_get("/fast?i=0")
+            + ".then(() => Promise.all(["
+            + ",".join(_readable_get(f"/slow?i={i}") for i in (1, 2, 3))
+            + "]))"
+            + ".then(() => fetch('/drop', {cache: 'no-store'}))"
+            + f".then(() => {_readable_get('/fast?i=4')})"
+            + f".then(() => {DONE})",
+            rewrite_lookup=True,
         ),
     )
 }
@@ -604,19 +631,27 @@ def anchors_origin_object(
     )
 
 
-def moz_log_lines(text: str, port: int, start_ms: int) -> list[str]:
+def moz_log_lines(
+    text: str,
+    port: int,
+    start_ms: int,
+    *,
+    endpoints: Sequence[tuple[str, int]] = (),
+) -> list[str]:
     """Retained MOZ_LOG lines about TARGET_HOST and the objects serving `port`.
 
     A socket transport belongs to the origin when its `ResolveHost` line names
     `TARGET_HOST:port`; an HTTP connection when its `Init` line names such a
     transport; a connection setup or a connection entry when its
     `Creating DnsAndConnectSocket` or `ConnectionEntry` line names the origin.
+    Additional endpoints retain the proxy and origin in one object namespace.
     A line is kept when it matches `MOZ_LOG_KEEP` and
-    names one of those objects or `TARGET_HOST`. Object addresses become
+    names one of those objects or endpoint hosts. Object addresses become
     `p<n>` in order of first appearance, and times are milliseconds from
     `start_ms`.
     """
-    origin = f"{TARGET_HOST}:{port}"
+    origins = [f"{host}:{number}" for host, number in ((TARGET_HOST, port), *endpoints)]
+    hosts = [TARGET_HOST, *(host for host, _ in endpoints)]
     objects: set[str] = set()
     kept: list[tuple[int, str, str]] = []
     for line in text.splitlines():
@@ -625,11 +660,16 @@ def moz_log_lines(text: str, port: int, start_ms: int) -> list[str]:
             continue
         stamp, module, message = match.groups()
         pointers = POINTER.findall(message)
-        if anchors_origin_object(message, pointers, origin, objects):
+        if any(
+            anchors_origin_object(message, pointers, origin, objects)
+            for origin in origins
+        ):
             objects.update(pointers[:1])
         if not any(marker in message for marker in MOZ_LOG_KEEP):
             continue
-        if not (objects.intersection(pointers) or TARGET_HOST in message):
+        if not (
+            objects.intersection(pointers) or any(host in message for host in hosts)
+        ):
             continue
         kept.append((moz_log_time(stamp) - start_ms, module, message.strip()))
     names: dict[str, str] = {}
@@ -706,6 +746,7 @@ class Origins:
     changed: asyncio.Event = field(default_factory=asyncio.Event)
     accepted: int = 0
     request_count: int = 0
+    proxy: Any = None
 
     def remember_failure(self, error: BaseException) -> None:
         if all(error is not previous for previous in self.failures):
@@ -773,6 +814,11 @@ class Origins:
 
     async def shutdown(self) -> None:
         self.stopping = True
+        if self.proxy is not None:
+            try:
+                await self.proxy.close()
+            except BaseException as error:
+                self.remember_failure(error)
         for listener in self.listeners:
             try:
                 listener.close()
@@ -806,7 +852,25 @@ class Origins:
 
     @property
     def target_url(self) -> str:
-        return f"{self.scenario.scheme}://{TARGET_HOST}:{self.port}"
+        return f"{self.scenario.scheme}://{self.scenario.hostname}:{self.port}"
+
+    def cleanup_pending(self) -> bool:
+        proxy = self.proxy
+        return bool(
+            self.peers
+            or self.writers
+            or (
+                proxy is not None
+                and (
+                    proxy.handlers
+                    or proxy.writers
+                    or proxy.writer_waits
+                    or proxy.listener_waits
+                    or proxy.protocol_waits
+                    or proxy.protocols
+                )
+            )
+        )
 
     def page(self) -> bytes:
         script = (
@@ -848,11 +912,11 @@ class Origins:
                     ]
                     for connection, target in targets:
                         connection.close_kind = "server"
-                        if self.scenario.name == "h2-backup":
+                        if self.scenario.name in ("h2-backup", "http-connect-backup"):
                             target.transport.abort()
                         else:
                             target.close()
-                    if self.scenario.name == "h2-backup":
+                    if self.scenario.name in ("h2-backup", "http-connect-backup"):
                         if len(closing) != len(targets):
                             raise RuntimeError(
                                 "Firefox target close has no owning peer"
@@ -889,12 +953,21 @@ class Origins:
             connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
             self.connections.append(connection)
             self.open.append((connection, writer))
-            if self.scenario.target == "wss":
+            if self.scenario.target in ("wss", "https-connect"):
                 tls = writer.get_extra_info("ssl_object")
                 if tls is None:
-                    raise ValueError("Firefox WSS origin requires TLS")
+                    raise ValueError(
+                        "Firefox CONNECT origin requires TLS"
+                        if self.scenario.target == "https-connect"
+                        else "Firefox WSS origin requires TLS"
+                    )
                 connection.alpn = tls.selected_alpn_protocol()
-                if connection.alpn not in (None, "http/1.1"):
+                if self.scenario.target == "https-connect":
+                    if connection.alpn != "http/1.1":
+                        raise ValueError(
+                            "Firefox CONNECT origin requires HTTP/1.1 ALPN"
+                        )
+                elif connection.alpn not in (None, "http/1.1"):
                     raise ValueError("Firefox WSS origin requires HTTP/1.1")
             if self.scenario.target == "h2":
                 await self.serve_h2(reader, writer, connection)
@@ -1551,7 +1624,7 @@ class _FirefoxRun:
             await asyncio.shield(self.start_origin_cleanup(retry=retry))
         except BaseException as error:
             failures.append(error)
-        if self.origins.peers or self.origins.writers:
+        if self.origins.cleanup_pending():
             failures.append(
                 _FirefoxCapturePending(self, "origin cleanup has not completed")
             )
@@ -1560,9 +1633,7 @@ class _FirefoxRun:
 
     def start_origin_cleanup(self, *, retry: bool = False) -> asyncio.Task[None]:
         if self.origin_cleanup is None or (
-            retry
-            and self.origin_cleanup.done()
-            and (self.origins.peers or self.origins.writers)
+            retry and self.origin_cleanup.done() and self.origins.cleanup_pending()
         ):
             self.origin_cleanup = asyncio.create_task(self.origins.shutdown())
             self.origin_cleanup.add_done_callback(self.observe_origin_cleanup)
@@ -1679,6 +1750,36 @@ class _FirefoxCapturePending(RuntimeError):
         )
 
 
+async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
+    from .http2_session import CaptureRun, ServerPolicy  # noqa: PLC0415
+    from .websocket_tunnel import TunnelServer  # noqa: PLC0415
+
+    class ConnectProxy(TunnelServer):
+        def failed(self, error: BaseException, run: CaptureRun | None) -> None:
+            super().failed(error, run)
+            origins.remember_failure(error)
+
+    proxy = ConnectProxy("http", certificate, ("127.0.0.1", origins.port))
+    # Retain ownership before either admission or listener startup can fail.
+    origins.proxy = proxy
+    proxy.begin_run(
+        CaptureRun("firefox-connect", ServerPolicy(), {}, clock=lambda: now_ms() / 1000)
+    )
+    await proxy.start()
+
+
+def connect_preferences(origins: Origins) -> tuple[tuple[str, bool | int | str], ...]:
+    if origins.proxy is None or origins.proxy.address is None:
+        raise RuntimeError("Firefox CONNECT proxy has no listener")
+    return (
+        ("network.proxy.type", 1),
+        ("network.proxy.ssl", TARGET_HOST),
+        ("network.proxy.ssl_port", origins.proxy.address[1]),
+        ("network.proxy.allow_hijacking_localhost", True),
+        ("network.proxy.no_proxies_on", ""),
+    )
+
+
 async def run_once(
     scenario: Scenario,
     executable: Path,
@@ -1700,13 +1801,13 @@ async def run_once(
         origins.page_port = page.sockets[0].getsockname()[1]
         context = None
         files: tuple[tuple[str, str], ...] = ()
-        if scenario.target in ("h2", "wss"):
+        if scenario.target in ("h2", "wss", "https-connect"):
             from .http2_session import (  # noqa: PLC0415
                 generate_certificate,
                 server_context,
             )
 
-            certificate = generate_certificate(TARGET_HOST)
+            certificate = generate_certificate(scenario.hostname)
             context = server_context(certificate)
             context.set_alpn_protocols(
                 ["h2" if scenario.target == "h2" else "http/1.1"]
@@ -1716,17 +1817,23 @@ async def run_once(
         )
         origins.listeners.append(target)
         origins.port = target.sockets[0].getsockname()[1]
-        if scenario.target in ("h2", "wss"):
+        if scenario.target in ("h2", "wss", "https-connect"):
             files = (
                 (
                     "cert_override.txt",
                     firefox_cert_override(
-                        TARGET_HOST, origins.port, certificate.sha256_fingerprint
+                        scenario.hostname, origins.port, certificate.sha256_fingerprint
                     ),
                 ),
             )
-        if scenario.rewrite_lookup and not localhost_ipv6_free(origins.port):
-            raise RuntimeError(f"[::1]:{origins.port} is in use")
+        preferences: tuple[tuple[str, bool | int | str], ...] = ()
+        measured_port = origins.port
+        if scenario.target == "https-connect":
+            await start_connect_proxy(origins, certificate)
+            preferences = connect_preferences(origins)
+            measured_port = origins.proxy.address[1]
+        if scenario.rewrite_lookup and not localhost_ipv6_free(measured_port):
+            raise RuntimeError(f"[::1]:{measured_port} is in use")
 
         url = f"http://127.0.0.1:{origins.page_port}/"
         plan = LaunchPlan(
@@ -1734,6 +1841,7 @@ async def run_once(
             executable=executable,
             headless=not headful,
             profile_files=files,
+            firefox_preferences=preferences,
         )
         owner.log_directory = Path(tempfile.mkdtemp(prefix="phantom-capture-moz-log-"))
         owner.environment = {
@@ -1757,6 +1865,8 @@ async def run_once(
             await owner.wait(origins.done, scenario.limit_seconds)
         except asyncio.TimeoutError:
             timed_out = True
+        if scenario.target == "https-connect" and not timed_out:
+            validate_connect_run(origins)
         await asyncio.sleep(1.0)
         result = timed_out
     except BaseException as error:
@@ -1791,7 +1901,17 @@ async def run_once(
             result,
             hooks.frida_version,
             native.launcher,
-            moz_log_lines(moz_log_text, origins.port, start_ms),
+            moz_log_lines(
+                moz_log_text,
+                origins.port,
+                start_ms,
+                endpoints=(
+                    (scenario.hostname, origins.port),
+                    (TARGET_HOST, origins.proxy.address[1]),
+                )
+                if origins.proxy is not None
+                else (),
+            ),
             start_ms,
             moz_log_text,
         )
@@ -1843,6 +1963,7 @@ def write_failure_report(
         if native is not None
         else [],
         "origin_failures": [failure(error) for error in owner.origins.failures],
+        "proxy_connections": connect_observations(owner.origins, 0),
         "reports": reports,
         "hook_errors": errors,
         "connections": [asdict(connection) for connection in owner.origins.connections],
@@ -1896,6 +2017,57 @@ def patched_environment(values: dict[str, str]):  # noqa: ANN201 - a context man
                 os.environ[name] = value
 
 
+def connect_observations(origins: Origins, start_ms: int) -> list[dict[str, Any]]:
+    if origins.proxy is None or origins.proxy.tunnel_run is None:
+        return []
+    run = origins.proxy.tunnel_run
+    offset = run.origin.started * 1000 - start_ms
+    observations = []
+    for opening in run.openings:
+        upstream = opening.upstream
+        matches = [
+            index
+            for index, connection in enumerate(origins.connections)
+            if upstream is not None
+            and connection.peer == f"{upstream[0]}:{upstream[1]}"
+        ]
+        if len(matches) > 1:
+            raise ValueError("Firefox CONNECT upstream matches multiple origin sockets")
+        observations.append(
+            {
+                "peer": opening.peer,
+                "upstream": upstream,
+                "origin_connection": matches[0] if matches else None,
+                "accepted_ms": offset + opening.connection.accepted * 1000,
+                "finished_ms": offset + opening.finished * 1000
+                if opening.finished is not None
+                else None,
+                "opening_hex": opening.head.hex(),
+                "reply_hex": opening.reply.hex(),
+                "outcome": opening.outcome,
+            }
+        )
+    return observations
+
+
+def validate_connect_run(origins: Origins) -> None:
+    observations = connect_observations(origins, 0)
+    linked = [
+        record["origin_connection"]
+        for record in observations
+        if record["origin_connection"] is not None
+    ]
+    if sorted(linked) != list(range(len(origins.connections))):
+        raise ValueError("Firefox origin connection bypassed its CONNECT relay")
+    requests = sorted(
+        path for connection in origins.connections for _, path in connection.requests
+    )
+    if requests != ["/fast?i=0", "/fast?i=4", "/slow?i=1", "/slow?i=2", "/slow?i=3"]:
+        raise ValueError(
+            "Firefox CONNECT scenario did not complete its labeled requests"
+        )
+
+
 def render_run(index: int, result: RunResult) -> list[str]:
     prefix = f"run_{index}_"
     events = decode_events(result.reports, result.start_ms)
@@ -1913,6 +2085,19 @@ def render_run(index: int, result: RunResult) -> list[str]:
         f"{prefix}{key}={value}"
         for key, value in summarize(events, result.origins.port)
     )
+    if result.origins.proxy is not None:
+        port = result.origins.proxy.address[1]
+        lines.append(f"{prefix}proxy_port={port}")
+        lines.extend(
+            f"{prefix}proxy_{key}={value}" for key, value in summarize(events, port)
+        )
+        observations = connect_observations(result.origins, start)
+        lines.append(f"{prefix}proxy_connection_count={len(observations)}")
+        lines.extend(
+            f"{prefix}proxy_connection_{i}="
+            + json.dumps(record, sort_keys=True, separators=(",", ":"))
+            for i, record in enumerate(observations)
+        )
     connections = result.origins.connections
     lines.append(f"{prefix}server_connection_count={len(connections)}")
     for i, connection in enumerate(connections):
@@ -1930,7 +2115,7 @@ def render_run(index: int, result: RunResult) -> list[str]:
         family = "ipv6" if connection.peer.startswith("::") else "ipv4"
         alpn = (
             f",alpn:{connection.alpn or '-'}"
-            if result.origins.scenario.target == "wss"
+            if result.origins.scenario.target in ("wss", "https-connect")
             else ""
         )
         lines.append(
@@ -2004,12 +2189,22 @@ def render_fixture(
         f"moz_log={MOZ_LOG_MODULES}",
         f"launch_mode={'headful' if headful else 'headless'}",
         f"launch_arguments={launch_arguments}",
-        f"target={TARGET_HOST}",
+        f"target={scenario.hostname}",
         f"scenario={scenario.name}",
         f"question={scenario.question}",
         f"hook_intervention={scenario.intervention}",
         f"run_count={len(runs)}",
     ]
+    if scenario.target == "https-connect":
+        header.extend(
+            (
+                f"proxy_hostname={TARGET_HOST}",
+                "proxy_mode=http-connect",
+                "proxy_configuration=manual ssl proxy only; HTTP bootstrap remains direct",
+                "origin_alpn_offer=http/1.1",
+                "origin_trust=disposable-profile cert_override.txt",
+            )
+        )
     return "\n".join([*header, *(line for run in runs for line in run)]) + "\n"
 
 
