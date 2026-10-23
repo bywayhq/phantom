@@ -53,6 +53,7 @@ from scripts.capture.snapshot_compare import (
     compare,
     compare_hello,
     fields,
+    tls_message,
 )
 from scripts.capture.tests.loopback_quic import connect_loopback
 
@@ -1299,19 +1300,43 @@ class ComparisonTests(unittest.TestCase):
     ) -> None:
         directory = FIXTURES / "http3" / "firefox" / FIREFOX
         snapshots = sorted(directory.glob("snapshot-*.txt"))
-        self.assertEqual(len(snapshots), 5)
+        self.assertEqual(
+            {path.name for path in snapshots},
+            {
+                "snapshot-1.txt",
+                "snapshot-2.txt",
+                "snapshot-3.txt",
+                "snapshot-4.txt",
+                "snapshot-5.txt",
+                "snapshot-port-443-diagnostic.txt",
+            },
+        )
+        tcp = retained(f"tls/firefox/{FIREFOX}/client-hello.txt")
+        quic = retained(f"http3/firefox/{FIREFOX}/quic-client-hello-1.txt")
         for path in snapshots:
-            report = compare(path.read_text(encoding="utf-8"), FIXTURES, "firefox")
-            self.assertFalse(
-                any(line.startswith("differs input:") for line in report),
-                (path.name, report),
-            )
-            differences = [
-                line
-                for line in report
-                if line.startswith(("differs tls", "differs quic_tls"))
-            ]
-            self.assertEqual(differences, [], path.name)
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(snapshot=path.name, protocol="tcp"):
+                self.assertEqual(
+                    compare_hello(
+                        "tls",
+                        tls_message(fields(text, "tls.")),
+                        tls_message(tcp),
+                        FIREFOX_TCP_VARIATION,
+                    ),
+                    [],
+                )
+            with self.subTest(snapshot=path.name, protocol="quic"):
+                self.assertEqual(
+                    compare_hello(
+                        "quic_tls",
+                        bytes.fromhex(
+                            fields(text, "quic_client_hello.")["handshake_hex"]
+                        ),
+                        bytes.fromhex(quic["handshake_hex"]),
+                        FIREFOX_QUIC_VARIATION,
+                    ),
+                    [],
+                )
 
     def test_firefox_ech_grease_aead_is_not_a_difference(self) -> None:
         def hello(aead: int) -> bytes:
