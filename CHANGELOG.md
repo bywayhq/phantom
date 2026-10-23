@@ -51,6 +51,7 @@
 
 - Add `AddressCache::remove` to refresh one hostname without clearing
   unrelated answers.
+- Capture Firefox ECH acceptance and retry with profile-local certificate trust.
 
 - Breaking: add `DnsCacheSettings::stale_grace`. Firefox recipes reuse
   positive DNS answers for up to ten minutes while refreshing them in the
