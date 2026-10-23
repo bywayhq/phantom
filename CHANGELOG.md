@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a Firefox SOCKS5 proxy capture scenario.
+
 - Retain Firefox 157 early-data rejection and ECH key-rotation captures.
 
 - Preserve actual diagnostics in gate logs containing mixed encodings.
