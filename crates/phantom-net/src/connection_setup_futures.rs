@@ -26,15 +26,27 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
 
     let futures = vec![
         ("Http1TlsConnector::connect", future_size(&H1::connect)),
+        (
+            "Http1TlsConnector::connect_socks_retaining",
+            future_size(&H1::connect_socks_retaining),
+        ),
         ("Http1TlsConnector::send", future_size(&H1::send)),
         ("Http1TlsConnector::upgrade", future_size(&H1::upgrade)),
         ("Http2TlsConnector::connect", future_size(&H2::connect)),
+        (
+            "Http2TlsConnector::connect_socks_retaining",
+            future_size(&H2::connect_socks_retaining),
+        ),
         ("Http2TlsConnector::send", future_size(&H2::send)),
         (
             "Http2TlsConnector::extended_connect",
             future_size(&H2::extended_connect),
         ),
         ("Http1Or2TlsConnector::connect", future_size(&H12::connect)),
+        (
+            "Http1Or2TlsConnector::connect_socks_retaining",
+            future_size(&H12::connect_socks_retaining),
+        ),
         ("Http3Connector::connect", future_size(&H3::connect)),
         ("Http3Connector::send", future_size(&H3::send)),
         (
