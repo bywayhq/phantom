@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Capture Chrome 156 startup and resource requests on hosted Macs.
+
 - Accept reserved HTTP/3 frame padding in resource captures.
 
 - Apply Chrome 156 Windows HTTP/1 connection limits and idle policy.

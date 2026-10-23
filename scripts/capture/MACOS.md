@@ -1,25 +1,24 @@
 # Capture headed Chrome on hosted Macs
 
-Run one HTTP EventSource reconnect capture on each hosted Mac architecture.
-The workflow retains the installed browser identity and the actual request
-headers, including the headed browser's `User-Agent` bytes.
+Record headed Chrome on each hosted Mac architecture. Choose an EventSource
+reconnect or Chrome 156 startup and resource requests.
 
 ## Select the attempts
 
 Dispatch **macOS headed Chrome capture** at a reviewed source ref. It creates
-two independent jobs with a ten minute limit each:
+two independent jobs with a fifteen minute limit each:
 
-| Runner label | Required architecture | Attempt |
-| --- | --- | --- |
-| `macos-latest` | arm64 | HTTP `reconnect-204` |
-| `macos-15-intel` | x86_64 | HTTP `reconnect-204` |
+| Runner label | Required architecture |
+| --- | --- |
+| `macos-latest` | arm64 |
+| `macos-15-intel` | x86_64 |
 
 Both labels appear in the [runner image catalog at the reviewed revision](https://github.com/actions/runner-images/blob/e3fa5414d230773024d4a669a8402b50cd28f036/README.md#available-images).
 The runner label does not pin a browser or OS build. Each job checks its
 actual architecture before attempting the capture. A failed job leaves the
 other attempt running. Neither job retries the capture.
 
-The workflow uses the existing capture command with the installed version:
+The default `sse` mode uses installed Chrome for one HTTP `reconnect-204`:
 
 ```sh
 python -m scripts.capture.sse_reconnect \
@@ -34,12 +33,29 @@ python -m scripts.capture.sse_reconnect \
 The tool creates a disposable profile and cleans up its browser and loopback
 peer. Launch flags appear in the fixture.
 
+Choose `profile` for ordinary Google Chrome **156.0.8078.48**. This mode
+downloads Google's stable universal DMG, stages an owned copy, and checks its
+signature, system policy, full version and native architectures before use.
+The existing installed browser stays in place. A different download build
+fails explicitly.
+
+Four existing capture jobs run in sequence: one fingerprint snapshot, then
+script, stylesheet, image and font requests over H1, H2 and H3. Each uses a
+fresh profile and runs once, without retries. The tools use their existing
+per-launch SPKI exceptions and resolver flags.
+
 ## Inspect the attempt
 
 Download the artifact even when the job fails. `provenance.json` records the
 command and exit code, full browser version and bundle build, launcher and
 bundle metadata hashes, OS, architecture, runner image and source hashes.
 Separate files preserve the capture command's complete stdout and stderr.
+
+Profile mode also retains the DMG URL/hash, signature checks, each matrix
+manifest, result, logs and output hashes. Download the artifacts from failed
+jobs too. A failed cell leaves the other protocols eligible to run; the whole
+attempt still fails. Cleanup failures retain their owned staging path for
+inspection on the disposable runner.
 
 When emitted, `reconnect-204.txt` holds ordered request bytes and timings.
 The workflow checks the page request, initial SSE request and reconnect,
