@@ -1064,6 +1064,10 @@ impl Http1TlsConnector {
                     let mut selected_ech = None;
                     let (stream, slower) = match setup {
                         #[cfg(feature = "https-records")]
+                        DirectTlsSetup::EchRetry(_) => {
+                            return Err(invalid_route("ECH recovery requires an ordinary request"));
+                        }
+                        #[cfg(feature = "https-records")]
                         DirectTlsSetup::EchKeepingSlower { lookup, family } => {
                             let (stream, slower, selected) =
                                 crate::direct::connect_tls_with_ech_retaining(
@@ -1337,6 +1341,13 @@ impl Http1TlsConnector {
                 server_name,
                 setup,
             }) => match (tcp, setup) {
+                #[cfg(feature = "https-records")]
+                (TcpRoute::Direct(_), DirectTlsSetup::EchRetry(retry)) => {
+                    let stream =
+                        crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry)
+                            .await?;
+                    connect_over_tls(stream).await
+                }
                 (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
                     let (stream, attempt) = connect_tcp_keeping_slower(
                         endpoint.host,

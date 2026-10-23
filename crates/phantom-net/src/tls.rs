@@ -12,6 +12,9 @@ use std::{
     task::{Context, Poll},
 };
 
+#[cfg(feature = "https-records")]
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use btls::{
     error::ErrorStack,
     hash::{Hasher, MessageDigest},
@@ -690,7 +693,7 @@ impl TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        self.handshake(server_name, stream, ech_config_list, false)
+        self.handshake(server_name, stream, ech_config_list, SessionOffer::Cached)
             .await
     }
 
@@ -713,7 +716,24 @@ impl TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        self.handshake(server_name, stream, None, true).await
+        self.handshake(server_name, stream, None, SessionOffer::EarlyData)
+            .await
+    }
+
+    /// Completes a fresh authenticated handshake without consuming a cached
+    /// session. New tickets still belong to the origin's existing cache.
+    #[cfg(feature = "https-records")]
+    pub(crate) async fn connect_ech_retry<S>(
+        &self,
+        server_name: &str,
+        stream: S,
+        ech_config_list: Option<&[u8]>,
+    ) -> Result<TlsStream<S>, TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        self.handshake(server_name, stream, ech_config_list, SessionOffer::Fresh)
+            .await
     }
 
     fn handshake_configuration(
@@ -785,7 +805,7 @@ impl TlsConnector {
         Ok(configuration)
     }
 
-    /// Offers early data when `offer_early_data` is set, the connector keeps
+    /// Offers early data when requested, the connector keeps
     /// early-data sessions, no ECH configuration is offered, and the cached
     /// session permits it.
     async fn handshake<S>(
@@ -793,7 +813,7 @@ impl TlsConnector {
         server_name: &str,
         stream: S,
         ech_config_list: Option<&[u8]>,
-        offer_early_data: bool,
+        session_offer: SessionOffer,
     ) -> Result<TlsStream<S>, TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -828,7 +848,11 @@ impl TlsConnector {
 
             let ssl = if let Some(cache) = &self.session_cache {
                 let capture = cache.begin_handshake(server_name);
-                let session = capture.take_session();
+                let session = match session_offer {
+                    #[cfg(feature = "https-records")]
+                    SessionOffer::Fresh => None,
+                    SessionOffer::Cached | SessionOffer::EarlyData => capture.take_session(),
+                };
                 // BoringSSL keeps the empty TLS 1.2 `session_ticket`
                 // extension beside a TLS 1.3 PSK. `SSL_OP_NO_TICKET` on this
                 // connection alone omits it, as NSS does; the connection
@@ -841,7 +865,7 @@ impl TlsConnector {
                 let reusable = session
                     .as_ref()
                     .is_some_and(|session| !session.should_be_single_use());
-                let offers_early_data = offer_early_data
+                let offers_early_data = matches!(session_offer, SessionOffer::EarlyData)
                     && self.early_data
                     && ech_config_list.is_none()
                     && session
@@ -990,6 +1014,14 @@ impl TlsConnector {
     }
 }
 
+#[derive(Clone, Copy)]
+enum SessionOffer {
+    Cached,
+    EarlyData,
+    #[cfg(feature = "https-records")]
+    Fresh,
+}
+
 /// Which component owns client-session handling for a new context.
 enum ClientSessions<'p> {
     /// TCP connections use scoped sessions; see
@@ -1089,6 +1121,22 @@ impl<S: crate::connection_diagnostics::ConnectionMetadataSource>
 }
 
 impl<S> TlsStream<S> {
+    #[cfg(feature = "https-records")]
+    pub(crate) fn set_ech_retry_peer(
+        &mut self,
+        connector: &TlsConnector,
+        server_name: &str,
+        address: std::net::SocketAddr,
+    ) {
+        if let Some(early) = &mut self.early_data {
+            early.set_ech_retry_peer(EchRetryPeer {
+                address,
+                server_name: server_name.into(),
+                compatibility: Arc::clone(&connector.session_cache_compatibility),
+            });
+        }
+    }
+
     /// Returns a handle that tells when the server answers this stream's early
     /// data, or `None` when the handshake completed without offering any.
     pub(crate) fn early_data_wait(&self) -> Option<EarlyDataWait> {
@@ -1326,6 +1374,86 @@ impl EchRejection {
     }
 }
 
+#[cfg(feature = "https-records")]
+#[derive(Clone, Debug)]
+struct EchRetryPeer {
+    address: std::net::SocketAddr,
+    server_name: Box<str>,
+    compatibility: Arc<()>,
+}
+
+/// One fresh connection allowed by an authenticated deferred ECH rejection.
+///
+/// Use this only with the originating TLS connector and origin. Clones share
+/// one allowance, spent before dialing and never restored on cancellation.
+/// The retry uses the failed peer and authenticated replacement configuration,
+/// or removes ECH when the server supplied none. It offers no cached session
+/// or early data. A second rejection cannot create another allowance.
+#[cfg(feature = "https-records")]
+#[derive(Clone)]
+pub struct EchRetry(Arc<EchRetryState>);
+
+#[cfg(feature = "https-records")]
+struct EchRetryState {
+    peer: EchRetryPeer,
+    retry_configs: Option<Box<[u8]>>,
+    spent: AtomicBool,
+}
+
+#[cfg(feature = "https-records")]
+impl EchRetry {
+    fn new(peer: EchRetryPeer, rejection: &EchRejection) -> Self {
+        Self(Arc::new(EchRetryState {
+            peer,
+            retry_configs: rejection.retry_configs.clone(),
+            spent: AtomicBool::new(false),
+        }))
+    }
+
+    pub(crate) fn port(&self) -> u16 {
+        self.0.peer.address.port()
+    }
+
+    pub(crate) fn claim(
+        &self,
+        connector: &TlsConnector,
+        server_name: &str,
+    ) -> Result<(std::net::SocketAddr, Option<&[u8]>), TlsError> {
+        if !self.0.peer.server_name.eq_ignore_ascii_case(server_name)
+            || !Arc::ptr_eq(
+                &self.0.peer.compatibility,
+                &connector.session_cache_compatibility,
+            )
+        {
+            return Err(TlsError::configuration(
+                "ECH retry",
+                "retry belongs to a different origin or TLS configuration",
+            ));
+        }
+        if self.0.spent.swap(true, Ordering::AcqRel) {
+            let mut error = TlsError::new(
+                TlsErrorKind::Handshake,
+                None,
+                "authenticated ECH retry is already spent".into(),
+                None,
+            );
+            error.ech = Some(EchFailure::Rejected);
+            return Err(error);
+        }
+        Ok((self.0.peer.address, self.0.retry_configs.as_deref()))
+    }
+}
+
+#[cfg(feature = "https-records")]
+impl fmt::Debug for EchRetry {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("EchRetry")
+            .field("spent", &self.0.spent.load(Ordering::Acquire))
+            .finish_non_exhaustive()
+    }
+}
+
 /// Error returned while constructing or using the TLS connector.
 #[derive(Debug)]
 pub struct TlsError {
@@ -1335,6 +1463,8 @@ pub struct TlsError {
     source: Option<Box<dyn StdError + Send + Sync>>,
     ech: Option<EchFailure>,
     ech_retry_configs: Option<Box<[u8]>>,
+    #[cfg(feature = "https-records")]
+    ech_retry: Option<EchRetry>,
 }
 
 impl TlsError {
@@ -1385,6 +1515,8 @@ impl TlsError {
             source,
             ech: None,
             ech_retry_configs: None,
+            #[cfg(feature = "https-records")]
+            ech_retry: None,
         }
     }
 
@@ -1541,6 +1673,15 @@ impl TlsError {
     #[must_use]
     pub const fn ech_failure(&self) -> Option<EchFailure> {
         self.ech
+    }
+
+    /// Returns the shared, single-use recovery for a deferred authenticated
+    /// ECH rejection on a direct origin connection. Ordinary TLS failures,
+    /// synchronous rejections, and a rejection of the retry return `None`.
+    #[cfg(feature = "https-records")]
+    #[must_use]
+    pub fn ech_retry(&self) -> Option<&crate::route::EchRetry> {
+        self.ech_retry.as_ref()
     }
 
     /// Takes the retry configurations an ECH rejection carried; `None` when

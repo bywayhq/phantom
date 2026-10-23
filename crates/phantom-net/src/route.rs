@@ -8,6 +8,8 @@ use crate::{
     tcp::AddressFamilyMemory,
 };
 
+#[cfg(feature = "https-records")]
+pub use crate::tls::EchRetry;
 pub use connected::ConnectedStream;
 pub use datagram::{ConnectUdpRoute, ConnectUdpTransport, DatagramRoute};
 
@@ -135,6 +137,11 @@ pub enum TcpRoute<'a> {
 pub enum DirectTlsSetup<'a> {
     /// Use the connector's normal TLS setup.
     Default,
+    /// Finish one authenticated deferred ECH rejection at its original peer.
+    /// The originating TLS connector is required. This consumes its shared
+    /// allowance before dialing and offers no cached session or early data.
+    #[cfg(feature = "https-records")]
+    EchRetry(&'a EchRetry),
     /// Overlap TCP setup with an HTTPS-record lookup, then apply its bounded wait.
     #[cfg(feature = "https-records")]
     Ech(EchLookup<'a>),
@@ -156,6 +163,8 @@ impl std::fmt::Debug for DirectTlsSetup<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Default => formatter.write_str("Default"),
+            #[cfg(feature = "https-records")]
+            Self::EchRetry(_) => formatter.write_str("EchRetry(..)"),
             #[cfg(feature = "https-records")]
             Self::Ech(_) => formatter.write_str("Ech(..)"),
             #[cfg(feature = "https-records")]
@@ -210,6 +219,13 @@ impl OriginRoute<'_> {
                 if !matches!(setup, DirectTlsSetup::Default) && !matches!(tcp, TcpRoute::Direct(_))
                 {
                     return Err(invalid("direct TLS setup requires a direct TCP route"));
+                }
+
+                #[cfg(feature = "https-records")]
+                if let (TcpRoute::Direct(endpoint), DirectTlsSetup::EchRetry(retry)) = (tcp, setup)
+                    && endpoint.port != retry.port()
+                {
+                    return Err(invalid("ECH retry belongs to a different origin port"));
                 }
 
                 let retains_slower = matches!(setup, DirectTlsSetup::KeepSlower(_));

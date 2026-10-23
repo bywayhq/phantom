@@ -25,6 +25,9 @@ use crate::{
 const INNER_NAME: &str = "inner.phantom.test";
 const PUBLIC_NAME: &str = "public.phantom.test";
 
+#[cfg(feature = "https-records")]
+mod recovery;
+
 enum RejectionCase {
     ReplacementConfigs,
     RemoveEch,

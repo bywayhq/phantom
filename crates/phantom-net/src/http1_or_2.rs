@@ -965,6 +965,13 @@ impl Http1Or2TlsConnector {
                         }
                     }
                     #[cfg(feature = "https-records")]
+                    (TcpRoute::Direct(_), DirectTlsSetup::EchRetry(retry)) => {
+                        let stream =
+                            crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry)
+                                .await?;
+                        select_connection(stream, client).await
+                    }
+                    #[cfg(feature = "https-records")]
                     (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
                         let stream = crate::direct::connect_tls_with_ech(
                             &self.tls,

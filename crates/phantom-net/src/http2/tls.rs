@@ -1226,6 +1226,13 @@ impl Http2TlsConnector {
             return Err(invalid_route("HTTP/2 origins require TLS"));
         };
         match setup {
+            #[cfg(feature = "https-records")]
+            DirectTlsSetup::EchRetry(retry) => {
+                let stream =
+                    crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry).await?;
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, extended_connect, keepalive).await
+            }
             DirectTlsSetup::Default => {
                 let direct = matches!(&tcp, TcpRoute::Direct(_));
                 let stream =

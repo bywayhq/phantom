@@ -45,6 +45,8 @@ pub(super) struct EarlyData {
     session_capture: Option<TlsSessionCapture>,
     answer: watch::Sender<Answer>,
     attempts: Arc<Mutex<ReplayAttempts>>,
+    #[cfg(feature = "https-records")]
+    ech_retry_peer: Option<super::EchRetryPeer>,
 }
 
 #[derive(Debug, Default)]
@@ -112,6 +114,8 @@ pub(crate) enum EarlyDataFailure {
         error: Arc<io::Error>,
         pin_verification: btls::ssl::SpkiPinVerification,
         ech_rejection: Option<super::EchRejection>,
+        #[cfg(feature = "https-records")]
+        ech_retry: Option<super::EchRetry>,
     },
     /// The server rejected the early data and then selected another ALPN
     /// protocol. The server processed no request on the connection.
@@ -130,11 +134,19 @@ impl EarlyDataFailure {
                 error,
                 pin_verification,
                 ech_rejection,
+                #[cfg(feature = "https-records")]
+                ech_retry,
             } => {
                 let source = SharedError(Arc::clone(error));
                 let error = match ech_rejection {
                     Some(rejection) => super::TlsError::ech_rejected(source, rejection.clone()),
                     None => super::TlsError::after_early_data(source),
+                };
+                #[cfg(feature = "https-records")]
+                let error = {
+                    let mut error = error;
+                    error.ech_retry.clone_from(ech_retry);
+                    error
                 };
                 Some(error.with_pin_verification(*pin_verification))
             }
@@ -176,7 +188,14 @@ impl EarlyData {
             session_capture,
             answer: watch::Sender::new(Answer::Unanswered),
             attempts: Arc::new(Mutex::new(ReplayAttempts::default())),
+            #[cfg(feature = "https-records")]
+            ech_retry_peer: None,
         }
+    }
+
+    #[cfg(feature = "https-records")]
+    pub(super) fn set_ech_retry_peer(&mut self, peer: super::EchRetryPeer) {
+        self.ech_retry_peer = Some(peer);
     }
 
     pub(super) fn wait(&self) -> EarlyDataWait {
@@ -500,10 +519,17 @@ where
             .and_then(|source| super::EchRejection::from_handshake(self.inner.ssl(), source));
         let kind = error.kind();
         let error = Arc::new(error);
+        #[cfg(feature = "https-records")]
+        let ech_retry = ech_rejection.as_ref().and_then(|rejection| {
+            let peer = self.early_data.as_mut()?.ech_retry_peer.take()?;
+            Some(super::EchRetry::new(peer, rejection))
+        });
         let failure = EarlyDataFailure::Handshake {
             error: Arc::clone(&error),
             pin_verification: self.inner.ssl().spki_pin_verification(),
             ech_rejection,
+            #[cfg(feature = "https-records")]
+            ech_retry,
         };
         self.fail_with(io::Error::new(kind, SharedError(error)), Some(failure))
     }
@@ -553,6 +579,8 @@ mod tests {
                 error: Arc::clone(&original),
                 pin_verification,
                 ech_rejection: None,
+                #[cfg(feature = "https-records")]
+                ech_retry: None,
             };
             let error = failure
                 .tls_error()

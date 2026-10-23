@@ -250,7 +250,10 @@ impl SelectedEch {
             offered => tls.connect_with_ech(server_name, stream, offered).await,
         };
         match handshake {
-            Ok(stream) => Ok(stream),
+            Ok(mut stream) => {
+                stream.set_ech_retry_peer(tls, server_name, address);
+                Ok(stream)
+            }
             Err(mut error) if error.ech_failure() == Some(crate::tls::EchFailure::Rejected) => {
                 let retry_configs = error.take_ech_retry_configs();
                 tracing::debug!(
@@ -267,6 +270,24 @@ impl SelectedEch {
             Err(error) => Err(DirectTlsError::Tls(error)),
         }
     }
+}
+
+/// Continues a deferred authenticated ECH rejection without resolving or
+/// racing addresses, and without offering any cached session.
+#[cfg(feature = "https-records")]
+pub(crate) async fn retry_ech(
+    tls: &crate::tls::TlsConnector,
+    dialer: Dialer<'_>,
+    server_name: &str,
+    retry: &crate::tls::EchRetry,
+) -> Result<crate::tls::TlsStream<ProfileTcpStream>, DirectTlsError> {
+    let (address, configs) = retry.claim(tls, server_name).map_err(DirectTlsError::Tls)?;
+    let stream = connect_tcp_address(address, dialer)
+        .await
+        .map_err(DirectTlsError::Direct)?;
+    tls.connect_ech_retry(server_name, stream, configs)
+        .await
+        .map_err(DirectTlsError::Tls)
 }
 
 /// Runs the selected TLS handshake while the retained TCP attempt progresses.
