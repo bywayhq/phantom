@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Add a Firefox HTTPS-proxy address-family capture with separate proxy and
-  origin TLS records.
+  origin TLS records; retain a Firefox 157 Windows observation.
 
 - Add Opera 136 default-fetch templates with captured HTTP/2 validator order.
 

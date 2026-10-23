@@ -71,6 +71,18 @@ Capture source: `afa13a8c212f1e708a0466f43a882e2918a1a718`, Python 3.12.10,
 Frida 17.24.3. Reproduce with the command above using `--scenario wss-backup`.
 Fixture SHA256: `dfdbd21f223c7a50528c644e1aff257ad74e4134de8c408d4699673e06fb4630`.
 
+## HTTPS proxy connections
+
+`hooks-https-connect-backup.txt` uses the same Firefox build and host.
+IPv4 backup started 251 ms after the first IPv6 attempt. Four TLS/H1
+CONNECT tunnels carried five completed requests. The final request used a
+physical proxy socket opened before the origin drop.
+
+Capture source: `44cb7c03389591df9c456930a51ad844186ed3bb`, Python 3.12.10
+and Frida 17.24.3. Reproduce with the command above using
+`--scenario https-connect-backup`. Proxy and origin certificates were trusted
+only in the disposable profile. Browser, profile and peer cleanup completed.
+
 ## HTTP CONNECT diagnostic
 
 `hooks-http-connect-backup.txt` uses the same Firefox build and host with
