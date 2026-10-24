@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a scoped macOS native-DNS capture tool with a temporary resolver
+  and restoration diagnostics.
+
 - Keep CLI transfers within the Windows stack limit when optional client
   features are enabled, including requests through SOCKS proxies.
 

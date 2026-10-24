@@ -2188,6 +2188,30 @@ stay in `target/windows-native-dns-capture/`. The fresh profile disables TRR
 An absent HTTPS query stays absent. This is a native routing check, not a
 Windows 11 observation or a DNS TTL/cache measurement.
 
+### macOS native DNS
+
+`mac_native_dns_capture.py` routes one random test domain to a loopback DNS
+peer. It opens a fresh Firefox profile with TRR disabled and records the DNS
+exchange and a complete HTTP response body.
+
+Run as your ordinary user from the repository root. Only the resolver guard
+uses administrator access:
+
+```sh
+sudo -v
+uv run --no-project --python 3.10 \
+  --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.mac_native_dns_capture \
+  --firefox /Applications/Firefox.app/Contents/MacOS/firefox \
+  --output target/mac-native-dns
+```
+
+The guard restores its resolver file on completion, interruption, parent EOF
+or its 120-second deadline. Keep `result.json` after a failure: it records
+restoration errors and the owned file identity. SIGKILL or host loss can leave
+the file behind. This checks configured native routing, not DNS TTL or cache
+behavior.
+
 ### Local captures
 
 `firefox_socket_hooks.py` records the same calls as
