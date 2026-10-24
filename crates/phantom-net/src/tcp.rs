@@ -19,9 +19,11 @@ use phantom_profile::{
     TcpSettings,
 };
 use socket2::SockRef;
+#[cfg(any(not(windows), test))]
+use tokio::net::TcpSocket;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::{TcpSocket, TcpStream},
+    net::TcpStream,
 };
 
 use crate::{
@@ -41,7 +43,7 @@ pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
-mod proxy_connect;
+mod socket_connect;
 
 /// A TCP connection opened with a profile's [`TcpSettings`].
 ///
@@ -426,20 +428,20 @@ pub(crate) async fn connect_socks_proxy_sequential(
         };
         let address = candidate.address();
         let socket =
-            proxy_connect::prepare(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
+            socket_connect::prepare(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
         match crate::request_diagnostics::PhaseObservation::run(
             crate::RequestTimingPhase::TcpConnect,
             None,
-            proxy_connect::connect(socket, address),
+            socket_connect::connect(socket, address, dialer.tcp, dialer.source),
         )
         .await
         {
             Ok(stream) => break stream,
             Err(failure) => {
                 let (connect, report) = match failure {
-                    proxy_connect::Failure::Initial(error) => (error, true),
-                    proxy_connect::Failure::Continuation(error) => (error, report_continuation),
-                    proxy_connect::Failure::Local(error) => return Err(BeforeConnect(error)),
+                    socket_connect::Failure::Initial(error) => (error, true),
+                    socket_connect::Failure::Continuation(error) => (error, report_continuation),
+                    socket_connect::Failure::Local(error) => return Err(BeforeConnect(error)),
                 };
                 if report && let Err(feedback) = candidate.failed_connect() {
                     return Err(Connect(io::Error::other(ConnectFeedbackError {
@@ -613,6 +615,7 @@ impl Error for ConnectFeedbackError {
 }
 
 /// Setup failures precede the dial and must not poison a DNS record.
+#[cfg(any(not(windows), test))]
 fn prepare_socket(
     address: SocketAddr,
     settings: Option<TcpSettings>,
@@ -654,17 +657,28 @@ async fn connect_candidate_within(
 ) -> io::Result<TcpStream> {
     let address = candidate.address();
     let expired = timeout.map(deadline).transpose()?;
+    #[cfg(not(windows))]
     let socket = prepare_socket(address, settings, source)?;
+    #[cfg(windows)]
+    let socket = socket_connect::prepare(address, settings, source)?;
     let mut diagnostic = crate::request_diagnostics::PhaseObservation::begin(
         crate::RequestTimingPhase::TcpConnect,
         None,
     );
+    #[cfg(not(windows))]
+    let connect = socket.connect(address);
+    #[cfg(windows)]
+    let connect = async {
+        socket_connect::connect(socket, address, settings, source)
+            .await
+            .map_err(socket_connect::Failure::into_error)
+    };
     let result = match expired {
-        None => socket.connect(address).await,
+        None => connect.await,
         Some(expired) => {
             tokio::select! {
                 biased;
-                result = socket.connect(address) => result,
+                result = connect => result,
                 () = expired => Err(io::Error::new(io::ErrorKind::TimedOut, "the backup connect timed out")),
             }
         }

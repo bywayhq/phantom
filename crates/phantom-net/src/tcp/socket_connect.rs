@@ -3,6 +3,8 @@ use std::{io, net::SocketAddr};
 use phantom_profile::TcpSettings;
 use socket2::{Domain, Protocol, SockRef, Socket, Type};
 use tokio::net::TcpStream;
+#[cfg(windows)]
+use windows_sys::Win32::Networking::WinSock::{WSAEINVAL, WSAENOBUFS};
 
 use crate::SourceBinding;
 
@@ -12,6 +14,53 @@ pub(super) enum Failure {
     Initial(io::Error),
     Continuation(io::Error),
     Local(io::Error),
+}
+
+#[cfg(windows)]
+impl Failure {
+    pub(super) fn into_error(self) -> io::Error {
+        match self {
+            Self::Initial(error) | Self::Continuation(error) | Self::Local(error) => error,
+        }
+    }
+
+    fn after_retry(self, first: io::Error) -> Self {
+        match self {
+            Self::Initial(error) => Self::Initial(retry_error(first, error)),
+            Self::Continuation(error) => Self::Continuation(retry_error(first, error)),
+            Self::Local(error) => Self::Local(retry_error(first, error)),
+        }
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct RetryError {
+    first: io::Error,
+    retry: io::Error,
+}
+
+#[cfg(windows)]
+impl std::fmt::Display for RetryError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "TCP connect failed before port allocation: {}; fresh socket failed: {}",
+            self.first, self.retry
+        )
+    }
+}
+
+#[cfg(windows)]
+impl std::error::Error for RetryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.retry)
+    }
+}
+
+#[cfg(windows)]
+fn retry_error(first: io::Error, retry: io::Error) -> io::Error {
+    io::Error::new(retry.kind(), RetryError { first, retry })
 }
 
 pub(super) fn prepare(
@@ -49,13 +98,101 @@ pub(super) fn prepare(
     Ok(socket)
 }
 
-pub(super) async fn connect(socket: Socket, address: SocketAddr) -> Result<TcpStream, Failure> {
-    if let Err(error) = socket.connect(&address.into())
+pub(super) async fn connect(
+    socket: Socket,
+    address: SocketAddr,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+) -> Result<TcpStream, Failure> {
+    #[cfg(windows)]
+    {
+        connect_with(
+            socket,
+            address,
+            settings,
+            source,
+            |socket, address| socket.connect(&address.into()),
+            complete,
+        )
+        .await
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (settings, source); // Only Windows replaces an unallocated socket.
+        if let Err(error) = socket.connect(&address.into())
+            && !in_progress(&error)
+        {
+            return Err(Failure::Initial(error));
+        }
+        complete(socket).await
+    }
+}
+
+#[cfg(windows)]
+async fn connect_with<F>(
+    mut socket: Socket,
+    address: SocketAddr,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    mut initial: impl FnMut(&Socket, SocketAddr) -> io::Result<()>,
+    completion: impl FnOnce(Socket) -> F,
+) -> Result<TcpStream, Failure>
+where
+    F: std::future::Future<Output = Result<TcpStream, Failure>>,
+{
+    let mut first = None;
+    if let Err(error) = initial(&socket, address)
         && !in_progress(&error)
     {
-        return Err(Failure::Initial(error));
+        if !can_replace(&socket, settings, source, &error) {
+            return Err(Failure::Initial(error));
+        }
+        // A randomized implicit bind can fail before assigning any port.
+        // Keep its policy, but never retain the failed socket during recovery.
+        drop(socket);
+        socket = match prepare(address, settings, source) {
+            Ok(socket) => socket,
+            Err(retry) => return Err(Failure::Local(retry_error(error, retry))),
+        };
+        if let Err(retry) = initial(&socket, address)
+            && !in_progress(&retry)
+        {
+            return Err(Failure::Initial(retry).after_retry(error));
+        }
+        first = Some(error);
     }
+    completion(socket).await.map_err(|failure| match first {
+        Some(first) => failure.after_retry(first),
+        None => failure,
+    })
+}
 
+#[cfg(windows)]
+fn can_replace(
+    socket: &Socket,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    error: &io::Error,
+) -> bool {
+    error.raw_os_error() == Some(WSAENOBUFS)
+        && source.is_none()
+        && settings
+            .and_then(|settings| settings.port_randomization)
+            .is_some_and(|randomization| {
+                // Decline recovery if the option's applicability cannot be checked.
+                super::host_reaches_build(randomization.minimum_windows_build).unwrap_or(false)
+            })
+        && match socket.local_addr() {
+            Ok(address) => address
+                .as_socket()
+                .is_some_and(|address| address.port() == 0),
+            // getsockname reports WSAEINVAL for an unbound socket. Preparation
+            // never explicitly binds without a SourceBinding, checked above.
+            Err(error) => error.raw_os_error() == Some(WSAEINVAL),
+        }
+}
+
+async fn complete(socket: Socket) -> Result<TcpStream, Failure> {
     // Match Tokio's connect_mio completion without issuing another connect.
     // Registration/readiness failures are local, not failed DNS candidates.
     let stream = TcpStream::from_std(socket.into()).map_err(Failure::Local)?;
@@ -101,7 +238,7 @@ mod tests {
     async fn an_initial_socket_error_keeps_its_stage() -> TestResult {
         let listener = TcpListener::bind((Ipv6Addr::LOCALHOST, 0)).await?;
         let socket = prepare(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)), None, None)?;
-        let result = connect(socket, listener.local_addr()?).await;
+        let result = connect(socket, listener.local_addr()?, None, None).await;
 
         assert!(matches!(result, Err(Failure::Initial(_))), "{result:?}");
         Ok(())
@@ -113,7 +250,7 @@ mod tests {
         let address = listener.local_addr()?;
         drop(listener);
         let socket = prepare(address, None, None)?;
-        let result = timeout(Duration::from_secs(8), connect(socket, address)).await?;
+        let result = timeout(Duration::from_secs(8), connect(socket, address, None, None)).await?;
 
         let Err(Failure::Continuation(error)) = result else {
             return Err(format!("expected an asynchronous refusal, got {result:?}").into());
@@ -151,7 +288,7 @@ mod tests {
         #[cfg(windows)]
         let handle = socket.as_raw_socket();
         let client = async {
-            let mut stream = connect(socket, address)
+            let mut stream = connect(socket, address, Some(settings), Some(&source))
                 .await
                 .map_err(|failure| format!("{failure:?}"))?;
             #[cfg(unix)]
@@ -190,3 +327,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, windows))]
+mod recovery_tests;
