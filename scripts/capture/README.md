@@ -1056,6 +1056,9 @@ Capture and cleanup failures retain their original causes and prevent writes.
 Cleanup has a five-second cooperative deadline. Local cleanup does not count
 as a browser close event.
 
+On Windows, the TCP lifecycle command uses asyncio's Selector event loop.
+HTTP/3 keeps the default event loop. Compare timings from the same backend.
+
 A run allows 32 connections, 256 requests and 64 MiB of encrypted input and
 output. Each connection allows 64 active HTTP/2 streams, 65,536 input frames
 including DATA, and 2,000 recorded frames. HTTP/2 frame payloads are limited

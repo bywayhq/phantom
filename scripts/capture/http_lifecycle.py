@@ -1664,7 +1664,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")
-    asyncio.run(capture(args))
+    if sys.platform != "win32" or args.resource_protocol == "h3":
+        asyncio.run(capture(args))
+        return
+
+    # This TCP-only CLI needs no asyncio pipes or subprocess transports.
+    policy = asyncio.get_event_loop_policy()
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(capture(args))
+    finally:
+        asyncio.set_event_loop_policy(policy)
 
 
 if __name__ == "__main__":
