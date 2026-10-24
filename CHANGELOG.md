@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Allow native-DNS captures on the current hosted Windows 2025 image.
+
 - Skip proxy-authentication target preparation when no authentication is active.
 
 - Inspect complete HTTP/1 response headers without copying their incoming
