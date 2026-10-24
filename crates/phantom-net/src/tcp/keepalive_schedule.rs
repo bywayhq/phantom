@@ -205,15 +205,21 @@ impl TcpKeepaliveControl {
         state.opening = false;
         state.wanted = KeepalivePhase::Disabled;
         state.switch_at = None;
+        state.deadline = None;
         state.wake();
     }
 
     /// Brings the socket's keepalive up to date before an I/O call on it.
     ///
     /// `waker` is the polling task's, woken when the switch falls due or the
-    /// HTTP layers report a change.
-    pub(crate) fn apply(&self, socket: &TcpStream, waker: &Waker) -> io::Result<()> {
+    /// HTTP layers report a change. Returns the phase applied to the socket;
+    /// [`KeepalivePhase::Disabled`] needs no further stream tracking.
+    pub(crate) fn apply(&self, socket: &TcpStream, waker: &Waker) -> io::Result<KeepalivePhase> {
         let mut state = self.lock();
+        if state.applied == KeepalivePhase::Disabled {
+            return Ok(KeepalivePhase::Disabled);
+        }
+
         if !state
             .waker
             .as_ref()
@@ -223,7 +229,7 @@ impl TcpKeepaliveControl {
         }
         state.poll_switch(waker);
         if state.wanted == state.applied {
-            return Ok(());
+            return Ok(state.applied);
         }
         let socket = SockRef::from(socket);
         let idle = match state.wanted {
@@ -251,12 +257,16 @@ impl TcpKeepaliveControl {
                 .map_err(|error| option_error("SO_KEEPALIVE", error))?,
         }
         state.applied = state.wanted;
+        if state.applied == KeepalivePhase::Disabled {
+            state.deadline = None;
+            state.waker = None;
+        }
         #[cfg(test)]
         {
             let applied = state.applied;
             state.log.push(applied);
         }
-        Ok(())
+        Ok(state.applied)
     }
 
     /// Whether the connection waits in a pool with no request outstanding.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release HTTP/2 keepalive tracking after disabling socket keepalive, avoiding
+  further scheduling locks on that stream's I/O.
+
 - Breaking: add `TcpBackupConnection::socks_proxy_dns_feedback`. Firefox 157
   Windows revision 3 retains proxy addresses after asynchronous refusals.
   Migrate: set `SocksProxyDnsFeedback::AllConnectFailures` to keep custom

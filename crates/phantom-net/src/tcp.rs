@@ -97,11 +97,14 @@ impl ProfileTcpStream {
         self.stream
     }
 
-    fn apply_keepalive(&self, context: &Context<'_>) -> io::Result<()> {
-        match &self.keepalive {
-            Some(keepalive) => keepalive.apply(&self.stream, context.waker()),
-            None => Ok(()),
+    fn apply_keepalive(&mut self, context: &Context<'_>) -> io::Result<()> {
+        if let Some(keepalive) = &self.keepalive
+            && keepalive.apply(&self.stream, context.waker())?
+                == keepalive_schedule::KeepalivePhase::Disabled
+        {
+            self.keepalive = None;
         }
+        Ok(())
     }
 }
 

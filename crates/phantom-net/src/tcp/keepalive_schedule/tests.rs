@@ -37,7 +37,7 @@ async fn loopback_pair() -> TestResult<(TcpStream, TcpStream)> {
 }
 
 fn apply(control: &TcpKeepaliveControl, socket: &TcpStream) -> std::io::Result<()> {
-    control.apply(socket, Waker::noop())
+    control.apply(socket, Waker::noop()).map(|_| ())
 }
 
 #[test]
@@ -354,3 +354,5 @@ async fn assert_platform_schedule(
     );
     Ok(())
 }
+
+mod retirement;
