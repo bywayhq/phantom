@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Allow native-DNS captures on the current hosted Windows 2025 image.
+- Allow native-DNS captures on the current hosted Windows 2025 image and
+  serialize its DNS configuration without CIM metadata.
 
 - Skip proxy-authentication target preparation when no authentication is active.
 
