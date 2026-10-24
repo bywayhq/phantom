@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Allow unused macOS native-DNS capture connections to close cleanly.
+
 - Add a macOS native-DNS capture scene that drops the first A question
   and checks recovery through a completed page load.
 

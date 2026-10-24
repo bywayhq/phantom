@@ -192,6 +192,36 @@ class OriginTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(b"404 Not Found", response)
         self.assertFalse(self.origin.done.is_set())
 
+    async def test_unused_tcp_connection_can_close_without_starting_a_request(
+        self,
+    ) -> None:
+        reader, writer = await self.connection()
+        writer.write_eof()
+        self.assertEqual(await asyncio.wait_for(reader.read(), 1), b"")
+        await asyncio.wait_for(asyncio.gather(*tuple(self.origin.tasks)), 1)
+        self.assertEqual(self.origin.errors, [])
+        self.assertEqual(self.origin.requests, [])
+        self.assertFalse(self.origin.body_drained)
+        self.assertFalse(self.origin.done.is_set())
+        self.assertEqual(self.origin.writers, set())
+
+    async def test_partial_request_header_eof_remains_a_retained_failure(self) -> None:
+        reader, writer = await self.connection()
+        partial = f"GET /body?token={NONCE} HTTP/1.1\r\nHost:".encode("ascii")
+        writer.write(partial)
+        await writer.drain()
+        writer.write_eof()
+        self.assertEqual(await asyncio.wait_for(reader.read(), 1), b"")
+        await asyncio.wait_for(asyncio.gather(*tuple(self.origin.tasks)), 1)
+        self.assertEqual(len(self.origin.errors), 1)
+        self.assertIsInstance(self.origin.errors[0], asyncio.IncompleteReadError)
+        self.assertEqual(self.origin.errors[0].partial, partial)
+        self.assertEqual(self.origin.requests, [])
+        self.assertFalse(self.origin.body_drained)
+        self.assertFalse(self.origin.done.is_set())
+        self.assertEqual(self.origin.writers, set())
+        self.expected_close_error = (asyncio.IncompleteReadError, "bytes read")
+
     async def test_done_before_the_measured_body_is_a_retained_failure(self) -> None:
         response = await self.get(f"/done?token={NONCE}")
         self.assertEqual(response, b"")

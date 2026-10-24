@@ -278,7 +278,12 @@ class Origin:
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         try:
-            head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5.0)
+            try:
+                head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5.0)
+            except asyncio.IncompleteReadError as error:
+                if not error.partial:
+                    return  # A peer may close before sending a request.
+                raise
             lines = head.decode("ascii").split("\r\n")
             method, target, version = lines[0].split(" ")
             host = f"host: {self.domain}:{self.port}"
