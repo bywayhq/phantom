@@ -105,11 +105,28 @@ class CompositionDeclarationTests(unittest.TestCase):
                 "CookiePlacement": None,
             },
         )
-        self.assertEqual(len(original), 11)
+        self.assertEqual(
+            {
+                entry["target"]: (entry["id"], entry["composition"]["Tcp"])
+                for entry in original
+                if entry["target"] in ("FirefoxWindows157R2", "FirefoxWindows157")
+            },
+            {
+                "FirefoxWindows157R2": (
+                    "firefox/157.0/windows-11-26200/r2",
+                    "firefox_157_tcp",
+                ),
+                "FirefoxWindows157": (
+                    "firefox/157.0/windows-11-26200/r3",
+                    "firefox_157_windows_r3_tcp",
+                ),
+            },
+        )
+        self.assertEqual(len(original), 12)
         pairs = [value for entry in original for value in entry["composition"].values()]
-        self.assertEqual(len(pairs), 154)
-        self.assertEqual(sum(value is not None for value in pairs), 107)
-        self.assertEqual(sum(value is None for value in pairs), 47)
+        self.assertEqual(len(pairs), 168)
+        self.assertEqual(sum(value is not None for value in pairs), 119)
+        self.assertEqual(sum(value is None for value in pairs), 49)
         before_edge_websocket = copy.deepcopy(original)
         edge = next(
             entry
@@ -123,8 +140,8 @@ class CompositionDeclarationTests(unittest.TestCase):
             for entry in before_edge_websocket
             for value in entry["composition"].values()
         ]
-        self.assertEqual(sum(value is not None for value in prior_pairs), 106)
-        self.assertEqual(sum(value is None for value in prior_pairs), 48)
+        self.assertEqual(sum(value is not None for value in prior_pairs), 118)
+        self.assertEqual(sum(value is None for value in prior_pairs), 50)
         self.assertEqual(
             cli.COMPOSITION_OUTPUT.read_text(encoding="utf-8"),
             composition.generate_compositions(profiles),
@@ -241,7 +258,7 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 19)
+        self.assertEqual(generated.count("static "), 20)
         self.assertIn("static CHROMEWINDOWS156:", generated)
 
     def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
