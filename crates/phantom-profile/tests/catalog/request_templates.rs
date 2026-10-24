@@ -115,6 +115,16 @@ fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTe
         .collect::<Vec<_>>();
     assert_eq!(historical.len(), 2);
     expected.extend(historical);
+    for id in [
+        "edge/154.0.4258.48/windows-11-26200/r1",
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+    ] {
+        expected.push((
+            id,
+            RequestTemplateKind::Fetch,
+            browser::chrome::v154_macos_fetch_template(),
+        ));
+    }
     let id = "chrome/154.0.8037.95/macos-15.5-arm64/r1";
     expected.extend([
         (
@@ -216,7 +226,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (31, 33));
+    assert_eq!((supported, unsupported), (33, 31));
     Ok(())
 }
 

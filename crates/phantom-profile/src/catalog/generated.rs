@@ -967,7 +967,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS154_NAVIGATION },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_MACOS154_FETCH_NO_STORE },
-            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROME_MACOS154_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROMIUM_FETCH_CALLER_UA },
         ],
     },
     ProfileDefinition {
@@ -1831,6 +1831,11 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         location: "crates/phantom-profile/src/browser/chrome.rs",
                         build: "154.0.8037.58",
                     },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "fixtures/lifecycle/chrome/156.0.8078.48/macos-15.5-arm64/revalidate.txt",
+                        build: "156.0.8078.48",
+                    },
                 ],
                 limitations: &[],
             },
@@ -1939,6 +1944,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMEMACOS156,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROMIUM_FETCH_CALLER_UA },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_MACOS156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_MACOS156_STYLESHEET },
             RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_MACOS156_IMAGE },
@@ -2797,6 +2803,11 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         location: "crates/phantom-profile/src/browser/chrome.rs",
                         build: "154.0.8037.58",
                     },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/lifecycle/edge/154.0.4258.48/windows-11-26200/revalidate.txt",
+                        build: "154.0.4258.48",
+                    },
                 ],
                 limitations: &[],
             },
@@ -2971,6 +2982,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROMIUM_FETCH_CALLER_UA },
         ],
     },
     ProfileDefinition {
@@ -3799,7 +3811,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
-            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::OPERA_WINDOWS136_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROMIUM_FETCH_CALLER_UA },
         ],
     },
     ProfileDefinition {

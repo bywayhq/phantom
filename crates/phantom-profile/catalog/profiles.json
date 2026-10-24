@@ -886,7 +886,7 @@
         }
       ],
       "templates": {
-        "Fetch": "chrome_macos154_fetch",
+        "Fetch": "chromium_fetch_caller_ua",
         "FetchNoStore": "chrome_macos154_fetch_no_store",
         "Navigation": "chrome_macos154_navigation"
       },
@@ -1721,6 +1721,11 @@
               "kind": "Reused",
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/lifecycle/edge/154.0.4258.48/windows-11-26200/revalidate.txt",
+              "build": "154.0.4258.48"
             }
           ]
         },
@@ -1885,7 +1890,8 @@
       ],
       "templates": {
         "FetchNoStore": "chromium_fetch_no_store_caller_ua",
-        "Navigation": "chromium_navigation_caller_ua"
+        "Navigation": "chromium_navigation_caller_ua",
+        "Fetch": "chromium_fetch_caller_ua"
       },
       "target": "EdgeWindows154",
       "composition": {
@@ -2580,7 +2586,7 @@
       "templates": {
         "FetchNoStore": "chromium_fetch_no_store_caller_ua",
         "Navigation": "chromium_navigation_caller_ua",
-        "Fetch": "opera_windows136_fetch"
+        "Fetch": "chromium_fetch_caller_ua"
       },
       "target": "OperaWindows136",
       "composition": {
@@ -3273,6 +3279,11 @@
               "kind": "Reused",
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Reused",
+              "location": "fixtures/lifecycle/chrome/156.0.8078.48/macos-15.5-arm64/revalidate.txt",
+              "build": "156.0.8078.48"
             }
           ]
         },
@@ -3358,7 +3369,8 @@
         "Script": "chrome_macos156_script",
         "Stylesheet": "chrome_macos156_stylesheet",
         "Image": "chrome_macos156_image",
-        "Font": "chrome_macos156_font"
+        "Font": "chrome_macos156_font",
+        "Fetch": "chromium_fetch_caller_ua"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",

@@ -145,6 +145,13 @@ fn macos156_selects_exact_platforms_and_seven_observed_layers() -> TestResult {
             RequestTemplateKind::FetchNoStore,
             RequestTemplateKind::FetchUpload,
         ] {
+            if capture.selector == "chrome-156-macos" && kind == RequestTemplateKind::Fetch {
+                assert_eq!(
+                    definition.request_template(kind)?,
+                    browser::chrome::v154_macos_fetch_template()
+                );
+                continue;
+            }
             assert_eq!(
                 definition.request_template(kind),
                 Err(CatalogError::UnavailableTemplate {

@@ -737,6 +737,14 @@ const OPERA_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/lifecycle/opera/136.0.6008.52/windows-11-26200/revalidate.txt"
 ));
+const EDGE_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/edge/154.0.4258.48/windows-11-26200/revalidate.txt"
+));
+const CHROME_MACOS_156_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/chrome/156.0.8078.48/macos-15.5-arm64/revalidate.txt"
+));
 const FIREFOX_REVALIDATION: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/lifecycle/firefox/157.0/windows-11-26200/revalidate.txt"
@@ -838,6 +846,53 @@ fn opera_catalog_fetch_places_validators_as_the_revalidation_capture()
     ];
     for names in captured {
         assert_eq!(expand_revalidation(&template, &names, &caller), names);
+    }
+    Ok(())
+}
+
+#[test]
+fn edge_and_chrome_macos_catalog_fetch_match_ordinary_and_conditional_requests()
+-> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::catalog::{RequestTemplateKind, profile};
+
+    for (selector, capture, platform) in [
+        ("edge-154-windows", EDGE_REVALIDATION, "\"Windows\""),
+        (
+            "chrome-156-macos",
+            CHROME_MACOS_156_REVALIDATION,
+            "\"macOS\"",
+        ),
+    ] {
+        let template = profile(selector)?.request_template(RequestTemplateKind::Fetch)?;
+        template.validate()?;
+        let caller = [
+            RequestHeader::new("user-agent", "caller-agent"),
+            RequestHeader::new("sec-ch-ua-platform", platform),
+            RequestHeader::new("sec-ch-ua", "caller-brands"),
+            RequestHeader::new("sec-ch-ua-mobile", "?0"),
+        ];
+        let mut captured = revalidations(capture);
+        assert_eq!(captured.len(), 3, "{selector}");
+        let ordinary = capture
+            .lines()
+            .find(|line| line.starts_with("request_1="))
+            .and_then(|line| line.split_once(",fields:"))
+            .ok_or("ordinary Fetch fields absent")?
+            .1
+            .split(',')
+            .next()
+            .ok_or("ordinary Fetch fields empty")?
+            .split('|')
+            .filter(|name| !name.starts_with(':'))
+            .collect();
+        captured.push(ordinary);
+        for names in captured {
+            assert_eq!(
+                expand_revalidation(&template, &names, &caller),
+                names,
+                "{selector}"
+            );
+        }
     }
     Ok(())
 }

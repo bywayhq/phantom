@@ -43,7 +43,7 @@ fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestRes
 
 #[test]
 fn retained_template_exports_preserve_fields_flags_priority_and_protocol_absences() -> TestResult {
-    assert_eq!(TEMPLATES.len(), 34);
+    assert_eq!(TEMPLATES.len(), 36);
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
         for kind in [
@@ -328,6 +328,16 @@ pub(super) const PROFILES: &[(&str, &str)] = &[
 
 const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
     (
+        "edge/154.0.4258.48/windows-11-26200/r1",
+        RequestTemplateKind::Fetch,
+        include_str!("fixtures/chromium-fetch.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        RequestTemplateKind::Fetch,
+        include_str!("fixtures/chromium-fetch.json"),
+    ),
+    (
         "brave/153.1.95.104/android-17-pixel7-emulator/r1",
         RequestTemplateKind::FetchNoStore,
         r##"{"http1_fields":[{"variant":"ByForwarding","name":"Connection","unforwarded":"keep-alive","forwarded":null},{"variant":"ByForwarding","name":"Proxy-Connection","unforwarded":null,"forwarded":"keep-alive"},{"variant":"Literal","name":"Pragma","value":"no-cache"},{"variant":"Literal","name":"Cache-Control","value":"no-cache"},{"variant":"ProxyAuthorization","name":"Proxy-Authorization","attempt":"Every"},{"variant":"ClientHint","name":"sec-ch-ua-platform"},{"variant":"Literal","name":"User-Agent","value":"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36"},{"variant":"ClientHint","name":"sec-ch-ua"},{"variant":"ClientHint","name":"sec-ch-ua-mobile"},{"variant":"ClientHints"},{"variant":"Literal","name":"Accept","value":"*/*"},{"variant":"Literal","name":"Sec-GPC","value":"1"},{"variant":"ByTrust","name":"Sec-Fetch-Site","trustworthy":"same-origin","untrustworthy":null},{"variant":"ByTrust","name":"Sec-Fetch-Mode","trustworthy":"cors","untrustworthy":null},{"variant":"ByTrust","name":"Sec-Fetch-Dest","trustworthy":"empty","untrustworthy":null},{"variant":"Caller","name":"Referer","required":false},{"variant":"ByTrust","name":"Accept-Encoding","trustworthy":"gzip, deflate, br, zstd","untrustworthy":"gzip, deflate"},{"variant":"Caller","name":"Accept-Language","required":true}],"http2_fields":[{"variant":"Literal","name":"pragma","value":"no-cache"},{"variant":"Literal","name":"cache-control","value":"no-cache"},{"variant":"ProxyAuthorization","name":"proxy-authorization","attempt":"Every"},{"variant":"ClientHint","name":"sec-ch-ua-platform"},{"variant":"Literal","name":"user-agent","value":"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36"},{"variant":"ClientHint","name":"sec-ch-ua"},{"variant":"ClientHint","name":"sec-ch-ua-mobile"},{"variant":"ClientHints"},{"variant":"Literal","name":"accept","value":"*/*"},{"variant":"Literal","name":"sec-gpc","value":"1"},{"variant":"ByTrust","name":"sec-fetch-site","trustworthy":"same-origin","untrustworthy":null},{"variant":"ByTrust","name":"sec-fetch-mode","trustworthy":"cors","untrustworthy":null},{"variant":"ByTrust","name":"sec-fetch-dest","trustworthy":"empty","untrustworthy":null},{"variant":"Caller","name":"referer","required":false},{"variant":"ByTrust","name":"accept-encoding","trustworthy":"gzip, deflate, br, zstd","untrustworthy":"gzip, deflate"},{"variant":"Caller","name":"accept-language","required":true},{"variant":"Literal","name":"priority","value":"u=1, i"}],"http3_fields":null,"http2_priority":{"variant":"Fixed","dependency_stream_id":0,"weight":220,"exclusive":true},"requested_client_hint_placement":false,"restarts_for_connection_accept_ch":false}"##,
@@ -425,7 +435,7 @@ const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
     (
         "opera/136.0.6008.52/windows-11-26200/r1",
         RequestTemplateKind::Fetch,
-        include_str!("fixtures/opera-fetch.json"),
+        include_str!("fixtures/chromium-fetch.json"),
     ),
     (
         "opera/136.0.6008.52/windows-11-26200/r1",

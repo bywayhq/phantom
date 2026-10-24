@@ -341,8 +341,13 @@ fn templates_require_an_explicit_supported_request_kind() -> TestResult {
     let edge = profile("edge/154.0.4258.48/windows-11-26200/r1")?;
     assert_eq!(
         edge.request_template(RequestTemplateKind::Fetch),
+        Ok(browser::chrome::v154_macos_fetch_template())
+    );
+    let historical_edge = profile("edge-153-windows")?;
+    assert_eq!(
+        historical_edge.request_template(RequestTemplateKind::Fetch),
         Err(CatalogError::UnavailableTemplate {
-            profile: edge.id(),
+            profile: historical_edge.id(),
             kind: RequestTemplateKind::Fetch
         })
     );

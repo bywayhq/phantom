@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add ordinary Fetch templates for Edge 154 Windows and Chrome 156 macOS,
+  with ordered cache validators. Share identical Chromium template declarations.
+
 - Fix browser revalidation captures when completion uses a new connection.
   Retain Chrome 156 macOS and Edge 154 Windows revalidation captures.
 

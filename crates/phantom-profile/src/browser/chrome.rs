@@ -3,6 +3,9 @@
 //! Desktop recipes provide Windows and macOS settings. Android recipes target
 //! Chrome 154.0.8037.57 with Pixel 7 / Android 17 client hints. Android has no
 //! HTTP/1.1 pool, address-cache, proxy CONNECT or cookie-placement recipe.
+//!
+//! Select `Fetch` from the `chrome-156-macos` catalog profile for ordinary
+//! same-origin GETs. Supply `User-Agent` and any cache validators.
 
 pub use crate::catalog::browser_profiles::chrome::*;
 

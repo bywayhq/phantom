@@ -3,6 +3,9 @@
 //! Edge 154 uses Chromium connection settings with Edge TLS offers, client
 //! hints and request fields. Windows and macOS client hints are available.
 //!
+//! Select `Fetch` from the `edge-154-windows` catalog profile for ordinary
+//! same-origin GETs. Supply `User-Agent` and any cache validators.
+//!
 //! Android recipes target Edge 153.0.4234.49. See each recipe for its required
 //! caller fields and supported protocols.
 
