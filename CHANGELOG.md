@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a macOS native-DNS capture scene that drops the first A question
+  and checks recovery through a completed page load.
+
 - Retain Firefox 157 observations of configured native DNS on macOS and
   WebSocket-first connections through an HTTP/2 HTTPS proxy on Windows.
 

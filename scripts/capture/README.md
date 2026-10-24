@@ -2206,6 +2206,10 @@ uv run --no-project --python 3.10 \
   --output target/mac-native-dns
 ```
 
+Add `--drop-first-udp-a` and choose a new output directory to check recovery
+from one unanswered A question. The scene requires a later DNS answer and
+the complete response body. It checks the configured Mac resolver stack.
+
 The guard restores its resolver file on completion, interruption, parent EOF
 or its 120-second deadline. Keep `result.json` after a failure: it records
 restoration errors and the owned file identity. SIGKILL or host loss can leave

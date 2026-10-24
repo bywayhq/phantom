@@ -75,6 +75,74 @@ class ResolverTests(unittest.TestCase):
                 capture.resolver_blocks(text)
 
 
+class RetryEvidenceTests(unittest.TestCase):
+    def records(self) -> list[dict]:
+        return [
+            {
+                "name": DOMAIN,
+                "kind": 1,
+                "transport": "udp",
+                "query_hex": "1234",
+                "peer": ("127.0.0.1", 10001),
+                "unix_ns": 10,
+                "disposition": "dropped-first-udp-a",
+                "response_hex": None,
+                "error": None,
+            },
+            {
+                "name": DOMAIN,
+                "kind": 1,
+                "transport": "udp",
+                "query_hex": "abcd",
+                "peer": ("127.0.0.1", 10002),
+                "unix_ns": 20,
+                "response_hex": "abcd",
+                "error": None,
+                "response_queued_ns": 21,
+            },
+        ]
+
+    def test_later_answer_can_use_another_transaction_and_source_port(self) -> None:
+        capture.verify_retry(self.records(), DOMAIN)
+        rows = self.records()
+        rows[1]["transport"] = "tcp"
+        rows[1]["response_drained_ns"] = rows[1].pop("response_queued_ns")
+        capture.verify_retry(rows, DOMAIN)
+
+    def test_missing_unsent_drop_or_later_sent_answer_is_rejected(self) -> None:
+        cases = []
+        rows = self.records()
+        cases.extend(([], rows[:1], rows[1:], list(reversed(rows))))
+        for index, changes in (
+            (0, {"response_hex": "1234"}),
+            (0, {"response_queued_ns": 11}),
+            (0, {"response_drained_ns": 11}),
+            (0, {"transport": "tcp"}),
+            (0, {"error": "drop failed"}),
+            (1, {"name": "other.phantom.test"}),
+            (1, {"kind": 28}),
+            (1, {"transport": "tcp"}),
+            (1, {"error": "send failed"}),
+            (1, {"response_hex": None}),
+        ):
+            rows = self.records()
+            rows[index].update(changes)
+            cases.append(rows)
+        rows = self.records()
+        del rows[1]["response_queued_ns"]
+        cases.append(rows)
+        rows = self.records()
+        cases.append([rows[0].copy(), *rows])
+        rows = self.records()
+        cases.append([rows[1].copy(), *rows])
+        for rows in cases:
+            with (
+                self.subTest(rows=rows),
+                self.assertRaisesRegex(RuntimeError, "dropped UDP A"),
+            ):
+                capture.verify_retry(rows, DOMAIN)
+
+
 class OriginTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.origin = capture.Origin(DOMAIN, NONCE)
@@ -331,6 +399,74 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             events[-4:], ["guard-close", "restored", "origin-close", "dns-close"]
         )
+
+    async def test_retry_scene_requires_drop_and_sent_answer_before_success(
+        self,
+    ) -> None:
+        events = []
+        owners = self.owners(events, done=True)
+        rows = RetryEvidenceTests().records()
+        owners[0].records = lambda: rows
+        record = {}
+        with self.patches(owners, events):
+            await capture.capture(Path("firefox"), record, drop_first_udp_a=True)
+        self.assertTrue(record["drop_first_udp_a"])
+        self.assertEqual(record["dns_records"], rows)
+        self.assertEqual(
+            events[-5:],
+            ["browser-close", "guard-close", "restored", "origin-close", "dns-close"],
+        )
+
+    async def test_retry_scene_missing_drop_cannot_publish_even_after_done(
+        self,
+    ) -> None:
+        events = []
+        owners = self.owners(events, done=True)
+        record = {}
+        with (
+            self.patches(owners, events),
+            self.assertRaisesRegex(RuntimeError, "dropped UDP A"),
+        ):
+            await capture.capture(Path("firefox"), record, drop_first_udp_a=True)
+        self.assertEqual(
+            events[-4:], ["guard-close", "restored", "origin-close", "dns-close"]
+        )
+
+    async def test_retry_scene_without_repeat_or_done_times_out_and_restores(
+        self,
+    ) -> None:
+        events = []
+        owners = self.owners(events)
+        rows = RetryEvidenceTests().records()[:1]
+        owners[0].records = lambda: rows
+        record = {}
+        with (
+            self.patches(owners, events),
+            patch.object(capture, "RUN_SECONDS", 0.01),
+            self.assertRaisesRegex(TimeoutError, "scene did not complete"),
+        ):
+            await capture.capture(Path("firefox"), record, drop_first_udp_a=True)
+        self.assertEqual(record["dns_records"], rows)
+        self.assertEqual(
+            events[-4:], ["guard-close", "restored", "origin-close", "dns-close"]
+        )
+
+    async def test_retry_scene_cleanup_failure_still_prevents_success(self) -> None:
+        events = []
+        owners = self.owners(events, done=True)
+        owners[0].records = RetryEvidenceTests().records
+        failure = RuntimeError("retry resolver restore failed")
+        owners[2].close.side_effect = failure
+        record = {}
+        with (
+            self.patches(owners, events),
+            self.assertRaisesRegex(RuntimeError, "retry resolver restore failed"),
+        ):
+            await capture.capture(Path("firefox"), record, drop_first_udp_a=True)
+        self.assertEqual(
+            record["cleanup_errors"], ["RuntimeError: retry resolver restore failed"]
+        )
+        self.assertEqual(events[-3:], ["restored", "origin-close", "dns-close"])
 
     async def test_primary_and_cleanup_failures_remain_distinct(self) -> None:
         events = []

@@ -154,8 +154,9 @@ class _Datagrams(asyncio.DatagramProtocol):
         previous = len(self.owner.journal)
         try:
             answer = self.owner.exchange(data, peer, "udp")
-            self.owner.udp.sendto(answer, peer)
-            self.owner.journal[-1]["response_queued_ns"] = time.time_ns()
+            if answer is not None:
+                self.owner.udp.sendto(answer, peer)
+                self.owner.journal[-1]["response_queued_ns"] = time.time_ns()
         except BaseException as error:
             if len(self.owner.journal) > previous:
                 self.owner.journal[-1]["error"] = str(error)
@@ -181,6 +182,7 @@ class NativeDnsServer:
     listener. Port 0 is for tests. `close()` is idempotent, observes all handlers,
     and raises `NativeDnsFailure` for any retained error. A cancelled/timed-out
     close retains its cleanup task; call close again to collect that owner.
+    `drop_first_udp_a` leaves exactly the first owned UDP A question unanswered.
     """
 
     def __init__(
@@ -190,6 +192,7 @@ class NativeDnsServer:
         port: int = 53,
         *,
         ttl: int = 5,
+        drop_first_udp_a: bool = False,
     ) -> None:
         labels = hostname.removesuffix(".").split(".")
         if (
@@ -212,6 +215,7 @@ class NativeDnsServer:
         self.hostname = ".".join(labels).lower()
         self.address = (address, port)
         self.ttl = ttl
+        self._drop_first_udp_a = drop_first_udp_a
         self.udp: asyncio.DatagramTransport | None = None
         self.tcp: asyncio.Server | None = None
         self.udp_closed = asyncio.Event()
@@ -303,11 +307,20 @@ class NativeDnsServer:
         self.journal.append(record)
         return record
 
-    def exchange(self, wire: bytes, peer: tuple, transport: str) -> bytes:
+    def exchange(self, wire: bytes, peer: tuple, transport: str) -> bytes | None:
         record = self.record(wire, peer, transport)
         try:
             parsed = question(wire)
             record.update(name=parsed.name, kind=parsed.kind)
+            if (
+                self._drop_first_udp_a
+                and transport == "udp"
+                and parsed.name == self.hostname
+                and parsed.kind == 1
+            ):
+                self._drop_first_udp_a = False
+                record["disposition"] = "dropped-first-udp-a"
+                return None
             answer = response(wire, parsed, self.hostname, self.ttl)
         except BaseException as error:
             record["error"] = str(error)
@@ -380,6 +393,8 @@ class NativeDnsServer:
                     raise ValueError("native DNS TCP payload is truncated") from error
                 answer = self.exchange(wire, peer, "tcp")
                 record = self.journal[-1]
+                if answer is None:
+                    raise RuntimeError("native DNS TCP reply was unexpectedly dropped")
                 writer.write(struct.pack("!H", len(answer)) + answer)
                 await asyncio.wait_for(writer.drain(), IO_SECONDS)
                 record["response_drained_ns"] = time.time_ns()

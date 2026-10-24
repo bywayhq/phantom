@@ -232,6 +232,62 @@ class NativeDnsTests(unittest.IsolatedAsyncioTestCase):
             )
         )
 
+    async def test_retry_scene_drops_only_the_first_owned_udp_a_question(self) -> None:
+        await self.server.close()
+        self.server = native_dns.NativeDnsServer(
+            NAME, "127.0.0.1", 0, drop_first_udp_a=True
+        )
+        await self.server.start()
+        reader, writer = await self.tcp()
+        writer.write(framed(QUERY))
+        await writer.drain()
+        self.assertEqual(await self.read_frame(reader), ANSWER)
+
+        transport, replies = await self.udp()
+        other = QUERY.replace(b"native", b"absent")
+        for wire, answer in (
+            (other, bytes.fromhex("123481050001000000000000") + other[12:]),
+            (
+                query_kind(28),
+                bytes.fromhex("123485000001000000000000") + query_kind(28)[12:],
+            ),
+        ):
+            transport.sendto(wire)
+            self.assertEqual(
+                (await asyncio.wait_for(replies.received.get(), 2))[0], answer
+            )
+
+        transport.sendto(QUERY)
+        transport.sendto(query_kind(65))
+        self.assertEqual(
+            (await asyncio.wait_for(replies.received.get(), 2))[0],
+            bytes.fromhex("123485000001000000000000") + query_kind(65)[12:],
+        )
+        retry_transport, retry_replies = await self.udp()
+        retry = b"\xab\xcd" + QUERY[2:]
+        retry_transport.sendto(retry)
+        self.assertEqual(
+            (await asyncio.wait_for(retry_replies.received.get(), 2))[0],
+            b"\xab\xcd" + ANSWER[2:],
+        )
+        transport.sendto(QUERY)
+        self.assertEqual((await asyncio.wait_for(replies.received.get(), 2))[0], ANSWER)
+
+        records = self.server.records()
+        dropped = records[3]
+        self.assertEqual(dropped["query_hex"], QUERY.hex())
+        self.assertEqual(dropped["peer"], transport.get_extra_info("sockname"))
+        self.assertIsInstance(dropped["unix_ns"], int)
+        self.assertEqual(dropped["disposition"], "dropped-first-udp-a")
+        self.assertIsNone(dropped["response_hex"])
+        self.assertIsNone(dropped["error"])
+        self.assertNotIn("response_queued_ns", dropped)
+        self.assertNotIn("response_drained_ns", dropped)
+        self.assertEqual(records[5]["query_hex"], retry.hex())
+        self.assertNotEqual(records[5]["peer"], dropped["peer"])
+        self.assertEqual(sum("disposition" in row for row in records), 1)
+        self.assertTrue(replies.received.empty())
+
     async def test_malformed_udp_stops_peer_with_raw_error_and_no_answer(self) -> None:
         self.expected_failure = True
         transport, replies = await self.udp()

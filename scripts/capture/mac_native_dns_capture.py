@@ -361,10 +361,56 @@ class Origin:
             raise_browser_failures(None, tuple(self.errors))
 
 
-async def capture(executable: Path, record: dict) -> None:
+def verify_retry(records: list[dict], domain: str) -> None:
+    """Require one intentionally unanswered UDP A before a real sent A reply."""
+    dropped = [
+        index
+        for index, item in enumerate(records)
+        if item.get("disposition") == "dropped-first-udp-a"
+    ]
+    if len(dropped) == 1:
+        index = dropped[0]
+        first = records[index]
+        if (
+            first.get("name") == domain
+            and first.get("kind") == 1
+            and first.get("transport") == "udp"
+            and first.get("error") is None
+            and first.get("response_hex") is None
+            and "response_queued_ns" not in first
+            and "response_drained_ns" not in first
+            and not any(
+                item.get("name") == domain
+                and item.get("kind") == 1
+                and item.get("transport") == "udp"
+                for item in records[:index]
+            )
+            and any(
+                item.get("name") == domain
+                and item.get("kind") == 1
+                and item.get("error") is None
+                and item.get("response_hex")
+                and (
+                    item.get("transport") == "udp"
+                    and "response_queued_ns" in item
+                    or item.get("transport") == "tcp"
+                    and "response_drained_ns" in item
+                )
+                for item in records[index + 1 :]
+            )
+        ):
+            return
+    raise RuntimeError("dropped UDP A was not followed by a sent owned A answer")
+
+
+async def capture(
+    executable: Path, record: dict, *, drop_first_udp_a: bool = False
+) -> None:
     nonce = secrets.token_hex(16)
     domain = resolver_name(nonce, 1024)
-    dns = NativeDnsServer(domain, "127.0.0.1", 0)
+    dns = NativeDnsServer(domain, "127.0.0.1", 0, drop_first_udp_a=drop_first_udp_a)
+    if drop_first_udp_a:
+        record["drop_first_udp_a"] = True
     origin = Origin(domain, nonce)
     guard = None
     driver = None
@@ -410,6 +456,8 @@ async def capture(executable: Path, record: dict) -> None:
             for item in dns.records()
         ):
             raise RuntimeError("no owned A question received a sent response")
+        if drop_first_udp_a:
+            verify_retry(dns.records(), domain)
     except BaseException as error:
         primary = error
     finally:
@@ -478,6 +526,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--firefox", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--drop-first-udp-a",
+        action="store_true",
+        help="leave the first owned UDP A question unanswered and require a later answer",
+    )
     args = parser.parse_args()
     if sys.platform != "darwin" or os.geteuid() == 0:
         parser.error("capture requires a non-root macOS user")
@@ -496,7 +549,7 @@ def main() -> None:
     }
     try:
         record["browser_before"] = browser_identity(executable)
-        asyncio.run(capture(executable, record))
+        asyncio.run(capture(executable, record, drop_first_udp_a=args.drop_first_udp_a))
         record["browser_after"] = browser_identity(executable)
         record["source_after"] = {path: digest(ROOT / path) for path in SOURCE_PATHS}
         if (
