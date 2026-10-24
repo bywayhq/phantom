@@ -122,8 +122,20 @@ where
     T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     F: FnOnce() -> Result<PreparedRequest, super::Http1Error>,
 {
+    send_once_with_strategy(stream, super::Http1WriteStrategy::Automatic, prepare).await
+}
+
+async fn send_once_with_strategy<T, F>(
+    stream: T,
+    strategy: super::Http1WriteStrategy,
+    prepare: F,
+) -> Result<http::Response<super::Http1Body>, super::Http1Error>
+where
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    F: FnOnce() -> Result<PreparedRequest, super::Http1Error>,
+{
     let prepared = prepare()?;
-    super::Http1Connection::connect(stream)
+    super::Http1Connection::connect_with_write_strategy(stream, strategy)
         .await?
         .send_prepared_request(prepared)
         .await

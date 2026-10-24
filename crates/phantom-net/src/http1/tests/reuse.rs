@@ -79,7 +79,7 @@ impl Body for MismatchedTrailerBody {
 use super::{TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, target};
 use crate::{
     OrderedResponseHeaders,
-    http1::{Http1Connection, Http1Error},
+    http1::{Http1Connection, Http1Error, Http1WriteStrategy},
     request::{RequestBody, RequestHeader, RequestTrailerName},
 };
 
@@ -350,117 +350,128 @@ async fn cancelling_a_dispatched_response_head_invalidates_connection() -> TestR
 
 #[tokio::test]
 async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let (observed_tx, observed_rx) = oneshot::channel();
-        let server_task = PeerTask::spawn(async move {
-            let head = read_head(&mut server).await?;
-            let _ = observed_tx.send(head);
-            let mut remaining = Vec::new();
-            server.read_to_end(&mut remaining).await?;
-            Ok::<_, std::io::Error>(remaining)
-        });
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let (observed_tx, observed_rx) = oneshot::channel();
+            let server_task = PeerTask::spawn(async move {
+                let head = read_head(&mut server).await?;
+                let _ = observed_tx.send(head);
+                let mut remaining = Vec::new();
+                server.read_to_end(&mut remaining).await?;
+                Ok::<_, std::io::Error>(remaining)
+            });
 
-        let dropped = Arc::new(AtomicBool::new(false));
-        let connection = Http1Connection::connect(client).await?;
-        let request_target = target()?;
-        let sending = PeerTask::spawn({
-            let connection = connection.clone();
-            let dropped = Arc::clone(&dropped);
-            async move {
-                connection
-                    .send_request_body(
-                        Method::POST,
-                        request_target,
-                        vec![host()],
-                        Some(RequestBody::streaming(PendingBody(dropped))),
-                    )
-                    .await
-            }
-        });
-        let head = observed_rx.await?;
-        assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
-        sending.abort();
-        let join_error = match sending.await {
-            Err(error) => error,
-            Ok(_) => return Err("request task completed after cancellation".into()),
-        };
-        assert!(join_error.is_cancelled());
-        timeout(Duration::from_secs(1), async {
-            while !dropped.load(Ordering::Acquire) {
-                tokio::task::yield_now().await;
-            }
+            let dropped = Arc::new(AtomicBool::new(false));
+            let connection = Http1Connection::connect_with_write_strategy(client, strategy).await?;
+            let request_target = target()?;
+            let sending = PeerTask::spawn({
+                let connection = connection.clone();
+                let dropped = Arc::clone(&dropped);
+                async move {
+                    connection
+                        .send_request_body(
+                            Method::POST,
+                            request_target,
+                            vec![host()],
+                            Some(RequestBody::streaming(PendingBody(dropped))),
+                        )
+                        .await
+                }
+            });
+            let head = observed_rx.await?;
+            assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
+            sending.abort();
+            let join_error = match sending.await {
+                Err(error) => error,
+                Ok(_) => return Err("request task completed after cancellation".into()),
+            };
+            assert!(join_error.is_cancelled());
+            timeout(Duration::from_secs(1), async {
+                while !dropped.load(Ordering::Acquire) {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await?;
+            assert!(!connection.is_reusable());
+            assert!(server_task.await??.is_empty());
+            Ok(())
         })
         .await?;
-        assert!(!connection.is_reusable());
-        assert!(server_task.await??.is_empty());
-        Ok(())
-    })
-    .await
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn streaming_body_error_invalidates_connection() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let server_task = PeerTask::spawn(async move {
-            let mut observed = Vec::new();
-            server.read_to_end(&mut observed).await?;
-            Ok::<_, std::io::Error>(observed)
-        });
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = PeerTask::spawn(async move {
+                let mut observed = Vec::new();
+                server.read_to_end(&mut observed).await?;
+                Ok::<_, std::io::Error>(observed)
+            });
 
-        let connection = Http1Connection::connect(client).await?;
-        let result = connection
-            .send_request_body(
-                Method::POST,
-                target()?,
-                vec![host()],
-                Some(RequestBody::streaming(ErrorBody)),
-            )
-            .await;
-        assert!(result.is_err());
-        assert!(!connection.is_reusable());
+            let connection = Http1Connection::connect_with_write_strategy(client, strategy).await?;
+            let result = connection
+                .send_request_body(
+                    Method::POST,
+                    target()?,
+                    vec![host()],
+                    Some(RequestBody::streaming(ErrorBody)),
+                )
+                .await;
+            assert!(result.is_err());
+            assert!(!connection.is_reusable());
 
-        let observed = server_task.await??;
-        assert!(observed.is_empty() || observed.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
-        Ok(())
-    })
-    .await
+            let observed = server_task.await??;
+            assert!(
+                observed.is_empty() || observed.ends_with(b"Transfer-Encoding: chunked\r\n\r\n")
+            );
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn streaming_body_error_suppresses_static_trailers_and_invalidates_connection() -> TestResult
 {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let server_task = PeerTask::spawn(async move {
-            let mut observed = Vec::new();
-            server.read_to_end(&mut observed).await?;
-            Ok::<_, std::io::Error>(observed)
-        });
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let server_task = PeerTask::spawn(async move {
+                let mut observed = Vec::new();
+                server.read_to_end(&mut observed).await?;
+                Ok::<_, std::io::Error>(observed)
+            });
 
-        let connection = Http1Connection::connect(client).await?;
-        let result = connection
-            .send_request_body_with_trailers(
-                Method::POST,
-                target()?,
-                vec![host()],
-                Some(RequestBody::streaming(ErrorBody)),
-                vec![RequestHeader::new("X-Must-Not-Appear", "no")],
-            )
-            .await;
-        assert!(result.is_err());
-        assert!(!connection.is_reusable());
+            let connection = Http1Connection::connect_with_write_strategy(client, strategy).await?;
+            let result = connection
+                .send_request_body_with_trailers(
+                    Method::POST,
+                    target()?,
+                    vec![host()],
+                    Some(RequestBody::streaming(ErrorBody)),
+                    vec![RequestHeader::new("X-Must-Not-Appear", "no")],
+                )
+                .await;
+            assert!(result.is_err());
+            assert!(!connection.is_reusable());
 
-        let observed = server_task.await??;
-        assert!(
-            !observed
-                .windows(b"X-Must-Not-Appear: no".len())
-                .any(|window| window == b"X-Must-Not-Appear: no")
-        );
-        Ok(())
-    })
-    .await
+            let observed = server_task.await??;
+            assert!(
+                !observed
+                    .windows(b"X-Must-Not-Appear: no".len())
+                    .any(|window| window == b"X-Must-Not-Appear: no")
+            );
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

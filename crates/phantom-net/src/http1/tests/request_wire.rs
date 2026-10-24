@@ -17,15 +17,17 @@ use tokio::io::{
 use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{
-    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once,
+    send_once_with_strategy, target,
 };
 use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
     http1::{
-        Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, MAX_REQUEST_TRAILER_BYTES,
-        MAX_REQUEST_TRAILERS, validate_forward_request, validate_request, validate_request_body,
-        validate_request_body_source_with_trailers, validate_request_body_with_trailers,
+        Http1Error, Http1WriteStrategy, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS,
+        MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, validate_forward_request,
+        validate_request, validate_request_body, validate_request_body_source_with_trailers,
+        validate_request_body_with_trailers,
     },
     request::{AbsoluteForm, RequestBody, RequestHeader, RequestTrailerName},
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
@@ -242,116 +244,125 @@ async fn known_stream_preserves_generated_content_length_order() -> TestResult {
 
 #[tokio::test]
 async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let body = RequestBody::streaming(Chunks::unknown([
-            Bytes::from_static(b"pay"),
-            Bytes::from_static(b"load"),
-        ]));
-        let transaction = PeerTask::spawn(send_once(client, {
-            let method = Method::POST;
-            let target = target()?;
-            let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
-            let body = Some(body);
-            move || PreparedRequest::new_body(method, target, headers, body)
-        }));
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let body = RequestBody::streaming(Chunks::unknown([
+                Bytes::from_static(b"pay"),
+                Bytes::from_static(b"load"),
+            ]));
+            let transaction = PeerTask::spawn(send_once_with_strategy(client, strategy, {
+                let method = Method::POST;
+                let target = target()?;
+                let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
+                let body = Some(body);
+                move || PreparedRequest::new_body(method, target, headers, body)
+            }));
 
-        let head = read_head(&mut server).await?;
-        assert_eq!(
-            head,
-            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\n\r\n"
-        );
-        let mut body = [0_u8; 22];
-        server.read_exact(&mut body).await?;
-        assert_eq!(&body, b"3\r\npay\r\n4\r\nload\r\n0\r\n\r\n");
-        server
-            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
-            .await?;
-        transaction.await??.into_body().collect().await?;
-        Ok(())
-    })
-    .await
+            let head = read_head(&mut server).await?;
+            assert_eq!(
+                head,
+                b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\n\r\n"
+            );
+            let mut body = [0_u8; 22];
+            server.read_exact(&mut body).await?;
+            assert_eq!(&body, b"3\r\npay\r\n4\r\nload\r\n0\r\n\r\n");
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+                .await?;
+            transaction.await??.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn writes_exact_order_casing_and_interleaved_duplicate_trailers() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let transaction = PeerTask::spawn(send_once(client, {
-            let method = Method::POST;
-            let target = target()?;
-            let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
-            let body = Some(RequestBody::from_bytes(Bytes::from_static(b"payload")));
-            let trailers = vec![
-                RequestHeader::new("X-Repeat", "alpha"),
-                RequestHeader::new("X-Middle", "between"),
-                RequestHeader::new("x-repeat", "omega"),
-            ];
-            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
-        }));
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let transaction = PeerTask::spawn(send_once_with_strategy(client, strategy, {
+                let method = Method::POST;
+                let target = target()?;
+                let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
+                let body = Some(RequestBody::from_bytes(Bytes::from_static(b"payload")));
+                let trailers = vec![
+                    RequestHeader::new("X-Repeat", "alpha"),
+                    RequestHeader::new("X-Middle", "between"),
+                    RequestHeader::new("x-repeat", "omega"),
+                ];
+                move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+            }));
 
-        let head = read_head(&mut server).await?;
-        assert_eq!(
-            head,
-            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
-        );
-        let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
-        let mut body = vec![0_u8; expected.len()];
-        server.read_exact(&mut body).await?;
-        assert_eq!(body, expected);
-        server
-            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
-            .await?;
-        transaction.await??.into_body().collect().await?;
-        Ok(())
-    })
-    .await
+            let head = read_head(&mut server).await?;
+            assert_eq!(
+                head,
+                b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-framing\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
+            );
+            let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
+            let mut body = vec![0_u8; expected.len()];
+            server.read_exact(&mut body).await?;
+            assert_eq!(body, expected);
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+                .await?;
+            transaction.await??.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let mut trailers = HeaderMap::new();
-        trailers.append("x-repeat", HeaderValue::from_static("alpha"));
-        trailers.append("x-repeat", HeaderValue::from_static("omega"));
-        trailers.insert("x-middle", HeaderValue::from_static("between"));
-        let body = RequestBody::streaming_with_trailers(
-            BodyProducedTrailers {
-                data: Some(Bytes::from_static(b"payload")),
-                trailers: Some(trailers),
-            },
-            vec![
-                RequestTrailerName::new("X-Repeat"),
-                RequestTrailerName::new("X-Middle"),
-                RequestTrailerName::new("x-repeat"),
-            ],
-        );
-        let transaction = PeerTask::spawn(send_once(client, {
-            let method = Method::POST;
-            let target = target()?;
-            let headers = vec![host()];
-            let body = Some(body);
-            let trailers = Vec::new();
-            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
-        }));
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let mut trailers = HeaderMap::new();
+            trailers.append("x-repeat", HeaderValue::from_static("alpha"));
+            trailers.append("x-repeat", HeaderValue::from_static("omega"));
+            trailers.insert("x-middle", HeaderValue::from_static("between"));
+            let body = RequestBody::streaming_with_trailers(
+                BodyProducedTrailers {
+                    data: Some(Bytes::from_static(b"payload")),
+                    trailers: Some(trailers),
+                },
+                vec![
+                    RequestTrailerName::new("X-Repeat"),
+                    RequestTrailerName::new("X-Middle"),
+                    RequestTrailerName::new("x-repeat"),
+                ],
+            );
+            let transaction = PeerTask::spawn(send_once_with_strategy(client, strategy, {
+                let method = Method::POST;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = Some(body);
+                let trailers = Vec::new();
+                move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+            }));
 
-        let head = read_head(&mut server).await?;
-        assert_eq!(
-            head,
-            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
-        );
-        let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
-        let mut wire = vec![0_u8; expected.len()];
-        server.read_exact(&mut wire).await?;
-        assert_eq!(wire, expected);
-        server
-            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
-            .await?;
-        transaction.await??.into_body().collect().await?;
-        Ok(())
-    })
-    .await
+            let head = read_head(&mut server).await?;
+            assert_eq!(
+                head,
+                b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\nTrailer: X-Repeat, X-Middle\r\n\r\n"
+            );
+            let expected = b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nx-repeat: omega\r\n\r\n";
+            let mut wire = vec![0_u8; expected.len()];
+            server.read_exact(&mut wire).await?;
+            assert_eq!(wire, expected);
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+                .await?;
+            transaction.await??.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

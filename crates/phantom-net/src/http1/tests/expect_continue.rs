@@ -9,11 +9,12 @@ use tokio::{
 };
 
 use super::{
-    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once,
+    send_once_with_strategy, target,
 };
 use crate::http1::PreparedRequest;
 use crate::{
-    http1::Http1Error,
+    http1::{Http1Error, Http1WriteStrategy},
     request::{RequestBody, RequestHeader},
 };
 
@@ -28,40 +29,43 @@ fn waiting_body(bytes: &'static [u8]) -> RequestBody {
 
 #[tokio::test]
 async fn generated_expectation_follows_framing_and_the_body_waits_for_100() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let transaction = PeerTask::spawn(send_once(client, {
-let method = Method::POST;
-let target = target()?;
-let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
-let body = Some(waiting_body(b"payload"));
-move || PreparedRequest::new_body(method, target, headers, body)
-}));
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let transaction = PeerTask::spawn(send_once_with_strategy(client, strategy, {
+    let method = Method::POST;
+    let target = target()?;
+    let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
+    let body = Some(waiting_body(b"payload"));
+    move || PreparedRequest::new_body(method, target, headers, body)
+    }));
 
-        let head = read_head(&mut server).await?;
-        assert_eq!(
-            head,
-            b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-length\r\nContent-Length: 7\r\nExpect: 100-continue\r\n\r\n"
-        );
-        let mut byte = [0_u8; 1];
-        assert!(
-            timeout(NO_BODY_WINDOW, server.read_exact(&mut byte))
-                .await
-                .is_err(),
-            "the body did not wait for 100 Continue"
-        );
+            let head = read_head(&mut server).await?;
+            assert_eq!(
+                head,
+                b"POST /resource?item=1 HTTP/1.1\r\nHost: example.test\r\nX-Order: before-length\r\nContent-Length: 7\r\nExpect: 100-continue\r\n\r\n"
+            );
+            let mut byte = [0_u8; 1];
+            assert!(
+                timeout(NO_BODY_WINDOW, server.read_exact(&mut byte))
+                    .await
+                    .is_err(),
+                "the body did not wait for 100 Continue"
+            );
 
-        server.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
-        let mut body = [0_u8; 7];
-        server.read_exact(&mut body).await?;
-        assert_eq!(&body, b"payload");
-        server
-            .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
-            .await?;
-        transaction.await??.into_body().collect().await?;
-        Ok(())
-    })
-    .await
+            server.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
+            let mut body = [0_u8; 7];
+            server.read_exact(&mut body).await?;
+            assert_eq!(&body, b"payload");
+            server
+                .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+                .await?;
+            transaction.await??.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
