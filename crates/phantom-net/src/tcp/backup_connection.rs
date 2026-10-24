@@ -67,6 +67,7 @@ impl AddressFamily {
 #[derive(Clone, Default)]
 pub struct AddressFamilyMemory {
     state: Arc<Mutex<FamilyState>>,
+    attempt: Option<AddressFamilySnapshot>,
 }
 
 #[derive(Default)]
@@ -123,17 +124,34 @@ impl AddressFamilyMemory {
             .activity = Arc::new(());
     }
 
+    /// Shares family state while attributing winner and backup records to one
+    /// setup. A newer setup or ordinary record invalidates both this handle's
+    /// records and its final reset.
+    pub(crate) fn begin_attempt(&self) -> (Self, AddressFamilySnapshot) {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state.activity = Arc::new(());
+        let snapshot = AddressFamilySnapshot(Arc::clone(&state.activity));
+        let memory = Self {
+            state: Arc::clone(&self.state),
+            attempt: Some(snapshot.clone()),
+        };
+        (memory, snapshot)
+    }
+
     /// Forgets an empty origin only if its activity has not changed since
     /// `snapshot`. A snapshot from another memory never clears this one.
     ///
     /// The comparison and reset are atomic with activity and connection records.
     /// Returns whether the snapshot still matched, including when no family
     /// was remembered. A rejected reset leaves the current family intact.
+    /// A successful reset consumes this snapshot and invalidates its scoped
+    /// connection records.
     #[must_use]
     pub fn forget_if_unchanged(&self, snapshot: &AddressFamilySnapshot) -> bool {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         if Arc::ptr_eq(&state.activity, &snapshot.0) {
             state.family = None;
+            state.activity = Arc::new(());
             true
         } else {
             false
@@ -148,7 +166,13 @@ impl AddressFamilyMemory {
 
     fn record(&self, connected: AddressFamily, switched_family: bool) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        state.activity = Arc::new(());
+        if let Some(attempt) = &self.attempt {
+            if !Arc::ptr_eq(&state.activity, &attempt.0) {
+                return;
+            }
+        } else {
+            state.activity = Arc::new(());
+        }
 
         if switched_family || state.family.is_none() {
             state.family = Some(connected);

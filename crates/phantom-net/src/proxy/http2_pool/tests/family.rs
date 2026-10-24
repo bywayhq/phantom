@@ -172,7 +172,7 @@ async fn eviction_resets_new_route_memory_without_changing_an_active_lease() -> 
 }
 
 #[tokio::test]
-async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_target()
+async fn the_actual_pooled_dial_resets_the_proxy_family_without_resolving_the_target()
 -> crate::tls::test_support::TestResult<()> {
     timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
@@ -198,7 +198,7 @@ async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_ta
             let mut prefix = [0; 2];
             tunnel.read_exact(&mut prefix).await?;
             assert_eq!(&prefix, b"ok");
-            assert_eq!(route.family.family(), Some(AddressFamily::Ipv4));
+            assert_eq!(route.family.family(), None);
             drop(tunnel);
             done.send(()).map_err(|_| "proxy peer stopped early")?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())

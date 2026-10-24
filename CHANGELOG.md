@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Reset the Firefox address-family preference after ordinary HTTP/2 proxy
+  setup, so a fresh connection starts with resolver order again.
+
 - Capture Firefox address selection through HTTP/2 HTTPS proxies, with
   separate physical connections and CONNECT streams. Retain a Firefox 157
   Windows observation.

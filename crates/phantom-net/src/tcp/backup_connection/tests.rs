@@ -512,3 +512,69 @@ fn another_origins_snapshot_does_not_clear_a_remembered_family() {
 
     assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
 }
+
+#[test]
+fn one_setup_can_record_both_connections_and_then_forget_its_family() {
+    let memory = AddressFamilyMemory::new();
+    let (attempt, snapshot) = memory.begin_attempt();
+    attempt.record_connection(&v4(1), false);
+    attempt.clone().record_connection(&v6(1), true);
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
+
+    assert!(attempt.forget_if_unchanged(&snapshot));
+    assert_eq!(memory.family(), None);
+
+    attempt.record_connection(&v4(2), true);
+    assert_eq!(memory.family(), None, "a finished setup recorded again");
+    assert!(!attempt.forget_if_unchanged(&snapshot));
+}
+
+#[test]
+fn a_newer_setup_rejects_an_older_setups_records_and_reset() {
+    let memory = AddressFamilyMemory::new();
+    let (older, old_snapshot) = memory.begin_attempt();
+    older.record_connection(&v4(1), false);
+    let (newer, new_snapshot) = memory.begin_attempt();
+    assert_eq!(newer.family(), Some(AddressFamily::Ipv4));
+    newer.record_connection(&v6(1), true);
+
+    older.record_connection(&v4(2), true);
+    assert!(!older.forget_if_unchanged(&old_snapshot));
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
+    assert!(newer.forget_if_unchanged(&new_snapshot));
+    assert_eq!(memory.family(), None);
+}
+
+#[test]
+fn an_unscoped_connection_invalidates_a_pending_setups_records_and_reset() {
+    let memory = AddressFamilyMemory::new();
+    let (attempt, snapshot) = memory.begin_attempt();
+    attempt.record_connection(&v4(1), false);
+    memory.record_connection(&v6(1), true);
+
+    attempt.record_connection(&v4(2), true);
+    assert!(!attempt.forget_if_unchanged(&snapshot));
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
+}
+
+#[test]
+fn new_pool_activity_invalidates_a_pending_setups_records_and_reset() {
+    let memory = AddressFamilyMemory::new();
+    let (attempt, snapshot) = memory.begin_attempt();
+    attempt.record_connection(&v4(1), false);
+    memory.mark_active();
+
+    attempt.record_connection(&v6(1), true);
+    assert!(!attempt.forget_if_unchanged(&snapshot));
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv4));
+}
+
+#[test]
+fn dropping_an_incomplete_setup_preserves_its_recorded_family() {
+    let memory = AddressFamilyMemory::new();
+    let (attempt, snapshot) = memory.begin_attempt();
+    attempt.record_connection(&v4(1), false);
+
+    drop((attempt, snapshot));
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv4));
+}

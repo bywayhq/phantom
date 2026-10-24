@@ -25,6 +25,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 mod close_idle;
 mod family;
+mod family_reset;
 mod idle;
 
 fn key(settings: &ConnectionSettingsId) -> RouteKey {

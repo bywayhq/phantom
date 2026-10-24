@@ -7,7 +7,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use phantom_profile::{Http2RejectedConnect, Http2Settings, TcpSettings, TlsSettings};
+use phantom_profile::{
+    Http2RejectedConnect, Http2Settings, TcpAddressSelection, TcpSettings, TlsSettings,
+};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
@@ -1182,6 +1184,16 @@ impl HttpsProxyConnector {
         family: crate::tcp::AddressFamilyMemory,
     ) -> Result<Http2Connection, HttpConnectError> {
         let client = self.http2_builder()?;
+        let (family, reset) = if self
+            .tcp
+            .as_ref()
+            .is_some_and(|tcp| matches!(tcp.address_selection, TcpAddressSelection::Backup(_)))
+        {
+            let (family, snapshot) = family.begin_attempt();
+            (family, Some(snapshot))
+        } else {
+            (family, None)
+        };
         let (stream, slower) = crate::direct::connect_tcp_keeping_slower(
             proxy_host,
             proxy_port,
@@ -1193,8 +1205,18 @@ impl HttpsProxyConnector {
             DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
             DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
         })?;
-        self.finish_pooled_http2_proxy(stream, slower, proxy_server_name, client)
-            .await
+        let connection = self
+            .finish_pooled_http2_proxy(stream, slower, proxy_server_name, client)
+            .await?;
+        if let Some(snapshot) = reset {
+            // Firefox restarts the original transaction after moving the H2
+            // proxy connection to its wildcard entry. Restart clears that
+            // entry's family (nsHttpConnection.cpp:367-393,
+            // nsHttpTransaction.cpp:2072-2075, FIREFOX_157_0_RELEASE).
+            // Newer setup can own the state after a pool refresh.
+            let _still_owned = family.forget_if_unchanged(&snapshot);
+        }
+        Ok(connection)
     }
 
     async fn finish_pooled_http2_proxy(

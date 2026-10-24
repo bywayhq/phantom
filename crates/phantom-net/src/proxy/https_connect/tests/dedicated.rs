@@ -98,7 +98,7 @@ async fn peer(server: SslStream<TcpStream>, extended: bool) -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn nonpooled_ordinary_h2_learns_only_its_operation_proxy_family() -> TestResult<()> {
+async fn nonpooled_ordinary_h2_resets_its_operation_proxy_family() -> TestResult<()> {
     timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let connector = connector(&identity)?;
@@ -116,7 +116,7 @@ async fn nonpooled_ordinary_h2_learns_only_its_operation_proxy_family() -> TestR
             assert!(matches!(&connection, TunnelConnection::Dedicated(_)));
             assert_eq!(
                 target.family.get().and_then(AddressFamilyMemory::family),
-                Some(AddressFamily::Ipv4)
+                None
             );
             assert!(unrelated.get().is_none());
             exchange(connection.connection(), false).await
