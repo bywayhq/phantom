@@ -1,0 +1,296 @@
+{
+  "platform": "macOS-15.5-arm64-arm-64bit",
+  "python": "3.10.18 (main, Aug 14 2025, 16:05:28) [Clang 20.1.4 ]",
+  "scope": "configured-native A lookup and complete HTTP body",
+  "interventions": {
+    "network.trr.mode": 5,
+    "network.proxy.type": 0,
+    "scoped_resolver": true
+  },
+  "source_before": {
+    "scripts/capture/mac_native_dns_capture.py": "ad7f5e0e6130c3f8c3d7fed5a8edb4a2e76ccaea399dabeeab0e3597f0267b15",
+    "scripts/capture/mac_native_dns_guard.py": "ae8734e187822f6896cfb6ca2338dcaedef6559334eff1879943e755c3af534a",
+    "scripts/capture/native_dns.py": "585b3804550644929d18a62ec80d5cdd6ff999181aff0c54bbe3dc83b9f5d4b7",
+    "scripts/capture/browser_launch.py": "343f46d9f57d4eef51e818bc93d75bb420e90fbcd7d0fc0957f6d78ca16b6a1c",
+    "scripts/capture/browser_failures.py": "eac63e0d322e3f11abc718b8c82b480a6b77a0e48b454437bf4bcb507eaabc39",
+    "scripts/capture/process_container.py": "db06d10a4c4e17acb1b441b276f376886c5e165dd0da31ebda749cb44f127557",
+    "scripts/requirements.txt": "5233613a2b07987871aa655143b3077af8227edefe1ca9ffb0f3e70810bd0ddf"
+  },
+  "browser_before": {
+    "executable": "/Applications/Firefox.app/Contents/MacOS/firefox",
+    "executable_sha256": "729e0ae83fca74cf143bbef68836c195b340fcc09566461243a075be9e6b959a",
+    "application_ini_sha256": "e066925e0b377c6842f11f98f2f50da16ca4f6a48da70503e69f52094181c7d2",
+    "version": "157.0",
+    "build_id": "20260924084938"
+  },
+  "drop_first_udp_a": true,
+  "domain": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+  "dns_address": [
+    "127.0.0.1",
+    38085
+  ],
+  "origin_port": 51965,
+  "dns_before": "DNS configuration\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  flags    : Request A records\n  reach    : 0x00000002 (Reachable)\n\nresolver #2\n  domain   : local\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300000\n\nresolver #3\n  domain   : 254.169.in-addr.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300200\n\nresolver #4\n  domain   : 8.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300400\n\nresolver #5\n  domain   : 9.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300600\n\nresolver #6\n  domain   : a.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300800\n\nresolver #7\n  domain   : b.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 301000\n\nDNS configuration (for scoped queries)\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  if_index : 11 (en0)\n  flags    : Scoped, Request A records\n  reach    : 0x00000002 (Reachable)\n",
+  "guard_command": [
+    "/usr/bin/sudo",
+    "-n",
+    "--",
+    "/Users/arya/.local/share/uv/python/cpython-3.10.18-macos-aarch64-none/bin/python3.10",
+    "-I",
+    "/private/tmp/phantom-native-dns-retry-28ded616/scripts/capture/mac_native_dns_guard.py",
+    "--nonce",
+    "34294d85b099c04dd46b9c36c05fad73",
+    "--port",
+    "38085"
+  ],
+  "guard_installed_raw": "{\"created_directory\": true, \"deadline_unix_ns\": 1792821352134898000, \"directory_identity\": [16777231, 173611873, 0, 493], \"domain\": \"n-34294d85b099c04dd46b9c36c05fad73.phantom.test\", \"event\": \"installed\", \"identity\": [16777231, 173611874, 0, 420], \"lifetime_seconds\": 120.0, \"parent_identity\": [16777231, 340157, 0, 493], \"pid\": 95643, \"port\": 38085, \"sha256\": \"22027e7b7f1bf4892432adff4fb813a44df365326a78708f5d9e0be948de0839\"}\n",
+  "guard_installed": {
+    "created_directory": true,
+    "deadline_unix_ns": 1792821352134898000,
+    "directory_identity": [
+      16777231,
+      173611873,
+      0,
+      493
+    ],
+    "domain": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+    "event": "installed",
+    "identity": [
+      16777231,
+      173611874,
+      0,
+      420
+    ],
+    "lifetime_seconds": 120.0,
+    "parent_identity": [
+      16777231,
+      340157,
+      0,
+      493
+    ],
+    "pid": 95643,
+    "port": 38085,
+    "sha256": "22027e7b7f1bf4892432adff4fb813a44df365326a78708f5d9e0be948de0839"
+  },
+  "dns_installed": "DNS configuration\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  flags    : Request A records\n  reach    : 0x00000002 (Reachable)\n\nresolver #2\n  domain   : local\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300000\n\nresolver #3\n  domain   : 254.169.in-addr.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300200\n\nresolver #4\n  domain   : 8.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300400\n\nresolver #5\n  domain   : 9.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300600\n\nresolver #6\n  domain   : a.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300800\n\nresolver #7\n  domain   : b.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 301000\n\nresolver #8\n  domain   : n-34294d85b099c04dd46b9c36c05fad73.phantom.test\n  nameserver[0] : 127.0.0.1\n  port     : 38085\n  flags    : Request A records, Request AAAA records\n  reach    : 0x00030002 (Reachable,Local Address,Directly Reachable Address)\n\nDNS configuration (for scoped queries)\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  if_index : 11 (en0)\n  flags    : Scoped, Request A records\n  reach    : 0x00000002 (Reachable)\n",
+  "launch_arguments": "--wait-for-browser --no-remote --profile '<temporary-profile>' 'http://n-34294d85b099c04dd46b9c36c05fad73.phantom.test:51965/start?token=34294d85b099c04dd46b9c36c05fad73'",
+  "firefox_preferences": [
+    [
+      "app.normandy.enabled",
+      false
+    ],
+    [
+      "app.update.disabledForTesting",
+      true
+    ],
+    [
+      "browser.aboutwelcome.enabled",
+      false
+    ],
+    [
+      "browser.newtabpage.enabled",
+      false
+    ],
+    [
+      "browser.region.network.url",
+      ""
+    ],
+    [
+      "browser.region.update.enabled",
+      false
+    ],
+    [
+      "browser.safebrowsing.malware.enabled",
+      false
+    ],
+    [
+      "browser.safebrowsing.phishing.enabled",
+      false
+    ],
+    [
+      "browser.shell.checkDefaultBrowser",
+      false
+    ],
+    [
+      "browser.startup.homepage_override.mstone",
+      "ignore"
+    ],
+    [
+      "datareporting.policy.dataSubmissionEnabled",
+      false
+    ],
+    [
+      "doh-rollout.disable-heuristics",
+      true
+    ],
+    [
+      "dom.push.connection.enabled",
+      false
+    ],
+    [
+      "extensions.update.enabled",
+      false
+    ],
+    [
+      "media.gmp-manager.updateEnabled",
+      false
+    ],
+    [
+      "network.captive-portal-service.enabled",
+      false
+    ],
+    [
+      "network.connectivity-service.enabled",
+      false
+    ],
+    [
+      "network.proxy.type",
+      0
+    ],
+    [
+      "network.trr.mode",
+      5
+    ],
+    [
+      "services.settings.server",
+      "data:,#remote-settings-dummy/v1"
+    ],
+    [
+      "toolkit.telemetry.enabled",
+      false
+    ]
+  ],
+  "guard_final_raw": "{\"cleanup\": null, \"created_directory\": true, \"directory_identity\": [16777231, 173611873, 0, 493], \"domain\": \"n-34294d85b099c04dd46b9c36c05fad73.phantom.test\", \"event\": \"restored\", \"identity\": [16777231, 173611874, 0, 420], \"parent_identity\": [16777231, 340157, 0, 493], \"primary\": null, \"reason\": \"stop\", \"sha256\": \"22027e7b7f1bf4892432adff4fb813a44df365326a78708f5d9e0be948de0839\", \"staging_identity\": null}\n",
+  "guard_stderr": "",
+  "guard_exit": 0,
+  "guard_final": {
+    "cleanup": null,
+    "created_directory": true,
+    "directory_identity": [
+      16777231,
+      173611873,
+      0,
+      493
+    ],
+    "domain": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+    "event": "restored",
+    "identity": [
+      16777231,
+      173611874,
+      0,
+      420
+    ],
+    "parent_identity": [
+      16777231,
+      340157,
+      0,
+      493
+    ],
+    "primary": null,
+    "reason": "stop",
+    "sha256": "22027e7b7f1bf4892432adff4fb813a44df365326a78708f5d9e0be948de0839",
+    "staging_identity": null
+  },
+  "dns_after": "DNS configuration\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  flags    : Request A records\n  reach    : 0x00000002 (Reachable)\n\nresolver #2\n  domain   : local\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300000\n\nresolver #3\n  domain   : 254.169.in-addr.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300200\n\nresolver #4\n  domain   : 8.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300400\n\nresolver #5\n  domain   : 9.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300600\n\nresolver #6\n  domain   : a.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 300800\n\nresolver #7\n  domain   : b.e.f.ip6.arpa\n  options  : mdns\n  timeout  : 5\n  flags    : Request A records\n  reach    : 0x00000000 (Not Reachable)\n  order    : 301000\n\nDNS configuration (for scoped queries)\n\nresolver #1\n  nameserver[0] : 8.8.4.4\n  nameserver[1] : 8.8.8.8\n  if_index : 11 (en0)\n  flags    : Scoped, Request A records\n  reach    : 0x00000002 (Reachable)\n",
+  "dns_records": [
+    {
+      "unix_ns": 1792821232935986000,
+      "transport": "udp",
+      "peer": [
+        "127.0.0.1",
+        57966
+      ],
+      "query_hex": "5c5e01000001000000000000226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d04746573740000010001",
+      "query_size": 65,
+      "response_hex": null,
+      "error": null,
+      "name": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+      "kind": 1,
+      "disposition": "dropped-first-udp-a"
+    },
+    {
+      "unix_ns": 1792821232936068000,
+      "transport": "udp",
+      "peer": [
+        "127.0.0.1",
+        64763
+      ],
+      "query_hex": "437201000001000000000000045f646e73087265736f6c76657204617270610000400001",
+      "query_size": 36,
+      "response_hex": "437281050001000000000000045f646e73087265736f6c76657204617270610000400001",
+      "error": null,
+      "name": "_dns.resolver.arpa",
+      "kind": 64,
+      "response_queued_ns": 1792821232936115000
+    },
+    {
+      "unix_ns": 1792821232936124000,
+      "transport": "udp",
+      "peer": [
+        "127.0.0.1",
+        51060
+      ],
+      "query_hex": "dc2501000001000000000000226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d047465737400001c0001",
+      "query_size": 65,
+      "response_hex": "dc2585000001000000000000226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d047465737400001c0001",
+      "error": null,
+      "name": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+      "kind": 28,
+      "response_queued_ns": 1792821232936139000
+    },
+    {
+      "unix_ns": 1792821232995850000,
+      "transport": "udp",
+      "peer": [
+        "127.0.0.1",
+        53832
+      ],
+      "query_hex": "af9e01000001000000000000065f3531393635065f6874747073226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d04746573740000410001",
+      "query_size": 79,
+      "response_hex": "af9e81050001000000000000065f3531393635065f6874747073226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d04746573740000410001",
+      "error": null,
+      "name": "_51965._https.n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+      "kind": 65,
+      "response_queued_ns": 1792821232995904000
+    },
+    {
+      "unix_ns": 1792821233950383000,
+      "transport": "udp",
+      "peer": [
+        "127.0.0.1",
+        57966
+      ],
+      "query_hex": "5c5e01000001000000000000226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d04746573740000010001",
+      "query_size": 65,
+      "response_hex": "5c5e85000001000100000000226e2d3334323934643835623039396330346464343662396333366330356661643733077068616e746f6d04746573740000010001c00c000100010000000500047f000001",
+      "error": null,
+      "name": "n-34294d85b099c04dd46b9c36c05fad73.phantom.test",
+      "kind": 1,
+      "response_queued_ns": 1792821233950537000
+    }
+  ],
+  "origin_requests": [
+    "/start?token=34294d85b099c04dd46b9c36c05fad73",
+    "/body?token=34294d85b099c04dd46b9c36c05fad73",
+    "/favicon.ico",
+    "/done?token=34294d85b099c04dd46b9c36c05fad73"
+  ],
+  "cleanup_errors": [],
+  "browser_after": {
+    "executable": "/Applications/Firefox.app/Contents/MacOS/firefox",
+    "executable_sha256": "729e0ae83fca74cf143bbef68836c195b340fcc09566461243a075be9e6b959a",
+    "application_ini_sha256": "e066925e0b377c6842f11f98f2f50da16ca4f6a48da70503e69f52094181c7d2",
+    "version": "157.0",
+    "build_id": "20260924084938"
+  },
+  "source_after": {
+    "scripts/capture/mac_native_dns_capture.py": "ad7f5e0e6130c3f8c3d7fed5a8edb4a2e76ccaea399dabeeab0e3597f0267b15",
+    "scripts/capture/mac_native_dns_guard.py": "ae8734e187822f6896cfb6ca2338dcaedef6559334eff1879943e755c3af534a",
+    "scripts/capture/native_dns.py": "585b3804550644929d18a62ec80d5cdd6ff999181aff0c54bbe3dc83b9f5d4b7",
+    "scripts/capture/browser_launch.py": "343f46d9f57d4eef51e818bc93d75bb420e90fbcd7d0fc0957f6d78ca16b6a1c",
+    "scripts/capture/browser_failures.py": "eac63e0d322e3f11abc718b8c82b480a6b77a0e48b454437bf4bcb507eaabc39",
+    "scripts/capture/process_container.py": "db06d10a4c4e17acb1b441b276f376886c5e165dd0da31ebda749cb44f127557",
+    "scripts/requirements.txt": "5233613a2b07987871aa655143b3077af8227edefe1ca9ffb0f3e70810bd0ddf"
+  },
+  "status": "complete"
+}

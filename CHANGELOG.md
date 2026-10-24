@@ -5,7 +5,8 @@
 - Allow unused macOS native-DNS capture connections to close cleanly.
 
 - Add a macOS native-DNS capture scene that drops the first A question
-  and checks recovery through a completed page load.
+  and checks recovery through a completed page load. Retain a Firefox 157
+  observation on macOS.
 
 - Retain Firefox 157 observations of configured native DNS on macOS and
   WebSocket-first connections through an HTTP/2 HTTPS proxy on Windows.

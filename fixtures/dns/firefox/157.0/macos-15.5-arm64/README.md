@@ -26,4 +26,13 @@ uv run --no-project --python 3.10 \
 Use an unused output directory. See the [capture instructions][capture].
 This run does not measure default DNS policy, TTL caching or retries.
 
+## One unanswered A question
+
+`native-retry.json` uses the same Firefox build and host. The peer leaves
+the first A question unanswered. A repeated question arrives about one second
+later and receives a reply. The page reads its body and completes.
+
+Capture source: `28ded616`. Repeat with `--drop-first-udp-a` and a new
+output directory. The record covers recovery in the configured Mac resolver.
+
 [capture]: ../../../../../scripts/capture/README.md#macos-native-dns
