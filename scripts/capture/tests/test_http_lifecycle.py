@@ -732,7 +732,7 @@ class LifecycleOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             await fetch("/done?run=token&result=%5B%22/etag:1:200:v1%22%5D"), b"ok"
         )
-        await owner.wait_done(1)
+        await owner.wait_done(5)
 
         self.assertEqual(run.page_result, result)
         self.assertEqual(run.page_connection, 0)

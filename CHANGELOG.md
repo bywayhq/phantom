@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Fix browser revalidation captures when completion uses a new connection.
+  Retain Chrome 156 macOS and Edge 154 Windows revalidation captures.
 
 - Use the Windows Selector loop for TCP lifecycle captures to avoid stalled
   native socket cleanup after a connection reset.
