@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Capture Firefox address selection through HTTP/2 HTTPS proxies, with
+  separate physical connections and CONNECT streams.
+
 - Retain Chrome 156 macOS idle HTTP/2 requests and POST PING ordering.
 
 - Breaking: preface-PING captures retain frames across connection changes.

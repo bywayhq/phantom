@@ -2266,6 +2266,7 @@ cleanup failures prevent fixture publication.
 | `websocket-backup` | Two `ws://` upgrades, then two HTTP requests | Address selection while a WebSocket remains active and after both close |
 | `wss-backup` | Two `wss://` upgrades over HTTP/1.1, then two HTTPS requests | TLS completion and closure of an unused backup connection |
 | `https-connect-backup` | Outer TLS/H1 CONNECT and inner H1 TLS; five requests and origin close | Physical HTTPS proxy address attempts and TLS ALPN |
+| `https-h2-connect-backup` | Outer TLS/H2 CONNECT streams and inner H1 TLS; five requests and origin close | Proxy address attempts, connection reuse and tunnel streams |
 | `socks5-backup` | H1 TLS through a named SOCKS5 proxy; concurrent requests, origin close and another request | Physical proxy address attempts and remote-name SOCKS5 openings |
 | `backup` | HTTP/1.1; `/fast`, then three concurrent `/slow` (3 s each), then `/fast` after the origin closed every connection | Connection attempts when the name resolves to `[::1]` then `127.0.0.1` and only `127.0.0.1` listens, and the family of later connections |
 | `dns-cache` | HTTP/1.1; `/close` at 0, 30, 65, and 95 s | How long Firefox keeps the name's answer |
@@ -2300,6 +2301,11 @@ Run `https-connect-backup` with `--scenario https-connect-backup --headful`.
 Its exact-origin PAC uses `HTTPS` without direct failover. Only the proxy
 lookup is rewritten. Separate proxy and origin leaf exceptions live in the
 throwaway profile. Records distinguish outer TLS ALPN from inner origin TLS.
+
+Use `--scenario https-h2-connect-backup --headful` for an HTTP/2 proxy.
+`proxy_connection_<i>` records physical proxy connections. `proxy_tunnel_<i>`
+links each CONNECT stream to its proxy connection and inner origin connection.
+The same lookup intervention, scoped trust and request scene apply.
 
 The header adds to the Chromium tool's: `browser_build_id`, the extension and
 its SHA-256 (`hook_agent_extension_sha256`), `decoder_sha256` for

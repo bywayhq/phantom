@@ -136,6 +136,7 @@ class Scenario:
             "wss": "wss",
             "https-connect": "https",
             "https-proxy-connect": "https",
+            "https-h2-proxy-connect": "https",
             "https-socks5": "https",
         }[self.target]
 
@@ -144,8 +145,13 @@ class Scenario:
         return {
             "https-connect": "http",
             "https-proxy-connect": "https",
+            "https-h2-proxy-connect": "https",
             "https-socks5": "socks5",
         }.get(self.target)
+
+    @property
+    def proxy_alpn(self) -> str:
+        return "h2" if self.target == "https-h2-proxy-connect" else "h1"
 
     @property
     def hostname(self) -> str:
@@ -344,6 +350,15 @@ SCENARIOS = {
             "concurrent inner H1 TLS requests and origin disconnect",
             40,
             "https-proxy-connect",
+            _proxy_backup_script(),
+            rewrite_lookup=True,
+        ),
+        Scenario(
+            "https-h2-connect-backup",
+            "HTTPS proxy attempts with [::1] then 127.0.0.1, outer H2 CONNECT "
+            "streams, concurrent inner H1 TLS requests and origin disconnect",
+            40,
+            "https-h2-proxy-connect",
             _proxy_backup_script(),
             rewrite_lookup=True,
         ),
@@ -1809,7 +1824,9 @@ async def start_connect_proxy(origins: Origins, certificate: Any) -> None:
     mode = origins.scenario.proxy_mode
     if mode is None:
         raise ValueError("Firefox proxy scenario is required")
-    proxy = ConnectProxy(mode, certificate, ("127.0.0.1", origins.port), alpn="h1")
+    proxy = ConnectProxy(
+        mode, certificate, ("127.0.0.1", origins.port), alpn=origins.scenario.proxy_alpn
+    )
     # Retain ownership before either admission or listener startup can fail.
     origins.proxy = proxy
     proxy.begin_run(
@@ -2147,11 +2164,39 @@ def connect_observations(origins: Origins, start_ms: int) -> list[dict[str, Any]
     if origins.scenario.proxy_mode == "https":
         for observation, opening in zip(observations, run.openings, strict=True):
             observation["alpn"] = opening.connection.alpn
+            if origins.scenario.proxy_alpn == "h2":
+                observation.update(
+                    proxy_connection=opening.proxy_connection,
+                    stream_id=opening.stream_id,
+                    headers=[
+                        [name.hex(), value.hex()] for name, value in opening.headers
+                    ],
+                    status=opening.status,
+                )
     return observations
 
 
 def validate_connect_run(origins: Origins) -> None:
     observations = connect_observations(origins, 0)
+    if origins.scenario.proxy_alpn == "h2":
+        run = origins.proxy.tunnel_run
+        seen = set()
+        for opening in run.openings:
+            index = opening.proxy_connection
+            if (
+                index is None
+                or not 0 <= index < len(run.proxy_connections)
+                or opening.connection is not run.proxy_connections[index].connection
+                or opening.connection.alpn != "h2"
+                or opening.stream_id is None
+                or opening.stream_id <= 0
+                or opening.stream_id % 2 != 1
+                or (index, opening.stream_id) in seen
+            ):
+                raise ValueError(
+                    "Firefox H2 CONNECT lost its proxy connection or stream"
+                )
+            seen.add((index, opening.stream_id))
     if origins.scenario.proxy_mode == "socks5":
         host = origins.scenario.hostname.encode("ascii")
         expected = (
@@ -2206,9 +2251,30 @@ def render_run(index: int, result: RunResult) -> list[str]:
             f"{prefix}proxy_{key}={value}" for key, value in summarize(events, port)
         )
         observations = connect_observations(result.origins, start)
-        lines.append(f"{prefix}proxy_connection_count={len(observations)}")
+        kind = "connection"
+        if result.origins.scenario.proxy_alpn == "h2":
+            run = result.origins.proxy.tunnel_run
+            physical = run.proxy_connections
+            offset = run.origin.started * 1000 - start
+            lines.append(f"{prefix}proxy_connection_count={len(physical)}")
+            for i, opening in enumerate(physical):
+                record = {
+                    "peer": opening.peer,
+                    "accepted_ms": offset + opening.connection.accepted * 1000,
+                    "finished_ms": offset + opening.finished * 1000
+                    if opening.finished is not None
+                    else None,
+                    "alpn": opening.connection.alpn,
+                    "outcome": opening.outcome,
+                }
+                lines.append(
+                    f"{prefix}proxy_connection_{i}="
+                    + json.dumps(record, sort_keys=True, separators=(",", ":"))
+                )
+            kind = "tunnel"
+        lines.append(f"{prefix}proxy_{kind}_count={len(observations)}")
         lines.extend(
-            f"{prefix}proxy_connection_{i}="
+            f"{prefix}proxy_{kind}_{i}="
             + json.dumps(record, sort_keys=True, separators=(",", ":"))
             for i, record in enumerate(observations)
         )
@@ -2332,7 +2398,7 @@ def render_fixture(
             header.extend(
                 (
                     "proxy_transport=tls",
-                    "proxy_alpn_offer=http/1.1",
+                    f"proxy_alpn_offer={'h2' if scenario.proxy_alpn == 'h2' else 'http/1.1'}",
                     "proxy_trust=separate disposable-profile cert_override.txt leaf",
                 )
             )
