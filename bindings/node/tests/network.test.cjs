@@ -59,8 +59,15 @@ test('network overrides retain verified TLS identity, per-origin pools and sourc
         {host: 'other.invalid', addresses: ['127.0.0.1']}], localAddresses: ['127.0.0.1']}});
     try {
       const start = records.length;
-      for (const host of ['phantom.invalid', 'phantom.invalid', 'other.invalid']) {
-        const response = await client.request(`https://${host}:${port}/`, {...options, protocol});
+      for (const [index, host] of ['phantom.invalid', 'phantom.invalid', 'other.invalid'].entries()) {
+        let response;
+        try {response = await client.request(`https://${host}:${port}/`, {...options, protocol});}
+        catch (error) {
+          t.diagnostic(JSON.stringify({protocol, host, port, ordinal: index + 1,
+            totalConnections: connections, receivedRequests: records.length - start,
+            code: error.code, errorProtocol: error.protocol, timeoutPhase: error.timeoutPhase}));
+          throw error;
+        }
         try {assert.equal(await response.text(2), 'ok');} finally {response.close();}
       }
       const seen = records.slice(start);

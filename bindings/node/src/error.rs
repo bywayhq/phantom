@@ -52,19 +52,29 @@ fn connect_io_details(
     if kind != phantom::RequestErrorKind::Connect {
         return None;
     }
+
     let mut source = Some(error);
+    let mut first_io_kind = None;
     for _ in 0..16 {
-        let error = source?;
+        let Some(error) = source else {
+            break;
+        };
+
         if let Some(error) = error.downcast_ref::<std::io::Error>() {
-            let os_code = error
-                .raw_os_error()
-                .map(|code| format!(", os error {code}"))
-                .unwrap_or_default();
-            return Some(format!(" (I/O: {}{os_code})", error.kind()));
+            let io_kind = *first_io_kind.get_or_insert(error.kind());
+            if let Some(code) = error.raw_os_error() {
+                return Some(format!(" (I/O: {io_kind}, os error {code})"));
+            }
+
+            source = match error.get_ref() {
+                Some(inner) => Some(inner),
+                None => std::error::Error::source(error),
+            };
+        } else {
+            source = error.source();
         }
-        source = error.source();
     }
-    None
+    first_io_kind.map(|kind| format!(" (I/O: {kind})"))
 }
 
 #[cfg(test)]
@@ -96,6 +106,27 @@ mod tests {
         assert_eq!(
             connect_io_details(phantom::RequestErrorKind::Connect, &source),
             Some(expected)
+        );
+    }
+
+    #[test]
+    fn nested_io_errors_keep_outer_kind_and_inner_os_code() {
+        let source = io::Error::other(io::Error::from_raw_os_error(10013));
+        assert_eq!(
+            connect_io_details(phantom::RequestErrorKind::Connect, &source),
+            Some(" (I/O: other error, os error 10013)".into())
+        );
+    }
+
+    #[test]
+    fn wrapped_io_errors_keep_nested_os_code_without_source_text() {
+        let source = PrivateError(Some(Box::new(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            io::Error::from_raw_os_error(10013),
+        ))));
+        assert_eq!(
+            connect_io_details(phantom::RequestErrorKind::Connect, &source),
+            Some(" (I/O: permission denied, os error 10013)".into())
         );
     }
 
@@ -139,6 +170,12 @@ mod tests {
         assert_eq!(
             connect_io_details(phantom::RequestErrorKind::Connect, &Cycle),
             None
+        );
+
+        let error = io::Error::new(io::ErrorKind::PermissionDenied, Cycle);
+        assert_eq!(
+            connect_io_details(phantom::RequestErrorKind::Connect, &error),
+            Some(" (I/O: permission denied)".into())
         );
     }
 }
