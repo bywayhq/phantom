@@ -443,17 +443,42 @@ class H2StartupPeerTests(unittest.IsolatedAsyncioTestCase):
         client = H2EventSource(server.url(run))
         try:
             await client.start(server)
-            with self.assertRaises(ConnectionError):
-                await asyncio.wait_for(
-                    client.fetch(server.url(run), (b"Authorization: probe",)), 2
-                )
+            remote_settings = acknowledged = False
+            while not (remote_settings and acknowledged):
+                data = await asyncio.wait_for(client.reader.read(65536), 2)
+                self.assertTrue(data)
+                for event in client.engine.receive_data(data):
+                    if isinstance(event, h2.events.RemoteSettingsChanged):
+                        remote_settings = True
+                    elif isinstance(event, h2.events.SettingsAcknowledged):
+                        acknowledged = True
+                client.writer.write(client.engine.data_to_send())
+                await client.writer.drain()
+
+            client.engine.send_headers(
+                1,
+                [
+                    (b":method", b"GET"),
+                    (b":scheme", b"https"),
+                    (b":authority", b"server.phantom.test"),
+                    (b":path", run.page_path().encode()),
+                    (b"authorization", b"probe"),
+                ],
+                end_stream=True,
+            )
+            client.writer.write(client.engine.data_to_send())
+            await client.writer.drain()
+            # The peer rejects this request and closes TLS. Do not send an ACK
+            # or GOAWAY after its close_notify while draining that rejection.
+            self.assertEqual(await asyncio.wait_for(client.reader.read(), 2), b"")
             self.assertEqual(len(run.connections), 1)
             self.assertEqual(run.connections[0].h2_startup, b"")
             with self.assertRaisesRegex(ValueError, "credential-bearing"):
                 fixture(CATALOG[0], [run], dataclasses.replace(METADATA, protocol="h2"))
         finally:
             try:
-                await client.close()
+                client.writer.close()
+                await asyncio.wait_for(client.writer.wait_closed(), 2)
             finally:
                 with self.assertRaisesRegex(ValueError, "credential-bearing"):
                     await server.close()
