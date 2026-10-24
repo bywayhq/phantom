@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report partial HTTP/2 frame metadata when a preface-PING capture fails.
+
 - Include socket operations and addresses in alternative-host capture errors.
 
 - Add ordinary Fetch templates for Edge 154 Windows and Chrome 156 macOS,

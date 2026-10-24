@@ -1034,6 +1034,8 @@ Only `/done` with the run's exact token on the page's connection completes
 the capture. Before writing, the tool collects registered connections and
 their callback outcomes within a five-second cooperative cleanup deadline.
 A callback error or incomplete cleanup prevents fixture publication.
+If the browser run fails, stderr includes partial frame metadata without
+request queries, headers or body payloads.
 
 Use finite positive waits within the page timer limit (2,147,483.647 seconds).
 The tool limits a run to 32 retained connections and 64 MiB of recorded

@@ -5,6 +5,7 @@ import io
 import ssl
 import tempfile
 import unittest
+from collections.abc import AsyncIterator, Awaitable
 from pathlib import Path
 from unittest import mock
 
@@ -38,6 +39,35 @@ def frame(kind: int, flags: int, stream: int, payload: bytes) -> bytes:
 
 
 class FrameLogTests(unittest.TestCase):
+    def test_partial_report_omits_unknown_paths_and_invalid_ping_payloads(self) -> None:
+        log = FrameLog()
+        log.feed(
+            CONNECTION_PREFACE
+            + frame(0x1, 0x25, 1, b"private headers")
+            + frame(0x6, 0, 0, b"malformed private ping")
+            + frame(0x6, 0, 0, bytes.fromhex("0102030405060708"))
+            + frame(0x0, 0x1, 1, b"private body"),
+            2.0,
+        )
+        log.name_request(1, "/private?run=secret")
+        log.buffer.extend(b"unfinished private frame")
+        run = preface.Run("secret", 11.5, 9.0, connections=[log])
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stderr(stderr):
+            preface.report_partial(run)
+
+        report = stderr.getvalue()
+        self.assertIn("connection_0_selected_page=false", report)
+        self.assertIn("connection_0_preface_seen=true", report)
+        self.assertIn("connection_0_buffer_bytes=24", report)
+        self.assertIn("connection_0_frame_count=4", report)
+        self.assertIn("payload:0102030405060708", report)
+        self.assertEqual(report.count("payload:"), 1)
+        self.assertNotIn("private", report)
+        self.assertNotIn("secret", report)
+        self.assertNotIn("path:", report)
+
     def test_splits_frames_across_reads_and_keeps_only_ping_payloads(self) -> None:
         data = (
             CONNECTION_PREFACE
@@ -203,6 +233,96 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
         operation.cancel("test backup")
         with contextlib.suppress(asyncio.CancelledError):
             await asyncio.wait_for(operation, 2)
+
+    async def test_timeout_reports_frames_without_publishing(self) -> None:
+        await self.check_timeout_report(reporting_fails=False)
+
+    async def test_report_error_preserves_timeout_and_retires_peers(self) -> None:
+        await self.check_timeout_report(reporting_fails=True)
+
+    async def check_timeout_report(self, *, reporting_fails: bool) -> None:
+        owners = []
+        timeouts = []
+        original_wait = asyncio.wait_for
+        reporting_error = OSError("diagnostic output failed")
+
+        def created(run: preface.Run, context: ssl.SSLContext) -> PrefaceServer:
+            owner, protocols = self.owner(run, context)
+            owners.append((owner, protocols))
+            return owner
+
+        async def wait_for(operation: Awaitable[object], timeout: float) -> object:
+            try:
+                return await original_wait(operation, 0 if timeout == 62 else timeout)
+            except asyncio.TimeoutError as error:
+                if timeout == 62:
+                    timeouts.append(error)
+                raise
+
+        @contextlib.asynccontextmanager
+        async def drive(_plan: object, _url: str) -> AsyncIterator[None]:
+            reader, writer = await self.peer(owners[0][0])
+            connection = H2Connection(H2Configuration(client_side=True))
+            connection.initiate_connection()
+            await self.request(connection, reader, writer, b"/start?run=token")
+            await self.request(connection, reader, writer, b"/a?run=token")
+            try:
+                yield
+            finally:
+                writer.close()
+                await original_wait(writer.wait_closed(), 2)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "preface-ping.txt"
+            output.write_bytes(b"previous fixture\n")
+            args = argparse.Namespace(
+                listen="127.0.0.1",
+                idle=11.5,
+                short=9.0,
+                browser="chrome",
+                browser_path=Path("unused"),
+                headful=False,
+                client=None,
+                client_version="0",
+                operating_system="test",
+                output_dir=Path(directory),
+            )
+            stderr = io.StringIO()
+            report = (
+                mock.patch.object(
+                    preface, "report_partial", side_effect=reporting_error
+                )
+                if reporting_fails
+                else contextlib.nullcontext()
+            )
+            with (
+                mock.patch.object(preface, "PrefaceServer", side_effect=created),
+                mock.patch.object(preface, "BrowserDriver", side_effect=drive),
+                mock.patch.object(preface.asyncio, "wait_for", side_effect=wait_for),
+                mock.patch.object(preface.secrets, "token_hex", return_value="token"),
+                mock.patch.object(preface, "write_text_fixture") as publish,
+                contextlib.redirect_stderr(stderr),
+                report,
+                self.assertRaises(asyncio.TimeoutError) as raised,
+            ):
+                await preface.capture(args)
+
+            self.assertEqual(len(timeouts), 1)
+            self.assertIs(raised.exception, timeouts[0])
+            publish.assert_not_called()
+            self.assertEqual(output.read_bytes(), b"previous fixture\n")
+            self.retired(*owners[0])
+            if reporting_fails:
+                self.assertIsInstance(
+                    raised.exception.__cause__, preface.PrefaceFailures
+                )
+                self.assertIn(reporting_error, raised.exception.__cause__.cleanup)
+            else:
+                self.assertIn("partial_h2_connections=1", stderr.getvalue())
+                self.assertIn("connection_0_selected_page=true", stderr.getvalue())
+                self.assertIn("path:/start", stderr.getvalue())
+                self.assertIn("path:/a", stderr.getvalue())
+                self.assertNotIn("run=token", stderr.getvalue())
 
     async def test_original_tls_callback_error_prevents_fixture_publication(self):
         owners = []

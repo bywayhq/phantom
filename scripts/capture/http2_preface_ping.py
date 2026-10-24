@@ -24,7 +24,7 @@ import secrets
 import sys
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -615,6 +615,29 @@ def fixture(
     return "\n".join(lines) + "\n"
 
 
+def report_partial(run: Run) -> None:
+    print(f"partial_h2_connections={len(run.connections)}", file=sys.stderr)
+    for index, log in enumerate(run.connections):
+        prefix = f"connection_{index}"
+        selected = str(log is run.page_connection).lower()
+        print(f"{prefix}_selected_page={selected}", file=sys.stderr)
+        print(f"{prefix}_preface_seen={str(log.preface_seen).lower()}", file=sys.stderr)
+        print(f"{prefix}_buffer_bytes={len(log.buffer)}", file=sys.stderr)
+        print(f"{prefix}_frame_count={len(log.frames)}", file=sys.stderr)
+        for number, frame in enumerate(log.frames):
+            # Failed input may not have passed HTTP/2 validation yet.
+            safe = replace(
+                frame,
+                path=frame.path
+                if frame.path in ("/start", "/a", "/b", "/c", "/p", "/done")
+                else None,
+                ping=frame.ping
+                if frame.kind == 0x6 and frame.ping is not None and len(frame.ping) == 8
+                else None,
+            )
+            print(f"{prefix}_frame_{number}={safe.line()}", file=sys.stderr)
+
+
 async def capture(args: argparse.Namespace) -> None:
     timeout = validate_options(args)
     certificate = generate_certificate()
@@ -644,6 +667,11 @@ async def capture(args: argparse.Namespace) -> None:
                 raise run.failure
     except BaseException as error:
         primary = error
+    if primary is not None:
+        try:
+            report_partial(run)
+        except BaseException as error:
+            server.remember(error)
     await server.close(primary)
     arguments = (
         plan.recorded_arguments(url)
