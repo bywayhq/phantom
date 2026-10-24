@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use btls::{
     ssl::{SslContextBuilder, SslMethod, SslVerifyMode, SslVersion},
@@ -8,7 +8,7 @@ use bytes::{Buf, Bytes};
 use phantom_quic_btls::{EchOffer, EchOutcome, QuicClientConfig};
 use tokio::{net::TcpListener, task::JoinSet, time::timeout};
 
-use super::super::{AlternativeHost, HOST_B, PROBE_BODY, bind};
+use super::super::{AlternativeHost, HOST_B, PROBE_BODY, SocketSetupError, bind};
 use crate::{
     CaptureResult, Captured, HOSTNAME, Scenario, capture_errors, spawn_origin_quic,
     tests::test_identity,
@@ -56,14 +56,20 @@ async fn control(case: Control) -> CaptureResult<()> {
         .ech_setup()?
         .ok_or("destination ECH keys missing")?;
     let crypto = identity.quic_server(&ech.keys)?;
-    let origin = TcpListener::bind("127.0.0.1:0").await?;
+    let requested: SocketAddr = "127.0.0.1:0".parse()?;
+    let origin = TcpListener::bind(requested)
+        .await
+        .map_err(|error| SocketSetupError::new("bind bootstrap TCP", requested, error))?;
+    let origin_address = origin.local_addr().map_err(|error| {
+        SocketSetupError::new("inspect bootstrap TCP address", requested, error)
+    })?;
     let (server, reservation) = bind(
         quinn::ServerConfig::with_crypto(Arc::new(crypto)),
-        origin.local_addr()?.ip(),
+        origin_address.ip(),
     )
     .await?;
     let alternative = Arc::new(AlternativeHost::new(
-        origin.local_addr()?,
+        origin_address,
         reservation.local_addr()?,
     )?);
     let captured = Arc::new(Captured {
@@ -86,12 +92,18 @@ async fn control(case: Control) -> CaptureResult<()> {
     if matches!(case, Control::Ech) {
         crypto = crypto.with_ech(&offer);
     }
+    let udp = phantom_testkit::udp::bind(requested)
+        .map_err(|error| SocketSetupError::new("bind client UDP", requested, error))?;
+    let client_address = udp
+        .local_addr()
+        .map_err(|error| SocketSetupError::new("inspect client UDP address", requested, error))?;
     let mut client = quinn::Endpoint::new(
         quinn::EndpointConfig::default(),
         None,
-        phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?,
+        udp,
         Arc::new(quinn::TokioRuntime),
-    )?;
+    )
+    .map_err(|error| SocketSetupError::new("create client QUIC endpoint", client_address, error))?;
     client.set_default_client_config(quinn::ClientConfig::new(Arc::new(crypto)));
     let mut tasks = JoinSet::<CaptureResult<()>>::new();
     let result: CaptureResult<()> = timeout(DEADLINE, async {

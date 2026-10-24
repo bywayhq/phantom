@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{error::Error, io, net::TcpListener, sync::Arc};
 
-use super::{AlternativeHost, HOST_B, PROBE_BODY, SerializedIndexes};
+use super::{AlternativeHost, HOST_B, PROBE_BODY, SerializedIndexes, SocketSetupError};
 use crate::{CaptureResult, Captured, DnsAnswers, HOSTNAME, Scenario, dns_response};
 
 #[path = "tests/native.rs"]
@@ -13,6 +13,31 @@ fn state() -> CaptureResult<AlternativeHost> {
         "127.0.0.1:8443".parse()?,
         "127.0.0.1:9443".parse()?,
     )?)
+}
+
+#[test]
+fn socket_setup_failure_preserves_its_operation_address_and_os_source() -> CaptureResult<()> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let source = TcpListener::bind(address)
+        .err()
+        .ok_or("occupied port was accepted")?;
+    let code = source.raw_os_error();
+    let kind = source.kind();
+    let error = SocketSetupError::new("bind alternative TCP", address, source);
+
+    assert!(
+        error
+            .to_string()
+            .starts_with(&format!("bind alternative TCP at {address}: "))
+    );
+    let source = error
+        .source()
+        .and_then(|source| source.downcast_ref::<io::Error>())
+        .ok_or("original socket error missing")?;
+    assert_eq!(source.raw_os_error(), code);
+    assert_eq!(source.kind(), kind);
+    Ok(())
 }
 
 fn query(name: &str, kind: u16) -> CaptureResult<Vec<u8>> {

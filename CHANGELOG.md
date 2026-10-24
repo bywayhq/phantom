@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Include socket operations and addresses in alternative-host capture errors.
+
 - Add ordinary Fetch templates for Edge 154 Windows and Chrome 156 macOS,
   with ordered cache validators. Share identical Chromium template declarations.
 

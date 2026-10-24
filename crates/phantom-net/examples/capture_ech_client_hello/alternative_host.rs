@@ -1,7 +1,8 @@
 //! One logical origin advertising a separately named QUIC destination.
 
 use std::{
-    io,
+    error::Error,
+    fmt, io,
     net::{IpAddr, SocketAddr},
     sync::{
         Mutex, PoisonError,
@@ -28,6 +29,39 @@ pub(super) const HOST_B: &str = "alternative.phantom.test";
 const MAX_REQUESTS: usize = 32;
 const PROBE_BODY: &[u8] = b"alternative-probe";
 
+#[derive(Debug)]
+struct SocketSetupError {
+    operation: &'static str,
+    address: SocketAddr,
+    source: io::Error,
+}
+
+impl SocketSetupError {
+    fn new(operation: &'static str, address: SocketAddr, source: io::Error) -> Self {
+        Self {
+            operation,
+            address,
+            source,
+        }
+    }
+}
+
+impl fmt::Display for SocketSetupError {
+    fn fmt(&self, output: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            output,
+            "{} at {}: {}",
+            self.operation, self.address, self.source
+        )
+    }
+}
+
+impl Error for SocketSetupError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
 pub(super) async fn bind(
     config: quinn::ServerConfig,
     address: IpAddr,
@@ -36,25 +70,42 @@ pub(super) async fn bind(
     for _ in 0..32 {
         // TCP selects an ephemeral port outside its excluded blocks. Windows
         // allocates UDP ephemeral ports sequentially, including TCP exclusions.
-        let reservation = TcpListener::bind(SocketAddr::new(address, 0)).await?;
-        match phantom_testkit::udp::bind(reservation.local_addr()?) {
+        let requested = SocketAddr::new(address, 0);
+        let reservation = TcpListener::bind(requested)
+            .await
+            .map_err(|error| SocketSetupError::new("bind alternative TCP", requested, error))?;
+        let candidate = reservation.local_addr().map_err(|error| {
+            SocketSetupError::new("inspect alternative TCP address", requested, error)
+        })?;
+        match phantom_testkit::udp::bind(candidate) {
             Ok(udp) => {
-                udp.set_nonblocking(true)?;
+                udp.set_nonblocking(true).map_err(|error| {
+                    SocketSetupError::new("set alternative UDP nonblocking", candidate, error)
+                })?;
                 let endpoint = quinn::Endpoint::new(
                     quinn::EndpointConfig::default(),
                     Some(config),
                     udp,
                     std::sync::Arc::new(quinn::TokioRuntime),
-                )?;
+                )
+                .map_err(|error| {
+                    SocketSetupError::new("create alternative QUIC endpoint", candidate, error)
+                })?;
                 return Ok((endpoint, reservation));
             }
             Err(error)
                 if error.kind() == io::ErrorKind::AddrInUse
                     || (cfg!(windows) && error.raw_os_error() == Some(10013)) =>
             {
-                last = Some(error)
+                last = Some(SocketSetupError::new(
+                    "exhaust alternative UDP candidates",
+                    candidate,
+                    error,
+                ))
             }
-            Err(error) => return Err(error.into()),
+            Err(error) => {
+                return Err(SocketSetupError::new("bind alternative UDP", candidate, error).into());
+            }
         }
     }
     Err(last.map_or_else(|| "no paired alternative port".into(), Into::into))
