@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep CLI transfers within the Windows stack limit when optional client
+  features are enabled, including requests through SOCKS proxies.
+
 - Release HTTP/2 keepalive tracking after disabling socket keepalive, avoiding
   further scheduling locks on that stream's I/O.
 

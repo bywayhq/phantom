@@ -354,7 +354,11 @@ fn explicit_http_and_socks5_remote_proxy_routes_work() -> TestResult {
         let output = request("http://origin.invalid/path")
             .args(["--proxy", &proxy])
             .output()?;
-        success(&output);
+        assert!(
+            output.status.success(),
+            "{scheme} stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         assert_eq!(output.stdout, b"proxy");
         peer.join().map_err(|_| "peer panicked")??;
     }

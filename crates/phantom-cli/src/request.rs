@@ -227,7 +227,7 @@ pub(super) async fn run(arguments: &ArgMatches) -> Result<()> {
             Box::new(tokio::io::stdout())
         };
     let operation = async {
-        let transfer = transfer(request, output, arguments.get_flag("fail"));
+        let transfer = Box::pin(transfer(request, output, arguments.get_flag("fail")));
         if let Some(timeout) = arguments.get_one::<NonZeroU64>("timeout-ms") {
             tokio::time::timeout(Duration::from_millis(timeout.get()), transfer)
                 .await
