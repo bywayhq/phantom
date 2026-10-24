@@ -175,13 +175,17 @@ async fn send_once_exact(
         };
     loop {
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
-        let target = match protocol {
-            HttpProtocol::Http1 => request.absolute_target.encoded(),
-            HttpProtocol::Http2 | HttpProtocol::Http3 => request.target.as_str().to_owned(),
-        };
         let credentials_field = forward_authentication
             .as_mut()
-            .map(|authentication| authentication.field(protocol, &method, &target, challenged))
+            .map(|authentication| {
+                let target = match protocol {
+                    HttpProtocol::Http1 => Cow::Owned(request.absolute_target.encoded()),
+                    HttpProtocol::Http2 | HttpProtocol::Http3 => {
+                        Cow::Borrowed(request.target.as_str())
+                    }
+                };
+                authentication.field(protocol, &method, &target, challenged)
+            })
             .transpose()
             .map_err(|error| proxy_authentication_error(protocol, error))?
             .flatten();

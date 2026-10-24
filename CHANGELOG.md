@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Skip proxy-authentication target preparation when no authentication is active.
+
 - Retain HTTP/2 startup bytes and ordered settings in Safari captures,
   with a Safari 26.6.2 observation on macOS.
 
