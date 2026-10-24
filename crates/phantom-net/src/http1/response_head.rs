@@ -117,33 +117,39 @@ impl ResponseHeadLimitError {
 }
 
 impl ResponseHeadState {
-    fn observe(&mut self, bytes: &[u8]) {
+    fn observe(&mut self, mut bytes: &[u8]) {
         if !self.armed || bytes.is_empty() {
             return;
         }
 
-        // The retained prefix was already parsed as partial on the last read.
-        let available = MAX_RESPONSE_HEAD_BYTES - self.buffered.len();
-        let observed = available.min(bytes.len());
-        self.buffered.extend_from_slice(&bytes[..observed]);
-        let mut remaining = &bytes[observed..];
         loop {
+            if self.buffered.is_empty() && bytes.is_empty() {
+                return;
+            }
+
+            // Complete heads borrow the incoming read. Only a fragmented head
+            // needs a retained copy, which may also contain interim responses.
+            let direct = self.buffered.is_empty();
+            let available = MAX_RESPONSE_HEAD_BYTES - self.buffered.len();
+            let observed = available.min(bytes.len());
+            let input = if direct {
+                &bytes[..observed]
+            } else {
+                self.buffered.extend_from_slice(&bytes[..observed]);
+                self.buffered.as_slice()
+            };
             let mut slots = [httparse::EMPTY_HEADER; MAX_RESPONSE_HEADERS];
             let mut response = httparse::Response::new(&mut slots);
-            let head_length = match response.parse(&self.buffered) {
+            let head_length = match response.parse(input) {
                 Ok(httparse::Status::Partial) => {
-                    if self.buffered.len() == MAX_RESPONSE_HEAD_BYTES {
+                    if input.len() == MAX_RESPONSE_HEAD_BYTES {
                         self.fail(ResponseHeadLimitError::HeadBytes);
                         return;
                     }
-                    if remaining.is_empty() {
-                        return;
+                    if direct {
+                        self.buffered.extend_from_slice(&bytes[..observed]);
                     }
-                    let available = MAX_RESPONSE_HEAD_BYTES - self.buffered.len();
-                    let observed = available.min(remaining.len());
-                    self.buffered.extend_from_slice(&remaining[..observed]);
-                    remaining = &remaining[observed..];
-                    continue;
+                    return;
                 }
                 Ok(httparse::Status::Complete(length)) => length,
                 Err(httparse::Error::TooManyHeaders) => {
@@ -162,25 +168,26 @@ impl ResponseHeadState {
                 return;
             }
             let status = response.code.unwrap_or_default();
-            let headers = response
-                .headers
-                .iter()
-                .map(|header| ResponseHeader::from_parts(header.name, header.value, false))
-                .collect();
-
             if (100..200).contains(&status) && status != 101 {
                 self.informational_responses += 1;
                 if self.informational_responses > MAX_INFORMATIONAL_RESPONSES {
                     self.fail(ResponseHeadLimitError::InformationalResponses);
                     return;
                 }
-                self.buffered.drain(..head_length);
-                if self.buffered.is_empty() && remaining.is_empty() {
-                    return;
+                if direct {
+                    bytes = &bytes[head_length..];
+                } else {
+                    self.buffered.drain(..head_length);
+                    bytes = &bytes[observed..];
                 }
                 continue;
             }
 
+            let headers = response
+                .headers
+                .iter()
+                .map(|header| ResponseHeader::from_parts(header.name, header.value, false))
+                .collect();
             self.headers = Some(OrderedResponseHeaders::new(headers));
             self.buffered.clear();
             self.armed = false;
@@ -268,5 +275,60 @@ where
         buffers: &[io::IoSlice<'_>],
     ) -> Poll<Result<usize, io::Error>> {
         Pin::new(&mut self.stream).poll_write_vectored(context, buffers)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_split_retains_final_fields_after_interim_responses() {
+        let wire = b"HTTP/1.1 103 Early Hints\r\nLink: </one>\r\n\r\n\
+            HTTP/1.1 100 Continue\r\n\r\n\
+            HTTP/1.1 200 OK\r\nX-One: first\r\nX-Two: \xff\r\nx-one: last\r\n\r\nbody";
+        for split in 0..=wire.len() {
+            let mut state = ResponseHeadState {
+                armed: true,
+                ..Default::default()
+            };
+
+            state.observe(&wire[..split]);
+            state.observe(&wire[split..]);
+
+            assert!(!state.armed, "split {split}");
+            assert!(state.limit_error.is_none(), "split {split}");
+            assert_eq!(state.informational_responses, 2, "split {split}");
+            let headers = state.headers.expect("final response fields");
+            let fields: Vec<_> = headers
+                .iter()
+                .map(|field| (field.name(), field.value()))
+                .collect();
+            assert_eq!(
+                fields,
+                [
+                    ("X-One", b"first".as_slice()),
+                    ("X-Two", b"\xff".as_slice()),
+                    ("x-one", b"last".as_slice()),
+                ],
+                "split {split}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_complete_head_does_not_retain_a_coalesced_body() {
+        let mut wire = b"HTTP/1.1 200 OK\r\nContent-Length: 65536\r\n\r\n".to_vec();
+        wire.resize(wire.len() + 65536, b'x');
+        let mut state = ResponseHeadState {
+            armed: true,
+            ..Default::default()
+        };
+
+        state.observe(&wire);
+
+        assert!(state.headers.is_some());
+        assert!(state.limit_error.is_none());
+        assert_eq!(state.buffered.capacity(), 0);
     }
 }

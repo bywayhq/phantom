@@ -4,6 +4,9 @@
 
 - Skip proxy-authentication target preparation when no authentication is active.
 
+- Inspect complete HTTP/1 response headers without copying their incoming
+  buffer. Fragmented headers keep bounded buffering.
+
 - Retain HTTP/2 startup bytes and ordered settings in Safari captures,
   with a Safari 26.6.2 observation on macOS.
 
