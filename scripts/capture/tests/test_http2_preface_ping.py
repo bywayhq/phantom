@@ -15,7 +15,6 @@ from h2.events import DataReceived, StreamEnded
 
 from scripts.capture import http2_preface_ping as preface
 from scripts.capture.http2_preface_ping import (
-    FORMAT,
     FrameLog,
     PrefaceServer,
     page,
@@ -161,7 +160,7 @@ class RetainedFixtureTests(unittest.TestCase):
     def test_fixture_holds_no_request_token_or_certificate(self) -> None:
         text = FIXTURE.read_text(encoding="ascii")
         values = dict(line.split("=", 1) for line in text.splitlines())
-        self.assertEqual(values["format"], FORMAT)
+        self.assertEqual(values["format"], "phantom-http2-preface-ping-v1")
         self.assertIn("<token>", values["launch_arguments"])
         self.assertIn("<certificate-spki>", values["launch_arguments"])
         frames = [value for key, value in values.items() if key.startswith("frame_")]
@@ -459,18 +458,28 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await self.eof(reader)
         self.retired(owner, protocols)
 
-    async def request(self, connection, reader, writer, target):
+    async def request(
+        self,
+        connection: H2Connection,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        target: bytes,
+        *,
+        body: bytes | None = None,
+    ) -> bytes:
         stream = connection.get_next_available_stream_id()
         connection.send_headers(
             stream,
             [
-                (b":method", b"GET"),
+                (b":method", b"GET" if body is None else b"POST"),
                 (b":scheme", b"https"),
                 (b":authority", preface.HOSTNAME.encode()),
                 (b":path", target),
             ],
-            end_stream=True,
+            end_stream=body is None,
         )
+        if body is not None:
+            connection.send_data(stream, body, end_stream=True)
         writer.write(connection.data_to_send())
         await writer.drain()
         body = bytearray()
@@ -489,7 +498,7 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
             ):
                 return bytes(body)
 
-    async def test_completion_requires_selected_connection_and_exact_run_token(self):
+    async def test_completion_follows_current_run_across_connections(self) -> None:
         owner, protocols = self.owner()
         await owner.start("127.0.0.1")
         reader, writer = await self.peer(owner)
@@ -499,8 +508,24 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await self.request(connection, reader, writer, b"/start?run=wrong"), b"ok"
         )
         self.assertIsNone(owner.run.page_connection)
+        await self.request(connection, reader, writer, b"/done?run=token")
+        self.assertIsNone(owner.run.completion)
         body = await self.request(connection, reader, writer, b"/start?run=token")
         self.assertIn(b"await wait(11500);", body)
+        await self.request(connection, reader, writer, b"/done?run=token")
+        self.assertIsNone(owner.run.completion)
+        await self.request(connection, reader, writer, b"/a?run=token")
+        other_reader, other_writer = await self.peer(owner)
+        other = H2Connection(H2Configuration(client_side=True))
+        other.initiate_connection()
+        for target in (b"/b?run=token", b"/c?run=token"):
+            await self.request(other, other_reader, other_writer, target)
+        await self.request(other, other_reader, other_writer, b"/p?run=token")
+        await self.request(other, other_reader, other_writer, b"/done?run=token")
+        self.assertIsNone(owner.run.completion)
+        await self.request(
+            other, other_reader, other_writer, b"/p?run=token", body=b"x" * 100
+        )
         for target in (
             b"/done",
             b"/done?run=wrong",
@@ -508,15 +533,11 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
             b"/done?run=token&run=",
             b"/done?run=token#",
         ):
-            await self.request(connection, reader, writer, target)
+            await self.request(other, other_reader, other_writer, target)
             self.assertIsNone(owner.run.completion)
             self.assertFalse(owner.run.done.is_set())
-        other_reader, other_writer = await self.peer(owner)
-        other = H2Connection(H2Configuration(client_side=True))
-        other.initiate_connection()
+        other.ping(b"probe!!!")
         await self.request(other, other_reader, other_writer, b"/done?run=token")
-        self.assertIsNone(owner.run.completion)
-        await self.request(connection, reader, writer, b"/done?run=token")
         self.assertIsNotNone(owner.run.completion)
         await asyncio.wait_for(owner.run.done.wait(), 2)
         self.assertIsNone(owner.run.failure)
@@ -525,6 +546,36 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
         await self.eof(reader)
         await self.eof(other_reader)
         self.retired(owner, protocols)
+
+        rendered = preface.fixture(
+            argparse.Namespace(
+                client=None, client_version="0", operating_system="test"
+            ),
+            preface.LaunchPlan(
+                browser="chrome", executable=Path("unused"), headless=True
+            ),
+            "recorded arguments",
+            owner.run,
+            1.0,
+        )
+        values = dict(line.split("=", 1) for line in rendered.splitlines())
+        self.assertEqual(values["format"], "phantom-http2-preface-ping-v2")
+        self.assertEqual(values["h2_connection_count"], "2")
+        self.assertEqual(values["page_connection"], "0")
+        self.assertEqual(values["completion_connection"], "1")
+        for index, path in ((0, "/start"), (1, "/done")):
+            frames = [
+                value
+                for key, value in values.items()
+                if key.startswith(f"connection_{index}_frame_")
+                and key != f"connection_{index}_frame_count"
+            ]
+            self.assertEqual(
+                len(frames), int(values[f"connection_{index}_frame_count"])
+            )
+            self.assertTrue(any(f"path:{path}" in frame for frame in frames))
+        self.assertIn("payload:70726f6265212121", rendered)
+        self.assertNotIn("run=token", rendered)
 
     async def test_aggregate_byte_limit_reaches_actual_tls_capture(self):
         owner, protocols = self.owner()

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Breaking: preface-PING captures retain frames across connection changes.
+  Migrate: read v2's `connection_<i>_frame_<n>` records instead of `frame_<n>`.
+
 - Report partial HTTP/2 frame metadata when a preface-PING capture fails.
 
 - Include socket operations and addresses in alternative-host capture errors.

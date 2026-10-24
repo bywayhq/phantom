@@ -1,4 +1,4 @@
-"""Record the client frames of one HTTP/2 connection reused after idle periods.
+"""Record HTTP/2 client frames across requests separated by idle periods.
 
 The browser opens `/start` over TLS (ALPN `h2`) on a loopback listener. The
 page fetches `/a`, waits `--idle` seconds, fetches `/b`, waits `--short`
@@ -7,10 +7,9 @@ with a 100-byte body before `/done`. A Chromium browser sends a preface PING
 after a request frame on a connection that has read nothing for 10 seconds,
 so the default waits straddle that threshold.
 
-The fixture keeps, for the connection that carried `/start`, every client
-frame after the connection preface: its time, type, flags, stream, length,
-the request path of a HEADERS frame, and the payload of a PING. No frame
-payload other than a PING's is written.
+The fixture keeps each connection's client frames after the connection
+preface: time, type, flags, stream, length, the request path of a HEADERS
+frame, and the payload of a PING. No other frame payload is written.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ from .http2_session import (
     server_context,
 )
 
-FORMAT = "phantom-http2-preface-ping-v1"
+FORMAT = "phantom-http2-preface-ping-v2"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0"}
 FRAME_TYPES = {
     0x0: "DATA",
@@ -65,6 +64,14 @@ MAX_CAPTURE_BYTES = 64 * 1024 * 1024
 CLEANUP_SECONDS = 5.0
 MAX_TIMER_MILLISECONDS = 2**31 - 1
 PEER_DISCONNECT = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+REQUEST_SEQUENCE = (
+    ("/start", b"GET"),
+    ("/a", b"GET"),
+    ("/b", b"GET"),
+    ("/c", b"GET"),
+    ("/p", b"POST"),
+    ("/done", b"GET"),
+)
 
 
 def page(token: str, idle: float, short: float) -> bytes:
@@ -174,6 +181,8 @@ class Run:
     started: float = field(default_factory=time.perf_counter)
     connections: list[FrameLog] = field(default_factory=list)
     page_connection: FrameLog | None = None
+    completion_connection: FrameLog | None = None
+    request_index: int = 0
     done: asyncio.Event = field(default_factory=asyncio.Event)
     failure: BaseException | None = field(default=None, repr=False)
     retained: int = 0
@@ -227,7 +236,8 @@ async def serve(run: Run, context, reader, writer) -> None:
         for event in connection.receive_data(data):
             if not isinstance(event, h2.events.RequestReceived):
                 continue
-            target = dict(event.headers).get(b":path", b"")
+            headers = dict(event.headers)
+            target = headers.get(b":path", b"")
             path = request_path(target)
             parts = urlsplit(target.decode("ascii"))
             query = parse_qs(parts.query, keep_blank_values=True, max_num_fields=16)
@@ -245,6 +255,14 @@ async def serve(run: Run, context, reader, writer) -> None:
             else:
                 body = b"ok"
                 content_type = b"text/plain"
+            if (
+                belongs
+                and run.page_connection is not None
+                and run.request_index < len(REQUEST_SEQUENCE)
+                and (path, headers.get(b":method"))
+                == REQUEST_SEQUENCE[run.request_index]
+            ):
+                run.request_index += 1
             connection.send_headers(
                 event.stream_id,
                 [
@@ -255,12 +273,8 @@ async def serve(run: Run, context, reader, writer) -> None:
                 ],
             )
             connection.send_data(event.stream_id, body, end_stream=True)
-            if (
-                path == "/done"
-                and belongs
-                and run.page_connection is log
-                and run.completion is None
-            ):
+            if run.request_index == len(REQUEST_SEQUENCE) and run.completion is None:
+                run.completion_connection = log
                 run.completion = asyncio.get_running_loop().call_later(
                     0.5, run.complete
                 )
@@ -582,6 +596,8 @@ def fixture(
     log = run.page_connection
     if log is None:
         raise ValueError("no HTTP/2 connection carried the page")
+    if run.completion_connection is None:
+        raise ValueError("no HTTP/2 connection completed the request sequence")
     client = args.client or plan.client_name
     for name, value in (
         ("client", client),
@@ -607,11 +623,16 @@ def fixture(
         f"post_body_bytes={POST_BODY_BYTES}",
         f"h2_connection_count={len(run.connections)}",
         f"wall_clock_ms={wall * 1000:.0f}",
-        f"frame_count={len(log.frames)}",
+        f"page_connection={run.connections.index(log)}",
+        f"completion_connection={run.connections.index(run.completion_connection)}",
     ]
-    lines.extend(
-        f"frame_{index}={frame.line()}" for index, frame in enumerate(log.frames)
-    )
+    for index, connection in enumerate(run.connections):
+        prefix = f"connection_{index}"
+        lines.append(f"{prefix}_frame_count={len(connection.frames)}")
+        lines.extend(
+            f"{prefix}_frame_{number}={frame.line()}"
+            for number, frame in enumerate(connection.frames)
+        )
     return "\n".join(lines) + "\n"
 
 

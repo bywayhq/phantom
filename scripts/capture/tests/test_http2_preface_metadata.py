@@ -52,6 +52,8 @@ class MetadataTests(unittest.TestCase):
     def test_rendered_metadata_cannot_replace_a_valid_fixture(self):
         run = preface.Run("token", 11.5, 9.0)
         run.page_connection = preface.FrameLog()
+        run.connections.append(run.page_connection)
+        run.completion_connection = run.page_connection
         for name in (
             "client",
             "client_version",
@@ -96,6 +98,8 @@ class MetadataTests(unittest.TestCase):
         args.operating_system = "Windows 11 !~"
         run = preface.Run("token", 11.5, 9.0)
         run.page_connection = preface.FrameLog()
+        run.connections.append(run.page_connection)
+        run.completion_connection = run.page_connection
         plan = LaunchPlan(
             browser="chrome", executable=Path("chrome.exe"), headless=True
         )

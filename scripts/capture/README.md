@@ -1003,8 +1003,8 @@ Protocol setup failures retain and retire the accepted socket.
 
 ## HTTP/2 preface PING
 
-`http2_preface_ping.py` records the client frames of one HTTP/2 connection
-that a Chromium browser reuses after idle periods. The page fetches `/a`,
+`http2_preface_ping.py` records HTTP/2 client frames as a Chromium browser
+makes requests after idle periods. The page fetches `/a`,
 waits `--idle` seconds (11.5 by default), fetches `/b`, waits `--short`
 seconds (9), fetches `/c`, waits `--idle` seconds again, and sends a 100-byte
 `POST /p` before `/done`. A run takes about 35 seconds.
@@ -1023,15 +1023,18 @@ uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   --output-dir fixtures/http2/chrome/154.0.8037.58/windows-11-26200
 ```
 
-It writes one `format=phantom-http2-preface-ping-v1` fixture,
-`preface-ping.txt`. Each `frame_<n>` line is one client frame of the
-connection that carried the page, after the connection preface: its time
-since the listener started, type, flags, stream, and length, the request path
+It writes one `format=phantom-http2-preface-ping-v2` fixture,
+`preface-ping.txt`. Each `connection_<i>_frame_<n>` line is one client frame
+after that connection's preface: time since the listener started, type,
+flags, stream, and length, the request path
 of a HEADERS frame without its query, and the payload of a PING. No other
-payload is written.
+payload is written. `page_connection` identifies the connection that served
+`/start`; `completion_connection` identifies the one that carried `/done`.
+Later requests may use another connection. Older v1 fixtures keep only the
+page connection's frames.
 
-Only `/done` with the run's exact token on the page's connection completes
-the capture. Before writing, the tool collects registered connections and
+Only `/done` with the run's exact token after the ordered request sequence
+completes the capture. Before writing, the tool collects connections and
 their callback outcomes within a five-second cooperative cleanup deadline.
 A callback error or incomplete cleanup prevents fixture publication.
 If the browser run fails, stderr includes partial frame metadata without
