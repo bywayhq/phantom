@@ -283,7 +283,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_split_retains_final_fields_after_interim_responses() {
+    fn every_split_retains_final_fields_after_interim_responses()
+    -> Result<(), Box<dyn std::error::Error>> {
         let wire = b"HTTP/1.1 103 Early Hints\r\nLink: </one>\r\n\r\n\
             HTTP/1.1 100 Continue\r\n\r\n\
             HTTP/1.1 200 OK\r\nX-One: first\r\nX-Two: \xff\r\nx-one: last\r\n\r\nbody";
@@ -299,7 +300,7 @@ mod tests {
             assert!(!state.armed, "split {split}");
             assert!(state.limit_error.is_none(), "split {split}");
             assert_eq!(state.informational_responses, 2, "split {split}");
-            let headers = state.headers.expect("final response fields");
+            let headers = state.headers.ok_or("missing final response fields")?;
             let fields: Vec<_> = headers
                 .iter()
                 .map(|field| (field.name(), field.value()))
@@ -314,6 +315,7 @@ mod tests {
                 "split {split}"
             );
         }
+        Ok(())
     }
 
     #[test]
