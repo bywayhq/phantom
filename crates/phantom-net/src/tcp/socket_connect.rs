@@ -99,34 +99,37 @@ pub(super) fn prepare(
     Ok(socket)
 }
 
-pub(super) async fn connect(
+#[cfg(windows)]
+// End the Send proof here without adding a wrapper future to proxy setup.
+pub(super) fn connect<'a>(
     socket: Socket,
     address: SocketAddr,
     settings: Option<TcpSettings>,
-    source: Option<&SourceBinding>,
+    source: Option<&'a SourceBinding>,
+) -> impl std::future::Future<Output = Result<TcpStream, Failure>> + Send + 'a {
+    connect_with(
+        socket,
+        address,
+        settings,
+        source,
+        |socket, address| socket.connect(&address.into()),
+        complete,
+    )
+}
+
+#[cfg(not(windows))]
+pub(super) async fn connect(
+    socket: Socket,
+    address: SocketAddr,
+    _settings: Option<TcpSettings>,
+    _source: Option<&SourceBinding>,
 ) -> Result<TcpStream, Failure> {
-    #[cfg(windows)]
+    if let Err(error) = socket.connect(&address.into())
+        && !in_progress(&error)
     {
-        connect_with(
-            socket,
-            address,
-            settings,
-            source,
-            |socket, address| socket.connect(&address.into()),
-            complete,
-        )
-        .await
+        return Err(Failure::Initial(error));
     }
-    #[cfg(not(windows))]
-    {
-        let _ = (settings, source); // Only Windows replaces an unallocated socket.
-        if let Err(error) = socket.connect(&address.into())
-            && !in_progress(&error)
-        {
-            return Err(Failure::Initial(error));
-        }
-        complete(socket).await
-    }
+    complete(socket).await
 }
 
 #[cfg(windows)]
