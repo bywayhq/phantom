@@ -66,7 +66,7 @@ def require_hosted() -> None:
         or os.environ.get("GITHUB_ACTIONS") != "true"
         or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
         or os.environ.get("RUNNER_OS") != "Windows"
-        or os.environ.get("IMAGEOS") != "win25"
+        or os.environ.get("IMAGEOS") not in ("win25", "win25-vs2026")
     ):
         raise RuntimeError("native DNS capture requires hosted windows-2025")
 

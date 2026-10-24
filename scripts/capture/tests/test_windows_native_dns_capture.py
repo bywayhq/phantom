@@ -53,7 +53,7 @@ class AcceptanceTests(unittest.TestCase):
         ):
             capture.require_hosted()
 
-    def test_only_pinned_hosted_platform_is_accepted(self) -> None:
+    def test_only_known_hosted_platforms_are_accepted(self) -> None:
         values = {
             "GITHUB_ACTIONS": "true",
             "RUNNER_ENVIRONMENT": "github-hosted",
@@ -64,14 +64,31 @@ class AcceptanceTests(unittest.TestCase):
             patch.dict(os.environ, values, clear=True),
             patch.object(capture.sys, "platform", "win32"),
         ):
-            capture.require_hosted()
-            for name in values:
+            for image in ("win25", "win25-vs2026"):
                 with (
-                    self.subTest(name=name),
-                    patch.dict(os.environ, {name: "other"}),
+                    self.subTest(image=image),
+                    patch.dict(os.environ, {"IMAGEOS": image}),
+                ):
+                    capture.require_hosted()
+                    for name in values:
+                        with (
+                            self.subTest(name=name),
+                            patch.dict(os.environ, {name: "other"}),
+                            self.assertRaises(RuntimeError),
+                        ):
+                            capture.require_hosted()
+            for image in ("", "win22", "win25-vs2026-extra", "Win25"):
+                with (
+                    self.subTest(image=image),
+                    patch.dict(os.environ, {"IMAGEOS": image}),
                     self.assertRaises(RuntimeError),
                 ):
                     capture.require_hosted()
+            with (
+                patch.object(capture.sys, "platform", "linux"),
+                self.assertRaises(RuntimeError),
+            ):
+                capture.require_hosted()
 
     def test_post_attach_sent_a_and_body_completion_are_required(self) -> None:
         self.assertEqual(
@@ -302,6 +319,59 @@ class GuardTests(unittest.TestCase):
                     "guard PowerShell timed out; "
                     f"stdout={error.stdout!r}; stderr={error.stderr!r}"
                 ) from error
+
+    def test_hosted_guard_accepts_only_known_images_and_keeps_runner_checks(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "$hosted=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] "
+            "-and $n.Name -eq 'Assert-Hosted'},$false)\n"
+            "$check=$hosted.Body.EndBlock.Statements[0].Extent.Text\n"
+            "$env:GITHUB_ACTIONS='true'; $env:RUNNER_ENVIRONMENT='github-hosted'; $env:RUNNER_OS='Windows'\n"
+            "$accepted=@(); $refused=@()\n"
+            "foreach ($image in @('win25','win25-vs2026','','win22','win25-vs2026-extra','Win25')) {\n"
+            "$env:ImageOS=$image\n"
+            "try { Invoke-Expression $check; $accepted+=,$image } "
+            "catch { if ($_ -notmatch 'hosted windows-2025') { throw }; $refused+=,$image }\n"
+            "}\n"
+            "$env:ImageOS='win25-vs2026'\n"
+            "foreach ($name in @('GITHUB_ACTIONS','RUNNER_ENVIRONMENT','RUNNER_OS')) {\n"
+            "$original=[Environment]::GetEnvironmentVariable($name)\n"
+            "[Environment]::SetEnvironmentVariable($name,'other')\n"
+            "try { Invoke-Expression $check; throw 'unexpected host acceptance' } "
+            "catch { if ($_ -notmatch 'hosted windows-2025') { throw } }\n"
+            "[Environment]::SetEnvironmentVariable($name,$original)\n"
+            "}\n"
+            "@{accepted=$accepted;refused=$refused} | ConvertTo-Json -Compress\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(
+            json.loads(outcome.stdout),
+            {
+                "accepted": ["win25", "win25-vs2026"],
+                "refused": ["", "win22", "win25-vs2026-extra", "Win25"],
+            },
+        )
+
+    def test_host_provenance_retains_actual_runner_image(self) -> None:
+        outcome = self.invoke_functions(
+            "$hosted=$ast.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] "
+            "-and $n.Name -eq 'Assert-Hosted'},$false)\n"
+            "$system=[pscustomobject]@{Caption='Windows Server 2025';BuildNumber='26100';ProductType=3}\n"
+            "$env:ImageOS='win25-vs2026'; $env:ImageVersion='20261021.278.1'\n"
+            "& { Invoke-Expression $hosted.Body.EndBlock.Statements[-1].Extent.Text } | ConvertTo-Json -Compress\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(
+            json.loads(outcome.stdout),
+            {
+                "caption": "Windows Server 2025",
+                "build": "26100",
+                "product_type": 3,
+                "image_os": "win25-vs2026",
+                "image_version": "20261021.278.1",
+            },
+        )
 
     def test_timeout_keeps_phase_and_raw_output(self) -> None:
         timeout = subprocess.TimeoutExpired(

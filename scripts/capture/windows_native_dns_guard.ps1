@@ -11,7 +11,7 @@ $DnsAddress = '127.0.0.53'
 
 function Assert-Hosted {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or
-        $env:RUNNER_OS -ne 'Windows' -or $env:ImageOS -ne 'win25') {
+        $env:RUNNER_OS -ne 'Windows' -or $env:ImageOS -cnotin @('win25','win25-vs2026')) {
         throw 'native DNS guard requires hosted windows-2025'
     }
     $system = Get-CimInstance Win32_OperatingSystem
@@ -22,7 +22,8 @@ function Assert-Hosted {
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         throw 'native DNS guard requires an administrator'
     }
-    return @{ caption = $system.Caption; build = $system.BuildNumber; product_type = $system.ProductType }
+    return @{ caption = $system.Caption; build = $system.BuildNumber; product_type = $system.ProductType;
+        image_os = $env:ImageOS; image_version = $env:ImageVersion }
 }
 
 function Save-State($State) {
