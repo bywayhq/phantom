@@ -809,6 +809,10 @@ impl RequestHeader {
     pub fn is_sensitive(&self) -> bool {
         self.sensitive
     }
+
+    pub(crate) fn into_name_bytes(self) -> Box<[u8]> {
+        self.name.into()
+    }
 }
 
 impl fmt::Debug for RequestHeader {

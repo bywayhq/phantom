@@ -598,7 +598,7 @@ impl ValidatedHeaders {
                 return Err(Http1Error::ConnectionNominatesCriticalField { index });
             }
 
-            ordered.push((header.name().as_bytes().into(), value.clone()));
+            ordered.push((header.into_name_bytes(), value.clone()));
             semantic.push((name, value));
         }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reuse owned HTTP/1 request header names during preparation.
+
 - Add `ClientBuilder::http1_write_strategy` with opt-in queued request writes.
   Automatic buffering remains the default. Queued writes may change TLS
   record grouping; measure latency and memory with your workload.
