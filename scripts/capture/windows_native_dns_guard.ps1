@@ -62,7 +62,8 @@ function Restore-Owned {
         $state.nonce -notmatch '^phantom-native-dns-[0-9a-f-]{36}$') {
         throw 'NRPT restoration intent is outside the owned capture scope'
     }
-    foreach ($rule in @(Owned-Rules $state)) {
+    $owned = @(Owned-Rules $state)
+    foreach ($rule in $owned) {
         if (@($state.baseline | Where-Object { $_.Name -eq $rule.Name }).Count -ne 0) {
             throw 'refusing to remove a baseline NRPT rule'
         }
@@ -72,7 +73,19 @@ function Restore-Owned {
         Remove-DnsClientNrptRule -Name $rule.Name -Force
     }
     $current = @(Rules)
-    if ((Canonical $current) -ne (Canonical $state.baseline)) {
+    $before = Canonical $state.baseline
+    $after = Canonical $current
+    if ($after -ne $before) {
+        [Console]::Error.WriteLine((@{
+            kind = 'nrpt-baseline-mismatch'; nonce = $state.nonce;
+            rule_name = ([string]$state.rule_name).Substring(0, [Math]::Min(256, ([string]$state.rule_name).Length));
+            owned_rule_count = $owned.Count;
+            owned_rule_names = @($owned | Select-Object -First 16 | ForEach-Object {
+                ([string]$_.Name).Substring(0, [Math]::Min(256, ([string]$_.Name).Length))
+            });
+            baseline = $before.Substring(0, [Math]::Min(2048, $before.Length)); baseline_length = $before.Length;
+            current = $after.Substring(0, [Math]::Min(2048, $after.Length)); current_length = $after.Length
+        } | ConvertTo-Json -Depth 4 -Compress))
         throw 'NRPT baseline differs after owned-rule removal'
     }
     $state.restored = $true

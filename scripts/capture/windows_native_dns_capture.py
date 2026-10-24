@@ -302,6 +302,33 @@ async def capture(executable: Path, record: dict) -> None:
     raise_browser_failures(primary, tuple(cleanup))
 
 
+def report_guard_failure(record: dict) -> None:
+    commands = []
+    for entry in record.get("commands", []):
+        argv = entry["argv"]
+        if str(GUARD) not in argv or entry["exit"] == 0:
+            continue
+        command = {"action": argv[argv.index("-Action") + 1], "exit": entry["exit"]}
+        for stream in ("stdout", "stderr"):
+            text = entry.get(stream, "")
+            command[stream] = text[:8192]
+            command[f"{stream}_truncated"] = len(text) > 8192
+        commands.append(command)
+        if len(commands) == 4:
+            break
+    diagnostic = {"kind": "windows-native-dns-guard-failure", "commands": commands}
+    try:
+        with (OUTPUT / "nrpt-state.json.watch.stderr").open("rb") as watchdog:
+            text = watchdog.read(8193)
+        diagnostic["watchdog_stderr"] = text[:8192].decode("utf-8", "replace")
+        diagnostic["watchdog_stderr_truncated"] = len(text) > 8192
+    except FileNotFoundError:
+        pass  # The watchdog may not have started before the failure.
+    except OSError as error:
+        diagnostic["watchdog_stderr_error"] = f"{type(error).__name__}: {error}"
+    print(json.dumps(diagnostic), file=sys.stderr)
+
+
 def main() -> None:
     require_hosted()
     OUTPUT.mkdir(parents=True, exist_ok=False)
@@ -339,6 +366,7 @@ def main() -> None:
     except BaseException as error:
         record["status"] = "failed"
         record["error"] = f"{type(error).__name__}: {error}"
+        report_guard_failure(record)
         raise
     finally:
         if executable is not None and "browser_after" not in record:

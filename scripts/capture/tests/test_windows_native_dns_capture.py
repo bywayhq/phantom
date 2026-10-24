@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import os
 import shutil
@@ -256,6 +257,57 @@ class AcceptanceTests(unittest.TestCase):
                         timeout=8,
                     )
                     self.assertEqual(collected.returncode, 0, collected.stderr)
+
+    def test_failed_main_reports_guard_output_and_watchdog_without_hiding_error(
+        self,
+    ) -> None:
+        failure = RuntimeError("install failed")
+
+        def stage(record: dict) -> Path:
+            record["commands"] = [
+                {"argv": ["other-tool"], "exit": 1, "stderr": "not guard output"},
+                {
+                    "argv": ["pwsh", str(capture.GUARD), "-Action", "Preflight"],
+                    "exit": 0,
+                },
+                {
+                    "argv": ["pwsh", str(capture.GUARD), "-Action", "Install"],
+                    "exit": 1,
+                    "stdout": "install output",
+                    "stderr": "x" * 20000,
+                },
+            ]
+            (capture.OUTPUT / "nrpt-state.json.watch.stderr").write_text(
+                "watch failure" + "y" * 20000, encoding="utf-8"
+            )
+            raise failure
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary) / "capture"),
+            patch.object(capture, "require_hosted"),
+            patch.object(capture, "guard", return_value={}),
+            patch.object(capture, "stage_browser", side_effect=stage),
+            patch.object(capture.sys, "stderr", new_callable=io.StringIO) as stderr,
+            self.assertRaises(RuntimeError) as raised,
+        ):
+            capture.main()
+        self.assertIs(raised.exception, failure)
+        diagnostic = json.loads(stderr.getvalue())
+        self.assertEqual(diagnostic["kind"], "windows-native-dns-guard-failure")
+        self.assertEqual(len(diagnostic["commands"]), 1)
+        command = diagnostic["commands"][0]
+        self.assertEqual(command["action"], "Install")
+        self.assertEqual(command["exit"], 1)
+        self.assertEqual(command["stdout"], "install output")
+        self.assertEqual(command["stderr"], "x" * 8192)
+        self.assertTrue(command["stderr_truncated"])
+        self.assertFalse(command["stdout_truncated"])
+        self.assertEqual(
+            diagnostic["watchdog_stderr"], ("watch failure" + "y" * 20000)[:8192]
+        )
+        self.assertTrue(diagnostic["watchdog_stderr_truncated"])
+        self.assertLess(len(stderr.getvalue()), 20000)
 
     def test_unverified_installer_never_extracts_or_changes_dns(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -579,6 +631,37 @@ class GuardTests(unittest.TestCase):
         )
         self.assertEqual(outcome.returncode, 0, outcome.stderr)
         self.assertEqual(outcome.stdout.strip(), "refused")
+
+    def test_restore_mismatch_reports_bounded_comparison_and_still_refuses(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=$DnsAddress;nonce=$nonce;"
+            "baseline=@();rule_name='owned';restored=$false;restored_at=$null;watchdog_pid=$null}\n"
+            "Save-State $state\n"
+            "$script:rules=@([pscustomobject]@{Name='unowned';Namespace=@('other.test');"
+            "NameServers=@('192.0.2.1');Comment=('x'*10000)},"
+            "[pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers=@($DnsAddress);DisplayName=$nonce;Comment=$nonce})\n"
+            "try { Restore-Owned; throw 'unexpected success' } catch {"
+            "if ($_ -notmatch 'baseline differs') { throw }; "
+            "if ((Read-State).restored -or ($script:removed -join ',') -ne 'owned') { throw 'ownership or failure changed' }; 'refused' }\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(outcome.stdout.strip(), "refused")
+        diagnostic = json.loads(
+            next(line for line in outcome.stderr.splitlines() if line.startswith("{"))
+        )
+        self.assertEqual(diagnostic["kind"], "nrpt-baseline-mismatch")
+        self.assertEqual(diagnostic["baseline"], "[]")
+        self.assertEqual(diagnostic["baseline_length"], 2)
+        self.assertEqual(diagnostic["rule_name"], "owned")
+        self.assertEqual(diagnostic["owned_rule_names"], ["owned"])
+        self.assertEqual(diagnostic["owned_rule_count"], 1)
+        self.assertIn('"Name":"unowned"', diagnostic["current"])
+        self.assertEqual(len(diagnostic["current"]), 2048)
+        self.assertGreater(diagnostic["current_length"], 10000)
+        self.assertLess(len(outcome.stderr), 5000)
 
     def test_install_arms_watchdog_before_add_and_records_guid(self) -> None:
         outcome = self.invoke_functions(
