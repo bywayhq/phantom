@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve nested OS error codes in Node connection errors.
+
 - Reuse owned request header values during HTTP/1, HTTP/2 and HTTP/3 preparation.
 
 - Reuse owned HTTP/1 request header names during preparation.
