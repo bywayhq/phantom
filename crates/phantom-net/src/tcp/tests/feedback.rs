@@ -84,6 +84,40 @@ async fn actual_refused_connect_is_shared_but_successful_eof_is_not_an_ip_failur
     both(client, peer)
 }
 
+#[cfg(windows)]
+#[tokio::test]
+async fn local_socket_errors_do_not_mark_dns_addresses_failed() -> TestResult {
+    use super::super::socket_connect::Failure;
+
+    for failure in [
+        Failure::Local(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "replacement socket option rejected",
+        )),
+        Failure::Local(io::Error::other("socket registration failed")),
+        Failure::Initial(io::Error::from(io::ErrorKind::ConnectionRefused)),
+        Failure::Continuation(io::Error::from(io::ErrorKind::TimedOut)),
+    ] {
+        let local = matches!(failure, Failure::Local(_));
+        let resolver = resolver(Arc::default());
+        let candidate = crate::host_resolver::resolve_tcp(Some(&resolver), "proxy.test", 443)
+            .await?
+            .cursor()
+            .next()
+            .ok_or("no candidate")?;
+        assert_eq!(candidate.address().ip(), REFUSED);
+
+        let error = super::super::candidate_connect_failure(candidate, failure);
+
+        assert!(!super::super::is_feedback_resource_error(&error));
+        assert_eq!(
+            next(&resolver, "proxy.test", 443).await?.ip(),
+            if local { REFUSED } else { REACHED }
+        );
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn local_socks_rejection_does_not_poison_target_or_successful_proxy_ip() -> TestResult {
     socks_rejection(false, false).await

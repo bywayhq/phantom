@@ -18,6 +18,7 @@ pub(super) enum Failure {
 
 #[cfg(windows)]
 impl Failure {
+    #[cfg(test)]
     pub(super) fn into_error(self) -> io::Error {
         match self {
             Self::Initial(error) | Self::Continuation(error) | Self::Local(error) => error,

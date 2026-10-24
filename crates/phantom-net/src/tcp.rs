@@ -668,28 +668,49 @@ async fn connect_candidate_within(
     #[cfg(not(windows))]
     let connect = socket.connect(address);
     #[cfg(windows)]
-    let connect = async {
-        socket_connect::connect(socket, address, settings, source)
-            .await
-            .map_err(socket_connect::Failure::into_error)
-    };
+    let connect = socket_connect::connect(socket, address, settings, source);
     let result = match expired {
         None => connect.await,
         Some(expired) => {
             tokio::select! {
                 biased;
                 result = connect => result,
-                () = expired => Err(io::Error::new(io::ErrorKind::TimedOut, "the backup connect timed out")),
+                () = expired => {
+                    let error = io::Error::new(io::ErrorKind::TimedOut, "the backup connect timed out");
+                    #[cfg(windows)]
+                    let error = socket_connect::Failure::Continuation(error);
+                    Err(error)
+                },
             }
         }
     };
     diagnostic.result(&result);
     match result {
         Ok(stream) => Ok(stream),
+        #[cfg(windows)]
+        Err(failure) => Err(candidate_connect_failure(candidate, failure)),
+        #[cfg(not(windows))]
         Err(connect) => match candidate.failed_connect() {
             Ok(()) => Err(connect),
             Err(feedback) => Err(io::Error::other(ConnectFeedbackError { connect, feedback })),
         },
+    }
+}
+
+#[cfg(windows)]
+fn candidate_connect_failure(
+    candidate: TcpCandidate,
+    failure: socket_connect::Failure,
+) -> io::Error {
+    let connect = match failure {
+        socket_connect::Failure::Local(error) => return error,
+        socket_connect::Failure::Initial(error) | socket_connect::Failure::Continuation(error) => {
+            error
+        }
+    };
+    match candidate.failed_connect() {
+        Ok(()) => connect,
+        Err(feedback) => io::Error::other(ConnectFeedbackError { connect, feedback }),
     }
 }
 
