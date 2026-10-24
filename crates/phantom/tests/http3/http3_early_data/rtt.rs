@@ -172,14 +172,13 @@ async fn early_publication(clear_while_pending: bool) -> TestResult<()> {
         let (closed_tx, mut closed) = mpsc::unbounded_channel();
         let server_gate = gate.subscribe();
         server_peer = Some(ConnectionPeer::spawn(async move {
-            let mut identities = Vec::new();
+            let mut connections = Vec::new();
             for expected in ["/ticket", "/early"] {
                 let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
                 connecting.handshake_data().await?;
                 let (quic, completed) = connecting
                     .into_0rtt()
                     .map_err(|_| "server could not serve before Finished")?;
-                identities.push(quic.stable_id());
                 let mut connection = h3::server::Connection::<_, Bytes>::new(
                     h3_quinn::Connection::new(quic.clone()),
                 )
@@ -214,9 +213,15 @@ async fn early_publication(clear_while_pending: bool) -> TestResult<()> {
                 quic.close(0u32.into(), b"served");
                 drop(connection);
                 endpoint.wait_idle().await;
+                // Address-based IDs remain distinct while both handles are alive.
+                connections.push(quic);
                 closed_tx.send(())?;
             }
-            assert_ne!(identities[0], identities[1], "pool reuse hid resumption");
+            assert_ne!(
+                connections[0].stable_id(),
+                connections[1].stable_id(),
+                "pool reuse hid resumption"
+            );
             expect_no_connection(&endpoint).await
         }));
         let client = Client::builder(chrome_profile().with_http2(chrome::v154_http2()))
