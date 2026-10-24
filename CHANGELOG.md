@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a Firefox capture scene for WebSocket-first connections through an
+  HTTPS HTTP/2 proxy.
+
 - Preserve typed causes of TCP socket-option failures in request error chains.
 
 - Add a scoped macOS native-DNS capture tool with a temporary resolver

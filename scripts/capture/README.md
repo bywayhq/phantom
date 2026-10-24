@@ -2289,6 +2289,7 @@ cleanup failures prevent fixture publication.
 | `websocket` | `ws://`; the origin sends a frame every 5 s; the page closes after 20 s | Keepalive after the 101 response |
 | `websocket-backup` | Two `ws://` upgrades, then two HTTP requests | Address selection while a WebSocket remains active and after both close |
 | `wss-backup` | Two `wss://` upgrades over HTTP/1.1, then two HTTPS requests | TLS completion and closure of an unused backup connection |
+| `wss-https-h2-proxy-backup` | Two WSS upgrades through an HTTPS/H2 proxy, then two HTTPS requests; inner HTTP/1.1 | Proxy address attempts when WebSocket connects first |
 | `https-connect-backup` | Outer TLS/H1 CONNECT and inner H1 TLS; five requests and origin close | Physical HTTPS proxy address attempts and TLS ALPN |
 | `https-h2-connect-backup` | Outer TLS/H2 CONNECT streams and inner H1 TLS; five requests and origin close | Proxy address attempts, connection reuse and tunnel streams |
 | `socks5-backup` | H1 TLS through a named SOCKS5 proxy; concurrent requests, origin close and another request | Physical proxy address attempts and remote-name SOCKS5 openings |

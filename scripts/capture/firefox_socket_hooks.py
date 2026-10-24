@@ -137,6 +137,7 @@ class Scenario:
             "https-connect": "https",
             "https-proxy-connect": "https",
             "https-h2-proxy-connect": "https",
+            "wss-https-h2-proxy": "wss",
             "https-socks5": "https",
         }[self.target]
 
@@ -146,12 +147,17 @@ class Scenario:
             "https-connect": "http",
             "https-proxy-connect": "https",
             "https-h2-proxy-connect": "https",
+            "wss-https-h2-proxy": "https",
             "https-socks5": "socks5",
         }.get(self.target)
 
     @property
     def proxy_alpn(self) -> str:
-        return "h2" if self.target == "https-h2-proxy-connect" else "h1"
+        return (
+            "h2"
+            if self.target in ("https-h2-proxy-connect", "wss-https-h2-proxy")
+            else "h1"
+        )
 
     @property
     def hostname(self) -> str:
@@ -290,6 +296,16 @@ SCENARIOS = {
             "after both WebSockets close; HTTP/1.1 only",
             40,
             "wss",
+            _websocket_backup_script("wss"),
+            rewrite_lookup=True,
+        ),
+        Scenario(
+            "wss-https-h2-proxy-backup",
+            "Fresh WSS through an HTTPS/H2 proxy with [::1] then 127.0.0.1; "
+            "a second upgrade while the first is active, clean closes and "
+            "subsequent HTTPS reuse; inner HTTP/1.1 only",
+            40,
+            "wss-https-h2-proxy",
             _websocket_backup_script("wss"),
             rewrite_lookup=True,
         ),
@@ -757,6 +773,12 @@ def parent_moz_log(directory: Path) -> str:
 
 
 @dataclass
+class WebSocketResult:
+    ticks_sent: int = 0
+    close_code: int | None = None
+
+
+@dataclass
 class ServerConnection:
     peer: str
     accepted_ms: int
@@ -767,6 +789,7 @@ class ServerConnection:
     # arrived as a reset, "server" when the origin closed first.
     close_kind: str = "-"
     alpn: str | None = None
+    websocket: WebSocketResult | None = None
 
 
 @dataclass
@@ -796,6 +819,7 @@ class Origins:
     accepted: int = 0
     request_count: int = 0
     proxy: Any = None
+    request_order: list[str] = field(default_factory=list)
 
     def remember_failure(self, error: BaseException) -> None:
         if all(error is not previous for previous in self.failures):
@@ -1067,8 +1091,21 @@ class Origins:
             self.record_request()
             connection.requests.append((now_ms(), target))
             path = urlsplit(target).path
+            if self.scenario.target == "wss-https-h2-proxy":
+                self.request_order.append(target)
+                if path == "/fast":
+                    websockets = proxy_websocket_connections(self)
+                    if len(websockets) != 2 or any(
+                        item.websocket is None or item.websocket.close_code != 1000
+                        for item in websockets
+                    ):
+                        raise ValueError(
+                            "Firefox proxy WSS sent HTTPS before its WebSockets closed"
+                        )
             if path == "/ws":
-                await serve_websocket(reader, writer, head)
+                if self.scenario.target == "wss-https-h2-proxy":
+                    connection.websocket = WebSocketResult()
+                await serve_websocket(reader, writer, head, connection.websocket)
                 connection.last_response_ms = now_ms()
                 connection.close_kind = "websocket"
                 return
@@ -1216,8 +1253,11 @@ def websocket_accept(key: bytes) -> str:
 
 
 async def serve_websocket(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, head: bytes
-) -> None:
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    head: bytes,
+    result: WebSocketResult | None = None,
+) -> WebSocketResult:
     """Accept the upgrade, send a text frame every five seconds, echo a close."""
     accept = websocket_accept(header_value(head, b"sec-websocket-key"))
     writer.write(
@@ -1228,11 +1268,15 @@ async def serve_websocket(
     )
     await writer.drain()
 
+    if result is None:
+        result = WebSocketResult()
+
     async def tick() -> None:
         while True:
             await asyncio.sleep(5)
             writer.write(b"\x81\x04tick")
             await writer.drain()
+            result.ticks_sent += 1
 
     ticker = asyncio.create_task(tick())
     primary = None
@@ -1258,6 +1302,8 @@ async def serve_websocket(
                     payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
                 writer.write(bytes([0x88, len(payload)]) + payload)
                 await writer.drain()
+                if len(payload) >= 2:
+                    result.close_code = int.from_bytes(payload[:2], "big")
                 break
     except asyncio.IncompleteReadError:
         pass
@@ -1283,6 +1329,7 @@ async def serve_websocket(
         except BaseException as error:
             failures.extend((error, _FirefoxTickerPending(ticker)))
         raise_browser_failures(primary, tuple(failures))
+    return result
 
 
 class _FirefoxTickerPending(RuntimeError):
@@ -1854,9 +1901,15 @@ def connect_pac(origins: Origins) -> bytes:
     ]
     route = json.dumps(f"{kind} {TARGET_HOST}:{origins.proxy.address[1]}")
     origin = json.dumps(f"{origins.target_url}/")
+    matching = f"url.indexOf({origin}) === 0"
+    if origins.scenario.target == "wss-https-h2-proxy":
+        https_origin = json.dumps(
+            f"https://{origins.scenario.hostname}:{origins.port}/"
+        )
+        matching = f"({matching} || url.indexOf({https_origin}) === 0)"
     return (
         f"function FindProxyForURL(url, host) {{\n"
-        f"  if (host === {host} && url.indexOf({origin}) === 0) return {route};\n"
+        f"  if (host === {host} && {matching}) return {route};\n"
         '  return "DIRECT";\n'
         "}\n"
     ).encode("ascii")
@@ -2218,6 +2271,9 @@ def validate_connect_run(origins: Origins) -> None:
     ]
     if sorted(linked) != list(range(len(origins.connections))):
         raise ValueError("Firefox origin connection bypassed its CONNECT relay")
+    if origins.scenario.target == "wss-https-h2-proxy":
+        validate_proxy_websockets(origins)
+        return
     requests = sorted(
         path for connection in origins.connections for _, path in connection.requests
     )
@@ -2225,6 +2281,44 @@ def validate_connect_run(origins: Origins) -> None:
         raise ValueError(
             "Firefox CONNECT scenario did not complete its labeled requests"
         )
+
+
+def proxy_websocket_connections(origins: Origins) -> list[ServerConnection]:
+    return sorted(
+        (
+            connection
+            for connection in origins.connections
+            if any(path.startswith("/ws?") for _, path in connection.requests)
+        ),
+        key=lambda connection: connection.requests[0][1],
+    )
+
+
+def validate_proxy_websockets(origins: Origins) -> None:
+    expected = ["/ws?i=0", "/ws?i=1", "/fast?i=2", "/fast?i=3"]
+    paths = [
+        path for connection in origins.connections for _, path in connection.requests
+    ]
+    if origins.request_order != expected or sorted(paths) != sorted(expected):
+        raise ValueError("Firefox proxy WSS did not complete its labeled requests")
+    websockets = proxy_websocket_connections(origins)
+    if len(websockets) != 2 or any(
+        connection.websocket is None
+        or connection.websocket.close_code != 1000
+        or connection.closed_ms is None
+        or any(connection is active for active, _ in origins.open)
+        or any(
+            f"{peer[0]}:{peer[1]}" == connection.peer
+            for writer, _ in origins.peers.values()
+            if (peer := writer.get_extra_info("peername")) is not None
+        )
+        for connection in websockets
+    ):
+        raise ValueError("Firefox proxy WSS did not cleanly close both WebSockets")
+    if websockets[0].websocket.ticks_sent < 1:
+        raise ValueError("Firefox proxy WSS did not send the first WebSocket tick")
+    if not origins.done.is_set():
+        raise ValueError("Firefox proxy WSS page did not complete")
 
 
 def render_run(index: int, result: RunResult) -> list[str]:
@@ -2279,6 +2373,10 @@ def render_run(index: int, result: RunResult) -> list[str]:
             for i, record in enumerate(observations)
         )
     connections = result.origins.connections
+    if result.origins.scenario.target == "wss-https-h2-proxy":
+        lines.append(
+            f"{prefix}origin_request_order=" + " ".join(result.origins.request_order)
+        )
     lines.append(f"{prefix}server_connection_count={len(connections)}")
     for i, connection in enumerate(connections):
         requests = " ".join(f"{t - start}:{path}" for t, path in connection.requests)
@@ -2307,6 +2405,15 @@ def render_run(index: int, result: RunResult) -> list[str]:
             f"close:{connection.close_kind},idle_before_close_ms:{idle},"
             f"requests:{requests or '-'}{alpn}"
         )
+        if connection.websocket is not None:
+            lines.extend(
+                (
+                    f"{prefix}server_connection_{i}_websocket_ticks_sent="
+                    f"{connection.websocket.ticks_sent}",
+                    f"{prefix}server_connection_{i}_websocket_close_code="
+                    f"{connection.websocket.close_code if connection.websocket.close_code is not None else 'none'}",
+                )
+            )
     lines.append(f"{prefix}moz_log_count={len(result.moz_log)}")
     lines.extend(f"{prefix}moz_log_{i}={line}" for i, line in enumerate(result.moz_log))
     lines.append(f"{prefix}event_count={len(events)}")
