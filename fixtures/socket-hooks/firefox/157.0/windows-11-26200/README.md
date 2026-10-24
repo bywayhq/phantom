@@ -96,6 +96,26 @@ and Frida 17.24.3. Reproduce with the command above using
 `--scenario https-h2-connect-backup`. The same lookup rewrite and
 profile-local trust apply. Browser, profile and peer cleanup completed.
 
+## WebSocket-first HTTP/2 proxy connections
+
+`hooks-wss-https-h2-proxy-backup.txt` opens WSS before any HTTPS request to
+the origin. Two WebSockets share the first outer HTTP/2 connection. After
+the first receives a message, the second opens; both exchange close 1000.
+Two later HTTPS requests reuse an inner HTTP/1.1 connection through a second
+outer HTTP/2 connection. All three tunnels use inner HTTP/1.1.
+
+Both physical proxy connections try IPv6 before IPv4. The later HTTPS fetches
+use a separate anonymous connection entry, so this does not show the
+WebSocket entry's address-family preference being reset. The WebSocket
+tunnels end with client resets after the close exchanges.
+
+Capture source: `0c85dbec3`, Python 3.12.10 and Frida 17.24.3, with the same
+Firefox build, lookup rewrite and profile-local trust described above.
+Reproduce with `--scenario wss-https-h2-proxy-backup --repeat 1 --headful`.
+Browser, profile and peer cleanup completed.
+
+Fixture SHA256: `9d6263698f95234f67fd91bd9a1168cab80828fe161d4a083520ada10682b8f3`.
+
 ## SOCKS5 proxy connections
 
 `hooks-socks5-backup.txt` uses the same Firefox build and host. Five complete

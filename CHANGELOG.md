@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Retain Firefox 157 observations of configured native DNS on macOS and
+  WebSocket-first connections through an HTTP/2 HTTPS proxy on Windows.
+
 - Add a Firefox capture scene for WebSocket-first connections through an
   HTTPS HTTP/2 proxy.
 
