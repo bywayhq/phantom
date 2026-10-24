@@ -694,11 +694,30 @@ class ResourceH1PeerTests(unittest.IsolatedAsyncioTestCase):
             self.run.resources.lines("resources:ok")
 
     async def test_partial_head_eof_is_an_observed_failure(self) -> None:
-        self.writer.write(h1_head(self.port, "/start?run=token")[:-1])
-        await self.writer.drain()
-        self.writer.transport.abort()
-        with self.assertRaisesRegex(EOFError, "head is truncated") as raised:
-            await self.owner.wait_done(5)
+        partial = h1_head(self.port, "/start?run=token")[:-1]
+        received = bytearray()
+        delivered = asyncio.Event()
+        read = http_lifecycle.Channel.read
+
+        async def observe(channel):
+            data = await read(channel)
+            if channel.run is self.run and data is not None:
+                received.extend(data)
+                if len(received) >= len(partial):
+                    delivered.set()
+            return data
+
+        with patch.object(http_lifecycle.Channel, "read", observe):
+            # The setup peer's first read is already in flight.
+            self.reader, self.writer = await self.connect()
+            self.writer.write(partial)
+            await self.writer.drain()
+            # Local drain alone does not establish that TLS plaintext reached the peer.
+            await asyncio.wait_for(delivered.wait(), 5)
+            self.assertEqual(received, partial)
+            self.writer.transport.abort()
+            with self.assertRaisesRegex(EOFError, "head is truncated") as raised:
+                await self.owner.wait_done(5)
         self.assertIs(raised.exception, self.run.failure)
         self.assertEqual(self.run.resources.requests, [])
 
