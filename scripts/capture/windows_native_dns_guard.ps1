@@ -84,8 +84,12 @@ function Restore-Owned {
 Assert-Hosted | Out-Null
 
 if ($Action -eq 'Preflight') {
-    @{ host = (Assert-Hosted); rules = @(Rules); policy = @(Get-DnsClientNrptPolicy -Effective);
-       dns_servers = @(Get-DnsClientServerAddress) } | ConvertTo-Json -Depth 12
+    @{ host = (Assert-Hosted); rules = @(Rules);
+       policy = @(Get-DnsClientNrptPolicy -Effective |
+           Select-Object * -ExcludeProperty CimClass,CimInstanceProperties,CimSystemProperties);
+       dns_servers = @(Get-DnsClientServerAddress |
+           Select-Object * -ExcludeProperty CimClass,CimInstanceProperties,CimSystemProperties) } |
+        ConvertTo-Json -Depth 12 -WarningAction Stop
     exit 0
 }
 if ($Action -eq 'Identity') {

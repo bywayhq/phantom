@@ -373,6 +373,61 @@ class GuardTests(unittest.TestCase):
             },
         )
 
+    def test_preflight_retains_dns_values_without_cim_metadata(self) -> None:
+        outcome = self.invoke_functions(
+            "$deep='metadata'; 1..14 | ForEach-Object { $deep=@{nested=$deep} }\n"
+            "function Assert-Hosted { @{build='26100'} }\n"
+            "function Get-DnsClientNrptPolicy { [pscustomobject]@{Namespace=@('other.test');"
+            "NameServers=@('192.0.2.1');DnsSecValidationRequired=$true;CimClass=$deep;"
+            "CimInstanceProperties=$deep;CimSystemProperties=$deep} }\n"
+            "function Get-DnsClientServerAddress { [pscustomobject]@{InterfaceAlias='Ethernet';"
+            "InterfaceIndex=4;AddressFamily=2;ServerAddresses=@('192.0.2.2','192.0.2.3');"
+            "CimClass=$deep;CimInstanceProperties=$deep;CimSystemProperties=$deep} }\n"
+            "$preflight=$ast.EndBlock.Statements | Where-Object { "
+            "$_ -is [Management.Automation.Language.IfStatementAst] -and "
+            "$_.Clauses[0].Item1.Extent.Text -eq \"`$Action -eq 'Preflight'\" }\n"
+            "Invoke-Expression $preflight.Clauses[0].Item2.Statements[0].Extent.Text\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(
+            json.loads(outcome.stdout),
+            {
+                "host": {"build": "26100"},
+                "rules": [],
+                "policy": [
+                    {
+                        "Namespace": ["other.test"],
+                        "NameServers": ["192.0.2.1"],
+                        "DnsSecValidationRequired": True,
+                    }
+                ],
+                "dns_servers": [
+                    {
+                        "InterfaceAlias": "Ethernet",
+                        "InterfaceIndex": 4,
+                        "AddressFamily": 2,
+                        "ServerAddresses": ["192.0.2.2", "192.0.2.3"],
+                    }
+                ],
+            },
+        )
+
+    def test_preflight_serialization_warning_is_a_failure(self) -> None:
+        outcome = self.invoke_functions(
+            "$deep='value'; 1..14 | ForEach-Object { $deep=@{nested=$deep} }\n"
+            "function Assert-Hosted { @{build='26100'} }\n"
+            "function Get-DnsClientNrptPolicy { }\n"
+            "function Get-DnsClientServerAddress { [pscustomobject]@{ServerAddresses=$deep} }\n"
+            "$preflight=$ast.EndBlock.Statements | Where-Object { "
+            "$_ -is [Management.Automation.Language.IfStatementAst] -and "
+            "$_.Clauses[0].Item1.Extent.Text -eq \"`$Action -eq 'Preflight'\" }\n"
+            "Invoke-Expression $preflight.Clauses[0].Item2.Statements[0].Extent.Text\n"
+        )
+        self.assertNotEqual(outcome.returncode, 0, outcome.stdout)
+        self.assertIn("serialization has exceeded", outcome.stderr)
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(outcome.stdout)
+
     def test_timeout_keeps_phase_and_raw_output(self) -> None:
         timeout = subprocess.TimeoutExpired(
             ["pwsh"], 15, output=b"partial", stderr=b"guard-test:functions-loaded\n"
