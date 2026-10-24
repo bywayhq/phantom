@@ -6,6 +6,7 @@
 //! the origin's own certificate reaches it.
 
 use std::{
+    error::Error,
     future::poll_fn,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
@@ -355,6 +356,15 @@ async fn a_pinned_alternative_receives_the_origin_s_certificate() -> TestResult<
 
 #[tokio::test]
 async fn a_learned_alternative_receives_the_origin_s_certificate() -> TestResult<()> {
+    fn diagnose(policy: AltSvcPolicy, stage: &str, error: &(dyn Error + 'static)) {
+        eprintln!("{policy:?} {stage}: {error}");
+        let mut source = error.source();
+        while let Some(error) = source {
+            eprintln!("  caused by: {error}");
+            source = error.source();
+        }
+    }
+
     let race = AltSvcPolicy::race(AltSvcRace::new(
         // Long enough that only the alternative connects.
         Duration::from_secs(30),
@@ -375,47 +385,99 @@ async fn a_learned_alternative_receives_the_origin_s_certificate() -> TestResult
             alternative.port()
         );
         let origin = async {
-            let mut stream = accept_tls(
-                origin_listener,
-                acceptor(&server, Some(&mapped.authority_der))?,
-            )
-            .await?;
-            let presented = presented(&stream)?;
-            read_head(&mut stream).await?;
-            stream.write_all(advertisement.as_bytes()).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(presented)
+            let acceptor = acceptor(&server, Some(&mapped.authority_der))
+                .inspect_err(|error| diagnose(policy, "origin acceptor", error.as_ref()))?;
+            let mut stream = accept_tls(origin_listener, acceptor)
+                .await
+                .inspect_err(|error| diagnose(policy, "origin TLS accept", error.as_ref()))?;
+            let presented = presented(&stream).inspect_err(|error| {
+                diagnose(policy, "origin client certificate", error.as_ref())
+            })?;
+            read_head(&mut stream)
+                .await
+                .inspect_err(|error| diagnose(policy, "origin request head", error))?;
+            stream
+                .write_all(advertisement.as_bytes())
+                .await
+                .inspect_err(|error| diagnose(policy, "origin Alt-Svc response", error))?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(presented)
         };
 
         let (origin_presented, learned) = timeout(TEST_TIMEOUT, async {
             tokio::join!(origin, async {
-                Ok::<_, RequestError>(client.get_negotiated(&uri)?.send().await?.status())
+                Ok::<_, RequestError>(
+                    client
+                        .get_negotiated(&uri)
+                        .inspect_err(|error| {
+                            diagnose(policy, "learning request construction", error)
+                        })?
+                        .send()
+                        .await
+                        .inspect_err(|error| diagnose(policy, "learning response", error))?
+                        .status(),
+                )
             })
         })
-        .await?;
-        assert_eq!(learned?, StatusCode::NO_CONTENT, "{policy:?}");
+        .await
+        .inspect_err(|error| diagnose(policy, "learning exchange deadline", error))?;
+        let (learned, origin_presented) = match (learned, origin_presented) {
+            (Ok(learned), Ok(presented)) => (learned, presented),
+            (learned, presented) => {
+                return finish_with_cleanup(
+                    learned.map(|_| ()).map_err(Into::into),
+                    presented.map(|_| ()),
+                );
+            }
+        };
+        assert_eq!(learned, StatusCode::NO_CONTENT, "{policy:?}");
         assert_eq!(
-            origin_presented?,
+            origin_presented,
             Some(mapped.leaf_der.clone()),
             "{policy:?}"
         );
 
         let (done, done_received) = oneshot::channel();
         let (presented, response) = timeout(TEST_TIMEOUT, async {
-            tokio::join!(serve_one_http3(&endpoint, done_received), async {
-                let response = client.get_negotiated(&uri)?.send().await?;
-                let _ = done.send(());
-                Ok::<_, RequestError>(response)
-            })
+            tokio::join!(
+                async {
+                    serve_one_http3(&endpoint, done_received)
+                        .await
+                        .inspect_err(|error| {
+                            diagnose(policy, "alternative HTTP/3 peer", error.as_ref())
+                        })
+                },
+                async {
+                    let response = client
+                        .get_negotiated(&uri)
+                        .inspect_err(|error| {
+                            diagnose(policy, "alternative request construction", error)
+                        })?
+                        .send()
+                        .await
+                        .inspect_err(|error| diagnose(policy, "alternative response", error))?;
+                    let _ = done.send(());
+                    Ok::<_, RequestError>(response)
+                }
+            )
         })
-        .await?;
-        let response = response?;
+        .await
+        .inspect_err(|error| diagnose(policy, "alternative exchange deadline", error))?;
+        let (response, presented) = match (response, presented) {
+            (Ok(response), Ok(presented)) => (response, presented),
+            (response, presented) => {
+                return finish_with_cleanup(
+                    response.map(|_| ()).map_err(Into::into),
+                    presented.map(|_| ()),
+                );
+            }
+        };
         assert_eq!(response.status(), StatusCode::NO_CONTENT, "{policy:?}");
         let info = response
             .extensions()
             .get::<ResponseInfo>()
             .ok_or("response omitted ResponseInfo")?;
         assert_eq!(info.protocol(), HttpProtocol::Http3, "{policy:?}");
-        assert_eq!(presented?, Some(mapped.leaf_der.clone()), "{policy:?}");
+        assert_eq!(presented, Some(mapped.leaf_der.clone()), "{policy:?}");
     }
     Ok(())
 }
