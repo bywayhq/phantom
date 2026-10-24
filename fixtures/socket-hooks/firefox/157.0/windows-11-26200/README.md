@@ -83,6 +83,19 @@ and Frida 17.24.3. Reproduce with the command above using
 `--scenario https-connect-backup`. Proxy and origin certificates were trusted
 only in the disposable profile. Browser, profile and peer cleanup completed.
 
+## HTTP/2 HTTPS proxy connections
+
+`hooks-https-h2-connect-backup.txt` uses the same Firefox build and host.
+Four CONNECT streams carried five complete requests over two outer HTTP/2
+connections. After the origin drop, the final request used a new proxy
+connection. Both physical connections tried IPv6 before IPv4, with backup
+starting 251 ms and 250 ms later.
+
+Capture source: `c5ac77bd5e6273406d782453c0c6e30c8b0107b2`, Python 3.12.10
+and Frida 17.24.3. Reproduce with the command above using
+`--scenario https-h2-connect-backup`. The same lookup rewrite and
+profile-local trust apply. Browser, profile and peer cleanup completed.
+
 ## HTTP CONNECT diagnostic
 
 `hooks-http-connect-backup.txt` uses the same Firefox build and host with

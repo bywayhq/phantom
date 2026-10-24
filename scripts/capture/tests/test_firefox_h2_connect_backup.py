@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import ssl
 import unittest
 from pathlib import Path
@@ -13,6 +14,61 @@ from scripts.capture.http2_session import HOSTNAME, generate_certificate, server
 from scripts.capture.tests import test_firefox_connect_backup as connect
 from scripts.capture.tests.tunnelled_websocket_peer import ProxyH2, TunnelTls
 from scripts.capture.websocket_tunnel import PROXY_HOST
+
+
+class H2ConnectFixtureTests(unittest.TestCase):
+    def test_retained_streams_link_to_physical_proxy_connections(self) -> None:
+        fixture = (
+            Path(__file__).resolve().parents[3]
+            / "fixtures/socket-hooks/firefox/157.0/windows-11-26200"
+            / "hooks-https-h2-connect-backup.txt"
+        )
+        fields = dict(row.split("=", 1) for row in fixture.read_text().splitlines())
+        self.assertEqual(fields["run_0_timed_out"], "false")
+        self.assertEqual(fields["run_0_hook_error_count"], "0")
+        self.assertEqual(fields["proxy_alpn_offer"], "h2")
+        connections = [
+            json.loads(fields[f"run_0_proxy_connection_{i}"])
+            for i in range(int(fields["run_0_proxy_connection_count"]))
+        ]
+        tunnels = [
+            json.loads(fields[f"run_0_proxy_tunnel_{i}"])
+            for i in range(int(fields["run_0_proxy_tunnel_count"]))
+        ]
+        self.assertEqual(len(connections), 2)
+        self.assertEqual(len(tunnels), 4)
+        self.assertEqual(
+            [tunnel["origin_connection"] for tunnel in tunnels], [0, 1, 2, 3]
+        )
+        seen = set()
+        for tunnel in tunnels:
+            connection = connections[tunnel["proxy_connection"]]
+            self.assertEqual(connection["alpn"], "h2")
+            self.assertEqual(tunnel["peer"], connection["peer"])
+            self.assertEqual(tunnel["status"], 200)
+            self.assertEqual(tunnel["stream_id"] % 2, 1)
+            identity = (tunnel["proxy_connection"], tunnel["stream_id"])
+            self.assertNotIn(identity, seen)
+            seen.add(identity)
+            headers = [
+                (bytes.fromhex(name), bytes.fromhex(value))
+                for name, value in tunnel["headers"]
+            ]
+            self.assertEqual(headers[0], (b":method", b"CONNECT"))
+            self.assertEqual(
+                headers[1],
+                (b":authority", f"{HOSTNAME}:{fields['run_0_origin_port']}".encode()),
+            )
+
+        paths = []
+        for index in range(int(fields["run_0_server_connection_count"])):
+            origin = fields[f"run_0_server_connection_{index}"]
+            self.assertIn(",alpn:http/1.1", origin)
+            paths.extend(re.findall(r"/(?:fast|slow)\?i=\d+", origin))
+        self.assertEqual(
+            sorted(paths),
+            ["/fast?i=0", "/fast?i=4", "/slow?i=1", "/slow?i=2", "/slow?i=3"],
+        )
 
 
 class H2ConnectBackupTests(unittest.IsolatedAsyncioTestCase):
