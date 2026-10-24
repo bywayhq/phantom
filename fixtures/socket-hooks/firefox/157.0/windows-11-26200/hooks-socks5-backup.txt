@@ -1,0 +1,415 @@
+format=phantom-socket-hooks-v1
+evidence=hook
+captured_at_unix=1792806743
+browser=Mozilla Firefox
+browser_version=157.0
+browser_build_id=20260924084938
+operating_system=Windows-11-10.0.26200-SP0
+hook_tool=frida 17.24.3
+hook_agent=scripts/capture/socket_hooks.js
+hook_agent_sha256=7fd6b6a59db16400de492fd1d6a15762afb7cd547f0ca3f97ce7663bacf9ecb2
+hook_agent_extension=scripts/capture/firefox_socket_hooks.js
+hook_agent_extension_sha256=3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386
+capture_tool=scripts/capture/firefox_socket_hooks.py
+capture_tool_sha256=2e50d0d77f5693f5e21b02e3e02b4bf414ab6471fb946b474a1d467af8db057a
+decoder_sha256=40ebddb63a341f87350a29b8f70b65d61f98531a2e6b69a2ba9b16df2779dceb
+hooked_process=parent process, attached after the first page request
+moz_log=timestamp,sync,nsSocketTransport:5,nsHttp:5,nsHostResolver:5,GetAddrInfo:5
+launch_mode=headful
+launch_arguments=--wait-for-browser --no-remote --profile '<temporary-profile>' http://127.0.0.1:<port>/
+target=server.phantom.test
+scenario=socks5-backup
+question=SOCKS5 proxy attempts with [::1] then 127.0.0.1, remote origin names, concurrent H1 TLS requests and origin disconnect
+hook_intervention=getaddrinfo(127.0.0.1.nip.io) resolves localhost instead ([::1] then 127.0.0.1) and returns no canonical name
+run_count=1
+proxy_hostname=127.0.0.1.nip.io
+proxy_mode=socks5
+proxy_configuration=PAC exact origin; other names direct; direct failover disabled
+origin_alpn_offer=http/1.1
+origin_trust=disposable-profile cert_override.txt
+proxy_dns=remote
+run_0_timed_out=false
+run_0_launcher_process=true
+run_0_origin_port=57272
+run_0_hook_error_count=0
+run_0_origin_tcp_socket_count=0
+run_0_origin_connect_attempts=<none>
+run_0_lookup_host=127.0.0.1.nip.io
+run_0_lookup_calls=199:getaddrinfo:flags=AI_CANONNAME:family=0 199:rewritten=localhost 200:answers=[::1]:0|127.0.0.1:0 200:getaddrinfo:flags=AI_CANONNAME:family=0 200:rewritten=localhost 201:answers=[::1]:0|127.0.0.1:0 202:DnsQuery_A:A:status=0:A/answer/947 205:DnsQuery_A:AAAA:status=9501:-
+run_0_proxy_port=57273
+run_0_proxy_origin_tcp_socket_count=17
+run_0_proxy_origin_socket_0=address:[::1]:57273,connect_ms:201,failed:10061+2003,closed:open,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_1=address:[::1]:57273,connect_ms:451,failed:10061+2003,closed:+2003,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_2=address:[::1]:57273,connect_ms:2204,failed:10061+2009,closed:+2009,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_3=address:127.0.0.1:57273,connect_ms:2454,failed:-,closed:+5024,before_connect:-,after_connect:+4:SIO_KEEPALIVE_VALS=0/10000/2000;+4:SIO_KEEPALIVE_VALS=1/10000/2000;+5:SO_KEEPALIVE=1;+5024:TCP_NODELAY=1;+5024:shutdown=SD_BOTH
+run_0_proxy_origin_socket_4=address:[::1]:57273,connect_ms:2469,failed:10061+2004,closed:+2005,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_5=address:[::1]:57273,connect_ms:2471,failed:10061+2004,closed:+2004,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_6=address:[::1]:57273,connect_ms:2721,failed:10061+2003,closed:+2003,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_7=address:[::1]:57273,connect_ms:2722,failed:10061+2003,closed:+2003,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_8=address:127.0.0.1:57273,connect_ms:4213,failed:-,closed:+3265,before_connect:-,after_connect:+2:SIO_KEEPALIVE_VALS=0/10000/4000;+2:SIO_KEEPALIVE_VALS=1/10000/4000;+2:SO_KEEPALIVE=1;+3265:TCP_NODELAY=1;+3265:shutdown=SD_BOTH
+run_0_proxy_origin_socket_9=address:127.0.0.1:57273,connect_ms:4474,failed:-,closed:+3004,before_connect:-,after_connect:+4:SIO_KEEPALIVE_VALS=0/10000/2000;+4:SIO_KEEPALIVE_VALS=1/10000/2000;+4:SO_KEEPALIVE=1;+3004:TCP_NODELAY=1;+3004:shutdown=SD_BOTH
+run_0_proxy_origin_socket_10=address:127.0.0.1:57273,connect_ms:4475,failed:-,closed:+3004,before_connect:-,after_connect:+5:SIO_KEEPALIVE_VALS=0/10000/2000;+5:SIO_KEEPALIVE_VALS=1/10000/2000;+5:SO_KEEPALIVE=1;+3004:TCP_NODELAY=1;+3004:shutdown=SD_BOTH
+run_0_proxy_origin_socket_11=address:127.0.0.1:57273,connect_ms:4724,failed:-,closed:+2755,before_connect:-,after_connect:+4:SIO_KEEPALIVE_VALS=0/10000/2000;+4:SIO_KEEPALIVE_VALS=1/10000/2000;+4:SO_KEEPALIVE=1;+2755:TCP_NODELAY=1;+2755:shutdown=SD_BOTH
+run_0_proxy_origin_socket_12=address:127.0.0.1:57273,connect_ms:4725,failed:-,closed:+2754,before_connect:-,after_connect:+3:SIO_KEEPALIVE_VALS=0/10000/2000;+3:SIO_KEEPALIVE_VALS=1/10000/2000;+5:SO_KEEPALIVE=1;+2754:TCP_NODELAY=1;+2754:shutdown=SD_BOTH
+run_0_proxy_origin_socket_13=address:[::1]:57273,connect_ms:7481,failed:10061+2002,closed:+2002,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_14=address:[::1]:57273,connect_ms:7730,failed:10061+2005,closed:+2005,before_connect:-,after_connect:-
+run_0_proxy_origin_socket_15=address:127.0.0.1:57273,connect_ms:9483,failed:-,closed:open,before_connect:-,after_connect:+2:SIO_KEEPALIVE_VALS=0/10000/2000;+2:SIO_KEEPALIVE_VALS=1/10000/2000;+2:SO_KEEPALIVE=1
+run_0_proxy_origin_socket_16=address:127.0.0.1:57273,connect_ms:9735,failed:-,closed:open,before_connect:-,after_connect:+2:SIO_KEEPALIVE_VALS=0/10000/2000;+2:SIO_KEEPALIVE_VALS=1/10000/2000;+2:SO_KEEPALIVE=1
+run_0_proxy_origin_connect_attempts=201:[::1]:57273 451:[::1]:57273 2204:[::1]:57273 2454:127.0.0.1:57273 2469:[::1]:57273 2471:[::1]:57273 2721:[::1]:57273 2722:[::1]:57273 4213:127.0.0.1:57273 4474:127.0.0.1:57273 4475:127.0.0.1:57273 4724:127.0.0.1:57273 4725:127.0.0.1:57273 7481:[::1]:57273 7730:[::1]:57273 9483:127.0.0.1:57273 9735:127.0.0.1:57273
+run_0_proxy_lookup_host=127.0.0.1.nip.io
+run_0_proxy_lookup_calls=199:getaddrinfo:flags=AI_CANONNAME:family=0 199:rewritten=localhost 200:answers=[::1]:0|127.0.0.1:0 200:getaddrinfo:flags=AI_CANONNAME:family=0 200:rewritten=localhost 201:answers=[::1]:0|127.0.0.1:0 202:DnsQuery_A:A:status=0:A/answer/947 205:DnsQuery_A:AAAA:status=9501:-
+run_0_proxy_connection_count=8
+run_0_proxy_connection_0={"accepted_ms":2454.9999084472656,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":0,"outcome":"origin-eof","peer":["127.0.0.1",57293],"reply_hex":"0500050000017f000001dfce","upstream":["127.0.0.1",57294]}
+run_0_proxy_connection_1={"accepted_ms":4213.9999713897705,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":1,"outcome":"origin-eof","peer":["127.0.0.1",57299],"reply_hex":"0500050000017f000001dfd4","upstream":["127.0.0.1",57300]}
+run_0_proxy_connection_2={"accepted_ms":4474.999889373779,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":2,"outcome":"origin-eof","peer":["127.0.0.1",57302],"reply_hex":"0500050000017f000001dfd8","upstream":["127.0.0.1",57304]}
+run_0_proxy_connection_3={"accepted_ms":4476.00005531311,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":3,"outcome":"origin-eof","peer":["127.0.0.1",57303],"reply_hex":"0500050000017f000001dfd9","upstream":["127.0.0.1",57305]}
+run_0_proxy_connection_4={"accepted_ms":4724.999889373779,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":4,"outcome":"origin-eof","peer":["127.0.0.1",57306],"reply_hex":"0500050000017f000001dfdc","upstream":["127.0.0.1",57308]}
+run_0_proxy_connection_5={"accepted_ms":4726.00005531311,"finished_ms":7474.999889373779,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":5,"outcome":"origin-eof","peer":["127.0.0.1",57307],"reply_hex":"0500050000017f000001dfdd","upstream":["127.0.0.1",57309]}
+run_0_proxy_connection_6={"accepted_ms":9483.000024795532,"finished_ms":10532.999977111816,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":6,"outcome":"origin-eof","peer":["127.0.0.1",57356],"reply_hex":"0500050000017f000001e00d","upstream":["127.0.0.1",57357]}
+run_0_proxy_connection_7={"accepted_ms":9736.000045776367,"finished_ms":10512.00006866455,"opening_hex":"05010005010003137365727665722e7068616e746f6d2e74657374dfb8","origin_connection":7,"outcome":"origin-eof","peer":["127.0.0.1",57358],"reply_hex":"0500050000017f000001e00f","upstream":["127.0.0.1",57359]}
+run_0_server_connection_count=8
+run_0_server_connection_0=family:ipv4,accepted:2461,closed:7475,close:server,idle_before_close_ms:2021,requests:2463:/fast?i=0 2466:/slow?i=1,alpn:http/1.1
+run_0_server_connection_1=family:ipv4,accepted:4218,closed:7475,close:server,idle_before_close_ms:255,requests:4219:/slow?i=2,alpn:http/1.1
+run_0_server_connection_2=family:ipv4,accepted:4480,closed:7475,close:server,idle_before_close_ms:5,requests:4480:/slow?i=3,alpn:http/1.1
+run_0_server_connection_3=family:ipv4,accepted:4482,closed:7475,close:server,idle_before_close_ms:-,requests:-,alpn:http/1.1
+run_0_server_connection_4=family:ipv4,accepted:4733,closed:7475,close:server,idle_before_close_ms:-,requests:-,alpn:http/1.1
+run_0_server_connection_5=family:ipv4,accepted:4733,closed:7475,close:server,idle_before_close_ms:-,requests:-,alpn:http/1.1
+run_0_server_connection_6=family:ipv4,accepted:9488,closed:10533,close:fin,idle_before_close_ms:1045,requests:9488:/fast?i=4,alpn:http/1.1
+run_0_server_connection_7=family:ipv4,accepted:9740,closed:10512,close:fin,idle_before_close_ms:-,requests:-,alpn:http/1.1
+run_0_moz_log_count=76
+run_0_moz_log_0=198 nsHttp ConnectionEntry::ConnectionEntry this=p0 key=.SA........[tlsflags0x00000000]server.phantom.test:57272 (socks:127.0.0.1.nip.io:57273)[:][!h3]{TPRH}
+run_0_moz_log_1=198 nsHttp Creating DnsAndConnectSocket [this=p1 trans=p2 ent=server.phantom.test key=.SA........[tlsflags0x00000000]server.phantom.test:57272 (socks:127.0.0.1.nip.io:57273)[:][!h3]{TPRH}]
+run_0_moz_log_2=198 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p1], did not arm
+run_0_moz_log_3=199 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p1]
+run_0_moz_log_4=199 nsSocketTransport nsSocketTransport::ResolveHost [this=p3 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_5=199 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_6=199 GetAddrInfo [DNS]: Resolving 127.0.0.1.nip.io using PR_GetAddrInfoByName
+run_0_moz_log_7=200 nsHostResolver Caching host [127.0.0.1.nip.io] record for 60 seconds (grace 600).
+run_0_moz_log_8=200 nsHostResolver Issuing second async lookup for TTL for host [127.0.0.1.nip.io].
+run_0_moz_log_9=200 GetAddrInfo [DNS]: Resolving 127.0.0.1.nip.io using PR_GetAddrInfoByName
+run_0_moz_log_10=201 GetAddrInfo [DNS]: Getting TTL for 127.0.0.1.nip.io (cname = 127.0.0.1.nip.io).
+run_0_moz_log_11=205 GetAddrInfo [DNS]: Got TTL 947 for 127.0.0.1.nip.io (name = 127.0.0.1.nip.io).
+run_0_moz_log_12=205 nsHostResolver Caching host [127.0.0.1.nip.io] record for 947 seconds (grace 600).
+run_0_moz_log_13=450 nsSocketTransport nsSocketTransport::ResolveHost [this=p5 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_14=451 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_15=451 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_16=2456 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_17=2456 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_18=2458 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p5] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_19=2458 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p5] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_20=2466 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p5] idle time already 10s and retry interval already 2s.
+run_0_moz_log_21=2466 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p5] already enabled.
+run_0_moz_log_22=2466 nsHttp Creating DnsAndConnectSocket [this=p6 trans=p7 ent=server.phantom.test key=.SA........[tlsflags0x00000000]server.phantom.test:57272 (socks:127.0.0.1.nip.io:57273)[:][!h3]{TPRH}]
+run_0_moz_log_23=2466 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p6], did not arm
+run_0_moz_log_24=2466 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p6]
+run_0_moz_log_25=2468 nsSocketTransport nsSocketTransport::ResolveHost [this=p8 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_26=2468 nsHttp Creating DnsAndConnectSocket [this=p9 trans=p10 ent=server.phantom.test key=.SA........[tlsflags0x00000000]server.phantom.test:57272 (socks:127.0.0.1.nip.io:57273)[:][!h3]{TPRH}]
+run_0_moz_log_27=2468 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p9], did not arm
+run_0_moz_log_28=2468 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p9]
+run_0_moz_log_29=2468 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_30=2468 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_31=2468 nsSocketTransport nsSocketTransport::ResolveHost [this=p11 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_32=2471 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_33=2471 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_34=2718 nsSocketTransport nsSocketTransport::ResolveHost [this=p12 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_35=2718 nsSocketTransport nsSocketTransport::ResolveHost [this=p13 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_36=2719 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_37=2719 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_38=2721 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_39=2721 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_40=4215 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_41=4215 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_42=4215 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p3] keepalive disabled, idle time[10s] retry interval[4s] packet count[10]
+run_0_moz_log_43=4215 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p3] enabled, idle time[10s] retry interval[4s] packet count[10]: globally enabled.
+run_0_moz_log_44=4478 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_45=4478 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_46=4478 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p8] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_47=4478 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p8] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_48=4480 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_49=4480 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_50=4480 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p11] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_51=4480 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p11] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_52=4727 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_53=4727 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_54=4728 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p12] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_55=4728 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p12] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_56=4728 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_57=4728 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_58=4728 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p13] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_59=4728 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p13] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_60=7479 nsHttp Creating DnsAndConnectSocket [this=p1 trans=p14 ent=server.phantom.test key=.SA........[tlsflags0x00000000]server.phantom.test:57272 (socks:127.0.0.1.nip.io:57273)[:][!h3]{TPRH}]
+run_0_moz_log_61=7479 nsHttp DnsAndConnectSocket::SetupBackupTimer() [this=p1]
+run_0_moz_log_62=7480 nsSocketTransport nsSocketTransport::ResolveHost [this=p15 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_63=7481 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_64=7481 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_65=7729 nsSocketTransport nsSocketTransport::ResolveHost [this=p16 server.phantom.test:57272] mProxyTransparentResolvesHost=1
+run_0_moz_log_66=7730 nsHostResolver Resolving host [127.0.0.1.nip.io]<> type 0. [this=p4]
+run_0_moz_log_67=7730 nsHostResolver Using cached record for host [127.0.0.1.nip.io].
+run_0_moz_log_68=9485 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_69=9485 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_70=9485 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p15] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_71=9485 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p15] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_moz_log_72=9737 nsHttp ConnectionEntry::RecordIPFamilyPreference p0, af=2
+run_0_moz_log_73=9737 nsHttp p0 prefer ipv4=1, ipv6=0
+run_0_moz_log_74=9737 nsSocketTransport nsSocketTransport::SetKeepaliveVals [p16] keepalive disabled, idle time[10s] retry interval[2s] packet count[10]
+run_0_moz_log_75=9737 nsSocketTransport nsSocketTransport::SetKeepaliveEnabled [p16] enabled, idle time[10s] retry interval[2s] packet count[10]: globally enabled.
+run_0_event_count=259
+run_0_event_0={"kind":"firefox-config","rewrite_host":"127.0.0.1.nip.io","rewrite_to":"localhost","t":1}
+run_0_event_1={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":2,"value":72}
+run_0_event_2={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s1","t":199,"type":1}
+run_0_event_3={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s2","t":199,"type":1}
+run_0_event_4={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s2","t":199,"value":1}
+run_0_event_5={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s3","t":199,"type":1}
+run_0_event_6={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s4","t":199,"type":1}
+run_0_event_7={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s4","t":199,"value":1}
+run_0_event_8={"kind":"close","socket":"s4","t":199}
+run_0_event_9={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s2","t":199,"value":"1"}
+run_0_event_10={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s2","t":199,"value":"524288"}
+run_0_event_11={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s2","t":199,"value":"1/0"}
+run_0_event_12={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s2","t":199,"value":1}
+run_0_event_13={"caller":"nss3.dll","function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve","t":199}
+run_0_event_14={"caller":"nss3.dll","family":0,"flags":"AI_CANONNAME","function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve-hints","protocol":0,"socktype":1,"t":199}
+run_0_event_15={"host":"127.0.0.1.nip.io","kind":"resolve-rewritten","t":199,"to":"localhost"}
+run_0_event_16={"caller":"WS2_32.dll","function":"GetAddrInfoW","host":"localhost","kind":"resolve","t":199}
+run_0_event_17={"caller":"mswsock.dll","function":"DnsQueryEx","host":"localhost","kind":"resolve","query_type":"A","t":199}
+run_0_event_18={"caller":"mswsock.dll","function":"DnsQueryEx","host":"localhost","kind":"resolve","query_type":"AAAA","t":199}
+run_0_event_19={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s5","t":199,"type":1}
+run_0_event_20={"caller":"DNSAPI.dll","family":2,"kind":"socket","socket":"s6","t":199,"type":1}
+run_0_event_21={"kind":"close","socket":"s6","t":199}
+run_0_event_22={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s7","t":199,"type":1}
+run_0_event_23={"caller":"DNSAPI.dll","family":23,"kind":"socket","socket":"s8","t":200,"type":1}
+run_0_event_24={"kind":"close","socket":"s8","t":200}
+run_0_event_25={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s9","t":200,"type":2}
+run_0_event_26={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s10","t":200,"type":2}
+run_0_event_27={"kind":"close","socket":"s10","t":200}
+run_0_event_28={"answers":["[::1]:0","127.0.0.1:0"],"function":"GetAddrInfoW","host":"localhost","kind":"resolve-return","result":0,"t":200}
+run_0_event_29={"answers":["[::1]:0","127.0.0.1:0"],"function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve-return","result":0,"t":200}
+run_0_event_30={"caller":"nss3.dll","function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve","t":200}
+run_0_event_31={"caller":"nss3.dll","family":0,"flags":"AI_CANONNAME","function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve-hints","protocol":0,"socktype":1,"t":200}
+run_0_event_32={"host":"127.0.0.1.nip.io","kind":"resolve-rewritten","t":200,"to":"localhost"}
+run_0_event_33={"caller":"WS2_32.dll","function":"GetAddrInfoW","host":"localhost","kind":"resolve","t":200}
+run_0_event_34={"caller":"mswsock.dll","function":"DnsQueryEx","host":"localhost","kind":"resolve","query_type":"A","t":200}
+run_0_event_35={"caller":"mswsock.dll","function":"DnsQueryEx","host":"localhost","kind":"resolve","query_type":"AAAA","t":200}
+run_0_event_36={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s11","t":201,"type":1}
+run_0_event_37={"caller":"DNSAPI.dll","family":2,"kind":"socket","socket":"s12","t":201,"type":1}
+run_0_event_38={"kind":"close","socket":"s12","t":201}
+run_0_event_39={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s13","t":201,"type":1}
+run_0_event_40={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s14","t":201,"type":1}
+run_0_event_41={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s14","t":201,"value":1}
+run_0_event_42={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s15","t":201,"type":1}
+run_0_event_43={"caller":"DNSAPI.dll","family":23,"kind":"socket","socket":"s16","t":201,"type":1}
+run_0_event_44={"kind":"close","socket":"s16","t":201}
+run_0_event_45={"kind":"close","socket":"s2","t":201}
+run_0_event_46={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s14","t":201}
+run_0_event_47={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s17","t":201,"type":2}
+run_0_event_48={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s18","t":201,"type":2}
+run_0_event_49={"kind":"close","socket":"s18","t":201}
+run_0_event_50={"answers":["[::1]:0","127.0.0.1:0"],"function":"GetAddrInfoW","host":"localhost","kind":"resolve-return","result":0,"t":201}
+run_0_event_51={"answers":["[::1]:0","127.0.0.1:0"],"function":"getaddrinfo","host":"127.0.0.1.nip.io","kind":"resolve-return","result":0,"t":201}
+run_0_event_52={"error":10035,"kind":"connect-return","result":-1,"socket":"s14","t":201}
+run_0_event_53={"caller":"xul.dll","host":"127.0.0.1.nip.io","kind":"dnsquery","options":"0x1008c1","query_type":"A","t":201}
+run_0_event_54={"host":"127.0.0.1.nip.io","kind":"dnsquery-return","query_type":"A","records":["A/answer/947"],"status":0,"t":202}
+run_0_event_55={"caller":"xul.dll","host":"127.0.0.1.nip.io","kind":"dnsquery","options":"0x1008c1","query_type":"AAAA","t":202}
+run_0_event_56={"host":"127.0.0.1.nip.io","kind":"dnsquery-return","query_type":"AAAA","records":[],"status":9501,"t":205}
+run_0_event_57={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s19","t":450,"type":1}
+run_0_event_58={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s20","t":450,"type":1}
+run_0_event_59={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s20","t":450,"value":1}
+run_0_event_60={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s20","t":450,"value":"1"}
+run_0_event_61={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s20","t":450,"value":"524288"}
+run_0_event_62={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s20","t":451,"value":"1/0"}
+run_0_event_63={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s20","t":451,"value":1}
+run_0_event_64={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s21","t":451,"type":1}
+run_0_event_65={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s22","t":451,"type":1}
+run_0_event_66={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s22","t":451,"value":1}
+run_0_event_67={"kind":"close","socket":"s20","t":451}
+run_0_event_68={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s22","t":451}
+run_0_event_69={"error":10035,"kind":"connect-return","result":-1,"socket":"s22","t":451}
+run_0_event_70={"kind":"socket-error","socket":"s14","t":2204,"value":10061}
+run_0_event_71={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s14","t":2204}
+run_0_event_72={"error":10035,"kind":"connect-return","result":-1,"socket":"s14","t":2204}
+run_0_event_73={"kind":"socket-error","socket":"s22","t":2454,"value":10061}
+run_0_event_74={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s23","t":2454,"type":1}
+run_0_event_75={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s24","t":2454,"type":1}
+run_0_event_76={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s24","t":2454,"value":1}
+run_0_event_77={"kind":"close","socket":"s22","t":2454}
+run_0_event_78={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s24","t":2454}
+run_0_event_79={"error":10035,"kind":"connect-return","result":-1,"socket":"s24","t":2454}
+run_0_event_80={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s24","t":2458,"value":"0/10000/2000"}
+run_0_event_81={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s24","t":2458,"value":"1/10000/2000"}
+run_0_event_82={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s24","t":2459,"value":"1"}
+run_0_event_83={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s25","t":2468,"type":1}
+run_0_event_84={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s26","t":2468,"type":1}
+run_0_event_85={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s26","t":2468,"value":1}
+run_0_event_86={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s26","t":2468,"value":"1"}
+run_0_event_87={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s26","t":2468,"value":"524288"}
+run_0_event_88={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s26","t":2468,"value":"1/0"}
+run_0_event_89={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s26","t":2468,"value":1}
+run_0_event_90={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s27","t":2469,"type":1}
+run_0_event_91={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s28","t":2469,"type":1}
+run_0_event_92={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s28","t":2469,"value":1}
+run_0_event_93={"kind":"close","socket":"s26","t":2469}
+run_0_event_94={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s28","t":2469}
+run_0_event_95={"error":10035,"kind":"connect-return","result":-1,"socket":"s28","t":2470}
+run_0_event_96={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s29","t":2470,"type":1}
+run_0_event_97={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s30","t":2470,"type":1}
+run_0_event_98={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s30","t":2470,"value":1}
+run_0_event_99={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s30","t":2470,"value":"1"}
+run_0_event_100={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s30","t":2471,"value":"524288"}
+run_0_event_101={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s30","t":2471,"value":"1/0"}
+run_0_event_102={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s30","t":2471,"value":1}
+run_0_event_103={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s31","t":2471,"type":1}
+run_0_event_104={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s32","t":2471,"type":1}
+run_0_event_105={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s32","t":2471,"value":1}
+run_0_event_106={"kind":"close","socket":"s30","t":2471}
+run_0_event_107={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s32","t":2471}
+run_0_event_108={"error":10035,"kind":"connect-return","result":-1,"socket":"s32","t":2472}
+run_0_event_109={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s33","t":2719,"type":1}
+run_0_event_110={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s34","t":2719,"type":1}
+run_0_event_111={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s34","t":2719,"value":1}
+run_0_event_112={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s34","t":2719,"value":"1"}
+run_0_event_113={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s34","t":2719,"value":"524288"}
+run_0_event_114={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s34","t":2719,"value":"1/0"}
+run_0_event_115={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s34","t":2719,"value":1}
+run_0_event_116={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s35","t":2719,"type":1}
+run_0_event_117={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s36","t":2719,"type":1}
+run_0_event_118={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s36","t":2719,"value":1}
+run_0_event_119={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s36","t":2719,"value":"1"}
+run_0_event_120={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s36","t":2719,"value":"524288"}
+run_0_event_121={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s36","t":2719,"value":"1/0"}
+run_0_event_122={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s36","t":2721,"value":1}
+run_0_event_123={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s37","t":2721,"type":1}
+run_0_event_124={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s38","t":2721,"type":1}
+run_0_event_125={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s38","t":2721,"value":1}
+run_0_event_126={"kind":"close","socket":"s34","t":2721}
+run_0_event_127={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s38","t":2721}
+run_0_event_128={"error":10035,"kind":"connect-return","result":-1,"socket":"s38","t":2721}
+run_0_event_129={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s39","t":2722,"type":1}
+run_0_event_130={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s40","t":2722,"type":1}
+run_0_event_131={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s40","t":2722,"value":1}
+run_0_event_132={"kind":"close","socket":"s36","t":2722}
+run_0_event_133={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s40","t":2722}
+run_0_event_134={"error":10035,"kind":"connect-return","result":-1,"socket":"s40","t":2722}
+run_0_event_135={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":3786,"value":72}
+run_0_event_136={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s41","t":3786,"value":72}
+run_0_event_137={"kind":"socket-error","socket":"s14","t":4213,"value":10061}
+run_0_event_138={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s42","t":4213,"type":1}
+run_0_event_139={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s43","t":4213,"type":1}
+run_0_event_140={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s43","t":4213,"value":1}
+run_0_event_141={"kind":"close","socket":"s14","t":4213}
+run_0_event_142={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s43","t":4213}
+run_0_event_143={"error":10035,"kind":"connect-return","result":-1,"socket":"s43","t":4214}
+run_0_event_144={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s43","t":4215,"value":"0/10000/4000"}
+run_0_event_145={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s43","t":4215,"value":"1/10000/4000"}
+run_0_event_146={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s43","t":4215,"value":"1"}
+run_0_event_147={"kind":"socket-error","socket":"s28","t":4473,"value":10061}
+run_0_event_148={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s44","t":4473,"type":1}
+run_0_event_149={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s45","t":4474,"type":1}
+run_0_event_150={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s45","t":4474,"value":1}
+run_0_event_151={"kind":"close","socket":"s28","t":4474}
+run_0_event_152={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s45","t":4474}
+run_0_event_153={"error":10035,"kind":"connect-return","result":-1,"socket":"s45","t":4474}
+run_0_event_154={"kind":"socket-error","socket":"s32","t":4475,"value":10061}
+run_0_event_155={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s46","t":4475,"type":1}
+run_0_event_156={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s47","t":4475,"type":1}
+run_0_event_157={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s47","t":4475,"value":1}
+run_0_event_158={"kind":"close","socket":"s32","t":4475}
+run_0_event_159={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s47","t":4475}
+run_0_event_160={"error":10035,"kind":"connect-return","result":-1,"socket":"s47","t":4475}
+run_0_event_161={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s45","t":4478,"value":"0/10000/2000"}
+run_0_event_162={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s45","t":4478,"value":"1/10000/2000"}
+run_0_event_163={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s45","t":4478,"value":"1"}
+run_0_event_164={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s47","t":4480,"value":"0/10000/2000"}
+run_0_event_165={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s47","t":4480,"value":"1/10000/2000"}
+run_0_event_166={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s47","t":4480,"value":"1"}
+run_0_event_167={"kind":"socket-error","socket":"s38","t":4724,"value":10061}
+run_0_event_168={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s48","t":4724,"type":1}
+run_0_event_169={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s49","t":4724,"type":1}
+run_0_event_170={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s49","t":4724,"value":1}
+run_0_event_171={"kind":"close","socket":"s38","t":4724}
+run_0_event_172={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s49","t":4724}
+run_0_event_173={"error":10035,"kind":"connect-return","result":-1,"socket":"s49","t":4725}
+run_0_event_174={"kind":"socket-error","socket":"s40","t":4725,"value":10061}
+run_0_event_175={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s50","t":4725,"type":1}
+run_0_event_176={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s51","t":4725,"type":1}
+run_0_event_177={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s51","t":4725,"value":1}
+run_0_event_178={"kind":"close","socket":"s40","t":4725}
+run_0_event_179={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s51","t":4725}
+run_0_event_180={"error":10035,"kind":"connect-return","result":-1,"socket":"s51","t":4726}
+run_0_event_181={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s49","t":4728,"value":"0/10000/2000"}
+run_0_event_182={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s49","t":4728,"value":"1/10000/2000"}
+run_0_event_183={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s49","t":4728,"value":"1"}
+run_0_event_184={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s51","t":4728,"value":"0/10000/2000"}
+run_0_event_185={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s51","t":4728,"value":"1/10000/2000"}
+run_0_event_186={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s51","t":4730,"value":"1"}
+run_0_event_187={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":7474,"value":72}
+run_0_event_188={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":7474,"value":72}
+run_0_event_189={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":7476,"value":72}
+run_0_event_190={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s45","t":7478,"value":"1"}
+run_0_event_191={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s45","t":7478}
+run_0_event_192={"kind":"close","socket":"s45","t":7478}
+run_0_event_193={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s24","t":7478,"value":"1"}
+run_0_event_194={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s24","t":7478}
+run_0_event_195={"kind":"close","socket":"s24","t":7478}
+run_0_event_196={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s43","t":7478,"value":"1"}
+run_0_event_197={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s43","t":7478}
+run_0_event_198={"kind":"close","socket":"s43","t":7478}
+run_0_event_199={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s49","t":7479,"value":"1"}
+run_0_event_200={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s49","t":7479}
+run_0_event_201={"kind":"close","socket":"s49","t":7479}
+run_0_event_202={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s51","t":7479,"value":"1"}
+run_0_event_203={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s51","t":7479}
+run_0_event_204={"kind":"close","socket":"s51","t":7479}
+run_0_event_205={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s47","t":7479,"value":"1"}
+run_0_event_206={"caller":"xul.dll","how":"SD_BOTH","kind":"shutdown","socket":"s47","t":7479}
+run_0_event_207={"kind":"close","socket":"s47","t":7479}
+run_0_event_208={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s52","t":7480,"type":1}
+run_0_event_209={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s53","t":7480,"type":1}
+run_0_event_210={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s53","t":7480,"value":1}
+run_0_event_211={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s53","t":7481,"value":"1"}
+run_0_event_212={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s53","t":7481,"value":"524288"}
+run_0_event_213={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s53","t":7481,"value":"1/0"}
+run_0_event_214={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s53","t":7481,"value":1}
+run_0_event_215={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s54","t":7481,"type":1}
+run_0_event_216={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s55","t":7481,"type":1}
+run_0_event_217={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s55","t":7481,"value":1}
+run_0_event_218={"kind":"close","socket":"s53","t":7481}
+run_0_event_219={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s55","t":7481}
+run_0_event_220={"error":10035,"kind":"connect-return","result":-1,"socket":"s55","t":7482}
+run_0_event_221={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s56","t":7729,"type":1}
+run_0_event_222={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s57","t":7729,"type":1}
+run_0_event_223={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s57","t":7729,"value":1}
+run_0_event_224={"caller":"WSOCK32.dll","kind":"setsockopt","option":"TCP_NODELAY","socket":"s57","t":7730,"value":"1"}
+run_0_event_225={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_SNDBUF","socket":"s57","t":7730,"value":"524288"}
+run_0_event_226={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_LINGER","socket":"s57","t":7730,"value":"1/0"}
+run_0_event_227={"caller":"xul.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s57","t":7730,"value":1}
+run_0_event_228={"caller":"WS2_32.dll","family":23,"kind":"socket","socket":"s58","t":7730,"type":1}
+run_0_event_229={"caller":"nss3.dll","family":23,"kind":"socket","socket":"s59","t":7730,"type":1}
+run_0_event_230={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s59","t":7730,"value":1}
+run_0_event_231={"kind":"close","socket":"s57","t":7730}
+run_0_event_232={"address":"[::1]:57273","caller":"nss3.dll","kind":"connect","socket":"s59","t":7730}
+run_0_event_233={"error":10035,"kind":"connect-return","result":-1,"socket":"s59","t":7730}
+run_0_event_234={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":9365,"value":72}
+run_0_event_235={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s41","t":9365,"value":72}
+run_0_event_236={"kind":"socket-error","socket":"s55","t":9483,"value":10061}
+run_0_event_237={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s60","t":9483,"type":1}
+run_0_event_238={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s61","t":9483,"type":1}
+run_0_event_239={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s61","t":9483,"value":1}
+run_0_event_240={"kind":"close","socket":"s55","t":9483}
+run_0_event_241={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s61","t":9483}
+run_0_event_242={"error":10035,"kind":"connect-return","result":-1,"socket":"s61","t":9483}
+run_0_event_243={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s61","t":9485,"value":"0/10000/2000"}
+run_0_event_244={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s61","t":9485,"value":"1/10000/2000"}
+run_0_event_245={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s61","t":9485,"value":"1"}
+run_0_event_246={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":9491,"value":72}
+run_0_event_247={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":9491,"value":72}
+run_0_event_248={"caller":"nss3.dll","command":"0x4004667f","kind":"ioctlsocket","socket":"s0","t":9492,"value":72}
+run_0_event_249={"kind":"socket-error","socket":"s59","t":9735,"value":10061}
+run_0_event_250={"caller":"WS2_32.dll","family":2,"kind":"socket","socket":"s62","t":9735,"type":1}
+run_0_event_251={"caller":"nss3.dll","family":2,"kind":"socket","socket":"s63","t":9735,"type":1}
+run_0_event_252={"caller":"nss3.dll","command":"FIONBIO","kind":"ioctlsocket","socket":"s63","t":9735,"value":1}
+run_0_event_253={"kind":"close","socket":"s59","t":9735}
+run_0_event_254={"address":"127.0.0.1:57273","caller":"nss3.dll","kind":"connect","socket":"s63","t":9735}
+run_0_event_255={"error":10035,"kind":"connect-return","result":-1,"socket":"s63","t":9736}
+run_0_event_256={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s63","t":9737,"value":"0/10000/2000"}
+run_0_event_257={"caller":"xul.dll","code":"SIO_KEEPALIVE_VALS","kind":"wsaioctl","socket":"s63","t":9737,"value":"1/10000/2000"}
+run_0_event_258={"caller":"WSOCK32.dll","kind":"setsockopt","option":"SO_KEEPALIVE","socket":"s63","t":9737,"value":"1"}

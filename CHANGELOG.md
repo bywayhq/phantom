@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Retain a Firefox 157 Windows SOCKS5 capture with proxy address attempts,
+  remote origin names and completed requests across an origin disconnect.
+
 - Keep Windows native-DNS watchdogs owned when startup fails, and compare
   saved process timestamps consistently during monitoring and cleanup.
 

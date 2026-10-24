@@ -96,6 +96,21 @@ and Frida 17.24.3. Reproduce with the command above using
 `--scenario https-h2-connect-backup`. The same lookup rewrite and
 profile-local trust apply. Browser, profile and peer cleanup completed.
 
+## SOCKS5 proxy connections
+
+`hooks-socks5-backup.txt` uses the same Firefox build and host. Five complete
+requests crossed eight accepted SOCKS5 tunnels, including idle TLS siblings.
+After the origin drop, the final request used a new proxy connection. SOCKS5
+openings sent the origin name; no origin lookup was redirected. The physical
+proxy attempts included IPv6 failures before IPv4 connections.
+
+Capture source: `56319ba6dd4614130131b4ad20b034d7e2dcccaf`, Python 3.12.10
+and Frida 17.24.3. Reproduce with the command above using
+`--scenario socks5-backup`. The proxy-only lookup rewrite and profile-local
+origin trust apply. Browser, profile and peer cleanup completed.
+
+Fixture SHA256: `e37595c6feaf9c8cbfb1232e83da2673ae9851f8b27bcbdaa730009c0300b807`.
+
 ## HTTP CONNECT diagnostic
 
 `hooks-http-connect-backup.txt` uses the same Firefox build and host with
