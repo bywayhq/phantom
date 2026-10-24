@@ -69,10 +69,13 @@ impl Http1ProxyOpening {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.state.state().binding.validate_forward(transport)?;
         let opening = self.complete_proxy_tls().await?;
-        match opening.state.into_state().stream {
-            ProxyStream::HttpsReady(stream) => super::tls::connect_plaintext(stream)
-                .await
-                .map_err(Into::into),
+        let state = opening.state.into_state();
+        match state.stream {
+            ProxyStream::HttpsReady(stream) => {
+                super::tls::connect_plaintext(state.connector.write_strategy(), stream)
+                    .await
+                    .map_err(Into::into)
+            }
             ProxyStream::Tcp(_) | ProxyStream::HttpsPending(_) => Err(binding_error().into()),
         }
     }

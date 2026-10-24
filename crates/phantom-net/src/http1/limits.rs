@@ -9,8 +9,12 @@ pub(super) const MAX_CHUNK_SIZE_LINE_BYTES: usize = 16 * 1024;
 /// HTTP CONNECT exchange bound.
 pub(super) const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
-pub(super) fn connection_builder() -> http1::Builder {
+pub(super) fn connection_builder(strategy: super::Http1WriteStrategy) -> http1::Builder {
     let options = Http1Options::builder()
+        .writev(match strategy {
+            super::Http1WriteStrategy::Automatic => None,
+            super::Http1WriteStrategy::Queued => Some(true),
+        })
         .max_headers(MAX_RESPONSE_HEADERS)
         .max_buf_size(MAX_RESPONSE_HEAD_BYTES)
         .max_chunk_size_line_bytes(MAX_CHUNK_SIZE_LINE_BYTES)

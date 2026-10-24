@@ -111,6 +111,7 @@ mod response_body;
 mod response_limits;
 mod reuse;
 mod upgrade;
+mod write_strategy;
 
 // Prepare before raw setup so invalid requests cannot touch the stream or body.
 async fn send_once<T, F>(

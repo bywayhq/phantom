@@ -590,6 +590,7 @@ impl Client {
     /// timeouts, redirects, retries, cookie jar, or Alt-Svc learning.
     pub fn builder(profile: ClientProfile) -> ClientBuilder {
         ClientBuilder {
+            http1_write_strategy: crate::Http1WriteStrategy::Automatic,
             base_url: None,
             tcp_connector: None,
             destination_policy: None,
@@ -946,6 +947,7 @@ impl Client {
 /// ```
 #[must_use = "client builders do nothing until build is called"]
 pub struct ClientBuilder {
+    http1_write_strategy: crate::Http1WriteStrategy,
     tcp_connector: Option<crate::TcpConnector>,
     destination_policy: Option<crate::DestinationPolicy>,
     base_url: Option<crate::base_url::BaseUrl>,
@@ -1799,6 +1801,29 @@ impl ClientBuilder {
         self
     }
 
+    /// Selects request-write buffering for HTTP/1.1 connections.
+    ///
+    /// Automatic is the default. Queued writes keep body buffers separate
+    /// instead of copying them into the header buffer. This may change TLS
+    /// record grouping; performance and memory use depend on your workload.
+    /// HTTP/2, HTTP/3, CONNECT and SOCKS negotiation are unaffected.
+    ///
+    /// ```
+    /// use phantom::{Client, Http1WriteStrategy, profile::browser::chrome};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Client::builder(chrome::v154_windows())
+    ///     .http1_write_strategy(Http1WriteStrategy::Queued)
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn http1_write_strategy(mut self, strategy: crate::Http1WriteStrategy) -> Self {
+        self.http1_write_strategy = strategy;
+        self
+    }
+
     /// Sets the maximum number of HTTP/1.1 pool entries retained for reuse.
     ///
     /// The default is 32. Each entry holds one pool key's connection state;
@@ -2457,6 +2482,10 @@ impl ClientBuilder {
             .as_ref()
             .filter(|_| supports_http1)
             .map(Http1Or2TlsConnector::from_http2)
+            .map(|result| {
+                result
+                    .map(|connector| connector.with_http1_write_strategy(self.http1_write_strategy))
+            })
             .transpose()
             .map_err(BuildError::http1_or_2)?;
         let http3 = self
@@ -2779,6 +2808,7 @@ impl ClientBuilder {
     /// Applies the source binding and client certificate, when set, to an
     /// HTTP/1.1 origin connector.
     fn bind_http1(&self, mut connector: Http1TlsConnector) -> Http1TlsConnector {
+        connector = connector.with_write_strategy(self.http1_write_strategy);
         if let Some(custom) = &self.tcp_connector {
             connector = connector.with_tcp_connector(custom.clone());
         }

@@ -157,10 +157,14 @@ async fn claimed_digest_opening_reserves_its_first_nonce_only_after_claim() -> T
 }
 
 async fn claimed(credentials: Option<HttpProxyAuthentication<'_>>) -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
-        let connector = test_connector(&identity)?;
+        let connector = test_connector(&identity)?.with_write_strategy(strategy);
         let (address, listener) = loopback_listener().await?;
         let original = fields("old", credentials.is_some());
         let current = fields("current", credentials.is_some());
@@ -206,7 +210,9 @@ async fn claimed(credentials: Option<HttpProxyAuthentication<'_>>) -> TestResult
         };
         tokio::try_join!(client, server)?;
         Ok(())
-    }).await?
+    }).await??;
+    }
+    Ok(())
 }
 
 mod nonce;

@@ -31,10 +31,15 @@ use peer::*;
 #[tokio::test]
 async fn negotiated_h1_retains_the_crossed_socks_backup_and_uses_only_the_claiming_body()
 -> TestResult<()> {
-    timeout(WAIT, async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        timeout(WAIT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
-        let connectors = Connectors::new(&identity, true)?;
+        let mut connectors = Connectors::new(&identity, true)?;
+        connectors.negotiated = connectors.negotiated.with_http1_write_strategy(strategy);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let host = address.ip().to_string();
@@ -82,7 +87,9 @@ async fn negotiated_h1_retains_the_crossed_socks_backup_and_uses_only_the_claimi
         };
         tokio::try_join!(caller, peer)?;
         Ok(())
-    }).await?
+    }).await??;
+    }
+    Ok(())
 }
 
 #[tokio::test]

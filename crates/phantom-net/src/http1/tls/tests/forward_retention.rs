@@ -19,9 +19,13 @@ use tokio::{
 #[tokio::test]
 async fn a_forward_opening_is_quiet_learns_proxy_family_and_sends_current_ordered_fields()
 -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
-        let connector = test_connector(&identity)?.with_tcp_settings(&phantom_profile::browser::firefox::v157_tcp());
+        let connector = test_connector(&identity)?.with_write_strategy(strategy).with_tcp_settings(&phantom_profile::browser::firefox::v157_tcp());
         let (address, listener) = loopback_listener().await?;
         let family = AddressFamilyMemory::default();
         let (connection, slower) = connector.connect_forward_retaining(Endpoint { host: "127.0.0.1", port: address.port() }, &family).await?;
@@ -48,7 +52,9 @@ async fn a_forward_opening_is_quiet_learns_proxy_family_and_sends_current_ordere
         drop(connection);
         assert_eq!(peer.read(&mut byte).await?, 0);
         Ok(())
-    }).await?
+    }).await??;
+    }
+    Ok(())
 }
 
 #[tokio::test]

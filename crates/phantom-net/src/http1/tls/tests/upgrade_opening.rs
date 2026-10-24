@@ -7,63 +7,71 @@ const QUIET: Duration = Duration::from_millis(100);
 
 #[tokio::test]
 async fn connected_tls_upgrade_stays_quiet_until_send_and_preserves_fields() -> TestResult<()> {
-    bounded_tls_test(async {
-        let identity = TestIdentity::generate()?;
-        let connector = test_connector(&identity)?;
-        let (address, listener) = loopback_listener().await?;
-        let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
-        let (opened, peer) = tokio::try_join!(
-            async {
-                TestResult::<_>::Ok(
-                    connector
-                        .open_upgrade(
-                            OriginRoute::Tls {
-                                tcp: TcpRoute::Direct(Endpoint {
-                                    host: "127.0.0.1",
-                                    port: address.port(),
-                                }),
-                                server_name: TEST_SERVER_NAME,
-                                setup: DirectTlsSetup::Default,
-                            },
-                            OriginForm::parse("/socket")?,
-                            vec![
-                                RequestHeader::new("Host", TEST_SERVER_NAME),
-                                RequestHeader::new("X-Order", "second"),
-                            ],
-                        )
-                        .await?,
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        bounded_tls_test(async {
+            let identity = TestIdentity::generate()?;
+            let connector = test_connector(&identity)?.with_write_strategy(strategy);
+            let (address, listener) = loopback_listener().await?;
+            let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
+            let (opened, peer) = tokio::try_join!(
+                async {
+                    TestResult::<_>::Ok(
+                        connector
+                            .open_upgrade(
+                                OriginRoute::Tls {
+                                    tcp: TcpRoute::Direct(Endpoint {
+                                        host: "127.0.0.1",
+                                        port: address.port(),
+                                    }),
+                                    server_name: TEST_SERVER_NAME,
+                                    setup: DirectTlsSetup::Default,
+                                },
+                                OriginForm::parse("/socket")?,
+                                vec![
+                                    RequestHeader::new("Host", TEST_SERVER_NAME),
+                                    RequestHeader::new("X-Order", "second"),
+                                ],
+                            )
+                            .await?,
+                    )
+                },
+                accept_tls(listener, acceptor),
+            )?;
+            let (opening, slower) = opened;
+            assert!(slower.is_none());
+            let (mut peer, _) = peer;
+            let mut byte = [0; 1];
+            assert!(timeout(QUIET, peer.read(&mut byte)).await.is_err());
+            let (result, request) = tokio::try_join!(
+                async {
+                    opening
+                        .send()
+                        .await
+                        .map_err(|error| Box::new(error) as Box<dyn Error + Send + Sync>)
+                },
+                async {
+                    let head = read_head(&mut peer).await?;
+                    peer.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+                        .await?;
+                    TestResult::<_>::Ok(head)
+                },
+            )?;
+            assert_eq!(
+                request,
+                format!(
+                    "GET /socket HTTP/1.1\r\nHost: {TEST_SERVER_NAME}\r\nX-Order: second\r\n\r\n"
                 )
-            },
-            accept_tls(listener, acceptor),
-        )?;
-        let (opening, slower) = opened;
-        assert!(slower.is_none());
-        let (mut peer, _) = peer;
-        let mut byte = [0; 1];
-        assert!(timeout(QUIET, peer.read(&mut byte)).await.is_err());
-        let (result, request) = tokio::try_join!(
-            async {
-                opening
-                    .send()
-                    .await
-                    .map_err(|error| Box::new(error) as Box<dyn Error + Send + Sync>)
-            },
-            async {
-                let head = read_head(&mut peer).await?;
-                peer.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
-                    .await?;
-                TestResult::<_>::Ok(head)
-            },
-        )?;
-        assert_eq!(
-            request,
-            format!("GET /socket HTTP/1.1\r\nHost: {TEST_SERVER_NAME}\r\nX-Order: second\r\n\r\n")
                 .as_bytes()
-        );
-        assert!(matches!(result, Http1UpgradeOutcome::Rejected(_)));
-        Ok(())
-    })
-    .await
+            );
+            assert!(matches!(result, Http1UpgradeOutcome::Rejected(_)));
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

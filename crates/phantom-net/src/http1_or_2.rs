@@ -256,6 +256,7 @@ impl From<Http2TlsError> for Http1Or2TlsError {
 pub struct Http1Or2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
+    http1_write_strategy: crate::http1::Http1WriteStrategy,
     tcp: Option<TcpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
@@ -348,7 +349,7 @@ impl Http1Or2TlsConnector {
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
         let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
         let stream = self.tls.connect(server_name, stream).await?;
-        select_connection(stream, client).await
+        select_connection(stream, client, self.http1_write_strategy).await
     }
 
     /// Opens origin TLS over SOCKS, retaining an eligible complete backup.
@@ -428,7 +429,7 @@ impl Http1Or2TlsConnector {
                 slower = pending;
                 let handshake = async {
                     let stream = self.tls.connect(server_name, stream).await?;
-                    select_connection(stream, client).await
+                    select_connection(stream, client, self.http1_write_strategy).await
                 };
                 match slower.as_mut() {
                     Some(attempt) => attempt.alongside(handshake).await,
@@ -449,7 +450,10 @@ impl Http1Or2TlsConnector {
                     let client = translate_settings(&connector.http2).ok()?;
                     let stream = attempt.finish().await?;
                     let stream = connector.tls.connect(&server_name, stream).await.ok()?;
-                    match select_connection(stream, client).await.ok()? {
+                    match select_connection(stream, client, connector.http1_write_strategy)
+                        .await
+                        .ok()?
+                    {
                         Http1Or2Connection::Http1(connection) => {
                             if !connection.is_reusable() {
                                 return None;
@@ -536,7 +540,7 @@ impl Http1Or2TlsConnector {
                 )
                 .await?;
             let stream = self.tls.connect(&server_name, leg).await?;
-            select_connection(stream, client).await
+            select_connection(stream, client, self.http1_write_strategy).await
         }))
         .await
     }
@@ -554,6 +558,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: TlsConnector::new(tls)?,
             http2: http2.clone(),
+            http1_write_strategy: crate::http1::Http1WriteStrategy::Automatic,
             tcp: None,
             source: None,
             host_resolver: None,
@@ -577,6 +582,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: TlsConnector::new_with_additional_roots(tls, roots)?,
             http2: http2.clone(),
+            http1_write_strategy: crate::http1::Http1WriteStrategy::Automatic,
             tcp: None,
             source: None,
             host_resolver: None,
@@ -602,6 +608,7 @@ impl Http1Or2TlsConnector {
         Ok(Self {
             tls: connector.tls_connector().clone(),
             http2: connector.settings().clone(),
+            http1_write_strategy: crate::http1::Http1WriteStrategy::Automatic,
             tcp: connector.tcp_settings().copied(),
             source: connector.source_binding().cloned(),
             host_resolver: connector.host_resolver().cloned(),
@@ -645,6 +652,7 @@ impl Http1Or2TlsConnector {
         Self {
             tls: self.tls.without_early_data(),
             http2: self.http2.clone(),
+            http1_write_strategy: self.http1_write_strategy,
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
@@ -700,6 +708,7 @@ impl Http1Or2TlsConnector {
             self.tcp_connector.clone(),
             self.proxy_credentials.clone(),
         )
+        .with_write_strategy(self.http1_write_strategy)
         .with_alpn_protocols(protocols)
     }
 
@@ -709,6 +718,7 @@ impl Http1Or2TlsConnector {
         Self {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
+            http1_write_strategy: self.http1_write_strategy,
             tcp: self.tcp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
@@ -737,6 +747,16 @@ impl Http1Or2TlsConnector {
         let mut connector = self.clone();
         connector.tls = self.tls.with_session_ticket_cache(owner)?;
         Ok(connector)
+    }
+
+    /// Selects request-write buffering when TLS selects HTTP/1.1.
+    ///
+    /// Derived HTTP/1 Upgrade connectors keep this choice. HTTP/2 and proxy
+    /// negotiation are unaffected. The default is Automatic.
+    #[must_use]
+    pub fn with_http1_write_strategy(mut self, strategy: crate::http1::Http1WriteStrategy) -> Self {
+        self.http1_write_strategy = strategy;
+        self
     }
 
     /// Applies TCP socket options to every direct TCP connection this
@@ -933,7 +953,7 @@ impl Http1Or2TlsConnector {
                                 .tls
                                 .connect_offering_early_data(server_name, stream)
                                 .await?;
-                            select_connection(stream, client).await
+                            select_connection(stream, client, self.http1_write_strategy).await
                         };
                         match slower.as_mut() {
                             Some(attempt) => attempt.alongside(handshake).await,
@@ -958,7 +978,7 @@ impl Http1Or2TlsConnector {
                             .await?;
                         slower = attempt;
                         selected_ech = Some(selected);
-                        let protocol = select_connection(stream, client);
+                        let protocol = select_connection(stream, client, self.http1_write_strategy);
                         match slower.as_mut() {
                             Some(attempt) => attempt.alongside(protocol).await,
                             None => protocol.await,
@@ -969,7 +989,7 @@ impl Http1Or2TlsConnector {
                         let stream =
                             crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry)
                                 .await?;
-                        select_connection(stream, client).await
+                        select_connection(stream, client, self.http1_write_strategy).await
                     }
                     #[cfg(feature = "https-records")]
                     (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
@@ -983,7 +1003,7 @@ impl Http1Or2TlsConnector {
                             crate::direct::EchEarlyData::Allowed,
                         )
                         .await?;
-                        select_connection(stream, client).await
+                        select_connection(stream, client, self.http1_write_strategy).await
                     }
                     (tcp, DirectTlsSetup::Default) => {
                         let direct = matches!(tcp, TcpRoute::Direct(_));
@@ -1000,7 +1020,7 @@ impl Http1Or2TlsConnector {
                         } else {
                             self.tls.connect(server_name, stream).await?
                         };
-                        select_connection(stream, client).await
+                        select_connection(stream, client, self.http1_write_strategy).await
                     }
                     _ => Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
                         std::io::Error::new(
@@ -1068,6 +1088,7 @@ impl Http1Or2TlsConnector {
         #[cfg(feature = "https-records")] selected: Option<crate::direct::SelectedEch>,
     ) -> SlowerConnection<Http1Or2Connection> {
         let tls = self.tls.clone();
+        let strategy = self.http1_write_strategy;
         #[cfg(feature = "https-records")]
         let (tcp, source, resolver) = (self.tcp, self.source.clone(), self.host_resolver.clone());
         let http2 = self.http2.clone();
@@ -1105,7 +1126,7 @@ impl Http1Or2TlsConnector {
                 .await
                 .inspect_err(|error| debug!(error = %error, "slower connection handshake failed"))
                 .ok()?;
-            match select_connection(stream, client).await.ok()? {
+            match select_connection(stream, client, strategy).await.ok()? {
                 Http1Or2Connection::Http1(connection) => {
                     connection.early_data_answered().await;
                     if !connection.is_reusable() {
@@ -1166,6 +1187,7 @@ pub(crate) fn keeps_slower(first: &Http1Or2Connection, attempt: &SlowerAttempt) 
 async fn select_connection<S>(
     stream: crate::tls::TlsStream<S>,
     client: Http2Builder,
+    strategy: crate::http1::Http1WriteStrategy,
 ) -> Result<Http1Or2Connection, Http1Or2TlsError>
 where
     S: AsyncRead
@@ -1197,7 +1219,7 @@ where
             Span::current().record("selected_protocol", "http/1.1");
             debug!("TLS selected HTTP/1.1");
             let early_data = stream.early_data_wait();
-            Http1Connection::connect_with_early_data(stream, early_data, keepalive)
+            Http1Connection::connect_with_early_data(stream, early_data, keepalive, strategy)
                 .await
                 .map(|connection| connection.with_connection_metadata(metadata))
                 .map(Http1Or2Connection::Http1)

@@ -13,46 +13,49 @@ async fn upgrade(
 
 #[tokio::test]
 async fn websocket_openings_use_the_selected_custom_stream() -> TestResult<()> {
-    for tls in [false, true] {
-        timeout(LIMIT, async {
-            let identity = TestIdentity::generate()?;
-            let acceptor = identity.acceptor(H1_ALPN)?;
-            let (connector, mut peers, calls) = connector();
-            let client = client_builder(&identity, false)
-                .tcp_connector(connector)
-                .build()?;
-            let caller = async {
-                let url = if tls {
-                    "wss://127.0.0.1:4321/path"
-                } else {
-                    "ws://127.0.0.1:4321/path"
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        for tls in [false, true] {
+            timeout(LIMIT, async {
+                let identity = TestIdentity::generate()?;
+                let acceptor = identity.acceptor(H1_ALPN)?;
+                let (connector, mut peers, calls) = connector();
+                let client = client_builder(&identity, false)
+                    .http1_write_strategy(strategy)
+                    .tcp_connector(connector)
+                    .build()?;
+                let caller = async {
+                    let url = if tls {
+                        "wss://127.0.0.1:4321/path"
+                    } else {
+                        "ws://127.0.0.1:4321/path"
+                    };
+                    client
+                        .websocket_with_protocol(HttpProtocol::Http1, url)?
+                        .connect()
+                        .await?;
+                    assert_eq!(calls.load(Ordering::SeqCst), 1);
+                    Ok::<_, Box<dyn Error + Send + Sync>>(())
                 };
-                client
-                    .websocket_with_protocol(HttpProtocol::Http1, url)?
-                    .connect()
-                    .await?;
-                assert_eq!(calls.load(Ordering::SeqCst), 1);
+                let peer = async {
+                    let stream = peers
+                        .recv()
+                        .await
+                        .ok_or_else(|| io::Error::from(io::ErrorKind::UnexpectedEof))?;
+                    if tls {
+                        let ssl = btls::ssl::Ssl::new(acceptor.context())?;
+                        let mut stream = tokio_btls::SslStream::new(ssl, stream)?;
+                        std::pin::Pin::new(&mut stream).accept().await?;
+                        upgrade(stream).await?;
+                    } else {
+                        upgrade(stream).await?;
+                    }
+                    Ok::<_, Box<dyn Error + Send + Sync>>(())
+                };
+                tokio::try_join!(caller, peer)?;
                 Ok::<_, Box<dyn Error + Send + Sync>>(())
-            };
-            let peer = async {
-                let stream = peers
-                    .recv()
-                    .await
-                    .ok_or_else(|| io::Error::from(io::ErrorKind::UnexpectedEof))?;
-                if tls {
-                    let ssl = btls::ssl::Ssl::new(acceptor.context())?;
-                    let mut stream = tokio_btls::SslStream::new(ssl, stream)?;
-                    std::pin::Pin::new(&mut stream).accept().await?;
-                    upgrade(stream).await?;
-                } else {
-                    upgrade(stream).await?;
-                }
-                Ok::<_, Box<dyn Error + Send + Sync>>(())
-            };
-            tokio::try_join!(caller, peer)?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        })
-        .await??;
+            })
+            .await??;
+        }
     }
     Ok(())
 }

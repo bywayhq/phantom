@@ -91,7 +91,7 @@ async fn a_plaintext_slower_connection_sets_no_keepalive_until_its_first_request
     });
     observed::take();
     let (attempt, gate) = gated(origin_address)?;
-    let slower = slower_plaintext(attempt);
+    let slower = slower_plaintext(attempt, crate::http1::Http1WriteStrategy::Automatic);
     let progress = slower.progress();
     assert!(!progress.has_connected());
 

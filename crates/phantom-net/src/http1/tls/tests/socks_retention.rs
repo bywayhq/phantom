@@ -105,8 +105,12 @@ async fn respond<S: AsyncRead + AsyncWrite + Unpin>(stream: &mut S, path: &str) 
 
 #[tokio::test]
 async fn the_spare_finishes_verified_tls_but_sends_no_request_until_claimed() -> TestResult<()> {
-    bounded(async {
-        let identity=TestIdentity::generate()?;let acceptor=identity.acceptor(TestServerAlpn::Http1)?;let connector=early_data_connector(&identity)?;
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        bounded(async {
+        let identity=TestIdentity::generate()?;let acceptor=identity.acceptor(TestServerAlpn::Http1)?;let connector=early_data_connector(&identity)?.with_write_strategy(strategy);
         let listener=TcpListener::bind((Ipv4Addr::LOCALHOST,0)).await?;let address=listener.local_addr()?;let host=address.ip().to_string();let family=AddressFamilyMemory::default();
         let (release_tx,release_rx)=oneshot::channel();let (ready_tx,ready_rx)=oneshot::channel();let (quiet_tx,quiet_rx)=oneshot::channel();
         let peer=async {
@@ -125,7 +129,9 @@ async fn the_spare_finishes_verified_tls_but_sends_no_request_until_claimed() ->
             get(&spare,"/current").await?;drop(spare);drop(winner);Ok::<_,Box<dyn std::error::Error+Send+Sync>>(())
         };
         tokio::try_join!(peer,operation)?;Ok(())
-    }).await
+    }).await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

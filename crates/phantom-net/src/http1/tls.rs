@@ -67,6 +67,7 @@ pub use error::{Http1TlsError, Http1TlsErrorKind};
 #[derive(Clone, Debug)]
 pub struct Http1TlsConnector {
     tls: TlsConnector,
+    write_strategy: super::Http1WriteStrategy,
     tcp: Option<TcpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
@@ -173,9 +174,11 @@ impl Http1TlsConnector {
                 if let Some(keepalive) = stream.tcp_keepalive() {
                     keepalive.request_dispatched();
                 }
-                connect_over_tls(self.tls.connect(name, stream).await?).await
+                connect_over_tls(self.write_strategy, self.tls.connect(name, stream).await?).await
             }
-            None => connect_plaintext(stream).await.map_err(Into::into),
+            None => connect_plaintext(self.write_strategy, stream)
+                .await
+                .map_err(Into::into),
         }
     }
 
@@ -203,7 +206,13 @@ impl Http1TlsConnector {
         .await;
         let classified = connection_outcome(&result);
         match result {
-            Ok(stream) => Ok(Http1UpgradeOpening::new(stream, prepared, span, outcome)),
+            Ok(stream) => Ok(Http1UpgradeOpening::new(
+                self.write_strategy,
+                stream,
+                prepared,
+                span,
+                outcome,
+            )),
             Err(error) => {
                 outcome.finish(classified);
                 Err(error)
@@ -284,13 +293,15 @@ impl Http1TlsConnector {
                     slower = pending;
                     let primary = async {
                         match name {
-                            None => connect_plaintext(stream).await.map_err(Into::into),
+                            None => connect_plaintext(self.write_strategy, stream)
+                                .await
+                                .map_err(Into::into),
                             Some(name) => {
                                 if let Some(keepalive) = stream.tcp_keepalive() {
                                     keepalive.request_dispatched();
                                 }
                                 let tls = self.tls.connect(name, stream).await?;
-                                connect_over_tls(tls).await
+                                connect_over_tls(self.write_strategy, tls).await
                             }
                         }
                     };
@@ -309,13 +320,17 @@ impl Http1TlsConnector {
             SlowerConnection::new(progress, async move {
                 let stream = slower.finish().await?;
                 let connection = match name {
-                    None => connect_plaintext(stream).await.ok()?,
+                    None => connect_plaintext(connector.write_strategy, stream)
+                        .await
+                        .ok()?,
                     Some(name) => {
                         if let Some(keepalive) = stream.tcp_keepalive() {
                             keepalive.request_dispatched();
                         }
                         let stream = connector.tls.connect(&name, stream).await.ok()?;
-                        connect_over_tls(stream).await.ok()?
+                        connect_over_tls(connector.write_strategy, stream)
+                            .await
+                            .ok()?
                     }
                 };
                 if !connection.is_reusable() {
@@ -416,11 +431,16 @@ impl Http1TlsConnector {
                     .await
                     .map_err(forward_connect_error)?;
                     slower = attempt;
-                    connect_plaintext(stream).await.map_err(Into::into)
+                    connect_plaintext(self.write_strategy, stream)
+                        .await
+                        .map_err(Into::into)
                 }),
             )
             .await?;
-        Ok((connection, slower.map(slower_plaintext)))
+        Ok((
+            connection,
+            slower.map(|attempt| slower_plaintext(attempt, self.write_strategy)),
+        ))
     }
 
     /// Opens a proxy TCP socket without sending CONNECT or origin TLS.
@@ -497,6 +517,7 @@ impl Http1TlsConnector {
         let classified = connection_outcome(&result);
         match result {
             Ok(stream) => Ok(Http1UpgradeOpening::new(
+                self.write_strategy,
                 super::upgrade_opening::OpeningStream::ProxyTls(stream),
                 prepared,
                 span,
@@ -557,7 +578,7 @@ impl Http1TlsConnector {
                         )
                         .await?;
                     let stream = self.tls.connect(&server_name, leg).await?;
-                    connect_over_tls(stream).await
+                    connect_over_tls(self.write_strategy, stream).await
                 }),
             )
             .await
@@ -580,6 +601,7 @@ impl Http1TlsConnector {
                 host_resolver: None,
                 tcp_connector: None,
                 proxy_credentials: None,
+                write_strategy: super::Http1WriteStrategy::Automatic,
             })
             .map_err(Into::into)
     }
@@ -608,6 +630,7 @@ impl Http1TlsConnector {
                 host_resolver: None,
                 tcp_connector: None,
                 proxy_credentials: None,
+                write_strategy: super::Http1WriteStrategy::Automatic,
             })
             .map_err(Into::into)
     }
@@ -637,6 +660,7 @@ impl Http1TlsConnector {
                 host_resolver: None,
                 tcp_connector: None,
                 proxy_credentials: None,
+                write_strategy: super::Http1WriteStrategy::Automatic,
             })
             .map_err(Into::into)
     }
@@ -655,6 +679,7 @@ impl Http1TlsConnector {
                 host_resolver: None,
                 tcp_connector: None,
                 proxy_credentials: None,
+                write_strategy: super::Http1WriteStrategy::Automatic,
             })
             .map_err(Into::into)
     }
@@ -672,6 +697,7 @@ impl Http1TlsConnector {
             host_resolver: self.host_resolver.clone(),
             tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
+            write_strategy: self.write_strategy,
         }
     }
 
@@ -727,6 +753,7 @@ impl Http1TlsConnector {
             host_resolver: self.host_resolver.clone(),
             tcp_connector: self.tcp_connector.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
+            write_strategy: self.write_strategy,
         })
     }
 
@@ -747,7 +774,22 @@ impl Http1TlsConnector {
             host_resolver,
             tcp_connector,
             proxy_credentials,
+            write_strategy: super::Http1WriteStrategy::Automatic,
         }
+    }
+
+    /// Selects request-write buffering for new HTTP/1.1 connections.
+    ///
+    /// Includes forwarded requests and Upgrade openings. Proxy CONNECT and
+    /// SOCKS negotiation keep their existing writes. The default is Automatic.
+    #[must_use]
+    pub fn with_write_strategy(mut self, strategy: super::Http1WriteStrategy) -> Self {
+        self.write_strategy = strategy;
+        self
+    }
+
+    pub(super) const fn write_strategy(&self) -> super::Http1WriteStrategy {
+        self.write_strategy
     }
 
     /// Applies TCP socket options to every TCP connection this connector opens.
@@ -923,7 +965,7 @@ impl Http1TlsConnector {
                 }
                 self.slower_tls(attempt, server_name)
             }
-            None => slower_plaintext(attempt),
+            None => slower_plaintext(attempt, self.write_strategy),
         });
         Ok((connection, slower))
     }
@@ -1052,7 +1094,7 @@ impl Http1TlsConnector {
                     .map_err(Http1TlsError::from_direct)?;
                     Ok((
                         super::upgrade_opening::OpeningStream::Plaintext(stream),
-                        slower.map(slower_plaintext),
+                        slower.map(|attempt| slower_plaintext(attempt, self.write_strategy)),
                     ))
                 }
                 Http1Route::Origin(OriginRoute::Tls {
@@ -1146,7 +1188,7 @@ impl Http1TlsConnector {
         let classified = connection_outcome(&result);
         match result {
             Ok((stream, slower)) => Ok((
-                Http1UpgradeOpening::new(stream, prepared, span, outcome),
+                Http1UpgradeOpening::new(self.write_strategy, stream, prepared, span, outcome),
                 slower,
             )),
             Err(error) => {
@@ -1191,7 +1233,7 @@ impl Http1TlsConnector {
                         let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
                             .await
                             .map_err(forward_connect_error)?;
-                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                        send_plaintext_tunnel_upgrade(self.write_strategy, stream, prepared).await
                     }
                     Http1Route::Forward(ProxyTransport::Tls {
                         endpoint,
@@ -1201,7 +1243,7 @@ impl Http1TlsConnector {
                         let stream = connector
                             .connect_forward(endpoint.host, endpoint.port, server_name)
                             .await?;
-                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                        send_plaintext_tunnel_upgrade(self.write_strategy, stream, prepared).await
                     }
                     Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
                         let stream = connection_leg::connect(
@@ -1210,7 +1252,7 @@ impl Http1TlsConnector {
                             self.proxy_credentials.as_ref(),
                         )
                         .await?;
-                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                        send_plaintext_tunnel_upgrade(self.write_strategy, stream, prepared).await
                     }
                     Http1Route::Origin(OriginRoute::Tls {
                         tcp,
@@ -1229,7 +1271,7 @@ impl Http1TlsConnector {
                                 crate::direct::EchEarlyData::WithoutEch,
                             )
                             .await?;
-                            upgrade_over_tls(stream, prepared).await
+                            upgrade_over_tls(self.write_strategy, stream, prepared).await
                         }
                         (tcp, DirectTlsSetup::Default) => {
                             let direct = matches!(tcp, TcpRoute::Direct(_));
@@ -1246,7 +1288,7 @@ impl Http1TlsConnector {
                             } else {
                                 self.tls.connect(server_name, stream).await?
                             };
-                            upgrade_over_tls(stream, prepared).await
+                            upgrade_over_tls(self.write_strategy, stream, prepared).await
                         }
                         _ => Err(invalid_route("Upgrade cannot retain a slower connection")),
                     },
@@ -1307,7 +1349,9 @@ impl Http1TlsConnector {
                 let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
                     .await
                     .map_err(forward_connect_error)?;
-                connect_plaintext(stream).await.map_err(Into::into)
+                connect_plaintext(self.write_strategy, stream)
+                    .await
+                    .map_err(Into::into)
             }
             Http1Route::Forward(ProxyTransport::Tls {
                 endpoint,
@@ -1317,7 +1361,9 @@ impl Http1TlsConnector {
                 let stream = connector
                     .connect_forward(endpoint.host, endpoint.port, server_name)
                     .await?;
-                connect_plaintext(stream).await.map_err(Into::into)
+                connect_plaintext(self.write_strategy, stream)
+                    .await
+                    .map_err(Into::into)
             }
             Http1Route::Origin(OriginRoute::Plaintext {
                 tcp: TcpRoute::Direct(endpoint),
@@ -1328,13 +1374,17 @@ impl Http1TlsConnector {
                         .await
                         .map_err(Http1TlsError::from_direct)?;
                 *slower = attempt;
-                connect_plaintext(stream).await.map_err(Into::into)
+                connect_plaintext(self.write_strategy, stream)
+                    .await
+                    .map_err(Into::into)
             }
             Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
                 let stream =
                     connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref())
                         .await?;
-                connect_plaintext(stream).await.map_err(Into::into)
+                connect_plaintext(self.write_strategy, stream)
+                    .await
+                    .map_err(Into::into)
             }
             Http1Route::Origin(OriginRoute::Tls {
                 tcp,
@@ -1371,7 +1421,7 @@ impl Http1TlsConnector {
             (TcpRoute::Direct(_), DirectTlsSetup::EchRetry(retry)) => {
                 let stream =
                     crate::direct::retry_ech(&self.tls, self.dialer(), server_name, retry).await?;
-                connect_over_tls(stream).await
+                connect_over_tls(self.write_strategy, stream).await
             }
             (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
                 let (stream, attempt) = connect_tcp_keeping_slower(
@@ -1388,7 +1438,7 @@ impl Http1TlsConnector {
                         .tls
                         .connect_offering_early_data(server_name, stream)
                         .await?;
-                    connect_over_tls(stream).await
+                    connect_over_tls(self.write_strategy, stream).await
                 };
                 match slower.as_mut() {
                     Some(attempt) => attempt.alongside(handshake).await,
@@ -1413,7 +1463,7 @@ impl Http1TlsConnector {
                 .await?;
                 *slower = attempt;
                 *selected_ech = Some(selected);
-                let protocol = connect_over_tls(stream);
+                let protocol = connect_over_tls(self.write_strategy, stream);
                 match slower.as_mut() {
                     Some(attempt) => attempt.alongside(protocol).await,
                     None => protocol.await,
@@ -1435,7 +1485,7 @@ impl Http1TlsConnector {
                     },
                 )
                 .await?;
-                connect_over_tls(stream).await
+                connect_over_tls(self.write_strategy, stream).await
             }
             (tcp, DirectTlsSetup::Default) => {
                 let direct = matches!(tcp, TcpRoute::Direct(_));
@@ -1449,7 +1499,7 @@ impl Http1TlsConnector {
                 } else {
                     self.tls.connect(server_name, stream).await?
                 };
-                connect_over_tls(stream).await
+                connect_over_tls(self.write_strategy, stream).await
             }
             _ => Err(invalid_route("direct TLS setup requires a direct route")),
         }
@@ -1495,6 +1545,7 @@ impl Http1TlsConnector {
         #[cfg(feature = "https-records")] selected: Option<crate::direct::SelectedEch>,
     ) -> SlowerConnection<Http1Connection> {
         let tls = self.tls.clone();
+        let strategy = self.write_strategy;
         #[cfg(feature = "https-records")]
         let (tcp, source, resolver) = (self.tcp, self.source.clone(), self.host_resolver.clone());
         let server_name = server_name.to_owned();
@@ -1530,7 +1581,7 @@ impl Http1TlsConnector {
                 .await
                 .inspect_err(|error| debug!(error = %error, "slower connection handshake failed"))
                 .ok()?;
-            let connection = connect_over_tls(stream).await.ok()?;
+            let connection = connect_over_tls(strategy, stream).await.ok()?;
             connection.early_data_answered().await;
             if !connection.is_reusable() {
                 return None;
@@ -1797,6 +1848,7 @@ fn upgrade_span(route: &Http1Route<'_>) -> Span {
 /// Sends a prepared plaintext Upgrade on an established connection and
 /// records the response status on the current span.
 pub(super) async fn send_plaintext_tunnel_upgrade<S>(
+    strategy: super::Http1WriteStrategy,
     stream: S,
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>
@@ -1804,7 +1856,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     debug!("HTTP/1 plaintext Upgrade request prepared");
-    let outcome = send_profiled_upgrade(stream, prepared).await?;
+    let outcome = send_profiled_upgrade(stream, prepared, strategy).await?;
     let status = match &outcome {
         Http1UpgradeOutcome::Upgraded(response) => response.status(),
         Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1887,7 +1939,10 @@ impl Http1TlsError {
 }
 
 /// Starts HTTP/1.1 over an established TLS stream on a profile connection.
-async fn connect_over_tls<S>(stream: TlsStream<S>) -> Result<Http1Connection, Http1TlsError>
+async fn connect_over_tls<S>(
+    strategy: super::Http1WriteStrategy,
+    stream: TlsStream<S>,
+) -> Result<Http1Connection, Http1TlsError>
 where
     S: AsyncRead
         + AsyncWrite
@@ -1902,7 +1957,7 @@ where
     let keepalive = stream.tcp_keepalive();
     let early_data = stream.early_data_wait();
     let metadata = stream.connection_metadata();
-    Http1Connection::connect_with_early_data(stream, early_data, keepalive)
+    Http1Connection::connect_with_early_data(stream, early_data, keepalive, strategy)
         .await
         .map(|connection| connection.with_connection_metadata(metadata))
         .map_err(Into::into)
@@ -1910,19 +1965,25 @@ where
 
 /// Starts plaintext HTTP/1.1 on a slower attempt's connection once it
 /// connects, with no keepalive until its first request.
-pub(crate) fn slower_plaintext(attempt: SlowerAttempt) -> SlowerConnection<Http1Connection> {
+pub(crate) fn slower_plaintext(
+    attempt: SlowerAttempt,
+    strategy: super::Http1WriteStrategy,
+) -> SlowerConnection<Http1Connection> {
     SlowerConnection::new(attempt.progress(), async move {
         let stream = attempt
             .connect()
             .await
             .ok()?
             .into_stream(SlowerKeepalive::OnFirstRequest);
-        connect_plaintext(stream).await.ok()
+        connect_plaintext(strategy, stream).await.ok()
     })
 }
 
 /// Starts plaintext HTTP/1.1 on a profile connection.
-pub(super) async fn connect_plaintext<S>(stream: S) -> Result<Http1Connection, Http1Error>
+pub(super) async fn connect_plaintext<S>(
+    strategy: super::Http1WriteStrategy,
+    stream: S,
+) -> Result<Http1Connection, Http1Error>
 where
     S: AsyncRead
         + AsyncWrite
@@ -1934,7 +1995,7 @@ where
 {
     let keepalive = stream.tcp_keepalive();
     let metadata = stream.connection_metadata();
-    Http1Connection::connect_with_early_data(stream, None, keepalive)
+    Http1Connection::connect_with_early_data(stream, None, keepalive, strategy)
         .await
         .map(|connection| connection.with_connection_metadata(metadata))
 }
@@ -1944,12 +2005,13 @@ where
 async fn send_profiled_upgrade<S>(
     stream: S,
     prepared: PreparedGet,
+    strategy: super::Http1WriteStrategy,
 ) -> Result<Http1UpgradeOutcome, Http1Error>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     let keepalive = stream.tcp_keepalive();
-    send_prepared_upgrade(stream, prepared, keepalive).await
+    send_prepared_upgrade(stream, prepared, keepalive, strategy).await
 }
 
 /// Sends a prepared Upgrade GET over an established TLS stream.
@@ -1958,6 +2020,7 @@ where
 /// in it. When the handshake then fails, this reports the error a fresh
 /// connection reports.
 pub(super) async fn upgrade_over_tls<S>(
+    strategy: super::Http1WriteStrategy,
     stream: TlsStream<S>,
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>
@@ -1966,7 +2029,7 @@ where
 {
     require_http1_selected(&stream)?;
     let early_data = stream.early_data_wait();
-    let outcome = send_profiled_upgrade(stream, prepared)
+    let outcome = send_profiled_upgrade(stream, prepared, strategy)
         .await
         .map_err(|error| {
             early_data

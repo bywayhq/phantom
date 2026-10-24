@@ -1160,3 +1160,5 @@ mod forward_retention;
 mod https_forward_retention;
 
 mod socks_retention;
+
+mod write_strategy;

@@ -81,7 +81,22 @@ impl Http1Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::connect_with_early_data(stream, None, None).await
+        Self::connect_with_write_strategy(stream, super::Http1WriteStrategy::Automatic).await
+    }
+
+    /// Establishes HTTP/1.1 with the selected request-write buffering.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] when the protocol handshake fails.
+    pub async fn connect_with_write_strategy<T>(
+        stream: T,
+        strategy: super::Http1WriteStrategy,
+    ) -> Result<Self, Http1Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::connect_with_early_data(stream, None, None, strategy).await
     }
 
     /// Establishes HTTP/1.1 over a TLS stream whose server may not have
@@ -100,13 +115,14 @@ impl Http1Connection {
         stream: T,
         early_data: Option<EarlyDataWait>,
         keepalive: Option<TcpKeepaliveControl>,
+        strategy: super::Http1WriteStrategy,
     ) -> Result<Self, Http1Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let runtime = super::current_runtime()?;
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
-        let (sender, connection) = connection_builder()
+        let (sender, connection) = connection_builder(strategy)
             .handshake::<_, Http1RequestBody>(stream)
             .await
             .map_err(Http1Error::protocol)?;

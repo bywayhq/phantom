@@ -16,6 +16,7 @@ pub struct Http1UpgradeOpening {
     prepared: PreparedGet,
     span: Span,
     outcome: OperationOutcome,
+    strategy: super::Http1WriteStrategy,
 }
 
 pub(super) enum OpeningStream {
@@ -42,6 +43,7 @@ impl fmt::Debug for Http1UpgradeOpening {
 
 impl Http1UpgradeOpening {
     pub(super) fn new(
+        strategy: super::Http1WriteStrategy,
         stream: OpeningStream,
         prepared: PreparedGet,
         span: Span,
@@ -52,6 +54,7 @@ impl Http1UpgradeOpening {
             prepared,
             span,
             outcome,
+            strategy,
         }
     }
 
@@ -66,18 +69,21 @@ impl Http1UpgradeOpening {
             prepared,
             span,
             outcome,
+            strategy,
         } = self;
         let result = async move {
             match stream {
                 OpeningStream::Connected(stream) => {
-                    super::tls::send_plaintext_tunnel_upgrade(stream, prepared).await
+                    super::tls::send_plaintext_tunnel_upgrade(strategy, stream, prepared).await
                 }
                 OpeningStream::Plaintext(stream) => {
-                    super::tls::send_plaintext_tunnel_upgrade(stream, prepared).await
+                    super::tls::send_plaintext_tunnel_upgrade(strategy, stream, prepared).await
                 }
-                OpeningStream::Tls(stream) => super::tls::upgrade_over_tls(stream, prepared).await,
+                OpeningStream::Tls(stream) => {
+                    super::tls::upgrade_over_tls(strategy, stream, prepared).await
+                }
                 OpeningStream::ProxyTls(stream) => {
-                    super::tls::upgrade_over_tls(stream, prepared).await
+                    super::tls::upgrade_over_tls(strategy, stream, prepared).await
                 }
             }
         }

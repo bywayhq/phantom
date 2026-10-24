@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `ClientBuilder::http1_write_strategy` with opt-in queued request writes.
+  Automatic buffering remains the default. Queued writes may change TLS
+  record grouping; measure latency and memory with your workload.
+
 - Allow native-DNS captures on the current hosted Windows 2025 image and
   serialize its DNS configuration without CIM metadata. Collect guard output
   without waiting for its watchdog to exit and include bounded guard failure

@@ -17,6 +17,7 @@ pub use http::Uri;
 pub use phantom_net::host_resolver::{
     AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver, DnsConfigurationToken,
 };
+pub use phantom_net::http1::Http1WriteStrategy;
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::{
     DigestAuthError, DigestPolicy, HttpConnectHeader, HttpDigestCredentials,

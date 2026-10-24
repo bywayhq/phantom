@@ -315,8 +315,13 @@ async fn upgrade_head_limit_is_typed_and_driver_reports_protocol_error() -> Test
         let (client, mut server) = duplex(MAX_RESPONSE_HEAD_BYTES * 2);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
         let transaction = PeerTask::spawn(
-            send_prepared_upgrade(client, prepared, None)
-                .with_subscriber(Dispatch::new(subscriber.clone())),
+            send_prepared_upgrade(
+                client,
+                prepared,
+                None,
+                crate::http1::Http1WriteStrategy::Automatic,
+            )
+            .with_subscriber(Dispatch::new(subscriber.clone())),
         );
         read_head(&mut server).await?;
         server
@@ -349,7 +354,12 @@ async fn upgrade_response_field_count_preserves_typed_error() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(16 * 1024);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(
+            client,
+            prepared,
+            None,
+            crate::http1::Http1WriteStrategy::Automatic,
+        ));
         read_head(&mut server).await?;
         let mut response = response_with_fields(
             b"HTTP/1.1 101 Switching Protocols\r\n",
@@ -378,7 +388,12 @@ async fn rejected_upgrade_body_preserves_chunk_size_limit_error() -> TestResult 
     bounded_peer_test(async {
         let (client, mut server) = duplex(MAX_RESPONSE_HEAD_BYTES * 2);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(
+            client,
+            prepared,
+            None,
+            crate::http1::Http1WriteStrategy::Automatic,
+        ));
         read_head(&mut server).await?;
         server
             .write_all(&chunked_response(MAX_CHUNK_SIZE_LINE_BYTES + 1))

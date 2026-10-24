@@ -27,6 +27,23 @@ pub use socks_opening::Http1SocksOpening;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 pub use upgrade_opening::Http1UpgradeOpening;
 
+/// How HTTP/1.1 buffers request writes.
+///
+/// This affects write boundaries and may change TLS record grouping. It does
+/// not change HTTP field ordering, framing or protocol selection.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http1WriteStrategy {
+    /// Choose from the connected stream's vectored-write support.
+    #[default]
+    Automatic,
+    /// Queue body buffers instead of copying them into the header buffer.
+    ///
+    /// The stream may still use scalar writes. Whether this improves latency,
+    /// throughput or memory use depends on the transport and workload.
+    Queued,
+}
+
 /// Opaque failure from the HTTP/1.1 protocol driver.
 ///
 /// You can inspect the underlying failure through [`StdError::source`].

@@ -44,13 +44,17 @@ async fn head(stream: &mut (impl AsyncReadExt + Unpin)) -> TestResult<Vec<u8>> {
 }
 #[tokio::test]
 async fn quiet_connect_opening_uses_current_fields_and_actual_origin_alpn() -> TestResult<()> {
-    for (alpn, h2) in [(TestServerAlpn::Http1, false), (TestServerAlpn::H2, true)] {
-        for https in [false, true] {
-            timeout(TEST_TIMEOUT, async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        for (alpn, h2) in [(TestServerAlpn::Http1, false), (TestServerAlpn::H2, true)] {
+            for https in [false, true] {
+                timeout(TEST_TIMEOUT, async {
             let identity = TestIdentity::generate_for_names(&["127.0.0.1"])?;
             let connector = Http1Or2TlsConnector::new_with_additional_roots(
                 &v154_tcp_tls(), &v154_http2(), [identity.root_der()],
-            )?;
+            )?.with_http1_write_strategy(strategy);
             let acceptor = identity.acceptor(alpn)?;
             let outer_acceptor = identity.acceptor(TestServerAlpn::Http1)?;
             let proxy = crate::proxy::HttpsProxyConnector::new_with_additional_roots(
@@ -117,6 +121,7 @@ async fn quiet_connect_opening_uses_current_fields_and_actual_origin_alpn() -> T
             assert_eq!(observed, expected.as_bytes());
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         }).await??;
+            }
         }
     }
     Ok(())

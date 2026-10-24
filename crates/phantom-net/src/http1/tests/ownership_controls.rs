@@ -122,7 +122,12 @@ async fn cancelling_workflow_after_upgrade_request_releases_transaction() -> Tes
     let prepared = PreparedGet::new(target()?, vec![host()])?;
     let (ready_tx, ready_rx) = oneshot::channel();
     let mut workflow = Box::pin(async move {
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(
+            client,
+            prepared,
+            None,
+            crate::http1::Http1WriteStrategy::Automatic,
+        ));
         let _ = ready_tx.send(transaction.abort_handle());
         pending::<()>().await;
         drop(transaction);

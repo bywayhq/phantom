@@ -11,8 +11,8 @@ use std::{
 };
 
 use phantom::{
-    BuildErrorKind, Client, ConnectedStream, HttpProtocol, RequestErrorKind, RequestTimeouts,
-    TcpConnector,
+    BuildErrorKind, Client, ConnectedStream, Http1WriteStrategy, HttpProtocol, RequestErrorKind,
+    RequestTimeouts, TcpConnector,
     profile::{ClientProfile, browser::chrome},
 };
 use tokio::{
@@ -73,7 +73,9 @@ async fn get(client: &Client) -> TestResult<()> {
 async fn url_authority_survives_pool_reuse_and_independent_clients() -> TestResult<()> {
     timeout(LIMIT, async {
         let (connector, mut peers, calls) = connector();
-        let client = builder(connector.clone()).build()?;
+        let client = builder(connector.clone())
+            .http1_write_strategy(Http1WriteStrategy::Queued)
+            .build()?;
         let independent = builder(connector).build()?;
         let caller = async {
             get(&client).await?;
@@ -111,62 +113,95 @@ async fn url_authority_survives_pool_reuse_and_independent_clients() -> TestResu
 
 #[tokio::test]
 async fn custom_streams_support_tls_http1_http2_and_alpn() -> TestResult<()> {
-    for (http2, negotiated) in [(false, false), (true, false), (true, true)] {
-        timeout(LIMIT, async {
-            let identity = TestIdentity::generate()?;
-            let acceptor = identity.acceptor(if http2 { H2_ALPN } else { H1_ALPN })?;
-            let (connector, mut peers, calls) = connector();
-            let client = client_builder(&identity, http2)
-                .tcp_connector(connector)
-                .build()?;
-            let caller = async {
-                for _ in 0..2 {
-                    let request = if negotiated {
-                        client.get_negotiated("https://127.0.0.1:4321/path")?
-                    } else {
-                        client.get(
-                            if http2 {
-                                HttpProtocol::Http2
-                            } else {
-                                HttpProtocol::Http1
-                            },
-                            "https://127.0.0.1:4321/path",
-                        )?
-                    };
-                    assert_eq!(request.send().await?.status(), http::StatusCode::OK);
-                }
-                assert_eq!(calls.load(Ordering::SeqCst), 1);
-                Ok::<_, Box<dyn Error + Send + Sync>>(())
-            };
-            let peer = async {
-                let stream = peers
-                    .recv()
-                    .await
-                    .ok_or_else(|| io::Error::from(io::ErrorKind::UnexpectedEof))?;
-                let ssl = btls::ssl::Ssl::new(acceptor.context())?;
-                let mut stream = tokio_btls::SslStream::new(ssl, stream)?;
-                std::pin::Pin::new(&mut stream).accept().await?;
-                if http2 {
-                    h2::accept_client_preface(&mut stream).await?;
-                }
-                for id in [1, 3] {
-                    if http2 {
-                        h2::read_request_headers(&mut stream, id).await?;
-                        h2::write_frame(&mut stream, 1, 5, id, &[0x88]).await?;
-                    } else {
-                        read_head(&mut stream).await?;
-                        stream
-                            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
-                            .await?;
+    for strategy in [Http1WriteStrategy::Automatic, Http1WriteStrategy::Queued] {
+        for (http2, negotiated) in [(false, false), (false, true), (true, false), (true, true)] {
+            timeout(LIMIT, async {
+                let identity = TestIdentity::generate()?;
+                let acceptor = identity.acceptor(if http2 { H2_ALPN } else { H1_ALPN })?;
+                let (connector, mut peers, calls) = connector();
+                let client = client_builder(&identity, http2 || negotiated)
+                    .http1_write_strategy(strategy)
+                    .tcp_connector(connector)
+                    .build()?;
+                let caller = async {
+                    for _ in 0..2 {
+                        let request = if negotiated {
+                            client.get_negotiated("https://127.0.0.1:4321/path")?
+                        } else {
+                            client.get(
+                                if http2 {
+                                    HttpProtocol::Http2
+                                } else {
+                                    HttpProtocol::Http1
+                                },
+                                "https://127.0.0.1:4321/path",
+                            )?
+                        };
+                        let request = if http2 {
+                            request
+                        } else {
+                            request.body("payload")
+                        };
+                        assert_eq!(request.send().await?.status(), http::StatusCode::OK);
                     }
-                }
+                    assert_eq!(calls.load(Ordering::SeqCst), 1);
+                    Ok::<_, Box<dyn Error + Send + Sync>>(())
+                };
+                let peer = async {
+                    let stream = peers
+                        .recv()
+                        .await
+                        .ok_or_else(|| io::Error::from(io::ErrorKind::UnexpectedEof))?;
+                    let ssl = btls::ssl::Ssl::new(acceptor.context())?;
+                    let mut stream = tokio_btls::SslStream::new(ssl, stream)?;
+                    std::pin::Pin::new(&mut stream).accept().await?;
+                    if http2 {
+                        h2::accept_client_preface(&mut stream).await?;
+                    }
+                    for id in [1, 3] {
+                        if http2 {
+                            h2::read_request_headers(&mut stream, id).await?;
+                            h2::write_frame(&mut stream, 1, 5, id, &[0x88]).await?;
+                        } else {
+                            let head = read_head(&mut stream).await?;
+                            assert!(
+                                head.windows(b"Content-Length: 7\r\n".len())
+                                    .any(|part| part == b"Content-Length: 7\r\n")
+                            );
+                            let mut body = [0; 7];
+                            tokio::io::AsyncReadExt::read_exact(&mut stream, &mut body).await?;
+                            assert_eq!(&body, b"payload");
+                            stream
+                                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                                .await?;
+                        }
+                    }
+                    Ok::<_, Box<dyn Error + Send + Sync>>(())
+                };
+                tokio::try_join!(caller, peer)?;
                 Ok::<_, Box<dyn Error + Send + Sync>>(())
-            };
-            tokio::try_join!(caller, peer)?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        })
-        .await??;
+            })
+            .await??;
+        }
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn queued_invalid_headers_fail_before_custom_connection_io() -> TestResult<()> {
+    let (connector, _peers, calls) = connector();
+    let client = builder(connector)
+        .http1_write_strategy(Http1WriteStrategy::Queued)
+        .build()?;
+    let error = client
+        .get(HttpProtocol::Http1, URL)?
+        .header(phantom::RequestHeader::new("Host", "forbidden"))
+        .send()
+        .await
+        .err()
+        .ok_or("caller Host was accepted")?;
+    assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
     Ok(())
 }
 

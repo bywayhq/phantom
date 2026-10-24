@@ -29,7 +29,12 @@ async fn forward_upgrade_serializes_exact_absolute_form_and_ordered_fields() -> 
                 RequestHeader::new("X-Order", "last"),
             ],
         )?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(
+            client,
+            prepared,
+            None,
+            crate::http1::Http1WriteStrategy::Automatic,
+        ));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -67,10 +72,14 @@ fn forward_upgrade_rejects_mismatched_host_before_io() -> TestResult {
 
 #[tokio::test]
 async fn upgrade_retains_ordered_head_and_coalesced_protocol_bytes() -> TestResult {
-    bounded_peer_test(async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None, strategy));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -106,7 +115,9 @@ async fn upgrade_retains_ordered_head_and_coalesced_protocol_bytes() -> TestResu
         assert_eq!(&bytes, b"protocol-bytes");
         Ok(())
     })
-    .await
+    .await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
@@ -114,7 +125,12 @@ async fn non_switching_response_remains_streaming_http() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(
+            client,
+            prepared,
+            None,
+            crate::http1::Http1WriteStrategy::Automatic,
+        ));
         read_head(&mut server).await?;
         server
             .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied")
@@ -158,22 +174,29 @@ async fn ordinary_get_rejects_unsolicited_switching_response() -> TestResult {
 
 #[tokio::test]
 async fn cancelling_pending_upgrade_closes_the_stream() -> TestResult {
-    bounded_peer_test(async {
-        let (client, mut server) = duplex(4096);
-        let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
-        read_head(&mut server).await?;
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        bounded_peer_test(async {
+            let (client, mut server) = duplex(4096);
+            let prepared = PreparedGet::new(target()?, vec![host()])?;
+            let transaction =
+                PeerTask::spawn(send_prepared_upgrade(client, prepared, None, strategy));
+            read_head(&mut server).await?;
 
-        transaction.abort();
-        let join_error = match transaction.await {
-            Err(error) => error,
-            Ok(_) => return Err("Upgrade task completed after cancellation".into()),
-        };
-        assert!(join_error.is_cancelled());
-        let mut byte = [0_u8; 1];
-        let read = timeout(Duration::from_secs(1), server.read(&mut byte)).await??;
-        assert_eq!(read, 0);
-        Ok(())
-    })
-    .await
+            transaction.abort();
+            let join_error = match transaction.await {
+                Err(error) => error,
+                Ok(_) => return Err("Upgrade task completed after cancellation".into()),
+            };
+            assert!(join_error.is_cancelled());
+            let mut byte = [0_u8; 1];
+            let read = timeout(Duration::from_secs(1), server.read(&mut byte)).await??;
+            assert_eq!(read, 0);
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }

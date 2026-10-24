@@ -108,6 +108,7 @@ pub(super) async fn send_prepared_upgrade<T>(
     stream: T,
     prepared: PreparedGet,
     keepalive: Option<TcpKeepaliveControl>,
+    strategy: super::Http1WriteStrategy,
 ) -> Result<Http1UpgradeOutcome, Http1Error>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -125,7 +126,7 @@ where
         let runtime = super::current_runtime()?;
         let (stream, observed_headers) = ResponseHeadObserver::wrap(stream);
         observed_headers.begin();
-        let (mut sender, connection) = connection_builder()
+        let (mut sender, connection) = connection_builder(strategy)
             .handshake::<_, Empty<Bytes>>(stream)
             .await
             .map_err(Http1Error::protocol)?;

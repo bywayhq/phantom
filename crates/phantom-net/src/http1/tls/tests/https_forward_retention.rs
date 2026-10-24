@@ -96,10 +96,14 @@ async fn forward_physical_selection_records_proxy_family_before_tls_and_cancels_
 #[tokio::test]
 async fn forward_slower_owner_finishes_outer_tls_then_claim_sends_current_request_only()
 -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    for strategy in [
+        crate::http1::Http1WriteStrategy::Automatic,
+        crate::http1::Http1WriteStrategy::Queued,
+    ] {
+        timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
-        let connector = test_connector(&identity)?;
+        let connector = test_connector(&identity)?.with_write_strategy(strategy);
         let proxy = test_proxy_connector(&identity)?;
         let (address, listener) = loopback_listener().await?;
         let transport = transport(address.port(), &proxy);
@@ -135,7 +139,9 @@ async fn forward_slower_owner_finishes_outer_tls_then_claim_sends_current_reques
         tokio::try_join!(client, server)?;
         assert!(poll_fn(|cx| Poll::Ready(listener.poll_accept(cx).is_pending())).await, "claim redialled");
         Ok(())
-    }).await?
+    }).await??;
+    }
+    Ok(())
 }
 
 #[tokio::test]
