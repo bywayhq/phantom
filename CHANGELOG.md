@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Retain HTTP/2 startup bytes and ordered settings in Safari captures.
+- Retain HTTP/2 startup bytes and ordered settings in Safari captures,
+  with a Safari 26.6.2 observation on macOS.
 
 - Allow unused macOS native-DNS capture connections to close cleanly.
 
