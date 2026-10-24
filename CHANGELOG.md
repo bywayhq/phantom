@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Allow native-DNS captures on the current hosted Windows 2025 image and
-  serialize its DNS configuration without CIM metadata.
+  serialize its DNS configuration without CIM metadata. Collect guard output
+  without waiting for its watchdog to exit.
 
 - Skip proxy-authentication target preparation when no authentication is active.
 
