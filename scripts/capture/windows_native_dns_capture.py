@@ -74,19 +74,25 @@ def require_hosted() -> None:
 def command(record: dict, *args: str, timeout: float = 60) -> str:
     entry = {"argv": list(args), "timeout_seconds": timeout, "exit": None}
     record.setdefault("commands", []).append(entry)
-    try:
-        result = subprocess.run(args, capture_output=True, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired) as error:
-        entry["error"] = f"{type(error).__name__}: {error}"
-        if isinstance(error, subprocess.TimeoutExpired):
-            entry["stdout"] = (error.stdout or b"").decode("utf-8", "replace")
-            entry["stderr"] = (error.stderr or b"").decode("utf-8", "replace")
-        raise
-    entry.update(
-        exit=result.returncode,
-        stdout=result.stdout.decode("utf-8", "replace"),
-        stderr=result.stderr.decode("utf-8", "replace"),
-    )
+    # The watchdog can inherit pipe handles after the guard has exited.
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        failure = None
+        try:
+            result = subprocess.run(args, stdout=stdout, stderr=stderr, timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            failure = error
+            entry["error"] = f"{type(error).__name__}: {error}"
+            raise
+        finally:
+            stdout.seek(0)
+            stderr.seek(0)
+            output, errors = stdout.read(), stderr.read()
+            entry["stdout"] = output.decode("utf-8", "replace")
+            entry["stderr"] = errors.decode("utf-8", "replace")
+            if isinstance(failure, subprocess.TimeoutExpired):
+                failure.output, failure.stderr = output, errors
+    entry["exit"] = result.returncode
+    result.stdout, result.stderr = output, errors
     result.check_returncode()
     return entry["stdout"].strip()
 

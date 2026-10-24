@@ -141,15 +141,121 @@ class AcceptanceTests(unittest.TestCase):
 
     def test_command_failure_keeps_raw_exit_and_output(self) -> None:
         record = {}
-        failed = subprocess.CompletedProcess(["tool"], 9, b"partial", b"failure")
+
+        def fail(*args: object, **kwargs: object) -> subprocess.CompletedProcess:
+            kwargs["stdout"].write(b"partial")
+            kwargs["stderr"].write(b"failure")
+            return subprocess.CompletedProcess(["tool"], 9)
+
         with (
-            patch.object(capture.subprocess, "run", return_value=failed),
-            self.assertRaises(subprocess.CalledProcessError),
+            patch.object(capture.subprocess, "run", side_effect=fail),
+            self.assertRaises(subprocess.CalledProcessError) as failure,
         ):
             capture.command(record, "tool")
         self.assertEqual(record["commands"][0]["exit"], 9)
         self.assertEqual(record["commands"][0]["stdout"], "partial")
         self.assertEqual(record["commands"][0]["stderr"], "failure")
+        self.assertEqual(failure.exception.stdout, b"partial")
+        self.assertEqual(failure.exception.stderr, b"failure")
+
+    def test_command_timeout_keeps_partial_output_and_original_error(self) -> None:
+        record = {}
+        timeout = subprocess.TimeoutExpired(["tool"], 2)
+
+        def expire(*args: object, **kwargs: object) -> None:
+            kwargs["stdout"].write(b"partial")
+            kwargs["stderr"].write(b"still running")
+            raise timeout
+
+        with (
+            patch.object(capture.subprocess, "run", side_effect=expire),
+            self.assertRaises(subprocess.TimeoutExpired) as failure,
+        ):
+            capture.command(record, "tool", timeout=2)
+        self.assertIs(failure.exception, timeout)
+        self.assertEqual(timeout.stdout, b"partial")
+        self.assertEqual(timeout.stderr, b"still running")
+        self.assertIsNone(record["commands"][0]["exit"])
+        self.assertEqual(record["commands"][0]["stdout"], "partial")
+        self.assertEqual(record["commands"][0]["stderr"], "still running")
+
+    @unittest.skipUnless(
+        os.name == "nt" and shutil.which("pwsh"), "Windows PowerShell is unavailable"
+    )
+    def test_command_collects_parent_while_watchdog_is_alive(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            child = directory / "watch.ps1"
+            release = directory / "release"
+            child.write_text(
+                "$ErrorActionPreference='Stop'\n"
+                "$limit=[DateTime]::UtcNow.AddSeconds(30)\n"
+                f"while (-not (Test-Path -LiteralPath '{release}')) {{ "
+                "if ([DateTime]::UtcNow -ge $limit) { throw 'watch control was not released' }; "
+                "Start-Sleep -Milliseconds 50 }\n",
+                encoding="utf-8",
+            )
+            parent = directory / "parent.ps1"
+            identity = directory / "watch.pid"
+            parent.write_text(
+                "$ErrorActionPreference='Stop'\n"
+                "$watch=Start-Process -FilePath (Get-Process -Id $PID).Path "
+                "-WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile',"
+                f"'-NonInteractive','-File','\"{child}\"') "
+                f"-RedirectStandardOutput '{directory / 'watch.stdout'}' "
+                f"-RedirectStandardError '{directory / 'watch.stderr'}'\n"
+                f"[IO.File]::WriteAllText('{identity}',[string]$watch.Id)\n"
+                "@{armed=$true} | ConvertTo-Json -Compress\n",
+                encoding="utf-8",
+            )
+            record = {}
+            try:
+                self.assertEqual(
+                    json.loads(
+                        capture.command(
+                            record,
+                            "pwsh",
+                            "-NoProfile",
+                            "-NonInteractive",
+                            "-File",
+                            str(parent),
+                            timeout=15,
+                        )
+                    ),
+                    {"armed": True},
+                )
+                watched = int(identity.read_text())
+                alive = subprocess.run(
+                    [
+                        "pwsh",
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        f"Get-Process -Id {watched} -ErrorAction Stop | Out-Null",
+                    ],
+                    capture_output=True,
+                    timeout=5,
+                )
+                self.assertEqual(alive.returncode, 0, alive.stderr)
+            finally:
+                release.touch()
+                if identity.exists():
+                    watched = int(identity.read_text())
+                    collected = subprocess.run(
+                        [
+                            "pwsh",
+                            "-NoProfile",
+                            "-NonInteractive",
+                            "-Command",
+                            "$ErrorActionPreference='Stop'; "
+                            f"$watch=Get-Process -Id {watched} -ErrorAction SilentlyContinue; "
+                            "if ($watch) { $null=$watch.Handle; "
+                            "if (-not $watch.WaitForExit(6000)) { throw 'watch control did not exit' } }; exit 0",
+                        ],
+                        capture_output=True,
+                        timeout=8,
+                    )
+                    self.assertEqual(collected.returncode, 0, collected.stderr)
 
     def test_unverified_installer_never_extracts_or_changes_dns(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
