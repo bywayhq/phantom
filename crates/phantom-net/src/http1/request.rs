@@ -1,6 +1,7 @@
 //! HTTP/1.1 request preparation and ordered field serialization.
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     pin::Pin,
     task::{Context, Poll},
@@ -494,9 +495,11 @@ impl ValidatedHeaders {
         let mut content_length_index = None;
         let mut trailer_declaration_index = None;
         let mut declared_trailers = Vec::new();
-        let expected_content_length = match body {
-            None => Some(String::from("0")),
-            Some(metadata) => metadata.exact_length().map(|length| length.to_string()),
+        let expected_content_length = match body.map_or(Some(0), RequestBodyMetadata::exact_length)
+        {
+            Some(0) => Some(Cow::Borrowed("0")),
+            Some(length) => Some(Cow::Owned(length.to_string())),
+            None => None,
         };
         let has_trailers = trailers.is_some();
         let unknown_body = body.is_some_and(|metadata| metadata.exact_length().is_none());
@@ -622,8 +625,8 @@ impl ValidatedHeaders {
                 b"Transfer-Encoding",
                 HeaderValue::from_static("chunked"),
             )?;
-        } else if let Some(length) =
-            expected_content_length.filter(|length| length != "0" && content_length_index.is_none())
+        } else if let Some(length) = expected_content_length
+            .filter(|length| length.as_ref() != "0" && content_length_index.is_none())
         {
             let value =
                 HeaderValue::from_str(&length).map_err(|_| Http1Error::InvalidContentLength {
