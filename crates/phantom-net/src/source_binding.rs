@@ -8,6 +8,7 @@ use std::{
 };
 
 use socket2::{Domain, SockRef};
+#[cfg(any(not(windows), test))]
 use tokio::net::TcpSocket;
 
 /// Whether this platform can bind a socket to an interface by name.
@@ -234,6 +235,7 @@ impl SourceBinding {
     }
 
     /// Binds a TCP socket that will connect to `remote`.
+    #[cfg(any(not(windows), test))]
     pub(crate) fn bind_tcp(&self, socket: &TcpSocket, remote: SocketAddr) -> io::Result<()> {
         self.bind_tcp_socket(&SockRef::from(socket), remote)
     }

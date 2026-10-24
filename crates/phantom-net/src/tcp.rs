@@ -8,11 +8,13 @@
 use std::{
     error::Error,
     fmt, io,
-    net::SocketAddr,
     pin::Pin,
     task::{Context, Poll},
     time::{Duration, Instant},
 };
+
+#[cfg(any(not(windows), test, feature = "https-records"))]
+use std::net::SocketAddr;
 
 use phantom_profile::{
     TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
