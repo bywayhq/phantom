@@ -823,6 +823,59 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(outcome.returncode, 0, outcome.stderr)
         self.assertTrue(json.loads(outcome.stdout)["restored"])
 
+    @unittest.skipUnless(os.name == "nt", "Windows process handles are required")
+    def test_restore_observes_actual_watchdog_exit_status(self) -> None:
+        for exit_code in (0, 9):
+            with self.subTest(exit_code=exit_code):
+                outcome = self.invoke_functions(
+                    "function Assert-Hosted { @{} }\n"
+                    '$child="$StatePath.child.ps1"; $release="$StatePath.release"\n'
+                    "Set-Content -LiteralPath $child -Value @'\n"
+                    "param([string]$Release,[int]$Code)\n"
+                    "$limit=[DateTime]::UtcNow.AddSeconds(10)\n"
+                    "while (-not (Test-Path -LiteralPath $Release)) {\n"
+                    "if ([DateTime]::UtcNow -ge $limit) { exit 91 }; Start-Sleep -Milliseconds 20\n"
+                    "}\n"
+                    "exit $Code\n"
+                    "'@\n"
+                    "$started=Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -PassThru "
+                    "-ArgumentList @('-NoProfile','-NonInteractive','-File',\"`\"$child`\"\",'-Release',\"`\"$release`\"\",'-Code',"
+                    f"'{exit_code}')\n"
+                    "try {\n"
+                    "$script:observed=Get-Process -Id $started.Id\n"
+                    "$watch=[pscustomobject]@{StartTime=$script:observed.StartTime}\n"
+                    "$watch | Add-Member -MemberType ScriptProperty -Name Handle -Value { $script:observed.Handle }\n"
+                    "$watch | Add-Member -MemberType ScriptProperty -Name ExitCode -Value { $script:observed.ExitCode }\n"
+                    "$watch | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($milliseconds)\n"
+                    "if ($milliseconds -ne 5000) { throw 'join bound differs' }\n"
+                    "Set-Content -LiteralPath $release -Value stop\n"
+                    "$script:observed.WaitForExit($milliseconds) }\n"
+                    "function Get-Process { param($Id,$ErrorAction)\n"
+                    "if ($Id -ne $started.Id) { throw 'unexpected process' }; $watch }\n"
+                    "$state=[pscustomobject]@{hostname=$TargetName;server=$DnsAddress;nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111';"
+                    "baseline=@();rule_name=$null;restored=$false;restored_at=$null;watchdog_pid=$started.Id;"
+                    "watchdog_start=$watch.StartTime.ToUniversalTime().ToString('o')}\n"
+                    "Save-State $state; $Action='Verify'; $success=$false\n"
+                    "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | "
+                    "ForEach-Object { Invoke-Expression $_.Extent.Text }; $success=$true }\n"
+                    f"catch {{ if ({exit_code} -eq 0 -or $_ -notmatch 'watchdog failed after restoration') {{ throw }} }}\n"
+                    "if (-not $started.WaitForExit(5000)) { throw 'child was not collected' }\n"
+                    "@{success=$success;restored=(Read-State).restored;actual_exit=$started.ExitCode} | ConvertTo-Json -Compress\n"
+                    "} finally {\n"
+                    "if (-not $started.HasExited) { $started.Kill(); $started.WaitForExit(); throw 'child required forced cleanup' }\n"
+                    "$started.Dispose(); $script:observed.Dispose()\n"
+                    "}\n"
+                )
+                self.assertEqual(outcome.returncode, 0, outcome.stderr)
+                self.assertEqual(
+                    json.loads(outcome.stdout.splitlines()[-1]),
+                    {
+                        "success": exit_code == 0,
+                        "restored": True,
+                        "actual_exit": exit_code,
+                    },
+                )
+
     def test_watchdog_restores_when_owner_identity_becomes_unavailable(self) -> None:
         outcome = self.invoke_functions(
             "function Assert-Hosted { @{} }\n"

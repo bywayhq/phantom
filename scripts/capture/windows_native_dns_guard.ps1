@@ -214,6 +214,8 @@ if ($Action -ne 'Install' -and (Test-Path -LiteralPath $StatePath)) {
     if ($state.watchdog_pid -and $state.watchdog_pid -ne $PID) {
         $watch = Get-Process -Id $state.watchdog_pid -ErrorAction SilentlyContinue
         if ($watch -and $watch.StartTime.ToUniversalTime() -eq ([DateTime]$state.watchdog_start).ToUniversalTime()) {
+            # Retain the native handle so ExitCode stays available after exit.
+            $null = $watch.Handle
             if (-not $watch.WaitForExit(5000)) { throw 'NRPT watchdog did not exit after restoration' }
             if ($watch.ExitCode -ne 0) { throw 'NRPT watchdog failed after restoration' }
         }
