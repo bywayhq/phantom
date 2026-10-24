@@ -10,10 +10,17 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from scripts.capture import firefox_socket_hooks as hooks
-from scripts.capture.http2_session import HOSTNAME, generate_certificate, server_context
+from scripts.capture.http2_session import (
+    HOSTNAME,
+    CaptureRun,
+    ServerPolicy,
+    TlsChannel,
+    generate_certificate,
+    server_context,
+)
 from scripts.capture.tests import test_firefox_connect_backup as connect
 from scripts.capture.tests.tunnelled_websocket_peer import ProxyH2, TunnelTls
-from scripts.capture.websocket_tunnel import PROXY_HOST
+from scripts.capture.websocket_tunnel import PROXY_HOST, TunnelOrigin
 
 
 class H2ConnectFixtureTests(unittest.TestCase):
@@ -241,14 +248,41 @@ class H2ConnectBackupTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.proxy.tunnel_run.openings[0].outcome, "client-reset")
 
     async def test_shutdown_joins_partial_inner_tls_and_outer_connection(self) -> None:
+        origin = TunnelOrigin(self.certificate)
+        self.addAsyncCleanup(origin.close)
+        origin.begin_run(CaptureRun("partial-tls", ServerPolicy(), {}))
+        await origin.start("127.0.0.1")
+        self.proxy.origin = origin.tls_address
+        received = asyncio.Event()
+        partial = bytearray()
+        read_raw = TlsChannel.read_raw
+
+        async def read(channel: TlsChannel) -> bytes:
+            data = await read_raw(channel)
+            if channel.run is origin.run:
+                partial.extend(data)
+                if len(partial) >= 2:
+                    received.set()
+            return data
+
         peer = await self.peer()
-        stream = await peer.connect(self.proxy)
-        stream.write(b"\x16\x03")
-        await stream.drain()
-        await self.origins.shutdown()
+        with patch.object(TlsChannel, "read_raw", read):
+            stream = await peer.connect(self.proxy)
+            stream.write(b"\x16\x03")
+            await stream.drain()
+            await asyncio.wait_for(received.wait(), 3)
+            self.assertEqual(partial, b"\x16\x03")
+            # Drain preceding H2 frames before the server closes its connection.
+            await peer.ping()
+            await self.origins.shutdown()
+            await origin.close()
+
         self.assertFalse(self.origins.cleanup_pending())
         self.assertFalse(self.origins.failures)
         self.assertEqual(len(self.proxy.tunnel_run.proxy_connections), 1)
+        self.assertFalse(origin.handlers or origin.writers or origin.protocols)
+        self.assertEqual(len(origin.run.connections), 1)
+        self.assertIsNone(origin.run.connections[0].alpn)
 
     async def test_missing_h2_alpn_fails_before_connect_or_origin(self) -> None:
         context = ssl.create_default_context(
