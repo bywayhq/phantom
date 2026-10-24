@@ -657,7 +657,22 @@ class Run:
         if self.belongs(target) and self.page_connection in (None, connection):
             self.page_connection = connection
 
-    def finish(self, target: str, connection: int) -> None:
+    def finish(
+        self, target: str, connection: int, *, request: RequestRecord | None = None
+    ) -> None:
+        revalidation_connection = (
+            self.scenario == "revalidate"
+            and self.page_connection is not None
+            and any(
+                record.index == connection and record.listener == "main"
+                for record in self.connections
+            )
+            and request is not None
+            and request.connection == connection
+            and request.method == "GET"
+            and request.path == "/done"
+            and request.status == 200
+        )
         resource_connection = self.resources is not None and any(
             request.connection == connection and request.path == "/done"
             for request in self.resources.requests
@@ -665,7 +680,11 @@ class Run:
         if (
             self.stopping
             or not self.belongs(target)
-            or (connection != self.page_connection and not resource_connection)
+            or (
+                connection != self.page_connection
+                and not resource_connection
+                and not revalidation_connection
+            )
             or self.completion is not None
         ):
             return
@@ -867,7 +886,7 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                 if run.resources is not None:
                     run.resources.responded.add(request.path)
                 if request.path == "/done":
-                    run.finish(target, record.index)
+                    run.finish(target, record.index, request=request)
             elif isinstance(event, h2.events.StreamReset):
                 streams.pop(event.stream_id, None)
                 targets.pop(event.stream_id, None)
@@ -952,7 +971,7 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
         if run.resources is not None:
             run.resources.responded.add(path)
         if path == "/done":
-            run.finish(target, record.index)
+            run.finish(target, record.index, request=request)
 
 
 class LifecycleFailures(CleanupFailures):

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix browser revalidation captures when completion uses a new connection.
+
 - Add a Firefox HTTPS-proxy address-family capture with separate proxy and
   origin TLS records; retain a Firefox 157 Windows observation.
 

@@ -683,10 +683,69 @@ class LifecycleOwnershipTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await self.backup(owner, writer)
 
+    async def test_revalidation_completes_across_three_h2_connections(self) -> None:
+        self.context.set_alpn_protocols(["h2"])
+        self.client_context.set_alpn_protocols(["h2"])
+        run = Run("revalidate", "token", 1000)
+        owner = LifecycleServer(run)
+        self.addAsyncCleanup(self.backup, owner)
+        port = await owner.start("127.0.0.1", self.context, "main")
+
+        async def fetch(target: str) -> bytes:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection("127.0.0.1", port, ssl=self.client_context),
+                5,
+            )
+            self.addAsyncCleanup(self.close_writer, writer)
+            self.addAsyncCleanup(self.backup, owner)
+            connection = h2.connection.H2Connection(
+                h2.config.H2Configuration(client_side=True)
+            )
+            connection.initiate_connection()
+            connection.send_headers(
+                1,
+                [
+                    (":method", "GET"),
+                    (":scheme", "https"),
+                    (":authority", f"local:{port}"),
+                    (":path", target),
+                ],
+                end_stream=True,
+            )
+            writer.write(connection.data_to_send())
+            await writer.drain()
+            body = bytearray()
+            while True:
+                data = await asyncio.wait_for(reader.read(65536), 5)
+                if not data:
+                    raise EOFError("controlled H2 peer ended before its response")
+                events = connection.receive_data(data)
+                for event in events:
+                    if isinstance(event, h2.events.DataReceived):
+                        body.extend(event.data)
+                if any(isinstance(event, h2.events.StreamEnded) for event in events):
+                    return bytes(body)
+
+        self.assertIn(b"<!doctype html>", await fetch("/start?run=token"))
+        self.assertEqual(await fetch("/etag?run=token"), b"v1")
+        result = '["/etag:1:200:v1"]'
+        self.assertEqual(
+            await fetch("/done?run=token&result=%5B%22/etag:1:200:v1%22%5D"), b"ok"
+        )
+        await owner.wait_done(1)
+
+        self.assertEqual(run.page_result, result)
+        self.assertEqual(run.page_connection, 0)
+        self.assertEqual([request.connection for request in run.requests], [0, 1, 2])
+        self.assertEqual([request.status for request in run.requests], [200, 200, 200])
+        await owner.close()
+        self.assertFalse(owner.protocols)
+        self.assertIsNone(run.failure)
+
     async def test_exact_done_token_and_selected_connection_own_completion(
         self,
     ) -> None:
-        run = Run("revalidate", "token", 1000)
+        run = Run("idle-ping", "token", 1000)
         owner = LifecycleServer(run)
         port, reader, writer = await self.connect(owner)
         other_reader, other_writer = await asyncio.wait_for(
