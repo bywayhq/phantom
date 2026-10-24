@@ -26,6 +26,10 @@ FIXTURE = (
     Path(__file__).resolve().parents[3]
     / "fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt"
 )
+MAC_FIXTURE = (
+    Path(__file__).resolve().parents[3]
+    / "fixtures/http2/chrome/156.0.8078.48/macos-15.5-arm64/preface-ping.txt"
+)
 
 
 def frame(kind: int, flags: int, stream: int, payload: bytes) -> bytes:
@@ -157,6 +161,35 @@ class FrameLogTests(unittest.TestCase):
 
 
 class RetainedFixtureTests(unittest.TestCase):
+    def test_mac_capture_keeps_the_ping_between_post_headers_and_data(self) -> None:
+        values = dict(
+            line.split("=", 1)
+            for line in MAC_FIXTURE.read_text(encoding="ascii").splitlines()
+        )
+        self.assertEqual(values["format"], "phantom-http2-preface-ping-v2")
+        self.assertEqual(values["client_version"], "156.0.8078.48")
+        self.assertEqual(values["operating_system"], "macOS 15.5 24F74 arm64")
+        self.assertNotEqual(values["page_connection"], values["completion_connection"])
+        prefix = f"connection_{values['completion_connection']}_frame_"
+        frames = [
+            dict(part.split(":", 1) for part in values[f"{prefix}{index}"].split(","))
+            for index in range(int(values[f"{prefix}count"]))
+        ]
+        self.assertEqual(
+            [frame["path"] for frame in frames if "path" in frame],
+            ["/b", "/c", "/p", "/done"],
+        )
+        post_index = next(
+            i for i, frame in enumerate(frames) if frame.get("path") == "/p"
+        )
+        headers, ping, data = frames[post_index : post_index + 3]
+        self.assertEqual(
+            (headers["type"], ping["type"], data["type"]), ("HEADERS", "PING", "DATA")
+        )
+        self.assertEqual((ping["flags"], ping["payload"]), ("0x00", "0000000000000001"))
+        self.assertEqual(data["stream"], headers["stream"])
+        self.assertEqual((data["length"], data["flags"]), ("100", "0x01"))
+
     def test_fixture_holds_no_request_token_or_certificate(self) -> None:
         text = FIXTURE.read_text(encoding="ascii")
         values = dict(line.split("=", 1) for line in text.splitlines())

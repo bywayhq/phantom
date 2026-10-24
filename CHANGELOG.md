@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain Chrome 156 macOS idle HTTP/2 requests and POST PING ordering.
+
 - Breaking: preface-PING captures retain frames across connection changes.
   Migrate: read v2's `connection_<i>_frame_<n>` records instead of `frame_<n>`.
 
