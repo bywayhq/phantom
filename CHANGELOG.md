@@ -7,6 +7,8 @@
 - Inspect complete HTTP/1 response headers without copying their incoming
   buffer. Fragmented headers keep bounded buffering.
 
+- Avoid allocating an HTTP/1 body-length string for empty requests.
+
 - Retain HTTP/2 startup bytes and ordered settings in Safari captures,
   with a Safari 26.6.2 observation on macOS.
 
