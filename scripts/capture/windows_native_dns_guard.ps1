@@ -52,7 +52,7 @@ function Owned-Rules($State) {
     return @(Get-DnsClientNrptRule | Where-Object {
         $_.DisplayName -eq $State.nonce -and $_.Comment -eq $State.nonce -and
         (Canonical @($_.Namespace)) -eq (Canonical @($TargetName)) -and
-        (Canonical @($_.NameServers)) -eq (Canonical @($DnsAddress))
+        (Canonical @($_.NameServers | ForEach-Object { [string]$_ })) -eq (Canonical @($DnsAddress))
     })
 }
 

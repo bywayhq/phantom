@@ -632,6 +632,51 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(outcome.returncode, 0, outcome.stderr)
         self.assertEqual(outcome.stdout.strip(), "refused")
 
+    def test_restore_recognizes_native_address_without_changing_baseline(self) -> None:
+        outcome = self.invoke_functions(
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$baseline=[pscustomobject]@{Name='existing';Namespace=@('other.test');"
+            "NameServers=[Net.IPAddress]::Parse('192.0.2.1')}\n"
+            "$script:rules=@($baseline)\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=$DnsAddress;nonce=$nonce;baseline=@(Rules);"
+            "rule_name='owned';restored=$false;restored_at=$null;watchdog_pid=$null}\n"
+            "Save-State $state\n"
+            "$script:rules+=[pscustomobject]@{Name='owned';Namespace=@($TargetName);"
+            "NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce}\n"
+            "$restored=Restore-Owned\n"
+            "@{removed=$script:removed;restored=$restored.restored;remaining=@($script:rules.Name);"
+            "server=$script:rules[0].NameServers.ToString()} | ConvertTo-Json -Compress\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(
+            json.loads(outcome.stdout),
+            {
+                "removed": ["owned"],
+                "restored": True,
+                "remaining": ["existing"],
+                "server": "192.0.2.1",
+            },
+        )
+
+    def test_owned_native_address_keeps_exact_scope(self) -> None:
+        outcome = self.invoke_functions(
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$state=[pscustomobject]@{nonce=$nonce}\n"
+            "$script:rules=@(\n"
+            "[pscustomobject]@{Name='native';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='string';Namespace=@($TargetName);NameServers=@('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='other-address';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.54');DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='extra-address';Namespace=@($TargetName);NameServers=@([Net.IPAddress]::Parse('127.0.0.53'),[Net.IPAddress]::Parse('192.0.2.1'));DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='no-address';Namespace=@($TargetName);NameServers=@();DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='other-name';Namespace=@('other.test');NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='extra-name';Namespace=@($TargetName,'other.test');NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
+            "[pscustomobject]@{Name='other-display';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName='other';Comment=$nonce},\n"
+            "[pscustomobject]@{Name='other-comment';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment='other'})\n"
+            "ConvertTo-Json -InputObject @((Owned-Rules $state).Name) -Compress\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(json.loads(outcome.stdout), ["native", "string"])
+
     def test_restore_mismatch_reports_bounded_comparison_and_still_refuses(
         self,
     ) -> None:
@@ -675,7 +720,7 @@ class GuardTests(unittest.TestCase):
             "[pscustomobject]@{Id=456;HasExited=$false;StartTime=[DateTime]'2026-10-23T00:00:00Z'} }\n"
             "function Add-DnsClientNrptRule { param($Namespace,$NameServers,$DisplayName,$Comment,[switch]$PassThru)\n"
             "if (-not (Test-Path $StatePath)) { throw 'intent not durable' }; $script:events+='add';\n"
-            "$rule=[pscustomobject]@{Name='new-guid';Namespace=@($Namespace);NameServers=@($NameServers);DisplayName=$DisplayName;Comment=$Comment};\n"
+            "$rule=[pscustomobject]@{Name='new-guid';Namespace=@($Namespace);NameServers=[Net.IPAddress]::Parse($NameServers);DisplayName=$DisplayName;Comment=$Comment};\n"
             "$script:rules=@($rule); $rule }\n"
             "$Action='Install'; $OwnerPid=123\n"
             "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
