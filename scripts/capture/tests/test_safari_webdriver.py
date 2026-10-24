@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from scripts.capture import safari_webdriver as safari
+from scripts.capture.tests.test_sse_reconnect_h2 import STARTUP
 
 
 def response(value, status="200 OK", *, chunked=False):
@@ -126,10 +127,14 @@ class ResponseTests(unittest.TestCase):
         run = SimpleNamespace(
             requests=[
                 SimpleNamespace(
-                    kind="page", stream_id=1, decoded_headers=[(b":method", b"GET")]
+                    kind="page",
+                    connection=0,
+                    stream_id=1,
+                    decoded_headers=[(b":method", b"GET")],
                 ),
                 SimpleNamespace(
                     kind="sse",
+                    connection=0,
                     attempt=0,
                     extra=False,
                     stream_id=3,
@@ -137,6 +142,7 @@ class ResponseTests(unittest.TestCase):
                 ),
                 SimpleNamespace(
                     kind="sse",
+                    connection=0,
                     attempt=1,
                     extra=False,
                     stream_id=5,
@@ -144,9 +150,26 @@ class ResponseTests(unittest.TestCase):
                 ),
             ],
             terminated=1,
-            connections=[SimpleNamespace(protocol="h2")],
+            connections=[SimpleNamespace(protocol="h2", h2_startup=STARTUP)],
         )
         safari.check_run(run, "h2")
+        for wire in (b"", STARTUP[:-1], STARTUP + b"x"):
+            run.connections[0].h2_startup = wire
+            with (
+                self.subTest(wire=wire),
+                self.assertRaisesRegex(RuntimeError, "startup"),
+            ):
+                safari.check_run(run, "h2")
+        run.connections[0].h2_startup = STARTUP
+        run.requests[-1].connection = 1
+        run.connections.append(SimpleNamespace(protocol="h2", h2_startup=b""))
+        with self.assertRaisesRegex(RuntimeError, "startup"):
+            safari.check_run(run, "h2")
+        run.connections[-1].h2_startup = STARTUP
+        with self.assertRaisesRegex(RuntimeError, "startup"):
+            safari.check_run(run, "h2")
+        run.connections.pop()
+        run.requests[-1].connection = 0
         for protocol in (None, "http/1.1", "h3"):
             run.connections[0].protocol = protocol
             with (

@@ -53,6 +53,8 @@ Success requires a page request, the initial EventSource request and its
 reconnect, followed by the terminal observation period. The loopback SSE
 peer records request order and timing. TLS/H2 also requires verified H2
 ALPN and decoded ordered request fields with stream identities.
+It also retains the client preface and startup frames through the first
+request, including ordered SETTINGS and connection window updates.
 
 The adapter deletes its WebDriver session, stops and joins its driver, and
 retains launch and cleanup failures separately. It records the listener on
@@ -60,8 +62,8 @@ its chosen port and requires the launched driver to remain alive. That
 listener can belong to Safari's XPC service, which is outside driver cleanup.
 
 TLS/H2 uses an IP target with session certificate bypass. The certificate
-names `server.phantom.test`, not the IP. Domain SNI, ClientHello and client
-SETTINGS are not recorded. Compare results by their recorded browser build,
+names `server.phantom.test`, not the IP. Domain SNI and ClientHello are not
+recorded. Compare results by their recorded browser build,
 architecture and hosted VM image.
 
 ## Implementation references

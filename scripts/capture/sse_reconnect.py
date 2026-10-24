@@ -319,6 +319,7 @@ class RecordedConnection:
     close_code: int | None = None
     peer_reset: float | None = None
     peer_reset_winerror: int | None = None
+    h2_startup: bytes = b""
 
 
 @dataclass
@@ -838,7 +839,7 @@ def fixture(
                 for header_index, line in enumerate(request.header_lines)
             )
     if secure:
-        from .sse_multiplexed import library_versions
+        from .sse_multiplexed import decode_h2_startup, library_versions
 
         lines.extend(
             [
@@ -868,6 +869,24 @@ def fixture(
                 lines.append(
                     f"run_{run_index}_connection_{index}_alpn={connection.protocol}"
                 )
+                if connection.protocol == "h2" and connection.h2_startup:
+                    startup = decode_h2_startup(connection.h2_startup)
+                    if startup is None or startup.wire != connection.h2_startup:
+                        raise ValueError("SSE H2 retained startup is incomplete")
+                    key = f"run_{run_index}_connection_{index}_h2_startup"
+                    lines.extend(
+                        [
+                            f"{key}_hex={startup.wire.hex()}",
+                            f"{key}_settings="
+                            + ";".join(
+                                f"{name}:{value}" for name, value in startup.settings
+                            ),
+                            f"{key}_connection_window_updates="
+                            + ";".join(map(str, startup.connection_window_updates)),
+                            f"{key}_connection_credit={65535 + sum(startup.connection_window_updates)}",
+                            f"{key}_first_stream_id={startup.first_stream_id}",
+                        ]
+                    )
                 lines.append(
                     f"run_{run_index}_connection_{index}_closed_ms={milliseconds(connection.closed)}"
                 )

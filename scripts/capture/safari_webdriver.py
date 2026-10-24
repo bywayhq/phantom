@@ -538,7 +538,7 @@ async def provenance(protocol="h1") -> dict:
         result["transport_libraries"] = {
             name: version(name) for name in ("h2", "hpack", "cryptography")
         }
-        for name in ("sse_multiplexed.py", "http2_session.py"):
+        for name in ("sse_multiplexed.py", "http2_session.py", "http2_analysis.py"):
             source = Path("scripts/capture") / name
             result["source_files"][str(source)] = file_hash(source)
     return result
@@ -583,6 +583,20 @@ def check_run(run, protocol="h1") -> None:
         )
     ):
         raise RuntimeError("Safari capture has no verified H2 requests and ALPN")
+    if protocol == "h2":
+        from .sse_multiplexed import decode_h2_startup
+
+        for index, connection in enumerate(run.connections):
+            first = next((r for r in run.requests if r.connection == index), None)
+            if first is None:
+                continue
+            startup = decode_h2_startup(connection.h2_startup)
+            if (
+                startup is None
+                or startup.wire != connection.h2_startup
+                or startup.first_stream_id != first.stream_id
+            ):
+                raise RuntimeError("Safari H2 request has no complete startup bytes")
 
 
 async def run(output: Path, protocol="h1") -> None:

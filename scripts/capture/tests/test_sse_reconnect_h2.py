@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import ssl
 import unittest
+from unittest import mock
 from urllib.parse import urlsplit
 
 import h2.events
@@ -23,6 +24,57 @@ from scripts.capture.tests.test_sse_reconnect import (
     METADATA,
     ScriptedEventSource,
 )
+
+# Literal wire bytes: SETTINGS 4=1000, 1=4096; connection credit +123;
+# a split HPACK GET header block on stream 1, then unrelated DATA.
+STARTUP = bytes.fromhex(
+    "505249202a20485454502f322e300d0a0d0a534d0d0a0d0a"
+    "00000c0400000000000004000003e8000100001000"
+    "0000040800000000000000007b"
+    "00000101010000000182"
+    "0000020904000000018784"
+)
+
+
+class H2StartupTests(unittest.TestCase):
+    def test_literal_startup_preserves_order_and_exact_boundary(self):
+        from scripts.capture.sse_multiplexed import decode_h2_startup
+
+        result = decode_h2_startup(STARTUP + bytes.fromhex("000000000100000001"))
+        self.assertEqual(result.wire, STARTUP)
+        self.assertEqual(result.settings, ((4, 1000), (1, 4096)))
+        self.assertEqual(result.connection_window_updates, (123,))
+        self.assertEqual(result.first_stream_id, 1)
+
+    def test_every_fragment_and_truncation_waits_for_complete_headers(self):
+        from scripts.capture.sse_multiplexed import decode_h2_startup
+
+        for boundary in range(len(STARTUP)):
+            with self.subTest(boundary=boundary):
+                self.assertIsNone(decode_h2_startup(STARTUP[:boundary]))
+                pending = bytearray(STARTUP[:boundary])
+                pending.extend(STARTUP[boundary:])
+                self.assertEqual(decode_h2_startup(bytes(pending)).wire, STARTUP)
+
+    def test_default_connection_credit_needs_no_window_update(self):
+        from scripts.capture.sse_multiplexed import decode_h2_startup
+
+        wire = STARTUP[:45] + STARTUP[58:]
+        result = decode_h2_startup(wire)
+        self.assertEqual(result.connection_window_updates, ())
+        self.assertEqual(result.wire, wire)
+
+    def test_startup_is_bounded_and_requires_preface_and_initial_settings(self):
+        from scripts.capture.sse_multiplexed import (
+            MAX_H2_STARTUP,
+            decode_h2_startup,
+        )
+
+        for wire in (b"x" * 24, STARTUP[:24] + STARTUP[45:]):
+            with self.subTest(wire=wire), self.assertRaises(ValueError):
+                decode_h2_startup(wire)
+        with self.assertRaisesRegex(ValueError, "startup.*limit"):
+            decode_h2_startup(b"x" * (MAX_H2_STARTUP + 1))
 
 
 class H2EventSource(ScriptedEventSource):
@@ -233,6 +285,14 @@ class H2CaptureTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn(f"_alpn={self.protocol}", text)
                 self.assertIn("header_encoding=ordered-decoded-name-value-bytes", text)
                 self.assertIn("_field_0=3a6d6574686f64:474554", text)
+                if self.protocol == "h2":
+                    from scripts.capture.sse_multiplexed import decode_h2_startup
+
+                    startup = decode_h2_startup(run.connections[0].h2_startup)
+                    self.assertEqual(startup.first_stream_id, run.requests[0].stream_id)
+                    self.assertIn(f"_h2_startup_hex={startup.wire.hex()}", text)
+                    self.assertIn("_h2_startup_settings=", text)
+                    self.assertIn("_h2_startup_connection_credit=65535", text)
 
     async def test_ordered_fields_keep_cookie_in_its_opening_position(self):
         runs = await self.capture(
@@ -256,8 +316,40 @@ class H2CaptureTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_credentials_prevent_fixture_publication_and_cleanup(self):
-        with self.assertRaisesRegex(ValueError, "credential-bearing"):
+        connections = []
+        original = self.server_type.record_connection
+
+        def record(server, *args):
+            result = original(server, *args)
+            connections.append(result[0])
+            return result
+
+        with (
+            mock.patch.object(self.server_type, "record_connection", record),
+            self.assertRaisesRegex(ValueError, "credential-bearing"),
+        ):
             await self.capture(CATALOG[0], extra_headers=(b"Authorization: probe",))
+        self.assertTrue(connections)
+        if self.protocol == "h2":
+            from hpack import Decoder
+
+            from scripts.capture.http2_analysis import headers_priority, split_frames
+
+            for connection in connections:
+                frames, trailing = split_frames(
+                    [(0, connection.h2_startup)], "client", preface=True
+                )
+                self.assertEqual(trailing, 0)
+                block = b"".join(
+                    headers_priority(frame)[1]
+                    if frame.frame_type == 1
+                    else frame.payload
+                    for frame in frames
+                    if frame.frame_type in (1, 9)
+                )
+                names = {name for name, _ in Decoder().decode(block, raw=True)}
+                self.assertNotIn(b"authorization", names)
+                self.assertNotIn(b"proxy-authorization", names)
 
     async def test_foreign_cookie_prevents_fixture_publication_and_cleanup(self):
         with self.assertRaisesRegex(ValueError, "cookie the scenario did not set"):
@@ -340,6 +432,86 @@ class H2CaptureTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(server.writers)
         finally:
             await server.close()
+
+
+class H2StartupPeerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_first_request_credentials_leave_no_retained_startup(self):
+        server = H2ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        run = ScenarioRun(CATALOG[0], "credential-probe")
+        server.run = run
+        client = H2EventSource(server.url(run))
+        try:
+            await client.start(server)
+            with self.assertRaises(ConnectionError):
+                await asyncio.wait_for(
+                    client.fetch(server.url(run), (b"Authorization: probe",)), 2
+                )
+            self.assertEqual(len(run.connections), 1)
+            self.assertEqual(run.connections[0].h2_startup, b"")
+            with self.assertRaisesRegex(ValueError, "credential-bearing"):
+                fixture(CATALOG[0], [run], dataclasses.replace(METADATA, protocol="h2"))
+        finally:
+            try:
+                await client.close()
+            finally:
+                with self.assertRaisesRegex(ValueError, "credential-bearing"):
+                    await server.close()
+        self.assertFalse(server.tasks)
+        self.assertFalse(server.writers)
+
+    async def test_bytewise_client_startup_retains_only_first_header_block(self):
+        server = H2ReconnectServer()
+        await server.start("127.0.0.1", 0)
+        run = ScenarioRun(CATALOG[0], "fragment-probe")
+        server.run = run
+        client = H2EventSource(server.url(run))
+        context = ssl.create_default_context(
+            cadata=server.certificate.certificate_pem.decode()
+        )
+        context.set_alpn_protocols(["h2"])
+        client.reader, client.writer = await asyncio.open_connection(
+            "127.0.0.1",
+            server.address[1],
+            ssl=context,
+            server_hostname="server.phantom.test",
+        )
+        client.engine = H2Connection(H2Configuration(header_encoding=None))
+        client.engine.initiate_connection()
+        client.engine.send_headers(
+            1,
+            [
+                (b":method", b"GET"),
+                (b":scheme", b"https"),
+                (b":authority", b"server.phantom.test"),
+                (b":path", run.page_path().encode()),
+            ],
+            end_stream=True,
+        )
+        wire = client.engine.data_to_send()
+        try:
+            for byte in wire:
+                client.writer.write(bytes([byte]))
+                await client.writer.drain()
+                await asyncio.sleep(0)
+            ended = False
+            while not ended:
+                data = await asyncio.wait_for(client.reader.read(65536), 2)
+                self.assertTrue(data)
+                ended = any(
+                    isinstance(event, h2.events.StreamEnded)
+                    for event in client.engine.receive_data(data)
+                )
+            self.assertEqual(run.connections[0].h2_startup, wire)
+            await client.fetch(server.url(run), ())
+            self.assertEqual(run.connections[0].h2_startup, wire)
+        finally:
+            try:
+                await client.close()
+            finally:
+                await server.close()
+        self.assertFalse(server.tasks)
+        self.assertFalse(server.writers)
 
 
 class MatrixProtocolTests(unittest.TestCase):

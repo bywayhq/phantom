@@ -3,16 +3,18 @@
 Headers are the ordered byte pairs delivered by HPACK/QPACK decoding, not
 compressed header representations. A stream END_STREAM is the close stimulus;
 a stream reset before response headers is the reset stimulus on these protocols.
+H2 also retains the client preface and frames through its first request headers.
 """
 
 from __future__ import annotations
 
 import asyncio
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from urllib.parse import parse_qs, urlsplit
 
 from .http2_session import (
+    CONNECTION_PREFACE,
     HOSTNAME,
     generate_certificate,
     peer_disconnected,
@@ -33,6 +35,51 @@ from .sse_reconnect import (
 MAX_CONNECTIONS = 128
 MAX_REQUESTS = 128
 MAX_RECEIVED = 8 * 1024 * 1024
+MAX_H2_STARTUP = 128 * 1024
+
+
+@dataclass(frozen=True)
+class H2Startup:
+    wire: bytes
+    settings: tuple[tuple[int, int], ...]
+    connection_window_updates: tuple[int, ...]
+    first_stream_id: int
+
+
+def decode_h2_startup(data: bytes) -> H2Startup | None:
+    """Read the literal prefix through the first complete request header block."""
+    from .http2_analysis import split_frames
+
+    if len(data) > MAX_H2_STARTUP:
+        raise ValueError("SSE H2 startup exceeds the input limit")
+    frames, _ = split_frames([(0, data)], "client", preface=True)
+    if not frames:
+        return None
+    if frames[0].frame_type != 4 or frames[0].flags & 1 or frames[0].stream_id != 0:
+        raise ValueError("SSE H2 startup does not begin with client SETTINGS")
+
+    settings = []
+    updates = []
+    first_stream = None
+    end = len(CONNECTION_PREFACE)
+    for frame in frames:
+        end += 9 + len(frame.payload)
+        if first_stream is None:
+            if frame.frame_type == 4 and not frame.flags & 1:
+                settings.extend(
+                    (
+                        int.from_bytes(frame.payload[i : i + 2], "big"),
+                        int.from_bytes(frame.payload[i + 2 : i + 6], "big"),
+                    )
+                    for i in range(0, len(frame.payload), 6)
+                )
+            elif frame.frame_type == 8 and frame.stream_id == 0:
+                updates.append(int.from_bytes(frame.payload, "big") & 0x7FFFFFFF)
+            elif frame.frame_type == 1:
+                first_stream = frame.stream_id
+        if first_stream is not None and frame.frame_type in (1, 9) and frame.flags & 4:
+            return H2Startup(data[:end], tuple(settings), tuple(updates), first_stream)
+    return None
 
 
 def library_versions(protocol):
@@ -247,15 +294,33 @@ class H2ReconnectServer(MultiplexedServer):
                 self.finished_stimulus(run, request, stimulus)
 
             received = 0
+            startup_bytes = bytearray()
+            startup = None
             while data := await reader.read(64 * 1024):
                 received += len(data)
                 if received > MAX_RECEIVED:
                     raise ValueError("SSE H2 connection exceeds the input limit")
+                if not connection.h2_startup:
+                    startup_bytes.extend(data[: MAX_H2_STARTUP - len(startup_bytes)])
+                    startup = decode_h2_startup(bytes(startup_bytes))
+                    if startup is None and len(startup_bytes) == MAX_H2_STARTUP:
+                        raise ValueError("SSE H2 startup exceeds the input limit")
                 for event in engine.receive_data(data):
                     if isinstance(event, h2.events.RequestReceived):
                         request, stimulus = self.opening(
                             run, connection, index, event.stream_id, event.headers
                         )
+                        if not connection.h2_startup:
+                            if (
+                                startup is None
+                                or startup.first_stream_id != event.stream_id
+                            ):
+                                raise ValueError(
+                                    "SSE H2 request has no complete startup"
+                                )
+                            # Retain bytes only after opening validates the request fields.
+                            connection.h2_startup = startup.wire
+                            startup_bytes.clear()
                         workers[event.stream_id] = self.spawn(
                             respond(request, stimulus), run
                         )
