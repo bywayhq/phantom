@@ -4,7 +4,8 @@
 
 - Allow native-DNS captures on the current hosted Windows 2025 image and
   serialize its DNS configuration without CIM metadata. Collect guard output
-  without waiting for its watchdog to exit.
+  without waiting for its watchdog to exit and include bounded guard failure
+  details in capture errors.
 
 - Skip proxy-authentication target preparation when no authentication is active.
 
