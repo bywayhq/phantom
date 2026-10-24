@@ -1,6 +1,7 @@
 //! Request construction and HTTP/2 field validation.
 
 use ::http2::ext::{OrderedHeaders, Protocol};
+use bytes::Bytes;
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
@@ -36,7 +37,7 @@ impl PreparedRequestTrailers {
         let mut total_bytes = 0usize;
         let mut semantic = HeaderMap::new();
         let mut ordered = Vec::with_capacity(trailers.len());
-        for (index, trailer) in trailers.into_iter().enumerate() {
+        for (index, mut trailer) in trailers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(trailer.name().len())
                 .and_then(|size| size.checked_add(trailer.value().len()))
@@ -64,12 +65,11 @@ impl PreparedRequestTrailers {
                     name: trailer.name().into(),
                 });
             }
-            let mut value = HeaderValue::from_bytes(trailer.value()).map_err(|_| {
-                Http2Error::InvalidTrailerValue {
+            let mut value = HeaderValue::from_maybe_shared(Bytes::from(trailer.take_value()))
+                .map_err(|_| Http2Error::InvalidTrailerValue {
                     index,
                     name: trailer.name().into(),
-                }
-            })?;
+                })?;
             value.set_sensitive(trailer.is_sensitive());
             semantic
                 .try_append(name.clone(), value.clone())
@@ -279,7 +279,7 @@ impl ValidatedHeaders {
         let exact_length = body.and_then(RequestBodyMetadata::exact_length);
         let expects_continue = body.and_then(RequestBodyMetadata::continue_wait).is_some();
         let mut expect_index = None;
-        for (index, header) in headers.into_iter().enumerate() {
+        for (index, mut header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
                 .and_then(|size| size.checked_add(header.value().len()))
@@ -299,12 +299,11 @@ impl ValidatedHeaders {
             }
             let name = HeaderName::from_bytes(header.name().as_bytes())
                 .map_err(|_| Http2Error::InvalidHeaderName { index })?;
-            let mut value = HeaderValue::from_bytes(header.value()).map_err(|_| {
-                Http2Error::InvalidHeaderValue {
+            let mut value = HeaderValue::from_maybe_shared(Bytes::from(header.take_value()))
+                .map_err(|_| Http2Error::InvalidHeaderValue {
                     index,
                     name: header.name().into(),
-                }
-            })?;
+                })?;
             value.set_sensitive(header.is_sensitive());
 
             if name == TE {

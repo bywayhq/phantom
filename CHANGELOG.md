@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reuse owned request header values during HTTP/1, HTTP/2 and HTTP/3 preparation.
+
 - Reuse owned HTTP/1 request header names during preparation.
 
 - Add `ClientBuilder::http1_write_strategy` with opt-in queued request writes.

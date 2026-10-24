@@ -1,6 +1,5 @@
 //! HTTP/3 request construction and field validation.
 
-#[cfg(test)]
 use bytes::Bytes;
 use h3::ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{
@@ -640,7 +639,7 @@ impl ValidatedHeaders {
 
         let mut total_bytes = 0usize;
         let mut ordered = Vec::with_capacity(headers.len());
-        for header in headers {
+        for mut header in headers {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
                 .and_then(|size| size.checked_add(header.value().len()))
@@ -653,7 +652,7 @@ impl ValidatedHeaders {
             }
             let name = HeaderName::from_bytes(header.name().as_bytes())
                 .map_err(|_| invalid("HTTP/3 request header name is invalid"))?;
-            let mut value = HeaderValue::from_bytes(header.value())
+            let mut value = HeaderValue::from_maybe_shared(Bytes::from(header.take_value()))
                 .map_err(|_| invalid("HTTP/3 request header value is invalid"))?;
             value.set_sensitive(header.is_sensitive());
             validate_field(&name, &value)?;
@@ -722,7 +721,7 @@ impl PreparedTrailers {
         let mut total_bytes = 0usize;
         let mut fields = HeaderMap::with_capacity(trailers.len());
         let mut ordered = Vec::with_capacity(trailers.len());
-        for trailer in trailers {
+        for mut trailer in trailers {
             total_bytes = total_bytes
                 .checked_add(trailer.name().len())
                 .and_then(|size| size.checked_add(trailer.value().len()))
@@ -739,7 +738,7 @@ impl PreparedTrailers {
             }
             let name = HeaderName::from_bytes(trailer.name().as_bytes())
                 .map_err(|_| invalid("HTTP/3 request trailer name is invalid"))?;
-            let mut value = HeaderValue::from_bytes(trailer.value())
+            let mut value = HeaderValue::from_maybe_shared(Bytes::from(trailer.take_value()))
                 .map_err(|_| invalid("HTTP/3 request trailer value is invalid"))?;
             value.set_sensitive(trailer.is_sensitive());
             if is_forbidden_trailer(&name) {

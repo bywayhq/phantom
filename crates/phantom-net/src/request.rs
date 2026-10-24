@@ -801,6 +801,10 @@ impl RequestHeader {
         &self.value
     }
 
+    pub(crate) fn take_value(&mut self) -> Box<[u8]> {
+        std::mem::take(&mut self.value)
+    }
+
     /// Returns whether this field is marked sensitive.
     ///
     /// [`Self::sensitive`] describes the exceptions to never indexing a

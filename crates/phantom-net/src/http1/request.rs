@@ -508,7 +508,7 @@ impl ValidatedHeaders {
         let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());
 
-        for (index, header) in headers.into_iter().enumerate() {
+        for (index, mut header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
                 .and_then(|size| size.checked_add(header.value().len()))
@@ -532,12 +532,11 @@ impl ValidatedHeaders {
             {
                 return Err(Http1Error::InvalidHeaderName { index });
             }
-            let mut value = HeaderValue::from_bytes(header.value()).map_err(|_| {
-                Http1Error::InvalidHeaderValue {
+            let mut value = HeaderValue::from_maybe_shared(Bytes::from(header.take_value()))
+                .map_err(|_| Http1Error::InvalidHeaderValue {
                     index,
                     name: header.name().into(),
-                }
-            })?;
+                })?;
             value.set_sensitive(header.is_sensitive());
 
             if name == HOST {
