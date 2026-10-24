@@ -134,6 +134,7 @@ class TcpComponentTests(unittest.TestCase):
             policy = {"kind": kind, field: duration(0, 1)}
             if kind == "Backup":
                 policy["known_family_backup_timeout"] = None
+                policy["socks_proxy_dns_feedback"] = "AllConnectFailures"
             for valid in (duration(0, 1), duration(10)):
                 policy[field] = valid
                 self.values["address_selection"] = policy
@@ -141,6 +142,31 @@ class TcpComponentTests(unittest.TestCase):
             for invalid in (duration(0), duration(10, 1), duration(11)):
                 policy[field] = invalid
                 self.reject_field("address_selection", policy)
+
+    def test_socks_feedback_is_required_and_has_explicit_closed_values(self):
+        for value in ("AllConnectFailures", "InitialConnectFailures"):
+            self.document["components"][1]["values"]["address_selection"][
+                "socks_proxy_dns_feedback"
+            ] = value
+            self.assertIn(
+                f"SocksProxyDnsFeedback::{value}",
+                generator.generate_components(self.resolve(), "tcp-components.json"),
+            )
+        for value in (None, True, 1, "all", "", []):
+            document = copy.deepcopy(self.document)
+            document["components"][1]["values"]["address_selection"][
+                "socks_proxy_dns_feedback"
+            ] = value
+            with self.assertRaises(generator.DeclarationError):
+                self.resolve(document)
+        document = copy.deepcopy(self.document)
+        del document["components"][1]["values"]["address_selection"][
+            "socks_proxy_dns_feedback"
+        ]
+        with self.assertRaisesRegex(
+            generator.DeclarationError, "socks_proxy_dns_feedback"
+        ):
+            self.resolve(document)
 
     def test_known_family_backup_timeouts_are_optional_whole_seconds(self):
         backup = self.document["components"][1]["values"]["address_selection"]

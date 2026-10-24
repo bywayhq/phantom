@@ -1245,11 +1245,13 @@ fn socket_dns_and_quic_parameter_payloads_preserve_values() -> TestResult {
     tcp.address_selection = TcpAddressSelection::Backup(TcpBackupConnection {
         delay: Duration::from_millis(250),
         known_family_backup_timeout: None,
+        socks_proxy_dns_feedback: phantom_profile::SocksProxyDnsFeedback::AllConnectFailures,
     });
     let first = encode_tcp(tcp)?;
     tcp.address_selection = TcpAddressSelection::Backup(TcpBackupConnection {
         delay: Duration::from_millis(250),
         known_family_backup_timeout: Some(Duration::from_secs(1)),
+        socks_proxy_dns_feedback: phantom_profile::SocksProxyDnsFeedback::AllConnectFailures,
     });
     assert!(first != encode_tcp(tcp)?);
     let mut dns = chrome::v154_dns_cache();

@@ -53,6 +53,7 @@ fn client(
     tcp.address_selection = TcpAddressSelection::Backup(TcpBackupConnection {
         delay: Duration::from_millis(1),
         known_family_backup_timeout: Some(Duration::from_secs(1)),
+        socks_proxy_dns_feedback: phantom::profile::SocksProxyDnsFeedback::AllConnectFailures,
     });
     let mut websocket = chrome::v154_websocket();
     websocket.connection.without_http2_session = if h2 {

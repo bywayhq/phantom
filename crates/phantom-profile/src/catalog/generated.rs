@@ -3352,6 +3352,243 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 limitations: &[],
             },
         ],
+        composition: &connection_profile_definitions::FIREFOXWINDOWS157R2,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::FIREFOX_WINDOWS157_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchUpload, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH_UPLOAD },
+        ],
+    },
+    ProfileDefinition {
+        id: ProfileId("firefox/157.0/windows-11-26200/r3"),
+        selector: "firefox-157-windows-r3",
+        metadata: ProfileMetadata {
+            browser: Browser::Firefox,
+            platform: ProfilePlatform::Windows,
+            identity: ProfileIdentity::Observed {
+                build: "157.0",
+                platform_release: "windows-11-26200",
+                architecture: None,
+                environment: CaptureEnvironment::Desktop,
+            },
+            revision: 3,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-backup.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-socks5-backup.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-dns-cache.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-http1-long.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::IntentionallyAbsent,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/proxy/firefox/157.0/windows-11-26200/https-proxy-hostname.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h2.txt",
+                        build: "157.0",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox.rs",
+                        build: "157.0",
+                    },
+                ],
+                limitations: &[],
+            },
+        ],
         composition: &connection_profile_definitions::FIREFOXWINDOWS157,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::FIREFOX_WINDOWS157_NAVIGATION },

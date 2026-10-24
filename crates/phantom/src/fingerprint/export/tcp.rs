@@ -5,6 +5,11 @@ use phantom_profile::*;
 use serde_json::Value;
 
 tokens!(TcpAddressAdvance, AfterAnyFailure, AfterRefusalOrTimeout);
+tokens!(
+    SocksProxyDnsFeedback,
+    AllConnectFailures,
+    InitialConnectFailures
+);
 record!(TcpKeepalive, idle, interval);
 record!(
     TcpKeepaliveSchedule,
@@ -17,7 +22,12 @@ record!(
     set_probe_count
 );
 record!(TcpAddressRacing, fallback_delay);
-record!(TcpBackupConnection, delay, known_family_backup_timeout);
+record!(
+    TcpBackupConnection,
+    delay,
+    known_family_backup_timeout,
+    socks_proxy_dns_feedback
+);
 record!(TcpPortRandomization, minimum_windows_build);
 record!(
     TcpSettings,
@@ -53,7 +63,8 @@ impl Encode for TcpAddressSelection {
                 object!(e, f, "kind" => "Racing", "fallback_delay" => &v.fallback_delay)
             }
             Self::Backup(v) => object!(e, f, "kind" => "Backup", "delay" => &v.delay,
-                "known_family_backup_timeout" => &v.known_family_backup_timeout),
+                "known_family_backup_timeout" => &v.known_family_backup_timeout,
+                "socks_proxy_dns_feedback" => &v.socks_proxy_dns_feedback),
             _ => Err(super::super::json::unsupported(f)),
         }
     }

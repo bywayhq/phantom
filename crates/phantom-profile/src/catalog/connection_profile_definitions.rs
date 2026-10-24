@@ -62,6 +62,7 @@ pub(super) enum TcpComponent {
     Chromium154,
     Firefox156Android,
     Firefox157,
+    Firefox157WindowsR3,
 }
 
 #[rustfmt::skip]
@@ -73,6 +74,7 @@ impl TcpComponent {
             Self::Chromium154 => super::tcp_components::chromium_154_tcp(),
             Self::Firefox156Android => super::tcp_components::firefox_156_android_tcp(),
             Self::Firefox157 => super::tcp_components::firefox_157_tcp(),
+            Self::Firefox157WindowsR3 => super::tcp_components::firefox_157_windows_r3_tcp(),
         }
     }
 }
@@ -565,9 +567,29 @@ pub(super) static FIREFOXANDROID156: ConnectionProfileDefinition = ConnectionPro
 };
 
 #[rustfmt::skip]
-pub(super) static FIREFOXWINDOWS157: ConnectionProfileDefinition = ConnectionProfileDefinition {
+pub(super) static FIREFOXWINDOWS157R2: ConnectionProfileDefinition = ConnectionProfileDefinition {
     tls: TlsComponent::Firefox157TcpTlsHttpsRecords,
     tcp: Some(TcpComponent::Firefox157),
+    udp: None,
+    dns_cache: Some(DnsComponent::Firefox157),
+    http1: Some(Http1Component::Firefox157),
+    http2: Some(Http2Component::Firefox157),
+    http3: Some(Http3Definition {
+        tls: TlsComponent::Firefox157Quic,
+        quic_transport: QuicComponent::Firefox157,
+        http3: Http3Component::Firefox157,
+        request: Http3RequestComponent::Firefox157,
+    }),
+    client_hints: None,
+    websocket: Some(WebSocketComponent::Firefox157),
+    proxy_connect: Some(ProxyConnectComponent::Firefox157),
+    cookie_placement: Some(CookieComponent::Firefox157),
+};
+
+#[rustfmt::skip]
+pub(super) static FIREFOXWINDOWS157: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Firefox157TcpTlsHttpsRecords,
+    tcp: Some(TcpComponent::Firefox157WindowsR3),
     udp: None,
     dns_cache: Some(DnsComponent::Firefox157),
     http1: Some(Http1Component::Firefox157),

@@ -485,7 +485,7 @@ fn macos_chrome_changes_only_keepalive_idle_and_nodelay() -> TestResult {
             .with_retries(11),
     )?;
     let send_buffer = options.send_buffer_size()?;
-    super::apply_options(&socket, chrome::v154_macos_tcp())?;
+    super::apply_options(&options, chrome::v154_macos_tcp())?;
 
     assert!(options.tcp_nodelay()?);
     assert!(options.keepalive()?);

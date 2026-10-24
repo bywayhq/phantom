@@ -42,7 +42,7 @@ class SafariIosPeerTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(p["metadata"]["identity"]["kind"] == "Observed" for p in original),
-            16,
+            17,
         )
         chrome156 = next(p for p in original if p["target"] == "ChromeWindows156")
         self.assertEqual(chrome156["metadata"]["identity"]["kind"], "Observed")

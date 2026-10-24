@@ -212,6 +212,22 @@ pub struct TcpBackupConnection {
     /// to its next address. It must be whole seconds in
     /// `1..=`[`MAX_TCP_BACKUP_TIMEOUT_SECONDS`].
     pub known_family_backup_timeout: Option<Duration>,
+    /// Which physical SOCKS proxy connect failures mark an address unusable.
+    /// Authentication and target negotiation failures never count.
+    pub socks_proxy_dns_feedback: SocksProxyDnsFeedback,
+}
+
+/// Which physical SOCKS proxy connect failures update DNS address history.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SocksProxyDnsFeedback {
+    /// Record failures both during the initial connect and after polling it.
+    #[default]
+    AllConnectFailures,
+    /// Record only failures returned by the initial connect call.
+    /// Firefox 157 records the proxy address when its initial connect advances
+    /// (`netwerk/socket/nsSOCKSIOLayer.cpp:480-484` at `FIREFOX_157_0_RELEASE`).
+    InitialConnectFailures,
 }
 
 /// Which connect failures move an attempt to its next address.

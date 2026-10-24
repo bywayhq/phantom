@@ -20,6 +20,26 @@ class CatalogDeclarationTests(unittest.TestCase):
         with self.assertRaises(generator.DeclarationError):
             generator.validate(document)
 
+    def test_firefox_socks_feedback_advances_only_the_windows_recipe(self):
+        profiles = {entry["id"]: entry for entry in self.document["profiles"]}
+        old = profiles["firefox/157.0/windows-11-26200/r2"]
+        current = profiles["firefox/157.0/windows-11-26200/r3"]
+        self.assertEqual(old["selector"], "firefox-157-windows-r2")
+        self.assertEqual(registry.constructor(old), "v157_windows_r2")
+        self.assertEqual(registry.constructor(current), "v157_windows")
+        self.assertEqual(old["composition"]["Tcp"], "firefox_157_tcp")
+        self.assertEqual(current["composition"]["Tcp"], "firefox_157_windows_r3_tcp")
+        previous = dict(old["composition"])
+        revised = dict(current["composition"])
+        del previous["Tcp"]
+        del revised["Tcp"]
+        self.assertEqual(previous, revised)
+        for entry in profiles.values():
+            if entry is not current:
+                self.assertNotEqual(
+                    entry["composition"].get("Tcp"), "firefox_157_windows_r3_tcp"
+                )
+
     def test_android_tcp_evidence_is_source_only_and_limited_to_chrome_and_firefox(
         self,
     ):

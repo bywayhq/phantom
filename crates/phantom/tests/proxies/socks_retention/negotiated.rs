@@ -13,6 +13,7 @@ fn client(
     tcp.address_selection = TcpAddressSelection::Backup(TcpBackupConnection {
         delay: Duration::from_millis(1),
         known_family_backup_timeout: Some(Duration::from_secs(1)),
+        socks_proxy_dns_feedback: phantom::profile::SocksProxyDnsFeedback::AllConnectFailures,
     });
     let profile = ClientProfile::new(tls_settings())
         .with_tcp(tcp)

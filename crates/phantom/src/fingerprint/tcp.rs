@@ -5,8 +5,9 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
-    TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
+    SocksProxyDnsFeedback, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
+    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+    TcpPortRandomization, TcpSettings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<TcpSettings> {
@@ -137,8 +138,17 @@ fn selection(v: &Value) -> Result<TcpAddressSelection> {
             }))
         }
         "Backup" => {
+            let feedback = v.member(
+                "socks_proxy_dns_feedback",
+                "tcp.address_selection.socks_proxy_dns_feedback",
+            )?;
             v.record(
-                &["kind", "delay", "known_family_backup_timeout"],
+                &[
+                    "kind",
+                    "delay",
+                    "known_family_backup_timeout",
+                    "socks_proxy_dns_feedback",
+                ],
                 "tcp.address_selection",
             )?;
             Ok(TcpAddressSelection::Backup(TcpBackupConnection {
@@ -153,6 +163,17 @@ fn selection(v: &Value) -> Result<TcpAddressSelection> {
                     .optional(|v| {
                         v.duration("tcp.address_selection.known_family_backup_timeout")
                     })?,
+                socks_proxy_dns_feedback: match feedback
+                    .text("tcp.address_selection.socks_proxy_dns_feedback")?
+                {
+                    "AllConnectFailures" => SocksProxyDnsFeedback::AllConnectFailures,
+                    "InitialConnectFailures" => SocksProxyDnsFeedback::InitialConnectFailures,
+                    _ => {
+                        return Err(json::unsupported(
+                            "tcp.address_selection.socks_proxy_dns_feedback",
+                        ));
+                    }
+                },
             }))
         }
         _ => Err(json::unsupported("tcp.address_selection.kind")),
@@ -200,6 +221,70 @@ mod tests {
             let value = json::parse(complete.replace(missing, "").as_bytes())?;
             assert!(keepalive(&value).is_err());
         }
+        Ok(())
+    }
+
+    #[test]
+    fn socks_proxy_feedback_requires_an_explicit_supported_value() -> TestResult {
+        let base = serde_json::json!({
+            "kind": "Backup",
+            "delay": {"seconds": 0, "nanoseconds": 250_000_000},
+            "known_family_backup_timeout": null,
+            "socks_proxy_dns_feedback": "AllConnectFailures"
+        });
+        for (name, expected) in [
+            (
+                "AllConnectFailures",
+                SocksProxyDnsFeedback::AllConnectFailures,
+            ),
+            (
+                "InitialConnectFailures",
+                SocksProxyDnsFeedback::InitialConnectFailures,
+            ),
+        ] {
+            let mut value = base.clone();
+            value["socks_proxy_dns_feedback"] = name.into();
+            let parsed = json::parse(&serde_json::to_vec(&value)?)?;
+            let TcpAddressSelection::Backup(backup) = selection(&parsed)? else {
+                return Err("backup policy changed kind".into());
+            };
+            assert_eq!(backup.socks_proxy_dns_feedback, expected);
+        }
+        for invalid in [
+            serde_json::json!(null),
+            serde_json::json!(true),
+            serde_json::json!(1),
+            serde_json::json!("Initial"),
+            serde_json::json!([]),
+        ] {
+            let mut value = base.clone();
+            value["socks_proxy_dns_feedback"] = invalid;
+            let parsed = json::parse(&serde_json::to_vec(&value)?)?;
+            let error = selection(&parsed)
+                .err()
+                .ok_or("invalid feedback accepted")?;
+            assert_eq!(
+                error.field(),
+                "tcp.address_selection.socks_proxy_dns_feedback"
+            );
+        }
+        let mut missing = base;
+        missing
+            .as_object_mut()
+            .ok_or("backup must be an object")?
+            .remove("socks_proxy_dns_feedback");
+        let parsed = json::parse(&serde_json::to_vec(&missing)?)?;
+        let error = selection(&parsed)
+            .err()
+            .ok_or("missing feedback accepted")?;
+        assert_eq!(
+            error.kind(),
+            super::super::FingerprintImportErrorKind::MissingField
+        );
+        assert_eq!(
+            error.field(),
+            "tcp.address_selection.socks_proxy_dns_feedback"
+        );
         Ok(())
     }
 }

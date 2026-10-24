@@ -22,11 +22,12 @@ use phantom_profile::{
     QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
     QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
     RequestField, RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme,
-    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
-    TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
-    TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders, UdpSettings,
-    WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-    WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+    SocksProxyDnsFeedback, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
+    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+    TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion, TlsVersionRange, TrustAnchorIds,
+    TrustAnchorOrder, TrustAnchorOrders, UdpSettings, WebSocketConnectionPolicy,
+    WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
+    WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
     WebSocketSettings,
 };
 
@@ -133,6 +134,7 @@ fn public_enums_support_cloning_equality_and_thread_transfer() {
     value::<RequestField>();
     value::<SessionTicketOrder>();
     value::<SignatureScheme>();
+    value::<SocksProxyDnsFeedback>();
     value::<TcpAddressAdvance>();
     value::<TcpAddressSelection>();
     value::<TcpKeepalivePolicy>();
@@ -212,6 +214,7 @@ fn types_with_copy_keep_their_value_semantics() {
     copy::<SessionTicketOrder>();
     copy::<SessionTickets>();
     copy::<SignatureScheme>();
+    copy::<SocksProxyDnsFeedback>();
     copy::<TcpAddressAdvance>();
     copy::<TcpAddressRacing>();
     copy::<TcpAddressSelection>();
@@ -270,6 +273,7 @@ fn provided_defaults_remain_available() {
     provided_default::<Http2TableSizeUpdates>();
     provided_default::<Http2UnindexedMatch>();
     provided_default::<Http3CookieCrumbs>();
+    provided_default::<SocksProxyDnsFeedback>();
     provided_default::<TcpAddressAdvance>();
     provided_default::<TcpAddressSelection>();
     provided_default::<TcpKeepalivePolicy>();

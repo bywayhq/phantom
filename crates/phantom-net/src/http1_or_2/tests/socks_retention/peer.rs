@@ -42,6 +42,8 @@ impl Connectors {
             phantom_profile::TcpAddressSelection::Backup(phantom_profile::TcpBackupConnection {
                 delay: Duration::from_millis(1),
                 known_family_backup_timeout: Some(Duration::from_secs(1)),
+                socks_proxy_dns_feedback:
+                    phantom_profile::SocksProxyDnsFeedback::AllConnectFailures,
             });
         let exact = Http2TlsConnector::new_with_additional_roots(
             &tls,

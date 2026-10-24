@@ -235,13 +235,21 @@ impl SourceBinding {
 
     /// Binds a TCP socket that will connect to `remote`.
     pub(crate) fn bind_tcp(&self, socket: &TcpSocket, remote: SocketAddr) -> io::Result<()> {
+        self.bind_tcp_socket(&SockRef::from(socket), remote)
+    }
+
+    pub(crate) fn bind_tcp_socket(
+        &self,
+        socket: &SockRef<'_>,
+        remote: SocketAddr,
+    ) -> io::Result<()> {
         if !self.permits(&remote) {
             return Err(no_bound_family());
         }
-        self.bind_interface(&SockRef::from(socket), Domain::for_address(remote))?;
+        self.bind_interface(socket, Domain::for_address(remote))?;
         match self.address_for(&remote) {
             Some(address) => socket
-                .bind(SocketAddr::new(address, 0))
+                .bind(&SocketAddr::new(address, 0).into())
                 .map_err(|error| bind_error("TCP", address, error)),
             None => Ok(()),
         }

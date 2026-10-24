@@ -41,6 +41,7 @@ pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
+mod proxy_connect;
 
 /// A TCP connection opened with a profile's [`TcpSettings`].
 ///
@@ -384,9 +385,20 @@ pub(crate) async fn connect_socks_proxy_sequential(
     port: u16,
     dialer: crate::direct::Dialer<'_>,
     started: Instant,
+    feedback_policy: phantom_profile::SocksProxyDnsFeedback,
 ) -> Result<ProfileTcpStream, SocksProxyConnectError> {
     use SocksProxyConnectError::{BeforeConnect, Connect};
     check_settings(dialer.tcp.as_ref(), dialer.source).map_err(BeforeConnect)?;
+    let report_continuation = match feedback_policy {
+        phantom_profile::SocksProxyDnsFeedback::AllConnectFailures => true,
+        phantom_profile::SocksProxyDnsFeedback::InitialConnectFailures => false,
+        _ => {
+            return Err(BeforeConnect(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "unsupported SOCKS proxy DNS feedback policy",
+            )));
+        }
+    };
     if dialer
         .tcp
         .is_some_and(|s| matches!(s.keepalive, TcpKeepalivePolicy::Schedule(_)))
@@ -410,17 +422,23 @@ pub(crate) async fn connect_socks_proxy_sequential(
             return Err(last.map_or_else(|| BeforeConnect(no_addresses()), Connect));
         };
         let address = candidate.address();
-        let socket = prepare_socket(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
+        let socket =
+            proxy_connect::prepare(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
         match crate::request_diagnostics::PhaseObservation::run(
             crate::RequestTimingPhase::TcpConnect,
             None,
-            socket.connect(address),
+            proxy_connect::connect(socket, address),
         )
         .await
         {
             Ok(stream) => break stream,
-            Err(connect) => {
-                if let Err(feedback) = candidate.failed_connect() {
+            Err(failure) => {
+                let (connect, report) = match failure {
+                    proxy_connect::Failure::Initial(error) => (error, true),
+                    proxy_connect::Failure::Continuation(error) => (error, report_continuation),
+                    proxy_connect::Failure::Local(error) => return Err(BeforeConnect(error)),
+                };
+                if report && let Err(feedback) = candidate.failed_connect() {
                     return Err(Connect(io::Error::other(ConnectFeedbackError {
                         connect,
                         feedback,
@@ -606,7 +624,7 @@ fn prepare_socket(
         SocketAddr::V6(_) => TcpSocket::new_v6()?,
     };
     if let Some(settings) = settings {
-        apply_options(&socket, settings)?;
+        apply_options(&SockRef::from(&socket), settings)?;
     }
     if let Some(source) = source {
         source.bind_tcp(&socket, address)?;
@@ -670,7 +688,7 @@ async fn connect_candidate_within(
 /// has connected. Port randomization comes last, as in Chromium's call
 /// order, and before a source binding binds the socket, which Windows
 /// requires.
-fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
+fn apply_options(socket: &SockRef<'_>, settings: TcpSettings) -> io::Result<()> {
     let fixed_keepalive = match settings.keepalive {
         TcpKeepalivePolicy::Fixed(keepalive) => Some(keepalive),
         TcpKeepalivePolicy::Unchanged | TcpKeepalivePolicy::Schedule(_) => None,
@@ -681,7 +699,6 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
             ));
         }
     };
-    let socket = SockRef::from(socket);
     if settings.nodelay {
         socket
             .set_tcp_nodelay(true)
@@ -700,7 +717,7 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
             .map_err(|error| option_error("TCP keepalive", error))?;
     }
     if let Some(randomization) = settings.port_randomization {
-        randomize_port(&socket, randomization)?;
+        randomize_port(socket, randomization)?;
     }
     Ok(())
 }

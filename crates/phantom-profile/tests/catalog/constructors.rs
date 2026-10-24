@@ -190,9 +190,17 @@ fn firefox_v156_android() -> ClientProfile {
 }
 
 #[test]
-fn firefox_v157_windows_keeps_its_component_selection() {
+fn firefox_v157_windows_keeps_its_component_selection() -> Result<(), Box<dyn std::error::Error>> {
     let expected = firefox_v157_windows();
-    assert_eq!(firefox::v157_windows(), expected);
+    assert_eq!(firefox::v157_windows_r2(), expected);
+    let mut tcp = firefox::v157_tcp();
+    let phantom_profile::TcpAddressSelection::Backup(ref mut backup) = tcp.address_selection else {
+        return Err("Firefox backup policy absent".into());
+    };
+    backup.socks_proxy_dns_feedback =
+        phantom_profile::SocksProxyDnsFeedback::InitialConnectFailures;
+    assert_eq!(firefox::v157_windows(), expected.with_tcp(tcp));
+    Ok(())
 }
 
 fn firefox_v157_windows() -> ClientProfile {

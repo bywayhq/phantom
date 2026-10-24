@@ -52,8 +52,9 @@ pub use request_template::{
 pub use tcp::{
     InvalidTcpSettings, MAX_TCP_BACKUP_TIMEOUT_SECONDS, MAX_TCP_FALLBACK_DELAY,
     MAX_TCP_KEEPALIVE_PROBES, MAX_TCP_KEEPALIVE_SECONDS, MAX_TCP_SHORT_LIVED_SECONDS,
-    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
-    TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
+    SocksProxyDnsFeedback, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
+    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+    TcpPortRandomization, TcpSettings,
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

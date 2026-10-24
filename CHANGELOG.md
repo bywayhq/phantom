@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Breaking: add `TcpBackupConnection::socks_proxy_dns_feedback`. Firefox 157
+  Windows revision 3 retains proxy addresses after asynchronous refusals.
+  Migrate: set `SocksProxyDnsFeedback::AllConnectFailures` to keep custom
+  profiles' current behavior.
+  `firefox::v157_windows()` now selects revision 3; use `v157_windows_r2()`
+  or the exact revision 2 selector to retain that recipe. Add
+  `"socks_proxy_dns_feedback": "AllConnectFailures"` to custom Backup JSON.
+  Recreate saved ticket snapshots after upgrading.
+
 - Retain a Firefox 157 Windows SOCKS5 capture with proxy address attempts,
   remote origin names and completed requests across an origin disconnect.
 

@@ -4,8 +4,8 @@ use phantom_profile::{
     Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltSvcValidation,
     Http3AltUsed, Http3AltUsedPort, Http3ConnectionReuse, Http3CookieCrumbs,
     Http3MisdirectedRequest, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-    Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy,
-    TcpAddressAdvance,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder, SocksProxyDnsFeedback,
+    SystemDnsTtlPolicy, TcpAddressAdvance,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -285,11 +285,17 @@ pub(super) fn tcp(e: &mut Encoder, value: &TcpSettings) -> Result<(), Preparatio
             let TcpBackupConnection {
                 delay,
                 known_family_backup_timeout,
+                socks_proxy_dns_feedback,
             } = value;
             e.u8(2)?;
             e.duration(*delay)?;
             e.option(known_family_backup_timeout.as_ref(), |e, value| {
                 e.duration(*value)
+            })?;
+            e.u8(match socks_proxy_dns_feedback {
+                SocksProxyDnsFeedback::AllConnectFailures => 0,
+                SocksProxyDnsFeedback::InitialConnectFailures => 1,
+                _ => return Err(PreparationError::Unsupported("SocksProxyDnsFeedback")),
             })?;
         }
         _ => return Err(PreparationError::Unsupported("address_selection")),

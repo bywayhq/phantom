@@ -87,6 +87,7 @@ struct Setup {
     tcp: Option<phantom_profile::TcpSettings>,
     source: Option<crate::SourceBinding>,
     resolver: Option<crate::host_resolver::HostResolver>,
+    proxy_dns_feedback: phantom_profile::SocksProxyDnsFeedback,
 }
 impl Setup {
     fn dialer(&self) -> Dialer<'_> {
@@ -108,6 +109,7 @@ impl Setup {
             route.proxy_port,
             self.dialer(),
             started,
+            self.proxy_dns_feedback,
         )
         .await
         .map_err(|e| match e {
@@ -191,6 +193,7 @@ pub(crate) async fn connect_retaining(
         tcp: dialer.tcp,
         source: dialer.source.cloned(),
         resolver: dialer.resolver.cloned(),
+        proxy_dns_feedback: backup.socks_proxy_dns_feedback,
     });
     scheduler::connect(setup, targets, family, backup, started).await
 }

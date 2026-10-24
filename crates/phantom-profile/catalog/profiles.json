@@ -2201,10 +2201,245 @@
         "FetchUpload": "firefox_windows157_fetch_upload",
         "Navigation": "firefox_windows157_navigation"
       },
-      "target": "FirefoxWindows157",
+      "target": "FirefoxWindows157R2",
       "composition": {
         "TcpTls": "firefox_157_tcp_tls_https_records",
         "Tcp": "firefox_157_tcp",
+        "Udp": null,
+        "Dns": "firefox_157_dns_cache",
+        "Http1": "firefox_157_http1",
+        "Http2": "firefox_157_http2",
+        "QuicTls": "firefox_157_quic_tls",
+        "QuicTransport": "firefox_157_quic",
+        "Http3": "firefox_157_http3",
+        "Http3Request": "firefox_157_http3_request",
+        "ClientHints": null,
+        "WebSocket": "firefox_157_websocket",
+        "ProxyConnect": "firefox_157_proxy_connect",
+        "CookiePlacement": "firefox_157_cookie"
+      },
+      "variant": "r2"
+    },
+    {
+      "id": "firefox/157.0/windows-11-26200/r3",
+      "selector": "firefox-157-windows-r3",
+      "metadata": {
+        "browser": "Firefox",
+        "platform": "Windows",
+        "revision": 3,
+        "identity": {
+          "kind": "Observed",
+          "build": "157.0",
+          "platform_release": "windows-11-26200",
+          "architecture": null,
+          "environment": "Desktop"
+        }
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-backup.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-socks5-backup.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-dns-cache.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-http1-long.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "IntentionallyAbsent",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/firefox/157.0/windows-11-26200/https-proxy-hostname.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h2.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ]
+        }
+      ],
+      "templates": {
+        "Fetch": "firefox_windows157_fetch",
+        "FetchNoStore": "firefox_windows157_fetch_no_store",
+        "FetchUpload": "firefox_windows157_fetch_upload",
+        "Navigation": "firefox_windows157_navigation"
+      },
+      "target": "FirefoxWindows157",
+      "composition": {
+        "TcpTls": "firefox_157_tcp_tls_https_records",
+        "Tcp": "firefox_157_windows_r3_tcp",
         "Udp": null,
         "Dns": "firefox_157_dns_cache",
         "Http1": "firefox_157_http1",

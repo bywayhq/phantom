@@ -33,10 +33,22 @@ fn composed_profiles_preserve_tcp_policies_and_custom_ownership() -> TestResult 
         );
     }
     assert_eq!(
-        *browser::firefox::v157_windows()
+        *browser::firefox::v157_windows_r2()
             .tcp()
             .ok_or("Firefox lost TCP")?,
         firefox_original()
+    );
+    let mut current = firefox_original();
+    let TcpAddressSelection::Backup(ref mut backup) = current.address_selection else {
+        return Err("Firefox backup policy absent".into());
+    };
+    backup.socks_proxy_dns_feedback =
+        phantom_profile::SocksProxyDnsFeedback::InitialConnectFailures;
+    assert_eq!(
+        *browser::firefox::v157_windows()
+            .tcp()
+            .ok_or("current Firefox lost TCP")?,
+        current
     );
     for mut custom in [browser::chrome::v154_tcp(), browser::firefox::v157_tcp()] {
         custom.nodelay = false;
@@ -83,6 +95,7 @@ fn firefox_original() -> TcpSettings {
         address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(250),
             known_family_backup_timeout: Some(Duration::from_secs(5)),
+            socks_proxy_dns_feedback: phantom_profile::SocksProxyDnsFeedback::AllConnectFailures,
         }),
         port_randomization: None,
     }

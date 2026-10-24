@@ -115,6 +115,13 @@ fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTe
         .collect::<Vec<_>>();
     assert_eq!(historical.len(), 2);
     expected.extend(historical);
+    let firefox_r3 = expected
+        .iter()
+        .filter(|(id, _, _)| *id == "firefox/157.0/windows-11-26200/r2")
+        .map(|(_, kind, value)| ("firefox/157.0/windows-11-26200/r3", *kind, value.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(firefox_r3.len(), 4);
+    expected.extend(firefox_r3);
     for id in [
         "edge/154.0.4258.48/windows-11-26200/r1",
         "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
@@ -226,7 +233,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (33, 31));
+    assert_eq!((supported, unsupported), (37, 31));
     Ok(())
 }
 

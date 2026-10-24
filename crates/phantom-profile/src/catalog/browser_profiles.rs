@@ -113,10 +113,18 @@ pub(crate) mod firefox {
 
     /// Returns Firefox 157 settings for Windows, without a request template.
     ///
-    /// Catalog: [`firefox-157-windows-r2`](crate::catalog::profile).
+    /// Catalog: [`firefox-157-windows-r3`](crate::catalog::profile).
     #[must_use]
     pub fn v157_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::FIREFOXWINDOWS157.instantiate()
+    }
+
+    /// Returns Firefox 157 settings for Windows, without a request template.
+    ///
+    /// Catalog: [`firefox-157-windows-r2`](crate::catalog::profile).
+    #[must_use]
+    pub fn v157_windows_r2() -> crate::ClientProfile {
+        crate::catalog::connection_profile_definitions::FIREFOXWINDOWS157R2.instantiate()
     }
 }
 

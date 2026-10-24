@@ -105,6 +105,10 @@ fn short_selectors_keep_their_exact_recipe_identity() -> TestResult {
             "firefox/157.0/windows-11-26200/r2",
         ),
         (
+            "firefox-157-windows-r3",
+            "firefox/157.0/windows-11-26200/r3",
+        ),
+        (
             "opera-102-android",
             "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
         ),
@@ -170,6 +174,10 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
         ),
         (
             "firefox/157.0/windows-11-26200/r2",
+            browser::firefox::v157_windows_r2,
+        ),
+        (
+            "firefox/157.0/windows-11-26200/r3",
             browser::firefox::v157_windows,
         ),
         (

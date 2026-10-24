@@ -65,6 +65,7 @@ async fn retained(protocol: Protocol, tls: bool) -> TestResult<()> {
         tcp.address_selection = TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(1),
             known_family_backup_timeout: Some(Duration::from_secs(1)),
+            socks_proxy_dns_feedback: phantom::profile::SocksProxyDnsFeedback::AllConnectFailures,
         });
         let mut tls_profile = tls_settings();
         tls_profile.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];

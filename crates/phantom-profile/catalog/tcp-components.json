@@ -69,7 +69,8 @@
           "known_family_backup_timeout": {
             "seconds": 5,
             "nanoseconds": 0
-          }
+          },
+          "socks_proxy_dns_feedback": "AllConnectFailures"
         },
         "port_randomization": null
       }
@@ -188,6 +189,25 @@
           "probe_count": 4,
           "set_interval": true,
           "set_probe_count": true
+        }
+      }
+    },
+    {
+      "id": "firefox_157_windows_r3_tcp",
+      "kind": "TcpSettings",
+      "base": "firefox_157_tcp",
+      "values": {
+        "address_selection": {
+          "kind": "Backup",
+          "delay": {
+            "seconds": 0,
+            "nanoseconds": 250000000
+          },
+          "known_family_backup_timeout": {
+            "seconds": 5,
+            "nanoseconds": 0
+          },
+          "socks_proxy_dns_feedback": "InitialConnectFailures"
         }
       }
     }

@@ -189,6 +189,7 @@ fn delay_bounds_are_inclusive() {
         let backup = TcpAddressSelection::Backup(TcpBackupConnection {
             delay,
             known_family_backup_timeout: None,
+            socks_proxy_dns_feedback: crate::SocksProxyDnsFeedback::AllConnectFailures,
         });
         assert_eq!(with_selection(racing).validate(), Ok(()));
         assert_eq!(with_selection(backup).validate(), Ok(()));
@@ -207,6 +208,7 @@ fn delays_outside_bounds_are_rejected() {
         let backup = TcpAddressSelection::Backup(TcpBackupConnection {
             delay,
             known_family_backup_timeout: None,
+            socks_proxy_dns_feedback: crate::SocksProxyDnsFeedback::AllConnectFailures,
         });
         assert_eq!(
             rejected_field(with_selection(racing)),
@@ -229,8 +231,28 @@ fn backup_timeout_bounds_are_inclusive() {
         let backup = TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(250),
             known_family_backup_timeout: timeout,
+            socks_proxy_dns_feedback: crate::SocksProxyDnsFeedback::AllConnectFailures,
         });
         assert_eq!(with_selection(backup).validate(), Ok(()), "{timeout:?}");
+    }
+}
+
+#[test]
+fn socks_feedback_choices_are_valid_and_default_to_all_failures() {
+    assert_eq!(
+        crate::SocksProxyDnsFeedback::default(),
+        crate::SocksProxyDnsFeedback::AllConnectFailures
+    );
+    for socks_proxy_dns_feedback in [
+        crate::SocksProxyDnsFeedback::AllConnectFailures,
+        crate::SocksProxyDnsFeedback::InitialConnectFailures,
+    ] {
+        let policy = TcpAddressSelection::Backup(TcpBackupConnection {
+            delay: Duration::from_millis(250),
+            known_family_backup_timeout: None,
+            socks_proxy_dns_feedback,
+        });
+        assert_eq!(with_selection(policy).validate(), Ok(()));
     }
 }
 
@@ -244,6 +266,7 @@ fn backup_timeouts_outside_bounds_or_in_fractions_are_rejected() {
         let backup = TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(250),
             known_family_backup_timeout: Some(timeout),
+            socks_proxy_dns_feedback: crate::SocksProxyDnsFeedback::AllConnectFailures,
         });
         assert_eq!(
             rejected_field(with_selection(backup)),

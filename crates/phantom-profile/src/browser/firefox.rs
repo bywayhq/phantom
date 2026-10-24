@@ -66,6 +66,9 @@ pub fn v157_tcp_tls() -> TlsSettings {
 /// the slower successful connection. Later attempts use the remembered address
 /// family and a five-second backup timeout. With [`v157_dns_cache`], cached
 /// answers skip addresses that failed earlier. Port selection stays unchanged.
+/// This component retains [`crate::SocksProxyDnsFeedback::AllConnectFailures`].
+/// The current [`v157_windows`] recipe records only initial SOCKS connect failures;
+/// [`v157_windows_r2`] retains this component's behavior.
 ///
 /// Use [`v157_macos_tcp`], [`v157_linux_tcp`] or [`v156_android_tcp`] elsewhere.
 /// Phantom prunes address-family history on its idle timer, so server closes

@@ -95,10 +95,20 @@ def validate_tcp_values(values):
     else:
         keys(
             selection,
-            ("kind", "delay", "known_family_backup_timeout"),
+            (
+                "kind",
+                "delay",
+                "known_family_backup_timeout",
+                "socks_proxy_dns_feedback",
+            ),
             "TCP backup addresses",
         )
         tcp_delay(selection["delay"])
+        choice(
+            selection["socks_proxy_dns_feedback"],
+            ("AllConnectFailures", "InitialConnectFailures"),
+            "TCP SOCKS proxy DNS feedback",
+        )
         if selection["known_family_backup_timeout"] is not None:
             tcp_whole_seconds(
                 selection["known_family_backup_timeout"],
@@ -167,5 +177,5 @@ def rust_tcp_value(field, value):
         )
     return (
         expression
-        + f"(crate::TcpBackupConnection {{ delay: {rust_duration(value['delay'])}, known_family_backup_timeout: {rust_option(value['known_family_backup_timeout'], rust_duration)} }})"
+        + f"(crate::TcpBackupConnection {{ delay: {rust_duration(value['delay'])}, known_family_backup_timeout: {rust_option(value['known_family_backup_timeout'], rust_duration)}, socks_proxy_dns_feedback: crate::SocksProxyDnsFeedback::{value['socks_proxy_dns_feedback']} }})"
     )

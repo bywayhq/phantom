@@ -24,3 +24,25 @@ fn schedule_socket_setters_have_distinct_ticket_policies() -> TestResult {
     assert_eq!(policies.len(), 4);
     Ok(())
 }
+
+#[test]
+fn socks_proxy_dns_feedback_has_distinct_ticket_policies() -> TestResult {
+    let mut tcp = firefox::v157_tcp();
+    let encode = |settings| {
+        profile::encode(
+            &ClientProfile::new(firefox::v157_tcp_tls()).with_tcp(settings),
+            None,
+            None,
+        )
+    };
+    let original = encode(tcp)?;
+    let phantom_profile::TcpAddressSelection::Backup(ref mut backup) = tcp.address_selection else {
+        return Err("Firefox TCP backup policy absent".into());
+    };
+    backup.socks_proxy_dns_feedback =
+        phantom_profile::SocksProxyDnsFeedback::InitialConnectFailures;
+    assert_ne!(original, encode(tcp)?);
+    assert_eq!(firefox::v157_windows_r2().tcp(), Some(&firefox::v157_tcp()));
+    assert_eq!(firefox::v157_windows().tcp(), Some(&tcp));
+    Ok(())
+}
