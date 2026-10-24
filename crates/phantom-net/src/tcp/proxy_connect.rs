@@ -78,6 +78,10 @@ fn in_progress(error: &io::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use std::os::fd::AsRawFd;
+    #[cfg(windows)]
+    use std::os::windows::io::AsRawSocket;
     use std::{
         net::{Ipv4Addr, Ipv6Addr},
         time::Duration,
@@ -124,24 +128,42 @@ mod tests {
         let address = listener.local_addr()?;
         let source = SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into());
         let settings = phantom_profile::browser::firefox::v157_tcp();
+        let requested_send_buffer = usize::try_from(
+            settings
+                .send_buffer_size
+                .ok_or("missing send buffer setting")?
+                .get(),
+        )?;
+        let expected_send_buffer = {
+            let control = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))?;
+            control.set_send_buffer_size(requested_send_buffer)?;
+            control.send_buffer_size()?
+        };
         let socket = prepare(address, Some(settings), Some(&source))?;
-        assert_eq!(
-            socket
-                .local_addr()?
-                .as_socket()
-                .ok_or("missing address")?
-                .ip(),
-            Ipv4Addr::LOCALHOST
-        );
+        let bound_address = socket.local_addr()?.as_socket().ok_or("missing address")?;
+        assert_eq!(bound_address.ip(), Ipv4Addr::LOCALHOST);
+        assert_ne!(bound_address.port(), 0);
         assert!(socket.tcp_nodelay()?);
         let send_buffer = socket.send_buffer_size()?;
+        assert_eq!(send_buffer, expected_send_buffer);
+        #[cfg(unix)]
+        let handle = socket.as_raw_fd();
+        #[cfg(windows)]
+        let handle = socket.as_raw_socket();
         let client = async {
             let mut stream = connect(socket, address)
                 .await
                 .map_err(|failure| format!("{failure:?}"))?;
-            assert_eq!(stream.local_addr()?.ip(), Ipv4Addr::LOCALHOST);
+            #[cfg(unix)]
+            assert_eq!(stream.as_raw_fd(), handle);
+            #[cfg(windows)]
+            assert_eq!(stream.as_raw_socket(), handle);
+            assert_eq!(stream.local_addr()?, bound_address);
             assert!(stream.nodelay()?);
-            assert_eq!(SockRef::from(&stream).send_buffer_size()?, send_buffer);
+            eprintln!(
+                "SO_SNDBUF: requested={requested_send_buffer} prepared={send_buffer} connected={}",
+                SockRef::from(&stream).send_buffer_size()?
+            );
             stream.write_all(b"proxy").await?;
             let mut response = Vec::new();
             stream.read_to_end(&mut response).await?;
