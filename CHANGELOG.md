@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve typed causes of TCP socket-option failures in request error chains.
+
 - Add a scoped macOS native-DNS capture tool with a temporary resolver
   and restoration diagnostics.
 

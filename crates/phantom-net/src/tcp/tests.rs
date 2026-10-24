@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::{error::Error, io, time::Duration};
 
 use phantom_profile::{
     TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy,
@@ -22,6 +22,51 @@ mod slower_connection;
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 const KEEPALIVE: Duration = Duration::from_secs(45);
+
+#[test]
+fn socket_option_context_keeps_the_original_os_error() -> TestResult {
+    let original = io::Error::from_raw_os_error(123_456);
+    let kind = original.kind();
+    let message = original.to_string();
+
+    let error = super::option_error("SO_SNDBUF", original);
+
+    assert_eq!(error.kind(), kind);
+    assert_eq!(
+        error.to_string(),
+        format!("failed to set the profile's SO_SNDBUF socket option: {message}")
+    );
+    let cause = error
+        .source()
+        .and_then(|cause| cause.downcast_ref::<io::Error>())
+        .ok_or("socket option context lost the original OS error")?;
+    assert_eq!(cause.raw_os_error(), Some(123_456));
+    Ok(())
+}
+
+#[test]
+fn socket_option_context_keeps_a_typed_cause() -> TestResult {
+    let original = "not-a-port"
+        .parse::<u16>()
+        .err()
+        .ok_or("invalid port parsed")?;
+    let message = original.to_string();
+    let original = io::Error::new(io::ErrorKind::PermissionDenied, original);
+
+    let error = super::option_error("TCP_NODELAY", original);
+
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(
+        error.to_string(),
+        format!("failed to set the profile's TCP_NODELAY socket option: {message}")
+    );
+    let cause = error
+        .source()
+        .and_then(|cause| cause.downcast_ref::<std::num::ParseIntError>())
+        .ok_or("socket option context lost the typed cause")?;
+    assert_eq!(cause.kind(), &std::num::IntErrorKind::InvalidDigit);
+    Ok(())
+}
 
 fn chromium_like() -> TcpSettings {
     TcpSettings {

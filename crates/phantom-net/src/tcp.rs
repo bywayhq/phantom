@@ -1083,11 +1083,34 @@ impl fmt::Display for UnsupportedTcpSettings {
 
 impl Error for UnsupportedTcpSettings {}
 
-fn option_error(option: &str, error: io::Error) -> io::Error {
-    io::Error::new(
-        error.kind(),
-        format!("failed to set the profile's {option} socket option: {error}"),
-    )
+fn option_error(option: &'static str, error: io::Error) -> io::Error {
+    io::Error::new(error.kind(), SocketOptionError { option, error })
+}
+
+#[derive(Debug)]
+struct SocketOptionError {
+    option: &'static str,
+    error: io::Error,
+}
+
+impl fmt::Display for SocketOptionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to set the profile's {} socket option: {}",
+            self.option, self.error
+        )
+    }
+}
+
+impl Error for SocketOptionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // io::Error::source skips its custom payload.
+        match self.error.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.error),
+        }
+    }
 }
 
 /// Socket options read back from each connected stream on the test thread.
