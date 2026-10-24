@@ -46,7 +46,7 @@ impl std::fmt::Display for RetryError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             formatter,
-            "TCP connect failed before port allocation: {}; fresh socket failed: {}",
+            "initial TCP connect failed: {}; fresh socket failed: {}",
             self.first, self.retry
         )
     }
@@ -148,7 +148,6 @@ where
         if !can_replace(&socket, settings, source, &error) {
             return Err(Failure::Initial(error));
         }
-        // A randomized implicit bind can fail before assigning any port.
         // Keep its policy, but never retain the failed socket during recovery.
         drop(socket);
         socket = match prepare(address, settings, source) {
@@ -187,8 +186,8 @@ fn can_replace(
             Ok(address) => address
                 .as_socket()
                 .is_some_and(|address| address.port() == 0),
-            // getsockname reports WSAEINVAL for an unbound socket. Preparation
-            // never explicitly binds without a SourceBinding, checked above.
+            // WSAEINVAL also covers wildcard-bound, unconnected sockets.
+            // Preparation never explicitly binds without a SourceBinding.
             Err(error) => error.raw_os_error() == Some(WSAEINVAL),
         }
 }

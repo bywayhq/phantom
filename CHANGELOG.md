@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Recover once from Windows TCP 10055 during randomized port allocation,
+- Recover once from an initial Windows TCP 10055 with port randomization,
   keeping the same socket settings and connection deadline. Source-bound
   sockets and asynchronous connect failures are not retried.
 
