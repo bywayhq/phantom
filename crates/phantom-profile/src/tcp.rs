@@ -274,6 +274,10 @@ impl Default for TcpAddressSelection {
 /// rejection fails the connection attempt, as for every other option.
 ///
 /// Only Windows has the option. Elsewhere the setting changes nothing.
+///
+/// If Windows rejects an unbound socket's initial connect with `WSAENOBUFS`
+/// (10055), Phantom tries one fresh socket with the same settings and deadline.
+/// Source bindings and failures after connect has started are not retried.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TcpPortRandomization {
     /// The first Windows build number that gets the option.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Recover once from Windows TCP 10055 during randomized port allocation,
+  keeping the same socket settings and connection deadline. Source-bound
+  sockets and asynchronous connect failures are not retried.
+
 - Preserve nested OS error codes in Node connection errors.
 
 - Reuse owned request header values during HTTP/1, HTTP/2 and HTTP/3 preparation.
