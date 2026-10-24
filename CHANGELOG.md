@@ -6,7 +6,7 @@
   serialize its DNS configuration without CIM metadata. Collect guard output
   without waiting for its watchdog to exit and include bounded guard failure
   details in capture errors. Recognize native IP addresses when restoring its
-  temporary rule.
+  temporary rule and retain the watchdog handle when checking its exit.
 
 - Skip proxy-authentication target preparation when no authentication is active.
 
