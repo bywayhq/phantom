@@ -51,7 +51,7 @@ async fn a_forward_opening_is_quiet_learns_proxy_family_and_sends_current_ordere
         tokio::try_join!(request, proxy)?;
         drop(connection);
         assert_eq!(peer.read(&mut byte).await?, 0);
-        Ok(())
+        TestResult::Ok(())
     }).await??;
     }
     Ok(())

@@ -86,7 +86,7 @@ async fn negotiated_h1_retains_the_crossed_socks_backup_and_uses_only_the_claimi
             TestResult::Ok(())
         };
         tokio::try_join!(caller, peer)?;
-        Ok(())
+        TestResult::Ok(())
     }).await??;
     }
     Ok(())

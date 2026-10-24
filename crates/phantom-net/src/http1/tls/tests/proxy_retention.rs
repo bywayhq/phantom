@@ -209,7 +209,7 @@ async fn claimed(credentials: Option<HttpProxyAuthentication<'_>>) -> TestResult
             TestResult::Ok(())
         };
         tokio::try_join!(client, server)?;
-        Ok(())
+        TestResult::Ok(())
     }).await??;
     }
     Ok(())

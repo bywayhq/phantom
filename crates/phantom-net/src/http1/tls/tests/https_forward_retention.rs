@@ -138,7 +138,7 @@ async fn forward_slower_owner_finishes_outer_tls_then_claim_sends_current_reques
         };
         tokio::try_join!(client, server)?;
         assert!(poll_fn(|cx| Poll::Ready(listener.poll_accept(cx).is_pending())).await, "claim redialled");
-        Ok(())
+        TestResult::Ok(())
     }).await??;
     }
     Ok(())
