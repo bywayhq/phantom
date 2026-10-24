@@ -113,7 +113,7 @@ if ($Action -eq 'Watch') {
         $owner = Get-Process -Id $state.owner_pid -ErrorAction SilentlyContinue
         $sameOwner = $false
         if ($owner) {
-            try { $sameOwner = $owner.StartTime.ToUniversalTime().ToString('o') -eq $state.owner_start }
+            try { $sameOwner = $owner.StartTime.ToUniversalTime() -eq ([DateTime]$state.owner_start).ToUniversalTime() }
             catch {
                 # The process can exit after discovery, before reading its identity.
                 @{ kind = 'owner-identity-unavailable'; owner_pid = $state.owner_pid; error = $_.ToString() } |
@@ -159,6 +159,9 @@ try {
         $watch = Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -PassThru -ArgumentList @(
             '-NoProfile', '-NonInteractive', '-File', "`"$script`"", '-Action', 'Watch', '-StatePath', "`"$StatePath`""
         ) -RedirectStandardOutput "$StatePath.watch.stdout" -RedirectStandardError "$StatePath.watch.stderr"
+        $state.watchdog_pid = $watch.Id
+        $state.watchdog_start = $watch.StartTime.ToUniversalTime().ToString('o')
+        Save-State $state
         $readyLimit = [DateTime]::UtcNow.AddSeconds(10)
         while (-not (Test-Path -LiteralPath "$StatePath.ready")) {
             if ($watch.HasExited -or [DateTime]::UtcNow -ge $readyLimit) { throw 'NRPT watchdog did not arm' }
@@ -167,9 +170,6 @@ try {
         if ([int](Get-Content -LiteralPath "$StatePath.ready") -ne $watch.Id -or $watch.HasExited) {
             throw 'NRPT watchdog readiness identity differs'
         }
-        $state.watchdog_pid = $watch.Id
-        $state.watchdog_start = $watch.StartTime.ToUniversalTime().ToString('o')
-        Save-State $state
         $rule = Add-DnsClientNrptRule -Namespace $TargetName -NameServers $DnsAddress -DisplayName $state.nonce -Comment $state.nonce -PassThru
         $state.rule_name = [string]$rule.Name
         Save-State $state
@@ -195,7 +195,7 @@ if ($Action -ne 'Install' -and (Test-Path -LiteralPath $StatePath)) {
     $state = Read-State
     if ($state.watchdog_pid -and $state.watchdog_pid -ne $PID) {
         $watch = Get-Process -Id $state.watchdog_pid -ErrorAction SilentlyContinue
-        if ($watch -and $watch.StartTime.ToUniversalTime().ToString('o') -eq $state.watchdog_start) {
+        if ($watch -and $watch.StartTime.ToUniversalTime() -eq ([DateTime]$state.watchdog_start).ToUniversalTime()) {
             if (-not $watch.WaitForExit(5000)) { throw 'NRPT watchdog did not exit after restoration' }
             if ($watch.ExitCode -ne 0) { throw 'NRPT watchdog failed after restoration' }
         }

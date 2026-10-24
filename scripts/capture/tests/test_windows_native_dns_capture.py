@@ -274,26 +274,50 @@ class GuardTests(unittest.TestCase):
             wrapper = Path(temporary) / "test.ps1"
             wrapper.write_text(
                 "$ErrorActionPreference='Stop'\n"
+                "[Console]::Error.WriteLine('guard-test:started')\n"
                 "$tokens=$null; $errors=$null\n"
                 f"$ast=[Management.Automation.Language.Parser]::ParseFile('{capture.GUARD.as_posix()}',[ref]$tokens,[ref]$errors)\n"
                 "if ($errors.Count) { throw ($errors | Out-String) }\n"
                 "$ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst]},$false) | "
                 "ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
+                "[Console]::Error.WriteLine('guard-test:functions-loaded')\n"
                 f"$StatePath='{Path(temporary).as_posix()}/state.json'\n"
                 "$TargetName='127.0.0.1.nip.io'; $DnsAddress='127.0.0.53'\n"
                 "$script:removed=@(); $script:rules=@()\n"
                 "function Get-DnsClientNrptRule { $script:rules }\n"
                 "function Remove-DnsClientNrptRule { param($Name,[switch]$Force) "
                 "$script:removed+= $Name; $script:rules=@($script:rules | Where-Object Name -ne $Name) }\n"
-                + body,
+                "[Console]::Error.WriteLine('guard-test:body')\n" + body,
                 encoding="utf-8",
             )
-            return subprocess.run(
-                ["pwsh", "-NoProfile", "-NonInteractive", "-File", str(wrapper)],
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
+            try:
+                return subprocess.run(
+                    ["pwsh", "-NoProfile", "-NonInteractive", "-File", str(wrapper)],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+            except subprocess.TimeoutExpired as error:
+                raise AssertionError(
+                    "guard PowerShell timed out; "
+                    f"stdout={error.stdout!r}; stderr={error.stderr!r}"
+                ) from error
+
+    def test_timeout_keeps_phase_and_raw_output(self) -> None:
+        timeout = subprocess.TimeoutExpired(
+            ["pwsh"], 15, output=b"partial", stderr=b"guard-test:functions-loaded\n"
+        )
+        with (
+            patch.object(subprocess, "run", side_effect=timeout) as run,
+            self.assertRaisesRegex(
+                AssertionError, "guard PowerShell timed out"
+            ) as failure,
+        ):
+            self.invoke_functions("throw 'body must not run'")
+        self.assertIs(failure.exception.__cause__, timeout)
+        self.assertIn(repr(timeout.stdout), str(failure.exception))
+        self.assertIn(repr(timeout.stderr), str(failure.exception))
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
 
     def test_restore_removes_only_nonce_scoped_rule_and_restores_baseline(self) -> None:
         outcome = self.invoke_functions(
@@ -352,7 +376,8 @@ class GuardTests(unittest.TestCase):
             "function Assert-Hosted { @{} }\n"
             "function Get-DnsClientNrptPolicy { @() }\n"
             "function Get-Process { param($Id) [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z';Path='pwsh'} }\n"
-            "function Start-Process { [pscustomobject]@{Id=456;HasExited=$true} }\n"
+            "function Start-Process { [pscustomobject]@{Id=456;HasExited=$true;StartTime=[DateTime]'2026-10-23T00:00:00Z'} }\n"
+            "function Start-Sleep { throw 'an exited watchdog must not be polled' }\n"
             "function Add-DnsClientNrptRule { throw 'rule must not be added' }\n"
             "$Action='Install'; $OwnerPid=123\n"
             "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text };\n"
@@ -360,6 +385,54 @@ class GuardTests(unittest.TestCase):
         )
         self.assertEqual(outcome.returncode, 0, outcome.stderr)
         self.assertEqual(outcome.stdout.strip(), "refused")
+
+    def test_unready_watchdog_is_joined_and_failure_observed_after_restore(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-DnsClientNrptPolicy { @() }\n"
+            "$script:joined=0; $script:added=0\n"
+            "$watch=[pscustomobject]@{Id=456;HasExited=$true;StartTime=[DateTime]'2026-10-23T00:00:00Z';ExitCode=9}\n"
+            "$watch | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($milliseconds) "
+            "if ($milliseconds -ne 5000) { throw 'join bound differs' }; $script:joined++; return $true }\n"
+            "function Get-Process { param($Id,$ErrorAction) "
+            "if ($Id -eq 123 -or $Id -eq $PID) { [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z';Path='pwsh'} } else { $watch } }\n"
+            "function Start-Process { $watch }\n"
+            "function Add-DnsClientNrptRule { $script:added++; throw 'rule must not be added' }\n"
+            "$Action='Install'; $OwnerPid=123\n"
+            "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text };"
+            "throw 'unexpected install success' } catch { if ($_ -notmatch 'watchdog did not arm') { throw } }\n"
+            "$state=Read-State\n"
+            "if ($state.watchdog_pid -ne 456 -or ([DateTime]$state.watchdog_start).ToUniversalTime() -ne $watch.StartTime.ToUniversalTime()) { throw 'unready watchdog ownership was not saved' }\n"
+            "$Action='Verify'\n"
+            "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text };"
+            "throw 'unexpected verification success' } catch { if ($_ -notmatch 'watchdog failed after restoration') { throw } }\n"
+            "if (-not (Read-State).restored -or $script:joined -ne 1 -or $script:added -ne 0) { throw 'failed watchdog was not restored and joined without DNS mutation' }\n"
+            "'unready-watchdog-restored-and-joined'\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertIn("unready-watchdog-restored-and-joined", outcome.stdout)
+
+    def test_watchdog_keeps_matching_owner_until_it_exits(self) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "$script:lookups=0; $script:polls=0\n"
+            "function Get-Process { param($Id,$ErrorAction) $script:lookups++; "
+            "if ($script:lookups -eq 1) { [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z'} } }\n"
+            "function Start-Sleep { param($Seconds) "
+            "if ($Seconds -ne 1) { throw 'watch poll bound differs' }; $script:polls++ }\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=$DnsAddress;nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111';"
+            "baseline=@();rule_name=$null;restored=$false;restored_at=$null;watchdog_pid=$null;owner_pid=123;"
+            "owner_start='2026-10-23T00:00:00.0000000Z';deadline='2099-01-01T00:00:00Z'}\n"
+            "Save-State $state\n"
+            "$Action='Watch'\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
+            "if ($script:lookups -ne 2 -or $script:polls -ne 1 -or -not (Read-State).restored) { throw 'matching owner was not retained until its exit' }\n"
+            "'matching-owner-retained'\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertIn("matching-owner-retained", outcome.stdout)
 
     def test_watchdog_restores_on_owner_death_before_guid_was_saved(self) -> None:
         outcome = self.invoke_functions(

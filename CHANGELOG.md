@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep Windows native-DNS watchdogs owned when startup fails, and compare
+  saved process timestamps consistently during monitoring and cleanup.
+
 - Reset the Firefox address-family preference after ordinary HTTP/2 proxy
   setup, so a fresh connection starts with resolver order again.
 
