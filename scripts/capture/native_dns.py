@@ -183,6 +183,8 @@ class NativeDnsServer:
     and raises `NativeDnsFailure` for any retained error. A cancelled/timed-out
     close retains its cleanup task; call close again to collect that owner.
     `drop_first_udp_a` leaves exactly the first owned UDP A question unanswered.
+    `drop_owned_udp` leaves every owned UDP question unanswered and rejects TCP
+    connections as capture failures, so another transport cannot defeat silence.
     """
 
     def __init__(
@@ -193,6 +195,7 @@ class NativeDnsServer:
         *,
         ttl: int = 5,
         drop_first_udp_a: bool = False,
+        drop_owned_udp: bool = False,
     ) -> None:
         labels = hostname.removesuffix(".").split(".")
         if (
@@ -212,10 +215,13 @@ class NativeDnsServer:
             raise ValueError("native DNS port must be in 0..65535")
         if type(ttl) is not int or not 0 <= ttl <= 86400:
             raise ValueError("native DNS TTL must be in 0..86400 seconds")
+        if drop_first_udp_a and drop_owned_udp:
+            raise ValueError("native DNS drop policies are mutually exclusive")
         self.hostname = ".".join(labels).lower()
         self.address = (address, port)
         self.ttl = ttl
         self._drop_first_udp_a = drop_first_udp_a
+        self._drop_owned_udp = drop_owned_udp
         self.udp: asyncio.DatagramTransport | None = None
         self.tcp: asyncio.Server | None = None
         self.udp_closed = asyncio.Event()
@@ -312,6 +318,11 @@ class NativeDnsServer:
         try:
             parsed = question(wire)
             record.update(name=parsed.name, kind=parsed.kind)
+            if self._drop_owned_udp and parsed.name == self.hostname:
+                if transport != "udp":
+                    raise ValueError("silent native DNS peer does not support TCP")
+                record["disposition"] = "dropped-owned-udp"
+                return None
             if (
                 self._drop_first_udp_a
                 and transport == "udp"
@@ -332,6 +343,10 @@ class NativeDnsServer:
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         self.accepted += 1
+        if self._drop_owned_udp:
+            writer.transport.abort()
+            self.fail(ValueError("silent native DNS peer does not support TCP"))
+            return
         if (
             self.stopping
             or len(self.handlers) >= MAX_ACTIVE_TCP

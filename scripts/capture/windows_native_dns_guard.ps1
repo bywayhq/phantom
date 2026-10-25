@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)][ValidateSet('Preflight','Identity','Install','Watch','Restore','Verify')][string]$Action,
     [Parameter(Mandatory)][string]$StatePath,
     [int]$OwnerPid,
-    [string]$Executable
+    [string]$Executable,
+    [ValidateSet('initial','two-server')][string]$DnsScene = 'initial'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,17 +49,28 @@ function Canonical($Value) {
     return ConvertTo-Json -InputObject @($Value) -Depth 12 -Compress
 }
 
+function Intent-Servers($State) {
+    $servers = @($State.server | ForEach-Object { [string]$_ })
+    if ((Canonical $servers) -ne (Canonical @($DnsAddress)) -and
+        (Canonical $servers) -ne (Canonical @($DnsAddress,'127.0.0.54'))) {
+        throw 'NRPT server intent is outside the owned capture scope'
+    }
+    return $servers
+}
+
 function Owned-Rules($State) {
+    $servers = @(Intent-Servers $State)
     return @(Get-DnsClientNrptRule | Where-Object {
         $_.DisplayName -eq $State.nonce -and $_.Comment -eq $State.nonce -and
         (Canonical @($_.Namespace)) -eq (Canonical @($TargetName)) -and
-        (Canonical @($_.NameServers | ForEach-Object { [string]$_ })) -eq (Canonical @($DnsAddress))
+        (Canonical @($_.NameServers | ForEach-Object { [string]$_ })) -eq (Canonical $servers)
     })
 }
 
 function Restore-Owned {
     $state = Read-State
-    if ($state.hostname -ne $TargetName -or $state.server -ne $DnsAddress -or
+    $null = @(Intent-Servers $state)
+    if ($state.hostname -ne $TargetName -or
         $state.nonce -notmatch '^phantom-native-dns-[0-9a-f-]{36}$') {
         throw 'NRPT restoration intent is outside the owned capture scope'
     }
@@ -127,6 +139,7 @@ if ($Action -eq 'Watch') {
     Set-Content -LiteralPath $ready -Value $PID -Encoding ascii
     while ($true) {
         $state = Read-State
+        $null = @(Intent-Servers $state)
         if ($state.restored) { exit 0 }
         $owner = Get-Process -Id $state.owner_pid -ErrorAction SilentlyContinue
         $sameOwner = $false
@@ -165,13 +178,16 @@ try {
             }
         }
         $owner = Get-Process -Id $OwnerPid
+        $servers = @($DnsAddress)
+        if ($DnsScene -eq 'two-server') { $servers += '127.0.0.54' }
         $state = [pscustomobject]@{
             nonce = "phantom-native-dns-$([Guid]::NewGuid())"; hostname = $TargetName;
-            server = $DnsAddress; baseline = $baseline; rule_name = $null;
+            server = $servers; baseline = $baseline; rule_name = $null;
             owner_pid = $OwnerPid; owner_start = $owner.StartTime.ToUniversalTime().ToString('o');
             deadline = [DateTime]::UtcNow.AddMinutes(5).ToString('o'); restored = $false; restored_at = $null;
             watchdog_pid = $null; watchdog_start = $null
         }
+        $null = @(Intent-Servers $state)
         Save-State $state
         $script = $PSCommandPath
         $watch = Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -PassThru -ArgumentList @(
@@ -188,12 +204,12 @@ try {
         if ([int](Get-Content -LiteralPath "$StatePath.ready") -ne $watch.Id -or $watch.HasExited) {
             throw 'NRPT watchdog readiness identity differs'
         }
-        $rule = Add-DnsClientNrptRule -Namespace $TargetName -NameServers $DnsAddress -DisplayName $state.nonce -Comment $state.nonce -PassThru
+        $rule = Add-DnsClientNrptRule -Namespace $TargetName -NameServers $servers -DisplayName $state.nonce -Comment $state.nonce -PassThru
         $state.rule_name = [string]$rule.Name
         Save-State $state
         if (@(Owned-Rules $state).Count -ne 1) { throw 'owned exact-name NRPT rule was not installed' }
         @{ nonce = $state.nonce; rule_name = $state.rule_name; watchdog_pid = $watch.Id;
-           deadline = $state.deadline; hostname = $TargetName; server = $DnsAddress } | ConvertTo-Json
+           deadline = $state.deadline; hostname = $TargetName; server = $servers } | ConvertTo-Json
     }
     elseif (Test-Path -LiteralPath $StatePath) {
         Restore-Owned | ConvertTo-Json -Depth 12
