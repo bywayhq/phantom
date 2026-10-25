@@ -20,13 +20,15 @@ use bytes::Bytes;
 use http::{Method, Response, Version};
 use http_body_util::BodyExt;
 use phantom::{
-    AddressResolver, BuildErrorKind, Client, HttpProtocol, HttpProxy, Route, Socks5Proxy,
+    AddressResolver, BuildErrorKind, Client, HttpProtocol, HttpProxy, RequestDiagnostics,
+    RequestTimelineOutcome, RequestTimingOutcome, RequestTimingPhase, Route, Socks5Proxy,
     TimeoutPhase, WebSocketError, WebSocketErrorKind, WebSocketRequestBuilder,
     WebSocketRetryPolicy,
     profile::{ClientProfile, Http2PseudoHeader, WebSocketSettings, browser::chrome},
 };
+use phantom_testkit::tls::{CaptureLimits, capture_client_hello};
 use tokio::{
-    io::{AsyncWriteExt, copy_bidirectional},
+    io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::oneshot,
     time::{Instant, sleep, timeout},
@@ -65,6 +67,14 @@ async fn expect_handshake_timeout(
         Ok(_) => return Err("stalled opening handshake succeeded".into()),
         Err(error) => error,
     };
+    assert_handshake_timeout(error, started, protocol)
+}
+
+fn assert_handshake_timeout(
+    error: WebSocketError,
+    started: Instant,
+    protocol: Option<HttpProtocol>,
+) -> TestResult<()> {
     let elapsed = started.elapsed();
     assert_eq!(error.kind(), WebSocketErrorKind::Timeout, "{error}");
     assert_eq!(
@@ -82,6 +92,45 @@ async fn expect_handshake_timeout(
         .ok_or("timeout source is not a RequestError")?;
     assert_eq!(source.protocol(), protocol);
     Ok(())
+}
+
+async fn hold_tls_client_hello(listener: TcpListener, seen: oneshot::Sender<()>) -> TestResult<()> {
+    let (mut stream, _) = listener.accept().await?;
+    capture_client_hello(
+        &mut stream,
+        Instant::now() + Duration::from_secs(3),
+        CaptureLimits::new(64 * 1024, 64 * 1024, 8),
+    )
+    .await?
+    .summary()?;
+    seen.send(())
+        .map_err(|_| "caller stopped before ClientHello")?;
+    match stream.read(&mut [0_u8; 1]).await {
+        Ok(0) => Ok(()),
+        Err(error) if tls_support::is_peer_gone(&error) => Ok(()),
+        Ok(_) => Err("client sent more bytes without a TLS answer".into()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn assert_tls_setup(trace: &RequestDiagnostics, outcome: RequestTimingOutcome) {
+    let snapshot = trace.snapshot();
+    assert_eq!(snapshot.dropped_events, 0);
+    for (phase, expected) in [
+        (
+            RequestTimingPhase::TcpConnect,
+            RequestTimingOutcome::Completed,
+        ),
+        (RequestTimingPhase::TlsHandshake, outcome),
+    ] {
+        assert!(
+            snapshot
+                .events
+                .iter()
+                .any(|event| event.phase == phase && event.outcome == expected),
+            "missing {phase:?} {expected:?}: {snapshot:?}"
+        );
+    }
 }
 
 fn http2_profile() -> ClientProfile {
@@ -181,18 +230,72 @@ async fn handshake_timeout_fires_while_the_tls_handshake_is_unanswered() -> Test
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        server = Some(ConnectionPeer::spawn(hold_one_connection(listener)));
+        let (seen, received) = oneshot::channel();
+        server = Some(ConnectionPeer::spawn(hold_tls_client_hello(listener, seen)));
         let client = client_builder(&identity, false).build()?;
-        expect_handshake_timeout(
-            client.websocket(&format!("wss://{address}/"))?,
-            Some(HttpProtocol::Http1),
-        )
-        .await?;
+        let trace = RequestDiagnostics::new(NonZeroUsize::MIN.saturating_add(15));
+        let builder = client.websocket(&format!("wss://{address}/"))?;
+        let started = Instant::now();
+        let opening = trace.observe(builder.handshake_timeout(Some(LIMIT)).connect());
+        tokio::pin!(opening);
+        tokio::select! {
+            result = received => result?,
+            result = &mut opening => {
+                let error = expect_error(result)?;
+                return Err(format!("opening ended before the peer received ClientHello: {error}").into());
+            }
+        }
+        assert_tls_setup(&trace, RequestTimingOutcome::Pending);
+        let error = expect_error(opening.await)?;
+        assert_handshake_timeout(error, started, Some(HttpProtocol::Http1))?;
+        assert_tls_setup(&trace, RequestTimingOutcome::Interrupted);
+        assert_eq!(trace.snapshot().outcome, RequestTimelineOutcome::Failed);
         server
             .as_mut()
             .ok_or("websocket fixture peer was not acquired")?
-            .shutdown()
-            .await?;
+            .join()
+            .await??;
+        Ok(())
+    })
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
+}
+
+#[tokio::test]
+async fn dropping_an_opening_cancels_an_unanswered_tls_handshake() -> TestResult<()> {
+    let mut server = None;
+    let caller = bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let (seen, received) = oneshot::channel();
+        server = Some(ConnectionPeer::spawn(hold_tls_client_hello(listener, seen)));
+        let client = client_builder(&identity, false).build()?;
+        let trace = RequestDiagnostics::new(NonZeroUsize::MIN.saturating_add(15));
+        {
+            let builder = client.websocket(&format!("wss://{address}/"))?;
+            let opening = trace.observe(builder.handshake_timeout(None).connect());
+            tokio::pin!(opening);
+            tokio::select! {
+                result = received => result?,
+                result = &mut opening => {
+                    let error = expect_error(result)?;
+                    return Err(format!("opening ended before the peer received ClientHello: {error}").into());
+                }
+            }
+            assert_tls_setup(&trace, RequestTimingOutcome::Pending);
+        }
+        assert_tls_setup(&trace, RequestTimingOutcome::Interrupted);
+        assert_eq!(trace.snapshot().outcome, RequestTimelineOutcome::Cancelled);
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
     .await;
