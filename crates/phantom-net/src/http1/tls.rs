@@ -373,7 +373,6 @@ impl Http1TlsConnector {
         }
 
         let binding = ProxyBinding::forward(transport)?;
-        let slower_binding = ProxyBinding::forward(transport)?;
         let ProxyTransport::Tls {
             endpoint,
             connector,
@@ -387,9 +386,10 @@ impl Http1TlsConnector {
         let (stream, slower) = connector
             .open_http1_proxy_retaining(endpoint.host, endpoint.port, family)
             .await?;
+        let slower = slower.map(|attempt| self.slower_proxy_opening(attempt, binding.clone()));
         Ok((
             Http1ProxyOpening::new(stream, self.clone(), binding),
-            slower.map(|attempt| self.slower_proxy_opening(attempt, slower_binding)),
+            slower,
         ))
     }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Prepare spare HTTP proxy route state only when a backup connection is retained.
+
 - Resolve native DNS on the existing blocking worker without creating a
   temporary runtime for each lookup.
 
