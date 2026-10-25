@@ -11,6 +11,7 @@ on:
         options:
           - initial
           - drop-first-udp-a
+          - two-server
 
 permissions:
   contents: read

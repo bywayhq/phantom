@@ -2193,6 +2193,11 @@ unanswered A query. Success also requires a later UDP A reply. The default
 `initial` scene answers normally. This measures the configured Windows
 resolver stack; it does not identify a Firefox retry timer.
 
+Choose `two-server` to leave queries unanswered at `127.0.0.53` and answer
+them at `127.0.0.54`. The capture records when each configured peer receives
+the lookup. This uses an exact-name NRPT rule, rather than changing the
+network adapter's DNS servers.
+
 ### macOS native DNS
 
 `mac_native_dns_capture.py` routes one random test domain to a loopback DNS
