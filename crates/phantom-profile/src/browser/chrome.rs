@@ -82,14 +82,13 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// Returns Chromium 154.0.8037.58 TCP settings for Windows and Linux.
 ///
 /// Enables `TCP_NODELAY` and keepalive with a 45-second idle time and interval.
-/// Address racing uses a 300 ms fallback delay. Windows port randomization
-/// starts on Windows 11 build 22621. See [`crate::TcpAddressRacing`] for the
-/// address selection algorithm.
+/// Address racing uses a 300 ms fallback delay. TCP source-port selection
+/// stays with the operating system: Windows randomization can stall new
+/// connections under churn. See [`crate::TcpAddressRacing`] for address selection.
 ///
 /// Use [`v154_macos_tcp`] on macOS and [`v154_android_tcp`] on Android.
 /// Phantom fails the connection if a requested socket option cannot be set;
-/// Chromium ignores those failures. Phantom sets port randomization before
-/// binding because Windows rejects it on an already-bound socket.
+/// Chromium ignores those failures.
 ///
 /// These options follow `net/socket/tcp_socket_{win,posix}.cc` at Chromium tag
 /// `154.0.8037.58`. Brave 154 uses the same settings.

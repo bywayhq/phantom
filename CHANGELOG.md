@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Leave TCP source-port selection to Windows in built-in profiles to avoid
+  connection stalls under churn. This changes Chromium-family TCP behavior;
+  callers can still opt into `TcpSettings::port_randomization`.
+
 - Prepare spare HTTP proxy route state only when a backup connection is retained.
 
 - Avoid an extra future allocation for custom DNS lookups without a

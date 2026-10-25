@@ -1,8 +1,8 @@
-//! Independent TCP factory values frozen at cba97f37b4ed65f3b8a83df4a0474f6d762db162.
+//! Independent TCP factory expectations, including deliberate browser departures.
 
 use phantom_profile::{
     TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
-    TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, browser,
+    TcpKeepaliveSchedule, TcpSettings, browser,
 };
 use std::{num::NonZeroU32, time::Duration};
 
@@ -73,9 +73,7 @@ fn chrome_original() -> TcpSettings {
         address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
-        port_randomization: Some(TcpPortRandomization {
-            minimum_windows_build: 22_621,
-        }),
+        port_randomization: None,
     }
 }
 

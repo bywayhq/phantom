@@ -26,9 +26,7 @@
             "nanoseconds": 300000000
           }
         },
-        "port_randomization": {
-          "minimum_windows_build": 22621
-        }
+        "port_randomization": null
       }
     },
     {

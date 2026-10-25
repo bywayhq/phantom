@@ -72,6 +72,10 @@ These profiles do not all cover the same layers. For example, the Chrome Android
 profile leaves HTTP/1.1 connection policy and proxy CONNECT templates at generic
 defaults. Its constructor documents those omissions.
 
+Built-in profiles leave TCP source-port selection to Windows. Chromium's
+randomization option can stall connections under churn. You can explicitly
+enable it through [`TcpSettings::port_randomization`](crate::profile::TcpSettings::port_randomization).
+
 With Alt-Svc enabled, Firefox recipes validate advertised HTTP/3 alternatives
 in the background. Validation opens a connection without sending a request.
 Later requests select the alternative after validation succeeds.

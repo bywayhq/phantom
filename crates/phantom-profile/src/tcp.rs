@@ -274,6 +274,9 @@ impl Default for TcpAddressSelection {
 /// rejection fails the connection attempt, as for every other option.
 ///
 /// Only Windows has the option. Elsewhere the setting changes nothing.
+/// Built-in profiles leave it disabled because randomized TCP ports can
+/// cause connection stalls under churn on Windows. Set this explicitly only
+/// when that tradeoff is acceptable.
 ///
 /// If an initial Windows connect fails with `WSAENOBUFS` (10055), Phantom may
 /// try one fresh socket with the same settings and deadline. Source bindings

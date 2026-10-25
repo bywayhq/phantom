@@ -30,7 +30,7 @@ pub(crate) fn chromium_154_tcp() -> crate::TcpSettings {
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Fixed(crate::TcpKeepalive { idle: std::time::Duration::new(45, 0), interval: Some(std::time::Duration::new(45, 0)) }),
         address_selection: crate::TcpAddressSelection::Racing(crate::TcpAddressRacing { fallback_delay: std::time::Duration::new(0, 300000000) }),
-        port_randomization: Some(crate::TcpPortRandomization { minimum_windows_build: 22621 }),
+        port_randomization: None,
     }
 }
 

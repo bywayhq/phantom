@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use phantom_profile::{
     ClientHintDelivery, RequestField, RequestTemplate, TcpAddressRacing, TcpAddressSelection,
-    TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization, TcpSettings, browser,
+    TcpKeepalive, TcpKeepalivePolicy, TcpSettings, browser,
     catalog::{
         CaptureEnvironment, CatalogError, LayerSupport, ProfileLayer, RequestTemplateKind, profile,
     },
@@ -135,9 +135,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
             address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
                 fallback_delay: Duration::from_millis(300),
             }),
-            port_randomization: Some(TcpPortRandomization {
-                minimum_windows_build: 22_621,
-            }),
+            port_randomization: None,
         })
     );
     assert!(
