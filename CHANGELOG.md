@@ -16,8 +16,8 @@
 - Avoid copying trust-anchor IDs during profile validation and per-client
   selection, preserving the configured orders and draw probabilities.
 
-- Add a hosted Windows native-DNS capture scene for recovery after one
-  unanswered UDP A query.
+- Add hosted Windows native-DNS capture scenes for an unanswered UDP A query
+  and a silent first server.
 
 ## 0.4.0 - 2026-10-25
 
