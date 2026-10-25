@@ -4,6 +4,12 @@
 
 - Prepare spare HTTP proxy route state only when a backup connection is retained.
 
+- Avoid an extra future allocation for custom DNS lookups without a
+  configuration token.
+
+- Preserve cancellation and interrupts during proxy capture cleanup, including
+  when the capture itself succeeded. Share failure handling with snapshot captures.
+
 - Resolve native DNS on the existing blocking worker without creating a
   temporary runtime for each lookup.
 
