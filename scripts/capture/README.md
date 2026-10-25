@@ -2188,6 +2188,11 @@ stay in `target/windows-native-dns-capture/`. The fresh profile disables TRR
 An absent HTTPS query stays absent. This is a native routing check, not a
 Windows 11 observation or a DNS TTL/cache measurement.
 
+Choose `drop-first-udp-a` in the workflow to check recovery after one
+unanswered A query. Success also requires a later UDP A reply. The default
+`initial` scene answers normally. This measures the configured Windows
+resolver stack; it does not identify a Firefox retry timer.
+
 ### macOS native DNS
 
 `mac_native_dns_capture.py` routes one random test domain to a loopback DNS

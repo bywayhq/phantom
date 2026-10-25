@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a hosted Windows native-DNS capture scene for recovery after one
+  unanswered UDP A query.
+
 ## 0.4.0 - 2026-10-25
 
 - Reuse unchanged published TLS forks when preparing release archives.
