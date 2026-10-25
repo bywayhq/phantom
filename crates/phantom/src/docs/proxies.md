@@ -29,26 +29,31 @@ println!("{}\n{}", response.status(), response.body());
 # }
 ```
 
-Reuse the client for subsequent requests. Connections are pooled by route;
-requests through different routes do not share a connection. A proxy failure
-returns an error instead of sending the request directly.
+Reuse the client. Connections are pooled by route. A proxy failure returns
+an error instead of sending the request directly.
 
 ## Choose the proxy connection
 
-The proxy URL describes the connection **to the proxy**. An `http://` proxy
-can carry an `https://` request: Phantom first opens a CONNECT tunnel, then
-performs the origin's TLS handshake inside it. Use an `https://` proxy URL
-when the proxy itself accepts TLS.
+The proxy URL describes the connection **to the proxy**. Phantom resolves
+the proxy's hostname locally. The proxy resolves the destination's hostname.
+Profile socket settings apply to your connection to the proxy, not its
+connection to the destination. A direct route instead resolves and connects
+to the destination locally.
 
-For an `http://` destination, an HTTP proxy forwards the plaintext request.
-For an `https://` destination, it tunnels the connection. The destination
-URL determines this choice; changing the proxy URL to `https://` does not
-encrypt a plaintext destination request from the proxy to the destination.
+For an `https://` destination, Phantom opens a CONNECT tunnel and performs
+the origin's TLS handshake inside it. For an `http://` destination, the
+proxy forwards the plaintext request. Use an `https://` proxy URL to encrypt
+the connection to the proxy; it does not encrypt the proxy's connection to
+a plaintext destination.
 
 An HTTPS proxy uses HTTP/1.1 by default. If your proxy requires HTTP/2 on the
 proxy connection, select [`HttpProxy::with_http2_transport`](crate::HttpProxy::with_http2_transport).
 This setting controls the proxy connection independently of the protocol
 inside a CONNECT tunnel.
+
+A custom [`tcp_connector`](crate::ClientBuilder::tcp_connector) owns DNS and
+socket configuration for its streams. Profile TCP settings do not apply.
+The connector cannot be combined with proxy routes or HTTP/3.
 
 To override the route for one request, call [`RequestBuilder::route`](crate::RequestBuilder::route):
 
@@ -146,12 +151,10 @@ let client = Client::builder(chrome::v154_windows())
 ```
 
 The snapshot recognizes `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and
-`NO_PROXY`, plus their lowercase forms. Lowercase values take precedence.
-Without an explicit route, a matching `NO_PROXY` rule selects a direct
-connection; otherwise the destination's scheme setting wins over `ALL_PROXY`.
-An explicit client route overrides the snapshot, and a request route
-overrides both, including when you choose [`Route::direct`](crate::Route::direct).
-Setter order does not change this precedence.
+`NO_PROXY`, plus lowercase forms, which take precedence. A matching
+`NO_PROXY` rule selects a direct connection; otherwise the destination's
+scheme setting wins over `ALL_PROXY`. An explicit client route overrides
+the snapshot, and a request route overrides both, regardless of setter order.
 
 Environment URLs may include encoded credentials, unlike the proxy
 constructors above. Protect these values as secrets. For exact matching,
@@ -167,6 +170,8 @@ Use [`Route::connect_udp`](crate::Route::connect_udp) with
 [`HttpProtocol::Http3`](crate::HttpProtocol::Http3) and the URI template
 provided by your proxy operator. The proxy connection defaults to HTTP/3;
 the reference documents explicit HTTP/2 and HTTP/1.1 alternatives.
+Local DNS and socket settings govern that outer proxy connection. The
+origin's QUIC packets travel inside it. The proxy resolves the origin name.
 
 Proxy and origin certificate trust are separate. For a private proxy CA,
 add its DER certificate with

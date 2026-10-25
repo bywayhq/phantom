@@ -29,18 +29,15 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
-Snapshot capture restores your event-loop error handler when it finishes,
-including failures and cancellation. Unrelated callback errors reach your
-handler while capture is running.
 Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
 Use `--secure-port 443` to check default-port behavior. The tool fails if
 that port is unavailable; omit it to choose a port automatically.
-Keep `--client-version`, `--operating-system` and rendered metadata on one
-line of printable ASCII.
+Metadata, including `--client-version` and `--operating-system`, must fit
+on one line of printable ASCII.
 
-Before writing, the tool collects registered connections and their callback
-outcomes within a ten-second cooperative cleanup deadline. Callback failures
-and incomplete cleanup prevent writing, including with `--allow-partial`.
+Before writing, the tool collects connections and callback results within a
+ten-second cooperative cleanup deadline. Callback failures and incomplete
+cleanup prevent writing, even with `--allow-partial`.
 Completion requires one exact run token in an origin-form request target.
 
 Split captures exceeding 128 runs or 8 MiB of recorded data per run. Each
@@ -48,12 +45,11 @@ transport permits 128 lifetime connections and 32 active connections. Each
 QUIC connection permits 128 streams. HTTP/1 request headers, including their
 terminator, have a 64 KiB limit.
 
-`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
-[Android browser](#snapshots-on-android);
-[`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`
-tool for several desktop browsers at once. One run
-serves `server.phantom.test` over TLS/TCP (ALPN `h2` and `http/1.1`) and QUIC
-(`h3`) on one port number of 127.0.0.1, and plaintext HTTP/1.1 on another:
+`--browser` takes `chrome`, `edge`, `brave`, `opera`, `firefox`, or an
+[Android browser](#snapshots-on-android). For several desktop browsers, use
+[`run_matrix.py`](#run-captures-from-a-manifest) with the `snapshot` tool.
+Each run serves `server.phantom.test` over TLS/TCP (`h2` and `http/1.1`) and
+QUIC (`h3`) on one port of 127.0.0.1, and plaintext HTTP/1.1 on another:
 
 1. The browser opens `/`. The response carries `Accept-CH` and `Critical-CH`
    for every user-agent client hint, so Chromium repeats the navigation with
@@ -71,10 +67,9 @@ the certificate's SPKI and a resolver rule that leaves 127.0.0.1 alone.
 Firefox gets the HTTP/3 preferences of the other QUIC tools and a
 `cert_override.txt`. The TLS server issues no session tickets.
 
-Run `n` writes `snapshot-<n>.txt` (`format=phantom-snapshot-v1`) with every
-connection, every request's fields in wire order as
-[`cookie_crumbs.py`](#cookie-crumbs) writes them, the client hints as
-`hint_<n>` lines of `phantom-client-hints-v2`, and these sections:
+Each `snapshot-<n>.txt` (`format=phantom-snapshot-v1`) records connections,
+request fields in [`cookie_crumbs.py`](#cookie-crumbs) wire order, client
+hints as `hint_<n>` lines of `phantom-client-hints-v2`, and these sections:
 
 | Prefix | Holds | Drop-in fixture |
 | --- | --- | --- |
@@ -91,9 +86,8 @@ counts when its first packet is a version 1 or version 2 Initial. `--split`
 and `snapshot_compare.py` also read older snapshots without these lines.
 
 `--split <snapshot> --output-dir <directory>` writes the two drop-in
-fixtures. The tool exits 1 when a run timed out, did not use HTTP/3, or has
-an `*_error` line (a part it could not parse); `--allow-partial` keeps it at
-0.
+fixtures. A timeout, unused HTTP/3 or an `*_error` parsing failure gives
+exit status 1; `--allow-partial` changes that status to 0.
 
 `snapshot_compare.py` reads, for each layer, the newest retained fixture of
 the browser recorded on the snapshot's operating system, and prints
@@ -123,11 +117,9 @@ to 16,384 TLS records, 16,384 HTTP/2 frames and 1,024 hints; input file size
 is unrestricted. Request-field comparison covers the first HTTP/2
 navigation only.
 
-Take a snapshot first for every new browser version. The other tools record
-a changed layer for a recipe, and they are the only way to record behavior
-across connections: resumption and 0-RTT, Alt-Svc racing, retries, broken
-alternatives, EventSource reconnects, proxies, WebSocket openings, cookie
-crumbs, and ECH.
+For behavior across connections, use the tools below: resumption and 0-RTT,
+Alt-Svc racing, retries, broken alternatives, EventSource reconnects,
+proxies, WebSocket openings, cookie crumbs, and ECH.
 
 ### Snapshots on Android
 
