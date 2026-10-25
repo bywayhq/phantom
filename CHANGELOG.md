@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a hosted Windows native-DNS capture scene for recovery after one
+  unanswered UDP A query.
+
 - Correct CLI archive instructions that described published archives as candidates.
 
 - Recover once from an initial Windows TCP 10055 with port randomization,
