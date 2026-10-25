@@ -2,6 +2,15 @@ name: Windows native DNS capture
 
 on:
   workflow_dispatch:
+    inputs:
+      scenario:
+        description: Native DNS scene
+        type: choice
+        required: true
+        default: initial
+        options:
+          - initial
+          - drop-first-udp-a
 
 permissions:
   contents: read
@@ -33,7 +42,11 @@ jobs:
           -r scripts/capture/hooks-requirements.txt
 
       - name: Capture one post-attachment native lookup
-        run: python -m scripts.capture.windows_native_dns_capture
+        env:
+          PHANTOM_CAPTURE_SCENARIO: ${{ inputs.scenario }}
+        run: >-
+          python -m scripts.capture.windows_native_dns_capture
+          --scenario "$env:PHANTOM_CAPTURE_SCENARIO"
 
       - name: Restore and verify exact-name DNS policy before upload
         id: restore
@@ -49,7 +62,7 @@ jobs:
         if: always() && steps.restore.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: firefox157-native-dns-windows-2025-${{ github.sha }}-${{ github.run_attempt }}
+          name: firefox157-native-dns-${{ inputs.scenario }}-windows-2025-${{ github.sha }}-${{ github.run_attempt }}
           path: target/windows-native-dns-capture/
           if-no-files-found: error
           retention-days: 14
