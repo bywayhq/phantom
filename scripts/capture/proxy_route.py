@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 from .android_device import ANDROID_BROWSERS
+from .browser_failures import CleanupFailures
 from .browser_launch import (
     BROWSERS,
     CHROMIUM_BROWSERS,
@@ -851,19 +852,13 @@ class Http2Proxy:
 # -- Listeners -------------------------------------------------------------
 
 
-class CaptureFailures(Exception):
+class CaptureFailures(CleanupFailures):
     """Retain the capture operation and every observed cleanup failure."""
 
     def __init__(
         self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
     ) -> None:
-        self.primary = primary
-        self.cleanup = cleanup
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause: BaseException | None = None
-        self.interruption_context: BaseException | None = None
-        super().__init__("proxy capture cleanup failed")
+        super().__init__(primary, cleanup, "proxy capture cleanup failed")
 
 
 def raise_capture_failures(
@@ -877,14 +872,8 @@ def raise_capture_failures(
         raise cleanup[0]
 
     failure = CaptureFailures(primary, cleanup)
-    interruption = next(
-        (error for error in (primary, *cleanup) if not isinstance(error, Exception)),
-        None,
-    )
-    if interruption is not None:
-        failure.interruption_cause = interruption.__cause__
-        failure.interruption_context = interruption.__context__
-        raise interruption from failure
+    failure.raise_interruption(include_other_base_exceptions=True)
+
     raise failure from primary
 
 

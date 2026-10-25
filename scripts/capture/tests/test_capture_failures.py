@@ -6,7 +6,9 @@ from types import SimpleNamespace
 from scripts.capture import (
     cookie_crumbs,
     http2_session,
+    proxy_route,
     quic_resumption,
+    snapshot,
     tls_resumption,
 )
 from scripts.capture.browser_failures import (
@@ -18,10 +20,50 @@ from scripts.capture.http2_preface_ping import PrefaceFailures, _raise_preface_f
 
 
 class CaptureFailureTests(unittest.TestCase):
+    def test_cleanup_interruption_without_primary_is_not_wrapped(self) -> None:
+        for operation, kind in (
+            (snapshot.raise_snapshot_failures, snapshot.SnapshotFailures),
+            (proxy_route.raise_capture_failures, proxy_route.CaptureFailures),
+        ):
+            for interruption_type in (
+                asyncio.CancelledError,
+                KeyboardInterrupt,
+                SystemExit,
+                BaseException,
+            ):
+                with self.subTest(
+                    operation=operation.__name__, error=interruption_type
+                ):
+                    interruption = interruption_type("cleanup interrupted")
+                    previous = RuntimeError("earlier cause")
+                    interruption.__cause__ = previous
+                    cleanup = (OSError("close failed"), interruption)
+
+                    observed = self.observe(operation, None, cleanup)
+
+                    self.assertIs(observed, interruption)
+                    aggregate = observed.__cause__
+                    self.assertIs(type(aggregate), kind)
+                    self.assertEqual(aggregate.cleanup, cleanup)
+                    self.assertIsNone(aggregate.primary)
+                    self.assertIs(aggregate.interruption_cause, previous)
+
     def paths(self):
         owner = SimpleNamespace(finished=False)
         return (
             ("browser", raise_browser_failures, BrowserLaunchFailures, None),
+            (
+                "snapshot",
+                snapshot.raise_snapshot_failures,
+                snapshot.SnapshotFailures,
+                None,
+            ),
+            (
+                "proxy",
+                proxy_route.raise_capture_failures,
+                proxy_route.CaptureFailures,
+                None,
+            ),
             (
                 "http2",
                 http2_session.raise_capture_failures,
@@ -86,7 +128,7 @@ class CaptureFailureTests(unittest.TestCase):
             with self.subTest(path=name):
                 cleanup = OSError("cleanup failed")
                 observed = self.observe(operation, None, (cleanup,))
-                if name in ("browser", "http2", "cookie"):
+                if name in ("browser", "http2", "cookie", "snapshot", "proxy"):
                     self.assertIs(observed, cleanup)
                 elif name == "tls":
                     self.assertIs(observed, cleanup)
@@ -117,7 +159,8 @@ class CaptureFailureTests(unittest.TestCase):
                 observed = self.observe(operation, primary, (cleanup,))
                 aggregate = (
                     observed
-                    if name in ("browser", "http2", "cookie", "quic")
+                    if name
+                    in ("browser", "http2", "cookie", "quic", "snapshot", "proxy")
                     else observed.__cause__
                 )
                 self.assertIs(type(aggregate), kind)
@@ -128,7 +171,7 @@ class CaptureFailureTests(unittest.TestCase):
                 self.assertIsNone(aggregate.interruption_cause)
                 self.assertIsNone(aggregate.interruption_context)
                 self.assert_owner(aggregate, name, owner)
-                if name in ("browser", "http2", "cookie", "quic"):
+                if name in ("browser", "http2", "cookie", "quic", "snapshot", "proxy"):
                     self.assertIs(aggregate.__cause__, primary)
                 else:
                     self.assertIs(observed, primary)
@@ -185,14 +228,14 @@ class CaptureFailureTests(unittest.TestCase):
                 )
                 cleanup.__cause__, cleanup.__context__ = previous, context
                 observed = self.observe(operation, primary, (cleanup,))
-                if name in ("http2", "cookie", "quic", "tls"):
+                if name in ("http2", "cookie", "quic", "tls", "snapshot", "proxy"):
                     self.assertIs(observed, cleanup)
                     aggregate = observed.__cause__
                 else:
                     aggregate = observed if name == "browser" else observed.__cause__
                 self.assertIs(type(aggregate), kind)
                 self.assertEqual(aggregate.cleanup, (cleanup,))
-                if name in ("http2", "cookie", "quic", "tls"):
+                if name in ("http2", "cookie", "quic", "tls", "snapshot", "proxy"):
                     self.assertIs(aggregate.interruption_cause, previous)
                     self.assertIs(aggregate.interruption_context, context)
                 else:
@@ -214,7 +257,7 @@ class CaptureFailureTests(unittest.TestCase):
             with self.subTest(path=name):
                 primary = OSError("capture failed")
                 observed = self.observe(operation, primary, (primary,))
-                if name in ("browser", "http2", "cookie", "quic"):
+                if name in ("browser", "http2", "cookie", "quic", "snapshot", "proxy"):
                     self.assertIs(type(observed), kind)
                     self.assertEqual(observed.cleanup, (primary,))
                 else:
