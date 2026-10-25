@@ -43,6 +43,7 @@ pub(crate) async fn open_connect(
     family: &AddressFamilyMemory,
 ) -> Result<ProxyTcpOpening, ProxyOpeningError> {
     let binding = ProxyBinding::new(route, server_name)?;
+
     let (stream, slower) = match route.proxy {
         ProxyTransport::Tcp(endpoint) => {
             connect_tcp_keeping_slower(endpoint.host, endpoint.port, dialer, Some(family))
@@ -66,6 +67,7 @@ pub(crate) async fn open_connect(
                 .await?
         }
     };
+
     let slower = slower.map(|attempt| (attempt, binding.clone()));
     Ok(ProxyTcpOpening {
         stream,

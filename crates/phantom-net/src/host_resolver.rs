@@ -416,11 +416,13 @@ impl AddressResolver {
         {
             return Box::pin(async { Err(error) });
         }
+
         let future = match &self.backend {
             Backend::Function(lookup) | Backend::AnswerFunction(lookup) => {
                 if token.is_some() {
                     return Box::pin(async { Err(configuration_changed()) });
                 }
+
                 lookup(host.to_owned())
             }
             #[cfg(feature = "https-records")]
@@ -428,13 +430,16 @@ impl AddressResolver {
                 Arc::clone(lookup).start_with_configuration(host.to_owned(), token.clone())
             }
         };
+
         let Some(token) = token else {
             return future;
         };
 
         Box::pin(async move {
             let result = future.await;
+
             token.require_current()?;
+
             result
         })
     }
