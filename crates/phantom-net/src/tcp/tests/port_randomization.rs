@@ -57,6 +57,15 @@ mod on_windows {
             })
     }
 
+    fn randomized_settings() -> TcpSettings {
+        TcpSettings {
+            port_randomization: Some(TcpPortRandomization {
+                minimum_windows_build: 22_621,
+            }),
+            ..chrome::v154_tcp()
+        }
+    }
+
     /// Opens `count` connections to a loopback listener one after another and
     /// keeps them all open.
     async fn connections(
@@ -90,18 +99,14 @@ mod on_windows {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn chromium_sockets_read_back_port_randomization() -> TestResult {
+    async fn chromium_sockets_leave_port_randomization_off_by_default() -> TestResult {
         let settings = chrome::v154_tcp();
-        let applies = recipe_applies(&settings)?;
+        assert_eq!(settings.port_randomization, None);
         let streams = connections(settings, None, 1).await?;
-        assert_eq!(random_port(&streams[0])?, applies);
+        assert!(!random_port(&streams[0])?);
         observe(
-            "chromium_sockets_read_back_port_randomization",
-            if applies {
-                Observation::Exercised("profile_socket_option_read_back")
-            } else {
-                Observation::NotApplicable
-            },
+            "chromium_sockets_leave_port_randomization_off_by_default",
+            Observation::Exercised("disabled_profile_socket_option_read_back"),
         );
         Ok(())
     }
@@ -202,11 +207,11 @@ mod on_windows {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn chromium_connections_take_scattered_local_ports() -> TestResult {
-        let settings = chrome::v154_tcp();
+    async fn opted_in_connections_take_scattered_local_ports() -> TestResult {
+        let settings = randomized_settings();
         if !recipe_applies(&settings)? {
             observe(
-                "chromium_connections_take_scattered_local_ports",
+                "opted_in_connections_take_scattered_local_ports",
                 Observation::NotApplicable,
             );
             return Ok(());
@@ -217,18 +222,18 @@ mod on_windows {
         }
         assert!(scattered(&streams)?);
         observe(
-            "chromium_connections_take_scattered_local_ports",
+            "opted_in_connections_take_scattered_local_ports",
             Observation::Exercised("connected_ports_scattered_and_option_enabled"),
         );
         Ok(())
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn source_bound_chromium_connections_take_scattered_local_ports() -> TestResult {
-        let settings = chrome::v154_tcp();
+    async fn source_bound_opted_in_connections_take_scattered_local_ports() -> TestResult {
+        let settings = randomized_settings();
         if !recipe_applies(&settings)? {
             observe(
-                "source_bound_chromium_connections_take_scattered_local_ports",
+                "source_bound_opted_in_connections_take_scattered_local_ports",
                 Observation::NotApplicable,
             );
             return Ok(());
@@ -240,7 +245,7 @@ mod on_windows {
         }
         assert!(scattered(&streams)?);
         observe(
-            "source_bound_chromium_connections_take_scattered_local_ports",
+            "source_bound_opted_in_connections_take_scattered_local_ports",
             Observation::Exercised("source_bound_ports_scattered_and_option_enabled"),
         );
         Ok(())
