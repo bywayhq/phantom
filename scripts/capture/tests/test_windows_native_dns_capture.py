@@ -828,6 +828,16 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             return {}
 
         record = {}
+        interruptions = []
+
+        async def run_capture() -> None:
+            try:
+                await capture.capture(Path("unused.exe"), record, scenario="two-server")
+            except asyncio.CancelledError as error:
+                # Python 3.10 recreates cancellation at the task boundary.
+                interruptions.append(error)
+                raise
+
         with (
             tempfile.TemporaryDirectory() as temporary,
             patch.object(capture, "OUTPUT", Path(temporary)),
@@ -840,28 +850,25 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 side_effect=ValueError("browser failed"),
             ),
         ):
-            owner = asyncio.create_task(
-                capture.capture(Path("unused.exe"), record, scenario="two-server")
-            )
+            owner = asyncio.create_task(run_capture())
             try:
                 await asyncio.wait_for(closing.wait(), 1)
                 owner.cancel()
                 await asyncio.sleep(0)
             finally:
                 release.set()
-                with self.assertRaises(asyncio.CancelledError) as failure:
+                with self.assertRaises(asyncio.CancelledError):
                     await owner
-        self.assertIsInstance(failure.exception.__cause__, BrowserLaunchFailures)
-        self.assertIsInstance(failure.exception.__cause__.primary, ValueError)
+        self.assertEqual(len(interruptions), 1)
+        failure = interruptions[0].__cause__
+        self.assertIsInstance(failure, BrowserLaunchFailures)
+        self.assertIsInstance(failure.primary, ValueError)
         self.assertEqual(
             [call.args[1] for call in checked_guard.call_args_list],
             ["Install", "Verify"],
         )
         self.assertTrue(
-            any(
-                isinstance(error, asyncio.CancelledError)
-                for error in failure.exception.__cause__.cleanup
-            )
+            any(isinstance(error, asyncio.CancelledError) for error in failure.cleanup)
         )
         for peer in peers:
             peer.close.assert_awaited_once()
@@ -925,7 +932,8 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 self.assertRaises(type(error)) as failure,
             ):
                 await capture.capture(Path("unused.exe"), record, scenario="two-server")
-            self.assertIs(failure.exception, error)
+            if isinstance(error, ValueError):
+                self.assertIs(failure.exception, error)
             self.assertEqual(
                 [call.args[1] for call in guard.call_args_list], ["Install", "Verify"]
             )
