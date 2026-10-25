@@ -81,6 +81,27 @@ retry replayable requests after a first-attempt 421 response. Exact HTTP/3
 requests keep their selected protocol and endpoint. See
 [`Http3MisdirectedRequest`](crate::profile::Http3MisdirectedRequest) for the policy.
 
+## Tune concurrency
+
+The Chrome Windows recipe allows six HTTP/1.1 connections per origin.
+Override this when your workload needs more:
+
+```rust,no_run
+use std::num::NonZeroUsize;
+use phantom::{Client, profile::browser::chrome};
+
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+let client = Client::builder(chrome::v154_windows())
+    .max_concurrent_http1_requests_per_origin(NonZeroUsize::new(32).ok_or("zero limit")?)
+    .build()?;
+# Ok(())
+# }
+```
+
+This changes concurrency without changing TLS settings or request headers.
+HTTP/2 and HTTP/3 multiplex requests. Their request and connection limits have
+separate controls on [`ClientBuilder`](crate::ClientBuilder).
+
 ## Choose the request kind
 
 A profile and a request template answer different questions:

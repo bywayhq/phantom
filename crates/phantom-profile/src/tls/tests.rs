@@ -910,6 +910,35 @@ fn per_client_draw_fixes_only_a_per_client_order() -> Result<(), Box<dyn Error>>
 }
 
 #[test]
+fn per_client_draw_preserves_candidate_weights_and_repeated_ids() -> Result<(), Box<dyn Error>> {
+    let listed = orders(&[
+        &[b"b", b"a", b"a"],
+        &[b"a", b"b", b"a"],
+        &[b"b", b"a", b"a"],
+    ])?;
+    for (random, index) in [
+        (0, 0),
+        (6_148_914_691_236_517_205, 0),
+        (6_148_914_691_236_517_206, 1),
+        (12_297_829_382_473_034_410, 1),
+        (12_297_829_382_473_034_411, 2),
+        (u64::MAX, 2),
+    ] {
+        let mut settings = minimal_settings();
+        settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(listed.clone()));
+
+        settings.draw_per_client(|| Ok::<_, std::convert::Infallible>(random))?;
+
+        assert_eq!(
+            settings.requested_trust_anchor_ids,
+            Some(TrustAnchorIds::Fixed(listed.as_slice()[index].clone()))
+        );
+        settings.validate()?;
+    }
+    Ok(())
+}
+
+#[test]
 fn one_empty_candidate_still_draws_once_per_client() -> Result<(), Box<dyn Error>> {
     let mut settings = minimal_settings();
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(orders(&[&[]])?));

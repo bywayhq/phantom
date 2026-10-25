@@ -812,11 +812,11 @@ impl TrustAnchorOrders {
                 "a drawn trust anchor ID order needs at least one order to draw from",
             ));
         };
-        let sorted = |order: &TrustAnchorOrder| {
-            let mut ids = order.as_slice().to_vec();
+        fn sorted(order: &TrustAnchorOrder) -> Vec<&[u8]> {
+            let mut ids = order.as_slice().iter().map(Box::as_ref).collect::<Vec<_>>();
             ids.sort_unstable();
             ids
-        };
+        }
         let expected = sorted(first);
         if rest.iter().any(|order| sorted(order) != expected) {
             return Err(InvalidTlsSettings::new(
@@ -900,10 +900,13 @@ impl TrustAnchorIds {
     #[must_use]
     pub fn select(&self, random: u64) -> Option<&TrustAnchorOrder> {
         let orders = self.orders();
-        let count = u128::try_from(orders.len()).ok()?;
-        let index = usize::try_from((u128::from(random) * count) >> u64::BITS).ok()?;
-        orders.get(index)
+        orders.get(trust_anchor_index(random, orders.len())?)
     }
+}
+
+fn trust_anchor_index(random: u64, count: usize) -> Option<usize> {
+    let count = u128::try_from(count).ok()?;
+    usize::try_from((u128::from(random) * count) >> u64::BITS).ok()
 }
 
 /// Which saved ticket a new TCP connection to an origin offers, and which
@@ -1255,11 +1258,15 @@ impl TlsSettings {
     ///
     /// Returns the error from `random` and leaves the settings unchanged.
     pub fn draw_per_client<E>(&mut self, random: impl FnOnce() -> Result<u64, E>) -> Result<(), E> {
-        let Some(ids @ TrustAnchorIds::PerClient(_)) = &self.requested_trust_anchor_ids else {
+        let Some(TrustAnchorIds::PerClient(orders)) = &mut self.requested_trust_anchor_ids else {
             return Ok(());
         };
-        if let Some(order) = ids.select(random()?) {
-            self.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(order.clone()));
+        let Some(index) = trust_anchor_index(random()?, orders.orders.len()) else {
+            return Ok(());
+        };
+        if let Some(order) = orders.orders.get_mut(index) {
+            let order = std::mem::replace(order, TrustAnchorOrder::empty());
+            self.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(order));
         }
         Ok(())
     }
