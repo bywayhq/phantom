@@ -428,11 +428,13 @@ impl AddressResolver {
                 Arc::clone(lookup).start_with_configuration(host.to_owned(), token.clone())
             }
         };
+        let Some(token) = token else {
+            return future;
+        };
+
         Box::pin(async move {
             let result = future.await;
-            if let Some(token) = token {
-                token.require_current()?;
-            }
+            token.require_current()?;
             result
         })
     }
