@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-25
+
 - Reuse unchanged published TLS forks when preparing release archives.
 
 - Correct CLI archive instructions that described published archives as candidates.
