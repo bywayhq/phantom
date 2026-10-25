@@ -629,7 +629,7 @@ def verify(args):
         "and notices when redistributing it. Run `phantom --help` to get started.\n\n"
         "See artifact.json for the exact source, compiler, tested runtime and\n"
         "native dependencies. Older runtimes and fully static linkage are not\n"
-        "verified. This candidate is unsigned and is not a published release.\n\n"
+        "verified. This archive is unsigned.\n\n"
         + (
             "Windows requires the [Microsoft x64 Visual C++ v14 runtime]"
             "(https://aka.ms/vc14/vc_redist.x64.exe), at least as recent as the\n"
