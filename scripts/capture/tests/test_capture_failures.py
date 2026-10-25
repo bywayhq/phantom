@@ -115,10 +115,12 @@ class CaptureFailureTests(unittest.TestCase):
         for name, operation, _kind, _owner in self.paths():
             with self.subTest(path=name):
                 self.assertIsNone(self.observe(operation, None, ()))
+
                 primary = OSError("capture failed")
                 previous = RuntimeError("earlier cause")
                 context = RuntimeError("earlier context")
                 primary.__cause__, primary.__context__ = previous, context
+
                 self.assertIs(self.observe(operation, primary, ()), primary)
                 self.assertIs(primary.__cause__, previous)
                 self.assertIs(primary.__context__, context)
@@ -127,7 +129,9 @@ class CaptureFailureTests(unittest.TestCase):
         for name, operation, kind, owner in self.paths():
             with self.subTest(path=name):
                 cleanup = OSError("cleanup failed")
+
                 observed = self.observe(operation, None, (cleanup,))
+
                 if name in ("browser", "http2", "cookie", "snapshot", "proxy"):
                     self.assertIs(observed, cleanup)
                 elif name == "tls":
@@ -140,7 +144,9 @@ class CaptureFailureTests(unittest.TestCase):
                     self.assertIs(type(observed), kind)
                     self.assertEqual(observed.cleanup, (cleanup,))
                     self.assert_owner(observed, name, owner)
+
                     owner.finished = True
+
                     self.assertIs(self.observe(operation, None, (cleanup,)), cleanup)
                 else:
                     self.assertIs(type(observed), kind)
@@ -156,6 +162,7 @@ class CaptureFailureTests(unittest.TestCase):
                 context = RuntimeError("earlier context")
                 primary.__cause__, primary.__context__ = previous, context
                 cleanup = OSError("cleanup failed")
+
                 observed = self.observe(operation, primary, (cleanup,))
                 aggregate = (
                     observed
@@ -163,6 +170,7 @@ class CaptureFailureTests(unittest.TestCase):
                     in ("browser", "http2", "cookie", "quic", "snapshot", "proxy")
                     else observed.__cause__
                 )
+
                 self.assertIs(type(aggregate), kind)
                 self.assertIs(aggregate.primary, primary)
                 self.assertEqual(aggregate.cleanup, (cleanup,))
@@ -204,7 +212,9 @@ class CaptureFailureTests(unittest.TestCase):
                             if source == "cleanup"
                             else (OSError("cleanup failed"),)
                         )
+
                         observed = self.observe(operation, primary, cleanup)
+
                         self.assertIs(observed, interruption)
                         aggregate = observed.__cause__
                         self.assertIs(type(aggregate), kind)
@@ -227,12 +237,15 @@ class CaptureFailureTests(unittest.TestCase):
                     RuntimeError("context"),
                 )
                 cleanup.__cause__, cleanup.__context__ = previous, context
+
                 observed = self.observe(operation, primary, (cleanup,))
+
                 if name in ("http2", "cookie", "quic", "tls", "snapshot", "proxy"):
                     self.assertIs(observed, cleanup)
                     aggregate = observed.__cause__
                 else:
                     aggregate = observed if name == "browser" else observed.__cause__
+
                 self.assertIs(type(aggregate), kind)
                 self.assertEqual(aggregate.cleanup, (cleanup,))
                 if name in ("http2", "cookie", "quic", "tls", "snapshot", "proxy"):
@@ -247,7 +260,9 @@ class CaptureFailureTests(unittest.TestCase):
             with self.subTest(path=name):
                 primary = KeyboardInterrupt("primary")
                 cleanup = SystemExit("cleanup")
+
                 observed = self.observe(operation, primary, (cleanup,))
+
                 self.assertIs(observed, primary)
                 self.assertIs(type(observed.__cause__), kind)
                 self.assertEqual(observed.__cause__.cleanup, (cleanup,))
@@ -256,7 +271,9 @@ class CaptureFailureTests(unittest.TestCase):
         for name, operation, kind, _owner in self.paths():
             with self.subTest(path=name):
                 primary = OSError("capture failed")
+
                 observed = self.observe(operation, primary, (primary,))
+
                 if name in ("browser", "http2", "cookie", "quic", "snapshot", "proxy"):
                     self.assertIs(type(observed), kind)
                     self.assertEqual(observed.cleanup, (primary,))

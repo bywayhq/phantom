@@ -868,6 +868,7 @@ def raise_capture_failures(
         if primary is not None:
             raise primary
         return
+
     if primary is None and len(cleanup) == 1:
         raise cleanup[0]
 
