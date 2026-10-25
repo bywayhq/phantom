@@ -26,6 +26,75 @@ class ObservedEvent(asyncio.Event):
 
 
 class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_prepared_listener_is_owned_when_browser_setup_fails(self) -> None:
+        scenario = hooks.SCENARIOS["http1-idle"]
+        owner = hooks._FirefoxRun(scenario)
+        origins = owner.origins
+        listener = await asyncio.start_server(origins.accept_target, "127.0.0.1", 0)
+        origins.listeners.append(listener)
+        origins.port = listener.sockets[0].getsockname()[1]
+        cause = RuntimeError("independent native setup failure")
+        with (
+            patch.object(hooks, "_FirefoxNative", side_effect=cause),
+            self.assertRaises(RuntimeError) as observed,
+        ):
+            await hooks.run_once(scenario, Path("unused"), prepared=owner)
+        self.assertIs(observed.exception, cause)
+        self.assertEqual(
+            len(origins.listeners), 2
+        )  # Prepared target plus the page only.
+        self.assertTrue(all(not item.is_serving() for item in origins.listeners))
+        self.assertFalse(origins.peers)
+        self.assertFalse(origins.writers)
+
+    async def test_cancellation_after_prepared_listener_adoption_collects_it(
+        self,
+    ) -> None:
+        scenario = hooks.SCENARIOS["http1-idle"]
+        owner = hooks._FirefoxRun(scenario)
+        origins = owner.origins
+        listener = await asyncio.start_server(origins.accept_target, "127.0.0.1", 0)
+        origins.listeners.append(listener)
+        origins.port = listener.sockets[0].getsockname()[1]
+        entered = asyncio.Event()
+
+        async def page(*args, **kwargs):
+            entered.set()
+            await asyncio.Future()
+
+        with patch.object(hooks.asyncio, "start_server", side_effect=page):
+            run = asyncio.create_task(
+                hooks.run_once(scenario, Path("unused"), prepared=owner)
+            )
+            await asyncio.wait_for(entered.wait(), 2)
+            run.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await run
+        self.assertFalse(listener.is_serving())
+        self.assertFalse(origins.peers)
+        self.assertFalse(origins.writers)
+
+    async def test_prepared_origins_must_match_the_scene_and_live_port(self) -> None:
+        scenario = hooks.SCENARIOS["http1-idle"]
+        for case in ("scene", "port", "closed"):
+            owner = hooks._FirefoxRun(scenario)
+            origins = owner.origins
+            listener = await asyncio.start_server(origins.accept_target, "127.0.0.1", 0)
+            origins.listeners.append(listener)
+            origins.port = listener.sockets[0].getsockname()[1]
+            selected = hooks.SCENARIOS["websocket"] if case == "scene" else scenario
+            if case == "port":
+                origins.port = 0
+            elif case == "closed":
+                listener.close()
+                await listener.wait_closed()
+            with self.subTest(case=case), self.assertRaises(ValueError):
+                await hooks.run_once(selected, Path("unused"), prepared=owner)
+            self.assertFalse(listener.is_serving())
+            self.assertFalse(origins.peers)
+            self.assertFalse(origins.writers)
+            self.assertEqual(await owner.finish(), ())
+
     async def test_actual_websocket_ticker_failure_is_observed_with_its_original_cause(
         self,
     ) -> None:

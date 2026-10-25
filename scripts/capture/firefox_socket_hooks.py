@@ -26,6 +26,7 @@ import contextlib
 import datetime
 import errno
 import hashlib
+import ipaddress
 import json
 import math
 import ntpath
@@ -790,6 +791,7 @@ class ServerConnection:
     close_kind: str = "-"
     alpn: str | None = None
     websocket: WebSocketResult | None = None
+    local: str | None = None
 
 
 @dataclass
@@ -1033,6 +1035,8 @@ class Origins:
         try:
             peer = writer.get_extra_info("peername")
             connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
+            local = writer.get_extra_info("sockname")
+            connection.local = f"{local[0]}:{local[1]}"
             self.connections.append(connection)
             self.open.append((connection, writer))
             if self.scenario.target == "wss" or self.scenario.proxy_mode is not None:
@@ -1936,14 +1940,39 @@ async def run_once(
     *,
     headful: bool = False,
     failure_path: Path | None = None,
+    prepared: _FirefoxRun | None = None,
 ) -> tuple[RunResult, str]:
-    validate_waits(scenario)
-    owner = _FirefoxRun(scenario)
+    owner = _FirefoxRun(scenario) if prepared is None else prepared
     origins = owner.origins
     primary = None
     result = None
     plan = None
     try:
+        validate_waits(scenario)
+        if prepared is not None and (
+            owner.native is not None
+            or owner.cleanup is not None
+            or origins.scenario != scenario
+            or scenario.target != "http1"
+            or origins.page_port != 0
+            or origins.stopping
+            or origins.done.is_set()
+            or not 0 < origins.port <= 65535
+            or not origins.listeners
+            or any(
+                not listener.is_serving()
+                or not listener.sockets
+                or any(
+                    sock.getsockname()[1] != origins.port
+                    or not ipaddress.ip_address(sock.getsockname()[0]).is_loopback
+                    for sock in listener.sockets
+                )
+                for listener in origins.listeners
+            )
+        ):
+            raise ValueError(
+                "prepared Firefox origins require matching live HTTP/1 listeners"
+            )
         page = await asyncio.start_server(
             origins.accept_page, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
         )
@@ -1962,11 +1991,16 @@ async def run_once(
             context.set_alpn_protocols(
                 ["h2" if scenario.target == "h2" else "http/1.1"]
             )
-        target = await asyncio.start_server(
-            origins.accept_target, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, ssl=context
-        )
-        origins.listeners.append(target)
-        origins.port = target.sockets[0].getsockname()[1]
+        if origins.port == 0:
+            target = await asyncio.start_server(
+                origins.accept_target,
+                "127.0.0.1",
+                0,
+                limit=MAX_REQUEST_HEAD,
+                ssl=context,
+            )
+            origins.listeners.append(target)
+            origins.port = target.sockets[0].getsockname()[1]
         if scenario.target in ("h2", "wss") or scenario.proxy_mode is not None:
             files = (
                 (

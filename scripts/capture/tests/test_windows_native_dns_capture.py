@@ -89,12 +89,150 @@ def two_server_records() -> list[dict]:
     ]
 
 
+def address_order_result() -> tuple[SimpleNamespace, list[dict]]:
+    observed = result()
+    observed.reports[0].update(rewrite_host=None, rewrite_to=None)
+    observed.origins.port = 8080
+    observed.origins.connections[0].local = "127.0.0.1:8080"
+    # The native list and selected address deliberately differ from DNS wire order.
+    addresses = ["020000007f000001" + "00" * 8, "020000007f000002" + "00" * 8]
+    observed.reports.extend(
+        [
+            {
+                "kind": "resolve-hints",
+                "time_ms": 1001,
+                "function": "getaddrinfo",
+                "host": capture.firefox.TARGET_HOST,
+                "flags": 0,
+                "family": 0,
+                "socktype": 1,
+                "protocol": 6,
+            },
+            {
+                "kind": "resolve-return",
+                "time_ms": 1002,
+                "function": "getaddrinfo",
+                "host": capture.firefox.TARGET_HOST,
+                "result": 0,
+                "answers": addresses,
+            },
+            {
+                "kind": "connect",
+                "time_ms": 1002,
+                "socket": "0x1",
+                "address": "02001f907f000001" + "00" * 8,
+            },
+        ]
+    )
+    entry = two_server_records()[1]
+    entry.pop("role")
+    entry.pop("server")
+    query = bytes.fromhex(entry["query_hex"])
+    entry["response_hex"] = (
+        bytes.fromhex("123485000001000200000000")
+        + query[12:]
+        + bytes.fromhex(
+            "c00c000100010000000500047f000002c00c000100010000000500047f000001"
+        )
+    ).hex()
+    return observed, [entry]
+
+
+class AddressOrderAcceptanceTests(unittest.TestCase):
+    def test_two_a_decoder_keeps_edns_and_rejects_truncated_or_trailing_records(
+        self,
+    ) -> None:
+        _, records = address_order_result()
+        query = bytes.fromhex(records[0]["query_hex"])
+        reply = bytes.fromhex(records[0]["response_hex"])
+        opt = bytes.fromhex("0000291000000000000000")
+        query = query[:10] + b"\x00\x01" + query[12:] + opt
+        reply = reply[:10] + b"\x00\x01" + reply[12:] + opt
+        self.assertEqual(
+            capture.address_answer(query, reply), ["127.0.0.2", "127.0.0.1"]
+        )
+        for malformed in (reply[:11], reply[:-12], reply + b"x"):
+            with self.subTest(wire=malformed), self.assertRaises(ValueError):
+                capture.address_answer(query, malformed)
+
+    def test_native_order_and_winner_are_observed_without_assuming_wire_order(
+        self,
+    ) -> None:
+        observed, records = address_order_result()
+        observed.reports.append(
+            {
+                "kind": "resolve-return",
+                "time_ms": 1003,
+                "function": "GetAddrInfoW",
+                "host": capture.firefox.TARGET_HOST,
+                "result": 11001,
+                "answers": [],
+            }
+        )
+        positive = capture.validate_result(observed, records, scenario="address-order")
+        self.assertEqual(positive["wire_addresses"], ["127.0.0.2", "127.0.0.1"])
+        self.assertEqual(
+            positive["native_resolutions"][0]["answers"], ["127.0.0.1:0", "127.0.0.2:0"]
+        )
+        self.assertEqual(positive["winner"], "127.0.0.1:8080")
+        self.assertEqual(positive["native_resolutions"][1]["result"], 11001)
+        self.assertEqual(len(positive["resolve_hints"]), 1)
+        self.assertEqual(positive["connect_attempts"][0]["address"], "127.0.0.1:8080")
+
+    def test_incomplete_wire_native_or_browser_evidence_is_refused(self) -> None:
+        for case in (
+            "single RR",
+            "reordered RR",
+            "unequal TTL",
+            "not queued",
+            "pre-hook",
+            "missing native address",
+            "missing attempt",
+            "wrong winner",
+            "literal only",
+            "pre-hook request",
+        ):
+            observed, records = address_order_result()
+            entry = records[0]
+            if case == "single RR":
+                entry["response_hex"] = entry["response_hex"][:-32]
+            elif case == "reordered RR":
+                entry["response_hex"] = (
+                    entry["response_hex"][:-64]
+                    + entry["response_hex"][-32:]
+                    + entry["response_hex"][-64:-32]
+                )
+            elif case == "unequal TTL":
+                wire = bytearray.fromhex(entry["response_hex"])
+                wire[-7] = 6
+                entry["response_hex"] = wire.hex()
+            elif case == "not queued":
+                entry.pop("response_queued_ns")
+            elif case == "pre-hook":
+                entry["unix_ns"] = 999_000_000
+            elif case == "missing native address":
+                observed.reports[2]["answers"].pop()
+            elif case == "missing attempt":
+                observed.reports.pop()
+            elif case == "wrong winner":
+                observed.origins.connections[0].local = "127.0.0.2:8080"
+            elif case == "literal only":
+                observed.origins.connections[0].requests = [
+                    (1002, "/close?literal-control=127.0.0.1")
+                ]
+            else:
+                observed.origins.connections[0].requests = [(999, "/close?i=0")]
+            with self.subTest(case=case), self.assertRaises(RuntimeError):
+                capture.validate_result(observed, records, scenario="address-order")
+
+
 class AcceptanceTests(unittest.TestCase):
     def test_cli_defaults_to_initial_and_records_selected_intervention(self) -> None:
         for argv, scene in (
             ([], "initial"),
             (["--scenario", "drop-first-udp-a"], "drop-first-udp-a"),
             (["--scenario", "two-server"], "two-server"),
+            (["--scenario", "address-order"], "address-order"),
         ):
 
             def stage(record: dict) -> Path:
@@ -602,6 +740,215 @@ class AcceptanceTests(unittest.TestCase):
 
 
 class OwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_wrong_or_incomplete_literal_body_never_installs_nrpt(self) -> None:
+        for body in (b"bad", b"ok"):
+
+            async def response(writer, *args, body=body, **kwargs):
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\n"
+                    + body
+                )
+                await writer.drain()
+
+            actions = []
+
+            def guard(record, action, *args, actions=actions):
+                actions.append(action)
+                return {}
+
+            with (
+                self.subTest(body=body),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture.firefox, "write_response", side_effect=response),
+                patch.object(capture, "guard", side_effect=guard),
+                self.assertRaises((RuntimeError, asyncio.IncompleteReadError)),
+            ):
+                await capture.capture(Path("unused"), {}, scenario="address-order")
+            self.assertEqual(actions, ["Verify"])
+
+    async def test_invalid_prepared_state_or_cancellation_after_install_still_collects_origins(
+        self,
+    ) -> None:
+        real_prepare = capture.prepare_address_origins
+        for cancelled in (False, True):
+            prepared = []
+            peer = SimpleNamespace(
+                start=AsyncMock(),
+                close=AsyncMock(),
+                address=("127.0.0.53", 53),
+                failed=asyncio.Event(),
+                failures=[],
+                records=list,
+            )
+
+            async def prepare(origins, prepared=prepared):
+                prepared.append(origins)
+                return await real_prepare(origins)
+
+            def guard(record, action, *args, prepared=prepared, cancelled=cancelled):
+                if action == "Install":
+                    if cancelled:
+                        asyncio.current_task().cancel()
+                    else:
+                        prepared[0].port = 0
+                    return {}
+                self.assertEqual(action, "Verify")
+                self.assertTrue(
+                    all(not item.is_serving() for item in prepared[0].listeners)
+                )
+                self.assertFalse(prepared[0].peers)
+                self.assertFalse(prepared[0].writers)
+                return {}
+
+            with (
+                self.subTest(cancelled=cancelled),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture, "NativeDnsServer", return_value=peer),
+                patch.object(capture, "prepare_address_origins", side_effect=prepare),
+                patch.object(capture, "guard", side_effect=guard),
+                patch.object(capture.firefox, "_FirefoxNative") as native,
+            ):
+                with self.assertRaises(
+                    asyncio.CancelledError if cancelled else ValueError
+                ):
+                    await capture.capture(Path("unused"), {}, scenario="address-order")
+                native.assert_not_called()
+                peer.close.assert_awaited_once()
+
+    async def test_both_literal_origins_serve_on_one_port_and_keep_raw_controls(
+        self,
+    ) -> None:
+        owner = capture.firefox._FirefoxRun(capture.SCENARIOS["address-order"])
+        try:
+            controls = await capture.prepare_address_origins(owner.origins)
+            self.assertEqual(
+                [entry["address"] for entry in controls], ["127.0.0.2", "127.0.0.1"]
+            )
+            self.assertEqual(
+                {entry["port"] for entry in controls}, {owner.origins.port}
+            )
+            self.assertEqual(
+                {item.local for item in owner.origins.connections},
+                {f"127.0.0.2:{owner.origins.port}", f"127.0.0.1:{owner.origins.port}"},
+            )
+            self.assertTrue(
+                all(
+                    item.requests[0][1].startswith("/close?literal-control=")
+                    for item in owner.origins.connections
+                )
+            )
+            self.assertFalse(owner.origins.done.is_set())
+            self.assertEqual(await owner.finish(), ())
+            self.assertTrue(
+                all(not listener.is_serving() for listener in owner.origins.listeners)
+            )
+            self.assertFalse(owner.origins.peers)
+            self.assertFalse(owner.origins.writers)
+        finally:
+            await owner.finish()
+
+    async def test_partial_second_origin_setup_is_retired_before_verify(self) -> None:
+        real_start = asyncio.start_server
+        listeners = []
+        cause = OSError("independent second address bind failure")
+
+        async def start(*args, **kwargs):
+            if listeners:
+                raise cause
+            listener = await real_start(*args, **kwargs)
+            listeners.append(listener)
+            return listener
+
+        def guard(record, action, *args):
+            self.assertEqual(action, "Verify")
+            self.assertFalse(listeners[0].is_serving())
+            return {}
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary)),
+            patch.object(capture.asyncio, "start_server", side_effect=start),
+            patch.object(capture, "guard", side_effect=guard),
+            self.assertRaises(OSError) as observed,
+        ):
+            await capture.capture(Path("unused"), {}, scenario="address-order")
+        self.assertIs(observed.exception, cause)
+
+    async def test_install_failure_and_preinstall_cancellation_collect_both_origins(
+        self,
+    ) -> None:
+        real_prepare = capture.prepare_address_origins
+        for cancelled in (False, True):
+            prepared = []
+            entered = asyncio.Event()
+            cause = RuntimeError("independent NRPT install failure")
+            peer = SimpleNamespace(
+                start=AsyncMock(),
+                close=AsyncMock(),
+                address=("127.0.0.53", 53),
+                failed=asyncio.Event(),
+                failures=[],
+                records=list,
+            )
+
+            async def prepare(
+                origins, prepared=prepared, entered=entered, cancelled=cancelled
+            ):
+                prepared.append(origins)
+                controls = await real_prepare(origins)
+                entered.set()
+                if cancelled:
+                    await asyncio.Future()
+                return controls
+
+            def guard(
+                record,
+                action,
+                *args,
+                cancelled=cancelled,
+                cause=cause,
+                prepared=prepared,
+            ):
+                if action == "Install":
+                    self.assertFalse(cancelled)
+                    self.assertEqual(len(record["literal_origin_controls"]), 2)
+                    raise cause
+                self.assertEqual(action, "Verify")
+                self.assertTrue(
+                    all(not item.is_serving() for item in prepared[0].listeners)
+                )
+                self.assertFalse(prepared[0].peers)
+                self.assertFalse(prepared[0].writers)
+                return {}
+
+            with (
+                self.subTest(cancelled=cancelled),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture, "NativeDnsServer", return_value=peer),
+                patch.object(capture, "prepare_address_origins", side_effect=prepare),
+                patch.object(capture, "guard", side_effect=guard),
+                patch.object(
+                    capture.firefox, "run_once", new_callable=AsyncMock
+                ) as browser,
+            ):
+                task = asyncio.create_task(
+                    capture.capture(Path("unused"), {}, scenario="address-order")
+                )
+                await asyncio.wait_for(entered.wait(), 2)
+                if cancelled:
+                    task.cancel()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await task
+                else:
+                    with self.assertRaises(RuntimeError) as observed:
+                        await task
+                    self.assertIs(observed.exception, cause)
+                browser.assert_not_called()
+                peer.close.assert_awaited_once()
+
     async def test_scene_selects_drop_once_and_preserves_browser_cleanup(self) -> None:
         for scene in ("initial", "drop-first-udp-a"):
             records = (

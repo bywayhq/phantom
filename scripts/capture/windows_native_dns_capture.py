@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import ipaddress
 import json
 import os
 import platform
+import struct
 import subprocess
 import sys
 import tempfile
@@ -53,7 +55,14 @@ SCENARIOS = {
         name="native-dns-two-server",
         question="Are the silent primary and answering secondary both observed?",
     ),
+    "address-order": replace(
+        SCENARIO,
+        name="native-dns-address-order",
+        question="Which address is returned and selected from two healthy owned origins?",
+    ),
 }
+
+ADDRESS_ORDER = ("127.0.0.2", "127.0.0.1")
 SOURCE_PATHS = (
     "scripts/capture/windows_native_dns_capture.py",
     "scripts/capture/windows_native_dns_guard.ps1",
@@ -282,6 +291,8 @@ def validate_result(
         recovery = validate_two_server(records, min(ready) * 1_000_000)
     elif scenario == "drop-first-udp-a":
         recovery = validate_recovery(records, min(ready) * 1_000_000)
+    elif scenario == "address-order":
+        recovery = validate_address_order(result, records, min(ready) * 1_000_000)
     else:
         recovery = {}
     answered = [
@@ -302,6 +313,186 @@ def validate_result(
         "https_query_count": sum(entry.get("kind") == 65 for entry in records),
         **recovery,
     }
+
+
+def address_answer(wire: bytes, answer: bytes) -> list[str]:
+    """Read the fixed scene's two A records independently of the DNS producer."""
+    parsed = question(wire)
+    if len(answer) < 12:
+        raise ValueError("two-A response has a short header")
+    fields = struct.unpack("!6H", answer[:12])
+    if (
+        fields
+        != (
+            int.from_bytes(wire[:2], "big"),
+            0x8400 | (int.from_bytes(wire[2:4], "big") & 0x0100),
+            1,
+            2,
+            0,
+            int(parsed.edns_size is not None),
+        )
+        or answer[12 : parsed.end] != wire[12 : parsed.end]
+    ):
+        raise ValueError("two-A response header or echoed question differs")
+    addresses = []
+    offset = parsed.end
+    for _ in range(2):
+        record = answer[offset : offset + 16]
+        if len(record) != 16 or record[:12] != bytes.fromhex(
+            "c00c00010001000000050004"
+        ):
+            raise ValueError("two-A response requires two IN/A records with TTL5")
+        addresses.append(str(ipaddress.IPv4Address(record[12:])))
+        offset += 16
+    tail = (
+        b"\x00" + struct.pack("!HHIH", 41, parsed.edns_size, 0, 0)
+        if parsed.edns_size is not None
+        else b""
+    )
+    if answer[offset:] != tail:
+        raise ValueError("two-A response has unexpected trailing bytes")
+    return addresses
+
+
+def validate_address_order(
+    result: firefox.RunResult, records: list[dict], attached_ns: int
+) -> dict:
+    answered = []
+    for entry in records:
+        if entry.get("name") != firefox.TARGET_HOST or entry.get("kind") != 1:
+            continue
+        try:
+            wire = bytes.fromhex(entry["query_hex"])
+            parsed = question(wire)
+            addresses = address_answer(wire, bytes.fromhex(entry["response_hex"]))
+        except (KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                "address-order capture has an invalid A query or response"
+            ) from error
+        if (
+            parsed.name != firefox.TARGET_HOST
+            or parsed.kind != 1
+            or entry.get("transport") != "udp"
+            or entry.get("error", "missing") is not None
+            or tuple(addresses) != ADDRESS_ORDER
+            or type(entry.get("unix_ns")) is not int
+            or entry["unix_ns"] < attached_ns
+            or type(entry.get("response_queued_ns")) is not int
+            or entry["response_queued_ns"] < entry["unix_ns"]
+        ):
+            raise RuntimeError(
+                "address-order capture requires a queued post-hook two-A answer"
+            )
+        answered.append(addresses)
+    if not answered:
+        raise RuntimeError("address-order capture has no queued post-hook two-A answer")
+    events = firefox.decode_events(result.reports, attached_ns // 1_000_000)
+    resolutions = [
+        event
+        for event in events
+        if event["kind"] == "resolve-return"
+        and event["host"] == firefox.TARGET_HOST
+        and event["function"] in ("getaddrinfo", "GetAddrInfoW", "GetAddrInfoExW")
+    ]
+    if not resolutions or not any(
+        all(
+            any(answer.startswith(address + ":") for answer in event["answers"])
+            for address in ADDRESS_ORDER
+        )
+        for event in resolutions
+        if event["result"] == 0 and event["t"] >= 0
+    ):
+        raise RuntimeError(
+            "address-order capture did not retain both native returned addresses"
+        )
+    port = result.origins.port
+    endpoints = tuple(f"{address}:{port}" for address in ADDRESS_ORDER)
+    attempts = [
+        event
+        for event in events
+        if event["kind"] == "connect"
+        and event["t"] >= 0
+        and event["address"].endswith(f":{port}")
+    ]
+    winners = [
+        connection
+        for connection in result.origins.connections
+        if any(
+            path == "/close?i=0" and stamp * 1_000_000 >= attached_ns
+            for stamp, path in connection.requests
+        )
+    ]
+    if not attempts or len(winners) != 1 or winners[0].local not in endpoints:
+        raise RuntimeError(
+            "address-order capture lacks a measured connect attempt and owned winner"
+        )
+    if not any(event["address"] == winners[0].local for event in attempts):
+        raise RuntimeError(
+            "address-order winner has no matching observed connect attempt"
+        )
+    return {
+        "wire_addresses": answered[0],
+        "native_resolutions": resolutions,
+        "resolve_hints": [
+            event
+            for event in events
+            if event["kind"] == "resolve-hints" and event["host"] == firefox.TARGET_HOST
+        ],
+        "connect_attempts": attempts,
+        "connect_outcomes": [
+            event
+            for event in events
+            if event["kind"] in ("connect-return", "socket-error")
+            and event.get("socket") in {attempt["socket"] for attempt in attempts}
+        ],
+        "winner": winners[0].local,
+    }
+
+
+async def prepare_address_origins(origins: firefox.Origins) -> list[dict]:
+    """Bind both measured endpoints and check their literal HTTP bodies before NRPT."""
+    for address in ADDRESS_ORDER:
+        listener = await asyncio.start_server(
+            origins.accept_target, address, origins.port, limit=firefox.MAX_REQUEST_HEAD
+        )
+        origins.listeners.append(listener)
+        origins.port = listener.sockets[0].getsockname()[1]
+    controls = []
+    for address in ADDRESS_ORDER:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(address, origins.port, limit=4096), 5
+        )
+        primary = None
+        try:
+            path = f"/close?literal-control={address}"
+            writer.write(
+                f"GET {path} HTTP/1.1\r\nHost: {address}\r\n\r\n".encode("ascii")
+            )
+            await asyncio.wait_for(writer.drain(), 5)
+            head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+            body = await asyncio.wait_for(reader.readexactly(3), 5)
+            extra = await asyncio.wait_for(reader.read(1), 5)
+            if not head.startswith(b"HTTP/1.1 200 ") or body != b"ok\n" or extra:
+                raise RuntimeError(
+                    "literal address origin did not return the complete expected body"
+                )
+            raw = head + body
+            controls.append(
+                {
+                    "address": address,
+                    "port": origins.port,
+                    "path": path,
+                    "response_hex": raw.hex(),
+                }
+            )
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            await firefox.close_writer(writer, primary)
+    if origins.failures:
+        raise origins.failures[0]
+    return controls
 
 
 def validate_two_server(records: list[dict], attached_ns: int) -> dict:
@@ -406,9 +597,12 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
             NativeDnsServer(firefox.TARGET_HOST, "127.0.0.54"),
         ]
     else:
+        options = {"ipv4_answers": ADDRESS_ORDER} if scenario == "address-order" else {}
         peers = [
             NativeDnsServer(
-                firefox.TARGET_HOST, drop_first_udp_a=scenario == "drop-first-udp-a"
+                firefox.TARGET_HOST,
+                drop_first_udp_a=scenario == "drop-first-udp-a",
+                **options,
             )
         ]
     primary = None
@@ -416,7 +610,17 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
     browser = None
     browser_observed = False
     failed = []
+    prepared = firefox._FirefoxRun(selected) if scenario == "address-order" else None
+
+    async def close_prepared() -> None:
+        if prepared is not None:
+            raise_browser_failures(None, await prepared.finish(primary))
+
     try:
+        if prepared is not None:
+            record["literal_origin_controls"] = await prepare_address_origins(
+                prepared.origins
+            )
         for peer in peers:
             await peer.start()
         record["dns_address"] = peers[0].address
@@ -427,12 +631,14 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
             ]
         extra = ("-DnsScene", "two-server") if scenario == "two-server" else ()
         record["nrpt"] = guard(record, "Install", "-OwnerPid", str(os.getpid()), *extra)
+        options = {"prepared": prepared} if prepared is not None else {}
         browser = asyncio.create_task(
             firefox.run_once(
                 selected,
                 executable,
                 headful=True,
                 failure_path=OUTPUT / "firefox-failed.json",
+                **options,
             )
         )
         failed = [asyncio.create_task(peer.failed.wait()) for peer in peers]
@@ -481,11 +687,11 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
             await asyncio.gather(*failed, return_exceptions=True)
         except BaseException as error:
             cleanup.append(error)
-        # Both close operations share the existing five-second bound rather than
-        # serially doubling it; each retains its own collectable cleanup task.
-        closing = asyncio.gather(
-            *(peer.close() for peer in peers), return_exceptions=True
-        )
+        # DNS peers close in parallel under their existing per-peer bound.
+        closing_work = [peer.close() for peer in peers]
+        if prepared is not None:
+            closing_work.append(close_prepared())
+        closing = asyncio.gather(*closing_work, return_exceptions=True)
         while True:
             try:
                 # Caller cancellation must not detach either bounded close owner
@@ -575,6 +781,9 @@ def main(argv: list[str] | None = None) -> None:
             "lookup_rewrite": False,
             "drop_first_udp_a": arguments.scenario == "drop-first-udp-a",
             "primary_drop_owned_udp": arguments.scenario == "two-server",
+            "ipv4_answers": list(ADDRESS_ORDER)
+            if arguments.scenario == "address-order"
+            else ["127.0.0.1"],
             "nameservers": ["127.0.0.53", "127.0.0.54"]
             if arguments.scenario == "two-server"
             else ["127.0.0.53"],

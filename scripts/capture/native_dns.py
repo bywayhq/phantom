@@ -87,7 +87,13 @@ def question(wire: bytes) -> Question:
     return Question(".".join(labels), kind, offset, edns_size)
 
 
-def response(wire: bytes, parsed: Question, hostname: str, ttl: int) -> bytes:
+def response(
+    wire: bytes,
+    parsed: Question,
+    hostname: str,
+    ttl: int,
+    ipv4_answers: tuple[str, ...] = ("127.0.0.1",),
+) -> bytes:
     """Echo the question; advertise authority only for the supported owned name."""
     owned = parsed.name == hostname
     supported = parsed.kind in (1, 28, 65)
@@ -102,14 +108,19 @@ def response(wire: bytes, parsed: Question, hostname: str, ttl: int) -> bytes:
             int.from_bytes(wire[:2], "big"),
             flags,
             1,
-            int(answer),
+            len(ipv4_answers) if answer else 0,
             0,
             int(parsed.edns_size is not None),
         )
         + wire[12 : parsed.end]
     )
     if answer:
-        output += b"\xc0\x0c" + struct.pack("!HHIH", 1, 1, ttl, 4) + b"\x7f\x00\x00\x01"
+        for address in ipv4_answers:
+            output += (
+                b"\xc0\x0c"
+                + struct.pack("!HHIH", 1, 1, ttl, 4)
+                + ipaddress.IPv4Address(address).packed
+            )
     if parsed.edns_size is not None:
         output += b"\x00" + struct.pack("!HHIH", 41, parsed.edns_size, 0, 0)
     return output
@@ -185,6 +196,8 @@ class NativeDnsServer:
     `drop_first_udp_a` leaves exactly the first owned UDP A question unanswered.
     `drop_owned_udp` leaves every owned UDP question unanswered and rejects TCP
     connections as capture failures, so another transport cannot defeat silence.
+    `ipv4_answers` retains one or two distinct loopback addresses in wire order,
+    with the same TTL on each A record.
     """
 
     def __init__(
@@ -194,6 +207,7 @@ class NativeDnsServer:
         port: int = 53,
         *,
         ttl: int = 5,
+        ipv4_answers: tuple[str, ...] = ("127.0.0.1",),
         drop_first_udp_a: bool = False,
         drop_owned_udp: bool = False,
     ) -> None:
@@ -217,9 +231,20 @@ class NativeDnsServer:
             raise ValueError("native DNS TTL must be in 0..86400 seconds")
         if drop_first_udp_a and drop_owned_udp:
             raise ValueError("native DNS drop policies are mutually exclusive")
+        if (
+            not isinstance(ipv4_answers, tuple)
+            or not 1 <= len(ipv4_answers) <= 2
+            or any(not isinstance(item, str) for item in ipv4_answers)
+            or len(set(ipv4_answers)) != len(ipv4_answers)
+            or any(not ipaddress.IPv4Address(item).is_loopback for item in ipv4_answers)
+        ):
+            raise ValueError(
+                "native DNS requires one or two distinct loopback A answers"
+            )
         self.hostname = ".".join(labels).lower()
         self.address = (address, port)
         self.ttl = ttl
+        self.ipv4_answers = ipv4_answers
         self._drop_first_udp_a = drop_first_udp_a
         self._drop_owned_udp = drop_owned_udp
         self.udp: asyncio.DatagramTransport | None = None
@@ -332,7 +357,7 @@ class NativeDnsServer:
                 self._drop_first_udp_a = False
                 record["disposition"] = "dropped-first-udp-a"
                 return None
-            answer = response(wire, parsed, self.hostname, self.ttl)
+            answer = response(wire, parsed, self.hostname, self.ttl, self.ipv4_answers)
         except BaseException as error:
             record["error"] = str(error)
             raise

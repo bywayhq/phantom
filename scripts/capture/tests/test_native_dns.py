@@ -25,6 +25,31 @@ def framed(wire: bytes) -> bytes:
 
 
 class DnsWireTests(unittest.TestCase):
+    def test_two_a_answers_keep_wire_order_and_equal_ttl(self) -> None:
+        expected = (
+            bytes.fromhex("123485000001000200000000")
+            + QUESTION
+            + bytes.fromhex("c00c000100010000000500047f000002")
+            + bytes.fromhex("c00c000100010000000500047f000001")
+        )
+        self.assertEqual(
+            native_dns.response(
+                QUERY, native_dns.question(QUERY), NAME, 5, ("127.0.0.2", "127.0.0.1")
+            ),
+            expected,
+        )
+        for answers in (
+            (),
+            ("127.0.0.1",) * 2,
+            ("127.0.0.1",) * 3,
+            ("192.0.2.1",),
+            ("::1",),
+            (None,),
+            ["127.0.0.1"],
+        ):
+            with self.subTest(answers=answers), self.assertRaises(ValueError):
+                native_dns.NativeDnsServer(NAME, ipv4_answers=answers)
+
     def test_a_answer_has_exact_address_ttl_and_no_recursion_or_dnssec_claim(
         self,
     ) -> None:
@@ -137,6 +162,36 @@ class Replies(asyncio.DatagramProtocol):
 
 
 class NativeDnsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_udp_and_tcp_send_both_a_records_without_reordering(self) -> None:
+        await self.server.close()
+        self.server = native_dns.NativeDnsServer(
+            NAME, "127.0.0.1", 0, ipv4_answers=("127.0.0.2", "127.0.0.1")
+        )
+        await self.server.start()
+        expected = (
+            bytes.fromhex("123485000001000200000000")
+            + QUESTION
+            + bytes.fromhex(
+                "c00c000100010000000500047f000002c00c000100010000000500047f000001"
+            )
+        )
+        transport, replies = await self.udp()
+        transport.sendto(QUERY)
+        answer, _ = await asyncio.wait_for(replies.received.get(), 2)
+        self.assertEqual(answer, expected)
+        reader, writer = await self.tcp()
+        writer.write(framed(QUERY))
+        await writer.drain()
+        self.assertEqual(await self.read_frame(reader), expected)
+        records = self.server.records()
+        self.assertEqual(
+            [entry["response_hex"] for entry in records], [expected.hex()] * 2
+        )
+        self.assertGreaterEqual(records[0]["response_queued_ns"], records[0]["unix_ns"])
+        self.assertGreaterEqual(
+            records[1]["response_drained_ns"], records[1]["unix_ns"]
+        )
+
     async def asyncSetUp(self) -> None:
         self.server = native_dns.NativeDnsServer(NAME, "127.0.0.1", 0)
         await self.server.start()
