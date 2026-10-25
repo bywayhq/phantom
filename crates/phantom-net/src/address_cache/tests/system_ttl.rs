@@ -22,12 +22,9 @@ async fn native_deadlines_keep_address_order_scope_and_ignore_the_profile_floor(
     let counter = Arc::clone(&calls);
     let cache = AddressCache::with_blocking_lookup(config, move |_| {
         counter.fetch_add(1, Ordering::SeqCst);
-        let addresses = captured.clone();
-        Box::pin(async move {
-            Ok(Resolved::System {
-                addresses,
-                ttl: SystemTtl::Deadline(deadline),
-            })
+        Ok(Resolved::System {
+            addresses: captured.clone(),
+            ttl: SystemTtl::Deadline(deadline),
         })
     });
 
@@ -63,11 +60,9 @@ async fn missing_native_ttl_uses_fallback_but_known_zero_or_invalid_expiry_never
             settings(4, Duration::from_secs(600), None),
             move |_| {
                 counter.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    Ok(Resolved::System {
-                        addresses: vec![SocketAddr::new(V4, 0)],
-                        ttl,
-                    })
+                Ok(Resolved::System {
+                    addresses: vec![SocketAddr::new(V4, 0)],
+                    ttl,
                 })
             },
         );
@@ -86,7 +81,7 @@ async fn clear_and_cancelled_waiters_do_not_republish_an_old_native_deadline() -
     let (open, gate) = watch::channel(false);
     let calls = Arc::new(AtomicUsize::new(0));
     let counter = Arc::clone(&calls);
-    let cache = AddressCache::with_blocking_lookup(
+    let cache = AddressCache::with_async_blocking_lookup(
         settings(4, Duration::from_secs(600), None),
         move |_| {
             counter.fetch_add(1, Ordering::SeqCst);

@@ -21,6 +21,7 @@ use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
 mod address_feedback;
+mod blocking;
 #[cfg(feature = "https-records")]
 mod configuration_generation;
 mod dns_answers;

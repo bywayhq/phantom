@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Resolve native DNS on the existing blocking worker without creating a
+  temporary runtime for each lookup.
+
 - Avoid copying trust-anchor IDs during profile validation and per-client
   selection, preserving the configured orders and draw probabilities.
 

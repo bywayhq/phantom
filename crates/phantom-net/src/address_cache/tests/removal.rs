@@ -24,7 +24,7 @@ fn scripted(config: DnsCacheSettings, blocking: bool, count: usize) -> (AddressC
         Box::pin(async move { response?.await.map_err(io::Error::other)? })
     };
     let cache = if blocking {
-        AddressCache::with_blocking_lookup(config, lookup)
+        AddressCache::with_async_blocking_lookup(config, lookup)
     } else {
         AddressCache::with_resolver(
             config,

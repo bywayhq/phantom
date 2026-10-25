@@ -32,7 +32,10 @@ type PendingKey = (Box<str>, Option<tokio::runtime::Id>);
 #[derive(Clone)]
 enum Lookup {
     /// Runs on the blocking pool, as the operating system resolver must.
-    Blocking(Arc<dyn Fn(Box<str>) -> ResolverFuture + Send + Sync>),
+    Blocking(Arc<dyn Fn(Box<str>) -> io::Result<Resolved> + Send + Sync>),
+    /// Keeps async fixture creation in admission order.
+    #[cfg(test)]
+    AsyncBlocking(Arc<dyn Fn(Box<str>) -> ResolverFuture + Send + Sync>),
     /// A caller's async resolver, run as a task on the runtime.
     Task(AddressResolver),
 }
@@ -256,19 +259,17 @@ impl AddressCache {
     pub fn new(settings: DnsCacheSettings) -> Self {
         // Runs on a blocking-pool thread, so blocking here is intended.
         Self::with_blocking_lookup(settings, move |host| {
-            Box::pin(async move {
-                #[cfg(windows)]
-                if settings.system_ttl == phantom_profile::SystemDnsTtlPolicy::FirefoxWindows
-                    && host.is_ascii()
-                {
-                    let (addresses, ttl) = crate::system_dns_ffi::resolve(&host)?;
-                    return Ok(Resolved::System { addresses, ttl });
-                }
+            #[cfg(windows)]
+            if settings.system_ttl == phantom_profile::SystemDnsTtlPolicy::FirefoxWindows
+                && host.is_ascii()
+            {
+                let (addresses, ttl) = crate::system_dns_ffi::resolve(&host)?;
+                return Ok(Resolved::System { addresses, ttl });
+            }
 
-                Ok(Resolved::Legacy {
-                    addresses: (&*host, 0).to_socket_addrs()?.collect(),
-                    ttl: None,
-                })
+            Ok(Resolved::Legacy {
+                addresses: (&*host, 0).to_socket_addrs()?.collect(),
+                ttl: None,
             })
         })
     }
@@ -283,7 +284,7 @@ impl AddressCache {
     where
         F: Fn(Box<str>) -> LookupFuture + Send + Sync + 'static,
     {
-        Self::with_blocking_lookup(settings, move |host| {
+        Self::with_async_blocking_lookup(settings, move |host| {
             let resolution = lookup(host);
             Box::pin(async move {
                 resolution.await.map(|addresses| Resolved::Legacy {
@@ -294,9 +295,17 @@ impl AddressCache {
         })
     }
 
-    fn with_blocking_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
+    #[cfg(test)]
+    fn with_async_blocking_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
     where
         F: Fn(Box<str>) -> ResolverFuture + Send + Sync + 'static,
+    {
+        Self::with(settings, Lookup::AsyncBlocking(Arc::new(lookup)))
+    }
+
+    fn with_blocking_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
+    where
+        F: Fn(Box<str>) -> io::Result<Resolved> + Send + Sync + 'static,
     {
         Self::with(settings, Lookup::Blocking(Arc::new(lookup)))
     }
@@ -537,6 +546,8 @@ impl AddressCache {
             .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
         let key = match &self.inner.lookup {
             Lookup::Blocking(_) => (host, None),
+            #[cfg(test)]
+            Lookup::AsyncBlocking(_) => (host, None),
             Lookup::Task(_) => (host, Some(runtime.id())),
         };
         if let Some(receiver) = state.pending.get(&key) {
@@ -574,6 +585,14 @@ impl AddressCache {
         };
         match &self.inner.lookup {
             Lookup::Blocking(lookup) => {
+                let lookup = Arc::clone(lookup);
+                drop(runtime.spawn_blocking(move || {
+                    let result = lookup(publisher.key.0.clone());
+                    publisher.publish(result);
+                }));
+            }
+            #[cfg(test)]
+            Lookup::AsyncBlocking(lookup) => {
                 let resolution = lookup(publisher.key.0.clone());
                 drop(runtime.spawn_blocking(move || {
                     let result = tokio::runtime::Builder::new_current_thread()
@@ -757,6 +776,8 @@ impl AddressCache {
     fn configuration_token(&self) -> io::Result<Option<DnsConfigurationToken>> {
         match &self.inner.lookup {
             Lookup::Blocking(_) => Ok(None),
+            #[cfg(test)]
+            Lookup::AsyncBlocking(_) => Ok(None),
             Lookup::Task(resolver) => resolver.configuration_token(),
         }
     }
@@ -770,6 +791,8 @@ impl AddressCache {
     fn cache_errors(&self) -> bool {
         match &self.inner.lookup {
             Lookup::Blocking(_) => true,
+            #[cfg(test)]
+            Lookup::AsyncBlocking(_) => true,
             Lookup::Task(resolver) => resolver.cache_errors(),
         }
     }
