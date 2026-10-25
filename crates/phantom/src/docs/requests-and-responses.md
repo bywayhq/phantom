@@ -153,7 +153,7 @@ println!("{}", response.body());
 Enable `json` in your dependency to read a typed response:
 
 ```toml
-phantom = { package = "phantom-http", version = "0.3", features = ["json"] }
+phantom = { package = "phantom-http", version = "0.4", features = ["json"] }
 ```
 
 For an endpoint that accepts and returns a JSON array of strings:

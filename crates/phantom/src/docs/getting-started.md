@@ -42,7 +42,7 @@ Add these dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", version = "0.3" }
+phantom = { package = "phantom-http", version = "0.4" }
 tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 ```
 
