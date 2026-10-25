@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reuse unchanged published TLS forks when preparing release archives.
+
 - Correct CLI archive instructions that described published archives as candidates.
 
 - Recover once from an initial Windows TCP 10055 with port randomization,

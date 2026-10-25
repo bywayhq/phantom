@@ -25,7 +25,7 @@ unimplemented = "deny"
 http = "1.4.0"
 http-body = "1.0.1"
 libfuzzer-sys = "=0.4.13"
-phantom = { package = "phantom-http", version = "=0.3.0", path = "../crates/phantom", features = ["cookies", "fuzzing", "https-records"] }
+phantom = { package = "phantom-http", version = "=0.4.0", path = "../crates/phantom", features = ["cookies", "fuzzing", "https-records"] }
 phantom-net = { path = "../crates/phantom-net", features = ["https-records"] }
 phantom-testkit = { path = "../crates/phantom-testkit" }
 quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.6", path = "../vendor/quinn-proto", default-features = false }
