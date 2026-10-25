@@ -37,6 +37,7 @@ def answer(**changes: object) -> dict:
     record = {
         "name": capture.firefox.TARGET_HOST,
         "kind": 1,
+        "transport": "udp",
         "unix_ns": 1_001_000_000,
         "response_hex": "1234",
         "response_queued_ns": 1_002_000_000,
@@ -46,7 +47,64 @@ def answer(**changes: object) -> dict:
     return record
 
 
+def dropped(**changes: object) -> dict:
+    record = {
+        "name": capture.firefox.TARGET_HOST,
+        "kind": 1,
+        "transport": "udp",
+        "unix_ns": 1_000_500_000,
+        "disposition": "dropped-first-udp-a",
+        "response_hex": None,
+        "error": None,
+    }
+    record.update(changes)
+    return record
+
+
 class AcceptanceTests(unittest.TestCase):
+    def test_cli_defaults_to_initial_and_records_selected_intervention(self) -> None:
+        for argv, scene in (
+            ([], "initial"),
+            (["--scenario", "drop-first-udp-a"], "drop-first-udp-a"),
+        ):
+
+            def stage(record: dict) -> Path:
+                record["browser_before"] = {"version": "157.0"}
+                return Path("unused.exe")
+
+            with (
+                self.subTest(scene=scene),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary) / "capture"),
+                patch.object(capture, "require_hosted"),
+                patch.object(capture, "file_digest", return_value="hash"),
+                patch.object(capture, "stage_browser", side_effect=stage),
+                patch.object(
+                    capture, "browser_identity", return_value={"version": "157.0"}
+                ),
+                patch.object(capture, "guard", return_value={"staged_processes": []}),
+                patch.object(capture, "capture", new_callable=AsyncMock) as run,
+            ):
+                capture.main(argv)
+                record = json.loads((capture.OUTPUT / "result.json").read_text())
+                self.assertEqual(record["scenario"], scene)
+                self.assertEqual(record["status"], "complete")
+                self.assertEqual(
+                    record["interventions"]["drop_first_udp_a"],
+                    scene == "drop-first-udp-a",
+                )
+                self.assertEqual(run.await_args.kwargs, {"scenario": scene})
+
+    def test_unknown_cli_scene_is_rejected_before_host_or_dns_changes(self) -> None:
+        with (
+            patch.object(capture, "require_hosted") as hosted,
+            patch.object(capture.sys, "stderr", new_callable=io.StringIO),
+            self.assertRaises(SystemExit) as error,
+        ):
+            capture.main(["--scenario", "other"])
+        self.assertEqual(error.exception.code, 2)
+        hosted.assert_not_called()
+
     def test_hosted_guard_refuses_desktop_before_any_commands(self) -> None:
         with (
             patch.dict(os.environ, {}, clear=True),
@@ -133,12 +191,104 @@ class AcceptanceTests(unittest.TestCase):
             capture.validate_result(missing, [answer()])
 
     def test_body_check_precedes_done_and_does_not_rewrite_dns(self) -> None:
-        self.assertFalse(capture.SCENARIO.rewrite_lookup)
-        self.assertEqual(capture.SCENARIO.target, "http1")
-        self.assertLess(
-            capture.SCENARIO.script.index("text !== 'ok\\n'"),
-            capture.SCENARIO.script.index("fetch('/done'"),
+        for scene in capture.SCENARIOS.values():
+            with self.subTest(scene=scene.name):
+                self.assertFalse(scene.rewrite_lookup)
+                self.assertEqual(scene.target, "http1")
+                self.assertEqual(scene.limit_seconds, 30)
+                self.assertLess(
+                    scene.script.index("text !== 'ok\\n'"),
+                    scene.script.index("fetch('/done'"),
+                )
+
+    def test_recovery_requires_one_unanswered_query_then_a_sent_udp_answer(
+        self,
+    ) -> None:
+        observed = capture.validate_result(
+            result(), [dropped(), answer()], scenario="drop-first-udp-a"
         )
+        self.assertEqual(observed["dropped_udp_a_queries"], 1)
+        self.assertEqual(observed["post_drop_udp_a_responses"], 1)
+        self.assertEqual(observed["dropped_query_unix_ns"], 1_000_500_000)
+        self.assertEqual(observed["first_post_drop_query_unix_ns"], 1_001_000_000)
+        self.assertEqual(observed["first_post_drop_response_queued_ns"], 1_002_000_000)
+        incomplete = result()
+        incomplete.origins.done.clear()
+        with self.assertRaisesRegex(RuntimeError, "did not complete"):
+            capture.validate_result(
+                incomplete, [dropped(), answer()], scenario="drop-first-udp-a"
+            )
+
+    def test_missing_duplicate_or_answered_drop_never_proves_recovery(self) -> None:
+        for records in (
+            [answer()],
+            [dropped(), dropped(), answer()],
+            [dropped(response_hex="1234"), answer()],
+            [dropped(response_queued_ns=1_000_600_000), answer()],
+            [dropped(response_drained_ns=1_000_600_000), answer()],
+        ):
+            with self.subTest(records=records), self.assertRaises(RuntimeError):
+                capture.validate_result(result(), records, scenario="drop-first-udp-a")
+
+    def test_wrong_or_pre_hook_drop_never_proves_recovery(self) -> None:
+        for changes in (
+            {"name": "other.test"},
+            {"kind": 28},
+            {"kind": True},
+            {"transport": "tcp"},
+            {"error": "failed"},
+            {"unix_ns": 999_999_999},
+            {"unix_ns": "1000500000"},
+            {"unix_ns": True},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(RuntimeError):
+                capture.validate_result(
+                    result(),
+                    [dropped(**changes), answer()],
+                    scenario="drop-first-udp-a",
+                )
+        for key in ("unix_ns", "response_hex", "error"):
+            query = dropped()
+            del query[key]
+            with self.subTest(key=key), self.assertRaises(RuntimeError):
+                capture.validate_result(
+                    result(), [query, answer()], scenario="drop-first-udp-a"
+                )
+
+    def test_recovery_answer_must_follow_drop_in_journal_and_time(self) -> None:
+        for records in (
+            [answer(), dropped()],
+            [answer(unix_ns=999_000_000), dropped(), answer()],
+            [dropped()],
+        ):
+            with self.subTest(records=records), self.assertRaises(RuntimeError):
+                capture.validate_result(result(), records, scenario="drop-first-udp-a")
+        for changes in (
+            {"name": "other.test"},
+            {"kind": 28},
+            {"kind": True},
+            {"transport": "tcp", "response_drained_ns": 1_002_000_000},
+            {"error": "failed"},
+            {"response_hex": None},
+            {"response_hex": b"1234"},
+            {"unix_ns": 1_000_500_000},
+            {"unix_ns": "1001000000"},
+            {"response_queued_ns": 1_000_999_999},
+            {"response_queued_ns": "1002000000"},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(RuntimeError):
+                capture.validate_result(
+                    result(),
+                    [dropped(), answer(**changes)],
+                    scenario="drop-first-udp-a",
+                )
+        for key in ("unix_ns", "response_queued_ns", "error"):
+            response = answer()
+            del response[key]
+            with self.subTest(key=key), self.assertRaises(RuntimeError):
+                capture.validate_result(
+                    result(), [dropped(), response], scenario="drop-first-udp-a"
+                )
 
     def test_command_failure_keeps_raw_exit_and_output(self) -> None:
         record = {}
@@ -291,7 +441,7 @@ class AcceptanceTests(unittest.TestCase):
             patch.object(capture.sys, "stderr", new_callable=io.StringIO) as stderr,
             self.assertRaises(RuntimeError) as raised,
         ):
-            capture.main()
+            capture.main([])
         self.assertIs(raised.exception, failure)
         diagnostic = json.loads(stderr.getvalue())
         self.assertEqual(diagnostic["kind"], "windows-native-dns-guard-failure")
@@ -326,6 +476,56 @@ class AcceptanceTests(unittest.TestCase):
 
 
 class OwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_scene_selects_drop_once_and_preserves_browser_cleanup(self) -> None:
+        for scene in ("initial", "drop-first-udp-a"):
+            records = (
+                [dropped(), answer()] if scene == "drop-first-udp-a" else [answer()]
+            )
+            peer = SimpleNamespace(
+                start=AsyncMock(),
+                close=AsyncMock(),
+                address=("127.0.0.53", 53),
+                failed=asyncio.Event(),
+                failures=[],
+                records=lambda records=records: records,
+            )
+            observed = result()
+            observed.moz_log_text = ""
+            record = {}
+            with (
+                self.subTest(scene=scene),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture, "NativeDnsServer", return_value=peer) as server,
+                patch.object(capture, "guard", return_value={}) as guard,
+                patch.object(capture, "asdict", return_value={}),
+                patch.object(capture.firefox, "render_run", return_value=[]),
+                patch.object(
+                    capture.firefox,
+                    "run_once",
+                    new_callable=AsyncMock,
+                    return_value=(observed, ["firefox"]),
+                ) as browser,
+            ):
+                await capture.capture(Path("unused.exe"), record, scenario=scene)
+                server.assert_called_once_with(
+                    capture.firefox.TARGET_HOST,
+                    drop_first_udp_a=scene == "drop-first-udp-a",
+                )
+                browser.assert_awaited_once_with(
+                    capture.SCENARIOS[scene],
+                    Path("unused.exe"),
+                    headful=True,
+                    failure_path=Path(temporary) / "firefox-failed.json",
+                )
+                self.assertEqual(
+                    [call.args[1] for call in guard.call_args_list],
+                    ["Install", "Verify"],
+                )
+                peer.close.assert_awaited_once()
+                self.assertEqual(record["cleanup_errors"], [])
+                self.assertEqual(record["positive"]["post_attach_a_responses"], 1)
+
     async def test_peer_failure_cancels_and_collects_browser_then_restores(
         self,
     ) -> None:

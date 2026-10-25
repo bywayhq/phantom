@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
 import json
@@ -10,7 +11,7 @@ import platform
 import subprocess
 import sys
 import tempfile
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from scripts.capture import firefox_socket_hooks as firefox
@@ -40,6 +41,14 @@ SCENARIO = firefox.Scenario(
     + ".then(text => { if (text !== 'ok\\n') throw new Error('target body mismatch'); "
     + f"return {firefox.DONE}; }})",
 )
+SCENARIOS = {
+    "initial": SCENARIO,
+    "drop-first-udp-a": replace(
+        SCENARIO,
+        name="native-dns-drop-first-udp-a",
+        question="Does the native resolver recover after one unanswered UDP A query?",
+    ),
+}
 SOURCE_PATHS = (
     "scripts/capture/windows_native_dns_capture.py",
     "scripts/capture/windows_native_dns_guard.ps1",
@@ -181,11 +190,71 @@ def stage_browser(record: dict) -> Path:
     return executable
 
 
-def validate_result(result: firefox.RunResult, records: list[dict]) -> dict:
+def validate_recovery(records: list[dict], attached_ns: int) -> dict:
+    dropped = [
+        index
+        for index, entry in enumerate(records)
+        if entry.get("disposition") == "dropped-first-udp-a"
+    ]
+    if len(dropped) != 1:
+        raise RuntimeError("recovery capture requires exactly one dropped UDP A query")
+    index = dropped[0]
+    query = records[index]
+    if (
+        query.get("name") != firefox.TARGET_HOST
+        or type(query.get("kind")) is not int
+        or query.get("kind") != 1
+        or query.get("transport") != "udp"
+        or query.get("error", "missing") is not None
+        or "response_hex" not in query
+        or query["response_hex"] is not None
+        or "response_queued_ns" in query
+        or "response_drained_ns" in query
+        or type(query.get("unix_ns")) is not int
+        or query["unix_ns"] < attached_ns
+        or any(
+            entry.get("name") == firefox.TARGET_HOST
+            and entry.get("kind") == 1
+            and entry.get("transport") == "udp"
+            for entry in records[:index]
+        )
+    ):
+        raise RuntimeError("dropped query is not the first post-attachment owned UDP A")
+    answered = [
+        entry
+        for entry in records[index + 1 :]
+        if entry.get("name") == firefox.TARGET_HOST
+        and type(entry.get("kind")) is int
+        and entry.get("kind") == 1
+        and entry.get("transport") == "udp"
+        and entry.get("error", "missing") is None
+        and isinstance(entry.get("response_hex"), str)
+        and entry["response_hex"]
+        and type(entry.get("unix_ns")) is int
+        and entry["unix_ns"] > query["unix_ns"]
+        and type(entry.get("response_queued_ns")) is int
+        and entry["response_queued_ns"] >= entry["unix_ns"]
+    ]
+    if not answered:
+        raise RuntimeError(
+            "dropped UDP A was not followed by a sent owned UDP A answer"
+        )
+    return {
+        "dropped_udp_a_queries": 1,
+        "post_drop_udp_a_responses": len(answered),
+        "dropped_query_unix_ns": query["unix_ns"],
+        "first_post_drop_query_unix_ns": answered[0]["unix_ns"],
+        "first_post_drop_response_queued_ns": answered[0]["response_queued_ns"],
+    }
+
+
+def validate_result(
+    result: firefox.RunResult, records: list[dict], *, scenario: str = "initial"
+) -> dict:
     ready = [
         entry["time_ms"]
         for entry in result.reports
-        if entry.get("kind") == "firefox-config"
+        if entry.get("kind") == "firefox-config" and type(entry.get("time_ms")) is int
     ]
     if (
         result.timed_out
@@ -204,11 +273,17 @@ def validate_result(result: firefox.RunResult, records: list[dict]) -> dict:
         for _, path in connection.requests
     ):
         raise RuntimeError("owned origin did not receive the measured request")
+    recovery = (
+        validate_recovery(records, min(ready) * 1_000_000)
+        if scenario == "drop-first-udp-a"
+        else {}
+    )
     answered = [
         entry
         for entry in records
         if entry.get("name") == firefox.TARGET_HOST
         and entry.get("kind") == 1
+        and type(entry.get("unix_ns")) is int
         and entry["unix_ns"] >= min(ready) * 1_000_000
         and entry.get("error") is None
         and entry.get("response_hex")
@@ -219,11 +294,15 @@ def validate_result(result: firefox.RunResult, records: list[dict]) -> dict:
     return {
         "post_attach_a_responses": len(answered),
         "https_query_count": sum(entry.get("kind") == 65 for entry in records),
+        **recovery,
     }
 
 
-async def capture(executable: Path, record: dict) -> None:
-    dns = NativeDnsServer(firefox.TARGET_HOST)
+async def capture(executable: Path, record: dict, *, scenario: str = "initial") -> None:
+    selected = SCENARIOS[scenario]
+    dns = NativeDnsServer(
+        firefox.TARGET_HOST, drop_first_udp_a=scenario == "drop-first-udp-a"
+    )
     primary = None
     cleanup = []
     browser = None
@@ -235,7 +314,7 @@ async def capture(executable: Path, record: dict) -> None:
         record["nrpt"] = guard(record, "Install", "-OwnerPid", str(os.getpid()))
         browser = asyncio.create_task(
             firefox.run_once(
-                SCENARIO,
+                selected,
                 executable,
                 headful=True,
                 failure_path=OUTPUT / "firefox-failed.json",
@@ -262,7 +341,7 @@ async def capture(executable: Path, record: dict) -> None:
         record["launch_arguments"] = arguments
         record["hook_errors"] = result.errors
         record["timed_out"] = result.timed_out
-        record["positive"] = validate_result(result, dns.records())
+        record["positive"] = validate_result(result, dns.records(), scenario=scenario)
         (OUTPUT / "hooks.txt").write_text(
             "\n".join(firefox.render_run(0, result)) + "\n", encoding="utf-8"
         )
@@ -329,18 +408,23 @@ def report_guard_failure(record: dict) -> None:
     print(json.dumps(diagnostic), file=sys.stderr)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scenario", choices=SCENARIOS, default="initial")
+    arguments = parser.parse_args(argv)
     require_hosted()
     OUTPUT.mkdir(parents=True, exist_ok=False)
     record = {
         "platform": platform.platform(),
         "runner": "windows-2025",
-        "scope": "one native A lookup and complete HTTP body; not DNS cache/TTL policy",
+        "scenario": arguments.scenario,
+        "scope": "native A resolution and complete HTTP body; not DNS cache/TTL policy",
         "interventions": {
             "exact_name_nrpt": firefox.TARGET_HOST,
             "network.trr.mode": 5,
             "network.proxy.type": 0,
             "lookup_rewrite": False,
+            "drop_first_udp_a": arguments.scenario == "drop-first-udp-a",
         },
         "source_before": {path: file_digest(ROOT / path) for path in SOURCE_PATHS},
     }
@@ -348,7 +432,7 @@ def main() -> None:
     try:
         record["host"] = guard(record, "Preflight")
         executable = stage_browser(record)
-        asyncio.run(capture(executable, record))
+        asyncio.run(capture(executable, record, scenario=arguments.scenario))
         record["browser_after"] = browser_identity(executable)
         record["signature_after"] = guard(
             record, "Identity", "-Executable", str(executable)
