@@ -61,11 +61,40 @@ def dropped(**changes: object) -> dict:
     return record
 
 
+def two_server_records() -> list[dict]:
+    host = capture.firefox.TARGET_HOST
+    name = (
+        b"".join(bytes((len(label),)) + label.encode() for label in host.split("."))
+        + b"\0"
+    )
+    query = bytes.fromhex("123401000001000000000000") + name + bytes.fromhex("00010001")
+    reply = (
+        bytes.fromhex("123485000001000100000000")
+        + query[12:]
+        + bytes.fromhex("c00c000100010000000500047f000001")
+    )
+    return [
+        dropped(
+            server="127.0.0.53",
+            role="primary",
+            query_hex=query.hex(),
+            disposition="dropped-owned-udp",
+        ),
+        answer(
+            server="127.0.0.54",
+            role="secondary",
+            query_hex=query.hex(),
+            response_hex=reply.hex(),
+        ),
+    ]
+
+
 class AcceptanceTests(unittest.TestCase):
     def test_cli_defaults_to_initial_and_records_selected_intervention(self) -> None:
         for argv, scene in (
             ([], "initial"),
             (["--scenario", "drop-first-udp-a"], "drop-first-udp-a"),
+            (["--scenario", "two-server"], "two-server"),
         ):
 
             def stage(record: dict) -> Path:
@@ -289,6 +318,103 @@ class AcceptanceTests(unittest.TestCase):
                 capture.validate_result(
                     result(), [dropped(), response], scenario="drop-first-udp-a"
                 )
+
+    def test_two_server_accepts_observed_order_without_inventing_serial_failover(
+        self,
+    ) -> None:
+        for order in (1, -1, 0):
+            with self.subTest(order=order):
+                rows = two_server_records()
+                rows[1]["unix_ns"] = rows[0]["unix_ns"] + order * 100
+                rows[1]["response_queued_ns"] = rows[1]["unix_ns"] + 50
+                positive = capture.validate_result(
+                    result(),
+                    sorted(rows, key=lambda row: row["unix_ns"]),
+                    scenario="two-server",
+                )
+                self.assertEqual(
+                    positive["secondary_query_minus_primary_query_ns"], order * 100
+                )
+                self.assertEqual(
+                    positive["secondary_answer_minus_primary_query_ns"],
+                    order * 100 + 50,
+                )
+                self.assertEqual(positive["primary_dropped_udp_a_queries"], 1)
+                self.assertEqual(positive["secondary_udp_a_responses"], 1)
+                self.assertEqual(
+                    positive["observed_order"],
+                    {1: "primary-first", -1: "secondary-first", 0: "same-timestamp"}[
+                        order
+                    ],
+                )
+
+    def test_two_server_refuses_missing_wrong_peer_transport_or_answer_evidence(
+        self,
+    ) -> None:
+        for index, changes in (
+            (0, {"server": "127.0.0.54"}),
+            (0, {"role": "secondary"}),
+            (0, {"response_hex": "1234"}),
+            (0, {"response_queued_ns": 1_001_000_000}),
+            (0, {"response_drained_ns": 1_001_000_000}),
+            (0, {"disposition": "dropped-first-udp-a"}),
+            (0, {"transport": "tcp"}),
+            (0, {"unix_ns": 999_999_999}),
+            (0, {"error": "send failed"}),
+            (0, {"query_hex": "broken"}),
+            (0, {"kind": 28}),
+            (1, {"server": "192.0.2.1"}),
+            (1, {"transport": "tcp"}),
+            (1, {"unix_ns": 999_999_999}),
+            (1, {"response_hex": "1234"}),
+            (1, {"response_queued_ns": 1_000_000_000}),
+            (1, {"response_queued_ns": True}),
+        ):
+            with self.subTest(index=index, changes=changes):
+                rows = two_server_records()
+                rows[index].update(changes)
+                with self.assertRaises(RuntimeError):
+                    capture.validate_result(result(), rows, scenario="two-server")
+        for index, field in (
+            (0, "response_hex"),
+            (1, "response_queued_ns"),
+            (0, "query_hex"),
+        ):
+            rows = two_server_records()
+            del rows[index][field]
+            with self.subTest(missing=field), self.assertRaises(RuntimeError):
+                capture.validate_result(result(), rows, scenario="two-server")
+        for index in (0, 1):
+            rows = two_server_records()
+            rows.pop(index)
+            with self.subTest(missing_peer=index), self.assertRaises(RuntimeError):
+                capture.validate_result(result(), rows, scenario="two-server")
+        rows = two_server_records()
+        rows[0]["query_hex"] = rows[0]["query_hex"][:-4] + "0003"
+        with self.assertRaisesRegex(RuntimeError, "invalid IN question"):
+            capture.validate_result(result(), rows, scenario="two-server")
+
+    def test_two_server_journals_merge_by_time_and_retain_ties_and_peer_sequence(
+        self,
+    ) -> None:
+        primary = SimpleNamespace(
+            address=("127.0.0.53", 53),
+            records=lambda: [{"unix_ns": 20}, {"unix_ns": 30}],
+        )
+        secondary = SimpleNamespace(
+            address=("127.0.0.54", 53),
+            records=lambda: [{"unix_ns": 10}, {"unix_ns": 30}],
+        )
+        rows = capture.dns_records([primary, secondary])
+        self.assertEqual(
+            [(row["unix_ns"], row["role"], row["peer_sequence"]) for row in rows],
+            [
+                (10, "secondary", 0),
+                (20, "primary", 0),
+                (30, "primary", 1),
+                (30, "secondary", 1),
+            ],
+        )
 
     def test_command_failure_keeps_raw_exit_and_output(self) -> None:
         record = {}
@@ -525,6 +651,286 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 peer.close.assert_awaited_once()
                 self.assertEqual(record["cleanup_errors"], [])
                 self.assertEqual(record["positive"]["post_attach_a_responses"], 1)
+
+    def two_peers(self) -> list[SimpleNamespace]:
+        rows = two_server_records()
+        return [
+            SimpleNamespace(
+                start=AsyncMock(),
+                close=AsyncMock(),
+                address=(address, 53),
+                failed=asyncio.Event(),
+                failures=[],
+                records=lambda row=row: [row],
+            )
+            for address, row in zip(("127.0.0.53", "127.0.0.54"), rows, strict=True)
+        ]
+
+    async def test_two_server_starts_both_before_install_and_closes_concurrently(
+        self,
+    ) -> None:
+        peers = self.two_peers()
+        events = []
+        both_closing = asyncio.Event()
+
+        async def close(index: int) -> None:
+            events.append(f"close{index}")
+            if all(f"close{i}" in events for i in range(2)):
+                both_closing.set()
+            await both_closing.wait()
+
+        for i, peer in enumerate(peers):
+            peer.start.side_effect = lambda i=i: events.append(f"start{i}")
+
+            async def close_peer(index: int = i) -> None:
+                await close(index)
+
+            peer.close.side_effect = close_peer
+
+        def guard(record: dict, action: str, *extra: str) -> dict:
+            events.append(action)
+            if action == "Install":
+                self.assertEqual(events, ["start0", "start1", "Install"])
+                self.assertEqual(extra[-2:], ("-DnsScene", "two-server"))
+            return {}
+
+        observed = result()
+        observed.moz_log_text = ""
+        record = {}
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary)),
+            patch.object(capture, "NativeDnsServer", side_effect=peers) as factory,
+            patch.object(capture, "guard", side_effect=guard),
+            patch.object(capture, "asdict", return_value={}),
+            patch.object(capture.firefox, "render_run", return_value=[]),
+            patch.object(
+                capture.firefox,
+                "run_once",
+                new_callable=AsyncMock,
+                return_value=(observed, []),
+            ),
+        ):
+            await asyncio.wait_for(
+                capture.capture(Path("unused.exe"), record, scenario="two-server"), 1
+            )
+            rows = json.loads((capture.OUTPUT / "dns.json").read_text())
+        self.assertEqual(
+            factory.call_args_list[0].args, (capture.firefox.TARGET_HOST, "127.0.0.53")
+        )
+        self.assertEqual(factory.call_args_list[0].kwargs, {"drop_owned_udp": True})
+        self.assertEqual(
+            factory.call_args_list[1].args, (capture.firefox.TARGET_HOST, "127.0.0.54")
+        )
+        self.assertEqual(factory.call_args_list[1].kwargs, {})
+        self.assertEqual([row["role"] for row in rows], ["primary", "secondary"])
+        self.assertEqual(record["positive"]["secondary_udp_a_responses"], 1)
+        self.assertEqual(events[-1], "Verify")
+        for peer in peers:
+            peer.close.assert_awaited_once()
+
+    async def test_secondary_start_failure_closes_both_without_installing_or_launching(
+        self,
+    ) -> None:
+        peers = self.two_peers()
+        peers[1].start.side_effect = ValueError("secondary bind failed")
+        record = {}
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary)),
+            patch.object(capture, "NativeDnsServer", side_effect=peers),
+            patch.object(capture, "guard", return_value={}) as guard,
+            patch.object(
+                capture.firefox, "run_once", new_callable=AsyncMock
+            ) as browser,
+            self.assertRaisesRegex(ValueError, "secondary bind failed"),
+        ):
+            await capture.capture(Path("unused.exe"), record, scenario="two-server")
+        guard.assert_called_once_with(record, "Verify")
+        browser.assert_not_called()
+        for peer in peers:
+            peer.close.assert_awaited_once()
+
+    async def test_either_peer_failure_collects_browser_both_peers_and_restore_errors(
+        self,
+    ) -> None:
+        for failed_index in (0, 1):
+            peers = self.two_peers()
+            original = ValueError("bad DNS")
+            peers[failed_index].failures = [original]
+            peers[failed_index].failed.set()
+            peers[0].close.side_effect = RuntimeError("primary close failed")
+            collected = asyncio.Event()
+
+            async def browser(
+                *args: object, collected: asyncio.Event = collected, **kwargs: object
+            ) -> None:
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    collected.set()
+
+            def guard(record: dict, action: str, *extra: str) -> dict:
+                if action == "Verify":
+                    raise RuntimeError("restore failed")
+                return {}
+
+            record = {}
+            with (
+                self.subTest(failed_peer=failed_index),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture, "NativeDnsServer", side_effect=peers),
+                patch.object(capture, "guard", side_effect=guard),
+                patch.object(capture.firefox, "run_once", side_effect=browser),
+                self.assertRaises(BrowserLaunchFailures) as failure,
+            ):
+                await capture.capture(Path("unused.exe"), record, scenario="two-server")
+            self.assertIs(failure.exception.primary.__cause__, original)
+            self.assertTrue(collected.is_set())
+            self.assertEqual(
+                record["cleanup_errors"],
+                ["RuntimeError: primary close failed", "RuntimeError: restore failed"],
+            )
+            self.assertEqual(
+                record["dns_peer_failures"][failed_index]["failures"],
+                ["ValueError: bad DNS"],
+            )
+            for peer in peers:
+                peer.close.assert_awaited_once()
+
+    async def test_parent_cancellation_during_both_closes_collects_before_restore(
+        self,
+    ) -> None:
+        peers = self.two_peers()
+        closing = asyncio.Event()
+        release = asyncio.Event()
+        started = []
+        finished = []
+
+        async def close(index: int) -> None:
+            started.append(index)
+            if len(started) == 2:
+                closing.set()
+            await release.wait()
+            finished.append(index)
+
+        for index, peer in enumerate(peers):
+
+            async def close_peer(index: int = index) -> None:
+                await close(index)
+
+            peer.close.side_effect = close_peer
+
+        def guard(record: dict, action: str, *extra: str) -> dict:
+            if action == "Verify":
+                self.assertEqual(sorted(finished), [0, 1])
+            return {}
+
+        record = {}
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary)),
+            patch.object(capture, "NativeDnsServer", side_effect=peers),
+            patch.object(capture, "guard", side_effect=guard) as checked_guard,
+            patch.object(
+                capture.firefox,
+                "run_once",
+                new_callable=AsyncMock,
+                side_effect=ValueError("browser failed"),
+            ),
+        ):
+            owner = asyncio.create_task(
+                capture.capture(Path("unused.exe"), record, scenario="two-server")
+            )
+            try:
+                await asyncio.wait_for(closing.wait(), 1)
+                owner.cancel()
+                await asyncio.sleep(0)
+            finally:
+                release.set()
+                with self.assertRaises(asyncio.CancelledError) as failure:
+                    await owner
+        self.assertIsInstance(failure.exception.__cause__, BrowserLaunchFailures)
+        self.assertIsInstance(failure.exception.__cause__.primary, ValueError)
+        self.assertEqual(
+            [call.args[1] for call in checked_guard.call_args_list],
+            ["Install", "Verify"],
+        )
+        self.assertTrue(
+            any(
+                isinstance(error, asyncio.CancelledError)
+                for error in failure.exception.__cause__.cleanup
+            )
+        )
+        for peer in peers:
+            peer.close.assert_awaited_once()
+
+    async def test_controller_cancellation_collects_pending_browser_and_both_peers(
+        self,
+    ) -> None:
+        peers = self.two_peers()
+        started = asyncio.Event()
+        collected = asyncio.Event()
+
+        async def browser(*args: object, **kwargs: object) -> None:
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                collected.set()
+
+        record = {}
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(capture, "OUTPUT", Path(temporary)),
+            patch.object(capture, "NativeDnsServer", side_effect=peers),
+            patch.object(capture, "guard", return_value={}) as guard,
+            patch.object(capture.firefox, "run_once", side_effect=browser),
+        ):
+            owner = asyncio.create_task(
+                capture.capture(Path("unused.exe"), record, scenario="two-server")
+            )
+            try:
+                await asyncio.wait_for(started.wait(), 1)
+            finally:
+                owner.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await owner
+        self.assertTrue(collected.is_set())
+        self.assertEqual(
+            [call.args[1] for call in guard.call_args_list], ["Install", "Verify"]
+        )
+        for peer in peers:
+            peer.close.assert_awaited_once()
+
+    async def test_browser_failure_and_cancellation_still_collect_both_peers(
+        self,
+    ) -> None:
+        for error in (ValueError("browser failed"), asyncio.CancelledError()):
+            peers = self.two_peers()
+            record = {}
+            with (
+                self.subTest(error=type(error).__name__),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.object(capture, "OUTPUT", Path(temporary)),
+                patch.object(capture, "NativeDnsServer", side_effect=peers),
+                patch.object(capture, "guard", return_value={}) as guard,
+                patch.object(
+                    capture.firefox,
+                    "run_once",
+                    new_callable=AsyncMock,
+                    side_effect=error,
+                ),
+                self.assertRaises(type(error)) as failure,
+            ):
+                await capture.capture(Path("unused.exe"), record, scenario="two-server")
+            self.assertIs(failure.exception, error)
+            self.assertEqual(
+                [call.args[1] for call in guard.call_args_list], ["Install", "Verify"]
+            )
+            for peer in peers:
+                peer.close.assert_awaited_once()
 
     async def test_peer_failure_cancels_and_collects_browser_then_restores(
         self,
@@ -861,7 +1267,7 @@ class GuardTests(unittest.TestCase):
     def test_owned_native_address_keeps_exact_scope(self) -> None:
         outcome = self.invoke_functions(
             "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
-            "$state=[pscustomobject]@{nonce=$nonce}\n"
+            "$state=[pscustomobject]@{nonce=$nonce;server=$DnsAddress}\n"
             "$script:rules=@(\n"
             "[pscustomobject]@{Name='native';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
             "[pscustomobject]@{Name='string';Namespace=@($TargetName);NameServers=@('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
@@ -907,6 +1313,106 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(len(diagnostic["current"]), 2048)
         self.assertGreater(diagnostic["current_length"], 10000)
         self.assertLess(len(outcome.stderr), 5000)
+
+    def test_two_server_restore_removes_only_exact_ordered_list_and_nonce(self) -> None:
+        outcome = self.invoke_functions(
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=@($DnsAddress,'127.0.0.54');nonce=$nonce;baseline=@();rule_name='owned';restored=$false;restored_at=$null;watchdog_pid=$null}\n"
+            "Save-State $state\n"
+            "$script:rules=@([pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers=@([Net.IPAddress]::Parse($DnsAddress),[Net.IPAddress]::Parse('127.0.0.54'));DisplayName=$nonce;Comment=$nonce})\n"
+            "Restore-Owned | Out-Null\n"
+            "if (($script:removed -join ',') -ne 'owned' -or -not (Read-State).restored) { throw 'ordered rule was not restored' }; 'restored'\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(outcome.stdout.strip(), "restored")
+
+    def test_tampered_server_intents_refuse_owned_lookup_restore_watch_and_verify(
+        self,
+    ) -> None:
+        for servers in (
+            "@()",
+            "@('127.0.0.54')",
+            "@('127.0.0.54','127.0.0.53')",
+            "@('127.0.0.53','127.0.0.53')",
+            "@('127.0.0.53','127.0.0.54','127.0.0.54')",
+            "@('127.0.0.53','192.0.2.1')",
+        ):
+            with self.subTest(servers=servers):
+                outcome = self.invoke_functions(
+                    "function Assert-Hosted { @{} }\n"
+                    "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+                    "$state=[pscustomobject]@{hostname=$TargetName;server="
+                    + servers
+                    + ";nonce=$nonce;baseline=@();rule_name='owned';restored=$false;restored_at=$null;watchdog_pid=$null;owner_pid=123;owner_start='old';deadline='2099-01-01T00:00:00Z'}\n"
+                    "Save-State $state\n"
+                    "$script:rules=@([pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers=@($DnsAddress,'127.0.0.54');DisplayName=$nonce;Comment=$nonce})\n"
+                    "foreach ($check in 'Owned','Restore','Watch','Verify') {\n"
+                    "try { if ($check -eq 'Owned') { Owned-Rules (Read-State) | Out-Null } elseif ($check -eq 'Restore') { Restore-Owned | Out-Null } else { $Action=$check; $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text } }; throw 'unexpected success' } catch { if ($_ -notmatch 'server intent is outside') { throw } }\n"
+                    "}\n"
+                    "if ($script:removed.Count -ne 0 -or (Read-State).restored) { throw 'tampered intent removed a rule' }; 'refused-all'\n"
+                )
+                self.assertEqual(outcome.returncode, 0, outcome.stderr)
+                self.assertEqual(outcome.stdout.strip(), "refused-all")
+
+    def test_two_server_owned_rule_rejects_wrong_order_duplicates_and_partial_list(
+        self,
+    ) -> None:
+        for servers in (
+            "@('127.0.0.53')",
+            "@('127.0.0.54','127.0.0.53')",
+            "@('127.0.0.53','127.0.0.54','127.0.0.54')",
+            "@('127.0.0.53','192.0.2.1')",
+        ):
+            with self.subTest(servers=servers):
+                outcome = self.invoke_functions(
+                    "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+                    "$state=[pscustomobject]@{hostname=$TargetName;server=@($DnsAddress,'127.0.0.54');nonce=$nonce;baseline=@();rule_name='owned';restored=$false;restored_at=$null;watchdog_pid=$null}\n"
+                    "Save-State $state\n"
+                    "$script:rules=@([pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers="
+                    + servers
+                    + ";DisplayName=$nonce;Comment=$nonce})\n"
+                    "try { Restore-Owned | Out-Null; throw 'unexpected success' } catch { if ($_ -notmatch 'baseline differs') { throw } }\n"
+                    "if ($script:removed.Count -ne 0 -or (Read-State).restored) { throw 'wrong rule removed' }; 'refused'\n"
+                )
+                self.assertEqual(outcome.returncode, 0, outcome.stderr)
+                self.assertEqual(outcome.stdout.strip(), "refused")
+
+    def test_two_server_install_records_list_before_watch_and_passes_only_fixed_addresses(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-DnsClientNrptPolicy { @() }\n"
+            "function Get-Process { param($Id,$ErrorAction) [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z';Path='pwsh'} }\n"
+            "function Start-Process { param($FilePath,$WindowStyle,[switch]$PassThru,$ArgumentList,$RedirectStandardOutput,$RedirectStandardError)\n"
+            "if ((Canonical @((Read-State).server)) -ne (Canonical @($DnsAddress,'127.0.0.54')) -or $WindowStyle -ne 'Hidden') { throw 'durable intent differs' }; Set-Content -LiteralPath \"$StatePath.ready\" -Value 456; [pscustomobject]@{Id=456;HasExited=$false;StartTime=[DateTime]'2026-10-23T00:00:00Z'} }\n"
+            "function Add-DnsClientNrptRule { param($Namespace,$NameServers,$DisplayName,$Comment,[switch]$PassThru)\n"
+            "if ((Canonical @($NameServers)) -ne (Canonical @($DnsAddress,'127.0.0.54'))) { throw 'address escape' };\n"
+            "$rule=[pscustomobject]@{Name='new-guid';Namespace=@($Namespace);NameServers=@($NameServers | ForEach-Object { [Net.IPAddress]::Parse($_) });DisplayName=$DisplayName;Comment=$Comment};$script:rules=@($rule);$rule }\n"
+            "$Action='Install';$OwnerPid=123;$DnsScene='two-server'\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(
+            json.loads(outcome.stdout)["server"], ["127.0.0.53", "127.0.0.54"]
+        )
+
+    def test_two_server_watchdog_restores_from_saved_list_without_scene_argument(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-Process { param($Id,$ErrorAction) $null }\n"
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;server=@($DnsAddress,'127.0.0.54');nonce=$nonce;baseline=@();rule_name=$null;restored=$false;restored_at=$null;watchdog_pid=$null;owner_pid=999;owner_start='old';deadline='2099-01-01T00:00:00Z'}\n"
+            "Save-State $state\n"
+            "$script:rules=@([pscustomobject]@{Name='owned';Namespace=@($TargetName);NameServers=@($DnsAddress,'127.0.0.54');DisplayName=$nonce;Comment=$nonce})\n"
+            "$Action='Watch';$DnsScene='initial'\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
+            "if (($script:removed -join ',') -ne 'owned' -or -not (Read-State).restored) { throw 'saved list not restored' }\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertTrue(json.loads(outcome.stdout)["restored"])
 
     def test_install_arms_watchdog_before_add_and_records_guid(self) -> None:
         outcome = self.invoke_functions(

@@ -288,6 +288,60 @@ class NativeDnsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum("disposition" in row for row in records), 1)
         self.assertTrue(replies.received.empty())
 
+    async def test_silent_peer_drops_every_owned_udp_type_without_preparing_a_reply(
+        self,
+    ) -> None:
+        await self.server.close()
+        self.server = native_dns.NativeDnsServer(
+            NAME, "127.0.0.1", 0, drop_owned_udp=True
+        )
+        await self.server.start()
+        transport, replies = await self.udp()
+        for kind in (1, 28, 65, 1):
+            transport.sendto(query_kind(kind))
+        other = QUERY.replace(b"native", b"absent")
+        transport.sendto(other)
+        refused, _ = await asyncio.wait_for(replies.received.get(), 2)
+        self.assertEqual(
+            refused, bytes.fromhex("123481050001000000000000") + other[12:]
+        )
+        records = self.server.records()
+        self.assertEqual(len(records), 5)
+        for row in records[:4]:
+            self.assertEqual(row["disposition"], "dropped-owned-udp")
+            self.assertIsNone(row["response_hex"])
+            self.assertIsNone(row["error"])
+            self.assertNotIn("response_queued_ns", row)
+            self.assertNotIn("response_drained_ns", row)
+        self.assertTrue(replies.received.empty())
+
+    async def test_silent_peer_refuses_tcp_before_an_answer_or_unbounded_handler(
+        self,
+    ) -> None:
+        await self.server.close()
+        self.server = native_dns.NativeDnsServer(
+            NAME, "127.0.0.1", 0, drop_owned_udp=True
+        )
+        await self.server.start()
+        self.expected_failure = True
+        reader, writer = await self.tcp()
+        await asyncio.wait_for(self.server.failed.wait(), 2)
+        self.assertEqual(
+            str(self.server.failures[0]), "silent native DNS peer does not support TCP"
+        )
+        self.assertEqual(self.server.accepted, 1)
+        self.assertFalse(self.server.handlers)
+        try:
+            data = await asyncio.wait_for(reader.read(), 2)
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            data = b""
+        self.assertEqual(data, b"")
+        self.assertEqual(self.server.records(), [])
+
+    def test_silent_and_drop_once_modes_cannot_be_combined(self) -> None:
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
+            native_dns.NativeDnsServer(NAME, drop_owned_udp=True, drop_first_udp_a=True)
+
     async def test_malformed_udp_stops_peer_with_raw_error_and_no_answer(self) -> None:
         self.expected_failure = True
         transport, replies = await self.udp()

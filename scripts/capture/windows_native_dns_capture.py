@@ -17,7 +17,7 @@ from pathlib import Path
 from scripts.capture import firefox_socket_hooks as firefox
 from scripts.capture.browser_failures import raise_browser_failures
 from scripts.capture.capture_report import file_digest
-from scripts.capture.native_dns import NativeDnsServer
+from scripts.capture.native_dns import NativeDnsServer, question, response
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "target/windows-native-dns-capture"
@@ -47,6 +47,11 @@ SCENARIOS = {
         SCENARIO,
         name="native-dns-drop-first-udp-a",
         question="Does the native resolver recover after one unanswered UDP A query?",
+    ),
+    "two-server": replace(
+        SCENARIO,
+        name="native-dns-two-server",
+        question="Are the silent primary and answering secondary both observed?",
     ),
 }
 SOURCE_PATHS = (
@@ -273,11 +278,12 @@ def validate_result(
         for _, path in connection.requests
     ):
         raise RuntimeError("owned origin did not receive the measured request")
-    recovery = (
-        validate_recovery(records, min(ready) * 1_000_000)
-        if scenario == "drop-first-udp-a"
-        else {}
-    )
+    if scenario == "two-server":
+        recovery = validate_two_server(records, min(ready) * 1_000_000)
+    elif scenario == "drop-first-udp-a":
+        recovery = validate_recovery(records, min(ready) * 1_000_000)
+    else:
+        recovery = {}
     answered = [
         entry
         for entry in records
@@ -298,20 +304,129 @@ def validate_result(
     }
 
 
+def validate_two_server(records: list[dict], attached_ns: int) -> dict:
+    """Require both owned peers without inferring resolver scheduling policy."""
+    dropped = []
+    answered = []
+    for entry in records:
+        if entry.get("server") not in ("127.0.0.53", "127.0.0.54"):
+            raise RuntimeError("two-server DNS record has an unexpected server")
+        expected_role = "primary" if entry["server"] == "127.0.0.53" else "secondary"
+        if entry.get("role") != expected_role:
+            raise RuntimeError("two-server DNS record has an unexpected role")
+        try:
+            wire = bytes.fromhex(entry["query_hex"])
+            parsed = question(wire)
+        except (KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                "two-server DNS record has an invalid IN question"
+            ) from error
+        if (
+            entry.get("name") != parsed.name
+            or type(entry.get("kind")) is not int
+            or entry["kind"] != parsed.kind
+            or type(entry.get("unix_ns")) is not int
+            or entry.get("error", "missing") is not None
+        ):
+            raise RuntimeError("two-server DNS record disagrees with its wire question")
+        if parsed.name != firefox.TARGET_HOST:
+            continue
+        if entry.get("transport") != "udp":
+            raise RuntimeError("two-server capture requires owned UDP questions")
+        if expected_role == "primary":
+            if (
+                entry.get("disposition") != "dropped-owned-udp"
+                or "response_hex" not in entry
+                or entry["response_hex"] is not None
+                or "response_queued_ns" in entry
+                or "response_drained_ns" in entry
+            ):
+                raise RuntimeError(
+                    "two-server primary did not leave its query unanswered"
+                )
+            if parsed.kind == 1 and entry["unix_ns"] >= attached_ns:
+                dropped.append(entry)
+        elif parsed.kind == 1 and entry["unix_ns"] >= attached_ns:
+            if (
+                entry.get("response_hex")
+                != response(wire, parsed, firefox.TARGET_HOST, 5).hex()
+                or type(entry.get("response_queued_ns")) is not int
+                or entry["response_queued_ns"] < entry["unix_ns"]
+                or "response_drained_ns" in entry
+            ):
+                raise RuntimeError(
+                    "two-server secondary has no queued owned UDP A answer"
+                )
+            answered.append(entry)
+    if not dropped:
+        raise RuntimeError(
+            "two-server capture did not observe a post-hook primary UDP A drop"
+        )
+    if not answered:
+        raise RuntimeError(
+            "two-server capture did not observe a post-hook secondary UDP A answer"
+        )
+    primary_ns = min(entry["unix_ns"] for entry in dropped)
+    secondary = min(answered, key=lambda entry: entry["unix_ns"])
+    delta = secondary["unix_ns"] - primary_ns
+    return {
+        "primary_dropped_udp_a_queries": len(dropped),
+        "secondary_udp_a_responses": len(answered),
+        "first_primary_query_unix_ns": primary_ns,
+        "first_secondary_query_unix_ns": secondary["unix_ns"],
+        "first_secondary_response_queued_ns": secondary["response_queued_ns"],
+        "secondary_query_minus_primary_query_ns": delta,
+        "secondary_answer_minus_primary_query_ns": secondary["response_queued_ns"]
+        - primary_ns,
+        "observed_order": "primary-first"
+        if delta > 0
+        else "secondary-first"
+        if delta < 0
+        else "same-timestamp",
+    }
+
+
+def dns_records(peers: list[NativeDnsServer]) -> list[dict]:
+    if len(peers) == 1:
+        return peers[0].records()
+    records = [
+        {**entry, "server": peer.address[0], "role": role, "peer_sequence": index}
+        for role, peer in zip(("primary", "secondary"), peers, strict=True)
+        for index, entry in enumerate(peer.records())
+    ]
+    # Retain per-peer sequence as well: equal wall-clock stamps imply no ordering.
+    return sorted(records, key=lambda entry: entry["unix_ns"])
+
+
 async def capture(executable: Path, record: dict, *, scenario: str = "initial") -> None:
     selected = SCENARIOS[scenario]
-    dns = NativeDnsServer(
-        firefox.TARGET_HOST, drop_first_udp_a=scenario == "drop-first-udp-a"
-    )
+    if scenario == "two-server":
+        peers = [
+            NativeDnsServer(firefox.TARGET_HOST, "127.0.0.53", drop_owned_udp=True),
+            NativeDnsServer(firefox.TARGET_HOST, "127.0.0.54"),
+        ]
+    else:
+        peers = [
+            NativeDnsServer(
+                firefox.TARGET_HOST, drop_first_udp_a=scenario == "drop-first-udp-a"
+            )
+        ]
     primary = None
     cleanup = []
     browser = None
     browser_observed = False
-    failed = None
+    failed = []
     try:
-        await dns.start()
-        record["dns_address"] = dns.address
-        record["nrpt"] = guard(record, "Install", "-OwnerPid", str(os.getpid()))
+        for peer in peers:
+            await peer.start()
+        record["dns_address"] = peers[0].address
+        if scenario == "two-server":
+            record["dns_peers"] = [
+                {"role": role, "address": peer.address}
+                for role, peer in zip(("primary", "secondary"), peers, strict=True)
+            ]
+        extra = ("-DnsScene", "two-server") if scenario == "two-server" else ()
+        record["nrpt"] = guard(record, "Install", "-OwnerPid", str(os.getpid()), *extra)
         browser = asyncio.create_task(
             firefox.run_once(
                 selected,
@@ -320,14 +435,15 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
                 failure_path=OUTPUT / "firefox-failed.json",
             )
         )
-        failed = asyncio.create_task(dns.failed.wait())
+        failed = [asyncio.create_task(peer.failed.wait()) for peer in peers]
         done, _ = await asyncio.wait(
-            (browser, failed), return_when=asyncio.FIRST_COMPLETED
+            (browser, *failed), return_when=asyncio.FIRST_COMPLETED
         )
-        if failed in done:
-            raise RuntimeError(
-                "native DNS peer failed during browser capture"
-            ) from dns.failures[0]
+        for peer, failure in zip(peers, failed, strict=True):
+            if failure in done:
+                raise RuntimeError(
+                    "native DNS peer failed during browser capture"
+                ) from peer.failures[0]
         try:
             result, arguments = await browser
         finally:
@@ -341,7 +457,9 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
         record["launch_arguments"] = arguments
         record["hook_errors"] = result.errors
         record["timed_out"] = result.timed_out
-        record["positive"] = validate_result(result, dns.records(), scenario=scenario)
+        record["positive"] = validate_result(
+            result, dns_records(peers), scenario=scenario
+        )
         (OUTPUT / "hooks.txt").write_text(
             "\n".join(firefox.render_run(0, result)) + "\n", encoding="utf-8"
         )
@@ -357,20 +475,51 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
                 pass  # Requested cancellation; run_once collects its owned browser first.
             except BaseException as error:
                 cleanup.append(error)
-        if failed is not None:
-            failed.cancel()
-            await asyncio.gather(failed, return_exceptions=True)
+        for failure in failed:
+            failure.cancel()
         try:
-            await dns.close()
+            await asyncio.gather(*failed, return_exceptions=True)
         except BaseException as error:
             cleanup.append(error)
+        # Both close operations share the existing five-second bound rather than
+        # serially doubling it; each retains its own collectable cleanup task.
+        closing = asyncio.gather(
+            *(peer.close() for peer in peers), return_exceptions=True
+        )
+        while True:
+            try:
+                # Caller cancellation must not detach either bounded close owner
+                # or skip NRPT restoration. Preserve it after collecting both.
+                outcomes = await asyncio.shield(closing)
+                cleanup.extend(
+                    error for error in outcomes if isinstance(error, BaseException)
+                )
+                break
+            except asyncio.CancelledError as error:
+                cleanup.append(error)
+            except BaseException as error:
+                cleanup.append(error)
+                break
         try:
-            write_json(OUTPUT / "dns.json", dns.records())
+            write_json(OUTPUT / "dns.json", dns_records(peers))
         except BaseException as error:
             cleanup.append(error)
         record["dns_failures"] = [
-            f"{type(error).__name__}: {error}" for error in dns.failures
+            f"{type(error).__name__}: {error}"
+            for peer in peers
+            for error in peer.failures
         ]
+        if scenario == "two-server":
+            record["dns_peer_failures"] = [
+                {
+                    "role": role,
+                    "address": peer.address,
+                    "failures": [
+                        f"{type(error).__name__}: {error}" for error in peer.failures
+                    ],
+                }
+                for role, peer in zip(("primary", "secondary"), peers, strict=True)
+            ]
         try:
             record["restoration"] = guard(record, "Verify")
         except BaseException as error:
@@ -425,6 +574,10 @@ def main(argv: list[str] | None = None) -> None:
             "network.proxy.type": 0,
             "lookup_rewrite": False,
             "drop_first_udp_a": arguments.scenario == "drop-first-udp-a",
+            "primary_drop_owned_udp": arguments.scenario == "two-server",
+            "nameservers": ["127.0.0.53", "127.0.0.54"]
+            if arguments.scenario == "two-server"
+            else ["127.0.0.53"],
         },
         "source_before": {path: file_digest(ROOT / path) for path in SOURCE_PATHS},
     }
