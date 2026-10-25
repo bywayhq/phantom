@@ -205,13 +205,32 @@ class ReleaseChecks(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "omitted staged"):
                 verify.installed_package_sources(log, base, versions)
 
-    def test_native_dependency_uses_its_staged_archive_identity(self):
-        plan = publish.plan()
-        versions = {name: version for name, version, _manifest in plan}
+    def test_tls_dependencies_use_their_published_archive_identities(self):
+        versions = {name: version for name, version, _manifest in publish.plan()}
+        workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
+            "workspace"
+        ]
+        for alias in ("btls-sys", "btls", "tokio-btls"):
+            with self.subTest(alias=alias):
+                dependency = workspace["dependencies"][alias].copy()
+                manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
+                package = tomllib.loads(manifest.read_text())["package"]
+                self.assertEqual(package["name"], "phantom-" + alias)
+                self.assertNotIn(package["name"], versions)
+                self.assertEqual(dependency["package"], package["name"])
+                self.assertEqual(dependency["version"], "=" + package["version"])
+                consumer = {
+                    "package": {"name": "consumer", "version": "1.0.0"},
+                    "dependencies": {alias: dependency},
+                }
+                record = verify.index_record(consumer, "checksum", versions)["deps"][0]
+                self.assertEqual(record["package"], package["name"])
+                self.assertEqual(record["req"], "=" + package["version"])
+                self.assertEqual(record["registry"], verify.CRATES_IO)
+
         native = tomllib.loads(
             (publish.ROOT / "vendor/btls-sys/Cargo.toml").read_text()
         )["package"]
-        self.assertEqual(versions.get(native["name"]), native["version"])
         wrapper = tomllib.loads((publish.ROOT / "vendor/btls/Cargo.toml").read_text())
         # cargo package removes the path but retains the exact registry version.
         del wrapper["dependencies"]["btls-sys"]["path"]
@@ -219,7 +238,7 @@ class ReleaseChecks(unittest.TestCase):
         dependency = next(item for item in dependencies if item["name"] == "btls-sys")
         self.assertEqual(dependency["package"], native["name"])
         self.assertEqual(dependency["req"], "=" + native["version"])
-        self.assertIsNone(dependency["registry"])
+        self.assertEqual(dependency["registry"], verify.CRATES_IO)
         self.assertEqual(
             next(item for item in dependencies if item["name"] == "libc")["registry"],
             verify.CRATES_IO,
@@ -309,14 +328,12 @@ class ReleaseChecks(unittest.TestCase):
     ):
         plan = publish.plan()
         names = {entry[0] for entry in plan}
-        self.assertEqual(plan[0][0], "phantom-btls-sys")
+        self.assertEqual(len(plan), 11)
+        self.assertEqual(plan[0][0], "phantom-http2")
         self.assertEqual(plan[-1][0], "phantom-cli")
         self.assertEqual(
             names,
             {
-                "phantom-btls-sys",
-                "phantom-btls",
-                "phantom-tokio-btls",
                 "phantom-http2",
                 "phantom-wreq-proto",
                 "phantom-h3",

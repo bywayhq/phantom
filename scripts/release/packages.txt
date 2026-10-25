@@ -1,6 +1,3 @@
-vendor/btls-sys/Cargo.toml
-vendor/btls/Cargo.toml
-vendor/tokio-btls/Cargo.toml
 vendor/http2/Cargo.toml
 vendor/wreq-proto/Cargo.toml
 vendor/h3/h3/Cargo.toml
