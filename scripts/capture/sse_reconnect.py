@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .browser_failures import CleanupFailures
 from .browser_launch import BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
 
@@ -55,24 +56,34 @@ class ListenAddress:
         return f"{host}:{self.port}"
 
 
-class CaptureCleanupFailure(RuntimeError):
+class CaptureCleanupFailure(CleanupFailures, RuntimeError):
     """Retain the server and original errors when connection cleanup fails."""
 
-    def __init__(self, owner, primary, failures) -> None:
+    def __init__(
+        self,
+        owner: ReconnectServer,
+        primary: BaseException | None,
+        failures: Sequence[BaseException],
+    ) -> None:
         self.owner = owner
-        self.primary = primary
         self.failures = tuple(failures)
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        super().__init__("SSE capture connection cleanup failed")
+        super().__init__(
+            primary, self.failures, "SSE capture connection cleanup failed"
+        )
 
 
-def raise_capture_failures(owner, primary, failures) -> None:
+def raise_capture_failures(
+    owner: ReconnectServer,
+    primary: BaseException | None,
+    failures: Sequence[BaseException],
+) -> None:
     if primary is None and failures:
         primary, *failures = failures
+
     if primary is not None:
         if failures:
-            raise primary from CaptureCleanupFailure(owner, primary, failures)
+            CaptureCleanupFailure(owner, primary, failures).raise_primary()
+
         raise primary
 
 
@@ -430,8 +441,10 @@ class ReconnectServer:
             await self.finish_run()
         except BaseException as error:
             failures.append(error)
+
         if primary is not None:
-            raise primary from CaptureCleanupFailure(self, primary, failures)
+            CaptureCleanupFailure(self, primary, failures).raise_primary()
+
         raise_capture_failures(self, primary, failures)
 
     async def finish_run(self) -> None:
@@ -445,15 +458,16 @@ class ReconnectServer:
         try:
             await asyncio.shield(self.cleanup)
         except BaseException as primary:
-            raise primary from CaptureCleanupFailure(
+            CaptureCleanupFailure(
                 self, primary, [*self.failures, *self.outcomes()]
-            )
+            ).raise_primary()
 
         self.cleanup = None
         failures = self.failures.copy()
         if self.tasks or self.writers:
             primary, *secondary = failures
-            raise primary from CaptureCleanupFailure(self, primary, secondary)
+            CaptureCleanupFailure(self, primary, secondary).raise_primary()
+
         self.failures.clear()
         raise_capture_failures(self, None, failures)
 

@@ -26,6 +26,7 @@ from aioquic.quic.events import (
 )
 from aioquic.tls import CipherSuite
 
+from .browser_failures import CleanupFailures
 from .fixture_file import write_atomically, write_text_fixture
 from .http3_wire import (
     CONTROL_STREAM,
@@ -445,7 +446,7 @@ def patch_transport_parameter_capture() -> None:
     QuicConnection._parse_transport_parameters = capture
 
 
-class _CaptureCleanupError(RuntimeError):
+class _CaptureCleanupError(CleanupFailures, RuntimeError):
     def __init__(
         self,
         server_error: BaseException | None,
@@ -454,14 +455,20 @@ class _CaptureCleanupError(RuntimeError):
     ) -> None:
         self.server_error = server_error
         self.capture_error = capture_error
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
+
         failures = []
         if server_error is not None:
             failures.append(f"server close: {server_error}")
         if capture_error is not None:
             failures.append(f"packet capture clear: {capture_error}")
-        super().__init__("could not clean up HTTP/3 capture; " + "; ".join(failures))
+
+        super().__init__(
+            primary,
+            tuple(
+                error for error in (server_error, capture_error) if error is not None
+            ),
+            "could not clean up HTTP/3 capture; " + "; ".join(failures),
+        )
 
 
 async def run(args: argparse.Namespace) -> CaptureResult:
@@ -535,10 +542,7 @@ async def run(args: argparse.Namespace) -> CaptureResult:
                 capture_error = error
 
         if server_error is not None or capture_error is not None:
-            failure = _CaptureCleanupError(server_error, capture_error, primary)
-            if primary is not None:
-                raise primary from failure
-            raise failure
+            _CaptureCleanupError(server_error, capture_error, primary).raise_primary()
 
 
 def write_packet_summary(path: Path, summary: PacketSummary) -> None:

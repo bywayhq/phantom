@@ -1,6 +1,7 @@
 """Retain capture operation failures and independent cleanup failures."""
 
 import asyncio
+from typing import NoReturn
 
 
 class CleanupFailures(Exception):
@@ -19,6 +20,13 @@ class CleanupFailures(Exception):
         self.interruption_cause: BaseException | None = None
         self.interruption_context: BaseException | None = None
         super().__init__(message)
+
+    def raise_primary(self) -> NoReturn:
+        """Raise the initiating error, or this packet when cleanup alone failed."""
+        if self.primary is not None:
+            raise self.primary from self
+
+        raise self
 
     def raise_interruption(
         self, *, include_other_base_exceptions: bool = False

@@ -589,6 +589,10 @@ class CapturePipeTests(unittest.TestCase):
 
     def test_a_primary_browser_error_retains_the_completed_stderr_failure(self) -> None:
         primary = RuntimeError("controlled browser context failure")
+        previous = LookupError("earlier browser cause")
+        context = OSError("earlier browser context")
+        primary.__cause__, primary.__context__ = previous, context
+
         with capture_control(
             listen=True, stderr_action="fail_after_ready", browser_error=primary
         ) as control:
@@ -601,7 +605,9 @@ class CapturePipeTests(unittest.TestCase):
         self.assertIs(control.error, primary)
         self.assertIsNone(control.result)
         cleanup = primary.__cause__
-        self.assertIsNotNone(cleanup)
+        self.assertIsInstance(cleanup, RuntimeError)
+        self.assertIs(cleanup.previous_cause, previous)
+        self.assertIs(cleanup.previous_context, context)
         self.assertTrue(
             any(
                 error is control.stderr.failure

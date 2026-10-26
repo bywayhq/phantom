@@ -63,12 +63,17 @@ class ChromeHttp3StartupTests(unittest.TestCase):
     def test_startup_failure_keeps_primary_and_both_cleanup_causes(self):
         previous = ValueError("startup original cause")
         primary = StartupFailure("startup output failed")
-        primary.__cause__ = previous
+        context = LookupError("startup original context")
+        primary.__cause__, primary.__context__ = previous, context
         close = StartupFailure("server close failed")
         clear = StartupFailure("packet clear failed")
 
         self.check_startup_failure(
-            primary, close_error=close, clear_error=clear, previous=previous
+            primary,
+            close_error=close,
+            clear_error=clear,
+            previous=previous,
+            context=context,
         )
 
     def test_startup_interrupt_keeps_identity_when_cleanup_also_interrupts(self):
@@ -112,6 +117,39 @@ class ChromeHttp3StartupTests(unittest.TestCase):
         self.assertIsNone(result.packet_summary)
         self.assertIsNone(result.client_hello_fixture)
 
+    def test_completed_capture_does_not_return_after_server_cleanup_fails(self) -> None:
+        server = StartupServer()
+        cleanup = StartupFailure("final server close failed")
+        capture_type = chrome_http3.Capture
+
+        def completed_capture(**kwargs):
+            capture = capture_type(**kwargs)
+            capture.complete.set()
+            return capture
+
+        async def acquire(host, port, **kwargs):
+            server.acquired = True
+            return server
+
+        with (
+            patch.object(chrome_http3, "serve", side_effect=acquire),
+            patch.object(chrome_http3.QuicConfiguration, "load_cert_chain"),
+            patch.object(chrome_http3, "Capture", side_effect=completed_capture),
+            patch.object(capture_type, "fixture", return_value="format=literal\n"),
+            patch.object(chrome_http3.sys, "stderr", io.StringIO()),
+            patch.object(server, "close", side_effect=(None, cleanup)) as close,
+            self.assertRaises(chrome_http3._CaptureCleanupError) as raised,
+        ):
+            asyncio.run(chrome_http3.run(startup_arguments(packet_summary=None)))
+
+        self.assertTrue(server.acquired)
+        self.assertEqual(close.call_count, 2)
+        self.assertIsInstance(raised.exception, RuntimeError)
+        self.assertIs(raised.exception.server_error, cleanup)
+        self.assertIsNone(raised.exception.capture_error)
+        self.assertIsNone(raised.exception.previous_cause)
+        self.assertIsNone(raised.exception.previous_context)
+
     def test_failed_acquisition_keeps_original_error_without_closing_server(self):
         primary = StartupFailure("acquisition failed")
         server = StartupServer()
@@ -136,6 +174,7 @@ class ChromeHttp3StartupTests(unittest.TestCase):
         close_error=None,
         clear_error=None,
         previous=None,
+        context=None,
     ):
         server = StartupServer(close_error)
         capture = QuicPacketCapture()
@@ -200,7 +239,9 @@ class ChromeHttp3StartupTests(unittest.TestCase):
                 cleanup = observed.__cause__
                 self.assertIs(getattr(cleanup, "server_error", None), close_error)
                 self.assertIs(getattr(cleanup, "capture_error", None), clear_error)
+                self.assertIsInstance(cleanup, RuntimeError)
                 self.assertIs(getattr(cleanup, "previous_cause", None), previous)
+                self.assertIs(getattr(cleanup, "previous_context", None), context)
         finally:
             original_clear()
 

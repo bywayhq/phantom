@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .browser_failures import CleanupFailures
 from .browser_launch import DESKTOP_CHROMIUM_BROWSERS, LaunchedBrowser, LaunchPlan
 from .fixture_file import write_text_fixture
 
@@ -148,14 +149,21 @@ def netlog_lines(data: dict, origin: str) -> list[str]:
     return lines
 
 
-class _CaptureCleanupError(RuntimeError):
-    def __init__(self, owner, failures, primary) -> None:
+class _CaptureCleanupError(CleanupFailures, RuntimeError):
+    def __init__(
+        self,
+        owner: _CaptureServer,
+        failures: Sequence[tuple[str, BaseException]],
+        primary: BaseException | None,
+    ) -> None:
         self.owner = owner
         self.failures = failures
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
         detail = "; ".join(f"{operation}: {error}" for operation, error in failures)
-        super().__init__(f"capture server cleanup failed: {detail}")
+        super().__init__(
+            primary,
+            tuple(error for _operation, error in failures),
+            f"capture server cleanup failed: {detail}",
+        )
 
 
 class _CaptureReader:
@@ -287,7 +295,7 @@ class _CaptureServer:
 
         primary = failures[0][1]
         if len(failures) > 1:
-            raise primary from _CaptureCleanupError(self, failures[1:], primary)
+            _CaptureCleanupError(self, failures[1:], primary).raise_primary()
 
         raise primary
 
@@ -331,8 +339,7 @@ class _CaptureServer:
             (operation, error) for operation, error in failures if error is not primary
         ]
         if secondary:
-            failure = _CaptureCleanupError(self, secondary, primary)
-            raise primary from failure
+            _CaptureCleanupError(self, secondary, primary).raise_primary()
 
         if primary is not None:
             raise primary
