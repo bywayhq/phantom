@@ -401,11 +401,10 @@ class NativeDnsTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         self.expected_failure = True
-        with patch.object(native_dns, "IO_SECONDS", 0.05):
-            _, writer = await self.tcp()
-            writer.write(struct.pack("!H", len(QUERY)) + QUERY[:9])
-            await writer.drain()
-            await asyncio.wait_for(self.server.failed.wait(), 2)
+        _, writer = await self.tcp()
+        writer.write(struct.pack("!H", len(QUERY)) + QUERY[:9])
+        await writer.drain()
+        await asyncio.wait_for(self.server.failed.wait(), native_dns.IO_SECONDS + 2)
         record = self.server.records()[0]
         self.assertEqual(record["query_hex"], QUERY[:9].hex())
         self.assertEqual(record["declared_size"], len(QUERY))

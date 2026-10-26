@@ -613,7 +613,7 @@ class AsyncSettingsTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(TimeoutError) as failure:
                     await client.request("GET", server.url + "/head")
                 self.assertEqual(failure.exception.timeout_phase, "response_head")
-                self.assertTrue(server.entered.is_set())
+                self.assertTrue(await asyncio.to_thread(server.entered.wait, 2))
                 server.release.set()
                 server.entered.clear()
                 # The next held response uses a fresh peer so its gate cannot inherit release.
