@@ -90,16 +90,15 @@ impl HttpProtocol {
 /// # Examples
 ///
 /// ```no_run
-/// use phantom::profile::browser::chrome;
-/// use phantom::{Client, HttpProtocol};
+/// use phantom::profile::catalog::{profile_for, RequestTemplateKind};
+/// use phantom::Client;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let profile = chrome::v154_windows()
-///     .with_request_template(chrome::v154_windows_navigation_template());
+/// let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
 /// let client = Client::builder(profile).build()?;
 ///
 /// let response = client
-///     .get(HttpProtocol::Http2, "https://example.com/")?
+///     .get("https://example.com/")?
 ///     .send()
 ///     .await?;
 /// let body = response.into_body().collect_with_limit(1 << 20).await?;
@@ -242,12 +241,12 @@ impl Client {
     /// route, also before I/O. Direct, SOCKS5 and HTTP/1 proxy routes send
     /// `http://` requests with [`HttpProtocol::Http1`]. An HTTP/2 proxy can
     /// forward them with [`HttpProtocol::Http2`].
-    pub fn get(
+    pub fn get_with_protocol(
         &self,
         protocol: HttpProtocol,
         uri: &str,
     ) -> Result<RequestBuilder, crate::RequestError> {
-        self.request(protocol, Method::GET, uri)
+        self.request_with_protocol(protocol, Method::GET, uri)
     }
 
     /// Starts one request using exactly `protocol`.
@@ -275,7 +274,7 @@ impl Client {
     /// route, also before I/O. Direct, SOCKS5 and HTTP/1 proxy routes send
     /// `http://` requests with [`HttpProtocol::Http1`]. An HTTP/2 proxy can
     /// forward them with [`HttpProtocol::Http2`].
-    pub fn request(
+    pub fn request_with_protocol(
         &self,
         protocol: HttpProtocol,
         method: Method,
@@ -376,13 +375,13 @@ impl Client {
     ///   has a fragment or its path and query are not a valid request target.
     ///
     /// [`RequestBuilder::send`] rejects an unsupported route, also before I/O.
-    pub fn get_negotiated(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
-        self.request_negotiated(Method::GET, uri)
+    pub fn get(&self, uri: &str) -> Result<RequestBuilder, crate::RequestError> {
+        self.request(Method::GET, uri)
     }
 
     /// Starts one request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
-    /// Routes and connection reuse follow [`Self::get_negotiated`]. The
+    /// Routes and connection reuse follow [`Self::get`]. The
     /// request must be valid for both HTTP versions so validation can finish
     /// before network I/O.
     ///
@@ -403,7 +402,7 @@ impl Client {
     ///   has a fragment or its path and query are not a valid request target.
     ///
     /// [`RequestBuilder::send`] rejects an unsupported route, also before I/O.
-    pub fn request_negotiated(
+    pub fn request(
         &self,
         method: Method,
         uri: &str,

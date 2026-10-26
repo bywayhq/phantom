@@ -40,11 +40,9 @@ impl Transport {
 
     fn request(self, client: &Client, method: Method, uri: &str) -> TestResult<RequestBuilder> {
         Ok(match self {
-            Self::Http1 => client.request(HttpProtocol::Http1, method, uri)?,
-            Self::Http2 => client.request(HttpProtocol::Http2, method, uri)?,
-            Self::NegotiatedHttp1 | Self::NegotiatedHttp2 => {
-                client.request_negotiated(method, uri)?
-            }
+            Self::Http1 => client.request_with_protocol(HttpProtocol::Http1, method, uri)?,
+            Self::Http2 => client.request_with_protocol(HttpProtocol::Http2, method, uri)?,
+            Self::NegotiatedHttp1 | Self::NegotiatedHttp2 => client.request(method, uri)?,
         })
     }
 }

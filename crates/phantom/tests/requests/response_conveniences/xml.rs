@@ -209,8 +209,14 @@ async fn isolated_h2_stream(stop: Stop) -> TestResult<()> {
     });
     let client = Client::builder(chrome::v154_windows()).build()?;
     let url = format!("http://{address}/xml");
-    let first = client.get(HttpProtocol::Http2, &url)?.send().await?;
-    let second = client.get(HttpProtocol::Http2, &url)?.send().await?;
+    let first = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
+    let second = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
     let mut read = Box::pin(response_xml::<String>(first, 2));
     match stop {
         Stop::Cancellation => {
@@ -231,7 +237,10 @@ async fn isolated_h2_stream(stop: Stop) -> TestResult<()> {
         }
     }
     assert_eq!(response_xml::<String>(second, 16).await?.body(), "ok");
-    let third = client.get(HttpProtocol::Http2, &url)?.send().await?;
+    let third = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
     assert_eq!(response_xml::<String>(third, 16).await?.body(), "");
     peers
         .join_next()

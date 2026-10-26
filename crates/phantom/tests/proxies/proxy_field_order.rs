@@ -418,7 +418,10 @@ async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<
                         let mut caller = browser.caller.clone();
                         caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
                         let response = client
-                            .get(HttpProtocol::Http1, &format!("http://{origin}:9{path}"))?
+                            .get_with_protocol(
+                                HttpProtocol::Http1,
+                                &format!("http://{origin}:9{path}"),
+                            )?
                             .template(&PreparedRequestTemplate::new(template.clone())?)
                             .headers(caller)
                             .send()
@@ -507,7 +510,8 @@ async fn open_tunnel(
     browser: &Browser,
     caller: Vec<RequestHeader>,
 ) -> TestResult<()> {
-    let builder = client.get(HttpProtocol::Http1, "https://origin.phantom.test/page")?;
+    let builder =
+        client.get_with_protocol(HttpProtocol::Http1, "https://origin.phantom.test/page")?;
     let template = PreparedRequestTemplate::new(browser.navigation.clone())?;
 
     match builder.template(&template).headers(caller).send().await {
@@ -649,7 +653,7 @@ async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() 
                     let mut caller = browser.caller.clone();
                     caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
                     client
-                        .get(
+                        .get_with_protocol(
                             HttpProtocol::Http1,
                             &format!("http://origin.phantom.test{path}"),
                         )?
@@ -748,7 +752,7 @@ async fn forwarded_credentials_without_a_template_follow_every_field() -> TestRe
         let heads = collect_field_heads(server, async {
             for path in ["/page", "/done"] {
                 client
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http1,
                         &format!("http://origin.phantom.test{path}"),
                     )?

@@ -56,7 +56,7 @@ async fn basic_challenge_retries_plaintext_proxy_with_ordered_credentials() -> T
 
         let operation = async {
             let response = client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -118,7 +118,7 @@ async fn second_basic_challenge_is_bounded_and_redacted() -> TestResult<()> {
 
         let operation = async {
             let result = client
-                .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+                .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?
                 .send()
                 .await;
             let error = match result {
@@ -201,7 +201,7 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
 
         let operation = async {
             let response = client
-                .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), 204);

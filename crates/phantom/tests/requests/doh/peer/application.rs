@@ -161,7 +161,10 @@ impl Application {
 }
 
 pub(crate) async fn get(client: &Client, url: &str) -> TestResult<Bytes> {
-    let response = client.get(HttpProtocol::Http1, url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, url)?
+        .send()
+        .await?;
     if response.status() != 200 {
         return Err("application status was not successful".into());
     }

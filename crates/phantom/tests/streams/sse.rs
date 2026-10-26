@@ -72,7 +72,7 @@ async fn stream_is_pull_driven_and_pending_reads_are_cancellation_safe() -> Test
 
     let (_events, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = test_client(&identity, false)?
-            .get(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .send()
             .await?;
         let status = response.status();
@@ -223,7 +223,7 @@ async fn decoder_consumes_http2_response_body() -> TestResult<()> {
 
     let (_events, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = test_client(&identity, true)?
-            .get(HttpProtocol::Http2, &format!("https://{address}/events"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/events"))?
             .send()
             .await?;
         let mut events = SseStream::from_response(response)?.into_body();
@@ -267,7 +267,7 @@ async fn decoder_consumes_http3_response_body() -> TestResult<()> {
 
     let (_events, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = h3_client(&identity)?
-            .get(HttpProtocol::Http3, &format!("https://{address}/events"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/events"))?
             .send()
             .await?;
         let mut events = SseStream::from_response(response)?.into_body();
@@ -375,7 +375,7 @@ impl FixedResponsePeer {
             None => &target,
         };
         let response = test_client(identity, false)?
-            .get(HttpProtocol::Http1, target)?
+            .get_with_protocol(HttpProtocol::Http1, target)?
             .send()
             .await?;
         Ok(response)

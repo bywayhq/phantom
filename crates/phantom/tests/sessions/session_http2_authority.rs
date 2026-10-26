@@ -62,7 +62,7 @@ async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
         let caller = async {
             let session = test_client(&identity, true)?;
             let primary = session
-                .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
                 .send()
                 .await?;
             assert_eq!(primary.status(), StatusCode::NO_CONTENT);
@@ -70,7 +70,7 @@ async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
 
             let secondary_authority = format!("localhost:{}", address.port());
             let secondary = session
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!("https://{secondary_authority}/.well-known/phantom/421?key=fixed"),
                 )?
@@ -112,7 +112,7 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
         let session = test_client(&identity, true)?;
         let caller = async {
             let response = session
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!("https://{address}/.well-known/phantom/421?key=fixed"),
                 )?

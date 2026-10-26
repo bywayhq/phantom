@@ -57,7 +57,7 @@ async fn rejected_donor_continues_with_checked_fields_and_the_shared_attempt_bud
         settle(&client, &peer).await?;
         let send = async {
             let response = client
-                .get_negotiated(&other_url)?
+                .get(&other_url)?
                 .headers(caller_fields())
                 .retry_policy(RetryPolicy::none().with_unprocessed_replay(Some(NonZeroUsize::MIN)))
                 .attempt_budget(allowance.clone())
@@ -174,18 +174,12 @@ async fn coalesced_421_restarts_on_the_origin_without_interrupting_active_donor_
     let (stop, stopped) = watch::channel(false);
     let caller = async {
         settle(&client, &peer).await?;
-        let first = client
-            .get_negotiated(&url(&peer, DONOR, "/held"))?
-            .send()
-            .await?;
-        let second = client
-            .get_negotiated(&url(&peer, OTHER, "/held"))?
-            .send()
-            .await?;
+        let first = client.get(&url(&peer, DONOR, "/held"))?.send().await?;
+        let second = client.get(&url(&peer, OTHER, "/held"))?.send().await?;
         assert_protocol(&first, HttpProtocol::Http3)?;
         assert_protocol(&second, HttpProtocol::Http3)?;
         let response = client
-            .get_negotiated(&url(&peer, OTHER, "/misdirected"))?
+            .get(&url(&peer, OTHER, "/misdirected"))?
             .attempt_budget(allowance.clone())
             .send()
             .await?;
@@ -204,10 +198,7 @@ async fn coalesced_421_restarts_on_the_origin_without_interrupting_active_donor_
             format!("https://{DONOR}:{}", peer.address.port())
         );
         for host in [DONOR, OTHER] {
-            let response = client
-                .get_negotiated(&url(&peer, host, "/after"))?
-                .send()
-                .await?;
+            let response = client.get(&url(&peer, host, "/after"))?.send().await?;
             assert_protocol(&response, HttpProtocol::Http3)?;
             assert_eq!(response.into_body().collect_with_limit(2).await?, "ok");
         }
@@ -413,9 +404,9 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
         }
         let target = format!("https://{OTHER}:{logical_port}/misdirected");
         let request = if exact {
-            client.get(HttpProtocol::Http3, &target)?
+            client.get_with_protocol(HttpProtocol::Http3, &target)?
         } else {
-            client.get_negotiated(&target)?
+            client.get(&target)?
         };
         let request = if matches!(reply, MisdirectedReply::Pinned) {
             request.alt_svc_alternative("127.0.0.1", peer.address.port())
@@ -439,7 +430,7 @@ async fn misdirected_exchange(reply: MisdirectedReply) -> TestResult<()> {
                 first_seen.await?;
                 for path in ["/teach", "/hint-enabled"] {
                     let target = format!("https://{OTHER}:{logical_port}{path}");
-                    let request = client.get(HttpProtocol::Http3, &target)?;
+                    let request = client.get_with_protocol(HttpProtocol::Http3, &target)?;
                     let request = if matches!(reply, MisdirectedReply::Pinned) {
                         request.alt_svc_alternative("127.0.0.1", peer.address.port())
                     } else {
@@ -772,10 +763,7 @@ async fn settle(client: &Client, peer: &Peer) -> TestResult<()> {
         ("/learn", HttpProtocol::Http1),
         ("/settled", HttpProtocol::Http3),
     ] {
-        let response = client
-            .get_negotiated(&url(peer, DONOR, path))?
-            .send()
-            .await?;
+        let response = client.get(&url(peer, DONOR, path))?.send().await?;
         assert_protocol(&response, protocol)?;
         assert_eq!(response.into_body().collect_with_limit(2).await?, "ok");
         if path == "/learn" {

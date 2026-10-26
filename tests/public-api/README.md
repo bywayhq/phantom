@@ -29,9 +29,9 @@ inventory uses the Windows name.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,550 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-http` | 1,557 | Application client, ordered requests, responses, state, custom profile import |
 | `phantom-net` | 1,796 | Protocol connections, routes, resolvers, transport errors |
-| `phantom-profile` | 1,140 | Browser recipes and typed settings |
+| `phantom-profile` | 1,157 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 306 | Quinn crypto provider, handshake state, ticket transfer, typed errors |
 | `phantom-testkit` | 428 | Wire inspection and loopback test tools |
 

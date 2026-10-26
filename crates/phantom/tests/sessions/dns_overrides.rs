@@ -287,7 +287,10 @@ async fn stop_keep_alive_origin(
 }
 
 async fn get_ok(client: &phantom::Client, url: &str) -> TestResult<()> {
-    let response = client.get(HttpProtocol::Http1, url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, url)?
+        .send()
+        .await?;
     assert_eq!(response.status(), 200);
     assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
     Ok(())
@@ -887,7 +890,7 @@ async fn request_error(
     protocol: HttpProtocol,
     url: &str,
 ) -> TestResult<phantom::RequestError> {
-    match client.get(protocol, url)?.send().await {
+    match client.get_with_protocol(protocol, url)?.send().await {
         Ok(_) => Err(format!("{url} answered through a failing resolver").into()),
         Err(error) => Ok(error),
     }

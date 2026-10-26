@@ -64,7 +64,11 @@ async fn direct_http3_retries_a_refused_quic_handshake_before_dispatch() -> Test
         let uri = format!("https://{origin_address}/retried");
 
         let without_retry = h3_client(&identity)?;
-        let error = match without_retry.get(HttpProtocol::Http3, &uri)?.send().await {
+        let error = match without_retry
+            .get_with_protocol(HttpProtocol::Http3, &uri)?
+            .send()
+            .await
+        {
             Ok(response) => {
                 return Err(format!("refused handshake returned {}", response.status()).into());
             }
@@ -75,7 +79,7 @@ async fn direct_http3_retries_a_refused_quic_handshake_before_dispatch() -> Test
 
         let client = h3_client(&identity)?;
         let response = client
-            .get(HttpProtocol::Http3, &uri)?
+            .get_with_protocol(HttpProtocol::Http3, &uri)?
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
                 RETRY_DELAY,
@@ -125,7 +129,7 @@ async fn socks5_http3_retries_a_refused_proxy_connect_before_association() -> Te
             .build()?;
         let subscriber = OutcomeSubscriber::default();
         let request = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/through-proxy"),
             )?
@@ -212,7 +216,7 @@ async fn socks5_http3_retries_a_refused_quic_handshake_through_a_fresh_associati
             ))
             .build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/fresh-association"),
             )?

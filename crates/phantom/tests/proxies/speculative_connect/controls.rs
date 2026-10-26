@@ -17,9 +17,11 @@ async fn speculative_unsupported_combinations_fail_before_proxy_io() -> TestResu
                 .route(Route::http_proxy(proxy))
                 .build()?;
             let request = match mode {
-                0 => client.get(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
-                1 => client.get(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
-                _ => client.get_negotiated("https://127.0.0.1/speculative")?,
+                0 => client
+                    .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
+                1 => client
+                    .get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
+                _ => client.get("https://127.0.0.1/speculative")?,
             };
             let error = timeout(Duration::from_secs(3), request.send())
                 .await?
@@ -49,7 +51,7 @@ async fn speculative_connect_still_rejects_an_untrusted_origin() -> TestResult<(
             .build()?;
         let caller = async {
             let error = client
-                .get(HttpProtocol::Http1, "https://127.0.0.1/speculative")?
+                .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/speculative")?
                 .send()
                 .await
                 .err()
@@ -84,9 +86,9 @@ async fn cancelling_speculative_connect_closes_the_pending_proxy_socket() -> Tes
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?.with_speculative_tls(true);
             let client = Client::builder(firefox::v157_windows()).route(Route::http_proxy(proxy)).build()?;
             let request = match mode {
-                0 => client.get(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
-                1 => client.get(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
-                _ => client.get_negotiated("https://127.0.0.1/speculative")?,
+                0 => client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
+                1 => client.get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
+                _ => client.get("https://127.0.0.1/speculative")?,
             };
             let mut pending = Box::pin(request.send());
             let peer = async {

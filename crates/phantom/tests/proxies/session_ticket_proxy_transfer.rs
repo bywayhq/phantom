@@ -138,9 +138,9 @@ impl Fixture {
                 async {
                     let url = format!("https://{address}/");
                     let request = if self.proxy_tls.is_some() {
-                        client.get_negotiated(&url)?
+                        client.get(&url)?
                     } else {
-                        client.get(HttpProtocol::Http1, &url)?
+                        client.get_with_protocol(HttpProtocol::Http1, &url)?
                     };
                     let response = request.route(route).send().await?;
                     Ok::<_, Box<dyn std::error::Error + Send + Sync>>(

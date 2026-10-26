@@ -300,7 +300,7 @@ async fn facade_traces_preserve_counts_and_retry_status_without_private_wire_val
             let status_retry = StatusRetry::new(&[StatusCode::SERVICE_UNAVAILABLE], NonZeroUsize::MIN, Duration::ZERO)?;
             let client = Client::builder(ClientProfile::new(tls_settings()))
                 .retry_policy(RetryPolicy::none().with_status_retry(status_retry)).build()?;
-            let response = client.request(HttpProtocol::Http1, Method::PUT, &url)?
+            let response = client.request_with_protocol(HttpProtocol::Http1, Method::PUT, &url)?
                 .headers(vec![RequestHeader::bearer_authorization(&private[2])?, RequestHeader::new("Cookie", format!("private={}", private[3]))])
                 .body(upload.clone()).send().with_subscriber(capture.dispatch()).await?;
             assert_eq!(response.status(), StatusCode::OK);
@@ -343,7 +343,7 @@ async fn a_deferred_body_failure_keeps_the_completed_request_trace_private() -> 
         });
         let capture = Capture::default();
         let caller = async {
-            let response = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?
+            let response = client()?.get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?
                 .send().with_subscriber(capture.dispatch()).await?;
             assert_eq!(response.status(), StatusCode::OK);
             let error = response.into_body().collect_with_limit(1024).with_subscriber(capture.dispatch()).await.err().ok_or("invalid chunk accepted")?;
@@ -417,7 +417,7 @@ async fn a_caller_body_cause_remains_inspectable_without_entering_facade_traces(
                 failed: false,
             };
             let error = client()?
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::PUT,
                     &format!("http://{address}/{}?private={}", private[0], private[1]),
@@ -472,7 +472,7 @@ async fn dropping_a_polled_send_records_cancellation_without_its_uri() -> TestRe
         });
         let capture = Capture::default();
         let caller = async {
-            let request = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?;
+            let request = client()?.get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?;
             let mut sending = Box::pin(request.send().with_subscriber(capture.dispatch()));
             tokio::select! {
                 result = &mut sending => { return Err(format!("stalled request completed: {}", result.is_ok()).into()); }
@@ -502,7 +502,7 @@ async fn a_stalled_response_records_the_timeout_phase_without_its_uri() -> TestR
         let capture = Capture::default();
         let caller = async {
             let error = client()?
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{address}/{}?private={}", private[0], private[1]),
                 )?

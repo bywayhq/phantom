@@ -97,7 +97,7 @@ async fn exchange(
             .build()?;
         let application_url = format!("https://answer.test:{origin_port}/application");
         let response = application
-            .get(HttpProtocol::Http1, &application_url)?
+            .get_with_protocol(HttpProtocol::Http1, &application_url)?
             .send()
             .await?;
         assert_eq!(response.status(), 200);

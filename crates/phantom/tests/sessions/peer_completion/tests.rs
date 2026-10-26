@@ -190,7 +190,7 @@ fn invalid_request() -> TestResult<RequestError> {
         .with_http2(phantom::profile::browser::chrome::v154_http2());
     let client = Client::builder(profile).build()?;
     client
-        .get(phantom::HttpProtocol::Http2, "https://[invalid/")
+        .get_with_protocol(phantom::HttpProtocol::Http2, "https://[invalid/")
         .err()
         .ok_or_else(|| "malformed session target was accepted".into())
 }

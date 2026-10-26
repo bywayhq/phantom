@@ -284,7 +284,12 @@ async fn a_client_keeps_owned_settings_when_a_new_revision_is_loaded() -> TestRe
         Ok::<_, std::io::Error>(heads)
     });
     for client in [&old, &new] {
-        drop(client.get(HttpProtocol::Http1, &url)?.send().await?);
+        drop(
+            client
+                .get_with_protocol(HttpProtocol::Http1, &url)?
+                .send()
+                .await?,
+        );
     }
     let heads = peer.await??;
     assert!(heads[0].contains("X-Identity: old\r\n"));

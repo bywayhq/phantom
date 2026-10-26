@@ -63,7 +63,7 @@ impl Exchange {
         subscriber: &OutcomeSubscriber,
     ) -> TestResult {
         let request = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http2,
                 &format!("https://{address}/retried-h2"),
             )?

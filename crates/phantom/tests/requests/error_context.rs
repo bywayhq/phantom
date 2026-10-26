@@ -40,7 +40,7 @@ async fn preflight_error_has_a_safe_origin_and_unparsed_input_has_none() -> Test
     timeout(Duration::from_secs(10), async {
         let client = client()?;
         let Err(error) = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 "https://BÜCHER.Example/private?sentinel=value",
             )?
@@ -65,7 +65,9 @@ async fn preflight_error_has_a_safe_origin_and_unparsed_input_has_none() -> Test
             assert!(!formatted.contains(forbidden));
         }
 
-        let Err(unparsed) = client.get(HttpProtocol::Http1, "http://user@example.test/") else {
+        let Err(unparsed) =
+            client.get_with_protocol(HttpProtocol::Http1, "http://user@example.test/")
+        else {
             return Err("user information was accepted".into());
         };
         assert!(unparsed.origin().is_none());
@@ -91,7 +93,7 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
             Ok::<_, std::io::Error>(observed)
         });
         let Err(error) = client()?
-            .get(HttpProtocol::Http1, &format!("http://{initial}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{initial}/start"))?
             .send()
             .await
         else {
@@ -141,7 +143,7 @@ async fn deferred_body_failure_and_collection_limit_keep_the_response_origin() -
                 Ok::<_, std::io::Error>(observed)
             });
             let response = client()?
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{address}/private?sentinel=value"),
                 )?

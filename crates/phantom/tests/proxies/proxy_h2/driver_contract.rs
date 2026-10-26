@@ -61,7 +61,7 @@ async fn an_actual_h2_origin_keeps_its_postexchange_accept_error() -> TestResult
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, &format!("https://{address}/nested"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/nested"))?
             .send(),
     )
     .await??;
@@ -136,7 +136,7 @@ async fn a_forward_driver_keeps_its_actual_postexchange_accept_error() -> TestRe
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "http://driver.test:8080/ready")?
+            .get_with_protocol(HttpProtocol::Http2, "http://driver.test:8080/ready")?
             .send(),
     )
     .await??;
@@ -222,7 +222,7 @@ async fn a_connect_driver_keeps_its_actual_postexchange_accept_error() -> TestRe
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http1, &format!("https://{address}/held"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/held"))?
             .send(),
     )
     .await??;

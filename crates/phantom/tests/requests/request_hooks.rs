@@ -112,7 +112,7 @@ async fn retries_and_redirects_have_one_callback_pair_before_body_completion() -
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(received)
         };
         let caller = async {
-            let response = client.get(HttpProtocol::Http1, &initial)?
+            let response = client.get_with_protocol(HttpProtocol::Http1, &initial)?
                 .request_hooks(recorder("request", &events))
                 .header(RequestHeader::new("Authorization", "secret"))
                 .header(RequestHeader::new("Cookie", "secret=one"))
@@ -144,7 +144,7 @@ async fn preparation_errors_notify_both_hooks_without_connecting() -> TestResult
         .request_hooks(recorder("client", &events))
         .build()?;
     let error = client
-        .get(HttpProtocol::Http1, &url)?
+        .get_with_protocol(HttpProtocol::Http1, &url)?
         .request_hooks(recorder("request", &events))
         .header_hook(|_| Err(HeaderHookError::new(std::io::Error::other("secret"))))
         .send()
@@ -182,7 +182,7 @@ async fn shared_budget_exhaustion_is_one_terminal_error_without_a_send() -> Test
     let clone = client.clone();
     let requests = [&client, &clone].map(|client| {
         client
-            .get(HttpProtocol::Http1, &url)
+            .get_with_protocol(HttpProtocol::Http1, &url)
             .map(|request| request.attempt_budget(HttpAttemptBudget::new(0)))
     });
     let [first, second] = requests;
@@ -230,14 +230,14 @@ async fn unpolled_and_cancelled_sends_do_not_invent_terminal_callbacks() -> Test
         let events = Arc::new(Mutex::new(Vec::new()));
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .request_hooks(recorder("client", &events)).build()?;
-        drop(client.get(HttpProtocol::Http1, &uri)?.send());
+        drop(client.get_with_protocol(HttpProtocol::Http1, &uri)?.send());
         assert!(events.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).is_empty());
         let peer = async {
             let (mut socket, _) = listener.accept().await?;
             read_head(&mut socket).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(socket)
         };
-        let mut send = Box::pin(client.get(HttpProtocol::Http1, &uri)?.send());
+        let mut send = Box::pin(client.get_with_protocol(HttpProtocol::Http1, &uri)?.send());
         let socket = tokio::select! {
             result = &mut send => return Err(format!("request completed before cancellation: {result:?}").into()),
             socket = peer => socket?,

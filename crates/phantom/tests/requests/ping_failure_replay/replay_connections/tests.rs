@@ -392,7 +392,7 @@ async fn actual_replayed_body_limit_remains_a_typed_child_failure() -> TestResul
         let server = Server::start(&identity, true, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
         let request = client
-            .request(
+            .request_with_protocol(
                 phantom::HttpProtocol::Http2,
                 http::Method::POST,
                 &server.url("/oversized"),

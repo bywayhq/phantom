@@ -27,7 +27,10 @@ async fn public_exchange(
     tokio::time::timeout(DEADLINE, async {
         tokio::try_join!(
             async {
-                let response = client.get(HttpProtocol::Http1, &url)?.send().await?;
+                let response = client
+                    .get_with_protocol(HttpProtocol::Http1, &url)?
+                    .send()
+                    .await?;
                 let response = crate::response_bytes(response, 1).await?;
                 assert_eq!(response.status(), http::StatusCode::OK);
                 assert_eq!(response.body().as_ref(), b"x");

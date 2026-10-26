@@ -49,7 +49,7 @@ fn request_debug_reports_shape_without_body_contents() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, false)?;
     let request = client
-        .request(HttpProtocol::Http1, Method::POST, "https://example.com/")?
+        .request_with_protocol(HttpProtocol::Http1, Method::POST, "https://example.com/")?
         .body(Bytes::from_static(b"private-payload"));
 
     let debug = format!("{request:?}");
@@ -63,7 +63,7 @@ fn request_debug_reports_shape_without_body_contents() -> TestResult<()> {
 fn runtime_without_io_returns_error_and_records_error_outcomes() -> TestResult<()> {
     let profile = ClientProfile::new(chrome::v154_tcp_tls());
     let client = Client::builder(profile).build()?;
-    let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let subscriber = OutcomeSubscriber::default();
     let runtime = tokio::runtime::Builder::new_current_thread().build()?;
 
@@ -107,7 +107,7 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
         let (request, ()) = exchange_peer(peer, async {
             let client = test_client(&identity, false)?;
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{address}/resource?item=1"),
                 )?
@@ -184,7 +184,10 @@ async fn direct_request_canonicalizes_a_whatwg_ip_host_before_io() -> TestResult
         let (request, ()) = exchange_peer(peer, async {
             let client = test_client(&identity, false)?;
             let uri = format!("https://１２７．０．０．１:{}/idna", address.port());
-            let response = client.get(HttpProtocol::Http1, &uri)?.send().await?;
+            let response = client
+                .get_with_protocol(HttpProtocol::Http1, &uri)?
+                .send()
+                .await?;
             assert_eq!(response.status(), StatusCode::NO_CONTENT);
             response.into_body().collect().await?;
             Ok(())
@@ -225,7 +228,7 @@ async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
         let ((head, body), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, false)?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("https://{address}/upload"),
@@ -275,7 +278,7 @@ async fn public_client_streams_unknown_length_http1_request_body() -> TestResult
         let ((head, framed), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, false)?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("https://{address}/stream-upload"),
@@ -313,7 +316,7 @@ async fn public_http1_body_source_error_has_request_body_category() -> TestResul
         let client = test_client(&identity, false)?;
         let (_observed, ()) = exchange_peer(peer, async {
             let error = match client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("https://{address}/failed-upload"),
@@ -386,7 +389,7 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
         let (uri, ()) = exchange_peer(peer, async {
             let client = test_client(&identity, true)?;
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!("https://{address}/resource?item=1"),
                 )?
@@ -498,7 +501,7 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
         let ((method, length, body), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, true)?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http2,
                     Method::POST,
                     &format!("https://{address}/upload"),
@@ -561,7 +564,7 @@ async fn public_builder_sends_dynamic_http2_request_trailers_after_data() -> Tes
 
         let ((length, body, trailers), ()) = exchange_peer(peer, async {
             let response = test_client(&identity, true)?
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http2,
                     Method::POST,
                     &format!("https://{address}/request-trailers"),
@@ -670,7 +673,7 @@ async fn public_client_streams_unknown_length_http2_request_body() -> TestResult
         let ((length, body), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, true)?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http2,
                     Method::POST,
                     &format!("https://{address}/stream-upload"),
@@ -723,7 +726,7 @@ async fn upload_failure_after_early_http2_response_has_request_body_category() -
         let ((), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, true)?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http2,
                     Method::POST,
                     &format!("https://{address}/late-upload-failure"),
@@ -803,7 +806,7 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
 
         let ((), ()) = exchange_peer(peer, async {
             let error = match client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http2,
                     Method::POST,
                     &format!("https://{address}/failed-upload"),
@@ -873,7 +876,7 @@ async fn public_http2_response_retains_interleaved_field_order() -> TestResult<(
         let ((), ()) = exchange_peer(peer, async {
             let client = test_client(&identity, true)?;
             let response = client
-                .get(HttpProtocol::Http2, &format!("https://{address}/ordered"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/ordered"))?
                 .send()
                 .await?;
             let ordered = response
@@ -913,7 +916,8 @@ async fn unavailable_protocol_fails_before_network_io() -> TestResult<()> {
     listener.set_nonblocking(true)?;
     let address = listener.local_addr()?;
 
-    let error = match client.get(HttpProtocol::Http2, &format!("https://{address}/")) {
+    let error = match client.get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))
+    {
         Ok(_) => return Err("HTTP/2 unexpectedly available".into()),
         Err(error) => error,
     };
@@ -932,7 +936,7 @@ async fn invalid_http2_field_fails_before_network_io() -> TestResult<()> {
     let address = listener.local_addr()?;
 
     let result = client
-        .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+        .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
         .header(RequestHeader::new("X-Uppercase", "rejected"))
         .send()
         .await;
@@ -956,7 +960,7 @@ async fn empty_host_fails_before_network_io() -> TestResult<()> {
     listener.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
 
-    let error = match client.get(HttpProtocol::Http1, &format!("https://:{port}/")) {
+    let error = match client.get_with_protocol(HttpProtocol::Http1, &format!("https://:{port}/")) {
         Ok(_) => return Err("empty request host was accepted".into()),
         Err(error) => error,
     };
@@ -976,7 +980,9 @@ async fn bracketed_ipv4_host_fails_before_network_io() -> TestResult<()> {
     listener.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
 
-    let error = match client.get(HttpProtocol::Http1, &format!("https://[127.0.0.1]:{port}/")) {
+    let error = match client
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://[127.0.0.1]:{port}/"))
+    {
         Ok(_) => return Err("bracketed IPv4 request host was accepted".into()),
         Err(error) => error,
     };
@@ -996,7 +1002,7 @@ async fn invalid_idna_host_fails_before_network_io() -> TestResult<()> {
     listener.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
 
-    let error = match client.get(
+    let error = match client.get_with_protocol(
         HttpProtocol::Http1,
         &format!("https://\u{200d}.example:{port}/"),
     ) {
@@ -1024,7 +1030,7 @@ async fn malformed_explicit_ports_fail_before_network_io() -> TestResult<()> {
         ("65536", "overflow"),
     ] {
         let uri = format!("https://127.0.0.1:{port}/");
-        let error = match client.get(HttpProtocol::Http1, &uri) {
+        let error = match client.get_with_protocol(HttpProtocol::Http1, &uri) {
             Ok(_) => return Err(format!("{description} request port was accepted").into()),
             Err(error) => error,
         };
@@ -1041,7 +1047,7 @@ async fn malformed_explicit_ports_fail_before_network_io() -> TestResult<()> {
 fn polling_direct_request_without_tokio_returns_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, false)?;
-    let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 
@@ -1062,7 +1068,7 @@ fn polling_request_with_timeouts_without_tokio_returns_error() -> TestResult<()>
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, false)?;
     let request = client
-        .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+        .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?
         .timeouts(
             RequestTimeoutOverrides::disabled()
                 .total(TimeoutOverride::Limit(Duration::from_secs(1))),

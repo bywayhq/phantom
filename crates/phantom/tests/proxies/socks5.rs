@@ -50,7 +50,7 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!(
                         "https://{UNICODE_ORIGIN_NAME}:{}/proxied",
@@ -125,7 +125,7 @@ async fn session_reuses_one_http2_connection_and_socks5_tunnel() -> TestResult<(
             let session = client_builder(&identity, true).route(route).build()?;
             for path in ["/first", "/second"] {
                 let response = session
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http2,
                         &format!("https://{ORIGIN_NAME}:{}{path}", origin_address.port()),
                     )?
@@ -173,7 +173,7 @@ async fn rejection_never_opens_a_direct_origin_connection() -> TestResult<()> {
             let client = client_builder(&identity, false).route(route).build()?;
 
             let error = match client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{ORIGIN_NAME}:{}/", origin_address.port()),
                 )?
@@ -214,7 +214,7 @@ async fn invalid_origin_field_fails_before_socks5_io() -> TestResult<()> {
     let client = client_builder(&identity, false).route(route).build()?;
 
     let error = match client
-        .get(HttpProtocol::Http1, &format!("https://{ORIGIN_NAME}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{ORIGIN_NAME}/"))?
         .header(RequestHeader::new("Bad Header", "invalid"))
         .send()
         .await
@@ -236,7 +236,7 @@ fn io_disabled_runtime_returns_typed_error() -> TestResult<()> {
     let route = Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?);
     let client = client_builder(&identity, false).route(route).build()?;
     let request = client
-        .get(HttpProtocol::Http1, &format!("https://{ORIGIN_NAME}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{ORIGIN_NAME}/"))?
         .send();
     let runtime = tokio::runtime::Builder::new_current_thread().build()?;
     let error = match runtime.block_on(request) {
@@ -491,7 +491,7 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
                 )?
@@ -552,7 +552,7 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
             let client = client_builder(&identity, true).route(route).build()?;
 
             let response = client
-                .get_negotiated(&format!(
+                .get(&format!(
                     "http://{ORIGIN_NAME}:{}/negotiated",
                     origin_address.port()
                 ))?

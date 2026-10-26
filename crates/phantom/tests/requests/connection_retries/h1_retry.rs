@@ -36,7 +36,7 @@ pub(super) fn start(
     control: Option<ownership::RequestControl>,
 ) -> TestResult<Exchange> {
     let request = client
-        .request(
+        .request_with_protocol(
             HttpProtocol::Http1,
             Method::POST,
             &format!("http://{address}/retried"),

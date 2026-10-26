@@ -36,7 +36,7 @@ async fn reset_authenticated_h3_retry_requires_a_new_challenge_before_shared_reu
         let route = ConnectUdpProxy::new(&proxy.template())?.with_basic_auth("user", "pass")?;
         let client = leg_client(&origin_identity, &proxy_identity, route)?;
         let error = client
-            .get(HttpProtocol::Http3, &failed.uri("/reset"))?
+            .get_with_protocol(HttpProtocol::Http3, &failed.uri("/reset"))?
             .send()
             .await
             .err()
@@ -91,7 +91,7 @@ async fn reset_authenticated_h2_retry_requires_a_new_challenge_before_shared_reu
             .with_basic_auth("user", "pass")?;
         let client = leg_client(&origin_identity, &proxy_identity, route)?;
         let error = client
-            .get(HttpProtocol::Http3, &failed.uri("/reset"))?
+            .get_with_protocol(HttpProtocol::Http3, &failed.uri("/reset"))?
             .send()
             .await
             .err()

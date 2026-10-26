@@ -27,7 +27,7 @@ async fn reusable_client_prepares_a_bounded_upload_with_explicit_route_and_deadl
     let template = PreparedRequestTemplate::new(chrome::v154_windows_fetch_upload_template())?;
     let body = PreparedRequestBody::form([("tag", "first"), ("tag", "second")], 1024)?;
     let _request = cloned
-        .request(
+        .request_with_protocol(
             HttpProtocol::Http2,
             Method::POST,
             "https://example.test/upload",

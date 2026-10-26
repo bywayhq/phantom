@@ -16,6 +16,7 @@ use tokio::{
 
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
+mod convenience;
 mod slots;
 mod trailers;
 mod uploads;
@@ -75,7 +76,7 @@ async fn prepared_body_requires_placement_before_any_connection() -> TestResult 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let client = Client::builder(profile()).build()?;
         let error = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("http://{}/upload", listener.local_addr()?),
@@ -102,7 +103,7 @@ async fn prepared_body_checks_enabled_http2_fallback_before_connecting() -> Test
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let client = Client::builder(profile()).build()?;
         let error = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 &format!("https://{}/upload", listener.local_addr()?),
@@ -171,7 +172,7 @@ async fn preserved_body_redirect_checks_new_route_without_refilling_dropped_fiel
             let mut origin_peer = None;
             let operation = async {
                 let request = client
-                    .request_negotiated(Method::POST, "http://origin.invalid/upload")?
+                    .request(Method::POST, "http://origin.invalid/upload")?
                     .template(&prepared)
                     .prepared_body(body);
 
@@ -216,7 +217,7 @@ async fn pinned_http3_alternative_keeps_h3_only_placement() -> TestResult {
         let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let content_type = body.content_type().to_owned();
         let request = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 "https://example.invalid/upload",

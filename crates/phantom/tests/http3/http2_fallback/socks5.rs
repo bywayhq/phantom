@@ -104,7 +104,7 @@ async fn a_refused_quic_handshake_through_socks5_sends_the_request_through_a_soc
 
         let client = client(&identity, true)?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{origin}/upload"),
@@ -191,7 +191,7 @@ async fn a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunn
         }));
 
         let error = client(&identity, true)?
-            .get(HttpProtocol::Http3, &format!("https://{origin}/refused"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{origin}/refused"))?
             .route(socks5_route(proxy_address)?)
             .retry_policy(fallback())
             .send()

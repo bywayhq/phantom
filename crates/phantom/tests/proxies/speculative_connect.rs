@@ -116,14 +116,17 @@ async fn speculative_connect_carries_h1_h2_and_negotiated_tls_through_plain_and_
                         .build()?;
                     let (complete, completed) = tokio::sync::oneshot::channel();
                     let request = async {
-                        let request =
-                            match mode {
-                                0 => client
-                                    .get(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
-                                1 => client
-                                    .get(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
-                                _ => client.get_negotiated("https://127.0.0.1/speculative")?,
-                            };
+                        let request = match mode {
+                            0 => client.get_with_protocol(
+                                HttpProtocol::Http1,
+                                "https://127.0.0.1/speculative",
+                            )?,
+                            1 => client.get_with_protocol(
+                                HttpProtocol::Http2,
+                                "https://127.0.0.1/speculative",
+                            )?,
+                            _ => client.get("https://127.0.0.1/speculative")?,
+                        };
                         let response = request.send().await?;
                         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
                         let _ = complete.send(());
@@ -167,9 +170,9 @@ async fn speculative_rejection_keeps_the_proxy_error_and_does_not_redial() -> Te
             let client = Client::builder(profile).retry_policy(retry).route(Route::http_proxy(proxy)).build()?;
             let request = async {
                 let request = match mode {
-                    0 => client.get(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
-                    1 => client.get(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
-                    _ => client.get_negotiated("https://127.0.0.1/speculative")?,
+                    0 => client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/speculative")?,
+                    1 => client.get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1/speculative")?,
+                    _ => client.get("https://127.0.0.1/speculative")?,
                 };
                 let error = request.send().await.err().ok_or("rejected CONNECT succeeded")?;
                 assert_eq!(error.kind(), RequestErrorKind::Proxy);

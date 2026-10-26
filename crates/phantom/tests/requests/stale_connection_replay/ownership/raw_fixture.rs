@@ -256,8 +256,13 @@ impl RawFixture {
         let url = format!("{scheme}://{}/prime", self.address);
 
         let response = match self.protocol {
-            Protocol::Plain => self.client.get(HttpProtocol::Http1, &url)?.send().await?,
-            Protocol::Tls => self.client.get_negotiated(&url)?.send().await?,
+            Protocol::Plain => {
+                self.client
+                    .get_with_protocol(HttpProtocol::Http1, &url)?
+                    .send()
+                    .await?
+            }
+            Protocol::Tls => self.client.get(&url)?.send().await?,
         };
 
         if response.status() != StatusCode::NO_CONTENT {
@@ -271,7 +276,7 @@ impl RawFixture {
     pub(super) async fn invalid_uri(&self) -> TestResult {
         let _response = self
             .client
-            .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
+            .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
             .send()
             .await?;
         Ok(())
@@ -279,7 +284,7 @@ impl RawFixture {
 
     pub(super) async fn held_request(&self, address: SocketAddr) -> TestResult {
         self.client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{address}/held-deadline"),
             )?

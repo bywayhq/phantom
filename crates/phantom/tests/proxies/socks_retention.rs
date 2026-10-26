@@ -88,7 +88,7 @@ async fn retained(protocol: Protocol, tls: bool) -> TestResult<()> {
             let scheme = if tls { "https" } else { "http" };
             let url = format!("{scheme}://{HOST}");
             let first = client
-                .get(HttpProtocol::Http1, &format!("{url}/prime"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("{url}/prime"))?
                 .header(RequestHeader::new("X-Claim", "prime"))
                 .send()
                 .await?;
@@ -99,7 +99,7 @@ async fn retained(protocol: Protocol, tls: bool) -> TestResult<()> {
             claim_tx.send(()).map_err(|_| "spare peer ended")?;
             quiet_rx.await?;
             let second = client
-                .get(HttpProtocol::Http1, &format!("{url}/current"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("{url}/current"))?
                 .header(RequestHeader::new("X-Claim", "current"))
                 .send()
                 .await?;

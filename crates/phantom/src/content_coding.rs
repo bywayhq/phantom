@@ -85,7 +85,7 @@ impl ContentCoding {
 /// # use phantom::{Client, ContentDecoding, HttpProtocol, RequestError, RequestHeader};
 /// # async fn example(client: &Client) -> Result<(), RequestError> {
 /// let response = client
-///     .get(HttpProtocol::Http2, "https://example.com/")?
+///     .get_with_protocol(HttpProtocol::Http2, "https://example.com/")?
 ///     .header(RequestHeader::new("accept-encoding", "gzip, br"))
 ///     .content_decoding(ContentDecoding::advertised(8 << 20))
 ///     .send()

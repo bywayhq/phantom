@@ -105,7 +105,7 @@ async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
                 .build()?;
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("https://{origin_address}/through-h2-proxy"),
@@ -174,7 +174,7 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
                 .build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!("https://{origin_address}/nested"),
                 )?
@@ -264,7 +264,7 @@ async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() ->
                 .build()?;
 
             let response = client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -325,7 +325,7 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
                 .build()?;
 
             let error = match client
-                .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
                 .send()
                 .await
             {
@@ -387,7 +387,7 @@ async fn default_https_proxy_transport_remains_http1() -> TestResult<()> {
                 .build()?;
 
             let error = match client
-                .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+                .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?
                 .send()
                 .await
             {
@@ -446,7 +446,7 @@ async fn h2_proxy_transport_rejects_http1_selection_without_fallback() -> TestRe
                 .build()?;
 
             let error = match client
-                .get(HttpProtocol::Http2, "https://127.0.0.1:9/")?
+                .get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1:9/")?
                 .send()
                 .await
             {
@@ -490,7 +490,7 @@ async fn exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io() -> 
     // The proxy speaks HTTP/2, so an exact HTTP/1.1 request cannot reach it
     // as HTTP/1.1; it is refused rather than sent as HTTP/2.
     let error = match client
-        .get(HttpProtocol::Http1, "http://origin.invalid/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://origin.invalid/")?
         .send()
         .await
     {
@@ -541,7 +541,7 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
 
             for path in ["/first", "/second"] {
                 let response = client
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http2,
                         &format!("http://origin.test:8080{path}"),
                     )?
@@ -627,7 +627,7 @@ async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
                 .build()?;
 
             let error = match client
-                .get(HttpProtocol::Http2, "http://origin.test:8080/")?
+                .get_with_protocol(HttpProtocol::Http2, "http://origin.test:8080/")?
                 .send()
                 .await
             {
@@ -725,7 +725,7 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
 
             for _ in 0..2 {
                 let response = client
-                    .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                     .send()
                     .await?;
                 assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -1023,7 +1023,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
                         .collect();
                     caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
                     let response = client
-                        .get(
+                        .get_with_protocol(
                             HttpProtocol::Http2,
                             &format!("http://origin.test:8080{path}"),
                         )?
@@ -1174,7 +1174,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                     .build()?;
                     observe_rejection(
                         client
-                            .get(HttpProtocol::Http2, "https://origin.test/page")?
+                            .get_with_protocol(HttpProtocol::Http2, "https://origin.test/page")?
                             .template(&template)
                             .send()
                             .await,
@@ -1265,7 +1265,7 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
                 .build()?;
                 observe_rejection(
                     client
-                        .get(HttpProtocol::Http2, "https://origin.test/page")?
+                        .get_with_protocol(HttpProtocol::Http2, "https://origin.test/page")?
                         .send()
                         .await,
                 )?;
@@ -1495,7 +1495,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                         .collect();
                     caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
                     let response = client
-                        .get(
+                        .get_with_protocol(
                             HttpProtocol::Http2,
                             &format!("http://origin.test:8080{path}"),
                         )?
@@ -1573,7 +1573,7 @@ async fn assert_h2_forwarding(http2: Http2Settings, pseudo_order: &[&str]) -> Te
                 .build()?;
 
             let exact = client
-                .get(HttpProtocol::Http2, "http://origin.test:8080/page?run=1")?
+                .get_with_protocol(HttpProtocol::Http2, "http://origin.test:8080/page?run=1")?
                 .header(RequestHeader::new("user-agent", "phantom-test"))
                 .send()
                 .await?;
@@ -1585,10 +1585,7 @@ async fn assert_h2_forwarding(http2: Http2Settings, pseudo_order: &[&str]) -> Te
                 Some(HttpProtocol::Http2)
             );
             assert_eq!(exact.into_body().collect().await?.to_bytes(), "forwarded");
-            let negotiated = client
-                .get_negotiated("http://origin.test:8080/done")?
-                .send()
-                .await?;
+            let negotiated = client.get("http://origin.test:8080/done")?.send().await?;
             assert_eq!(
                 negotiated
                     .extensions()

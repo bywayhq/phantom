@@ -495,7 +495,7 @@ async fn successful_workers_keep_literal_h2_and_h3_requests_and_counts() -> Test
             .build()?;
 
         let origin = client
-            .get_negotiated(&fixture.origin_url("/worker-learn"))?
+            .get(&fixture.origin_url("/worker-learn"))?
             .send()
             .await?;
         assert_eq!(origin.status(), StatusCode::OK);
@@ -512,7 +512,7 @@ async fn successful_workers_keep_literal_h2_and_h3_requests_and_counts() -> Test
         );
 
         let alternative = client
-            .get_negotiated(&fixture.origin_url("/worker-upgrade"))?
+            .get(&fixture.origin_url("/worker-upgrade"))?
             .send()
             .await?;
         assert_eq!(alternative.status(), StatusCode::OK);

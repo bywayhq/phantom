@@ -249,7 +249,7 @@ async fn driven_origin() -> TestResult<DrivenOrigin> {
     };
 
     let response = client
-        .get(
+        .get_with_protocol(
             HttpProtocol::Http1,
             &format!("https://{ORIGIN_NAME}:{}/owner-ready", origin.port),
         )?

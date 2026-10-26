@@ -127,7 +127,7 @@ async fn admission_observation_returns_an_unrelated_failure_without_retry() -> T
     let identity = identity()?;
     let client = client_builder(&identity)?.build()?;
     let invalid = client
-        .get(HttpProtocol::Http3, "https://[invalid/")
+        .get_with_protocol(HttpProtocol::Http3, "https://[invalid/")
         .err()
         .ok_or("invalid input was accepted")?;
     let mut first = Some(invalid);
@@ -219,7 +219,7 @@ async fn assert_pending_handshake_shutdown(shutdown: ListenerShutdown) -> TestRe
     let relay = HandshakeRelay::spawn(address)?;
     let client = client_builder(&identity)?.build()?;
     let url = format!("https://127.0.0.1:{}/pending", relay.address.port());
-    let request = client.get(HttpProtocol::Http3, &url)?.send();
+    let request = client.get_with_protocol(HttpProtocol::Http3, &url)?.send();
     tokio::pin!(request);
 
     // A server reply proves that the accepted handshake has been polled.

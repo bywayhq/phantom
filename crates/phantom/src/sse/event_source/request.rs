@@ -141,7 +141,7 @@ impl SseRequestBuilder {
         protocol: HttpProtocol,
         uri: &str,
     ) -> Result<Self, RequestError> {
-        let _ = client.get(protocol, uri)?;
+        let _ = client.get_with_protocol(protocol, uri)?;
         Ok(Self {
             request: SseRequest {
                 client,
@@ -297,7 +297,7 @@ impl SseRequestBuilder {
         let mut request = self
             .request
             .client
-            .get(self.request.protocol, &self.request.uri)
+            .get_with_protocol(self.request.protocol, &self.request.uri)
             .map_err(SseError::request)?;
         if let Some(route) = &self.request.route {
             request = request.route(route.clone());
@@ -442,7 +442,7 @@ impl SseRequest {
                 if let Some(fields) = template.fields_for(protocol) {
                     let request = self.apply_route(
                         self.client
-                            .get(protocol, &self.uri)
+                            .get_with_protocol(protocol, &self.uri)
                             .map_err(SseError::request)?,
                     );
                     if let Some(conditions) = request.supported_template_conditions() {
@@ -465,7 +465,7 @@ impl SseRequest {
             if emits_managed_hint {
                 let request = self.apply_route(
                     self.client
-                        .get(self.protocol, &self.uri)
+                        .get_with_protocol(self.protocol, &self.uri)
                         .map_err(SseError::request)?,
                 );
                 if request
@@ -486,7 +486,7 @@ impl SseRequest {
 
         let mut request = self
             .client
-            .get(self.protocol, &self.uri)?
+            .get_with_protocol(self.protocol, &self.uri)?
             .headers(headers)
             .protect_event_source_headers()
             .without_response_body_timeouts();

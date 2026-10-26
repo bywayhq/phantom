@@ -95,7 +95,7 @@ async fn connector_io_errors_keep_their_original_kind() -> TestResult<()> {
     }))
     .build()?;
     let error = client
-        .get(HttpProtocol::Http1, URL)?
+        .get_with_protocol(HttpProtocol::Http1, URL)?
         .send()
         .await
         .err()
@@ -120,7 +120,7 @@ async fn explicit_http3_cannot_bypass_the_tcp_connector() -> TestResult<()> {
         .tcp_connector(connector)
         .build()?;
     let error = client
-        .get(HttpProtocol::Http3, "https://127.0.0.1:4321/")
+        .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:4321/")
         .err()
         .ok_or("HTTP/3 request was accepted")?;
     assert_eq!(error.kind(), RequestErrorKind::ProtocolUnavailable);
@@ -134,7 +134,10 @@ async fn custom_stream_carries_explicit_cleartext_http2() -> TestResult<()> {
         let (connector, mut peers, calls) = connector();
         let client = builder(connector).build()?;
         let caller = async {
-            let response = client.get(HttpProtocol::Http2, URL)?.send().await?;
+            let response = client
+                .get_with_protocol(HttpProtocol::Http2, URL)?
+                .send()
+                .await?;
             assert_eq!(response.status(), http::StatusCode::OK);
             assert_eq!(calls.load(Ordering::SeqCst), 1);
             Ok::<_, Box<dyn Error + Send + Sync>>(())

@@ -54,7 +54,7 @@ mod socks5;
 ///
 /// // This request skips the proxy.
 /// let response = client
-///     .get(HttpProtocol::Http2, "https://example.com/")?
+///     .get_with_protocol(HttpProtocol::Http2, "https://example.com/")?
 ///     .route(Route::direct())
 ///     .send()
 ///     .await?;

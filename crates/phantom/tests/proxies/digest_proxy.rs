@@ -53,7 +53,7 @@ async fn digest_forwarding_hashes_absolute_form_and_reuses_the_connection_for_st
                 let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_credentials(credentials));
                 let client = client_builder(&identity, false).route(route).build()?;
                 for _ in 0..2 {
-                    let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+                    let response = client.get_with_protocol(HttpProtocol::Http1, URL)?.send().await?;
                     assert_eq!(response.status(), http::StatusCode::OK);
                     assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
                 }
@@ -102,7 +102,7 @@ async fn digest_http2_forwarding_hashes_the_encoded_path_and_verifies_proxy_proo
         let operation = async {
             let route = Route::http_proxy(HttpProxy::new(&format!("https://{address}"))?.with_http2_transport()?.with_digest_auth("user", "password")?);
             let client = client_builder(&identity, true).add_proxy_root_certificate_der(identity.root_der.clone()).route(route).build()?;
-            let response = client.get(HttpProtocol::Http2, URL)?.send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http2, URL)?.send().await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             done_tx.send(()).map_err(|()| "peer exited early")?;
             Ok(client)

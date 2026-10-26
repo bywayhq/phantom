@@ -290,7 +290,7 @@ async fn drive_origin(
         .build()?;
 
     let response = client
-        .get(HttpProtocol::Http1, &origin.url("/tcp-owner-ready"))?
+        .get_with_protocol(HttpProtocol::Http1, &origin.url("/tcp-owner-ready"))?
         .send()
         .await?;
     if response.status() != StatusCode::OK || response.version() != Version::HTTP_11 {

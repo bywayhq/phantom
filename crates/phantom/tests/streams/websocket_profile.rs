@@ -1278,9 +1278,9 @@ async fn pooled_get_at(
 ) -> TestResult<()> {
     let uri = format!("https://{authority}/page");
     let builder = if negotiated {
-        client.get_negotiated(&uri)?
+        client.get(&uri)?
     } else {
-        client.get(phantom::HttpProtocol::Http2, &uri)?
+        client.get_with_protocol(phantom::HttpProtocol::Http2, &uri)?
     };
     let response = builder.send().await?;
     assert_eq!(response.status(), 200);

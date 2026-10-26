@@ -20,7 +20,7 @@ async fn stopping_callback_returns_the_redirect_without_spending_another_attempt
             .build()?;
         let budget = HttpAttemptBudget::new(1);
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/start"))?
             .attempt_budget(budget.clone())
             .redirect_history(NonZeroUsize::MIN)
             .send()
@@ -47,7 +47,7 @@ async fn stopping_callback_returns_the_redirect_without_spending_another_attempt
 
         let followed = client
             .clone()
-            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/start"))?
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .send()
             .await?;
@@ -101,7 +101,7 @@ async fn rejecting_callback_checks_later_hops_before_another_send() -> TestResul
             .build()?;
         let budget = HttpAttemptBudget::new(3);
         let error = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/start"))?
             .attempt_budget(budget.clone())
             .send()
             .await

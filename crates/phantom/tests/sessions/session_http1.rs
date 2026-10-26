@@ -49,7 +49,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
 
         let session = test_client(&identity, false)?;
         let first = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://１２７．０．０．１:{}/first", address.port()),
             )?
@@ -60,7 +60,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
             .await?
             .to_bytes();
         let second = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/second"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/second"))?
             .send()
             .await?
             .into_body()
@@ -134,7 +134,7 @@ async fn disabled_authentication_completes_requests_on_replacement_connections()
         .build()?;
         for path in ["first", "second"] {
             client
-                .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
                 .send()
                 .await?
                 .into_body()
@@ -177,7 +177,7 @@ async fn connection_close_response_is_replaced_without_replay() -> TestResult {
         let session = test_client(&identity, false)?;
         for path in ["first", "second"] {
             session
-                .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
                 .send()
                 .await?
                 .into_body()
@@ -235,7 +235,7 @@ async fn segmented_close_response_is_reassembled_before_connection_replacement()
 
         let session = test_client(&identity, false)?;
         let first = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/segmented"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/segmented"))?
             .send()
             .await?
             .into_body()
@@ -245,7 +245,7 @@ async fn segmented_close_response_is_reassembled_before_connection_replacement()
         assert_eq!(first, "segmented response body");
 
         let second = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/followup"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/followup"))?
             .send()
             .await?;
         assert_eq!(second.status(), 204);
@@ -288,12 +288,12 @@ async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
 
         let session = test_client(&identity, false)?;
         let first = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/first"))?
             .send()
             .await?;
         drop(first);
         session
-            .get(HttpProtocol::Http1, &format!("https://{address}/second"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/second"))?
             .send()
             .await?
             .into_body()
@@ -345,7 +345,7 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
 
         let session = test_client(&identity, false)?;
         let mut body = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/truncated"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/truncated"))?
             .send()
             .await?
             .into_body();
@@ -370,7 +370,7 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
         assert_eq!(received, [vec![b'a'; 64], vec![b'\n']].concat());
 
         let followup = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/followup"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/followup"))?
             .send()
             .await?;
         assert_eq!(followup.status(), 204);
@@ -409,11 +409,11 @@ async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
             .as_ref()
             .ok_or("original active HTTP/1 client missing")?;
 
-        let first_waiter = client.get(
+        let first_waiter = client.get_with_protocol(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-one"),
         )?;
-        let second_waiter = client.get(
+        let second_waiter = client.get_with_protocol(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-two"),
         )?;
@@ -478,7 +478,7 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
 
         let session = test_client(&identity, false)?;
         session
-            .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/first"))?
             .send()
             .await?
             .into_body()
@@ -489,7 +489,7 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
             .map_err(|()| "HTTP/1 peer closed before request release")?;
 
         let failed = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/second"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/second"))?
             .send()
             .await;
         let error = match failed {
@@ -499,7 +499,7 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
         assert_eq!(error.kind(), RequestErrorKind::Http1);
 
         session
-            .get(HttpProtocol::Http1, &format!("https://{address}/third"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/third"))?
             .send()
             .await?
             .into_body()

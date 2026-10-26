@@ -405,7 +405,8 @@ async fn finish_retains_both_actual_completed_peer_failures() -> TestResult<()> 
         let session = client_builder(&identity, false).route(route).build()?;
 
         for path in ["first", "second"] {
-            let request = session.get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?;
+            let request = session
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/{path}"))?;
             let response = timeout(BACKUP_LIMIT, request.send()).await??;
             assert_eq!(response.status(), 204);
             timeout(BACKUP_LIMIT, response.into_body().collect()).await??;

@@ -336,7 +336,7 @@ async fn upload_with_fallback(
 
         let client = client(&identity, true)?;
         let response = client
-            .request(HttpProtocol::Http3, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::POST, &url)?
             .body("payload")
             .retry_policy(fallback())
             .send()
@@ -389,7 +389,7 @@ async fn without_the_policy_a_refused_handshake_returns_the_http3_error() -> Tes
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .send()
             .await
             .err()
@@ -416,7 +416,7 @@ async fn a_one_shot_streaming_body_returns_the_http3_error() -> TestResult<()> {
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
-            .request(HttpProtocol::Http3, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::POST, &url)?
             .streaming_body(Full::new(Bytes::from_static(b"payload")))
             .retry_policy(fallback())
             .send()
@@ -461,7 +461,7 @@ async fn a_failure_after_the_request_was_sent_returns_the_http3_error() -> TestR
         }));
 
         let error = client(&identity, true)?
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .retry_policy(fallback())
             .send()
             .await
@@ -486,7 +486,7 @@ async fn the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io() -> 
         let url = origin.url("/checked");
 
         let error = client(&identity, false)?
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .retry_policy(fallback())
             .send()
             .await
@@ -500,7 +500,7 @@ async fn the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io() -> 
             origin.port
         ))?;
         let error = client(&identity, true)?
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .route(Route::connect_udp(proxy))
             .retry_policy(fallback())
             .send()
@@ -536,7 +536,7 @@ async fn fall_back_from_an_unanswered_handshake(
 
         let client = client(&identity, true)?;
         let mut request = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://127.0.0.1:{port}/quiet"),
             )?
@@ -673,7 +673,7 @@ async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
         )));
 
         let response = client(&identity, true)?
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://127.0.0.1:{port}/recipe"),
             )?
@@ -810,7 +810,7 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let first = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://127.0.0.1:{port}/first"),
             )?
@@ -826,7 +826,7 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
         )));
         // A POST waits for the resumed handshake before it is written.
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://127.0.0.1:{port}/post"),
@@ -869,7 +869,7 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://127.0.0.1:{port}/both"),
             )?
@@ -901,7 +901,7 @@ async fn zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile() -> TestRe
         refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, false)?
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .retry_policy(fallback().with_max_retries(Some(0)))
             .send()
             .await

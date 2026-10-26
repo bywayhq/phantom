@@ -113,7 +113,7 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
         .build()?;
 
     let response = client
-        .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
+        .get_with_protocol(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
         .send()
         .await?;
     assert_eq!(response.version(), http::Version::HTTP_2);

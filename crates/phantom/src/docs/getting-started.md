@@ -42,7 +42,7 @@ Add these dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", version = "0.4" }
+phantom = { package = "phantom-http", version = "0.5" }
 tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 ```
 
@@ -54,16 +54,15 @@ import it as `phantom`. No optional Phantom features are needed for this request
 Replace `src/main.rs` with:
 
 ```no_run
-use phantom::profile::browser::chrome;
-use phantom::{Client, HttpProtocol};
+use phantom::profile::catalog::{profile_for, RequestTemplateKind};
+use phantom::Client;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = chrome::v154_windows()
-        .with_request_template(chrome::v154_windows_navigation_template());
+    let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
     let client = Client::builder(profile).build()?;
     let response = client
-        .get(HttpProtocol::Http2, "https://example.com/")?
+        .get("https://example.com/")?
         .send()
         .await?;
 
@@ -82,15 +81,13 @@ cargo run
 
 The program prints the HTTP status and the number of response bytes. The body
 limit is 1 MiB; a larger response returns an error instead of being fully buffered.
-The server must support HTTP/2 for this example. Selecting
-[`HttpProtocol::Http2`](crate::HttpProtocol::Http2) does not enable protocol
-fallback. To let TLS negotiate HTTP/1.1 or HTTP/2, use
-[`Client::get_negotiated`](crate::Client::get_negotiated).
+TLS negotiates HTTP/1.1 or HTTP/2. Use
+[`Client::get_with_protocol`](crate::Client::get_with_protocol) when you need
+one exact protocol.
 
-[`chrome::v154_windows`](crate::profile::browser::chrome::v154_windows) supplies
-Chrome 154's Windows connection settings. The template adds page-load headers
-as the client default. Choose a fetch or upload template when needed, as shown
-in [Browser profiles](crate::guide::browser_profiles).
+[`profile_for`](crate::profile::catalog::profile_for) selects Chrome 156's
+Windows settings and page-load headers together. Choose a fetch or upload
+context when needed, as shown in [Browser profiles](crate::guide::browser_profiles).
 
 ## Keep the client for later requests
 

@@ -298,7 +298,7 @@ async fn named_uploads_send_captured_field_order_and_exact_prepared_bodies() -> 
                         async {
                             let origin = url.trim_end_matches("/post-multipart");
                             let request = client
-                                .request(protocol, Method::POST, &url)?
+                                .request_with_protocol(protocol, Method::POST, &url)?
                                 .template(&prepared)
                                 .fill_slots(|slots| {
                                     slots.fill(RequestHeader::new("Origin", origin))?;
@@ -379,7 +379,7 @@ async fn prepared_upload_replays_identical_type_length_and_bytes_on_307() -> Tes
         });
 
         let operation = async {
-            assert_eq!(client.request(HttpProtocol::Http1, Method::POST, &url)?.template(&prepared)
+            assert_eq!(client.request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?.template(&prepared)
                 .prepared_body(body.clone()).send().await?.status(), StatusCode::NO_CONTENT);
             Ok(())
         }.await;
@@ -420,7 +420,7 @@ async fn explicit_matching_content_type_keeps_caller_order_without_template() ->
 
         let operation = async {
             client
-                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
                 .header(RequestHeader::new("X-Before", "first"))
                 .header(RequestHeader::new("Content-Type", body.content_type()).sensitive())
                 .header(RequestHeader::new("X-After", "last"))

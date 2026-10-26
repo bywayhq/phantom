@@ -278,7 +278,7 @@ async fn exchange(
     observed: &mut mpsc::Receiver<Observed>,
 ) -> TestResult<()> {
     let response = client
-        .get(HttpProtocol::Http3, &format!("https://{address}{path}"))?
+        .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}{path}"))?
         .send()
         .await?;
     assert_eq!(response.status(), StatusCode::OK);

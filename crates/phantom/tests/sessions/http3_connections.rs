@@ -544,7 +544,7 @@ fn client_builder(identity: &TestIdentity) -> ClientBuilder {
 }
 
 async fn send(client: &Client, uri: &str) -> TestResult<Response<phantom::ResponseBody>> {
-    let request = client.get(HttpProtocol::Http3, uri)?;
+    let request = client.get_with_protocol(HttpProtocol::Http3, uri)?;
     Ok(timeout(TEST_TIMEOUT, request.send())
         .await
         .map_err(|elapsed| {
@@ -1009,9 +1009,7 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
         // The first request learns the alternative over HTTP/1.1.
         let learned = timeout(
             TEST_TIMEOUT,
-            client
-                .get_negotiated(&format!("https://{address}/warm"))?
-                .send(),
+            client.get(&format!("https://{address}/warm"))?.send(),
         )
         .await
         .map_err(|elapsed| {
@@ -1036,7 +1034,7 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
         for path in ["held-1", "held-2", "held-3"] {
             let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
             requests.spawn(async move {
-                let request = client.get_negotiated(&uri)?;
+                let request = client.get(&uri)?;
                 let response =
                     timeout(TEST_TIMEOUT, request.send())
                         .await

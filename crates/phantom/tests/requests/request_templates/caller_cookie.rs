@@ -95,7 +95,7 @@ async fn negotiated_protocols_place_caller_cookies_after_alpn_selection() -> Tes
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
             let sent = client
-                .get_negotiated(&url)?
+                .get(&url)?
                 .template(&PreparedRequestTemplate::new(template())?)
                 .headers(caller_fields())
                 .send();
@@ -164,7 +164,7 @@ async fn caller_cookie_placement_also_applies_without_a_template() -> TestResult
         let response = timeout(
             TEST_TIMEOUT,
             client
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .headers(caller_fields())
                 .send(),
         )

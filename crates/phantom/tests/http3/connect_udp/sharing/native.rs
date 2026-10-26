@@ -4,7 +4,10 @@ use super::super::*;
 use phantom::SessionSharing;
 
 pub(super) async fn fetch(client: &Client, uri: &str, expected: &str) -> TestResult<()> {
-    let response = client.get(HttpProtocol::Http3, uri)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http3, uri)?
+        .send()
+        .await?;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.into_body().collect().await?.to_bytes(), expected);
     Ok(())
@@ -313,7 +316,7 @@ async fn a_reset_h3_tunnel_does_not_retire_the_shared_outer() -> TestResult<()> 
     )?;
     let primary = super::checked(bounded(async {
         let error = client
-            .get(HttpProtocol::Http3, &failed.uri("/reset"))?
+            .get_with_protocol(HttpProtocol::Http3, &failed.uri("/reset"))?
             .send()
             .await
             .err()
@@ -353,7 +356,7 @@ async fn a_reset_h2_tunnel_does_not_retire_the_shared_outer() -> TestResult<()> 
             ConnectUdpProxy::new(&proxy.template())?.with_http2_transport(),
         )?;
         let error = client
-            .get(HttpProtocol::Http3, &failed.uri("/reset"))?
+            .get_with_protocol(HttpProtocol::Http3, &failed.uri("/reset"))?
             .send()
             .await
             .err()
@@ -392,7 +395,12 @@ async fn shared_route_overflow_reaches_the_public_capacity_error() -> TestResult
         fetch(&client, &active.uri("/active"), "/active").await?;
         for uri in [pending.uri("/pending"), overflow.uri("/overflow")] {
             let client = client.clone();
-            tasks.spawn(async move { client.get(HttpProtocol::Http3, &uri)?.send().await });
+            tasks.spawn(async move {
+                client
+                    .get_with_protocol(HttpProtocol::Http3, &uri)?
+                    .send()
+                    .await
+            });
         }
         let completed = timeout(TEST_TIMEOUT, tasks.join_next())
             .await?
@@ -462,7 +470,7 @@ async fn per_request_independent_route_scope_prevents_inner_connection_reuse() -
     let primary = super::checked(bounded(async {
         fetch(&client, &origin.uri("/first"), "/first").await?;
         let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/second"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.uri("/second"))?
             .route(Route::connect_udp(second))
             .send()
             .await?;

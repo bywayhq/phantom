@@ -30,7 +30,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/bywayhq/phantom"
 rust-version = "1.88"
-version = "0.4.0"
+version = "0.5.0"
 
 [workspace.dependencies]
 # Patched dependencies resolve to Phantom's renamed forks under `vendor/`. The

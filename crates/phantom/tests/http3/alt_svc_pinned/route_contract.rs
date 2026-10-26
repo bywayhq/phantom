@@ -54,7 +54,7 @@ async fn a_foreign_redirect_queries_the_selected_resolver_after_the_literal_firs
             .build()?;
 
         let error = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
             .alt_svc_alternative(&host, port)
             .send()
             .await
@@ -105,7 +105,7 @@ async fn a_same_origin_redirect_keeps_the_pin_without_querying_a_refusing_resolv
             .build()?;
 
         let response = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
             .alt_svc_alternative(&host, port)
             .send()
             .await?;

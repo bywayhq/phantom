@@ -74,7 +74,7 @@ async fn pending_stream_poll_can_be_dropped_and_resumed_with_next_event() -> Tes
     });
     let (_stream, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = test_client(&identity, false)?
-            .get(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .send()
             .await?;
         let mut stream = SseStream::from_response(response)?.into_body();

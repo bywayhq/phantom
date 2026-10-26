@@ -282,9 +282,9 @@ async fn independent_forks_share_later_tcp_tickets_and_clearing() -> TestResult<
                 }
                 let uri = format!("https://{address}{path}");
                 let request = if negotiated {
-                    selected.get_negotiated(&uri)?
+                    selected.get(&uri)?
                 } else {
-                    selected.get(protocol, &uri)?
+                    selected.get_with_protocol(protocol, &uri)?
                 };
                 assert_resumption(send_request(request).await?, resumed);
                 closed.recv().await.ok_or("peer stopped")?;
@@ -294,9 +294,9 @@ async fn independent_forks_share_later_tcp_tickets_and_clearing() -> TestResult<
             drop(client);
             let uri = format!("https://{address}/source-dropped");
             let request = if negotiated {
-                survivor.get_negotiated(&uri)?
+                survivor.get(&uri)?
             } else {
-                survivor.get(protocol, &uri)?
+                survivor.get_with_protocol(protocol, &uri)?
             };
             assert_resumption(send_request(request).await?, true);
             closed.recv().await.ok_or("peer stopped")?;
@@ -446,7 +446,7 @@ async fn send(
     protocol: HttpProtocol,
     uri: String,
 ) -> TestResult<Arc<phantom::RequestConnection>> {
-    send_request(session.get(protocol, &uri)?).await
+    send_request(session.get_with_protocol(protocol, &uri)?).await
 }
 
 async fn send_request(

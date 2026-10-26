@@ -39,7 +39,7 @@ pub(super) async fn caller(
     subscriber: &OutcomeSubscriber,
 ) -> TestResult<ResponseBody> {
     let response = client
-        .get(HttpProtocol::Http1, target)?
+        .get_with_protocol(HttpProtocol::Http1, target)?
         .send()
         .with_subscriber(subscriber.dispatch())
         .await?;

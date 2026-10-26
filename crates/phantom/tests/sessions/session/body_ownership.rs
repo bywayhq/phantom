@@ -99,7 +99,7 @@ async fn upload_controlled(control: Option<Control>) -> TestResult<()> {
         let session = test_client(&identity, true)?;
         let upload_target = target.unwrap_or_else(|| format!("https://{address}/upload"));
         let response = session
-            .request(HttpProtocol::Http2, Method::POST, &upload_target)?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &upload_target)?
             .body(Bytes::from_static(b"pooled-payload"))
             .send()
             .await?;
@@ -107,7 +107,7 @@ async fn upload_controlled(control: Option<Control>) -> TestResult<()> {
         response.into_body().collect().await?;
 
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http2,
                 &format!("https://{address}/after-upload"),
             )?
@@ -201,7 +201,7 @@ async fn cancelled_controlled(control: Option<Control>) -> TestResult<()> {
         let session = test_client(&identity, true)?;
         let abandoned_target = target.unwrap_or_else(|| format!("https://{address}/abandoned"));
         let response = session
-            .get(HttpProtocol::Http2, &abandoned_target)?
+            .get_with_protocol(HttpProtocol::Http2, &abandoned_target)?
             .send()
             .await?;
         let mut abandoned = response.into_body();
@@ -213,7 +213,7 @@ async fn cancelled_controlled(control: Option<Control>) -> TestResult<()> {
         drop(abandoned);
 
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/later"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/later"))?
             .send()
             .await?;
         assert_eq!(response.status(), 204);

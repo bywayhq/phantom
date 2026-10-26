@@ -237,8 +237,7 @@ async fn an_external_pending_request_abort_keeps_its_join_cause() -> TestResult 
     };
     let mut origin = Origin::with(&identity, config, work.connections.spawner()).await?;
     let client = client(&identity, bound(1)?)?;
-    let caller =
-        work.spawn_response(client.get_negotiated(&origin.uri("external-abort"))?.send())?;
+    let caller = work.spawn_response(client.get(&origin.uri("external-abort"))?.send())?;
     assert_eq!(
         origin.next_request().await?,
         (0, "external-abort".to_owned())
@@ -360,7 +359,7 @@ async fn the_actual_caller_deadline_retains_elapsed_and_allows_origin_cleanup() 
     };
     let mut origin = Origin::with(&identity, config, work.connections.spawner()).await?;
     let client = client(&identity, bound(1)?)?;
-    let caller = work.spawn_response(client.get_negotiated(&origin.uri("deadline"))?.send())?;
+    let caller = work.spawn_response(client.get(&origin.uri("deadline"))?.send())?;
     assert_eq!(origin.next_request().await?, (0, "deadline".to_owned()));
     // Pause only after a real accepted TLS request, so network setup uses time.
     tokio::time::pause();

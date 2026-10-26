@@ -274,11 +274,11 @@ impl QueuedFixture {
             .as_ref()
             .ok_or("original active HTTP/1 client missing")?;
         Ok([
-            session.get(
+            session.get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{}/waiting-one", self.address),
             )?,
-            session.get(
+            session.get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{}/waiting-two", self.address),
             )?,

@@ -78,7 +78,7 @@ fn proxy_route(listener: &StdListener) -> TestResult<Route> {
 }
 
 async fn get(client: &Client, url: &str, route: Option<Route>) -> TestResult<()> {
-    let mut request = client.get(HttpProtocol::Http1, url)?;
+    let mut request = client.get_with_protocol(HttpProtocol::Http1, url)?;
     if let Some(route) = route {
         request = request.route(route);
     }
@@ -313,7 +313,7 @@ async fn rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly
 
         let primary = async {
             let error = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{}/failure", origin.local_addr()?),
                 )?
@@ -516,7 +516,7 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
 
         let primary = async {
             let response = client
-                .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
                 .send()
                 .await?;
             assert_eq!(response.version(), http::Version::HTTP_2);
@@ -562,7 +562,7 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
 
         let primary = async {
             let error = client
-                .get(HttpProtocol::Http2, "https://unresolvable.invalid/")?
+                .get_with_protocol(HttpProtocol::Http2, "https://unresolvable.invalid/")?
                 .send()
                 .await
                 .err()

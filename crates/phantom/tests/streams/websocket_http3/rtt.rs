@@ -120,7 +120,7 @@ async fn probe(client: &Client, identity: &TestIdentity, expected: &str) -> Test
         )]))?;
         let observation = DelayObservation::default();
         let response = client
-            .get_negotiated(&fixture.origin_url("/probe"))?
+            .get(&fixture.origin_url("/probe"))?
             .send()
             .with_subscriber(observation.dispatch())
             .await?;

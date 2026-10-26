@@ -11,7 +11,7 @@ async fn backoff_retries_preserve_the_origin_attempt_allowance() -> TestResult {
         )?;
         let budget = HttpAttemptBudget::new(3);
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/backoff"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/backoff"))?
             .attempt_budget(budget.clone())
             .send()
             .await?;
@@ -37,7 +37,7 @@ async fn exhausted_allowance_prevents_a_jittered_backoff_resend() -> TestResult 
         let budget = HttpAttemptBudget::new(1);
         let error = tokio::time::timeout(Duration::from_secs(2), async {
             client
-                .get(HttpProtocol::Http1, &server.url("http", "/budget"))?
+                .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/budget"))?
                 .attempt_budget(budget.clone())
                 .send()
                 .await
@@ -69,7 +69,7 @@ async fn invalid_backoff_cap_fails_before_connecting() -> TestResult {
     let result = async {
         let error = plain_builder()
             .build()?
-            .get(HttpProtocol::Http1, &server.url("http", "/invalid"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/invalid"))?
             .retry_policy(policy)
             .send()
             .await

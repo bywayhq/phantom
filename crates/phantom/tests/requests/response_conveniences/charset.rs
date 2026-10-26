@@ -230,8 +230,14 @@ async fn isolated_h2_stream(stop: Stop) -> TestResult<()> {
     });
     let client = Client::builder(chrome::v154_windows()).build()?;
     let url = format!("http://{address}/charset");
-    let first = client.get(HttpProtocol::Http2, &url)?.send().await?;
-    let second = client.get(HttpProtocol::Http2, &url)?.send().await?;
+    let first = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
+    let second = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
     let mut read = Box::pin(response_text_with_charset(first, 2, 8));
     if matches!(stop, Stop::Cancellation) {
         poll_fn(|context| {
@@ -253,7 +259,10 @@ async fn isolated_h2_stream(stop: Stop) -> TestResult<()> {
         }
     }
     assert_eq!(response_text_with_charset(second, 2, 2).await?.body(), "ok");
-    let third = client.get(HttpProtocol::Http2, &url)?.send().await?;
+    let third = client
+        .get_with_protocol(HttpProtocol::Http2, &url)?
+        .send()
+        .await?;
     assert_eq!(response_text_with_charset(third, 0, 0).await?.body(), "");
     peers.join_next().await.ok_or("missing HTTP/2 peer")???;
     Ok(())

@@ -560,7 +560,7 @@ mod tests {
             let client = plain_builder().build()?;
 
             let _response = client
-                .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
+                .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
                 .send()
                 .await?;
             Ok(())
@@ -613,7 +613,7 @@ mod tests {
             let client = plain_builder().build()?;
 
             let _response = client
-                .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
+                .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
                 .send()
                 .await?;
             Ok(())
@@ -651,7 +651,7 @@ mod tests {
         let client = plain_builder().build()?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/observed"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/observed"))?
             .send()
             .await?;
 

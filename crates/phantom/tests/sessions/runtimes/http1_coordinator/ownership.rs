@@ -426,7 +426,7 @@ async fn ordinary_coordinator_caller_failure_keeps_both_original_typed_causes() 
     let primary = async {
         backup.completed_fault(FaultBoundary::Read).await?;
         let caller = client
-            .get(HttpProtocol::Http1, "http://runtime.test/\n")
+            .get_with_protocol(HttpProtocol::Http1, "http://runtime.test/\n")
             .err()
             .ok_or("actual invalid caller URI was accepted")?;
         assert_eq!(caller.kind(), RequestErrorKind::InvalidUri);

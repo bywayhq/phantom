@@ -99,7 +99,7 @@ async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool, verify: bool) ->
             let client = build_client(phantom::Client::builder(profile), &identity, verify)?;
             let mut previous = None;
             for index in 0..3 {
-                let mut request = client.get(protocol, &url)?;
+                let mut request = client.get_with_protocol(protocol, &url)?;
                 let diagnostics = (observe_first || index != 0)
                     .then(|| request.diagnostics(NonZeroUsize::MIN.saturating_add(63)));
                 let response = request.send().await?;
@@ -198,8 +198,8 @@ async fn quic_reuse(verify: bool) -> TestResult<()> {
             let client = build_client(builder, &identity, verify)?;
             let mut previous = None;
             for index in 0..3 {
-                let mut request =
-                    client.get(HttpProtocol::Http3, &format!("https://{address}/"))?;
+                let mut request = client
+                    .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?;
                 let trace =
                     (index != 0).then(|| request.diagnostics(NonZeroUsize::MIN.saturating_add(63)));
                 let response = request.send().await?;

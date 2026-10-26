@@ -101,10 +101,7 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
             .build()?;
 
         // The first request does not wait for the lookup it starts.
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
 
@@ -114,7 +111,7 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
             phantom::profile::browser::firefox::v157_windows_fetch_template(),
         )?;
         let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
+            .get(&fixture.origin_url("/second"))?
             .template(&template)
             .send()
             .await?;
@@ -170,10 +167,7 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
 
         let mut protocols = Vec::new();
         for path in ["/learn", "/misdirected", "/after"] {
-            let response = client
-                .get_negotiated(&fixture.origin_url(path))?
-                .send()
-                .await?;
+            let response = client.get(&fixture.origin_url(path))?.send().await?;
             protocols.push((protocol(&response)?, response.status()));
             drain(response).await?;
 
@@ -235,10 +229,7 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
                 .build()?;
 
             let started = Instant::now();
-            let response = client
-                .get_negotiated(&fixture.origin_url("/first"))?
-                .send()
-                .await?;
+            let response = client.get(&fixture.origin_url("/first"))?.send().await?;
             let elapsed = started.elapsed();
             assert_eq!(protocol(&response)?, HttpProtocol::Http2, "{policy:?}");
             drain(response).await?;
@@ -253,10 +244,7 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
             if later_http3 {
                 // The late record still reaches the cache for later requests.
                 assert_eq!(lookup.completed().await?, Ok(()));
-                let later = client
-                    .get_negotiated(&fixture.origin_url("/later"))?
-                    .send()
-                    .await?;
+                let later = client.get(&fixture.origin_url("/later"))?.send().await?;
                 assert_eq!(protocol(&later)?, HttpProtocol::Http3, "{policy:?}");
                 drain(later).await?;
             }
@@ -281,10 +269,7 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
             .build()?;
         let mut queries = Vec::new();
         for path in ["/first", "/second"] {
-            let response = client
-                .get_negotiated(&fixture.origin_url(path))?
-                .send()
-                .await?;
+            let response = client.get(&fixture.origin_url(path))?.send().await?;
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);
             drain(response).await?;
 
@@ -326,10 +311,7 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
             }
             let client = builder.build()?;
             for path in ["/first", "/second"] {
-                let response = client
-                    .get_negotiated(&fixture.origin_url(path))?
-                    .send()
-                    .await?;
+                let response = client.get(&fixture.origin_url(path))?.send().await?;
                 assert_eq!(protocol(&response)?, HttpProtocol::Http2);
                 drain(response).await?;
 
@@ -383,7 +365,7 @@ async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
                 .https_record_discovery(resolver(&dns)?)
                 .build()?;
             let error = client
-                .get_negotiated(&url)?
+                .get(&url)?
                 .send()
                 .await
                 .err()

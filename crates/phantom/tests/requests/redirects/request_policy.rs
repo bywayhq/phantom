@@ -16,9 +16,9 @@ async fn request_redirect_policy_applies_to_exact_and_negotiated_http2() -> Test
             let client = client_builder(&identity, true).build()?;
             let uri = format!("https://{address}/.well-known/phantom/redirect/302/start");
             let request = if negotiated {
-                client.request_negotiated(Method::POST, &uri)?
+                client.request(Method::POST, &uri)?
             } else {
-                client.request(HttpProtocol::Http2, Method::POST, &uri)?
+                client.request_with_protocol(HttpProtocol::Http2, Method::POST, &uri)?
             };
             let response = request
                 .redirect_policy(RedirectPolicy::custom(NonZeroUsize::MIN, |attempt| {
@@ -73,7 +73,7 @@ async fn request_redirect_policy_overrides_do_not_change_later_requests() -> Tes
             .build()?;
         let start = format!("http://{address}/start");
         let stopped = client
-            .get(HttpProtocol::Http1, &start)?
+            .get_with_protocol(HttpProtocol::Http1, &start)?
             .redirect_policy(RedirectPolicy::none())
             .send()
             .await?;
@@ -88,12 +88,15 @@ async fn request_redirect_policy_overrides_do_not_change_later_requests() -> Tes
         );
         stopped.into_body().collect().await?;
 
-        let inherited = client.get(HttpProtocol::Http1, &start)?.send().await?;
+        let inherited = client
+            .get_with_protocol(HttpProtocol::Http1, &start)?
+            .send()
+            .await?;
         assert_eq!(inherited.status(), StatusCode::OK);
         inherited.into_body().collect().await?;
 
         let error = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/chain"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/chain"))?
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .send()
             .await
@@ -103,7 +106,7 @@ async fn request_redirect_policy_overrides_do_not_change_later_requests() -> Tes
 
         let inherited = client
             .clone()
-            .get(HttpProtocol::Http1, &start)?
+            .get_with_protocol(HttpProtocol::Http1, &start)?
             .send()
             .await?;
         assert_eq!(inherited.status(), StatusCode::OK);
@@ -140,7 +143,7 @@ async fn request_redirect_policy_can_enable_following_for_a_default_client() -> 
         let client = client_builder(&identity, false).build()?;
         let uri = format!("http://{address}/start");
         let followed = client
-            .get(HttpProtocol::Http1, &uri)?
+            .get_with_protocol(HttpProtocol::Http1, &uri)?
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .send()
             .await?;
@@ -148,13 +151,16 @@ async fn request_redirect_policy_can_enable_following_for_a_default_client() -> 
         assert_response_info(&followed, &format!("http://{address}/final"))?;
         followed.into_body().collect().await?;
 
-        let stopped = client.get(HttpProtocol::Http1, &uri)?.send().await?;
+        let stopped = client
+            .get_with_protocol(HttpProtocol::Http1, &uri)?
+            .send()
+            .await?;
         assert_eq!(stopped.status(), StatusCode::FOUND);
         stopped.into_body().collect().await?;
 
         let budget = phantom::HttpAttemptBudget::new(1);
         let error = client
-            .get(HttpProtocol::Http1, &uri)?
+            .get_with_protocol(HttpProtocol::Http1, &uri)?
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .attempt_budget(budget.clone())
             .send()

@@ -86,7 +86,7 @@ async fn an_untrusted_origin_certificate_is_not_a_recording_peer_close() -> Test
         let failure = timeout(
             DEADLINE,
             client
-                .get(HttpProtocol::Http1, "https://origin.phantom.test/page")?
+                .get_with_protocol(HttpProtocol::Http1, "https://origin.phantom.test/page")?
                 .send(),
         )
         .await?

@@ -48,7 +48,7 @@ async fn restored_checkpoint_offers_ech_on_its_first_tcp_connection_without_a_lo
         )?;
         let url = format!("https://{ORIGIN_NAME}:{port}/source");
         source
-            .get_negotiated(&url)?
+            .get(&url)?
             .send()
             .await?
             .into_body()
@@ -70,7 +70,7 @@ async fn restored_checkpoint_offers_ech_on_its_first_tcp_connection_without_a_lo
         )?;
         let restored = receiver.restore_session(&checkpoint, KEY, &[])?;
         restored
-            .get_negotiated(&format!("https://{ORIGIN_NAME}:{port}/restored"))?
+            .get(&format!("https://{ORIGIN_NAME}:{port}/restored"))?
             .send()
             .await?
             .into_body()
@@ -78,7 +78,7 @@ async fn restored_checkpoint_offers_ech_on_its_first_tcp_connection_without_a_lo
             .await?;
         // Export/restore does not consume or clear the source's discovery state.
         source
-            .get_negotiated(&url)?
+            .get(&url)?
             .send()
             .await?
             .into_body()

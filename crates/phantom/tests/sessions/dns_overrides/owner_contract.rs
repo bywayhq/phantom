@@ -782,10 +782,11 @@ async fn caller_failure_and_closing_coordinator_keep_both_original_causes() -> T
         timeout(LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
         backup.coordinator_worker_destroyed().await?;
 
-        let caller = match client.get(phantom::HttpProtocol::Http1, "http://owner.test/\n") {
-            Err(error) => error,
-            Ok(_) => return Err("invalid caller URI was accepted".into()),
-        };
+        let caller =
+            match client.get_with_protocol(phantom::HttpProtocol::Http1, "http://owner.test/\n") {
+                Err(error) => error,
+                Ok(_) => return Err("invalid caller URI was accepted".into()),
+            };
         let joined = backup.joined_coordinator().await;
         let observed = finish_with_cleanup::<()>(Err(caller.into()), joined)
             .err()

@@ -69,7 +69,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
             .map_err(Failure::from)?;
             let response = global.runtime.block_on(async {
                 client
-                    .request(
+                    .request_with_protocol(
                         phantom::HttpProtocol::Http1,
                         http::Method::GET,
                         &format!("http://{address}/original?x=a%20b"),
@@ -134,7 +134,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
             }
             let mut response = global.runtime.block_on(async {
                 client
-                    .request(
+                    .request_with_protocol(
                         phantom::HttpProtocol::Http1,
                         http::Method::GET,
                         &format!("http://{address}/missing"),

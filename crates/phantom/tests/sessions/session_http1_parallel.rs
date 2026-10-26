@@ -254,7 +254,11 @@ fn bound(value: usize) -> TestResult<NonZeroUsize> {
 }
 
 async fn hold(client: &Client, uri: &str) -> TestResult<http::Response<ResponseBody>> {
-    Ok(timeout(TEST_TIMEOUT, client.get(HttpProtocol::Http1, uri)?.send()).await??)
+    Ok(timeout(
+        TEST_TIMEOUT,
+        client.get_with_protocol(HttpProtocol::Http1, uri)?.send(),
+    )
+    .await??)
 }
 
 async fn finish(response: http::Response<ResponseBody>) -> TestResult {
@@ -291,7 +295,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
         assert_eq!(server.next().await?, Event::Accepted(1));
         assert_eq!(server.next_request().await?, (1, "second".to_owned()));
 
-        let request = client.get(HttpProtocol::Http1, &server.uri("third"))?;
+        let request = client.get_with_protocol(HttpProtocol::Http1, &server.uri("third"))?;
         third = request_ownership::spawn_request(request, None);
         server.assert_quiet().await?;
         assert!(
@@ -444,7 +448,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
 
         // The first route's single connection is busy, so its next request waits.
         let request = client
-            .get(HttpProtocol::Http1, &format!("{origin}queued"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("{origin}queued"))?
             .route(first_route);
         queued = request_ownership::spawn_request(request, None);
         first_proxy.assert_quiet().await?;
@@ -454,7 +458,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         let other = timeout(
             TEST_TIMEOUT,
             client
-                .get(HttpProtocol::Http1, &format!("{origin}other"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("{origin}other"))?
                 .route(second_route)
                 .send(),
         )
@@ -489,7 +493,7 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
             for index in 0..6 {
                 held.push(hold(&client, &server.uri(&format!("held-{index}"))).await?);
             }
-            let request = client.get(HttpProtocol::Http1, &server.uri("seventh"))?;
+            let request = client.get_with_protocol(HttpProtocol::Http1, &server.uri("seventh"))?;
             seventh = request_ownership::spawn_request(request, None);
             assert!(timeout(QUIET_WINDOW, &mut seventh).await.is_err());
 
@@ -523,7 +527,7 @@ async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestR
         let client = builder(profile()).build()?;
 
         let first = hold(&client, &server.uri("first")).await?;
-        let request = client.get(HttpProtocol::Http1, &server.uri("second"))?;
+        let request = client.get_with_protocol(HttpProtocol::Http1, &server.uri("second"))?;
         second = request_ownership::spawn_request(request, None);
         assert!(timeout(QUIET_WINDOW, &mut second).await.is_err());
 
@@ -575,7 +579,9 @@ async fn requests_cancelled_during_connection_setup_leave_the_full_bound() -> Te
         let mut setups = Vec::new();
         for path in ["cancelled-0", "cancelled-1"] {
             setups.push(tokio::spawn(
-                client.get(HttpProtocol::Http1, &uri(path))?.send(),
+                client
+                    .get_with_protocol(HttpProtocol::Http1, &uri(path))?
+                    .send(),
             ));
         }
         for expected in 0..2 {
@@ -593,7 +599,7 @@ async fn requests_cancelled_during_connection_setup_leave_the_full_bound() -> Te
         // and a third still waits at the bound.
         let first = hold(&client, &uri("first")).await?;
         let second = hold(&client, &uri("second")).await?;
-        let request = client.get(HttpProtocol::Http1, &uri("third"))?;
+        let request = client.get_with_protocol(HttpProtocol::Http1, &uri("third"))?;
         let mut third = tokio::spawn(request.send());
         assert!(timeout(QUIET_WINDOW, &mut third).await.is_err());
         finish(first).await?;

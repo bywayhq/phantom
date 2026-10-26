@@ -9,27 +9,25 @@ For dependency setup and a complete first program, start with
 
 ## Start with a built-in profile
 
-A composed profile groups the available settings for one browser and platform.
-Use it instead of assembling TLS, HTTP, and client hints separately:
+Select the browser and request kind together:
 
 ```rust,no_run
-use phantom::{Client, profile::browser::chrome};
+use phantom::{Client, profile::catalog::{profile_for, RequestTemplateKind}};
 
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
-let profile = chrome::v154_windows()
-    .with_request_template(chrome::v154_windows_navigation_template());
+let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
 let client = Client::builder(profile).build()?;
 # Ok(())
 # }
 ```
 
-The composed constructor selects connection settings and client hints. The
-`with_request_template` call adds default browser request headers and their
-order. The client prepares that template once and uses it for ordinary requests
-unless an individual request overrides it.
+The client prepares the selected headers once and uses them for later requests.
+Choose navigation, fetch, or upload for your operation. Individual requests can
+override the template.
 
-Choose the template for your operation: navigation, fetch, or upload. The bare
-constructor leaves it unset.
+Composed constructors such as `chrome::v156_windows()` select connection settings
+without request headers. Use `with_request_template` when assembling your own
+combination.
 
 For selection by name, use [`catalog::profile`](crate::profile::catalog::profile):
 
@@ -151,7 +149,7 @@ let client = Client::builder(profile).build()?;
 let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_template())?;
 
 let response = client
-    .get(HttpProtocol::Http2, "https://example.com/data.json")?
+    .get_with_protocol(HttpProtocol::Http2, "https://example.com/data.json")?
     .template(&fetch)
     .header(RequestHeader::new("referer", "https://example.com/"))
     .send()

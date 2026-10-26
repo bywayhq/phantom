@@ -264,7 +264,7 @@ fn spawn_request(
     requests.spawn(
         async move {
             let response = client
-                .request_negotiated(method, &format!("https://{address}{path}"))?
+                .request(method, &format!("https://{address}{path}"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);

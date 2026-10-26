@@ -21,7 +21,7 @@ async fn redirect_history_is_opt_in_bounded_and_preserved_by_body_helpers() -> T
             .build()?;
         let start = format!("http://{address}/start?token=private");
         let response = client
-            .get(HttpProtocol::Http1, &start)?
+            .get_with_protocol(HttpProtocol::Http1, &start)?
             .redirect_history(NonZeroUsize::MIN)
             .send()
             .await?;
@@ -50,11 +50,14 @@ async fn redirect_history_is_opt_in_bounded_and_preserved_by_body_helpers() -> T
             2
         );
         let final_uri = format!("http://{address}/final");
-        let disabled = client.get(HttpProtocol::Http1, &final_uri)?.send().await?;
+        let disabled = client
+            .get_with_protocol(HttpProtocol::Http1, &final_uri)?
+            .send()
+            .await?;
         assert!(disabled.extensions().get::<RedirectHistory>().is_none());
         disabled.into_body().collect().await?;
         let empty = client
-            .get(HttpProtocol::Http1, &final_uri)?
+            .get_with_protocol(HttpProtocol::Http1, &final_uri)?
             .redirect_history(NonZeroUsize::MIN)
             .send()
             .await?;
@@ -66,7 +69,7 @@ async fn redirect_history_is_opt_in_bounded_and_preserved_by_body_helpers() -> T
         assert_eq!(history.omitted_hops(), 0);
         empty.into_body().collect().await?;
         let stopped = client
-            .get(HttpProtocol::Http1, &start)?
+            .get_with_protocol(HttpProtocol::Http1, &start)?
             .redirect_policy(RedirectPolicy::none())
             .redirect_history(NonZeroUsize::MIN)
             .send()
@@ -123,9 +126,9 @@ async fn redirect_history_records_method_changes_for_exact_and_negotiated_http2(
                     status.as_u16()
                 );
                 let request = if negotiated {
-                    client.request_negotiated(Method::POST, &uri)?
+                    client.request(Method::POST, &uri)?
                 } else {
-                    client.request(HttpProtocol::Http2, Method::POST, &uri)?
+                    client.request_with_protocol(HttpProtocol::Http2, Method::POST, &uri)?
                 };
                 let response = request
                     .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))

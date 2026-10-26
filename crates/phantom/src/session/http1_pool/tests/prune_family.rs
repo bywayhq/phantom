@@ -67,7 +67,7 @@ async fn check_family(state: OriginState) -> TestResult {
             .entry(PoolKey::new(&endpoint, &Route::Direct, Http1ConnectionMode::PlaintextOrigin))
             .await;
         let url = format!("http://{address}");
-        let priming = client.request(HttpProtocol::Http1, Method::GET, &format!("{url}/prime"))?
+        let priming = client.request_with_protocol(HttpProtocol::Http1, Method::GET, &format!("{url}/prime"))?
             .send().await?;
         if priming.status() != StatusCode::NO_CONTENT {
             return Err("priming response is not literal 204".into());
@@ -113,7 +113,7 @@ async fn check_family(state: OriginState) -> TestResult {
 
         let held = match state {
             OriginState::Reconnected => {
-                let response = client.request(HttpProtocol::Http1, Method::GET, &format!("{url}/held"))?
+                let response = client.request_with_protocol(HttpProtocol::Http1, Method::GET, &format!("{url}/held"))?
                     .send().await?;
                 if response.status() != StatusCode::OK
                     || response.headers().get(http::header::CONTENT_LENGTH)

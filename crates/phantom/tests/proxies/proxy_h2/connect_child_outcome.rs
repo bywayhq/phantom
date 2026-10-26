@@ -125,7 +125,7 @@ async fn ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure() -> 
         let response = timeout(
             DEADLINE,
             client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{origin_address}/held"),
                 )?

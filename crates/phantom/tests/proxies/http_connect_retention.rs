@@ -46,7 +46,7 @@ async fn public_request(auth: Auth) -> TestResult<()> {
         let profile = ClientProfile::new(tls_settings()).with_tcp(firefox::v157_tcp()).with_proxy_connect(template);
         let client = Client::builder(profile).add_root_certificate_der(identity.root_der.clone()).route(Route::http_proxy(proxy)).build()?;
         let request = async {
-            let response = client.get(HttpProtocol::Http1, "https://127.0.0.1/current")?.headers(vec![RequestHeader::new("X-Claim", "current")]).send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/current")?.headers(vec![RequestHeader::new("X-Claim", "current")]).send().await?;
             assert_eq!(response.status(), 200);
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             TestResult::Ok(())
@@ -94,7 +94,7 @@ async fn a_rejected_connect_keeps_its_typed_cause_without_tls_or_a_fallback_dial
             .build()?;
         let request = async {
             let result = client
-                .get(HttpProtocol::Http1, "https://127.0.0.1:443/rejected")?
+                .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:443/rejected")?
                 .send()
                 .await;
             let error = match result {

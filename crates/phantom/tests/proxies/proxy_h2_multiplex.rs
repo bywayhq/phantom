@@ -428,7 +428,7 @@ fn firefox_profile() -> ClientProfile {
 
 async fn get_https(client: &Client, origin: SocketAddr) -> TestResult<()> {
     let response = client
-        .get(HttpProtocol::Http1, &format!("https://{origin}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin}/"))?
         .send()
         .await?;
     assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -437,7 +437,7 @@ async fn get_https(client: &Client, origin: SocketAddr) -> TestResult<()> {
 
 async fn get_forwarded(client: &Client, origin: &str) -> TestResult<()> {
     let response = client
-        .get(HttpProtocol::Http2, &format!("http://{origin}/"))?
+        .get_with_protocol(HttpProtocol::Http2, &format!("http://{origin}/"))?
         .send()
         .await?;
     assert_eq!(

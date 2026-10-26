@@ -54,7 +54,7 @@ async fn a_completed_trusted_handshake_is_not_a_trust_rejection() -> TestResult<
 
     let operation = bounded(async {
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{address}/trust-observer"),
             )?

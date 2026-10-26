@@ -153,7 +153,7 @@ impl RequestBackup {
             return Err("the actual held request was not admitted and recorded".into());
         }
 
-        let request = client.get(HttpProtocol::Http1, &server.uri("queued"))?;
+        let request = client.get_with_protocol(HttpProtocol::Http1, &server.uri("queued"))?;
         let (pending, receiver) = watch::channel(false);
         self.pending = receiver;
         let task = spawn_request(request, Some(pending));
@@ -322,7 +322,7 @@ async fn stopping_a_completed_request_keeps_its_actual_capacity_error() -> TestR
         let client = backup.client.as_ref().ok_or("request client missing")?;
         let server = backup.server.as_ref().ok_or("request server missing")?;
         overflow = spawn_request(
-            client.get(HttpProtocol::Http1, &server.uri("overflow"))?,
+            client.get_with_protocol(HttpProtocol::Http1, &server.uri("overflow"))?,
             None,
         );
         wait_finished(&overflow).await?;
@@ -410,7 +410,7 @@ async fn stopping_a_completed_response_keeps_the_actual_body_deadline() -> TestR
         client = Some(builder(profile()).build()?);
         let client = client.as_ref().ok_or("body deadline client missing")?;
         request = spawn_request(
-            client.get(
+            client.get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{address}/withheld-body"),
             )?,
@@ -452,15 +452,16 @@ async fn caller_failure_and_completed_request_cleanup_keep_both_actual_causes() 
         let client = backup.client.as_ref().ok_or("request client missing")?;
         let server = backup.server.as_ref().ok_or("request server missing")?;
         overflow = spawn_request(
-            client.get(HttpProtocol::Http1, &server.uri("overflow"))?,
+            client.get_with_protocol(HttpProtocol::Http1, &server.uri("overflow"))?,
             None,
         );
         wait_finished(&overflow).await?;
 
-        let caller: TestResult = match client.get(HttpProtocol::Http1, "http://owner.test/\n") {
-            Err(error) => Err(error.into()),
-            Ok(_) => return Err("invalid caller URI was accepted".into()),
-        };
+        let caller: TestResult =
+            match client.get_with_protocol(HttpProtocol::Http1, "http://owner.test/\n") {
+                Err(error) => Err(error.into()),
+                Ok(_) => return Err("invalid caller URI was accepted".into()),
+            };
         let observed = match finish_request(caller, &mut overflow).await {
             Err(error) => error,
             Ok(()) => {

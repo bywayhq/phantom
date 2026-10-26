@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "phantom-http"
-version = "0.4.0"
+version = "0.5.0"
 description = "HTTP requests with explicit browser profiles"
 readme = "README.md"
 requires-python = ">=3.10"

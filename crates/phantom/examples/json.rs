@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "usage: json <url>"))?;
     let client = Client::builder(chrome::v154_windows()).build()?;
     let response = client
-        .get(HttpProtocol::Http2, &url)?
+        .get_with_protocol(HttpProtocol::Http2, &url)?
         .header(RequestHeader::new("accept", "application/json"))
         .send()
         .await?;

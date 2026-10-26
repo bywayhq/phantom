@@ -76,9 +76,9 @@ pub(super) async fn observe_with_owner(
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let request = if negotiated {
-            client.get_negotiated(&url)?
+            client.get(&url)?
         } else {
-            client.get(protocol, &url)?
+            client.get_with_protocol(protocol, &url)?
         };
         let response = configure(request)?.send().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -224,7 +224,7 @@ async fn inherited_required_slot_is_checked_before_connecting() -> TestResult<()
             Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
                 .build()?;
         let Err(error) = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{}/", listener.local_addr()?),
             )?
@@ -287,7 +287,7 @@ async fn redirect_hops(opt_out: bool) -> TestResult<Vec<super::Fields>> {
                     NonZeroUsize::new(2).ok_or("zero limit")?,
                 ))
                 .build()?;
-        let request = client.get(HttpProtocol::Http1, &first_url)?;
+        let request = client.get_with_protocol(HttpProtocol::Http1, &first_url)?;
         let request = if opt_out {
             request.without_template()
         } else {

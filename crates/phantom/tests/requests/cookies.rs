@@ -105,7 +105,7 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
         );
         let session = client.as_ref().ok_or("cookie client owner missing")?;
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http2,
                 &format!("https://{first_address}/start"),
             )?
@@ -340,7 +340,7 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
         let url = format!("https://{address}/");
         send_and_drain(session, HttpProtocol::Http2, &url).await?;
         session
-            .get(HttpProtocol::Http2, &url)?
+            .get_with_protocol(HttpProtocol::Http2, &url)?
             .header(RequestHeader::new("cookie", "manual=caller"))
             .send()
             .await?
@@ -411,7 +411,7 @@ async fn dropping_body_after_headers_preserves_learned_cookie() -> TestResult<()
         client = Some(cookie_client_builder(&identity).cookies().build()?);
         let session = client.as_ref().ok_or("cookie client owner missing")?;
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
             .send()
             .await?;
         drop(response);
@@ -552,7 +552,7 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
                 .ok_or("cookie jar was disabled")?
                 .set_cookie(&url, "sid=1")?;
             let response = session
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .headers(caller_fields())
                 .send()
                 .await?;
@@ -836,7 +836,7 @@ async fn send_and_drain(
     protocol: HttpProtocol,
     url: &str,
 ) -> TestResult<()> {
-    let response = session.get(protocol, url)?.send().await?;
+    let response = session.get_with_protocol(protocol, url)?.send().await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())

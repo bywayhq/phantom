@@ -67,7 +67,10 @@ async fn nested_origin_and_secure_proxy_have_independent_pins() -> TestResult<()
                 };
                 let caller = async {
                     let result = client
-                        .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
+                        .get_with_protocol(
+                            HttpProtocol::Http2,
+                            &format!("https://{origin_address}/"),
+                        )?
                         .send()
                         .await;
                     if wrong_origin {
@@ -115,7 +118,7 @@ async fn wrong_secure_proxy_pin_fails_before_connect_is_sent() -> TestResult<()>
         };
         let caller = async {
             let error = client
-                .get(HttpProtocol::Http1, "https://origin.phantom.test/")?
+                .get_with_protocol(HttpProtocol::Http1, "https://origin.phantom.test/")?
                 .send()
                 .await
                 .err()
@@ -149,7 +152,7 @@ async fn proxy_pins_allow_plaintext_direct_origins_without_a_proxy_leg() -> Test
         };
         let caller = async {
             let response = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), 200);

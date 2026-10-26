@@ -492,6 +492,30 @@ impl fmt::Display for CatalogError {
 
 impl std::error::Error for CatalogError {}
 
+/// Creates a browser profile with default headers for the selected request kind.
+///
+/// Uses the fixed short selector or exact identifier accepted by [`profile`].
+/// The connection settings and request template come from the same definition.
+/// Other configured layers are retained; unavailable layers are not added.
+///
+/// ```
+/// use phantom_profile::catalog::{RequestTemplateKind, profile_for};
+///
+/// let settings = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
+/// assert!(settings.request_template().is_some());
+/// # Ok::<(), phantom_profile::catalog::CatalogError>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns [`CatalogError::UnknownProfile`] for an unknown name, or
+/// [`CatalogError::UnavailableTemplate`] when that request kind is unavailable.
+pub fn profile_for(name: &str, kind: RequestTemplateKind) -> Result<ClientProfile, CatalogError> {
+    let definition = profile(name)?;
+    let template = definition.request_template(kind)?;
+    Ok(definition.instantiate(&[])?.with_request_template(template))
+}
+
 /// Returns all compiled definitions in identifier order, without allocation.
 #[must_use]
 pub fn profiles() -> &'static [ProfileDefinition] {

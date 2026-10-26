@@ -53,7 +53,7 @@ async fn send_https(endpoint: &HttpsEndpoint, query: &DnsWireQuery) -> io::Resul
     };
     let mut request = endpoint
         .client
-        .request(HttpProtocol::Http2, method, endpoint.url.as_str())
+        .request_with_protocol(HttpProtocol::Http2, method, endpoint.url.as_str())
         .map_err(io::Error::other)?
         .without_header_hooks()
         .content_decoding(ContentDecoding::none());

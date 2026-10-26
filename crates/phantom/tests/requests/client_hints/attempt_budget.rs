@@ -30,7 +30,7 @@ async fn shared_attempt_budget_stops_critical_client_hint_resends() -> TestResul
         retained_client = Some(session.clone());
         let budget = phantom::HttpAttemptBudget::new(1);
         let error = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
             .attempt_budget(budget.clone())
             .send()
             .await

@@ -57,7 +57,7 @@ async fn stale_reused_http1_close_replays_idempotent_request_once() -> TestResul
 
         prime(client, &format!("http://{address}/prime")).await?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &format!("http://{address}/item"),
@@ -101,7 +101,7 @@ async fn fresh_http1_close_is_not_replayed() -> TestResult {
         let client = client.insert(replaying_client()?);
 
         let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/fresh"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/fresh"))?
             .send()
             .await;
 
@@ -133,7 +133,7 @@ async fn stale_reuse_replay_skips_post() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let result = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("http://{address}/submit"),
@@ -171,7 +171,7 @@ async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let result = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &format!("http://{address}/upload"),
@@ -209,7 +209,7 @@ async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &format!("http://{address}/upload"),
@@ -271,7 +271,7 @@ async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestRe
                 .collect(),
         );
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &format!("http://{address}/upload"),
@@ -312,7 +312,7 @@ async fn stale_reuse_replay_is_bounded() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/twice"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/twice"))?
             .send()
             .await;
 
@@ -346,7 +346,7 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/observed"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/observed"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -391,7 +391,7 @@ async fn stale_reuse_is_not_replayed_by_default() -> TestResult {
 
         prime(client, &format!("http://{address}/prime")).await?;
         let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/default"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await;
@@ -438,14 +438,14 @@ async fn negotiated_http1_stale_reuse_replays_once() -> TestResult {
         );
 
         client
-            .get_negotiated(&format!("https://{address}/prime"))?
+            .get(&format!("https://{address}/prime"))?
             .send()
             .await?
             .into_body()
             .collect()
             .await?;
         let response = client
-            .get_negotiated(&format!("https://{address}/negotiated"))?
+            .get(&format!("https://{address}/negotiated"))?
             .send()
             .await?;
 
@@ -475,7 +475,10 @@ fn replaying_client() -> TestResult<Client> {
 
 /// Completes one keep-alive exchange so the next request reuses the connection.
 async fn prime(client: &Client, url: &str) -> TestResult {
-    let response = client.get(HttpProtocol::Http1, url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, url)?
+        .send()
+        .await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())

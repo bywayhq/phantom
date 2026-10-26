@@ -351,7 +351,7 @@ async fn body_watchdog_keeps_the_actual_incomplete_body_failure() -> TestResult 
 
 async fn invalid_uri(client: &Client) -> TestResult {
     let _response = client
-        .get(HttpProtocol::Http1, "https://127.0.0.1/invalid uri")?
+        .get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1/invalid uri")?
         .send()
         .await?;
 

@@ -122,8 +122,8 @@ async fn control(negotiated: bool, ech: bool, retired: bool) -> TestResult<()> {
                 }
                 spare_ready.await?;
                 for _ in 0..2 {
-                    let request = if negotiated { client.get_negotiated(&page)? }
-                        else { client.get(HttpProtocol::Http2, &page)? };
+                    let request = if negotiated { client.get(&page)? }
+                        else { client.get_with_protocol(HttpProtocol::Http2, &page)? };
                     let response = request.send().await?;
                     assert_eq!(response.status(), 200);
                     assert!(response.into_body().collect().await?.to_bytes().is_empty());

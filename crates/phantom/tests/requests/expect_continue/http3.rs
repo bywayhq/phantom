@@ -137,7 +137,7 @@ pub(super) async fn http3_continue(control: Option<Control>) -> TestResult {
 
         let client = http3_client_builder(&identity).build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 target
@@ -221,7 +221,7 @@ async fn http3_wait_end(control: Option<Control>) -> TestResult {
 
         let client = http3_client_builder(&identity).build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 target
@@ -310,7 +310,7 @@ async fn http3_final(control: Option<Control>) -> TestResult {
 
         let client = http3_client_builder(&identity).build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 target
@@ -393,7 +393,7 @@ async fn http3_final_body(control: Option<Control>) -> TestResult {
 
         let client = http3_client_builder(&identity).build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 target
@@ -498,7 +498,7 @@ async fn http3_redirect(control: Option<Control>) -> TestResult {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::PUT,
                 target

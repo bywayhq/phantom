@@ -63,7 +63,7 @@ async fn imported_accepted_early_winner_421_recovers_without_reconfirming_or_rer
         // the cold recipient will use; a different origin would scope its ticket away.
         let fresh = OutcomeSubscriber::default();
         let seed = source
-            .get(HttpProtocol::Http3, &origin.origin_url("/seed"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.origin_url("/seed"))?
             .alt_svc_alternative("127.0.0.1", address.port())
             .send()
             .with_subscriber(fresh.dispatch())
@@ -100,7 +100,7 @@ async fn imported_accepted_early_winner_421_recovers_without_reconfirming_or_rer
         let allowance = HttpAttemptBudget::new(2);
         let request = async {
             let response = recipient
-                .get_negotiated(&origin.origin_url("/imported"))?
+                .get(&origin.origin_url("/imported"))?
                 .attempt_budget(allowance.clone())
                 .send()
                 .await?;
@@ -136,7 +136,7 @@ async fn imported_accepted_early_winner_421_recovers_without_reconfirming_or_rer
         );
         assert_origin_response(
             recipient
-                .get_negotiated(&origin.origin_url("/after"))?
+                .get(&origin.origin_url("/after"))?
                 .attempt_budget(HttpAttemptBudget::new(1))
                 .send()
                 .await?,

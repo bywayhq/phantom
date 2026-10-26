@@ -11,7 +11,7 @@ async fn exhausted_attempt_budget_stops_before_status_retry_delay() -> TestResul
         let budget = HttpAttemptBudget::new(1);
         let error = tokio::time::timeout(Duration::from_secs(2), async {
             client
-                .get(HttpProtocol::Http1, &server.url("http", "/"))?
+                .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
                 .attempt_budget(budget.clone())
                 .send()
                 .await
@@ -40,7 +40,7 @@ async fn concurrent_requests_and_cloned_clients_share_one_allowance() -> TestRes
             let url = server.url("http", "/shared");
             async move {
                 let result = client
-                    .get(HttpProtocol::Http1, &url)?
+                    .get_with_protocol(HttpProtocol::Http1, &url)?
                     .attempt_budget(budget)
                     .send()
                     .await;
@@ -82,7 +82,7 @@ async fn zero_independent_and_absent_budgets_do_not_affect_each_other() -> TestR
         let zero = HttpAttemptBudget::new(0);
         let other = HttpAttemptBudget::new(2);
         let error = client
-            .get(HttpProtocol::Http1, &server.url("http", "/blocked"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/blocked"))?
             .attempt_budget(zero)
             .send()
             .await
@@ -92,7 +92,7 @@ async fn zero_independent_and_absent_budgets_do_not_affect_each_other() -> TestR
         assert!(server.received()?.is_empty());
         for path in ["/first", "/external-resend"] {
             client
-                .get(HttpProtocol::Http1, &server.url("http", path))?
+                .get_with_protocol(HttpProtocol::Http1, &server.url("http", path))?
                 .attempt_budget(other.clone())
                 .send()
                 .await?
@@ -102,7 +102,7 @@ async fn zero_independent_and_absent_budgets_do_not_affect_each_other() -> TestR
         }
         assert_eq!(other.remaining(), 0);
         client
-            .get(HttpProtocol::Http1, &server.url("http", "/unbudgeted"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/unbudgeted"))?
             .send()
             .await?
             .into_body()
@@ -136,7 +136,7 @@ async fn redirects_and_enabled_status_retries_spend_the_same_allowance() -> Test
         .build()?;
         let budget = HttpAttemptBudget::new(3);
         let mut request = client
-            .get_negotiated(&server.url("http", "/"))?
+            .get(&server.url("http", "/"))?
             .attempt_budget(budget.clone());
         let diagnostics = request.diagnostics(NonZeroUsize::MIN.saturating_add(127));
         let error = request

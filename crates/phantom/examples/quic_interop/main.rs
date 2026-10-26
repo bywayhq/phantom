@@ -239,7 +239,7 @@ async fn download_to_partial(
     use http_body_util::BodyExt as _;
 
     let response = client
-        .get(HttpProtocol::Http3, target.url().as_str())?
+        .get_with_protocol(HttpProtocol::Http3, target.url().as_str())?
         .send()
         .await?;
     if !response.status().is_success() {

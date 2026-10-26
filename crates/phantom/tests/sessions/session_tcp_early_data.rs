@@ -248,7 +248,7 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
             // The slow request holds the origin's only connection from here on.
             wait_for_slow_head.await?;
             let response = session
-                .request_negotiated(Method::POST, &format!("https://{address}/post"))?
+                .request(Method::POST, &format!("https://{address}/post"))?
                 .body("payload")
                 .timeouts(
                     RequestTimeoutOverrides::disabled()
@@ -382,8 +382,8 @@ async fn failure_after_early_data(
         wait_for_first_close.await?;
         let uri = format!("https://{address}/failed");
         let failed = match protocol {
-            Some(protocol) => session.get(protocol, &uri)?,
-            None => session.get_negotiated(&uri)?,
+            Some(protocol) => session.get_with_protocol(protocol, &uri)?,
+            None => session.get(&uri)?,
         };
         client_error = Some(match failed.send().await {
             Ok(_) => return Err("the request succeeded after the handshake failed".into()),
@@ -495,7 +495,7 @@ fn build_acceptor(
 }
 
 async fn send_negotiated(session: &phantom::Client, method: Method, uri: &str) -> TestResult<()> {
-    let mut request = session.request_negotiated(method.clone(), uri)?;
+    let mut request = session.request(method.clone(), uri)?;
     if method == Method::POST {
         request = request.body("payload");
     }
@@ -511,7 +511,10 @@ async fn send(
     method: Method,
     uri: &str,
 ) -> TestResult<()> {
-    let response = session.request(protocol, method, uri)?.send().await?;
+    let response = session
+        .request_with_protocol(protocol, method, uri)?
+        .send()
+        .await?;
     assert_eq!(response.status(), StatusCode::OK);
     response.into_body().collect().await?;
     Ok(())

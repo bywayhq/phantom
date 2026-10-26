@@ -138,7 +138,11 @@ async fn perform_connector(
             } else {
                 HttpProtocol::Http2
             };
-            let result = timeout(TEST_TIMEOUT, client.get(protocol, &url)?.send()).await?;
+            let result = timeout(
+                TEST_TIMEOUT,
+                client.get_with_protocol(protocol, &url)?.send(),
+            )
+            .await?;
             if result.is_ok() {
                 return Err("capture-only origin unexpectedly returned a response".into());
             }
@@ -147,7 +151,10 @@ async fn perform_connector(
             let route = Route::http_proxy(HttpProxy::new(&format!("https://{address}"))?);
             let result = timeout(
                 TEST_TIMEOUT,
-                client.get(HttpProtocol::Http1, &url)?.route(route).send(),
+                client
+                    .get_with_protocol(HttpProtocol::Http1, &url)?
+                    .route(route)
+                    .send(),
             )
             .await?;
             if result.is_ok() {
@@ -184,7 +191,10 @@ async fn perform_tunnel(client: &Client, url: &str, address: SocketAddr) -> Test
     let primary: TestResult<()> = async {
         let result = timeout(
             TEST_TIMEOUT,
-            client.get(HttpProtocol::Http1, url)?.route(route).send(),
+            client
+                .get_with_protocol(HttpProtocol::Http1, url)?
+                .route(route)
+                .send(),
         )
         .await?;
         if result.is_ok() {

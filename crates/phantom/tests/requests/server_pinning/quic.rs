@@ -22,7 +22,7 @@ async fn quic_pin_mismatch_is_typed_before_origin_http() -> TestResult<()> {
         };
         let caller = async {
             let error = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await
                 .err()
@@ -64,7 +64,7 @@ async fn quic_matching_pin_keeps_connections_usable_and_shared() -> TestResult<(
             for _ in 0..2 {
                 let response = client
                     .clone()
-                    .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                    .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                     .send()
                     .await?;
                 assert_eq!(response.status(), 200);

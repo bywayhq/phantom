@@ -295,7 +295,8 @@ async fn send_budgeted(
     path: &str,
     budget: Option<phantom::HttpAttemptBudget>,
 ) -> TestResult<()> {
-    let mut request = client.get(HttpProtocol::Http3, &format!("https://{address}{path}"))?;
+    let mut request =
+        client.get_with_protocol(HttpProtocol::Http3, &format!("https://{address}{path}"))?;
     if let Some(budget) = budget {
         request = request.attempt_budget(budget);
     }

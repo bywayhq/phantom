@@ -17,7 +17,7 @@ async fn dropping_a_stalled_origin_releases_its_connection_observations() -> Tes
         let origin = Origin::spawn(&identity)?;
         let client = client_builder(&identity, &proxy_identity).build()?;
         let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/stall"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.uri("/stall"))?
             .send()
             .await?;
         let mut body = response.into_body();
@@ -53,7 +53,7 @@ async fn dropping_a_stalled_origin_ends_its_open_response() -> TestResult<()> {
         let origin = Origin::spawn(&identity)?;
         let client = client_builder(&identity, &proxy_identity).build()?;
         let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/stall"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.uri("/stall"))?
             .send()
             .await?;
         let mut body = response.into_body();
@@ -84,7 +84,7 @@ async fn dropping_a_stalled_origin_destroys_its_response_task() -> TestResult<()
         let origin = Origin::spawn(&identity)?;
         let client = client_builder(&identity, &proxy_identity).build()?;
         let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/stall"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.uri("/stall"))?
             .send()
             .await?;
         let mut body = response.into_body();
@@ -120,7 +120,7 @@ async fn an_ordinary_response_releases_its_task_witness() -> TestResult<()> {
         let origin = Origin::spawn(&identity)?;
         let client = client_builder(&identity, &proxy_identity).build()?;
         let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/complete"))?
+            .get_with_protocol(HttpProtocol::Http3, &origin.uri("/complete"))?
             .send()
             .await?;
         assert_eq!(

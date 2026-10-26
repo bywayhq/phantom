@@ -93,9 +93,9 @@ async fn request(
     negotiated: bool,
 ) -> TestResult<http::Response<ResponseBody>> {
     let builder = if negotiated {
-        client.get_negotiated(uri)?
+        client.get(uri)?
     } else {
-        client.get(HttpProtocol::Http1, uri)?
+        client.get_with_protocol(HttpProtocol::Http1, uri)?
     };
     Ok(builder.send().await?)
 }

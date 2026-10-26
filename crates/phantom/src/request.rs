@@ -36,8 +36,8 @@ pub(crate) mod template;
 /// See [Requests and responses](crate::guide::requests_and_responses) for
 /// uploads, bounded body reads, and error handling.
 ///
-/// [`Client::get`] and [`Client::request`] build exact-protocol requests;
-/// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
+/// [`Client::get_with_protocol`] and [`Client::request_with_protocol`] build exact-protocol requests;
+/// [`Client::get`] and [`Client::request`] build requests
 /// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are
 /// checked when [`Self::send`] runs, before any I/O.
 /// New requests inherit the profile's default template. Use [`Self::template`]
@@ -55,7 +55,7 @@ pub(crate) mod template;
 ///
 /// async fn post(client: &Client) -> Result<(), RequestError> {
 ///     let response = client
-///         .request(HttpProtocol::Http2, Method::POST, "https://example.com/api")?
+///         .request_with_protocol(HttpProtocol::Http2, Method::POST, "https://example.com/api")?
 ///         .header(RequestHeader::new("content-type", "application/json"))
 ///         .body(r#"{"name":"phantom"}"#)
 ///         .timeouts(RequestTimeoutOverrides::new()
@@ -135,7 +135,7 @@ impl RequestBuilder {
     /// use phantom::{HttpProtocol, TransferControl, TransferLimits};
     ///
     /// let control = TransferControl::new(TransferLimits::new().download_bytes(1 << 20));
-    /// let response = client.get(HttpProtocol::Http2, "https://example.com/")?
+    /// let response = client.get_with_protocol(HttpProtocol::Http2, "https://example.com/")?
     ///     .transfer_control(control.clone()).send().await?;
     /// response.into_body().collect_with_limit(1 << 20).await?;
     /// println!("{:?}", control.snapshot());
@@ -238,7 +238,7 @@ impl RequestBuilder {
     ///
     /// ```no_run
     /// # fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
-    /// let request = client.get(phantom::HttpProtocol::Http1, "https://example.com/?tag=old")?
+    /// let request = client.get_with_protocol(phantom::HttpProtocol::Http1, "https://example.com/?tag=old")?
     ///     .query_pairs([("tag", "new"), ("tag", "last")])?;
     /// # drop(request);
     /// # Ok(())
@@ -483,7 +483,7 @@ impl RequestBuilder {
     /// use std::num::NonZeroUsize;
     /// use phantom::HttpProtocol;
     ///
-    /// let mut request = client.get(HttpProtocol::Http2, "https://example.com/")?;
+    /// let mut request = client.get_with_protocol(HttpProtocol::Http2, "https://example.com/")?;
     /// let diagnostics = request.diagnostics(NonZeroUsize::new(128).unwrap());
     /// let response = request.send().await?;
     /// println!("{:?}", diagnostics.snapshot());
@@ -514,6 +514,83 @@ impl RequestBuilder {
         self
     }
 
+    /// Encodes a replayable JSON body and supplies its `Content-Type` header.
+    ///
+    /// `maximum_bytes` bounds the encoded body. An existing content type must
+    /// match `application/json`; duplicates and conflicts fail before sending.
+    /// Template slots retain their configured position. Without a slot, the
+    /// header follows caller headers already added to this builder.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// let response = client.request(phantom::Method::POST, "https://example.com/messages")?
+    ///     .json(&serde_json::json!({"message": "hello"}), 4096)?
+    ///     .send().await?;
+    /// # drop(response);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::PreparedBodyError`] if encoding fails or exceeds the limit.
+    #[cfg(feature = "json")]
+    pub fn json<T: serde::Serialize + ?Sized>(
+        self,
+        value: &T,
+        maximum_bytes: usize,
+    ) -> Result<Self, crate::PreparedBodyError> {
+        let body = crate::PreparedRequestBody::json(value, maximum_bytes)?;
+        Ok(self.encoded_body(body))
+    }
+
+    /// Encodes ordered form pairs and supplies their `Content-Type` header.
+    ///
+    /// Duplicate names retain their order. `maximum_bytes` bounds the encoded
+    /// body. The content type is `application/x-www-form-urlencoded;charset=UTF-8`.
+    /// An existing content type must match; duplicates and conflicts fail before
+    /// sending. Template slots keep their position; otherwise the header follows
+    /// caller headers already added to this builder.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// let response = client.request(phantom::Method::POST, "https://example.com/submit")?
+    ///     .form([("tag", "first"), ("tag", "last")], 4096)?
+    ///     .send().await?;
+    /// # drop(response);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::PreparedBodyError`] if encoding exceeds the limit.
+    pub fn form<I, K, V>(
+        self,
+        pairs: I,
+        maximum_bytes: usize,
+    ) -> Result<Self, crate::PreparedBodyError>
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let body = crate::PreparedRequestBody::form(pairs, maximum_bytes)?;
+        Ok(self.encoded_body(body))
+    }
+
+    fn encoded_body(mut self, body: crate::PreparedRequestBody) -> Self {
+        if !self
+            .headers
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case("content-type"))
+        {
+            self.headers
+                .push(RequestHeader::new("content-type", body.content_type()));
+        }
+        self.prepared_body(body)
+    }
+
     /// Sets bounded, replayable bytes with an exact content type.
     ///
     /// At send time, a declared `Content-Type` caller slot receives the value.
@@ -541,7 +618,7 @@ impl RequestBuilder {
     /// let file = tokio::fs::File::open("upload.bin").await?;
     /// let field = StreamingMultipartPart::reader("file", file)?.with_filename("upload.bin")?;
     /// let body = StreamingMultipartBody::new("caller-boundary", [field], 16 * 1024 * 1024)?;
-    /// let response = client.request(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
+    /// let response = client.request_with_protocol(HttpProtocol::Http2, Method::POST, "https://example.com/upload")?
     ///     .header(RequestHeader::new("content-type", body.content_type()))
     ///     .multipart_body(body).send().await?;
     /// # drop(response);
@@ -803,7 +880,7 @@ impl RequestBuilder {
     /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
     /// use std::num::NonZeroUsize;
     /// use phantom::{RedirectHistory, RedirectPolicy};
-    /// let response = client.get_negotiated("https://example.com/")?
+    /// let response = client.get("https://example.com/")?
     ///     .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
     ///     .redirect_history(NonZeroUsize::MIN)
     ///     .send().await?;
@@ -874,7 +951,7 @@ impl RequestBuilder {
     /// # async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
     /// let budget = phantom::HttpAttemptBudget::new(20);
     /// for url in ["https://example.com/", "https://example.com/about"] {
-    ///     let response = client.get(phantom::HttpProtocol::Http2, url)?
+    ///     let response = client.get_with_protocol(phantom::HttpProtocol::Http2, url)?
     ///         .attempt_budget(budget.clone()).send().await?;
     ///     drop(response);
     /// }
@@ -959,7 +1036,7 @@ impl RequestBuilder {
     /// # use phantom::{Client, HttpProtocol, RequestError};
     /// # async fn example(client: &Client) -> Result<(), RequestError> {
     /// let response = client
-    ///     .get(HttpProtocol::Http2, "https://example.com/")?
+    ///     .get_with_protocol(HttpProtocol::Http2, "https://example.com/")?
     ///     .send()
     ///     .await?;
     /// assert!(response.status().is_success());

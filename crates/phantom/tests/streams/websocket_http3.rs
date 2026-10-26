@@ -859,14 +859,17 @@ async fn assert_echoes(socket: &mut WebSocket) -> TestResult<()> {
 }
 
 async fn get_body(client: &Client, uri: &str) -> TestResult<Bytes> {
-    let response = client.get(HttpProtocol::Http3, uri)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http3, uri)?
+        .send()
+        .await?;
     assert_eq!(response.status(), StatusCode::OK);
     Ok(response.into_body().collect().await?.to_bytes())
 }
 
 async fn ordinary_get(client: &Client, origin: &Origin) -> TestResult<()> {
     let response = client
-        .get(
+        .get_with_protocol(
             HttpProtocol::Http3,
             &format!("https://{}/ordinary", origin.address),
         )?

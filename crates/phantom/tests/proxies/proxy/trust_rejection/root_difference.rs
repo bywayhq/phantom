@@ -226,7 +226,7 @@ async fn observe_root_difference(
 
 async fn request_failure(client: &Client, origin: SocketAddr) -> TestResult<RequestError> {
     match client
-        .get(HttpProtocol::Http1, &format!("https://{origin}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin}/"))?
         .send()
         .await
     {

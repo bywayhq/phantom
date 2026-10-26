@@ -118,7 +118,7 @@ async fn streams_http1_through_verified_https_proxy() -> TestResult<()> {
 
         let operation = async {
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{origin_address}/through-https-proxy"),
                 )?
@@ -187,7 +187,7 @@ async fn disabled_proxy_authentication_still_verifies_the_origin() -> TestResult
 
         let operation = async {
             let response = client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), 204);
@@ -245,7 +245,7 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
 
         let operation = async {
             let error = match client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await
             {
@@ -305,7 +305,7 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
 
         let operation = async {
             let error = match client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await
             {
@@ -370,7 +370,10 @@ async fn unicode_origin_uses_one_canonical_connect_and_host_authority() -> TestR
         );
 
         let operation = async {
-            let response = client.get(HttpProtocol::Http1, &origin_uri)?.send().await?;
+            let response = client
+                .get_with_protocol(HttpProtocol::Http1, &origin_uri)?
+                .send()
+                .await?;
             assert_eq!(response.status(), 204);
             response.into_body().collect().await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
@@ -436,7 +439,7 @@ async fn plaintext_proxy_route_override_canonicalizes_http2_authority_and_stream
 
         let operation = async {
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!(
                         "https://{UNICODE_ORIGIN_NAME}:{}/h2-proxied",
@@ -526,7 +529,7 @@ async fn https_proxy_route_override_canonicalizes_http2_authority_and_streams_tr
 
         let operation = async {
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!(
                         "https://{UNICODE_ORIGIN_NAME}:{}/h2-proxied",
@@ -591,7 +594,7 @@ async fn proxy_rejection_never_connects_direct() -> TestResult<()> {
 
         let operation = async {
             let error = match client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                 .send()
                 .await
             {
@@ -632,7 +635,7 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
         .route(route.clone())
         .build()?;
     let error = match client
-        .get(HttpProtocol::Http1, origin)?
+        .get_with_protocol(HttpProtocol::Http1, origin)?
         .header(RequestHeader::new("Bad Header", "invalid"))
         .send()
         .await
@@ -648,7 +651,7 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
 
     let client = client_builder(&identity, true).route(route).build()?;
     let error = match client
-        .get(HttpProtocol::Http2, origin)?
+        .get_with_protocol(HttpProtocol::Http2, origin)?
         .header(RequestHeader::new("X-Uppercase", "invalid"))
         .send()
         .await
@@ -666,7 +669,11 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
         HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(Vec::new()),
     );
     let client = client_builder(&identity, false).route(route).build()?;
-    let error = match client.get(HttpProtocol::Http1, origin)?.send().await {
+    let error = match client
+        .get_with_protocol(HttpProtocol::Http1, origin)?
+        .send()
+        .await
+    {
         Ok(_) => return Err("invalid CONNECT fields touched the proxy".into()),
         Err(error) => error,
     };
@@ -683,7 +690,7 @@ fn polling_proxy_request_without_tokio_returns_runtime_error() -> TestResult<()>
     let identity = TestIdentity::generate()?;
     let route = Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?);
     let client = client_builder(&identity, false).route(route).build()?;
-    let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 
@@ -745,7 +752,7 @@ async fn send_connect_upload(
     origin_address: std::net::SocketAddr,
 ) -> TestResult<()> {
     let response = client
-        .request(
+        .request_with_protocol(
             HttpProtocol::Http1,
             Method::POST,
             &format!("https://{origin_address}/proxied"),

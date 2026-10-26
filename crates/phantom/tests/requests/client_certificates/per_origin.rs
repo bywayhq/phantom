@@ -248,9 +248,9 @@ async fn mapping_applies_over_http2_and_negotiated_requests() -> TestResult<()> 
         let uri = format!("https://{address}/");
         let request = async {
             let builder = if negotiated {
-                client.get_negotiated(&uri)?
+                client.get(&uri)?
             } else {
-                client.get(HttpProtocol::Http2, &uri)?
+                client.get_with_protocol(HttpProtocol::Http2, &uri)?
             };
             Ok::<_, RequestError>(builder.send().await?.status())
         };
@@ -287,7 +287,7 @@ async fn mapping_applies_over_http3() -> TestResult<()> {
     let (presented, status) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             let status = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await?
                 .status();
@@ -338,7 +338,7 @@ async fn a_pinned_alternative_receives_the_origin_s_certificate() -> TestResult<
     let (presented, status) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             let status = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/"))?
                 .alt_svc_alternative(ORIGIN, address.port())
                 .send()
                 .await?
@@ -407,7 +407,7 @@ async fn a_learned_alternative_receives_the_origin_s_certificate() -> TestResult
             tokio::join!(origin, async {
                 Ok::<_, RequestError>(
                     client
-                        .get_negotiated(&uri)
+                        .get(&uri)
                         .inspect_err(|error| {
                             diagnose(policy, "learning request construction", error)
                         })?
@@ -448,7 +448,7 @@ async fn a_learned_alternative_receives_the_origin_s_certificate() -> TestResult
                 },
                 async {
                     let response = client
-                        .get_negotiated(&uri)
+                        .get(&uri)
                         .inspect_err(|error| {
                             diagnose(policy, "alternative request construction", error)
                         })?
@@ -873,7 +873,7 @@ async fn a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only(
     let (presented, status) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             let status = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await?
                 .status();

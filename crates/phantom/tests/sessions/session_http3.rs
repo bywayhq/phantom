@@ -41,7 +41,7 @@ async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<
         let session = test_client(&identity)?;
         for path in ["/first", "/second"] {
             let response = session
-                .get(HttpProtocol::Http3, &format!("https://{address}{path}"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}{path}"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);
@@ -87,7 +87,7 @@ async fn warmed_connection_is_not_reused_from_another_runtime() -> TestResult<()
             let runtime = tokio::runtime::Builder::new_current_thread().build()?;
             let result = runtime.block_on(async {
                 second_session
-                    .get(HttpProtocol::Http3, &second_uri)?
+                    .get_with_protocol(HttpProtocol::Http3, &second_uri)?
                     .send()
                     .await
             });
@@ -222,7 +222,7 @@ async fn client_http3_requests_reuse_one_connection() -> TestResult<()> {
         let client = test_client(&identity)?;
         for path in ["/first", "/second"] {
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{address}{path}"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}{path}"))?
                 .send()
                 .await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), path);
@@ -273,12 +273,12 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
             .max_pending_http3_requests_per_origin(one)
             .build()?;
         let held = session
-            .get(HttpProtocol::Http3, &format!("https://{address}/held"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/held"))?
             .send()
             .await?;
 
-        let waiting_request =
-            session.get(HttpProtocol::Http3, &format!("https://{address}/waiting"))?;
+        let waiting_request = session
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/waiting"))?;
         let mut waiting = std::pin::pin!(waiting_request.send());
         poll_fn(|context| {
             assert!(waiting.as_mut().poll(context).is_pending());
@@ -287,7 +287,7 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
         .await;
 
         let rejected = session
-            .get(HttpProtocol::Http3, &format!("https://{address}/rejected"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/rejected"))?
             .send()
             .await
             .err()
@@ -301,7 +301,7 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
         assert_eq!(waiting.into_body().collect().await?.to_bytes(), "waiting");
 
         let later = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{address}/after-complete"),
             )?
@@ -362,7 +362,10 @@ async fn send_response(mut stream: ServerStream, payload: &str) -> TestResult<()
 }
 
 async fn send_and_drain(client: Client, uri: String) -> TestResult<Bytes> {
-    let response = client.get(HttpProtocol::Http3, &uri)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http3, &uri)?
+        .send()
+        .await?;
     Ok(response.into_body().collect().await?.to_bytes())
 }
 

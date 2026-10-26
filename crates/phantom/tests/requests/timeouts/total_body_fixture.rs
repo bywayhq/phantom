@@ -399,7 +399,7 @@ async fn partial_response(
         let response = timeout(
             TEST_TIMEOUT,
             client
-                .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
                 .send(),
         )
         .await

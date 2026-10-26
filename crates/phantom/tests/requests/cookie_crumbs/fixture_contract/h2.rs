@@ -78,7 +78,7 @@ async fn exchange(recorder: &Recorder) -> TestResult<()> {
     let response = timeout(
         DEADLINE,
         client
-            .get(HttpProtocol::Http2, &recorder.url)?
+            .get_with_protocol(HttpProtocol::Http2, &recorder.url)?
             .header(RequestHeader::new("accept", "*/*"))
             .send(),
     )
@@ -175,7 +175,9 @@ async fn a_real_request_failure_keeps_the_completed_recorder_failure() -> TestRe
     let client = recorder.client.as_ref().ok_or("recorder client missing")?;
     let request = timeout(
         DEADLINE,
-        client.get(HttpProtocol::Http2, &recorder.url)?.send(),
+        client
+            .get_with_protocol(HttpProtocol::Http2, &recorder.url)?
+            .send(),
     )
     .await?;
     let primary = request

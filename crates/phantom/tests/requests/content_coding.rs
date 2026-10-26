@@ -81,7 +81,7 @@ async fn forwarded_template_coding_decodes_the_coding_sent_to_the_proxy() -> Tes
         });
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
         let response = forwarding_coding_client(route, "deflate")?
-            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/coded")?
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
             .await?;
@@ -114,7 +114,7 @@ async fn direct_template_coding_decodes_gzip_and_ignores_inactive_forwarding_val
             serve_http1(stream, vec![http1_response("gzip", &encoded)]).await
         });
         let response = forwarding_coding_client(Route::direct(), "gzip;q=2")?
-            .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/coded"))?
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
             .await?;
@@ -143,7 +143,7 @@ async fn invalid_active_forwarded_coding_fails_before_opening_the_proxy_connecti
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
         let client = forwarding_coding_client(route, "gzip;q=2")?;
         let sending = client
-            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/coded")?
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send();
         let error = tokio::select! {
@@ -177,7 +177,7 @@ async fn caller_coding_overrides_an_invalid_forwarded_template_value() -> TestRe
         });
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
         let response = forwarding_coding_client(route, "gzip;q=2")?
-            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/coded")?
             .header(RequestHeader::new("Accept-Encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -230,7 +230,7 @@ async fn redirect_activating_invalid_forwarded_coding_fails_before_the_next_hop(
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let result = client
-            .get(HttpProtocol::Http1, "https://origin.test/start")?
+            .get_with_protocol(HttpProtocol::Http1, "https://origin.test/start")?
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
             .await;
@@ -319,7 +319,7 @@ async fn plaintext_exchange(
             .ok_or_else(|| Box::<dyn Error + Send + Sync>::from("server observed no request"))
     });
     let response = plaintext_client()?
-        .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/coded"))?
         .header(RequestHeader::new("Accept-Encoding", accept_encoding))
         .content_decoding(policy)
         .send()
@@ -438,7 +438,7 @@ async fn http2_brotli_response_is_decoded_when_advertised() -> TestResult<()> {
 
         let client = tls_support::test_client(&identity, true)?;
         let response = client
-            .get(HttpProtocol::Http2, &format!("https://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "br"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -487,7 +487,7 @@ async fn http3_zstd_response_is_decoded_when_advertised() -> TestResult<()> {
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let response = client
-            .get(HttpProtocol::Http3, &format!("https://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "zstd"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -603,7 +603,7 @@ async fn invalid_accept_encoding_fails_before_network_io_only_when_decoding_enab
         let address = listener.local_addr()?;
         let client = plaintext_client()?;
         let Err(error) = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "gzip;q=2"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -624,7 +624,7 @@ async fn invalid_accept_encoding_fails_before_network_io_only_when_decoding_enab
             serve_http1(stream, vec![http1_response("identity", b"plain")]).await
         });
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "gzip;q=2"))
             .send()
             .await?;
@@ -659,7 +659,7 @@ async fn head_204_and_304_with_content_encoding_complete_empty() -> TestResult<(
         let client = plaintext_client()?;
         for method in [Method::HEAD, Method::GET, Method::GET] {
             let response = client
-                .request(HttpProtocol::Http1, method, &format!("http://{address}/"))?
+                .request_with_protocol(HttpProtocol::Http1, method, &format!("http://{address}/"))?
                 .header(RequestHeader::new("accept-encoding", "gzip"))
                 .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
                 .send()
@@ -710,7 +710,7 @@ async fn malformed_gzip_body_fails_and_next_http1_request_uses_new_connection() 
 
         let client = plaintext_client()?;
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/first"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/first"))?
             .header(RequestHeader::new("accept-encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -722,7 +722,7 @@ async fn malformed_gzip_body_fails_and_next_http1_request_uses_new_connection() 
         let _ = release.send(());
 
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/second"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/second"))?
             .send()
             .await?;
         assert_eq!(
@@ -800,7 +800,7 @@ async fn redirect_hop_bodies_are_not_decoded_and_final_response_is() -> TestResu
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = client
-            .get(HttpProtocol::Http1, &format!("https://{address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/start"))?
             .header(RequestHeader::new("accept-encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
             .send()
@@ -830,7 +830,7 @@ async fn total_timeout_interrupts_decoding_of_buffered_input() -> TestResult<()>
             serve_http1(stream, vec![http1_response("zstd", &encoded)]).await
         });
         let response = plaintext_client()?
-            .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "zstd"))
             .content_decoding(ContentDecoding::advertised(u64::MAX))
             .timeouts(

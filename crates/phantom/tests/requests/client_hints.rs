@@ -251,7 +251,7 @@ async fn http2_alps_accept_ch_applies_to_the_first_request_without_a_probe() -> 
         let session = alps_client(&identity)?;
         retained_client = Some(session.clone());
         let response = session
-            .get(HttpProtocol::Http2, &format!("{origin}/"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/"))?
             .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
             .send()
             .await?;
@@ -334,16 +334,13 @@ async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestR
         let client = alps_client(&identity)?;
         retained_client = Some(client.clone());
         let response = client
-            .get_negotiated(&format!("{origin}/"))?
+            .get(&format!("{origin}/"))?
             .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
-        let response = client
-            .get_negotiated(&format!("{origin}/retained"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("{origin}/retained"))?.send().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
         drop(client);
@@ -408,7 +405,7 @@ async fn http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for
         let session = alps_client(&identity)?;
         retained_client = Some(session.clone());
         let response = session
-            .get(HttpProtocol::Http2, &format!("{origin}/replacement"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/replacement"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -557,7 +554,8 @@ where
         }
 
         let observed = {
-            let mut probe = std::pin::pin!(session.get(HttpProtocol::Http2, url)?.send());
+            let mut probe =
+                std::pin::pin!(session.get_with_protocol(HttpProtocol::Http2, url)?.send());
             poll_fn(|context| std::task::Poll::Ready(probe.as_mut().poll(context))).await
         };
         match observed {
@@ -596,7 +594,7 @@ async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built()
             let session = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?;
             retained_client = Some(session.clone());
             let response = session
-                .get(HttpProtocol::Http2, &format!("{origin}/"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/"))?
                 .template(&template)
                 .header(RequestHeader::new("referer", format!("{origin}/").as_str()))
                 .send()
@@ -635,7 +633,7 @@ async fn http2_navigation_template_restart_places_the_hint_after_accept() -> Tes
             let session = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?;
             retained_client = Some(session.clone());
             let response = session
-                .get(HttpProtocol::Http2, &format!("{origin}/"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/"))?
                 .template(&template)
                 .send()
                 .await?;
@@ -810,7 +808,7 @@ async fn http2_alps_accept_ch_restart_sends_a_streaming_body_once() -> TestResul
         let session = alps_client(&identity)?;
         retained_client = Some(session.clone());
         let response = session
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http2,
                 http::Method::POST,
                 &format!("{origin}/"),
@@ -908,7 +906,7 @@ async fn http3_alps_accept_ch_restarts_the_request_with_the_missing_hint() -> Te
             .build()?;
         retained_client = Some(client.clone());
         let response = client
-            .get(HttpProtocol::Http3, &format!("{origin}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("{origin}/"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -978,7 +976,7 @@ async fn http3_navigation_template_restart_places_the_hint_after_accept() -> Tes
         retained_client = Some(client.clone());
         let template = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
         let response = client
-            .get(HttpProtocol::Http3, &format!("{origin}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("{origin}/"))?
             .template(&template)
             .send()
             .await?;
@@ -1190,7 +1188,7 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
         let session = client(&identity)?;
         retained_client = Some(session.clone());
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
             .retry_policy(phantom::RetryPolicy::none().with_max_retries(Some(0)))
             .send()
             .await?;
@@ -1270,7 +1268,7 @@ async fn critical_ch_returns_the_response_when_a_streaming_body_cannot_replay() 
         let session = client(&identity)?;
         retained_client = Some(session.clone());
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
             .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
             .send()
             .await?;
@@ -1463,7 +1461,7 @@ async fn stop_hint_peer<T: Send + 'static>(
 }
 
 async fn send_and_drain(client: &Client, protocol: HttpProtocol, url: &str) -> TestResult<()> {
-    let response = client.get(protocol, url)?.send().await?;
+    let response = client.get_with_protocol(protocol, url)?.send().await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())

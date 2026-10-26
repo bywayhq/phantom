@@ -40,7 +40,7 @@ fn unsupported_plaintext_proxy_route_fails_before_runtime_or_network_work() -> T
         )?))
         .build()?;
     let future = client
-        .get(HttpProtocol::Http2, "http://origin.test/")?
+        .get_with_protocol(HttpProtocol::Http2, "http://origin.test/")?
         .send();
     let mut future = std::pin::pin!(future);
     let mut context = std::task::Context::from_waker(std::task::Waker::noop());
@@ -115,7 +115,7 @@ async fn explicit_h2c_reuses_one_connection_and_spends_the_shared_budget() -> Te
         let url = format!("http://{address}/prior-knowledge");
         for reused in [false, true] {
             let mut request = client
-                .get(HttpProtocol::Http2, &url)?
+                .get_with_protocol(HttpProtocol::Http2, &url)?
                 .attempt_budget(budget.clone());
             let trace = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(63));
             let received = request.send().await?;
@@ -138,7 +138,7 @@ async fn explicit_h2c_reuses_one_connection_and_spends_the_shared_budget() -> Te
             );
         }
         let error = client
-            .get(HttpProtocol::Http2, &url)?
+            .get_with_protocol(HttpProtocol::Http2, &url)?
             .attempt_budget(budget)
             .send()
             .await
@@ -182,9 +182,15 @@ async fn cancelling_a_cleartext_body_preserves_the_reused_connection() -> TestRe
         });
         let client = client()?;
         let url = format!("http://{address}/cancel");
-        let first = client.get(HttpProtocol::Http2, &url)?.send().await?;
+        let first = client
+            .get_with_protocol(HttpProtocol::Http2, &url)?
+            .send()
+            .await?;
         drop(first);
-        let next = client.get(HttpProtocol::Http2, &url)?.send().await?;
+        let next = client
+            .get_with_protocol(HttpProtocol::Http2, &url)?
+            .send()
+            .await?;
         assert!(next.into_body().collect_with_limit(0).await?.is_empty());
         peers.join_next().await.ok_or("missing peer")???;
         Ok(())
@@ -226,11 +232,11 @@ async fn negotiated_cleartext_remains_http1_and_incompatible_h2c_never_falls_bac
         });
         let client = Client::builder(chrome::v154_windows()).build()?;
         let url = format!("http://{address}/");
-        let result = client.get_negotiated(&url)?.send().await?;
+        let result = client.get(&url)?.send().await?;
         assert_eq!(result.version(), http::Version::HTTP_11);
         assert!(result.into_body().collect_with_limit(0).await?.is_empty());
         let error = client
-            .get(HttpProtocol::Http2, &url)?
+            .get_with_protocol(HttpProtocol::Http2, &url)?
             .send()
             .await
             .err()

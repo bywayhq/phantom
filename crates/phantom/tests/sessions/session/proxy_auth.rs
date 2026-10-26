@@ -244,7 +244,7 @@ async fn authenticated_connect_tunnel_is_reused_by_http1_session() -> TestResult
 
             for path in ["first", "second"] {
                 let response = session
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http1,
                         &format!("https://{origin_address}/{path}"),
                     )?

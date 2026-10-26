@@ -93,7 +93,7 @@ async fn slot_hook_preserves_literal_order_and_redacts_sensitive_input() -> Test
 
         let operation = async {
             let request = client
-                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
                 .template(&prepared)
                 .fill_slots(|slots| {
                     for name in ["X-First", "x-arbitrary", "sec-ch-ua", "Proxy-Authorization"] {
@@ -197,7 +197,7 @@ async fn cross_origin_307_strips_slot_credentials_without_rerunning_hook() -> Te
         });
 
         let operation = async {
-            let request = client.request(HttpProtocol::Http1, Method::POST, &first_url)?
+            let request = client.request_with_protocol(HttpProtocol::Http1, Method::POST, &first_url)?
                 .template(&prepared)
                 .fill_slots(|slots| {
                     count.fetch_add(1, Ordering::SeqCst);
@@ -256,7 +256,7 @@ async fn prepared_body_rejects_literal_conflicting_and_duplicate_content_types_b
             }
             let prepared = PreparedRequestTemplate::new(template)?;
             let mut request = client
-                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
                 .template(&prepared);
             if case == 1 {
                 request = request.header(RequestHeader::new("Content-Type", "application/wrong"));
@@ -293,7 +293,7 @@ async fn filled_slots_reject_later_template_removal_or_changed_protocol_scope_be
         let h3_only = slots_template(false, true)?;
         let no_h3_slot = slots_template(true, false)?;
         let request = client
-            .request(HttpProtocol::Http1, Method::GET, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::GET, &url)?
             .template(&all)
             .fill_slots(|slots| slots.fill(RequestHeader::new("X-Token", "value")))?
             .without_template();
@@ -307,7 +307,7 @@ async fn filled_slots_reject_later_template_removal_or_changed_protocol_scope_be
             RequestErrorKind::RequestTemplate
         );
         let request = client
-            .request(HttpProtocol::Http3, Method::GET, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::GET, &url)?
             .template(&h3_only)
             .fill_slots(|slots| slots.fill(RequestHeader::new("X-Token", "value")))?
             .retry_policy(RetryPolicy::none().with_http2_fallback(true));
@@ -321,7 +321,7 @@ async fn filled_slots_reject_later_template_removal_or_changed_protocol_scope_be
             RequestErrorKind::RequestTemplate
         );
         let request = client
-            .request(HttpProtocol::Http3, Method::GET, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::GET, &url)?
             .template(&all)
             .retry_policy(RetryPolicy::none().with_http2_fallback(true))
             .fill_slots(|slots| slots.fill(RequestHeader::new("X-Token", "value")))?
@@ -340,7 +340,7 @@ async fn filled_slots_reject_later_template_removal_or_changed_protocol_scope_be
             listener.local_addr()?
         ))?);
         let request = client
-            .request_negotiated(Method::GET, &url)?
+            .request(Method::GET, &url)?
             .route(proxy)
             .template(&no_h3_slot)
             .fill_slots(|slots| slots.fill(RequestHeader::new("X-Token", "value")))?
@@ -356,7 +356,7 @@ async fn filled_slots_reject_later_template_removal_or_changed_protocol_scope_be
         );
         // With fallback enabled up front, an H3-only slot is never exposed.
         let error = client
-            .request(HttpProtocol::Http3, Method::GET, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::GET, &url)?
             .template(&h3_only)
             .retry_policy(RetryPolicy::none().with_http2_fallback(true))
             .fill_slots(|slots| slots.fill(RequestHeader::new("X-Token", "value")))
@@ -378,7 +378,7 @@ async fn named_upload_template_rejects_uncaptured_http3_before_io() -> TestResul
         let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let prepared = PreparedRequestTemplate::new(chrome::v154_windows_fetch_upload_template())?;
         let error = client
-            .request(HttpProtocol::Http3, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http3, Method::POST, &url)?
             .template(&prepared)
             .header(RequestHeader::new("Origin", "https://127.0.0.1"))
             .header(RequestHeader::new("Referer", "https://127.0.0.1/start"))

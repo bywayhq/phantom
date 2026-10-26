@@ -234,7 +234,7 @@ impl Backup {
         let error = timeout(
             LIMIT,
             client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{address}/{}?private={}", private[0], private[1]),
                 )?

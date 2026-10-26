@@ -81,7 +81,7 @@ async fn cancelled_collection(polled: bool) -> TestResult<()> {
         let client = client?;
         let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let response = client
-            .request(HttpProtocol::Http1, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
             .header(RequestHeader::new("Content-Type", body.content_type()))
             .prepared_body(body)
             .send()
@@ -171,7 +171,7 @@ async fn completed_collection(failed_recorder: bool, truncated: bool) -> TestRes
     let operation = async {
         let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let response = client
-            .request(HttpProtocol::Http1, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
             .header(RequestHeader::new("Content-Type", body.content_type()))
             .prepared_body(body)
             .send()

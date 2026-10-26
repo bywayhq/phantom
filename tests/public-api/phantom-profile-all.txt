@@ -57,6 +57,9 @@ pub fn phantom_profile::browser::chrome::v154_windows_fetch_no_store_template() 
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_upload_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_navigation_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::chrome::v156_linux() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::chrome::v156_macos() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::chrome::v156_macos_intel() -> phantom_profile::ClientProfile
 pub fn phantom_profile::browser::chrome::v156_windows() -> phantom_profile::ClientProfile
 pub mod phantom_profile::browser::edge
 pub fn phantom_profile::browser::edge::v153_android() -> phantom_profile::ClientProfile
@@ -114,6 +117,7 @@ pub fn phantom_profile::browser::firefox::v157_windows_fetch_no_store_template()
 pub fn phantom_profile::browser::firefox::v157_windows_fetch_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_windows_fetch_upload_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_windows_navigation_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_windows_r2() -> phantom_profile::ClientProfile
 pub mod phantom_profile::browser::opera
 pub fn phantom_profile::browser::opera::v102_android() -> phantom_profile::ClientProfile
 pub fn phantom_profile::browser::opera::v102_android_client_hints() -> phantom_profile::ClientHintSettings
@@ -238,6 +242,7 @@ pub const fn phantom_profile::catalog::ProfileMetadata::platform_release(&self) 
 pub const fn phantom_profile::catalog::ProfileMetadata::revision(&self) -> u32
 pub const fn phantom_profile::catalog::ProfileMetadata::version(&self) -> &'static str
 pub fn phantom_profile::catalog::profile(&str) -> core::result::Result<&'static phantom_profile::catalog::ProfileDefinition, phantom_profile::catalog::CatalogError>
+pub fn phantom_profile::catalog::profile_for(&str, phantom_profile::catalog::RequestTemplateKind) -> core::result::Result<phantom_profile::ClientProfile, phantom_profile::catalog::CatalogError>
 pub fn phantom_profile::catalog::profiles() -> &'static [phantom_profile::catalog::ProfileDefinition]
 pub mod phantom_profile::client_hello
 #[non_exhaustive] pub enum phantom_profile::client_hello::ClientHelloDecodeError
@@ -649,6 +654,9 @@ pub phantom_profile::SignatureScheme::RsaPkcs1Sha512
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha256
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha384
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha512
+#[non_exhaustive] pub enum phantom_profile::SocksProxyDnsFeedback
+pub phantom_profile::SocksProxyDnsFeedback::AllConnectFailures
+pub phantom_profile::SocksProxyDnsFeedback::InitialConnectFailures
 pub enum phantom_profile::SystemDnsTtlPolicy
 pub phantom_profile::SystemDnsTtlPolicy::FirefoxWindows
 pub phantom_profile::SystemDnsTtlPolicy::Ignore
@@ -693,6 +701,9 @@ pub phantom_profile::ValidationErrorKind::Missing
 pub phantom_profile::ValidationErrorKind::OutOfRange
 pub phantom_profile::ValidationErrorKind::TooLarge
 pub phantom_profile::ValidationErrorKind::Unsupported
+#[non_exhaustive] pub enum phantom_profile::WebSocketCleartextState
+pub phantom_profile::WebSocketCleartextState::Separate
+pub phantom_profile::WebSocketCleartextState::Shared
 #[non_exhaustive] pub enum phantom_profile::WebSocketDeflateParameter
 pub phantom_profile::WebSocketDeflateParameter::ClientMaxWindowBits(core::option::Option<u8>)
 pub phantom_profile::WebSocketDeflateParameter::ClientNoContextTakeover
@@ -741,6 +752,9 @@ pub phantom_profile::WebSocketProxiedSession::Reuse
 pub phantom_profile::WebSocketRefusedStreamRetry::None
 pub phantom_profile::WebSocketRefusedStreamRetry::ReacquireTwice
 pub phantom_profile::WebSocketRefusedStreamRetry::SameSessionOnce
+#[non_exhaustive] pub enum phantom_profile::WebSocketTlsBackup
+pub phantom_profile::WebSocketTlsBackup::CloseWhenUnused
+pub phantom_profile::WebSocketTlsBackup::Keep
 pub struct phantom_profile::AlpsSettings
 pub phantom_profile::AlpsSettings::protocol: alloc::boxed::Box<[u8]>
 pub phantom_profile::AlpsSettings::settings: alloc::boxed::Box<[u8]>
@@ -1028,6 +1042,7 @@ pub phantom_profile::TcpAddressRacing::fallback_delay: core::time::Duration
 pub struct phantom_profile::TcpBackupConnection
 pub phantom_profile::TcpBackupConnection::delay: core::time::Duration
 pub phantom_profile::TcpBackupConnection::known_family_backup_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::TcpBackupConnection::socks_proxy_dns_feedback: phantom_profile::SocksProxyDnsFeedback
 pub struct phantom_profile::TcpKeepalive
 pub phantom_profile::TcpKeepalive::idle: core::time::Duration
 pub phantom_profile::TcpKeepalive::interval: core::option::Option<core::time::Duration>
@@ -1117,7 +1132,9 @@ impl core::error::Error for phantom_profile::UnknownCipherSuite
 impl core::fmt::Display for phantom_profile::UnknownCipherSuite
 pub fn phantom_profile::UnknownCipherSuite::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::WebSocketConnectionPolicy
+pub phantom_profile::WebSocketConnectionPolicy::cleartext_state: phantom_profile::WebSocketCleartextState
 pub phantom_profile::WebSocketConnectionPolicy::http1_alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
+pub phantom_profile::WebSocketConnectionPolicy::http1_tls_backup: phantom_profile::WebSocketTlsBackup
 pub phantom_profile::WebSocketConnectionPolicy::proxied_http2_session: phantom_profile::WebSocketProxiedSession
 pub phantom_profile::WebSocketConnectionPolicy::refused_stream_retry: phantom_profile::WebSocketRefusedStreamRetry
 pub phantom_profile::WebSocketConnectionPolicy::with_incapable_http2_session: phantom_profile::WebSocketNewConnection

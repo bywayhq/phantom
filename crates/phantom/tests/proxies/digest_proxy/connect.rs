@@ -42,7 +42,7 @@ async fn digest_connect_verifies_the_proxy_and_keeps_authorization_out_of_origin
         let operation = async {
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_auth("user", "password")?);
             let client = client_builder(&identity, false).route(route).build()?;
-            let response = client.get(HttpProtocol::Http1, &format!("https://{origin_address}/resource"))?.send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/resource"))?.send().await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             Ok(())
         }.await;

@@ -112,7 +112,7 @@ async fn upgrades_through_one_proxy(
         let client = upgrade_client(&identity, alt_used)?;
 
         let first = client
-            .get_negotiated(&fixture.origin_url("/learn"))?
+            .get(&fixture.origin_url("/learn"))?
             .route(proxy.route()?)
             .send()
             .await?;
@@ -120,7 +120,7 @@ async fn upgrades_through_one_proxy(
         assert_eq!(first.into_body().collect().await?.to_bytes(), "origin");
 
         let second = client
-            .get_negotiated(&fixture.origin_url("/upgrade"))?
+            .get(&fixture.origin_url("/upgrade"))?
             .route(proxy.route()?)
             .send()
             .await?;
@@ -221,7 +221,7 @@ async fn negotiated_request_is_refused_on_a_route_without_origin_tls() -> TestRe
         // negotiated requests but learn no alternative; see
         // `tests/proxies/negotiated_proxy.rs`.
         let error = client
-            .get_negotiated("https://origin.test/refused")?
+            .get("https://origin.test/refused")?
             .route(Route::connect_udp(ConnectUdpProxy::new(
                 "https://127.0.0.1:1/.well-known/masque/udp/{target_host}/{target_port}/",
             )?))

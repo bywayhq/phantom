@@ -91,8 +91,10 @@ impl Prepared {
         let method = Method::from_bytes(options.method.as_bytes())
             .map_err(|_| failure("InvalidMethod", "invalid HTTP method"))?;
         let mut builder = match protocol {
-            Some(protocol) => client.core.request(protocol, method, &options.url),
-            None => client.core.request_negotiated(method, &options.url),
+            Some(protocol) => client
+                .core
+                .request_with_protocol(protocol, method, &options.url),
+            None => client.core.request(method, &options.url),
         }
         .map_err(request)?
         .headers(headers)

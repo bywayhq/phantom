@@ -37,12 +37,12 @@ async fn dropping_a_partially_read_digest_response_does_not_accept_its_nextnonce
             let identity = TestIdentity::generate()?;
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_auth("user", "password")?);
             let client = client_builder(&identity, false).route(route).build()?;
-            let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, URL)?.send().await?;
             let mut body = response.into_body();
             let first = body.frame().await.ok_or("partial data frame missing")??;
             assert_eq!(first.data_ref().ok_or("data frame missing")?, "ok");
             drop(body);
-            let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, URL)?.send().await?;
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             Ok(client)
         }.await;
@@ -108,11 +108,11 @@ async fn http2_digest_trailers_are_verified_before_the_nonce_becomes_preemptive(
             let operation = async {
                 let route = Route::http_proxy(HttpProxy::new(&format!("https://{address}"))?.with_http2_transport()?.with_digest_auth("user", "password")?);
                 let client = client_builder(&identity, true).add_proxy_root_certificate_der(identity.root_der.clone()).route(route).build()?;
-                let response = client.get(HttpProtocol::Http2, URL)?.send().await?;
+                let response = client.get_with_protocol(HttpProtocol::Http2, URL)?.send().await?;
                 let result = response.into_body().collect().await;
                 if matches!(location, TrailerProof::Valid) { assert_eq!(result?.to_bytes(), "ok"); }
                 else { assert!(result.is_err(), "invalid H2 trailer accepted: {location:?}"); }
-                let response = client.get(HttpProtocol::Http2, URL)?.send().await?;
+                let response = client.get_with_protocol(HttpProtocol::Http2, URL)?.send().await?;
                 assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
                 done_tx.send(()).map_err(|()| "peer exited early")?;
                 Ok(client)
@@ -141,7 +141,7 @@ async fn empty_digest_response_with_missing_required_proof_records_body_failure(
             let identity = TestIdentity::generate()?;
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_auth("user", "password")?);
             let client = client_builder(&identity, false).route(route).build()?;
-            let mut request = client.get(HttpProtocol::Http1, URL)?;
+            let mut request = client.get_with_protocol(HttpProtocol::Http1, URL)?;
             let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
             let error = request.send().await.err().ok_or("missing Digest proof accepted")?;
             assert_eq!(error.kind(), phantom::RequestErrorKind::Proxy);

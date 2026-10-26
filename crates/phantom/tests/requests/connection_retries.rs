@@ -170,7 +170,7 @@ async fn negotiated_connection_refusal_is_retried_before_alpn_selection() -> Tes
         let client = client_builder(&identity, true).build()?;
         let subscriber = OutcomeSubscriber::default();
         let request = client
-            .get_negotiated(&format!("https://{address}/negotiated"))?
+            .get(&format!("https://{address}/negotiated"))?
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
                 RETRY_DELAY,
@@ -249,7 +249,7 @@ async fn negotiated_tls_failure_is_terminal() -> TestResult {
             .build()?;
         let subscriber = OutcomeSubscriber::default();
         let result = client
-            .get_negotiated(&format!("https://{address}/tls"))?
+            .get(&format!("https://{address}/tls"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await;
@@ -284,7 +284,7 @@ async fn negotiated_retry_delay_releases_connection_lock_for_queued_request() ->
         let client = client_builder(&identity, true).build()?;
         let subscriber = OutcomeSubscriber::default();
         let delayed = client
-            .get_negotiated(&format!("https://{address}/delayed"))?
+            .get(&format!("https://{address}/delayed"))?
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
                 NEGOTIATED_RETRY_DELAY,
@@ -299,7 +299,7 @@ async fn negotiated_retry_delay_releases_connection_lock_for_queued_request() ->
         // A lock held across the delay would let the delayed request connect
         // first; the server-side stream order below proves the opposite.
         let queued = client
-            .get_negotiated(&format!("https://{address}/queued"))?
+            .get(&format!("https://{address}/queued"))?
             .send()
             .await?;
         assert_eq!(queued.status(), StatusCode::NO_CONTENT);
@@ -346,7 +346,7 @@ async fn negotiated_retry_budget_is_shared_across_redirect_hops() -> TestResult 
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client.get_negotiated(&format!("https://{}/start", origin.address()))?;
+        let request = client.get(&format!("https://{}/start", origin.address()))?;
         let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
 
         wait_for_retry_reason(&subscriber).await?;
@@ -400,7 +400,7 @@ async fn negotiated_one_shot_body_is_not_polled_before_retry() -> TestResult {
         let subscriber = OutcomeSubscriber::default();
         let polls = Arc::new(AtomicUsize::new(0));
         let request = client
-            .request_negotiated(Method::POST, &format!("https://{address}/upload"))?
+            .request(Method::POST, &format!("https://{address}/upload"))?
             .streaming_body(PollCountingBody {
                 inner: Full::new(Bytes::from_static(b"payload")),
                 polls: Arc::clone(&polls),
@@ -532,14 +532,14 @@ async fn negotiated_pre_selection_admission_is_bounded() -> TestResult {
             .max_pending_http2_requests_per_origin(one)
             .build()?;
         let url = format!("https://{address}/admission");
-        let setup = tokio::spawn(client.get_negotiated(&url)?.send());
+        let setup = tokio::spawn(client.get(&url)?.send());
         accepted_rx
             .await
             .map_err(|_| "server stopped before accepting setup")?;
 
-        let mut waiting = Box::pin(client.get_negotiated(&url)?.send());
+        let mut waiting = Box::pin(client.get(&url)?.send());
         assert_pending(waiting.as_mut(), "queued request left admission").await?;
-        let error = match client.get_negotiated(&url)?.send().await {
+        let error = match client.get(&url)?.send().await {
             Ok(_) => return Err("request exceeded pre-selection admission".into()),
             Err(error) => error,
         };

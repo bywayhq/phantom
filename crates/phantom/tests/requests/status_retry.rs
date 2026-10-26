@@ -383,7 +383,7 @@ async fn status_retry_is_disabled_by_default() -> TestResult {
         let client = plain_builder().build()?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .await?;
 
@@ -403,7 +403,7 @@ async fn configured_503_is_retried_for_get_and_returns_final_response() -> TestR
         let subscriber = OutcomeSubscriber::default();
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/resource"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/resource"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -440,7 +440,7 @@ async fn status_retry_repeats_idempotent_owned_body_requests() -> TestResult {
         let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
 
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &server.url("http", "/item"),
@@ -473,7 +473,7 @@ async fn status_retry_skips_non_idempotent_methods() -> TestResult {
             let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     method.clone(),
                     &server.url("http", "/submit"),
@@ -503,7 +503,7 @@ async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
         let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
 
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &server.url("http", "/upload"),
@@ -541,7 +541,7 @@ async fn status_retry_with_streaming_body_returns_original_response() -> TestRes
         let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
 
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 &server.url("http", "/upload"),
@@ -569,7 +569,7 @@ async fn retry_after_delta_seconds_is_honoured_within_cap() -> TestResult {
         let started = Instant::now();
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .await?;
 
@@ -596,7 +596,7 @@ async fn retry_after_http_date_is_honoured_within_cap() -> TestResult {
         let started = Instant::now();
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .await?;
 
@@ -624,7 +624,7 @@ async fn retry_after_beyond_cap_returns_response_without_waiting() -> TestResult
         let started = Instant::now();
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -663,7 +663,7 @@ async fn status_retry_delay_observes_total_deadline() -> TestResult {
             // The delay cannot finish inside the total deadline, so the usable
             // response is returned at once instead of becoming a timeout.
             let response = client
-                .get(HttpProtocol::Http1, &server.url("http", "/"))?
+                .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
                 .timeouts(
                     RequestTimeoutOverrides::disabled()
                         .total(TimeoutOverride::Limit(Duration::from_secs(10))),
@@ -691,7 +691,7 @@ async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult 
         let client = retrying_client(status_retry(1, Duration::from_millis(10))?)?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .timeouts(
                 RequestTimeoutOverrides::disabled()
                     .total(TimeoutOverride::Limit(Duration::from_secs(10))),
@@ -719,7 +719,7 @@ async fn status_retry_learns_cookies_from_intermediate_responses() -> TestResult
             .build()?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .await?;
 
@@ -749,7 +749,7 @@ async fn status_retry_exhaustion_returns_last_response() -> TestResult {
         let subscriber = OutcomeSubscriber::default();
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -781,7 +781,7 @@ async fn status_retry_budget_is_shared_across_redirect_hops() -> TestResult {
             .build()?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("https", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("https", "/"))?
             .send()
             .await?;
 
@@ -813,7 +813,7 @@ async fn negotiated_status_retry_repeats_on_the_selected_protocol() -> TestResul
             .build()?;
 
         let response = client
-            .get_negotiated(&server.url("https", "/negotiated"))?
+            .get(&server.url("https", "/negotiated"))?
             .send()
             .await?;
 
@@ -897,7 +897,7 @@ async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult
         let client = retrying_client(status_retry(2, Duration::from_secs(30))?)?;
 
         let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .get_with_protocol(HttpProtocol::Http1, &server.url("http", "/"))?
             .retry_policy(
                 RetryPolicy::none()
                     .with_status_retry(status_retry(2, Duration::from_secs(30))?)

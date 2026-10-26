@@ -104,7 +104,10 @@ async fn observe_owner(owner: Owner, exit: Exit) -> TestResult<()> {
     } = case(owner).await?;
 
     let operation = async {
-        let response = session.get(HttpProtocol::Http1, &url)?.send().await?;
+        let response = session
+            .get_with_protocol(HttpProtocol::Http1, &url)?
+            .send()
+            .await?;
         if response.status() != StatusCode::NO_CONTENT {
             return Err("actual cookie control did not receive its 204 response".into());
         }

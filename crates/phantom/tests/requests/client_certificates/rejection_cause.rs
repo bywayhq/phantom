@@ -148,7 +148,7 @@ async fn quic_rejection(
     let (served, requested) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             client
-                .get(phantom::HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(phantom::HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await
         })

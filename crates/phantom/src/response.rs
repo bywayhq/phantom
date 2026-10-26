@@ -38,7 +38,7 @@ pub use xml::response_xml;
 ///
 /// ```no_run
 /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
-/// let response = client.get(phantom::HttpProtocol::Http2, "https://example.com/")?
+/// let response = client.get_with_protocol(phantom::HttpProtocol::Http2, "https://example.com/")?
 ///     .send().await?;
 /// let response = phantom::error_for_status(response)?;
 /// let response = phantom::response_bytes(response, 1 << 20).await?;

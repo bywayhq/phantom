@@ -116,7 +116,10 @@ async fn response(stream: &mut SslStream<Replayed>, id: u32) -> TestResult {
 }
 
 async fn request(client: &Client, uri: &str) -> TestResult {
-    let response = client.get(HttpProtocol::Http2, uri)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http2, uri)?
+        .send()
+        .await?;
     assert_eq!(response.status(), 200);
     response.into_body().collect().await?;
     Ok(())

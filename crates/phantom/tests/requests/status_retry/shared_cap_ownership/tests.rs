@@ -379,7 +379,7 @@ async fn invalid_uri() -> TestResult {
     let client = plain_builder().build()?;
 
     let _response = client
-        .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
+        .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
         .send()
         .await?;
     Ok(())
@@ -408,7 +408,7 @@ async fn prime_request(address: std::net::SocketAddr) -> TestResult {
     let client = plain_builder().build()?;
 
     let response = client
-        .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/prime"))?
         .send()
         .await?;
     assert_eq!(response.status(), StatusCode::OK);

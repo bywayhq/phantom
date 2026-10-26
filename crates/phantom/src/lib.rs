@@ -5,7 +5,7 @@ pub use bytes::Bytes;
 /// The stream trait implemented by SSE streams and event sources.
 #[cfg(feature = "sse")]
 pub use futures_core::Stream;
-/// HTTP request method accepted by [`Client::request`].
+/// HTTP request method accepted by [`Client::request_with_protocol`].
 pub use http::Method;
 /// HTTP response returned by [`RequestBuilder::send`].
 pub use http::Response;

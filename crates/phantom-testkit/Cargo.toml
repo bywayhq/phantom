@@ -11,7 +11,7 @@ version.workspace = true
 readme = "README.md"
 
 [dependencies]
-phantom-profile = { path = "../phantom-profile", version = "0.4.0" }
+phantom-profile = { path = "../phantom-profile", version = "0.5.0" }
 tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 
 [dev-dependencies]

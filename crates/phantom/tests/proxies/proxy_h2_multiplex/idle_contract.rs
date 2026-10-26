@@ -148,7 +148,7 @@ async fn empty_forward(client: &Client) -> TestResult<()> {
     use http_body_util::BodyExt;
 
     let response = client
-        .get(HttpProtocol::Http2, "http://idle.test/probe")?
+        .get_with_protocol(HttpProtocol::Http2, "http://idle.test/probe")?
         .send()
         .await?;
     assert_eq!(response.status(), 200);
@@ -290,7 +290,7 @@ async fn expiry_preserves_a_live_connect_body_but_new_streams_use_another_outer(
             proxy.address,
         )?;
         let response = client
-            .get(HttpProtocol::Http1, &format!("https://{origin}/"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin}/"))?
             .send()
             .await?;
         let mut body = response.into_body();

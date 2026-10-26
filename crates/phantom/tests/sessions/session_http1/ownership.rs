@@ -143,7 +143,9 @@ pub(super) async fn reuse_requests(control: Option<Control>) -> TestResult {
             let target = first_target
                 .take()
                 .unwrap_or_else(|| format!("https://{address}/{path}"));
-            let sending = client.get(HttpProtocol::Http1, &target)?.send();
+            let sending = client
+                .get_with_protocol(HttpProtocol::Http1, &target)?
+                .send();
 
             let response = if let Some(observed) = &observed {
                 tokio::pin!(sending);
@@ -253,7 +255,7 @@ pub(super) async fn active_body(
         .max_pending_http1_requests_per_origin(NonZeroUsize::MIN)
         .build()?;
     let active = session
-        .get(HttpProtocol::Http1, &format!("https://{address}/active"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/active"))?
         .send()
         .await?;
     let server = server

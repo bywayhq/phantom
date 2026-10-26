@@ -116,7 +116,7 @@ async fn close_idle_preserves_http1_active_body_and_reuse() -> TestResult<()> {
         }));
         let client = tls::test_client(&identity, false)?;
         let body = client
-            .get(HttpProtocol::Http1, &url)?
+            .get_with_protocol(HttpProtocol::Http1, &url)?
             .send()
             .await?
             .into_body();
@@ -173,9 +173,9 @@ async fn active_http2(negotiated: bool) -> TestResult<()> {
         }));
         let client = tls::test_client(&identity, true)?;
         let request = if negotiated {
-            client.get_negotiated(&url)?
+            client.get(&url)?
         } else {
-            client.get(HttpProtocol::Http2, &url)?
+            client.get_with_protocol(HttpProtocol::Http2, &url)?
         };
         let held = request.send().await?.into_body();
         client.clone().close_idle_connections().await;
@@ -200,9 +200,9 @@ async fn send(
     url: &str,
 ) -> TestResult<()> {
     let request = if negotiated {
-        client.get_negotiated(url)?
+        client.get(url)?
     } else {
-        client.get(protocol, url)?
+        client.get_with_protocol(protocol, url)?
     };
     let response = request.send().await?;
     if response.status() != 204 {

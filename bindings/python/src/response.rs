@@ -548,7 +548,8 @@ mod tests {
                 .route(phantom::Route::direct())
                 .redirect_policy(phantom::RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;
-            let request = client.get(phantom::HttpProtocol::Http1, &format!("{origin}/start"))?;
+            let request = client
+                .get_with_protocol(phantom::HttpProtocol::Http1, &format!("{origin}/start"))?;
             let response = tokio::time::timeout(Duration::from_secs(5), request.send()).await??;
             NativeResponse::new(response)
                 .map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)

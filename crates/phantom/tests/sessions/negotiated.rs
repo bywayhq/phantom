@@ -84,7 +84,7 @@ async fn negotiated_http1_learns_and_sends_client_cookies() -> TestResult<()> {
         let client = client_builder(&identity, true).cookies().build()?;
         for path in ["first", "second"] {
             let response = client
-                .get_negotiated(&format!("https://{address}/{path}"))?
+                .get(&format!("https://{address}/{path}"))?
                 .send()
                 .await?;
             collect_response(response.into_body()).await?;
@@ -138,7 +138,7 @@ async fn negotiated_request_selects_http2_once() -> TestResult<()> {
 
         let client = test_client(&identity, true)?;
         let response = client
-            .get_negotiated(&format!("https://{address}/selected-h2"))?
+            .get(&format!("https://{address}/selected-h2"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -175,7 +175,7 @@ async fn negotiated_http1_sends_exact_dynamic_request_trailers() -> TestResult<(
         }));
 
         let response = test_client(&identity, true)?
-            .request_negotiated(Method::POST, &format!("https://{address}/trailers-h1"))?
+            .request(Method::POST, &format!("https://{address}/trailers-h1"))?
             .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
             .send()
             .await?;
@@ -236,7 +236,7 @@ async fn negotiated_http2_sends_dynamic_request_trailers() -> TestResult<()> {
         }));
 
         let response = test_client(&identity, true)?
-            .request_negotiated(Method::POST, &format!("https://{address}/trailers-h2"))?
+            .request(Method::POST, &format!("https://{address}/trailers-h2"))?
             .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
             .send()
             .await?;
@@ -351,7 +351,7 @@ async fn concurrent_negotiated_http2_requests_share_one_tls_connection() -> Test
         let first_client = client.clone();
         first = Some(Peer::spawn(async move {
             let response = first_client
-                .get_negotiated(&format!("https://{address}/first"))?
+                .get(&format!("https://{address}/first"))?
                 .send()
                 .await?;
             let protocol = response_protocol(&response)?;
@@ -361,7 +361,7 @@ async fn concurrent_negotiated_http2_requests_share_one_tls_connection() -> Test
         let second_client = client.clone();
         second = Some(Peer::spawn(async move {
             let response = second_client
-                .get_negotiated(&format!("https://{address}/second"))?
+                .get(&format!("https://{address}/second"))?
                 .send()
                 .await?;
             let protocol = response_protocol(&response)?;
@@ -428,7 +428,7 @@ async fn negotiated_http2_streams_unknown_length_request_body() -> TestResult<()
 
         let client = test_client(&identity, true)?;
         let response = client
-            .request_negotiated(Method::POST, &format!("https://{address}/stream-upload"))?
+            .request(Method::POST, &format!("https://{address}/stream-upload"))?
             .streaming_body(UnknownBody(Some(Bytes::from_static(b"payload"))))
             .send()
             .await?;
@@ -476,14 +476,14 @@ async fn sequential_negotiated_http1_requests_reuse_one_tls_connection() -> Test
 
         let client = test_client(&identity, true)?;
         let first = client
-            .get_negotiated(&format!("https://{address}/first"))?
+            .get(&format!("https://{address}/first"))?
             .send()
             .await?;
         assert_eq!(response_protocol(&first)?, HttpProtocol::Http1);
         assert_eq!(collect_response(first.into_body()).await?, "first");
 
         let second = client
-            .get_negotiated(&format!("https://{address}/second"))?
+            .get(&format!("https://{address}/second"))?
             .send()
             .await?;
         assert_eq!(response_protocol(&second)?, HttpProtocol::Http1);
@@ -534,7 +534,7 @@ async fn negotiated_http1_replaces_nonreusable_connection_without_replay() -> Te
         let client = test_client(&identity, true)?;
         for path in ["first", "second"] {
             let response = client
-                .get_negotiated(&format!("https://{address}/{path}"))?
+                .get(&format!("https://{address}/{path}"))?
                 .send()
                 .await?;
             assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
@@ -573,7 +573,7 @@ async fn negotiated_http1_sends_streaming_request_body() -> TestResult<()> {
 
         let client = test_client(&identity, true)?;
         let response = client
-            .request_negotiated(Method::POST, &format!("https://{address}/stream-upload"))?
+            .request(Method::POST, &format!("https://{address}/stream-upload"))?
             .streaming_body(Full::new(Bytes::from_static(b"payload")))
             .send()
             .await?;
@@ -605,7 +605,7 @@ async fn request_invalid_for_http2_fails_before_network_io() -> TestResult<()> {
     let address = listener.local_addr()?;
 
     let result = client
-        .get_negotiated(&format!("https://{address}/"))?
+        .get(&format!("https://{address}/"))?
         .header(RequestHeader::new("X-Uppercase", "not-valid-in-h2"))
         .send()
         .await;
@@ -631,7 +631,7 @@ async fn request_invalid_for_http1_fails_before_network_io() -> TestResult<()> {
     let address = listener.local_addr()?;
 
     let result = client
-        .get_negotiated(&format!("https://{address}/"))?
+        .get(&format!("https://{address}/"))?
         .header(RequestHeader::new("Transfer-Encoding", "chunked"))
         .send()
         .await;
@@ -669,7 +669,7 @@ async fn selected_protocol_is_recorded_on_post_alpn_failure() -> TestResult<()> 
         let client = test_client(&identity, true)?;
         let subscriber = OutcomeSubscriber::default();
         let result = client
-            .get_negotiated(&format!("https://{address}/"))?
+            .get(&format!("https://{address}/"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await;
@@ -717,7 +717,7 @@ async fn selected_protocol_is_recorded_when_request_is_cancelled() -> TestResult
 
         let client = test_client(&identity, true)?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client.get_negotiated(&format!("https://{address}/"))?;
+        let request = client.get(&format!("https://{address}/"))?;
         let dispatch = subscriber.dispatch();
         task = Some(Peer::spawn(async move {
             request.send().with_subscriber(dispatch).await?;
@@ -756,7 +756,7 @@ async fn negotiated_plaintext_request_uses_http1() -> TestResult<()> {
 
         let client = test_client(&identity, true)?;
         let response = client
-            .get_negotiated(&format!("http://{address}/cleartext"))?
+            .get(&format!("http://{address}/cleartext"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -793,10 +793,7 @@ async fn negotiated_plaintext_request_is_forwarded_over_http1() -> TestResult<()
 
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
         let client = client_builder(&identity, true).route(route).build()?;
-        let response = client
-            .get_negotiated("http://origin.test/forwarded")?
-            .send()
-            .await?;
+        let response = client.get("http://origin.test/forwarded")?.send().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
         collect_response(response.into_body()).await?;
@@ -847,10 +844,7 @@ async fn unsupported_offered_alpn_sends_no_http_bytes() -> TestResult<()> {
             phantom::Client::builder(ClientProfile::new(tls).with_http2(chrome::v154_http2()))
                 .add_root_certificate_der(identity.root_der.clone())
                 .build()?;
-        let result = client
-            .get_negotiated(&format!("https://{address}/"))?
-            .send()
-            .await;
+        let result = client.get(&format!("https://{address}/"))?.send().await;
         let error = match result {
             Ok(_) => return Err("negotiated request accepted h3 on its TCP path".into()),
             Err(error) => error,
@@ -874,7 +868,7 @@ fn negotiated_request_requires_both_profile_capabilities() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, false)?;
 
-    let error = match client.get_negotiated("https://example.test/") {
+    let error = match client.get("https://example.test/") {
         Ok(_) => return Err("HTTP/1-only profile exposed negotiation".into()),
         Err(error) => error,
     };
@@ -887,7 +881,7 @@ fn negotiated_request_requires_both_profile_capabilities() -> TestResult<()> {
 fn polling_negotiated_request_without_tokio_returns_typed_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity, true)?;
-    let request = client.get_negotiated("https://127.0.0.1:9/")?;
+    let request = client.get("https://127.0.0.1:9/")?;
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 
@@ -929,7 +923,7 @@ async fn negotiated_http1_case(select_alpn: bool) -> TestResult<()> {
 
         let client = test_client(&identity, true)?;
         let response = client
-            .get_negotiated(&format!("https://{address}/selected-h1"))?
+            .get(&format!("https://{address}/selected-h1"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -1019,7 +1013,7 @@ async fn negotiated_graceful_goaway_retries_a_bodyless_get_once_on_a_replacement
 
         let client = test_client(&identity, true)?;
         let response = client
-            .get_negotiated(&format!("https://{address}/failed"))?
+            .get(&format!("https://{address}/failed"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -1071,7 +1065,7 @@ async fn negotiated_graceful_goaway_replacement_may_select_http1() -> TestResult
 
         let client = test_client(&identity, true)?;
         let response = client
-            .get_negotiated(&format!("https://{address}/failed"))?
+            .get(&format!("https://{address}/failed"))?
             .header(RequestHeader::new("x-trace", "1"))
             .send()
             .await?;
@@ -1128,7 +1122,7 @@ async fn negotiated_graceful_goaway_retry_is_bounded_to_one_replacement() -> Tes
 
         let client = test_client(&identity, true)?;
         let result = client
-            .get_negotiated(&format!("https://{address}/bounded"))?
+            .get(&format!("https://{address}/bounded"))?
             .send()
             .await;
         let error = match result {
@@ -1190,7 +1184,7 @@ async fn negotiated_graceful_goaway_does_not_replay_another_method() -> TestResu
 
         let client = test_client(&identity, true)?;
         let result = client
-            .request_negotiated(Method::POST, &format!("https://{address}/post"))?
+            .request(Method::POST, &format!("https://{address}/post"))?
             .send()
             .await;
         let error = match result {

@@ -64,7 +64,7 @@ async fn one_shot(response: &'static [u8], result: TestResult<()>) -> TestResult
 
     let operation = async {
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 http::Method::POST,
                 "http://origin.test/observed",

@@ -92,7 +92,7 @@ async fn reuse_requires_h3_template_fields_for_https_but_not_cleartext_without_a
     let address = listener.local_addr()?;
 
     let error = client
-        .get_negotiated(&format!("https://{address}/"))?
+        .get(&format!("https://{address}/"))?
         .template(&template)
         .send()
         .await
@@ -108,7 +108,7 @@ async fn reuse_requires_h3_template_fields_for_https_but_not_cleartext_without_a
 
     let caller = async {
         let response = client
-            .get_negotiated(&format!("http://{address}/"))?
+            .get(&format!("http://{address}/"))?
             .template(&template)
             .send()
             .await?;
@@ -187,7 +187,7 @@ async fn exchange(scope: CertificateScope) -> TestResult<Exchange> {
         let mut protocols = Vec::new();
         for (host, path) in [(DONOR, "/learn"), (DONOR, "/settled"), (OTHER, "/first")] {
             let url = format!("https://{host}:{}{path}", peer.address.port());
-            let mut request = client.get_negotiated(&url)?;
+            let mut request = client.get(&url)?;
             for (name, value) in FIELDS {
                 request = request.header(RequestHeader::new(name, value));
             }

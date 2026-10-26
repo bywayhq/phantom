@@ -244,7 +244,7 @@ mod tests {
                 TestResult::Ok(())
             }));
             let response = crate::support::tls::test_client(&identity, true)?
-                .get_negotiated(&format!("http://{address}/extent"))?
+                .get(&format!("http://{address}/extent"))?
                 .send()
                 .await?;
             let error = collect_response(response.into_body())

@@ -139,7 +139,7 @@ fn early_data_requires_http3_session_tickets() -> TestResult<()> {
 
 async fn send(session: &Client, relay: SocketAddr, path: &str) -> TestResult<()> {
     let response = session
-        .get(HttpProtocol::Http3, &format!("https://{relay}{path}"))?
+        .get_with_protocol(HttpProtocol::Http3, &format!("https://{relay}{path}"))?
         .send()
         .await?;
     assert_eq!(response.status(), StatusCode::OK);
@@ -609,7 +609,7 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
                     let client = client.clone();
                     let url = format!("{origin_url}{path}");
                     async move {
-                        let response = client.get_negotiated(&url)?.send().await?;
+                        let response = client.get(&url)?.send().await?;
                         let protocol = response
                             .extensions()
                             .get::<ResponseInfo>()
@@ -735,7 +735,7 @@ async fn a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origi
             let client = client.clone();
             let url = origin.origin_url(path);
             async move {
-                let response = client.get_negotiated(&url)?.send().await?;
+                let response = client.get(&url)?.send().await?;
                 let protocol = response
                     .extensions()
                     .get::<ResponseInfo>()
@@ -854,7 +854,7 @@ async fn send_with(
     relay: SocketAddr,
     path: &'static str,
 ) -> TestResult<()> {
-    let request = client.request(
+    let request = client.request_with_protocol(
         HttpProtocol::Http3,
         method.clone(),
         &format!("https://{relay}{path}"),
@@ -966,7 +966,7 @@ async fn rejected_early_data_resends_a_post_with_its_body() -> TestResult<()> {
 
         let body = b"a body that must arrive whole".to_vec();
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/post"),
@@ -1028,7 +1028,7 @@ async fn failed_early_data_handshake_is_an_error_without_a_second_connection() -
         learned.await?;
 
         let error = match client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/post"),
@@ -1089,7 +1089,7 @@ async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
             // The gate holds the server's replies, so the handshake cannot end.
             gate.send_replace(false);
             let error = match client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http3,
                     Method::POST,
                     &format!("https://{relay}/post"),

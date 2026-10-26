@@ -61,7 +61,10 @@ fn builder(connector: TcpConnector) -> phantom::ClientBuilder {
 }
 
 async fn get(client: &Client) -> TestResult<()> {
-    let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, URL)?
+        .send()
+        .await?;
     assert_eq!(
         response.into_body().collect_with_limit(8).await?.as_ref(),
         b"ok"
@@ -126,9 +129,9 @@ async fn custom_streams_support_tls_http1_http2_and_alpn() -> TestResult<()> {
                 let caller = async {
                     for _ in 0..2 {
                         let request = if negotiated {
-                            client.get_negotiated("https://127.0.0.1:4321/path")?
+                            client.get("https://127.0.0.1:4321/path")?
                         } else {
-                            client.get(
+                            client.get_with_protocol(
                                 if http2 {
                                     HttpProtocol::Http2
                                 } else {
@@ -194,7 +197,7 @@ async fn queued_invalid_headers_fail_before_custom_connection_io() -> TestResult
         .http1_write_strategy(Http1WriteStrategy::Queued)
         .build()?;
     let error = client
-        .get(HttpProtocol::Http1, URL)?
+        .get_with_protocol(HttpProtocol::Http1, URL)?
         .header(phantom::RequestHeader::new("Host", "forbidden"))
         .send()
         .await
@@ -216,7 +219,7 @@ async fn custom_stream_still_verifies_the_url_hostname() -> TestResult<()> {
             .build()?;
         let caller = async {
             let error = client
-                .get(HttpProtocol::Http1, "https://wrong.invalid/")?
+                .get_with_protocol(HttpProtocol::Http1, "https://wrong.invalid/")?
                 .send()
                 .await
                 .err()
@@ -261,7 +264,7 @@ async fn connect_timeout_drops_the_callback_future() -> TestResult<()> {
         .request_timeouts(RequestTimeouts::new().connect(Duration::from_secs(1)))
         .build()?;
     let error = client
-        .get(HttpProtocol::Http1, URL)?
+        .get_with_protocol(HttpProtocol::Http1, URL)?
         .send()
         .await
         .err()
@@ -277,7 +280,7 @@ async fn proxy_overrides_are_rejected_before_calling_the_connector() -> TestResu
     let client = builder(connector).build()?;
     let proxy = phantom::Route::http_proxy(phantom::HttpProxy::new("http://127.0.0.1:9")?);
     let error = client
-        .get(HttpProtocol::Http1, URL)?
+        .get_with_protocol(HttpProtocol::Http1, URL)?
         .route(proxy)
         .send()
         .await

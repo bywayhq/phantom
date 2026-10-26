@@ -58,9 +58,9 @@ async fn query_appends_keep_origin_bytes_duplicates_and_template_choices() -> Te
             let explicit = PreparedRequestTemplate::new(template("override"))?;
             let url = format!("http://{address}/a/%2e%2e/final?x=%2f+old&bare&x=second&&");
             for request in [
-                client.get(HttpProtocol::Http1, &url)?,
-                client.get(HttpProtocol::Http1, &url)?.template(&explicit),
-                client.get(HttpProtocol::Http1, &url)?.without_template(),
+                client.get_with_protocol(HttpProtocol::Http1, &url)?,
+                client.get_with_protocol(HttpProtocol::Http1, &url)?.template(&explicit),
+                client.get_with_protocol(HttpProtocol::Http1, &url)?.without_template(),
             ] {
                 let response = request
                     .query_pairs([
@@ -121,7 +121,7 @@ async fn forwarding_keeps_absolute_bytes_and_explicit_authorization_positions() 
             let basic_value = String::from_utf8(basic.value().to_vec())?;
             let bearer = RequestHeader::bearer_authorization(&canary)?;
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     "http://BÜCHER.Example:8080/a/%2e%2e/final?x=%2f&bare&&",
                 )?
@@ -172,7 +172,7 @@ async fn empty_inputs_preserve_query_markers_and_empty_pairs_get_equals() -> Tes
                 ("/empty?old&&", true),
             ] {
                 let request = client
-                    .get(HttpProtocol::Http1, &format!("http://{address}{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}{path}"))?
                     .query_pairs(std::iter::empty::<(&str, &str)>())?;
                 let request = if add_pair {
                     request.query_pairs([("", "")])?
@@ -225,7 +225,7 @@ async fn relative_redirects_use_the_appended_query_in_the_current_url() -> TestR
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{address}/redirect?old=%2f"),
                 )?
@@ -263,7 +263,7 @@ async fn query_appending_preserves_the_body_and_continue_wait() -> TestResult<()
             )
             .build()?;
             client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     http::Method::POST,
                     &format!("http://{address}/body"),

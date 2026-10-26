@@ -176,7 +176,7 @@ fn request_on_new_runtime(
     let runtime = Builder::new_current_thread().enable_all().build()?;
     runtime.block_on(async {
         let response = send_before_deadline(
-            client.get(protocol, uri)?.send(),
+            client.get_with_protocol(protocol, uri)?.send(),
             "the request on this runtime did not finish",
         )
         .await?;
@@ -286,7 +286,7 @@ fn two_negotiated_requests_on_new_runtime(client: &Client, uri: &str) -> TestRes
     let runtime = Builder::new_current_thread().enable_all().build()?;
     let send = || async {
         let response = send_before_deadline(
-            client.get_negotiated(uri)?.send(),
+            client.get(uri)?.send(),
             "the negotiated request on this runtime did not finish",
         )
         .await?;
@@ -317,7 +317,7 @@ fn second_runtime_waits_for_its_own_setup_to_an_origin_known_for_http2() -> Test
     let first = Builder::new_current_thread().enable_all().build()?;
     first.block_on(async {
         let response = send_before_deadline(
-            client.get_negotiated(&origin.uri)?.send(),
+            client.get(&origin.uri)?.send(),
             "the first negotiated request did not finish",
         )
         .await?;
@@ -378,11 +378,14 @@ fn per_origin_request_limit_spans_runtimes() -> TestResult {
         seen.recv_timeout(TEST_TIMEOUT)?;
         let second = Builder::new_current_thread().enable_all().build()?;
         let waited = second.block_on(async {
-            timeout(QUIET_WINDOW, client.get(HttpProtocol::Http1, &uri)?.send())
-                .await
-                .is_err()
-                .then_some(())
-                .ok_or_else(|| "the second runtime's request was not held".into())
+            timeout(
+                QUIET_WINDOW,
+                client.get_with_protocol(HttpProtocol::Http1, &uri)?.send(),
+            )
+            .await
+            .is_err()
+            .then_some(())
+            .ok_or_else(|| "the second runtime's request was not held".into())
         });
         let _ = release.send(true);
         first

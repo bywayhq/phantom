@@ -48,7 +48,7 @@ async fn forward(auth: Auth) -> TestResult<()> {
         let profile = ClientProfile::new(tls_settings()).with_tcp(firefox::v157_tcp());
         let client = Client::builder(profile).add_proxy_root_certificate_der(identity.root_der).route(Route::http_proxy(proxy)).build()?;
         let request = async {
-            let response = client.get(HttpProtocol::Http1, "http://target.invalid/current")?.headers(vec![RequestHeader::new("X-First", "current"), RequestHeader::new("x-Second", "claim")]).send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, "http://target.invalid/current")?.headers(vec![RequestHeader::new("X-First", "current"), RequestHeader::new("x-Second", "claim")]).send().await?;
             assert_eq!(response.status(), 200);
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             TestResult::Ok(())
@@ -91,7 +91,7 @@ async fn https_forward_claim_reads_current_origin_cookie_and_ignores_proxy_chall
         let client = Client::builder(profile).add_proxy_root_certificate_der(identity.root_der).route(route).cookies().build()?;
         let request = async {
             for path in ["first", "current"] {
-                client.get(HttpProtocol::Http1, &format!("http://target.invalid/{path}"))?.header(RequestHeader::new("X-Claim", path)).send().await?.into_body().collect().await?;
+                client.get_with_protocol(HttpProtocol::Http1, &format!("http://target.invalid/{path}"))?.header(RequestHeader::new("X-Claim", path)).send().await?.into_body().collect().await?;
             }
             TestResult::Ok(())
         };
@@ -135,7 +135,7 @@ async fn https_forward_total_deadline_cancels_outer_tls_without_request_or_redia
         let request = async {
             started.await?;
             let error = client
-                .get(HttpProtocol::Http1, "http://target.invalid/deadline")?
+                .get_with_protocol(HttpProtocol::Http1, "http://target.invalid/deadline")?
                 .timeouts(
                     RequestTimeoutOverrides::disabled()
                         .total(TimeoutOverride::Limit(Duration::from_millis(250))),

@@ -509,13 +509,13 @@ async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_free
         let page = format!("https://{address}/page");
         let socket_uri = format!("wss://{address}/");
 
-        let response = client.get_negotiated(&page)?.send().await?;
+        let response = client.get(&page)?.send().await?;
         assert_eq!(response.status(), 200);
         response.into_body().collect().await?;
         expect_handshake_timeout(client.websocket_with_profile_policy(&socket_uri)?, None).await?;
 
         let response = timeout(Duration::from_secs(2), async {
-            client.get_negotiated(&page)?.send().await
+            client.get(&page)?.send().await
         })
         .await
         .map_err(|_| "the timed-out stream kept its admission permit")??;

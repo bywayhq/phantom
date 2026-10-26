@@ -43,7 +43,7 @@ async fn forward(auth: Auth) -> TestResult<()> {
         let profile = ClientProfile::new(tls_settings()).with_tcp(firefox::v157_tcp());
         let client = Client::builder(profile).add_root_certificate_der(identity.root_der).route(Route::http_proxy(proxy)).build()?;
         let request = async {
-            let response = client.get(HttpProtocol::Http1, "http://target.invalid/current")?.headers(vec![RequestHeader::new("X-First", "current"), RequestHeader::new("x-Second", "claim")]).send().await?;
+            let response = client.get_with_protocol(HttpProtocol::Http1, "http://target.invalid/current")?.headers(vec![RequestHeader::new("X-First", "current"), RequestHeader::new("x-Second", "claim")]).send().await?;
             assert_eq!(response.status(), 200);
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
             TestResult::Ok(())

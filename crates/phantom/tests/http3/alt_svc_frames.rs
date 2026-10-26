@@ -130,7 +130,7 @@ async fn exact_http2_requests_do_not_learn_altsvc_frames() -> TestResult<()> {
             let client = client(&identity, true)?;
 
             let response = client
-                .get(HttpProtocol::Http2, &fixture.origin_url("/exact"))?
+                .get_with_protocol(HttpProtocol::Http2, &fixture.origin_url("/exact"))?
                 .send()
                 .await?;
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);
@@ -255,10 +255,7 @@ async fn negotiated(
     fixture: &Http3UpgradeFixture,
     path: &str,
 ) -> TestResult<HttpProtocol> {
-    let response = client
-        .get_negotiated(&fixture.origin_url(path))?
-        .send()
-        .await?;
+    let response = client.get(&fixture.origin_url(path))?.send().await?;
     let protocol = protocol(&response)?;
     drain(response).await?;
     Ok(protocol)

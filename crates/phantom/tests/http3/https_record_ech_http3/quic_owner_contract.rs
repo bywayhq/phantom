@@ -900,10 +900,13 @@ async fn quic_caller_retains_its_request_and_completed_serving_failures() -> Tes
             .ok_or("actual client was not retained")?;
         let uri = origin.url("/quic-caller-failure?probe=1");
         let operation = async {
-            let error = timeout(DEADLINE, client.get(HttpProtocol::Http3, &uri)?.send())
-                .await?
-                .err()
-                .ok_or("the actually reset request returned a response")?;
+            let error = timeout(
+                DEADLINE,
+                client.get_with_protocol(HttpProtocol::Http3, &uri)?.send(),
+            )
+            .await?
+            .err()
+            .ok_or("the actually reset request returned a response")?;
             request_reset(&error)?;
             let seen = timeout(DEADLINE, request_seen).await??;
             if seen.method != Method::GET

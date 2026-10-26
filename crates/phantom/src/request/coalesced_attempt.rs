@@ -294,9 +294,7 @@ mod tests {
             .position(|hint| hint.name() == "sec-ch-ua-arch")
             .ok_or("profile omitted architecture hint")?;
         let client = Client::builder(firefox::v157_windows().with_client_hints(hints)).build()?;
-        let request = client
-            .get_negotiated("https://other.phantom.test/")?
-            .request;
+        let request = client.get("https://other.phantom.test/")?.request;
         let origin = super::client_hint_origin(&client, &request);
         let mut body = RequestBodySource::Streaming(None);
         let mut restart_hints = RestartHints::default();
@@ -348,9 +346,7 @@ mod tests {
         let client = Client::builder(firefox::v157_windows())
             .dns_resolver(resolver)
             .build()?;
-        let request = client
-            .get_negotiated("https://other.phantom.test/")?
-            .request;
+        let request = client.get("https://other.phantom.test/")?.request;
         let mut body = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
             Bytes::from_static(b"one-shot payload"),
         )));

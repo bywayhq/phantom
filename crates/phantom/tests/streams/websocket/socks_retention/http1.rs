@@ -100,9 +100,9 @@ async fn run(socks: Socks, policy: bool, plaintext: bool, claim: Claim) -> TestR
                     restarts_for_connection_accept_ch: false,
                 })?;
                 let request = if policy {
-                    client.get_negotiated(&page)?
+                    client.get(&page)?
                 } else {
-                    client.get(HttpProtocol::Http1, &page)?
+                    client.get_with_protocol(HttpProtocol::Http1, &page)?
                 };
                 let response = request
                     .template(&fields)

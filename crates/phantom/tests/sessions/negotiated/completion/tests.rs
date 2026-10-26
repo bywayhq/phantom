@@ -194,7 +194,7 @@ async fn quiet_accept_preserves_io_error_and_observes_real_acceptance() -> TestR
 async fn negative_client_outcome_survives_worker_completion_failure() -> TestResult<()> {
     let identity = crate::support::tls::TestIdentity::generate()?;
     let client = crate::support::tls::test_client(&identity, true)?;
-    let request = match client.get_negotiated("https://[invalid/") {
+    let request = match client.get("https://[invalid/") {
         Err(error) => error,
         Ok(_) => return Err("malformed authority unexpectedly built a request".into()),
     };
@@ -243,7 +243,7 @@ async fn interrupted_cleanup_retains_client_failure_and_accepted_worker() -> Tes
     let identity = crate::support::tls::TestIdentity::generate()?;
     let client = crate::support::tls::test_client(&identity, true)?;
     let request = client
-        .get_negotiated("https://[invalid/")
+        .get("https://[invalid/")
         .err()
         .ok_or("malformed authority must retain the client failure")?;
     assert_eq!(request.kind(), phantom::RequestErrorKind::InvalidAuthority);

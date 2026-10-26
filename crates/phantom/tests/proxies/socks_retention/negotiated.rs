@@ -43,9 +43,9 @@ fn request(
 ) -> Result<RequestBuilder, phantom::RequestError> {
     let uri = format!("https://{HOST}/{path}");
     let request = if exact {
-        client.request(HttpProtocol::Http2, Method::POST, &uri)?
+        client.request_with_protocol(HttpProtocol::Http2, Method::POST, &uri)?
     } else {
-        client.request_negotiated(Method::POST, &uri)?
+        client.request(Method::POST, &uri)?
     };
     Ok(request
         .header(RequestHeader::new("x-current", path))
@@ -146,7 +146,7 @@ async fn negotiated_h1_claims_the_authenticated_tls_spare_without_redial_or_old_
         let (quiet, was_quiet) = oneshot::channel();
         let caller = async {
             let response = client
-                .get_negotiated(&format!("https://{HOST}/prime"))?
+                .get(&format!("https://{HOST}/prime"))?
                 .header(RequestHeader::new("x-claim", "prime"))
                 .send()
                 .await?;
@@ -157,7 +157,7 @@ async fn negotiated_h1_claims_the_authenticated_tls_spare_without_redial_or_old_
             claim.send(()).map_err(|_| "spare peer ended")?;
             was_quiet.await?;
             let response = client
-                .get_negotiated(&format!("https://{HOST}/current"))?
+                .get(&format!("https://{HOST}/current"))?
                 .header(RequestHeader::new("x-claim", "current"))
                 .send()
                 .await?;

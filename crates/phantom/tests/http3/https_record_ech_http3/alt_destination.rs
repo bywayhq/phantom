@@ -245,7 +245,7 @@ async fn exchange(reply: Reply, requests: usize, destination_policy: bool) -> Te
         for _ in 0..requests {
             if matches!(reply, Reply::Incompatible | Reply::Delayed | Reply::Failed) {
                 let error = client
-                    .get_negotiated(&url)?
+                    .get(&url)?
                     .send()
                     .await
                     .err()

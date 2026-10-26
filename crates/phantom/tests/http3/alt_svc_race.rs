@@ -71,15 +71,12 @@ async fn race_is_disabled_by_default_and_sequential_failure_stays_terminal() -> 
         .await?;
         let client = client_builder(&identity)?.build()?;
 
-        let learned = client
-            .get_negotiated(&fixture.origin_url("/learn"))?
-            .send()
-            .await?;
+        let learned = client.get(&fixture.origin_url("/learn"))?.send().await?;
         assert_eq!(protocol(&learned)?, HttpProtocol::Http2);
         drain(learned).await?;
 
         let error = client
-            .get_negotiated(&fixture.origin_url("/terminal"))?
+            .get(&fixture.origin_url("/terminal"))?
             .send()
             .await
             .err()
@@ -90,7 +87,7 @@ async fn race_is_disabled_by_default_and_sequential_failure_stays_terminal() -> 
         // Sequential use evicts the failed advertisement, so the next request
         // is an ordinary origin request.
         let recovered = client
-            .get_negotiated(&fixture.origin_url("/recovered"))?
+            .get(&fixture.origin_url("/recovered"))?
             .send()
             .await?;
         assert_eq!(protocol(&recovered)?, HttpProtocol::Http2);
@@ -129,18 +126,12 @@ async fn race_dispatches_request_on_exactly_one_connection() -> TestResult<()> {
             .alt_svc_policy(race_policy(Duration::ZERO)?)
             .build()?;
 
-        let learned = client
-            .get_negotiated(&fixture.origin_url("/learn"))?
-            .send()
-            .await?;
+        let learned = client.get(&fixture.origin_url("/learn"))?.send().await?;
         drain(learned).await?;
 
         // The learning H2 connection is still pooled, so the origin candidate
         // is ready at once and carries the request; alternative setup goes on.
-        let raced = client
-            .get_negotiated(&fixture.origin_url("/raced"))?
-            .send()
-            .await?;
+        let raced = client.get(&fixture.origin_url("/raced"))?.send().await?;
         assert_eq!(protocol(&raced)?, HttpProtocol::Http2);
         assert_eq!(raced.into_body().collect().await?.to_bytes(), "origin");
         let after_origin = fixture.snapshot()?;
@@ -150,10 +141,7 @@ async fn race_dispatches_request_on_exactly_one_connection() -> TestResult<()> {
         // The unfinished alternative connects in the background and is pooled,
         // so the next race finds it ready and it carries the request.
         wait_until(|| Ok(fixture.snapshot()?.alternative_connections == 1)).await?;
-        let pooled = client
-            .get_negotiated(&fixture.origin_url("/pooled"))?
-            .send()
-            .await?;
+        let pooled = client.get(&fixture.origin_url("/pooled"))?.send().await?;
         assert_eq!(protocol(&pooled)?, HttpProtocol::Http3);
         assert_eq!(
             pooled.into_body().collect().await?.to_bytes(),
@@ -202,7 +190,7 @@ async fn one_shot_streaming_body_is_polled_only_by_the_winner() -> TestResult<()
 
         let polls = Arc::new(AtomicUsize::new(0));
         let response = client
-            .request_negotiated(Method::POST, &fixture.origin_url("/upload"))?
+            .request(Method::POST, &fixture.origin_url("/upload"))?
             .streaming_body(ChunkedBody::new(Arc::clone(&polls), &["one", "two"]))
             .send()
             .await?;
@@ -249,10 +237,7 @@ async fn blackholed_quic_loses_after_configured_delay_and_marks_alternative_brok
         import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
 
         let started = Instant::now();
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         let elapsed = started.elapsed();
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
@@ -264,10 +249,7 @@ async fn blackholed_quic_loses_after_configured_delay_and_marks_alternative_brok
         // background and is marked broken; its datagrams stop.
         wait_until(|| Ok(started.elapsed() > Duration::from_millis(900))).await?;
         let after_failure = blackhole.datagrams()?;
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -308,19 +290,13 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
         import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
 
         let started = Instant::now();
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
         // A second race while the first setup still connects waits for that
         // location's connect turn, loses at once to the pooled H2
         // connection, and is cancelled instead of connecting later.
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
 
@@ -328,10 +304,7 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
         wait_until(|| Ok(started.elapsed() > Duration::from_millis(4_500))).await?;
         let after_limit = blackhole.datagrams()?;
         assert!(after_limit > 0);
-        let third = client
-            .get_negotiated(&fixture.origin_url("/third"))?
-            .send()
-            .await?;
+        let third = client.get(&fixture.origin_url("/third"))?.send().await?;
         assert_eq!(protocol(&third)?, HttpProtocol::Http2);
         drain(third).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -378,10 +351,7 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
             .build()?;
         import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
         // Well before the default 4 s, the attempt has stopped sending.
@@ -392,10 +362,7 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
         assert_eq!(blackhole.datagrams()?, after_limit);
 
         // The abandoned alternative is broken, so it is not raced again.
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -441,16 +408,10 @@ async fn race_uses_the_first_listed_alternative_and_never_dials_the_second() -> 
             &[fixture.alternative_address().port(), blackhole.port],
         )?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http3);
         drain(first).await?;
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);
         drain(second).await?;
 
@@ -503,10 +464,7 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
             &[blackhole.port, fixture.alternative_address().port()],
         )?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
         // The first alternative is abandoned at its setup limit and broken;
@@ -515,18 +473,12 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
         assert!(blackhole.datagrams()? > 0);
         assert_eq!(fixture.snapshot()?.alternative_connections, 0);
 
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         wait_until(|| Ok(fixture.snapshot()?.alternative_connections == 1)).await?;
 
-        let third = client
-            .get_negotiated(&fixture.origin_url("/third"))?
-            .send()
-            .await?;
+        let third = client.get(&fixture.origin_url("/third"))?.send().await?;
         assert_eq!(protocol(&third)?, HttpProtocol::Http3);
         assert_eq!(third.into_body().collect().await?.to_bytes(), "alternative");
         assert_eq!(blackhole.connection_attempts()?, 1);
@@ -584,7 +536,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         import_alternatives_for(&client, ORIGIN_NAME, &fixture, &[blackhole.port, serving])?;
 
         let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
+            .get(&fixture.origin_url("/first"))?
             .template(&template)
             .send()
             .await?;
@@ -600,7 +552,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         // The broken first alternative is not raced again, and the second
         // request reuses the pooled connection to the second.
         let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
+            .get(&fixture.origin_url("/second"))?
             .template(&template)
             .send()
             .await?;
@@ -674,10 +626,7 @@ async fn a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_r
             &[untrusted.port, fixture.alternative_address().port()],
         )?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http3);
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
         // Whether it failed before the winner connected or afterwards in the
@@ -687,10 +636,7 @@ async fn a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_r
         // about the time the server sees the handshake end.
         tokio::time::sleep(Duration::from_millis(200)).await;
 
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -740,10 +686,7 @@ async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken
         )?;
 
         let started = Instant::now();
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         let elapsed = started.elapsed();
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
@@ -754,10 +697,7 @@ async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken
         tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
         let after_limit = [blackholes[0].datagrams()?, blackholes[1].datagrams()?];
 
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -818,10 +758,7 @@ async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -
             &[admitted.port, waiting.port],
         )?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
         wait_until(|| Ok(admitted.datagrams()? > 0)).await?;
@@ -833,10 +770,7 @@ async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -
         // The first alternative is broken and the second is not, so the
         // next race dials the second while the pooled H2 connection carries
         // the request.
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         wait_until(|| Ok(waiting.datagrams()? > 0)).await?;
@@ -901,17 +835,14 @@ async fn sequential_failure_moves_the_next_request_to_the_next_alternative() -> 
         )?;
 
         let error = client
-            .get_negotiated(&failing.origin_url("/terminal"))?
+            .get(&failing.origin_url("/terminal"))?
             .send()
             .await
             .err()
             .ok_or("the failed alternative must not fall back to the origin")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
 
-        let moved = client
-            .get_negotiated(&failing.origin_url("/moved"))?
-            .send()
-            .await?;
+        let moved = client.get(&failing.origin_url("/moved"))?.send().await?;
         assert_eq!(protocol(&moved)?, HttpProtocol::Http3);
         assert_eq!(moved.into_body().collect().await?.to_bytes(), "next");
 
@@ -964,7 +895,7 @@ async fn misdirected_request_moves_the_next_request_to_the_next_alternative() ->
         )?;
 
         let first = client
-            .get_negotiated(&misdirected.origin_url("/misdirected"))?
+            .get(&misdirected.origin_url("/misdirected"))?
             .send()
             .await?;
         assert_eq!(first.status(), StatusCode::MISDIRECTED_REQUEST);
@@ -972,7 +903,7 @@ async fn misdirected_request_moves_the_next_request_to_the_next_alternative() ->
         drain(first).await?;
 
         let moved = client
-            .get_negotiated(&misdirected.origin_url("/moved"))?
+            .get(&misdirected.origin_url("/moved"))?
             .send()
             .await?;
         assert_eq!(protocol(&moved)?, HttpProtocol::Http3);
@@ -1015,10 +946,7 @@ async fn exact_http3_is_not_delayed_by_a_background_alternative_setup() -> TestR
             .build()?;
         import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
 
-        let raced = client
-            .get_negotiated(&fixture.origin_url("/raced"))?
-            .send()
-            .await?;
+        let raced = client.get(&fixture.origin_url("/raced"))?.send().await?;
         assert_eq!(protocol(&raced)?, HttpProtocol::Http2);
         drain(raced).await?;
 
@@ -1026,7 +954,7 @@ async fn exact_http3_is_not_delayed_by_a_background_alternative_setup() -> TestR
         // the origin's own location in the same pool entry does not wait.
         let started = Instant::now();
         let exact = client
-            .get(HttpProtocol::Http3, &fixture.origin_url("/exact"))?
+            .get_with_protocol(HttpProtocol::Http3, &fixture.origin_url("/exact"))?
             .send()
             .await?;
         let elapsed = started.elapsed();
@@ -1067,10 +995,7 @@ async fn available_http2_connection_skips_the_origin_delay() -> TestResult<()> {
             .alt_svc_policy(race_policy(Duration::from_secs(5))?)
             .build()?;
         // Without an alternative the request leaves an idle H2 connection.
-        let first = client
-            .get_negotiated(&fixture.origin_url("/first"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/first"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
         import_alternative_for(&client, ALTERNATIVE_HOST, &fixture, blackhole.port)?;
@@ -1078,10 +1003,7 @@ async fn available_http2_connection_skips_the_origin_delay() -> TestResult<()> {
         // Like Chrome's `existing-h2-session` capture, the origin candidate
         // uses the available H2 connection at once while QUIC setup goes on.
         let started = Instant::now();
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         let elapsed = started.elapsed();
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
@@ -1131,7 +1053,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
         let cancelled = tokio::spawn({
             let client = client.clone();
             let url = fixture.origin_url("/cancelled");
-            async move { client.get_negotiated(&url)?.send().await }
+            async move { client.get(&url)?.send().await }
         });
         wait_until(|| Ok(blackhole.datagrams()? > 0)).await?;
         cancelled.abort();
@@ -1143,10 +1065,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
 
         // The losing alternative holds its permit while it connects.
         let started = Instant::now();
-        let raced = client
-            .get_negotiated(&fixture.origin_url("/raced"))?
-            .send()
-            .await?;
+        let raced = client.get(&fixture.origin_url("/raced"))?.send().await?;
         assert_eq!(protocol(&raced)?, HttpProtocol::Http2);
         drain(raced).await?;
         let blocked = send_exact(&client, &fixture, "/blocked")
@@ -1156,10 +1075,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
         assert_eq!(blocked.timeout_phase(), Some(TimeoutPhase::PoolAdmission));
         // A race still waiting for admission loses to the pooled H2
         // connection and gives its place back.
-        let queued = client
-            .get_negotiated(&fixture.origin_url("/queued"))?
-            .send()
-            .await?;
+        let queued = client.get(&fixture.origin_url("/queued"))?.send().await?;
         assert_eq!(protocol(&queued)?, HttpProtocol::Http2);
         drain(queued).await?;
 
@@ -1175,10 +1091,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
         // Reaching the limit marked the alternative broken, so this request
         // is not raced; an unmarked alternative would open a third QUIC
         // connection beside the cancelled and the abandoned ones.
-        let broken = client
-            .get_negotiated(&fixture.origin_url("/broken"))?
-            .send()
-            .await?;
+        let broken = client.get(&fixture.origin_url("/broken"))?.send().await?;
         assert_eq!(protocol(&broken)?, HttpProtocol::Http2);
         drain(broken).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -1217,10 +1130,7 @@ async fn winning_alternative_releases_http3_admission() -> TestResult<()> {
             fixture.alternative_address().port(),
         )?;
 
-        let raced = client
-            .get_negotiated(&fixture.origin_url("/raced"))?
-            .send()
-            .await?;
+        let raced = client.get(&fixture.origin_url("/raced"))?.send().await?;
         assert_eq!(protocol(&raced)?, HttpProtocol::Http3);
         assert_eq!(raced.into_body().collect().await?.to_bytes(), "alternative");
         assert_eq!(send_exact(&client, &fixture, "/exact").await?, "exact");
@@ -1266,7 +1176,7 @@ async fn race_never_changes_route() -> TestResult<()> {
             refused_proxy.address().port()
         ))?);
         let error = client
-            .get_negotiated(&fixture.origin_url("/proxied"))?
+            .get(&fixture.origin_url("/proxied"))?
             .route(proxy)
             .send()
             .await
@@ -1281,10 +1191,7 @@ async fn race_never_changes_route() -> TestResult<()> {
 
         // On the direct route the winning alternative keeps the origin's
         // authority and TLS name; only the QUIC location differs.
-        let response = client
-            .get_negotiated(&fixture.origin_url("/direct"))?
-            .send()
-            .await?;
+        let response = client.get(&fixture.origin_url("/direct"))?.send().await?;
         assert_eq!(protocol(&response)?, HttpProtocol::Http3);
         drain(response).await?;
 
@@ -1334,7 +1241,7 @@ async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_conn
         let mut template = chrome::v154_windows_navigation_template();
         template.requested_client_hint_placement = false;
         let error = client
-            .get_negotiated(&format!("https://{ORIGIN_NAME}:{origin_port}/refused"))?
+            .get(&format!("https://{ORIGIN_NAME}:{origin_port}/refused"))?
             .template(&PreparedRequestTemplate::new(template)?)
             .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
             .send()
@@ -1519,7 +1426,7 @@ async fn send_exact(
     path: &str,
 ) -> Result<Bytes, RequestError> {
     let response = client
-        .get(HttpProtocol::Http3, &fixture.origin_url(path))?
+        .get_with_protocol(HttpProtocol::Http3, &fixture.origin_url(path))?
         .send()
         .await?;
     response

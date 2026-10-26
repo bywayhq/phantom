@@ -60,7 +60,7 @@ async fn http3_upload_counts_and_download_caps_use_body_bytes() -> TestResult<()
         .build()?;
         let control = TransferControl::new(TransferLimits::new().upload_bytes(4).download_bytes(0));
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/"),
@@ -133,7 +133,7 @@ async fn paced_body(total_limit: bool) -> TestResult<(phantom::ResponseBody, Tra
             limits = limits.total(phantom::TimeoutOverride::Limit(Duration::from_secs(1)));
         }
         let response = client
-            .get(HttpProtocol::Http1, &url)?
+            .get_with_protocol(HttpProtocol::Http1, &url)?
             .timeouts(limits)
             .transfer_control(control.clone())
             .send()
@@ -164,7 +164,7 @@ async fn encoded_and_decoded_download_counts_have_distinct_boundaries() -> TestR
         });
         let client = Client::builder(phantom::profile::ClientProfile::new(tls::tls_settings())).build()?;
         let control = TransferControl::new(TransferLimits::new().download_bytes(length as u64));
-        let response = client.get(HttpProtocol::Http1, &url)?
+        let response = client.get_with_protocol(HttpProtocol::Http1, &url)?
             .header(RequestHeader::new("accept-encoding", "gzip"))
             .content_decoding(ContentDecoding::advertised(25_000))
             .transfer_control(control.clone()).send().await?;
@@ -201,7 +201,7 @@ async fn redirect_resends_share_upload_allowance_and_return_typed_exhaustion() -
         let client = Client::builder(phantom::profile::ClientProfile::new(tls::tls_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
         let control = TransferControl::new(TransferLimits::new().upload_bytes(4));
-        let error = client.request(HttpProtocol::Http1, Method::POST, &url)?
+        let error = client.request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
             .body("data").transfer_control(control.clone()).send().await.err().ok_or("resend exceeded upload cap")?;
         assert_eq!(error.kind(), RequestErrorKind::Transfer);
         assert_eq!(control.snapshot().upload_body_bytes, 4);
@@ -233,7 +233,7 @@ async fn cancelling_a_paced_http2_body_preserves_sibling_streams() -> TestResult
         });
         let client = tls::client_builder(&identity, true).build()?;
         let control = TransferControl::new(TransferLimits::new().download_rate(NonZeroU64::MIN));
-        let first = client.get(HttpProtocol::Http2, &url)?.transfer_control(control.clone()).send().await?;
+        let first = client.get_with_protocol(HttpProtocol::Http2, &url)?.transfer_control(control.clone()).send().await?;
         let mut read = Box::pin(first.into_body().collect_with_limit(4));
         assert!(matches!(poll_fn(|cx| Poll::Ready(read.as_mut().poll(cx))).await, Poll::Pending));
         // Ensure pacing has actually reserved data rather than waiting on I/O.
@@ -243,7 +243,7 @@ async fn cancelling_a_paced_http2_body_preserves_sibling_streams() -> TestResult
                 () = tokio::task::yield_now() => {},
             }
         }
-        let second = client.get(HttpProtocol::Http2, &url)?.send().await?;
+        let second = client.get_with_protocol(HttpProtocol::Http2, &url)?.send().await?;
         assert_eq!(second.into_body().collect_with_limit(4).await?, "abcd");
         drop(read);
         assert_eq!(control.snapshot().download_reserved_bytes, 4);

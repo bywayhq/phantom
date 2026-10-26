@@ -441,7 +441,7 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
 
         for path in ["/first", "/second"] {
             let response = client
-                .get_negotiated(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
+                .get(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
                 .send()
                 .await?;
             response.into_body().collect().await?;
@@ -500,7 +500,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
 
         for path in ["/first", "/second"] {
             let response = client
-                .get_negotiated(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
+                .get(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
                 .send()
                 .await?;
             response.into_body().collect().await?;
@@ -546,13 +546,13 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         // Prime the cache: the lookup starts with this request.
         let server = spawn_parallel_origin(listener, acceptor, 3, None, None);
         let operation = async {
-            let response = client.get_negotiated(&url("/prime"))?.send().await?;
+            let response = client.get(&url("/prime"))?.send().await?;
             response.into_body().collect().await?;
             tokio::time::sleep(Duration::from_millis(200)).await;
 
             let requests = (0..3)
                 .map(|index| {
-                    let request = client.get_negotiated(&url(&format!("/parallel-{index}")));
+                    let request = client.get(&url(&format!("/parallel-{index}")));
                     async move {
                         let response = request?.send().await?;
                         response.into_body().collect().await?;
@@ -645,7 +645,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             .build()?;
 
         let response = client
-            .get_negotiated(&format!("https://{ORIGIN_NAME}:{}/", origin.port()))?
+            .get(&format!("https://{ORIGIN_NAME}:{}/", origin.port()))?
             .send()
             .await?;
         response.into_body().collect().await?;

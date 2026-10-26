@@ -790,8 +790,8 @@ async fn get_as(
     expected: HttpProtocol,
 ) -> TestResult<()> {
     let response = match protocol {
-        Some(protocol) => client.get(protocol, url)?.send().await,
-        None => client.get_negotiated(url)?.send().await,
+        Some(protocol) => client.get_with_protocol(protocol, url)?.send().await,
+        None => client.get(url)?.send().await,
     }
     .map_err(|cause| GetFailure::new(url, protocol, "response head", cause))?;
     let info = response
@@ -880,7 +880,7 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
         let result = async {
             tokio::time::sleep(SETTLE).await;
             let second = client
-                .get(HttpProtocol::Http3, &origin.url("/second"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.url("/second"))?
                 .send()
                 .await
                 .err()
@@ -956,7 +956,7 @@ async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> 
             origin.rotate_keys(2, &TEST_ECH_KEYS[1])?;
 
             let error = client
-                .get(HttpProtocol::Http3, &origin.url("/third"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.url("/third"))?
                 .send()
                 .await
                 .err()
@@ -1051,7 +1051,7 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
             .await?;
             tokio::time::sleep(SETTLE).await;
             let error = client
-                .get_negotiated(&origin.url("/rejected"))?
+                .get(&origin.url("/rejected"))?
                 .send()
                 .await
                 .err()

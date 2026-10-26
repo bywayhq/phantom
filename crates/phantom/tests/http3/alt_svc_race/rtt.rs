@@ -187,7 +187,7 @@ async fn decision(seed: Seed, authentication: ServerAuthentication) -> TestResul
         let observation = DelayObservation::default();
         let response = client
             .clone()
-            .get_negotiated(&fixture.origin_url("/race"))?
+            .get(&fixture.origin_url("/race"))?
             .send()
             .with_subscriber(observation.dispatch())
             .await?;
@@ -214,7 +214,7 @@ async fn decision(seed: Seed, authentication: ServerAuthentication) -> TestResul
         })
         .await?;
         let pooled = client
-            .get_negotiated(&fixture.origin_url("/pooled"))?
+            .get(&fixture.origin_url("/pooled"))?
             .send()
             .with_subscriber(observation.dispatch())
             .await?;
@@ -271,7 +271,7 @@ async fn failed_handshake(client: &Client) -> TestResult<()> {
     });
     let result: TestResult<()> = async {
         let error = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{ORIGIN_NAME}:{}", address.port()),
             )?

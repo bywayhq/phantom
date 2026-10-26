@@ -16,6 +16,7 @@ later. Every listener refuses a non-loopback address.
 `snapshot.py` records a desktop browser's TLS and HTTP startup from one
 headless launch on a fresh profile, and `snapshot_compare.py` compares it
 with the browser's retained fixtures:
+Set the browser path, build and operating system below to your machine's values.
 
 ```sh
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
@@ -28,22 +29,6 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.snapshot_compare --browser chrome \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
-
-Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
-Use `--secure-port 443` to check default-port behavior. The tool fails if
-that port is unavailable; omit it to choose a port automatically.
-Metadata, including `--client-version` and `--operating-system`, must fit
-on one line of printable ASCII.
-
-Before writing, the tool collects connections and callback results within a
-ten-second cooperative cleanup deadline. Callback failures and incomplete
-cleanup prevent writing, even with `--allow-partial`.
-Completion requires one exact run token in an origin-form request target.
-
-Split captures exceeding 128 runs or 8 MiB of recorded data per run. Each
-transport permits 128 lifetime connections and 32 active connections. Each
-QUIC connection permits 128 streams. HTTP/1 request headers, including their
-terminator, have a 64 KiB limit.
 
 `--browser` takes `chrome`, `edge`, `brave`, `opera`, `firefox`, or an
 [Android browser](#snapshots-on-android). For several desktop browsers, use
@@ -120,6 +105,24 @@ navigation only.
 For behavior across connections, use the tools below: resumption and 0-RTT,
 Alt-Svc racing, retries, broken alternatives, EventSource reconnects,
 proxies, WebSocket openings, cookie crumbs, and ECH.
+
+### Snapshot limits and cleanup
+
+Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
+Use `--secure-port 443` to check default-port behavior. The tool fails if
+that port is unavailable; omit it to choose a port automatically.
+Metadata, including `--client-version` and `--operating-system`, must fit
+on one line of printable ASCII.
+
+Before writing, the tool collects connections and callback results within a
+ten-second cooperative cleanup deadline. Callback failures and incomplete
+cleanup prevent writing, even with `--allow-partial`.
+Completion requires one exact run token in an origin-form request target.
+
+Split captures exceeding 128 runs or 8 MiB of recorded data per run. Each
+transport permits 128 lifetime connections and 32 active connections. Each
+QUIC connection permits 128 streams. HTTP/1 request headers, including their
+terminator, have a 64 KiB limit.
 
 ### Snapshots on Android
 

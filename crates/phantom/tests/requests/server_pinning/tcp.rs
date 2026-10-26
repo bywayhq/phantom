@@ -65,9 +65,9 @@ async fn pins_survive_pool_reuse_and_refresh_with_resumption() -> TestResult<()>
                     let clone = client.clone();
                     let url = format!("https://{address}/");
                     let request = if negotiated {
-                        clone.get_negotiated(&url)?
+                        clone.get(&url)?
                     } else {
-                        clone.get(protocol, &url)?
+                        clone.get_with_protocol(protocol, &url)?
                     };
                     let response = request.send().await?;
                     assert_eq!(response.status(), 200);
@@ -106,7 +106,7 @@ async fn wrong_pin_is_typed_and_sends_no_origin_http() -> TestResult<()> {
             };
             let caller = async {
                 let error = client
-                    .get(protocol, &format!("https://{address}/"))?
+                    .get_with_protocol(protocol, &format!("https://{address}/"))?
                     .send()
                     .await
                     .err()

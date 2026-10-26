@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
 
     let page = client
-        .get(HttpProtocol::Http2, page_url.as_str())?
+        .get_with_protocol(HttpProtocol::Http2, page_url.as_str())?
         .send()
         .await?;
     println!(
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // `Referer` is a caller slot in the fetch template: its value is the page URL.
     let data = client
-        .get(HttpProtocol::Http2, fetch_url.as_str())?
+        .get_with_protocol(HttpProtocol::Http2, fetch_url.as_str())?
         .template(&fetch)
         .header(RequestHeader::new("referer", page_url.as_str()))
         .send()

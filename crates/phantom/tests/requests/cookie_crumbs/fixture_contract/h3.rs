@@ -53,7 +53,7 @@ async fn exchange(recorder: &Recorder) -> TestResult<()> {
         DEADLINE,
         recorder
             .client
-            .get(HttpProtocol::Http3, &recorder.url)?
+            .get_with_protocol(HttpProtocol::Http3, &recorder.url)?
             .header(RequestHeader::new("cookie", "k=v"))
             .send(),
     )
@@ -162,7 +162,7 @@ async fn a_preparation_error_keeps_the_completed_h3_recorder_failure() -> TestRe
     timeout(DEADLINE, &mut recorder.stopped).await??;
     let primary = recorder
         .client
-        .get(HttpProtocol::Http3, "not a URL")
+        .get_with_protocol(HttpProtocol::Http3, "not a URL")
         .err()
         .ok_or("invalid request URL was accepted")?;
     let peer = recorder.peer.take().ok_or("recorder peer missing")?;

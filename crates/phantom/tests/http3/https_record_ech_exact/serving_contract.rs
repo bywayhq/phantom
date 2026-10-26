@@ -227,7 +227,7 @@ async fn driven_origin(
 
     for path in ["/serving-first", "/serving-second"] {
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{ORIGIN_NAME}:{}{path}", origin.port),
             )?

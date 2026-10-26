@@ -236,7 +236,7 @@ async fn a_pinned_alternative_receives_the_request_for_the_origin() -> TestResul
                 .alt_svc(NonZeroUsize::MIN)
                 .build()?;
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
                 .alt_svc_alternative(&host, port)
                 .send()
                 .await?;
@@ -284,7 +284,7 @@ async fn a_profile_that_appends_alt_used_names_the_pinned_alternative() -> TestR
             let client =
                 direct_client_with(&identity, appending_alt_used(client_settings())).build()?;
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
                 .alt_svc_alternative(&host, port)
                 .send()
                 .await?;
@@ -329,7 +329,7 @@ async fn a_pinned_alternative_is_reached_through_connect_udp() -> TestResult<()>
                 .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
                 .build()?;
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/proxied"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/proxied"))?
                 .alt_svc_alternative(&host, port)
                 .send()
                 .await?;
@@ -381,7 +381,7 @@ async fn a_same_origin_redirect_keeps_the_pinned_alternative() -> TestResult<()>
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
                 .alt_svc_alternative(&host, port)
                 .send()
                 .await?;
@@ -443,7 +443,7 @@ async fn a_redirect_to_another_origin_leaves_the_pinned_alternative() -> TestRes
                 .build()?;
 
             let error = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
                 .alt_svc_alternative(&host, port)
                 .send()
                 .await
@@ -486,7 +486,7 @@ async fn a_failed_pinned_alternative_returns_the_http3_error() -> TestResult<()>
         let operation = async {
             let client = direct_client(&identity).build()?;
             let error = client
-                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/refused"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{ORIGIN}/refused"))?
                 .alt_svc_alternative(&host, port)
                 // A pinned alternative never falls back to the origin.
                 .retry_policy(RetryPolicy::none().with_http2_fallback(true))
@@ -526,7 +526,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
 
         for (host, port) in [("127.0.0.1", 0), ("LOCALHOST", 443), ("[::1]", 443)] {
             let error = client
-                .get(HttpProtocol::Http3, &url)?
+                .get_with_protocol(HttpProtocol::Http3, &url)?
                 .alt_svc_alternative(host, port)
                 .send()
                 .await
@@ -540,7 +540,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
         }
 
         let error = client
-            .get_negotiated(&url)?
+            .get(&url)?
             .alt_svc_alternative("127.0.0.1", 443)
             .send()
             .await
@@ -550,7 +550,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
 
         let error = client
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .header(RequestHeader::new("alt-used", "127.0.0.1:443"))
             .alt_svc_alternative("127.0.0.1", 443)
             .send()

@@ -185,8 +185,8 @@ enum RequestMode {
 
 fn request(client: &Client, uri: &str, mode: RequestMode) -> Result<RequestBuilder, RequestError> {
     match mode {
-        RequestMode::Exact => client.get(HttpProtocol::Http1, uri),
-        RequestMode::Negotiated => client.get_negotiated(uri),
+        RequestMode::Exact => client.get_with_protocol(HttpProtocol::Http1, uri),
+        RequestMode::Negotiated => client.get(uri),
     }
 }
 

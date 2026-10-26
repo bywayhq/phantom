@@ -19,7 +19,7 @@ let client = Client::builder(profile)
     .build()?;
 
 let response = client
-    .get_negotiated("https://example.com/")?
+    .get("https://example.com/")?
     .content_decoding(ContentDecoding::advertised(1 << 20))
     .send()
     .await?;
@@ -62,7 +62,7 @@ use phantom::{Client, Route};
 
 # async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 let response = client
-    .get_negotiated("https://example.com/")?
+    .get("https://example.com/")?
     .route(Route::direct())
     .send()
     .await?;

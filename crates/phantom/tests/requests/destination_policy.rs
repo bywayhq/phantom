@@ -59,7 +59,7 @@ async fn denial_prevents_tcp_quic_and_fallback_without_spending_retries() -> Tes
         let error = timeout(
             WAIT,
             client
-                .get(protocol, &format!("{scheme}://{address}/"))?
+                .get_with_protocol(protocol, &format!("{scheme}://{address}/"))?
                 .send(),
         )
         .await?
@@ -73,7 +73,7 @@ async fn denial_prevents_tcp_quic_and_fallback_without_spending_retries() -> Tes
     let error = timeout(
         WAIT,
         client
-            .get_negotiated(&format!("https://{}/", tcp.local_addr()?))?
+            .get(&format!("https://{}/", tcp.local_addr()?))?
             .send(),
     )
     .await?
@@ -106,7 +106,7 @@ async fn overrides_keep_allowed_order_and_never_connect_to_denied_candidates() -
     timeout(WAIT, async {
         let send = async {
             let response = client
-                .get(HttpProtocol::Http1, &format!("http://origin.test:{port}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://origin.test:{port}/"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), http::StatusCode::OK);
@@ -166,7 +166,7 @@ async fn redirect_destination_is_checked_before_its_connection() -> TestResult<(
         .build()?;
     timeout(WAIT, async {
         let send = async {
-            let error = client.get(HttpProtocol::Http1, &format!("http://{initial_address}/"))?.send().await
+            let error = client.get_with_protocol(HttpProtocol::Http1, &format!("http://{initial_address}/"))?.send().await
                 .err().ok_or("denied redirect succeeded")?;
             assert_eq!(error.kind(), RequestErrorKind::DestinationDenied);
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
@@ -203,10 +203,13 @@ async fn forks_and_restored_sessions_keep_the_receiving_policy() -> TestResult<(
         clients.push(client.restore_session(&unguarded.export_session(&key)?, &key, &[])?);
     }
     for client in clients.drain(..) {
-        let error = timeout(WAIT, client.get(HttpProtocol::Http1, &url)?.send())
-            .await?
-            .err()
-            .ok_or("retained policy was bypassed")?;
+        let error = timeout(
+            WAIT,
+            client.get_with_protocol(HttpProtocol::Http1, &url)?.send(),
+        )
+        .await?
+        .err()
+        .ok_or("retained policy was bypassed")?;
         assert_eq!(error.kind(), RequestErrorKind::DestinationDenied);
     }
     assert!(timeout(QUIET, listener.accept()).await.is_err());
@@ -241,7 +244,7 @@ async fn proxy_and_custom_routes_are_rejected_before_callbacks_or_io() -> TestRe
         .destination_policy(policy)
         .build()?;
     let error = client
-        .get(HttpProtocol::Http1, "http://origin.test/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://origin.test/")?
         .route(proxy)
         .send()
         .await
@@ -436,7 +439,7 @@ async fn denied_alternative_stays_available_while_the_permitted_origin_wins() ->
     timeout(WAIT, async {
         let send = async {
             for expected in 1..=2 {
-                let response = client.get_negotiated(&format!("{url}/"))?.send().await?;
+                let response = client.get(&format!("{url}/"))?.send().await?;
                 assert_eq!(response.status(), http::StatusCode::OK);
                 assert_eq!(
                     denied.load(Ordering::SeqCst),

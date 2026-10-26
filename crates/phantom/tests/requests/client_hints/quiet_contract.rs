@@ -120,7 +120,7 @@ async fn exchange(action: QuietAction) -> TestResult<QuietExchange> {
             .as_ref()
             .ok_or("ALPS control client was not retained")?;
         let response = client
-            .get(HttpProtocol::Http2, &format!("{origin}/quiet"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/quiet"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -151,7 +151,7 @@ async fn exchange(action: QuietAction) -> TestResult<QuietExchange> {
             }
             QuietAction::SendAnotherRequest => {
                 let result = client
-                    .get(HttpProtocol::Http2, &format!("{origin}/second"))?
+                    .get_with_protocol(HttpProtocol::Http2, &format!("{origin}/second"))?
                     .send()
                     .await;
                 second_error = Some(

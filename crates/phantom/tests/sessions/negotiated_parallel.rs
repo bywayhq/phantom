@@ -535,7 +535,7 @@ fn protocol<B>(response: &Response<B>) -> TestResult<HttpProtocol> {
 /// Sends a negotiated GET and returns its response with the body unread, so
 /// an H1 connection stays busy until [`finish`].
 async fn hold(client: &Client, uri: &str) -> TestResult<Response<ResponseBody>> {
-    Ok(timeout(TEST_TIMEOUT, client.get_negotiated(uri)?.send())
+    Ok(timeout(TEST_TIMEOUT, client.get(uri)?.send())
         .await
         .map_err(|elapsed| {
             FixtureDeadline::new("negotiated GET exceeded its deadline", elapsed)
@@ -581,7 +581,7 @@ async fn finish(response: Response<ResponseBody>) -> TestResult {
 async fn concurrently(client: &Client, uris: &[String]) -> TestResult<Vec<HttpProtocol>> {
     let mut requests = Vec::new();
     for uri in uris {
-        let request = client.get_negotiated(uri)?;
+        let request = client.get(uri)?;
         requests.push(async move {
             let response = request.send().await?;
             let selected = protocol(&response)?;
@@ -710,8 +710,7 @@ async fn named_recipe_opens_six_negotiated_http1_connections() -> TestResult {
                 assert_eq!(protocol(&response)?, HttpProtocol::Http1);
                 held.push(response);
             }
-            let seventh =
-                work.spawn_response(client.get_negotiated(&origin.uri("seventh"))?.send())?;
+            let seventh = work.spawn_response(client.get(&origin.uri("seventh"))?.send())?;
             assert!(
                 timeout(QUIET_WINDOW, work.response_peer(seventh)?)
                     .await
@@ -780,7 +779,7 @@ async fn negotiated_http1_request_beyond_the_bound_waits_for_a_free_connection()
         let second = hold(&client, &origin.uri("second")).await?;
         assert_eq!(accepted(&origin.drain().await?), 2);
 
-        let third = work.spawn_response(client.get_negotiated(&origin.uri("third"))?.send())?;
+        let third = work.spawn_response(client.get(&origin.uri("third"))?.send())?;
         origin.assert_quiet().await?;
         assert!(
             timeout(QUIET_WINDOW, work.response_peer(third)?)
@@ -1000,7 +999,7 @@ type Outcome = Result<HttpProtocol, (RequestErrorKind, Option<HttpProtocol>)>;
 fn spawn_all(client: &Client, uris: &[String], work: &mut Work) -> TestResult<Vec<usize>> {
     let mut tasks = Vec::new();
     for uri in uris {
-        let request = client.get_negotiated(uri)?;
+        let request = client.get(uri)?;
         tasks.push(work.spawn_outcome(async move {
             let response = match request.send().await {
                 Ok(response) => response,
@@ -1148,7 +1147,7 @@ async fn setup_retry_delay_releases_the_connection_slot() -> TestResult {
 
         let subscriber = OutcomeSubscriber::default();
         let delayed = client
-            .get_negotiated(&uri("delayed"))?
+            .get(&uri("delayed"))?
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
                 Duration::from_secs(2),

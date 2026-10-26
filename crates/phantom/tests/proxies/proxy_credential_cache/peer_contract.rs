@@ -71,7 +71,7 @@ async fn held_tunnel() -> TestResult<HeldTunnel> {
     });
 
     let response = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/held"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/held"))?
         .send()
         .await?;
     assert_eq!(response.status(), 200);

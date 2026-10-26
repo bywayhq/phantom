@@ -54,7 +54,7 @@ async fn authenticated_http1_sends_a_locally_resolved_ip() -> TestResult<()> {
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!(
                         "https://{ORIGIN_NAME}:{}/authenticated",
@@ -111,7 +111,7 @@ async fn http1_sends_a_locally_resolved_ip_to_the_proxy() -> TestResult<()> {
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{ORIGIN_NAME}:{}/local", origin_address.port()),
                 )?
@@ -176,7 +176,7 @@ async fn session_reuses_one_http2_connection_and_local_dns_tunnel() -> TestResul
 
             for path in ["/first", "/second"] {
                 let response = session
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http2,
                         &format!("https://{ORIGIN_NAME}:{}{path}", origin_address.port()),
                     )?
@@ -367,7 +367,7 @@ async fn plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy() -> TestResul
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
                 )?

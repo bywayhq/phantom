@@ -71,7 +71,7 @@ async fn request_override_validation_precedes_network_io() -> TestResult {
     let client = client_builder(&identity, false).build()?;
 
     let error = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/"))?
         .timeouts(RequestTimeoutOverrides::disabled().total(TimeoutOverride::Limit(Duration::MAX)))
         .send()
         .await
@@ -104,7 +104,7 @@ async fn connection_setup_timeout_is_typed_and_installs_no_connection() -> TestR
         .build()?;
 
     let error = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/"))?
         .send()
         .await
         .err()
@@ -138,12 +138,12 @@ async fn admission_timeout_does_not_cancel_the_active_http1_exchange() -> TestRe
         .request_timeouts(RequestTimeouts::new().pool_admission(Duration::from_secs(1)))
         .build()?;
     let first = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/first"))?
         .send()
         .await?;
 
     let error = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/second"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/second"))?
         .send()
         .await
         .err()
@@ -184,7 +184,7 @@ async fn response_head_timeout_retires_http1_connection() -> TestResult {
         .build()?;
 
     let error = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
         .send()
         .await
         .err()
@@ -192,7 +192,7 @@ async fn response_head_timeout_retires_http1_connection() -> TestResult {
     assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ResponseHead));
 
     client
-        .get(
+        .get_with_protocol(
             HttpProtocol::Http1,
             &format!("https://{address}/replacement"),
         )?
@@ -244,7 +244,7 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
         .build()?;
 
     let mut request = client
-        .get(HttpProtocol::Http2, &format!("https://{address}/stalled"))?
+        .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/stalled"))?
         .timeouts(RequestTimeoutOverrides::new().connect(TimeoutOverride::Disabled));
     let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
     let error = request
@@ -263,7 +263,7 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
 
     timeout(TEST_TIMEOUT, async {
         client
-            .get(HttpProtocol::Http2, &format!("https://{address}/later"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/later"))?
             .timeouts(RequestTimeoutOverrides::new().response_head(TimeoutOverride::Disabled))
             .send()
             .await?
@@ -339,7 +339,7 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
     let client = http3_client(&identity)?;
 
     let mut request = client
-        .get(HttpProtocol::Http3, &format!("https://{address}/stalled"))?
+        .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/stalled"))?
         .timeouts(
             RequestTimeoutOverrides::disabled()
                 .response_head(TimeoutOverride::Limit(Duration::from_millis(100))),
@@ -375,7 +375,7 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
 
     timeout(TEST_TIMEOUT, async {
         client
-            .get(HttpProtocol::Http3, &format!("https://{address}/later"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/later"))?
             .timeouts(RequestTimeoutOverrides::disabled())
             .send()
             .await?
@@ -427,7 +427,8 @@ async fn read_idle_timeout_retires_http1_connection() -> TestResult {
     let client = client_builder(&identity, false)
         .request_timeouts(RequestTimeouts::new().read_idle(Duration::from_secs(1)))
         .build()?;
-    let mut request = client.get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?;
+    let mut request =
+        client.get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/stalled"))?;
     let diagnostics = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(127));
     let response = request.send().await?;
     wait_for_head
@@ -456,7 +457,7 @@ async fn read_idle_timeout_retires_http1_connection() -> TestResult {
         .map_err(|_| "server stopped before first-connection release")?;
 
     client
-        .get(
+        .get_with_protocol(
             HttpProtocol::Http1,
             &format!("https://{address}/replacement"),
         )?
@@ -487,7 +488,7 @@ async fn total_deadline_continues_through_response_body_eof() -> TestResult {
 
     total_body_fixture::complete(&mut server, async {
         let response = client
-            .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
             .send()
             .await?;
         let error = total_body_fixture::collect_body(response.into_body(), None)
@@ -539,7 +540,7 @@ async fn total_deadline_is_shared_by_redirect_hops() -> TestResult {
 
     let mut request = tokio::spawn(async move {
         client
-            .get(HttpProtocol::Http1, &format!("https://{address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/start"))?
             .send()
             .await
             .err()
@@ -577,7 +578,7 @@ fn runtime_without_time_returns_a_typed_error() -> TestResult {
     let client = client_builder(&identity, false)
         .request_timeouts(RequestTimeouts::new().connect(Duration::from_secs(1)))
         .build()?;
-    let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .build()?;

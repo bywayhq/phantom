@@ -113,7 +113,7 @@ async fn send(client: Client, url: String, attempt: Attempt) -> TestResult<()> {
         http::Method::GET
     };
     let mut request = client
-        .request_negotiated(method, &url)?
+        .request(method, &url)?
         .header(phantom::RequestHeader::new("x-early-marker", "unchanged"));
     if matches!(attempt, Attempt::Post | Attempt::GetBody) {
         request = request.body(Bytes::from_static(b"request-body"));

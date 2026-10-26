@@ -195,10 +195,7 @@ async fn alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned() -> TestResult<
             tunnel_proxy::http1_connect(proxy_listener, fixture.origin_address()),
         ));
         let operation: TestResult<()> = async {
-            let first = client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?;
+            let first = client.get(&fixture.origin_url("/learn"))?.send().await?;
             assert_eq!(protocol(&first)?, HttpProtocol::Http2);
             assert!(
                 first.headers().contains_key("alt-svc"),
@@ -206,10 +203,7 @@ async fn alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned() -> TestResult<
             );
             assert_eq!(first.into_body().collect().await?.to_bytes(), "origin");
 
-            let second = client
-                .get_negotiated(&fixture.origin_url("/after"))?
-                .send()
-                .await?;
+            let second = client.get(&fixture.origin_url("/after"))?.send().await?;
             assert_eq!(protocol(&second)?, HttpProtocol::Http2);
             assert_eq!(
                 second.into_body().collect().await?.to_bytes(),
@@ -248,7 +242,7 @@ async fn connect_udp_route_still_refuses_a_negotiated_request() -> TestResult<()
         let client = alt_svc_client(&identity)?.build()?;
 
         let error = client
-            .get_negotiated("https://127.0.0.1:9/refused")?
+            .get("https://127.0.0.1:9/refused")?
             .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
                 "https://{proxy_address}/.well-known/masque/udp/{{target_host}}/{{target_port}}/"
             ))?))
@@ -294,7 +288,7 @@ async fn negotiated_connection_is_not_reused_across_proxy_routes() -> TestResult
             assert_eq!(protocol(&first)?, HttpProtocol::Http2);
             first.into_body().collect().await?;
             let second = client
-                .get_negotiated(&format!("https://{origin_address}/second"))?
+                .get(&format!("https://{origin_address}/second"))?
                 .route(Route::http_proxy(HttpProxy::new(&format!(
                     "http://{second_address}"
                 ))?))
@@ -349,9 +343,9 @@ async fn refused_connect_fails_like_the_exact_request() -> TestResult<()> {
             let operation: TestResult<()> = async {
                 let uri = format!("https://{origin}/refused");
                 let request = if negotiated {
-                    client.get_negotiated(&uri)?
+                    client.get(&uri)?
                 } else {
-                    client.get(HttpProtocol::Http2, &uri)?
+                    client.get_with_protocol(HttpProtocol::Http2, &uri)?
                 };
                 let error = request
                     .send()
@@ -413,7 +407,7 @@ async fn failed_origin_handshake_in_the_tunnel_is_not_retried() -> TestResult<()
 
         let operation: TestResult<()> = async {
             let error = client
-                .get_negotiated(&format!("https://{origin_address}/untrusted"))?
+                .get(&format!("https://{origin_address}/untrusted"))?
                 .send()
                 .await
                 .err()
@@ -586,9 +580,9 @@ async fn basic_challenge_matches_exact(leg: ProxyLeg) -> TestResult<()> {
                 let exchange: TestResult<()> = async {
                     let uri = format!("https://{origin_address}/authenticated");
                     let request = if negotiated {
-                        client.get_negotiated(&uri)?
+                        client.get(&uri)?
                     } else {
-                        client.get(HttpProtocol::Http2, &uri)?
+                        client.get_with_protocol(HttpProtocol::Http2, &uri)?
                     };
                     let response = request.send().await?;
                     assert_eq!(protocol(&response)?, HttpProtocol::Http2);
@@ -767,7 +761,7 @@ async fn negotiated_get(
     path: &str,
 ) -> TestResult<Response<ResponseBody>> {
     Ok(client
-        .get_negotiated(&format!("https://{origin}{path}"))?
+        .get(&format!("https://{origin}{path}"))?
         .send()
         .await?)
 }

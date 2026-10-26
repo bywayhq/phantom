@@ -66,7 +66,7 @@ fn caller_failure() -> TestResult<Box<dyn Error + Send + Sync>> {
 
     let client = Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
     let error = client
-        .get(HttpProtocol::Http1, "https://[invalid/")
+        .get_with_protocol(HttpProtocol::Http1, "https://[invalid/")
         .err()
         .ok_or("malformed authority was accepted")?;
     assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);

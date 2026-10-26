@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder(profile).route(route).build()?;
 
     let response = client
-        .get_negotiated(&url)?
+        .get(&url)?
         .content_decoding(ContentDecoding::advertised(1 << 20))
         .send()
         .await?;

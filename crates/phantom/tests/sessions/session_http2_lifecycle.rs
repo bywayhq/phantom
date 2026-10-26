@@ -74,14 +74,14 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
             .max_pending_http2_requests_per_origin(one)
             .build()?;
         let held = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/held"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/held"))?
             .send()
             .await?
             .into_body();
 
         let mut cancelled = Box::pin(
             session
-                .get(HttpProtocol::Http2, &format!("https://{address}/cancelled"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/cancelled"))?
                 .send(),
         );
         assert_pending(
@@ -93,13 +93,13 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
 
         let mut admitted = Box::pin(
             session
-                .get(HttpProtocol::Http2, &format!("https://{address}/admitted"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/admitted"))?
                 .send(),
         );
         assert_pending(admitted.as_mut(), "admitted waiter unexpectedly completed").await?;
 
         let result = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/excess"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/excess"))?
             .send()
             .await;
         let error = match result {
@@ -163,12 +163,12 @@ async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
             .max_concurrent_http2_requests_per_origin(two)
             .build()?;
         let first = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/first"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/first"))?
             .send()
             .await?
             .into_body();
         let second = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/second"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/second"))?
             .send();
         tokio::pin!(second);
         assert_pending(
@@ -217,14 +217,14 @@ async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult
 
         let session = test_client(&identity, true)?;
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/held"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/held"))?
             .send()
             .await?;
         let mut held = response.into_body();
         assert_eq!(next_data(&mut held).await?, "before");
 
         let later = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/later"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/later"))?
             .send()
             .await?;
         assert_eq!(later.status(), 204);
@@ -264,7 +264,7 @@ async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestR
 
         let session = test_client(&identity, true)?;
         let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/failed"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/failed"))?
             .send()
             .await?;
         assert_eq!(response.status(), 204);
@@ -310,10 +310,10 @@ async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_str
             .max_concurrent_http2_requests_per_origin(two)
             .build()?;
         let lower = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/lower"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/lower"))?
             .send();
         let higher = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/higher"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/higher"))?
             .send();
         let (lower, higher) = tokio::join!(lower, higher);
 
@@ -370,7 +370,7 @@ async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()>
 
         let session = test_client(&identity, true)?;
         let result = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/bounded"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/bounded"))?
             .send()
             .await;
         let error = match result {
@@ -452,7 +452,7 @@ async fn assert_goaway_not_retried(
         }));
 
         let session = test_client(&identity, true)?;
-        let mut request = session.request(
+        let mut request = session.request_with_protocol(
             HttpProtocol::Http2,
             method,
             &format!("https://{address}{path}"),

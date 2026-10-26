@@ -107,13 +107,7 @@ async fn firefox_alternative_fields_place_alt_used_with_referer_and_cookie() -> 
                         .cookies()
                         .alt_svc(NonZeroUsize::new(8).ok_or("zero capacity")?)
                         .build()?;
-                    drain(
-                        client
-                            .get_negotiated(&fixture.origin_url("/learn"))?
-                            .send()
-                            .await?,
-                    )
-                    .await?;
+                    drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
                     let template = PreparedRequestTemplate::new(if navigation {
                         firefox::v157_windows_navigation_template()
                     } else {
@@ -121,10 +115,10 @@ async fn firefox_alternative_fields_place_alt_used_with_referer_and_cookie() -> 
                     })?;
                     let mut request = if pinned {
                         client
-                            .get(HttpProtocol::Http3, &fixture.origin_url("/fields"))?
+                            .get_with_protocol(HttpProtocol::Http3, &fixture.origin_url("/fields"))?
                             .alt_svc_alternative(ORIGIN_NAME, fixture.alternative_address().port())
                     } else {
-                        client.get_negotiated(&fixture.origin_url("/fields"))?
+                        client.get(&fixture.origin_url("/fields"))?
                     }
                     .template(&template);
                     if let Some(referer) = referer {
@@ -210,7 +204,7 @@ async fn automatic_hints_cannot_inject_or_move_alt_used() -> TestResult<()> {
                     .build()?;
                 drain(
                     client
-                        .get_negotiated(&fixture.origin_url("/learn"))?
+                        .get(&fixture.origin_url("/learn"))?
                         .template(&template)
                         .send()
                         .await?,
@@ -218,9 +212,9 @@ async fn automatic_hints_cannot_inject_or_move_alt_used() -> TestResult<()> {
                 .await?;
                 let exact_url = format!("https://{}/fields", fixture.alternative_address());
                 let request = if alternative {
-                    client.get_negotiated(&fixture.origin_url("/fields"))?
+                    client.get(&fixture.origin_url("/fields"))?
                 } else {
-                    client.get(HttpProtocol::Http3, &exact_url)?
+                    client.get_with_protocol(HttpProtocol::Http3, &exact_url)?
                 };
                 let response = request.template(&template).send().await?;
                 assert_eq!(protocol(&response)?, HttpProtocol::Http3);

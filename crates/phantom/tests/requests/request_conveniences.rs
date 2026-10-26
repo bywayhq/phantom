@@ -71,7 +71,7 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
             .build()?;
 
             client
-                .get(HttpProtocol::Http1, "users")?
+                .get_with_protocol(HttpProtocol::Http1, "users")?
                 .query_pairs([("page", "2")])?
                 .header_hook(|context| context.set(RequestHeader::new("x-token", "request")))
                 .send()
@@ -82,7 +82,7 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
 
             client
                 .clone()
-                .get_negotiated("users")?
+                .get("users")?
                 .without_header_hooks()
                 .header(RequestHeader::new("X-Token", "manual"))
                 .send()
@@ -152,7 +152,7 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
                     context.append(RequestHeader::new("Cookie", hook_cookie.clone()).sensitive())
                 }).build()?;
 
-            client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
+            client.get_with_protocol(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
 
             Ok(calls)
         })
@@ -175,7 +175,7 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
     let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
 
     let error = client
-        .get(HttpProtocol::Http1, &uri)?
+        .get_with_protocol(HttpProtocol::Http1, &uri)?
         .header_hook(|_| {
             Err(HeaderHookError::new(std::io::Error::other(
                 "private-canary",
@@ -192,7 +192,7 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
 
     for remove in [false, true] {
         let error = client
-            .request(HttpProtocol::Http1, phantom::Method::POST, &uri)?
+            .request_with_protocol(HttpProtocol::Http1, phantom::Method::POST, &uri)?
             .prepared_body(PreparedRequestBody::form([("key", "value")], 100)?)
             .header(RequestHeader::new(
                 "Content-Type",
@@ -261,7 +261,7 @@ async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
                 .build()?;
 
             client
-                .get(HttpProtocol::Http1, &format!("http://{address}/retry"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/retry"))?
                 .send()
                 .await?
                 .into_body()

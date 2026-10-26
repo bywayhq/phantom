@@ -292,8 +292,8 @@ async fn send(
     uri: &str,
 ) -> TestResult<Response<phantom::ResponseBody>> {
     let request = match mode {
-        Mode::Exact => client.get(HttpProtocol::Http2, uri)?,
-        Mode::Negotiated => client.get_negotiated(uri)?,
+        Mode::Exact => client.get_with_protocol(HttpProtocol::Http2, uri)?,
+        Mode::Negotiated => client.get(uri)?,
     };
     Ok(timeout(TEST_TIMEOUT, request.send()).await??)
 }

@@ -55,9 +55,9 @@ fn request_builder_debug_hides_nested_prepared_template_values()
     assert!(!debug.contains(&canary));
     let client = builder.build()?;
     for request in [
-        client.get(HttpProtocol::Http1, "https://example.test/")?,
+        client.get_with_protocol(HttpProtocol::Http1, "https://example.test/")?,
         client
-            .get(HttpProtocol::Http1, "https://example.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "https://example.test/")?
             .template(&prepared),
     ] {
         let debug = format!("{request:?}");

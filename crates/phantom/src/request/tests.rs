@@ -22,14 +22,14 @@ fn new_requests_share_the_prepared_profile_default() -> Result<(), Box<dyn std::
         .as_ref()
         .ok_or("default was not prepared")?;
     for request in [
-        client.get(HttpProtocol::Http1, "https://example.com/")?,
-        client.request(
+        client.get_with_protocol(HttpProtocol::Http1, "https://example.com/")?,
+        client.request_with_protocol(
             HttpProtocol::Http2,
             http::Method::POST,
             "https://example.com/",
         )?,
-        client.get_negotiated("https://example.com/")?,
-        client.request_negotiated(http::Method::POST, "https://example.com/")?,
+        client.get("https://example.com/")?,
+        client.request(http::Method::POST, "https://example.com/")?,
     ] {
         let inherited = request
             .request
@@ -59,7 +59,7 @@ fn template_override_and_opt_out_apply_only_to_the_current_request()
     let explicit =
         crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
     let request = client
-        .get(HttpProtocol::Http1, "https://example.com/")?
+        .get_with_protocol(HttpProtocol::Http1, "https://example.com/")?
         .without_template()
         .template(&explicit);
     let applied = request
@@ -78,7 +78,7 @@ fn template_override_and_opt_out_apply_only_to_the_current_request()
     assert!(request.without_template().request.template.is_none());
     assert!(
         client
-            .get(HttpProtocol::Http1, "https://example.com/")?
+            .get_with_protocol(HttpProtocol::Http1, "https://example.com/")?
             .request
             .template
             .is_some()
@@ -86,7 +86,7 @@ fn template_override_and_opt_out_apply_only_to_the_current_request()
     let no_default = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
     assert!(
         no_default
-            .get(HttpProtocol::Http1, "https://example.com/")?
+            .get_with_protocol(HttpProtocol::Http1, "https://example.com/")?
             .request
             .template
             .is_none()
@@ -171,7 +171,7 @@ fn query_pairs_keep_template_choices_body_waits_and_pinned_alternatives()
         .ok_or("missing default")?;
     let wait = std::time::Duration::from_millis(37);
     let mut initial = client
-        .get(HttpProtocol::Http1, "https://example.test/path?old=%2f")?
+        .get_with_protocol(HttpProtocol::Http1, "https://example.test/path?old=%2f")?
         .body("payload")
         .expect_continue(wait)
         .alt_svc_alternative("alternative.test", 8443);
@@ -181,13 +181,13 @@ fn query_pairs_keep_template_choices_body_waits_and_pinned_alternatives()
         (initial, Some(default)),
         (
             client
-                .get(HttpProtocol::Http1, "https://example.test/path")?
+                .get_with_protocol(HttpProtocol::Http1, "https://example.test/path")?
                 .template(&explicit),
             Some(&explicit),
         ),
         (
             client
-                .get(HttpProtocol::Http1, "https://example.test/path")?
+                .get_with_protocol(HttpProtocol::Http1, "https://example.test/path")?
                 .without_template(),
             None,
         ),
@@ -231,7 +231,7 @@ fn empty_query_inputs_preserve_the_existing_empty_query_marker()
     let client = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
     for original in ["https://example.test/path", "https://example.test/path?"] {
         let request = client
-            .get(HttpProtocol::Http1, original)?
+            .get_with_protocol(HttpProtocol::Http1, original)?
             .query_pairs(std::iter::empty::<(&str, &str)>())?;
         assert_eq!(request.request.uri.to_string(), original);
         assert_eq!(

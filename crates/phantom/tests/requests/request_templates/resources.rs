@@ -114,7 +114,7 @@ async fn observe(
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let mut request = client
-            .get(protocol, &url)?
+            .get_with_protocol(protocol, &url)?
             .template(&template(kind)?)
             .header(RequestHeader::new("referer", referer.as_str()));
         if kind == RequestTemplateKind::Font {
@@ -222,7 +222,9 @@ async fn missing_resource_slots_fail_before_tcp_or_quic_io() -> TestResult<()> {
         };
         let url = format!("https://{address}/resource");
         for (kind, _) in CONTEXTS {
-            let mut request = client.get(protocol, &url)?.template(&template(kind)?);
+            let mut request = client
+                .get_with_protocol(protocol, &url)?
+                .template(&template(kind)?);
             if kind == RequestTemplateKind::Font {
                 request = request.header(RequestHeader::new("origin", "https://caller.example"));
             }
@@ -233,7 +235,7 @@ async fn missing_resource_slots_fail_before_tcp_or_quic_io() -> TestResult<()> {
             assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
         }
         let request = client
-            .get(protocol, &url)?
+            .get_with_protocol(protocol, &url)?
             .template(&template(RequestTemplateKind::Font)?)
             .header(RequestHeader::new("referer", "https://caller.example/page"));
         let error = timeout(TEST_TIMEOUT, request.send())
@@ -281,7 +283,7 @@ async fn untrustworthy_http_resource_requests_omit_hints_and_fetch_metadata() ->
                 )
                 .build()?;
             let mut request = client
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .template(&template(kind)?)
                 .header(RequestHeader::new("referer", referer.as_str()));
             if kind == RequestTemplateKind::Font {
@@ -362,9 +364,9 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
             RequestTemplateKind::Font,
         ] {
             let request = if negotiated {
-                client.get_negotiated(&url)?
+                client.get(&url)?
             } else {
-                client.get(HttpProtocol::Http2, &url)?
+                client.get_with_protocol(HttpProtocol::Http2, &url)?
             };
             let mut request = request
                 .template(&template(kind)?)
@@ -392,9 +394,9 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
             .collect()
             .await?;
         let request = if negotiated {
-            client.get_negotiated(&url)?
+            client.get(&url)?
         } else {
-            client.get(HttpProtocol::Http2, &url)?
+            client.get_with_protocol(HttpProtocol::Http2, &url)?
         };
         responses.push(Some(
             request
@@ -413,9 +415,9 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
                 .await?;
         }
         let request = if negotiated {
-            client.get_negotiated(&url)?
+            client.get(&url)?
         } else {
-            client.get(HttpProtocol::Http2, &url)?
+            client.get_with_protocol(HttpProtocol::Http2, &url)?
         };
         let last = request
             .template(&template(RequestTemplateKind::Font)?)

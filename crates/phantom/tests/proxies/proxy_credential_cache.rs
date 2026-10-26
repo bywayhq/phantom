@@ -131,7 +131,7 @@ async fn remembered_credentials_never_reach_another_proxy_or_the_origin() -> Tes
             ];
             for route in routes {
                 let response = client
-                    .get(HttpProtocol::Http1, &url)?
+                    .get_with_protocol(HttpProtocol::Http1, &url)?
                     .route(route)
                     .send()
                     .await?;
@@ -246,7 +246,10 @@ async fn each_client_starts_with_an_empty_credential_record() -> TestResult<()> 
 }
 
 async fn send_one(client: &Client, url: &str) -> TestResult<()> {
-    let response = client.get(HttpProtocol::Http1, url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, url)?
+        .send()
+        .await?;
     assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
     Ok(())
 }
@@ -288,7 +291,7 @@ async fn finish_credential_fixture<T>(
 async fn send_sequentially(client: &Client, origin: SocketAddr) -> TestResult<()> {
     for index in 0..TUNNELS {
         let response = client
-            .get(HttpProtocol::Http1, &format!("https://{origin}/{index}"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{origin}/{index}"))?
             .send()
             .await?;
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");

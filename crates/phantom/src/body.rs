@@ -66,7 +66,7 @@ const MAXIMUM_DECODING_PUMPS: usize = 8;
 /// use phantom::{Client, HttpProtocol, RequestError};
 ///
 /// async fn count_bytes(client: &Client) -> Result<usize, RequestError> {
-///     let response = client.get(HttpProtocol::Http2, "https://example.com/")?.send().await?;
+///     let response = client.get_with_protocol(HttpProtocol::Http2, "https://example.com/")?.send().await?;
 ///     let mut body = response.into_body();
 ///     let mut received = 0;
 ///     while let Some(frame) = body.frame().await {

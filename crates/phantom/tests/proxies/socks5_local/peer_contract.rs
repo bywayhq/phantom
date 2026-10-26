@@ -162,7 +162,7 @@ async fn driven_route_with_setup_observer(
 
     let exchange = async {
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{ORIGIN_NAME}:{}/ownership", origin_address.port()),
             )?

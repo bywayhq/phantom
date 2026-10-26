@@ -314,7 +314,7 @@ mod tests {
             .build()
             .map_err(|_| failure("Test", "could not build test client"))?;
         let mut first = client
-            .get(phantom::HttpProtocol::Http1, "http://127.0.0.1/")
+            .get_with_protocol(phantom::HttpProtocol::Http1, "http://127.0.0.1/")
             .map_err(|_| failure("Test", "could not build test request"))?;
         owner.attach(&mut first)?;
         assert_eq!(

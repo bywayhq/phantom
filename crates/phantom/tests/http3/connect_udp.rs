@@ -65,7 +65,7 @@ async fn exact_h3_over_connect_udp_completes_request() -> TestResult<()> {
             let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/hello"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/hello"))?
                 .send()
                 .await?;
 
@@ -107,7 +107,7 @@ async fn connect_udp_proxy_never_receives_the_client_certificate() -> TestResult
             );
 
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/authenticated"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/authenticated"))?
                 .send()
                 .await?;
 
@@ -144,7 +144,7 @@ async fn connect_udp_emits_template_path_protocol_and_capsule_field() -> TestRes
             );
 
             client
-                .get(HttpProtocol::Http3, &origin.uri("/fields"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/fields"))?
                 .send()
                 .await?;
 
@@ -195,7 +195,7 @@ async fn connect_udp_route_reuses_session_for_compatible_requests() -> TestResul
 
             for path in ["/first", "/second"] {
                 let response = client
-                    .get(HttpProtocol::Http3, &origin.uri(path))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri(path))?
                     .send()
                     .await?;
                 assert_eq!(response.into_body().collect().await?.to_bytes(), path);
@@ -243,7 +243,7 @@ async fn assert_setup_failure(mode: ProxyMode, expected: ConnectUdpErrorKind) ->
             let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
             let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -276,7 +276,7 @@ async fn proxy_rejection_is_typed_without_direct_fallback() -> TestResult<()> {
             let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
             let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -319,7 +319,7 @@ async fn origin_and_proxy_trust_roots_are_independent() -> TestResult<()> {
                     .build()?,
             );
             let error = origin_only
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -341,7 +341,7 @@ async fn origin_and_proxy_trust_roots_are_independent() -> TestResult<()> {
                     .build()?,
             );
             let error = proxy_only
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -380,7 +380,7 @@ async fn disabled_origin_authentication_keeps_connect_udp_proxy_verification() -
                     .build()?,
             );
             let error = untrusted_proxy
-                .get(HttpProtocol::Http3, &origin.uri("/authentication"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/authentication"))?
                 .send()
                 .await
                 .err()
@@ -401,7 +401,7 @@ async fn disabled_origin_authentication_keeps_connect_udp_proxy_verification() -
                     .build()?,
             );
             let response = trusted_proxy
-                .get(HttpProtocol::Http3, &origin.uri("/authentication"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/authentication"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);
@@ -430,7 +430,7 @@ async fn connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io() ->
 
         for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
             let error = client
-                .get(protocol, uri)?
+                .get_with_protocol(protocol, uri)?
                 .send()
                 .await
                 .err()
@@ -439,7 +439,7 @@ async fn connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io() ->
             assert_eq!(error.protocol(), Some(protocol));
         }
         let error = client
-            .get_negotiated(uri)?
+            .get(uri)?
             .send()
             .await
             .err()
@@ -486,7 +486,7 @@ async fn zero_port_before_tcp_proxy_io(leg: StreamLeg) -> TestResult<()> {
             &proxy_identity,
             leg_proxy(&template, leg)?,
         )?;
-        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let request = client.get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
         let error = tokio::select! {
             result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
             incoming = listener.accept() => {
@@ -517,7 +517,7 @@ async fn zero_udp_target_port_fails_before_http3_proxy_io() -> TestResult<()> {
         let client = client_builder(&origin_identity, &proxy_identity)
             .route(Route::connect_udp(proxy))
             .build()?;
-        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let request = client.get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
         let error = tokio::select! {
             result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
             incoming = endpoint.accept() => {
@@ -545,7 +545,7 @@ async fn direct_route_keeps_port_zero_request_targets_valid() -> TestResult<()> 
         HttpProtocol::Http2,
         HttpProtocol::Http3,
     ] {
-        let _request = client.get(protocol, "https://127.0.0.1:0/")?;
+        let _request = client.get_with_protocol(protocol, "https://127.0.0.1:0/")?;
     }
     Ok(())
 }
@@ -583,7 +583,7 @@ async fn mtu_config_that_cannot_fit_an_initial_fails_before_io() -> TestResult<(
                 .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
                 .build()?;
             let error = client
-                .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+                .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
                 .send()
                 .await
                 .err()
@@ -620,7 +620,7 @@ async fn connect_udp_retries_only_outer_connect_failures() -> TestResult<()> {
             .build()?;
         let subscriber = OutcomeSubscriber::default();
         let error = unresolvable_client
-            .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+            .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await
@@ -661,7 +661,7 @@ async fn connect_udp_retries_only_outer_connect_failures() -> TestResult<()> {
                 terminal_client_owners.push(terminal_client.clone());
                 let subscriber = OutcomeSubscriber::default();
                 let error = terminal_client
-                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                     .retry_policy(retries)
                     .send()
                     .with_subscriber(subscriber.dispatch())
@@ -697,7 +697,7 @@ async fn outer_close_fails_inner_connection_and_invalidates_pool_entry() -> Test
             let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/stall"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/stall"))?
                 .send()
                 .await?;
             let mut body = response.into_body();
@@ -725,7 +725,7 @@ async fn outer_close_fails_inner_connection_and_invalidates_pool_entry() -> Test
             proxy.reopen();
 
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/after-close"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/after-close"))?
                 .send()
                 .await?;
             assert_eq!(
@@ -763,7 +763,7 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
 
             let body = async {
                 let response = client
-                    .get(HttpProtocol::Http3, &origin.uri("/payload-secret"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/payload-secret"))?
                     .send()
                     .await?;
                 Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
@@ -845,7 +845,7 @@ async fn exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing() -> Tes
 
             for path in ["/upgrade", "/reused"] {
                 let response = client
-                    .get(HttpProtocol::Http3, &origin.uri(path))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri(path))?
                     .send()
                     .await?;
                 assert_eq!(response.status(), StatusCode::OK);
@@ -907,7 +907,7 @@ async fn exact_h3_completes_over_http2_extended_connect_leg() -> TestResult<()> 
             let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/extended"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/extended"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);
@@ -985,7 +985,7 @@ async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<(
             let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
             let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -1041,7 +1041,7 @@ async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> T
             .build()?;
 
         let error = client
-            .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+            .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
             .send()
             .await
             .err()
@@ -1089,7 +1089,7 @@ async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
             let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
             let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -1141,7 +1141,7 @@ async fn tcp_leg_rejection_is_typed_with_status_without_fallback() -> TestResult
                 )?;
 
                 let error = client
-                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                     .send()
                     .await
                     .err()
@@ -1203,7 +1203,7 @@ async fn proxy_alpn_mismatch_is_typed_without_protocol_fallback() -> TestResult<
             )?;
 
             let error = client
-                .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+                .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
                 .send()
                 .await
                 .err()
@@ -1257,7 +1257,7 @@ async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestRes
                 loop_client_owners.push(client.clone());
 
                 let response = client
-                    .get(HttpProtocol::Http3, &origin.uri("/authorized"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/authorized"))?
                     .send()
                     .await?;
                 assert_eq!(
@@ -1292,7 +1292,7 @@ async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestRes
                     .build()?,
             );
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/h3-authorized"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/h3-authorized"))?
                 .send()
                 .await?;
             assert_eq!(
@@ -1353,7 +1353,7 @@ async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> 
                 let route = leg_proxy(&proxy.template(), leg)?.with_basic_auth("user", "wrong")?;
                 let client = leg_client(&origin_identity, &proxy_identity, route)?;
                 let error = client
-                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                     .send()
                     .await
                     .err()
@@ -1367,7 +1367,7 @@ async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> 
                 .route(Route::connect_udp(route))
                 .build()?;
             let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
@@ -1419,7 +1419,7 @@ async fn challenge_without_credentials_is_a_407_rejection() -> TestResult<()> {
         let client = leg_client(&origin_identity, &proxy_identity, route)?;
 
         let error = client
-            .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+            .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
             .send()
             .await
             .err()
@@ -1470,7 +1470,7 @@ async fn authenticated_leg_diagnostics_exclude_credentials() -> TestResult<()> {
 
             let body = async {
                 let response = client
-                    .get(HttpProtocol::Http3, &origin.uri("/diagnostics"))?
+                    .get_with_protocol(HttpProtocol::Http3, &origin.uri("/diagnostics"))?
                     .send()
                     .await?;
                 Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())

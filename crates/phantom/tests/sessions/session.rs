@@ -56,7 +56,7 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
         let session = test_client(&identity, true)?;
         for path in ["/first", "/second"] {
             let response = session
-                .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
+                .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}{path}"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), 204);
@@ -115,7 +115,7 @@ async fn invalid_http2_header_in_session_fails_before_network_io() -> TestResult
     let address = listener.local_addr()?;
 
     let result = session
-        .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+        .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
         .header(RequestHeader::new("X-Uppercase", "rejected"))
         .send()
         .await;
@@ -146,7 +146,10 @@ async fn send_after_barrier(
 }
 
 async fn send(client: Client, uri: String) -> TestResult<()> {
-    let response = client.get(HttpProtocol::Http2, &uri)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http2, &uri)?
+        .send()
+        .await?;
     assert_eq!(response.status(), 204);
     response.into_body().collect().await?;
     Ok(())

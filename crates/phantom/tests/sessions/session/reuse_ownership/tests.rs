@@ -153,7 +153,7 @@ async fn healthy_independent_clients_keep_two_original_h2_results() -> TestResul
             let response = timeout(
                 LIMIT,
                 client
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http2,
                         &format!("https://{}{path}", backup.address),
                     )?
@@ -462,7 +462,7 @@ impl Backup {
         timeout(
             LIMIT,
             client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!("https://{}/invalid", self.address),
                 )?

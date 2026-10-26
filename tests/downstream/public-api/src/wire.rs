@@ -90,7 +90,7 @@ async fn check_navigation(
         })));
         let client = Client::builder(profile).build()?;
         let response = client
-            .get(HttpProtocol::Http1, &format!("http://{authority}{TARGET}"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{authority}{TARGET}"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);

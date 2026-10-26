@@ -50,9 +50,9 @@ async fn get(
     negotiated: bool,
 ) -> TestResult<Bytes> {
     let request = if negotiated {
-        client.get_negotiated(url)?
+        client.get(url)?
     } else {
-        client.get(protocol, url)?
+        client.get_with_protocol(protocol, url)?
     };
     Ok(request
         .send()
@@ -70,9 +70,9 @@ async fn hold_saturated(
 ) -> TestResult<Response<ResponseBody>> {
     let request = || {
         if negotiated {
-            client.get_negotiated(url)
+            client.get(url)
         } else {
-            client.get(protocol, url)
+            client.get_with_protocol(protocol, url)
         }
     };
     let held = request()?.send().await?;

@@ -86,7 +86,7 @@ async fn plaintext_http1_tunnels_an_origin_form_request_with_a_canonical_domain(
             }))
             .build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://BÜCHER.example:{}/plain", origin_address.port()),
             )?
@@ -280,9 +280,9 @@ async fn request_through_proxy(case: RequestCase) -> TestResult<()> {
             .build()?;
         let url = format!("https://{HOST}:{}/tunnel", origin_address.port());
         let request = if negotiated {
-            client.get_negotiated(&url)?
+            client.get(&url)?
         } else {
-            client.get(protocol, &url)?
+            client.get_with_protocol(protocol, &url)?
         };
         let response = request.send().await?;
         assert_eq!(response.status(), 204);
@@ -321,14 +321,14 @@ async fn http3_ipv6_and_failed_local_dns_never_contact_the_proxy() -> TestResult
         }))
         .build()?;
     let error = client
-        .get(HttpProtocol::Http3, "https://origin.socks4.test/")?
+        .get_with_protocol(HttpProtocol::Http3, "https://origin.socks4.test/")?
         .send()
         .await
         .err()
         .ok_or("operation unexpectedly succeeded")?;
     assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
     let error = client
-        .get(HttpProtocol::Http1, "http://[::1]/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://[::1]/")?
         .send()
         .await
         .err()
@@ -338,7 +338,7 @@ async fn http3_ipv6_and_failed_local_dns_never_contact_the_proxy() -> TestResult
         Socks4ErrorKind::UnsupportedTarget
     );
     let error = client
-        .get(HttpProtocol::Http1, "http://origin.socks4.test/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://origin.socks4.test/")?
         .send()
         .await
         .err()
@@ -368,7 +368,7 @@ async fn rejection_preserves_status_and_never_dials_the_origin_directly() -> Tes
         .build()?;
     let result: TestResult<()> = async {
         let error = client
-            .get(HttpProtocol::Http1, &format!("http://{target}/"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{target}/"))?
             .send()
             .await
             .err()
@@ -401,7 +401,7 @@ async fn connect_deadline_closes_a_stalled_proxy_without_origin_bytes() -> TestR
         .build()?;
     let result: TestResult<()> = async {
         let error = client
-            .get(HttpProtocol::Http1, "http://origin.socks4.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.socks4.test/")?
             .send()
             .await
             .err()
@@ -435,7 +435,7 @@ async fn cancellation_after_negotiation_starts_closes_the_proxy() -> TestResult<
         .build()?;
     let operation: TestResult<()> = match tokio::time::timeout(Duration::from_secs(5), async {
         let request = client
-            .get(HttpProtocol::Http1, "http://origin.socks4.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.socks4.test/")?
             .send();
         tokio::pin!(request);
         tokio::select! {
@@ -496,7 +496,7 @@ async fn ipv6_only_and_empty_dns_answers_fail_before_proxy_contact() -> TestResu
             ))?))
             .build()?;
         let error = client
-            .get(HttpProtocol::Http1, "http://origin.socks4.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.socks4.test/")?
             .send()
             .await
             .err()
@@ -522,7 +522,7 @@ async fn refused_proxy_keeps_connection_cause_and_never_uses_direct_route() -> T
     let error = tokio::time::timeout(
         Duration::from_secs(5),
         client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{}/", origin.local_addr()?),
             )?

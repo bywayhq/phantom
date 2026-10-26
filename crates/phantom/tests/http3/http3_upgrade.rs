@@ -68,15 +68,12 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
         assert_ne!(fixture.origin_address(), fixture.alternative_address());
         let client = upgrade_client(&identity)?;
 
-        let first = client
-            .get_negotiated(&fixture.origin_url("/learn"))?
-            .send()
-            .await?;
+        let first = client.get(&fixture.origin_url("/learn"))?.send().await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         assert_eq!(first.into_body().collect().await?.to_bytes(), "origin");
 
         let second = client
-            .get_negotiated(&fixture.origin_url("/upgrade"))?
+            .get(&fixture.origin_url("/upgrade"))?
             .headers(vec![
                 RequestHeader::new("x-before", "first"),
                 RequestHeader::new("x-after", "second"),
@@ -148,15 +145,9 @@ async fn an_alternative_without_a_template_slot_keeps_alt_used_last() -> TestRes
         );
         let client = upgrade_client_with(&identity, settings)?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         let upgraded = client
-            .get_negotiated(&fixture.origin_url("/upgrade"))?
+            .get(&fixture.origin_url("/upgrade"))?
             .header(RequestHeader::new("x-caller", "last"))
             .send()
             .await?;
@@ -195,7 +186,7 @@ async fn exact_http3_does_not_emit_alt_used() -> TestResult<()> {
         // Even a profile that sends `Alt-Used` sends none to the origin.
         let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{}/exact", fixture.alternative_address()),
             )?
@@ -233,7 +224,7 @@ async fn caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io() -
         for http3 in [client_settings(), appending_alt_used(client_settings())] {
             let client = upgrade_client_with(&identity, http3)?;
             let error = client
-                .get_negotiated(&fixture.origin_url("/rejected"))?
+                .get(&fixture.origin_url("/rejected"))?
                 .header(RequestHeader::new("Alt-Used", "caller.invalid:443"))
                 .send()
                 .await
@@ -242,7 +233,7 @@ async fn caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io() -
             assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
 
             let error = client
-                .request_negotiated(Method::POST, &fixture.origin_url("/static-trailer"))?
+                .request(Method::POST, &fixture.origin_url("/static-trailer"))?
                 .body("payload")
                 .trailers(vec![RequestHeader::new("Alt-Used", "caller.invalid:443")])
                 .send()
@@ -253,7 +244,7 @@ async fn caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io() -
 
             let body_polls = Arc::new(AtomicUsize::new(0));
             let error = client
-                .request_negotiated(Method::POST, &fixture.origin_url("/dynamic-trailer"))?
+                .request(Method::POST, &fixture.origin_url("/dynamic-trailer"))?
                 .streaming_body_with_trailers(
                     PollCountingBody::new(Arc::clone(&body_polls)),
                     vec![RequestTrailerName::new("alt-used")],
@@ -296,20 +287,8 @@ async fn ipv6_alternative_uses_bracketed_canonical_alt_used_authority() -> TestR
         let expected = format!("[::1]:{}", fixture.alternative_address().port());
         let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/ipv6"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
+        drain(client.get(&fixture.origin_url("/ipv6"))?.send().await?).await?;
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -345,17 +324,8 @@ async fn alt_svc_is_disabled_by_default() -> TestResult<()> {
         .await?;
         let client = upgrade_client_builder(&identity).build()?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/first"))?
-                .send()
-                .await?,
-        )
-        .await?;
-        let second = client
-            .get_negotiated(&fixture.origin_url("/second"))?
-            .send()
-            .await?;
+        drain(client.get(&fixture.origin_url("/first"))?.send().await?).await?;
+        let second = client.get(&fixture.origin_url("/second"))?.send().await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
 
@@ -386,15 +356,9 @@ async fn alternative_setup_failure_is_terminal_and_evicts_the_advertisement() ->
         .await?;
         let client = upgrade_client(&identity)?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         let error = client
-            .get_negotiated(&fixture.origin_url("/fails"))?
+            .get(&fixture.origin_url("/fails"))?
             .send()
             .await
             .err()
@@ -404,7 +368,7 @@ async fn alternative_setup_failure_is_terminal_and_evicts_the_advertisement() ->
         assert_eq!(fixture.snapshot()?.origin_requests.len(), 1);
 
         let recovered = client
-            .get_negotiated(&fixture.origin_url("/origin-again"))?
+            .get(&fixture.origin_url("/origin-again"))?
             .send()
             .await?;
         assert_eq!(protocol(&recovered)?, HttpProtocol::Http2);
@@ -443,15 +407,9 @@ async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() 
         .await?;
         let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         let misdirected = client
-            .get_negotiated(&fixture.origin_url("/misdirected"))?
+            .get(&fixture.origin_url("/misdirected"))?
             .send()
             .await?;
         assert_eq!(misdirected.status(), StatusCode::MISDIRECTED_REQUEST);
@@ -459,7 +417,7 @@ async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() 
         drain(misdirected).await?;
 
         let recovered = client
-            .get_negotiated(&fixture.origin_url("/origin-again"))?
+            .get(&fixture.origin_url("/origin-again"))?
             .send()
             .await?;
         assert_eq!(protocol(&recovered)?, HttpProtocol::Http2);
@@ -525,15 +483,9 @@ async fn critical_ch_replay(maximum: Option<usize>) -> TestResult<()> {
             .alt_svc(maximum_origins)
             .build()?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         let request = client
-            .get_negotiated(&fixture.origin_url("/critical"))?
+            .get(&fixture.origin_url("/critical"))?
             .header(RequestHeader::new("x-stable", "caller"));
         let budget = maximum.map(phantom::HttpAttemptBudget::new);
         let request = match &budget {
@@ -600,16 +552,10 @@ async fn clearing_alt_svc_forces_the_next_request_back_to_the_origin() -> TestRe
         .await?;
         let client = upgrade_client(&identity)?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         client.clear_alt_svc();
         let response = client
-            .get_negotiated(&fixture.origin_url("/after-clear"))?
+            .get(&fixture.origin_url("/after-clear"))?
             .send()
             .await?;
         assert_eq!(protocol(&response)?, HttpProtocol::Http2);
@@ -646,23 +592,17 @@ async fn exact_and_alternative_http3_keep_separate_connections_for_one_origin() 
         .await?;
         let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         // Alternate between the two transport locations of one pool entry.
         for round in 0..2 {
             let alternative = client
-                .get_negotiated(&fixture.origin_url(&format!("/alternative-{round}")))?
+                .get(&fixture.origin_url(&format!("/alternative-{round}")))?
                 .send()
                 .await?;
             assert_eq!(protocol(&alternative)?, HttpProtocol::Http3);
             drain(alternative).await?;
             let exact = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http3,
                     &fixture.origin_url(&format!("/exact-{round}")),
                 )?

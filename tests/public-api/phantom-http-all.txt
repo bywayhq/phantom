@@ -15,6 +15,7 @@ pub use phantom::DestinationPolicy
 pub use phantom::DigestAuthError
 pub use phantom::DigestPolicy
 pub use phantom::DnsConfigurationToken
+pub use phantom::Http1WriteStrategy
 pub use phantom::HttpAttemptBudget
 pub use phantom::HttpAttemptBudgetExhausted
 pub use phantom::HttpConnectHeader
@@ -307,6 +308,7 @@ pub use phantom::profile::RequestTemplate
 pub use phantom::profile::SessionTicketOrder
 pub use phantom::profile::SessionTickets
 pub use phantom::profile::SignatureScheme
+pub use phantom::profile::SocksProxyDnsFeedback
 pub use phantom::profile::SystemDnsTtlPolicy
 pub use phantom::profile::TcpAddressAdvance
 pub use phantom::profile::TcpAddressRacing
@@ -327,6 +329,7 @@ pub use phantom::profile::UdpSettings
 pub use phantom::profile::UnknownCipherSuite
 pub use phantom::profile::UrlTrust
 pub use phantom::profile::ValidationErrorKind
+pub use phantom::profile::WebSocketCleartextState
 pub use phantom::profile::WebSocketConnectionPolicy
 pub use phantom::profile::WebSocketDeflateParameter
 pub use phantom::profile::WebSocketEmptyMessageCompression
@@ -335,6 +338,7 @@ pub use phantom::profile::WebSocketNewConnection
 pub use phantom::profile::WebSocketProxiedSession
 pub use phantom::profile::WebSocketRefusedStreamRetry
 pub use phantom::profile::WebSocketSettings
+pub use phantom::profile::WebSocketTlsBackup
 pub use phantom::profile::browser
 pub use phantom::profile::catalog
 pub enum phantom::AltSvcHttpsPolicy
@@ -736,12 +740,12 @@ pub fn phantom::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::f
 pub struct phantom::Client
 impl phantom::Client
 pub fn phantom::Client::builder(phantom_profile::client::ClientProfile) -> phantom::ClientBuilder
-pub fn phantom::Client::get(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
-pub fn phantom::Client::get_negotiated(&self, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::get(&self, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::get_with_protocol(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
 pub fn phantom::Client::key_log(&self) -> core::option::Option<&phantom::KeyLog>
-pub fn phantom::Client::request(&self, phantom::HttpProtocol, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::request(&self, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
 pub fn phantom::Client::request_from_http1(&self, &str, &[u8], usize) -> core::result::Result<phantom::RequestBuilder, phantom::RawRequestError>
-pub fn phantom::Client::request_negotiated(&self, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::request_with_protocol(&self, phantom::HttpProtocol, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
 pub fn phantom::Client::websocket(&self, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
 pub fn phantom::Client::websocket_with_profile_policy(&self, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
 pub fn phantom::Client::websocket_with_protocol(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
@@ -794,6 +798,7 @@ pub fn phantom::ClientBuilder::dns_cache(self, phantom_profile::dns_cache::DnsCa
 pub fn phantom::ClientBuilder::dns_resolver(self, phantom_net::host_resolver::AddressResolver) -> Self
 pub fn phantom::ClientBuilder::environment_proxies(self, phantom::EnvironmentProxies) -> Self
 pub fn phantom::ClientBuilder::header_hook<F>(self, F) -> Self where F: core::ops::function::Fn(&mut phantom::HeaderHookContext<'_>) -> core::result::Result<(), phantom::HeaderHookError> + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::ClientBuilder::http1_write_strategy(self, phantom_net::http1::Http1WriteStrategy) -> Self
 pub fn phantom::ClientBuilder::http3_early_data(self, bool) -> Self
 pub fn phantom::ClientBuilder::https_record_checkpoint_namespace(self, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom::ClientBuilder::https_record_discovery(self, phantom_net::dns::HttpsRecordResolver) -> Self
@@ -1113,9 +1118,11 @@ pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding)
 pub fn phantom::RequestBuilder::diagnostics(&mut self, core::num::nonzero::NonZeroUsize) -> phantom_net::request_diagnostics::RequestDiagnostics
 pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
 pub fn phantom::RequestBuilder::fill_slots<F>(self, F) -> core::result::Result<Self, phantom::RequestSlotError> where F: core::ops::function::FnOnce(&mut phantom::RequestSlots<'_>) -> core::result::Result<(), phantom::RequestSlotError>
+pub fn phantom::RequestBuilder::form<I, K, V>(self, I, usize) -> core::result::Result<Self, phantom::PreparedBodyError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
 pub fn phantom::RequestBuilder::header_hook<F>(self, F) -> Self where F: core::ops::function::Fn(&mut phantom::HeaderHookContext<'_>) -> core::result::Result<(), phantom::HeaderHookError> + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::json<T: serde_core::ser::Serialize + ?core::marker::Sized>(self, &T, usize) -> core::result::Result<Self, phantom::PreparedBodyError>
 pub fn phantom::RequestBuilder::multipart_body(self, phantom::StreamingMultipartBody) -> Self
 pub fn phantom::RequestBuilder::prepared_body(self, phantom::PreparedRequestBody) -> Self
 pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>

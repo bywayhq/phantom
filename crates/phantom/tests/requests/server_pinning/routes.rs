@@ -42,7 +42,7 @@ async fn redirect_destinations_cannot_bypass_origin_pins() -> TestResult<()> {
                 TestResult::Ok(())
             };
             let caller = async {
-                let error = client.get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                let error = client.get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
                     .send().await.err().ok_or("redirect bypassed pin policy")?;
                 if cleartext {
                     assert_eq!(error.kind(), RequestErrorKind::ServerPinPolicy);
@@ -72,7 +72,7 @@ async fn cleartext_origin_is_rejected_before_io_with_or_without_redirects() -> T
             .redirect_policy(redirects)
             .build()?;
         let error = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/"))?
             .send()
             .await
             .err()
@@ -100,7 +100,7 @@ async fn proxy_pins_reject_plaintext_http_and_socks_before_io() -> TestResult<()
         Route::socks5(Socks5Proxy::new(&format!("socks5://{address}"))?),
     ] {
         let error = client
-            .get(HttpProtocol::Http1, "https://origin.phantom.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "https://origin.phantom.test/")?
             .route(route)
             .send()
             .await
@@ -125,7 +125,7 @@ async fn secure_forward_proxy_cannot_bypass_cleartext_origin_restriction() -> Te
         .server_spki_pins(pins(&identity)?)
         .build()?;
     let error = client
-        .get(HttpProtocol::Http1, "http://origin.phantom.test/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://origin.phantom.test/")?
         .route(Route::http_proxy(HttpProxy::new(&format!(
             "https://{address}"
         ))?))

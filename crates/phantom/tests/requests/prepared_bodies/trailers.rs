@@ -74,7 +74,7 @@ async fn prepared_bytes_with_trailers_use_chunked_framing_without_length() -> Te
 
         let operation = async {
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("http://{address}/upload"),
@@ -102,7 +102,7 @@ async fn explicit_length_with_trailers_keeps_the_typed_framing_error() -> TestRe
         let address = listener.local_addr()?;
         let client = Client::builder(profile()).build()?;
         let error = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("http://{address}/upload"),

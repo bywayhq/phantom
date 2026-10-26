@@ -86,9 +86,9 @@ async fn refresh_preserves_http3_body_on_its_old_connection() -> TestResult<()> 
                 .with_http3(crate::support::h3::client_settings()),
         ).add_root_certificate_der(identity.root_der.clone()).build()?;
         let url = format!("https://{address}/");
-        let held = client.get(HttpProtocol::Http3, &url)?.send().await?.into_body();
+        let held = client.get_with_protocol(HttpProtocol::Http3, &url)?.send().await?.into_body();
         client.refresh_connections().await;
-        let response = client.get(HttpProtocol::Http3, &url)?.send().await?;
+        let response = client.get_with_protocol(HttpProtocol::Http3, &url)?.send().await?;
         assert_eq!(response.status(), 204);
         response.into_body().collect().await?;
         release.send(()).map_err(|_| "old body cancelled")?;
@@ -179,9 +179,9 @@ async fn active_tcp(protocol: HttpProtocol, negotiated: bool) -> TestResult<()> 
             .build()?;
         let request = || {
             if negotiated {
-                client.get_negotiated(&url)
+                client.get(&url)
             } else {
-                client.get(protocol, &url)
+                client.get_with_protocol(protocol, &url)
             }
         };
         let held = request()?.send().await?.into_body();

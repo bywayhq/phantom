@@ -34,7 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Stores every `Set-Cookie` from the response in the shared jar.
-        let response = client.get(HttpProtocol::Http2, &url)?.send().await?;
+        let response = client
+            .get_with_protocol(HttpProtocol::Http2, &url)?
+            .send()
+            .await?;
         println!("request {attempt}: {}", response.status());
         response.into_body().collect_with_limit(BODY_LIMIT).await?;
     }

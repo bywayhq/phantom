@@ -699,7 +699,7 @@ async fn request(client: Client, port: u16, index: usize) -> TestResult<()> {
         format!("/parallel-{index}")
     };
     let response = client
-        .get_negotiated(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
+        .get(&format!("https://{ORIGIN_NAME}:{port}{path}"))?
         .send()
         .await?;
 

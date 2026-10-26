@@ -84,8 +84,8 @@ async fn control(exact: bool, https: bool, h2: bool, auth: Auth) -> TestResult<(
             requested_client_hint_placement: false,
             restarts_for_connection_accept_ch: false,
         })?;
-        let first = if exact { client.get(HttpProtocol::Http2, "https://127.0.0.1/first")? }
-            else { client.get_negotiated("https://127.0.0.1/first")? };
+        let first = if exact { client.get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1/first")? }
+            else { client.get("https://127.0.0.1/first")? };
         let mut primary = Box::pin(first.template(&fields).headers(vec![RequestHeader::new("X-Claim", "first")]).send());
         let mut primary_peer = tokio::select! {
             result = &mut primary => { let _response = result?; return Err("primary completed before proxy accepted TCP".into()); }
@@ -113,8 +113,8 @@ async fn control(exact: bool, https: bool, h2: bool, auth: Auth) -> TestResult<(
         drop(unread);
         let mut primary = Some(primary);
         if exact { drop(primary.take()); }
-        let second = if exact { client.get(HttpProtocol::Http2, "https://127.0.0.1/claimed")? }
-            else { client.get_negotiated("https://127.0.0.1/claimed")? };
+        let second = if exact { client.get_with_protocol(HttpProtocol::Http2, "https://127.0.0.1/claimed")? }
+            else { client.get("https://127.0.0.1/claimed")? };
         let request = async {
             let response = second.template(&fields).headers(vec![RequestHeader::new("X-Claim", "second")]).send().await?;
             assert_eq!(response.status(), 200);

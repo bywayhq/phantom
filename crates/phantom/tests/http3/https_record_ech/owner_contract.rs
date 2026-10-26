@@ -175,7 +175,7 @@ async fn driven_origin() -> TestResult<DrivenOrigin> {
     };
 
     let response = client
-        .get_negotiated(&format!(
+        .get(&format!(
             "https://{ORIGIN_NAME}:{}/owner-ready",
             address.port()
         ))?

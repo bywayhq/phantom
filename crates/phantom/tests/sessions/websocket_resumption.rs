@@ -195,8 +195,8 @@ async fn serve_extended_connect(stream: Server) -> TestResult<()> {
 
 async fn get(client: &Client, protocol: Option<HttpProtocol>, uri: &str) -> TestResult<()> {
     let request = match protocol {
-        Some(protocol) => client.get(protocol, uri)?,
-        None => client.get_negotiated(uri)?,
+        Some(protocol) => client.get_with_protocol(protocol, uri)?,
+        None => client.get(uri)?,
     };
     let response = request.send().await?;
     assert_eq!(response.status(), StatusCode::OK);

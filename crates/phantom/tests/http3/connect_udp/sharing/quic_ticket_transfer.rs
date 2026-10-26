@@ -150,7 +150,7 @@ async fn independent_default_outer_pools_share_live_tickets_and_clear_together()
         let probe = transfer_client(&origin_identity, &proxy_identity)?;
         for origin in &origins[..2] {
             let response = source
-                .get(HttpProtocol::Http3, &origin.uri("/one"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/one"))?
                 .send()
                 .await?;
             response.into_body().collect().await?;
@@ -160,7 +160,7 @@ async fn independent_default_outer_pools_share_live_tickets_and_clear_together()
         let shared = source.fork(phantom::SessionSharing::none().tickets(true));
         for origin in &origins[2..4] {
             let response = shared
-                .get(HttpProtocol::Http3, &origin.uri("/two"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/two"))?
                 .send()
                 .await?;
             response.into_body().collect().await?;
@@ -176,7 +176,7 @@ async fn independent_default_outer_pools_share_live_tickets_and_clear_together()
         source.refresh_connections().await;
         for origin in &origins[4..] {
             let response = source
-                .get(HttpProtocol::Http3, &origin.uri("/three"))?
+                .get_with_protocol(HttpProtocol::Http3, &origin.uri("/three"))?
                 .send()
                 .await?;
             response.into_body().collect().await?;
@@ -209,7 +209,7 @@ async fn fetch_pair(client: &Client, route: &Route, pair: &[Origin]) -> TestResu
 
 async fn fetch_route(client: &Client, route: &Route, uri: &str, body: &str) -> TestResult<()> {
     let response = client
-        .get(HttpProtocol::Http3, uri)?
+        .get_with_protocol(HttpProtocol::Http3, uri)?
         .route(route.clone())
         .send()
         .await?;

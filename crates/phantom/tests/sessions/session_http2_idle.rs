@@ -320,9 +320,9 @@ async fn next(seen: &mut mpsc::UnboundedReceiver<Seen>) -> TestResult<Seen> {
 
 async fn send(client: &Client, negotiated: bool, url: &str) -> TestResult<phantom::ResponseBody> {
     let request = if negotiated {
-        client.get_negotiated(url)?
+        client.get(url)?
     } else {
-        client.get(HttpProtocol::Http2, url)?
+        client.get_with_protocol(HttpProtocol::Http2, url)?
     };
     let response = request.send().await?;
     assert_eq!(response.status(), 200);

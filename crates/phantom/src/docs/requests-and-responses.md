@@ -3,39 +3,6 @@
 Use the [`Client`](crate::Client) from [Getting started](crate::guide::getting_started)
 for the examples below. Keep it for later requests so they can share connections.
 
-Cloning a client shares its connections and shutdown. Use
-[`Client::fork`](crate::Client::fork) for independent pools with the same settings.
-Select live cookies, DNS, client hints, discovery caches or TLS tickets with
-[`SessionSharing`](crate::SessionSharing). Unselected state and learned proxy
-authentication start empty. Shared caches reflect later changes
-and clearing in both directions; a fork does not enable disabled features.
-Shared tickets are consumed once across the independent pools. See
-[`SessionSharing::tickets`](crate::SessionSharing::tickets) for retention and
-portable export limits while older connections remain active.
-
-With `session-snapshot`, use [`Client::export_session`](crate::Client::export_session)
-to save supported cookies, direct-route Alt-Svc entries and TLS tickets together.
-HTTPS discovery also saves completed answers and ECH when you set
-[`https_record_checkpoint_namespace`](crate::ClientBuilder::https_record_checkpoint_namespace).
-Use the same namespace only for equivalent resolver policies and network scopes.
-Paired native resolver configurations cannot be restored this way.
-Keep its secret key separately. [`Client::restore_session`](crate::Client::restore_session)
-returns a new client with independent pools and checks the receiving configuration.
-See the API for supported routes, size limits and state that is not saved.
-
-For async storage, implement [`SessionStore`](crate::SessionStore) and call
-[`Client::save_session`](crate::Client::save_session) or
-[`Client::load_session`](crate::Client::load_session) with a name and deadline.
-Storage receives encrypted bytes only. Loading returns a separate client, or
-`None` for a missing name. Cancellation cannot undo an external write.
-
-Use [`ClientBuilder::destination_policy`](crate::ClientBuilder::destination_policy)
-to restrict actual IP addresses and ports before new direct TCP or QUIC
-connections. Denied candidates are skipped, including on redirects and
-discovered alternatives. If none are allowed, the request fails with
-`DestinationDenied`. Existing connections remain reusable. Proxies and custom
-connectors are unsupported with this policy.
-
 ## Add query parameters and headers
 
 [`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and
@@ -46,10 +13,10 @@ origin root. Absolute URLs override the base, so it is not an origin restriction
 
 ```no_run
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
-use phantom::{HttpProtocol, RequestHeader};
+use phantom::RequestHeader;
 
 let response = client
-    .get(HttpProtocol::Http2, "https://example.com/search")?
+    .get("https://example.com/search")?
     .query_pairs([("q", "rust http"), ("tag", "client"), ("tag", "async")])?
     .header(RequestHeader::new("accept", "application/json"))
     .send()
@@ -72,30 +39,18 @@ destination and a byte limit. It checks the target, `Host` and body framing,
 then returns the same request builder. Templates and cookie placement still
 apply; this imports a request rather than replaying its original wire bytes.
 
-## Custom connections
-
-Use [`ClientBuilder::tcp_connector`](crate::ClientBuilder::tcp_connector) when
-an application opens its own streams. On Unix,
-[`TcpConnector::unix_socket`](crate::TcpConnector) connects through a socket
-path. Keep an ordinary HTTP or HTTPS request URL: its authority and TLS server
-name remain unchanged. The connector owns DNS and socket configuration.
-Custom connectors support direct HTTP/1.1, HTTP/2 and TLS protocol negotiation.
-Proxy routes, HTTP/3 and discovery options cannot use these streams.
-
 ## Send a body
 
 Use [`Client::request`](crate::Client::request) to select a method other than GET.
-For form data, prepare bounded bytes and place their `Content-Type` header:
+The form helper encodes ordered pairs within your byte limit:
 
 ```no_run
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
-use phantom::{HttpProtocol, Method, PreparedRequestBody, RequestHeader};
+use phantom::Method;
 
-let body = PreparedRequestBody::form([("name", "Ada"), ("topic", "Rust")], 4096)?;
 let response = client
-    .request(HttpProtocol::Http2, Method::POST, "https://example.com/messages")?
-    .header(RequestHeader::new("content-type", body.content_type()))
-    .prepared_body(body)
+    .request(Method::POST, "https://example.com/messages")?
+    .form([("name", "Ada"), ("topic", "Rust")], 4096)?
     .send()
     .await?;
 let response = phantom::response_bytes(response, 1 << 20).await?;
@@ -104,10 +59,11 @@ println!("{}", response.status());
 # }
 ```
 
-With the `json` feature, `PreparedRequestBody::json(&value, maximum_bytes)`
-prepares a JSON upload in the same way. The value must implement
-`serde::Serialize`. Keep the matching `Content-Type` header in your chosen
-position; a prepared body does not insert it at an arbitrary position.
+With the `json` feature, use [`RequestBuilder::json`](crate::RequestBuilder::json)
+for values implementing `serde::Serialize`. Both helpers supply `Content-Type`
+in the template's slot, or after existing caller headers when there is no slot.
+An existing content type must match. Use [`PreparedRequestBody`](crate::PreparedRequestBody)
+when preparing reusable bodies separately or choosing the header position yourself.
 
 For existing bytes, use [`RequestBuilder::body`](crate::RequestBuilder::body) and
 set their content type yourself. To upload files without collecting them, use
@@ -141,7 +97,7 @@ charsets and Unicode byte-order marks. Set separate input and UTF-8 output limit
 ```no_run
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
 let response = client
-    .get(phantom::HttpProtocol::Http2, "https://example.com/")?
+    .get_with_protocol(phantom::HttpProtocol::Http2, "https://example.com/")?
     .send().await?;
 let response = phantom::error_for_status(response)?;
 let response = phantom::response_text(response, 1 << 20).await?;
@@ -153,7 +109,7 @@ println!("{}", response.body());
 Enable `json` in your dependency to read a typed response:
 
 ```toml
-phantom = { package = "phantom-http", version = "0.4", features = ["json"] }
+phantom = { package = "phantom-http", version = "0.5", features = ["json"] }
 ```
 
 For an endpoint that accepts and returns a JSON array of strings:
@@ -161,13 +117,11 @@ For an endpoint that accepts and returns a JSON array of strings:
 ```no_run
 # #[cfg(feature = "json")]
 # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
-use phantom::{HttpProtocol, Method, PreparedRequestBody, RequestHeader};
+use phantom::Method;
 
-let body = PreparedRequestBody::json(&["Ada", "Grace"], 4096)?;
 let response = client
-    .request(HttpProtocol::Http2, Method::POST, "https://example.com/names")?
-    .header(RequestHeader::new("content-type", body.content_type()))
-    .prepared_body(body)
+    .request(Method::POST, "https://example.com/names")?
+    .json(&["Ada", "Grace"], 4096)?
     .send().await?;
 let response = phantom::error_for_status(response)?;
 let response = phantom::response_json::<Vec<String>>(response, 1 << 20).await?;
@@ -205,7 +159,7 @@ the data exceeds 8 MiB:
 use http_body_util::BodyExt;
 
 let response = client
-    .get(phantom::HttpProtocol::Http2, "https://example.com/download")?
+    .get_with_protocol(phantom::HttpProtocol::Http2, "https://example.com/download")?
     .send().await?;
 let mut body = phantom::error_for_status(response)?.into_body();
 let mut remaining = 8 * 1024 * 1024;
@@ -225,6 +179,16 @@ while let Some(frame) = body.frame().await {
 A body is consumed once. After streaming it, you cannot collect or decode it
 again. Reading to the end helps connection reuse; stopping early drops the body
 and lets the protocol cancel the remaining transfer.
+
+## Custom connections
+
+Use [`ClientBuilder::tcp_connector`](crate::ClientBuilder::tcp_connector) when
+an application opens its own streams. On Unix,
+[`TcpConnector::unix_socket`](crate::TcpConnector) connects through a socket
+path. Keep an ordinary HTTP or HTTPS request URL: its authority and TLS server
+name remain unchanged. The connector owns DNS and socket configuration.
+Custom connectors support direct HTTP/1.1, HTTP/2 and TLS protocol negotiation.
+Proxy routes, HTTP/3 and discovery options cannot use these streams.
 
 ## Set policies for your application
 
@@ -283,6 +247,31 @@ Enable only the behavior you need:
   is not refunded. DNS, TLS and proxy setup keep their separate limits.
 - **Proxy routes:** follow [Using proxies](crate::guide::proxies).
 
+Use [`ClientBuilder::destination_policy`](crate::ClientBuilder::destination_policy)
+to restrict actual IP addresses and ports before new direct TCP or QUIC
+connections. Denied candidates are skipped, including on redirects and
+discovered alternatives. If none are allowed, the request fails with
+`DestinationDenied`. Existing connections remain reusable. Proxies and custom
+connectors are unsupported with this policy.
+
+## Share and save session state
+
+Cloning a client shares pools, state and shutdown. Use
+[`Client::fork`](crate::Client::fork) for independent pools, choosing the state
+to share with [`SessionSharing`](crate::SessionSharing).
+
+With `session-snapshot`, [`Client::export_session`](crate::Client::export_session)
+saves supported cookies, discovery state and TLS tickets in an encrypted snapshot.
+Keep its key separately. [`Client::restore_session`](crate::Client::restore_session)
+checks the receiving configuration and returns a client with independent pools.
+See those APIs for supported configurations and limits.
+
+For async storage, implement [`SessionStore`](crate::SessionStore), then use
+[`Client::save_session`](crate::Client::save_session) and
+[`Client::load_session`](crate::Client::load_session) with a name and deadline.
+Storage receives encrypted bytes. Loading a missing name returns `None`.
+Cancellation cannot undo an external write.
+
 ## Observe requests and response heads
 
 Implement [`RequestHooks`](crate::RequestHooks) and pass it to
@@ -323,7 +312,7 @@ failures, cancellation, and body completion:
 # async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
 use std::num::NonZeroUsize;
 
-let mut request = client.get(phantom::HttpProtocol::Http2, "https://example.com/")?;
+let mut request = client.get_with_protocol(phantom::HttpProtocol::Http2, "https://example.com/")?;
 let diagnostics = request.diagnostics(NonZeroUsize::new(128).unwrap());
 let response = request.send().await?;
 println!("{:?}", diagnostics.snapshot());

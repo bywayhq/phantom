@@ -138,7 +138,7 @@ async fn serve_one_with_response(
 
 async fn get(client: &Client, url: String) -> Result<StatusCode, RequestError> {
     Ok(client
-        .get(HttpProtocol::Http1, &url)?
+        .get_with_protocol(HttpProtocol::Http1, &url)?
         .send()
         .await?
         .status())
@@ -618,7 +618,7 @@ async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestRe
         };
         let request = async {
             let _ = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await;
             Ok::<_, RequestError>(())
@@ -824,7 +824,7 @@ async fn requested_certificate_is_presented_over_quic() -> TestResult<()> {
     let (presented, status) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             let status = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await?
                 .status();
@@ -851,7 +851,7 @@ async fn quic_server_that_requires_a_certificate_rejects_a_client_without_one() 
     let (served, result) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await
         })

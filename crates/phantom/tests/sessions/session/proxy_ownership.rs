@@ -76,7 +76,7 @@ async fn plaintext_controlled(control: Option<Control>) -> TestResult<()> {
         ] {
             let original_target = format!("https://{host}:{}{path}", origin_address.port());
             let response = session
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     target.as_deref().unwrap_or(&original_target),
                 )?
@@ -183,7 +183,7 @@ async fn https_controlled(control: Option<Control>) -> TestResult<()> {
         ] {
             let original_target = format!("https://{host}:{}{path}", origin_address.port());
             let response = session
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     target.as_deref().unwrap_or(&original_target),
                 )?

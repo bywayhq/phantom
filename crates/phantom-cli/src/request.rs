@@ -90,10 +90,10 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
     let url = profiles::required(arguments, "url")?;
     let protocol = profiles::required(arguments, "protocol")?;
     let mut request = match protocol {
-        "h1" => client.request(HttpProtocol::Http1, method, url),
-        "h2" => client.request(HttpProtocol::Http2, method, url),
-        "h3" => client.request(HttpProtocol::Http3, method, url),
-        "negotiated" => client.request_negotiated(method, url),
+        "h1" => client.request_with_protocol(HttpProtocol::Http1, method, url),
+        "h2" => client.request_with_protocol(HttpProtocol::Http2, method, url),
+        "h3" => client.request_with_protocol(HttpProtocol::Http3, method, url),
+        "negotiated" => client.request(method, url),
         _ => return Err(CliError::invalid("unsupported protocol")),
     }
     .map_err(CliError::operation)?;

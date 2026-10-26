@@ -92,7 +92,10 @@ async fn public_resolvers_share_tls_across_cname_addresses_and_https_records() -
             .dns_resolver(dot.address_resolver())
             .no_dns_cache()
             .build()?;
-        let response = client.get(HttpProtocol::Http1, &url)?.send().await?;
+        let response = client
+            .get_with_protocol(HttpProtocol::Http1, &url)?
+            .send()
+            .await?;
         assert_eq!(
             response.into_body().collect_with_limit(2).await?.as_ref(),
             b"ok"

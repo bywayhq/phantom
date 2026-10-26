@@ -466,7 +466,7 @@ async fn plaintext_response(
 ) -> TestResult<()> {
     let operation = async {
         let response = client
-            .get_negotiated(&format!("http://{address}/advertises"))?
+            .get(&format!("http://{address}/advertises"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -543,10 +543,7 @@ async fn negotiated(
     fixture: &Http3UpgradeFixture,
     path: &str,
 ) -> TestResult<HttpProtocol> {
-    let response = client
-        .get_negotiated(&fixture.origin_url(path))?
-        .send()
-        .await?;
+    let response = client.get(&fixture.origin_url(path))?.send().await?;
     let protocol = response
         .extensions()
         .get::<ResponseInfo>()

@@ -597,7 +597,7 @@ async fn a_live_request_uses_upgrade_backup_then_returns_it_for_reuse() -> TestR
         entry.connections.adopt_with_policy(slower, WebSocketTlsBackup::CloseWhenUnused);
         let (connection, mut peer) = connection().await?;
         let caller = async {
-            let mut request = std::pin::pin!(client.get(crate::HttpProtocol::Http1, "https://claimed.test/one")?.send());
+            let mut request = std::pin::pin!(client.get_with_protocol(crate::HttpProtocol::Http1, "https://claimed.test/one")?.send());
             tokio::select! {
                 result = &mut request => {
                     drop(result);
@@ -613,7 +613,7 @@ async fn a_live_request_uses_upgrade_backup_then_returns_it_for_reuse() -> TestR
             let response = request.await?;
             assert_eq!(response.status(), 200);
             response.into_body().collect().await?;
-            client.get(crate::HttpProtocol::Http1, "https://claimed.test/two")?.send().await?.into_body().collect().await?;
+            client.get_with_protocol(crate::HttpProtocol::Http1, "https://claimed.test/two")?.send().await?.into_body().collect().await?;
             assert_eq!(entry.connections.lock().idle.len(), 1);
             client.close_idle_connections().await;
             TestResult::Ok(())

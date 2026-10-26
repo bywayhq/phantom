@@ -146,7 +146,7 @@ async fn independent_forks_share_later_quic_tickets_and_clearing() -> TestResult
                     assert!(shared.clear_session_tickets()? > 0);
                     assert_eq!(source.clear_session_tickets()?, 0);
                 }
-                send(client.get(HttpProtocol::Http3, &uri)?).await?;
+                send(client.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
                 read_tx.send(())?;
                 assert_eq!(
                     served.recv().await.ok_or("peer stopped")?,
@@ -161,7 +161,7 @@ async fn independent_forks_share_later_quic_tickets_and_clearing() -> TestResult
             let survivor = source.fork(phantom::SessionSharing::none().tickets(true));
             drop(source);
             drop(shared);
-            send(survivor.get(HttpProtocol::Http3, &uri)?).await?;
+            send(survivor.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             read_tx.send(())?;
             assert_eq!(
                 served.recv().await.ok_or("peer stopped")?,
@@ -211,7 +211,7 @@ async fn an_unused_quic_ticket_sharing_fork_resumes_after_its_source_is_dropped(
         let result = async {
             let source = resuming_client(&identity)?;
             let uri = format!("https://{origin}/");
-            send(source.get(HttpProtocol::Http3, &uri)?).await?;
+            send(source.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             read_tx.send(())?;
             assert_eq!(
                 served.recv().await.ok_or("peer stopped")?,
@@ -222,7 +222,7 @@ async fn an_unused_quic_ticket_sharing_fork_resumes_after_its_source_is_dropped(
             );
             let survivor = source.fork(phantom::SessionSharing::none().tickets(true));
             drop(source);
-            send(survivor.get(HttpProtocol::Http3, &uri)?).await?;
+            send(survivor.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             read_tx.send(())?;
             assert_eq!(
                 served.recv().await.ok_or("peer stopped")?,
@@ -288,7 +288,7 @@ async fn resumption_stays_on_the_origin_and_route_that_learned_the_ticket() -> T
         let session = resuming_client(&identity)?;
         let uri = format!("https://{origin}/");
 
-        send(session.get(HttpProtocol::Http3, &uri)?).await?;
+        send(session.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
         read_tx.send(())?;
         let first = served.recv().await.ok_or("server stopped")?;
         assert_eq!(
@@ -301,13 +301,18 @@ async fn resumption_stays_on_the_origin_and_route_that_learned_the_ticket() -> T
 
         // The same origin through a proxy is another pool entry: the ticket
         // learned directly is not presented through the proxy.
-        send(session.get(HttpProtocol::Http3, &uri)?.route(route)).await?;
+        send(
+            session
+                .get_with_protocol(HttpProtocol::Http3, &uri)?
+                .route(route),
+        )
+        .await?;
         read_tx.send(())?;
         let proxied = served.recv().await.ok_or("server stopped")?;
         assert_eq!(proxied, first);
 
         // Back on the direct route the retained ticket resumes the session.
-        send(session.get(HttpProtocol::Http3, &uri)?).await?;
+        send(session.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
         read_tx.send(())?;
         let resumed = served.recv().await.ok_or("server stopped")?;
         assert_eq!(
@@ -541,11 +546,11 @@ async fn a_failed_resumed_handshake_is_repeated_once_without_a_ticket() -> TestR
             retained_client = Some(session.clone());
             let uri = format!("https://{}/", sniffer.address);
 
-            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            send(session.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             server.close_served().await?;
             // The second request presents the ticket, fails its handshake, and
             // completes on one repeated attempt over the same route.
-            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            send(session.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             server.close_served().await?;
 
             assert_eq!(server.attempts(), 3);
@@ -605,9 +610,12 @@ async fn a_repeated_handshake_that_fails_is_not_repeated_again() -> TestResult<(
             retained_client = Some(session.clone());
             let uri = format!("https://{}/", sniffer.address);
 
-            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            send(session.get_with_protocol(HttpProtocol::Http3, &uri)?).await?;
             server.close_served().await?;
-            let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
+            let result = session
+                .get_with_protocol(HttpProtocol::Http3, &uri)?
+                .send()
+                .await;
             assert!(
                 result.is_err(),
                 "a failed repeated handshake produced a response"
@@ -655,7 +663,10 @@ async fn a_failed_handshake_without_a_ticket_is_not_repeated() -> TestResult<()>
             retained_client = Some(session.clone());
             let uri = format!("https://{}/", sniffer.address);
 
-            let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
+            let result = session
+                .get_with_protocol(HttpProtocol::Http3, &uri)?
+                .send()
+                .await;
             assert!(result.is_err(), "a failed handshake produced a response");
 
             // The request has failed, so any repeated attempt would already have
@@ -718,7 +729,12 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
         // The proxy and the origin share the server name `127.0.0.1`, so a
         // shared cache would present one server's ticket to the other.
         let mut through_proxy = async |session: &phantom::Client| -> TestResult<()> {
-            send(session.get(HttpProtocol::Http3, &uri)?.route(route.clone())).await?;
+            send(
+                session
+                    .get_with_protocol(HttpProtocol::Http3, &uri)?
+                    .route(route.clone()),
+            )
+            .await?;
             read_tx.send(())?;
             served.recv().await.ok_or("server stopped")?;
             Ok(())
@@ -748,7 +764,12 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
 
         // A direct request is another route: nothing learned through the
         // proxy is presented to the origin directly.
-        send(session.get(HttpProtocol::Http3, &uri)?.route(Route::Direct)).await?;
+        send(
+            session
+                .get_with_protocol(HttpProtocol::Http3, &uri)?
+                .route(Route::Direct),
+        )
+        .await?;
         read_tx.send(())?;
         served.recv().await.ok_or("server stopped")?;
         assert_eq!(origin_store.counts(), one);
@@ -796,7 +817,12 @@ async fn clear_removes_origin_and_outer_connect_udp_tickets() -> TestResult<()> 
         let uri = format!("https://{origin}/");
         let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
         let mut request = async || -> TestResult<()> {
-            send(client.get(HttpProtocol::Http3, &uri)?.route(route.clone())).await?;
+            send(
+                client
+                    .get_with_protocol(HttpProtocol::Http3, &uri)?
+                    .route(route.clone()),
+            )
+            .await?;
             // Close the outer peer deliberately before the origin's close
             // propagates to the client. Unexpected proxy failures stay errors.
             proxy.close_connections();

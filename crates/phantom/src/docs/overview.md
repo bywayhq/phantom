@@ -11,15 +11,14 @@ pages.
 ## First request
 
 ```no_run
-use phantom::{profile::browser::chrome, Client, HttpProtocol};
+use phantom::{profile::catalog::{profile_for, RequestTemplateKind}, Client};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = chrome::v154_windows()
-        .with_request_template(chrome::v154_windows_navigation_template());
+    let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
     let client = Client::builder(profile).build()?;
     let response = client
-        .get(HttpProtocol::Http2, "https://example.com/")?
+        .get("https://example.com/")?
         .send()
         .await?;
 
@@ -33,17 +32,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Run this in a Tokio runtime with I/O and timers enabled. For dependencies and
 native build prerequisites, follow [Getting started](crate::guide::getting_started).
 
-Reuse the client to share connection pools and session state. The example
-selects HTTP/2 explicitly. Use [`Client::get_negotiated`](crate::Client::get_negotiated)
-when the peer should select HTTP/1.1 or HTTP/2 through TLS negotiation.
+Reuse the client to share connection pools and session state. TLS negotiates
+HTTP/1.1 or HTTP/2. Select an exact protocol with
+[`Client::get_with_protocol`](crate::Client::get_with_protocol).
 
-For a direct server known to support cleartext HTTP/2, select
-[`HttpProtocol::Http2`](crate::HttpProtocol::Http2) with an `http://` URL.
-This sends the HTTP/2 preface immediately. It does not try HTTP/1.1 Upgrade
-or fall back to HTTP/1.1. Negotiated cleartext requests keep using HTTP/1.1.
-
-Built-in profile constructors leave request templates unset; see
-[Browser profiles](crate::guide::browser_profiles) to add browser request headers.
+The profile supplies connection settings and page-load headers together.
+See [Browser profiles](crate::guide::browser_profiles) for other request contexts.
 
 Call [`Client::refresh_connections`](crate::Client::refresh_connections) to use
 fresh connections for later requests while active work finishes. Clones share

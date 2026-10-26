@@ -50,7 +50,7 @@ enum Opening {
     Http1,
     /// `Client::get(HttpProtocol::Http2, ..)`.
     Http2,
-    /// `Client::get_negotiated(..)` with a peer that selects HTTP/2.
+    /// `Client::get(..)` with a peer that selects HTTP/2.
     Negotiated,
     /// A `wss://` opening under Chrome's WebSocket policy: an HTTP/1.1
     /// Upgrade on a connection that offers only `http/1.1`.
@@ -103,11 +103,14 @@ impl Opening {
                     Self::Http1 => HttpProtocol::Http1,
                     _ => HttpProtocol::Http2,
                 };
-                let response = client.get(protocol, &url("https"))?.send().await?;
+                let response = client
+                    .get_with_protocol(protocol, &url("https"))?
+                    .send()
+                    .await?;
                 response.into_body().collect().await?;
             }
             Self::Negotiated => {
-                let response = client.get_negotiated(&url("https"))?.send().await?;
+                let response = client.get(&url("https"))?.send().await?;
                 if response.version() != http::Version::HTTP_2 {
                     return Err("negotiated ECH peer did not select HTTP/2".into());
                 }

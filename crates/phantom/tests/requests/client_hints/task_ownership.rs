@@ -292,14 +292,14 @@ async fn owner_case(protocol: HttpProtocol) -> TestResult<HintOwnerCase> {
 }
 
 async fn collect_first(client: &Client, protocol: HttpProtocol, url: &str) -> TestResult<()> {
-    let response = client.get(protocol, url)?.send().await?;
+    let response = client.get_with_protocol(protocol, url)?.send().await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(response.into_body().collect().await?.to_bytes().is_empty());
     Ok(())
 }
 
 fn invalid_uri(client: &Client, protocol: HttpProtocol) -> TestResult<RequestError> {
-    match client.get(protocol, "https://127.0.0.1/\r\n") {
+    match client.get_with_protocol(protocol, "https://127.0.0.1/\r\n") {
         Err(error) => {
             assert_eq!(error.kind(), RequestErrorKind::InvalidUri);
             assert!(

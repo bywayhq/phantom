@@ -65,8 +65,8 @@ async fn active_tcp(protocol: HttpProtocol) -> TestResult<()> {
         }));
         let client = tls::client_builder(&identity, protocol == HttpProtocol::Http2).build()?;
         let clone = client.clone();
-        let prepared = clone.get(protocol, &url)?;
-        let body = client.get(protocol, &url)?.send().await?.into_body();
+        let prepared = clone.get_with_protocol(protocol, &url)?;
+        let body = client.get_with_protocol(protocol, &url)?.send().await?.into_body();
         let shutdown = client.shutdown();
         tokio::pin!(shutdown);
         assert!(matches!(poll_fn(|cx| Poll::Ready(shutdown.as_mut().poll(cx))).await, Poll::Pending));
@@ -119,7 +119,7 @@ async fn shutdown_preserves_http3_body() -> TestResult<()> {
         .add_root_certificate_der(identity.root_der.clone())
         .build()?;
         let body = client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send()
             .await?
             .into_body();
@@ -174,7 +174,7 @@ async fn cancelled_dns_setup_releases_shutdown_waiter() -> TestResult<()> {
             .build()?;
         let mut request = Box::pin(
             client
-                .get(HttpProtocol::Http1, "http://shutdown.phantom.test/")?
+                .get_with_protocol(HttpProtocol::Http1, "http://shutdown.phantom.test/")?
                 .send(),
         );
         tokio::select! {

@@ -91,7 +91,7 @@ async fn public_client_canonicalizes_host_and_streams_http3_data_and_trailers() 
 
         let client = test_client(&identity)?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!(
                     "https://１２７．０．０．１:{}/resource?item=1",
@@ -178,7 +178,7 @@ async fn public_client_sends_owned_http3_request_body() -> TestResult<()> {
 
         let client = test_client(&identity)?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/upload"),
@@ -235,7 +235,7 @@ async fn public_builder_sends_dynamic_http3_request_trailers_after_data() -> Tes
         });
 
         let response = test_client(&identity)?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/request-trailers"),
@@ -344,7 +344,7 @@ async fn public_client_streams_unknown_length_http3_request_body() -> TestResult
 
         let client = test_client(&identity)?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/stream-upload"),
@@ -374,7 +374,8 @@ fn unavailable_http3_fails_before_network_io() -> TestResult<()> {
     origin.set_nonblocking(true)?;
     let address = origin.local_addr()?;
 
-    let error = match client.get(HttpProtocol::Http3, &format!("https://{address}/")) {
+    let error = match client.get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))
+    {
         Ok(_) => return Err("HTTP/3 unexpectedly available".into()),
         Err(error) => error,
     };
@@ -393,7 +394,7 @@ async fn invalid_http3_field_fails_before_udp_io() -> TestResult<()> {
     let address = origin.local_addr()?;
 
     let result = client
-        .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+        .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
         .header(RequestHeader::new("X-Uppercase", "rejected"))
         .send()
         .await;
@@ -423,7 +424,7 @@ async fn certificate_failure_has_public_tls_category() -> TestResult<()> {
         let client = Client::builder(profile).build()?;
 
         let error = client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send()
             .await
             .err()
@@ -482,7 +483,7 @@ async fn local_dns_socks5_reuses_one_http3_association_and_connection() -> TestR
         let client = client_builder(&identity).route(route).build()?;
         for path in ["/first", "/second"] {
             client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http3,
                     &format!("https://{origin_address}{path}"),
                 )?
@@ -550,7 +551,7 @@ async fn local_dns_socks5_http3_uses_rfc1929_credentials() -> TestResult<()> {
         );
         let client = client_builder(&identity).route(route).build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/authenticated"),
             )?
@@ -631,7 +632,7 @@ async fn remote_dns_socks5_reuses_one_http3_association_and_connection() -> Test
         let client = client_builder(&identity).route(route).build()?;
         for path in ["/first", "/second"] {
             client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http3,
                     &format!("https://{REMOTE_ORIGIN}:{}{path}", origin_address.port()),
                 )?
@@ -704,7 +705,7 @@ async fn remote_dns_socks5_http3_uses_rfc1929_credentials() -> TestResult<()> {
         );
         let client = client_builder(&identity).route(route).build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!(
                     "https://{REMOTE_ORIGIN}:{}/authenticated",
@@ -772,7 +773,7 @@ async fn failed_socks5_udp_association_has_proxy_category_without_direct_fallbac
             let error = client_builder(&identity)
                 .route(route)
                 .build()?
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http3,
                     &format!("https://{origin_address}/failed-association"),
                 )?
@@ -820,7 +821,7 @@ async fn failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io() -
             let error = client_builder(&identity)
                 .route(route)
                 .build()?
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http3,
                     &format!(
                         "https://{REMOTE_ORIGIN}:{}/failed-association",
@@ -857,7 +858,7 @@ async fn invalid_http3_field_fails_before_socks5_proxy_io() -> TestResult<()> {
         let error = client_builder(&identity)
             .route(route)
             .build()?
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/invalid"),
             )?
@@ -897,7 +898,7 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
     for route in routes {
         let default_route_client = client_builder(&identity).route(route.clone()).build()?;
         let error = match default_route_client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/default"),
             )?
@@ -912,7 +913,7 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
 
         let override_client = test_client(&identity)?;
         let error = match override_client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{origin_address}/override"),
             )?
@@ -939,7 +940,7 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
 fn polling_http3_request_without_tokio_returns_runtime_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity)?;
-    let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:9/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?;
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 

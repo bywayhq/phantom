@@ -48,7 +48,7 @@ async fn acquired_peer_cancellation(kind: Cancellation) -> TestResult<()> {
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "http://acquired.test:8080/first")?
+            .get_with_protocol(HttpProtocol::Http2, "http://acquired.test:8080/first")?
             .send(),
     )
     .await??;
@@ -132,7 +132,7 @@ async fn forward_driver_cancellation(kind: Cancellation) -> TestResult<()> {
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "http://forward.test:8080/ready")?
+            .get_with_protocol(HttpProtocol::Http2, "http://forward.test:8080/ready")?
             .send(),
     )
     .await??;
@@ -221,7 +221,7 @@ async fn connect_cancellation(kind: Cancellation) -> TestResult<()> {
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http1, &format!("https://{address}/held"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("https://{address}/held"))?
             .send(),
     )
     .await??;
@@ -320,7 +320,7 @@ async fn completed_outcome(fail_peer: bool, fail_caller: bool) -> TestResult<()>
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "http://completed.test:8080/")?
+            .get_with_protocol(HttpProtocol::Http2, "http://completed.test:8080/")?
             .send(),
     )
     .await??;
@@ -444,7 +444,7 @@ async fn recording(poison: bool) -> TestResult<()> {
     let response = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "http://recording.test:8080/first")?
+            .get_with_protocol(HttpProtocol::Http2, "http://recording.test:8080/first")?
             .send(),
     )
     .await??;
@@ -475,7 +475,7 @@ async fn recording(poison: bool) -> TestResult<()> {
         let response = timeout(
             Duration::from_secs(5),
             client
-                .get(HttpProtocol::Http2, "http://recording.test:8080/second")?
+                .get_with_protocol(HttpProtocol::Http2, "http://recording.test:8080/second")?
                 .send(),
         )
         .await?;
@@ -534,7 +534,7 @@ async fn deliberate_http_connect_502_is_typed_after_real_traffic() -> TestResult
     let error = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "https://origin.test/page")?
+            .get_with_protocol(HttpProtocol::Http2, "https://origin.test/page")?
             .send(),
     )
     .await?
@@ -575,7 +575,7 @@ async fn rejection_observation(case: RejectionCase) -> TestResult<()> {
     let error = timeout(
         Duration::from_secs(5),
         client
-            .get(HttpProtocol::Http2, "https://origin.test/page")?
+            .get_with_protocol(HttpProtocol::Http2, "https://origin.test/page")?
             .send(),
     )
     .await?

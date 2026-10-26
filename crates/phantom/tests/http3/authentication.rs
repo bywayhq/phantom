@@ -165,7 +165,7 @@ async fn authenticate_profile(
         }
         let client = builder.build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{address}/authentication"),
             )?

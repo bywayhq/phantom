@@ -74,7 +74,7 @@ async fn an_unobserved_real_proxy_rejection_cannot_prove_zero_retries() -> TestR
         let subscriber = OutcomeSubscriber::default();
 
         let error = client
-            .get(HttpProtocol::Http3, "https://127.0.0.1:9/unobserved")?
+            .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/unobserved")?
             .send()
             .await
             .err()
@@ -105,7 +105,7 @@ async fn an_observed_real_proxy_rejection_reports_zero_retries() -> TestResult<(
         let subscriber = OutcomeSubscriber::default();
 
         let error = client
-            .get(HttpProtocol::Http3, "https://127.0.0.1:9/observed")?
+            .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/observed")?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await

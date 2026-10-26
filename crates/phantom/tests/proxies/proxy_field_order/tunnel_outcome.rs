@@ -107,7 +107,7 @@ async fn the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake() 
     let client = profile_client(&browser, Route::http_proxy(proxy))?;
     timeout(DEADLINE, open_tunnel(&client, &browser, Vec::new())).await??;
     let request = client
-        .get(HttpProtocol::Http1, "https://origin.phantom.test/page")?
+        .get_with_protocol(HttpProtocol::Http1, "https://origin.phantom.test/page")?
         .send()
         .await;
     let heads = timeout(DEADLINE, server).await???;

@@ -67,7 +67,7 @@ async fn one_shot_forwarding_preserves_absolute_target_fields_and_body() -> Test
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     "http://BÜCHER.Example:8080/a/%2e%2e/final?value=%2f",
@@ -116,7 +116,7 @@ async fn forward_proxy_status_is_returned_without_direct_fallback() -> TestResul
             let response = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, "http://unresolvable.invalid/resource")?
+                .get_with_protocol(HttpProtocol::Http1, "http://unresolvable.invalid/resource")?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::PROXY_AUTHENTICATION_REQUIRED);
@@ -181,7 +181,7 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_the_challenged_conne
             let response = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     "http://BÜCHER.Example:8080/upload?part=%2f",
@@ -281,7 +281,7 @@ async fn basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection
                 .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/secure")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/secure")?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -350,7 +350,7 @@ async fn second_basic_challenge_is_proxy_error_redacted_and_bounded() -> TestRes
             let error = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/private")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/private")?
                 .send()
                 .await
                 .err()
@@ -417,7 +417,7 @@ async fn unusable_basic_challenge_is_proxy_error_without_retry() -> TestResult<(
                 let error = client_builder(&identity, false)
                     .route(route)
                     .build()?
-                    .get(HttpProtocol::Http1, "http://origin.test/")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://origin.test/")?
                     .send()
                     .await
                     .err()
@@ -472,7 +472,7 @@ async fn buffered_streaming_body_is_replayed_after_basic_challenge() -> TestResu
             let response = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     "http://origin.test/upload",
@@ -537,7 +537,7 @@ async fn one_shot_streaming_body_is_not_replayed_after_basic_challenge() -> Test
             let error = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     "http://origin.test/upload",
@@ -596,7 +596,7 @@ async fn configured_basic_credentials_are_omitted_without_a_challenge() -> TestR
             let response = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/public")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/public")?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -666,7 +666,7 @@ async fn disabled_preemptive_authentication_starts_every_forwarded_request_witho
 
             for path in ["first", "second"] {
                 let response = client
-                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
                     .send()
                     .await?;
                 assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -741,7 +741,7 @@ async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() 
 
             for path in ["first", "second", "third"] {
                 let response = client
-                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
                     .send()
                     .with_subscriber(subscriber.dispatch())
                     .await?;
@@ -821,7 +821,7 @@ async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns
 
             for path in ["first", "second", "third"] {
                 let response = client
-                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
                     .send()
                     .await?;
                 assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -875,7 +875,7 @@ async fn queued_request_does_not_take_the_challenged_connection_from_the_replay(
             let first_client = client.clone();
             let mut first = Box::pin(async move {
                 let response = first_client
-                    .get(HttpProtocol::Http1, "http://origin.test/first")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://origin.test/first")?
                     .send()
                     .await?;
                 response.into_body().collect().await?;
@@ -893,7 +893,7 @@ async fn queued_request_does_not_take_the_challenged_connection_from_the_replay(
             let sibling_client = client.clone();
             let mut sibling = Box::pin(async move {
                 let response = sibling_client
-                    .get(HttpProtocol::Http1, "http://origin.test/sibling")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://origin.test/sibling")?
                     .send()
                     .await?;
                 response.into_body().collect().await?;
@@ -1128,7 +1128,7 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
             let error = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/deadline")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/deadline")?
                 .timeouts(
                     RequestTimeoutOverrides::disabled()
                         .total(TimeoutOverride::Limit(TOTAL_DEADLINE)),
@@ -1214,14 +1214,14 @@ async fn intermediate_proxy_challenge_does_not_poison_origin_cookies() -> TestRe
                 .build()?;
 
             client
-                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/first")?
                 .send()
                 .await?
                 .into_body()
                 .collect()
                 .await?;
             client
-                .get(HttpProtocol::Http1, "http://origin.test/followup")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/followup")?
                 .send()
                 .await?
                 .into_body()
@@ -1278,7 +1278,7 @@ async fn client_reuses_same_origin_and_forward_route() -> TestResult<()> {
 
             for path in ["first", "second"] {
                 client
-                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
                     .send()
                     .await?
                     .into_body()
@@ -1325,7 +1325,7 @@ async fn session_reuses_same_origin_and_forward_route() -> TestResult<()> {
             let session = client_builder(&identity, false).route(route).build()?;
 
             let first = session
-                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/first")?
                 .send()
                 .await?
                 .into_body()
@@ -1333,7 +1333,7 @@ async fn session_reuses_same_origin_and_forward_route() -> TestResult<()> {
                 .await?
                 .to_bytes();
             let second = session
-                .get(HttpProtocol::Http1, "http://origin.test/second")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/second")?
                 .send()
                 .await?
                 .into_body()
@@ -1383,7 +1383,7 @@ async fn session_isolates_forward_connections_by_origin() -> TestResult<()> {
 
             for origin in ["first.test", "second.test"] {
                 session
-                    .get(HttpProtocol::Http1, &format!("http://{origin}/resource"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://{origin}/resource"))?
                     .send()
                     .await?
                     .into_body()
@@ -1448,7 +1448,7 @@ async fn tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection() -
                 .build()?;
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     "http://BÜCHER.Example:8080/upload?part=%2f",
@@ -1470,7 +1470,7 @@ async fn tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection() -
             assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     "http://BÜCHER.Example:8080/reused",
                 )?
@@ -1522,7 +1522,7 @@ async fn untrusted_tls_forward_proxy_fails_without_direct_fallback() -> TestResu
             let error = client_builder(&origin_identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
                 .send()
                 .await
                 .err()
@@ -1568,7 +1568,7 @@ async fn tls_forward_proxy_rejects_h2_alpn_without_direct_fallback() -> TestResu
                 .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
                 .send()
                 .await
                 .err()
@@ -1604,12 +1604,12 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .route(route.clone())
             .build()?;
         let fragment_error = forward_client
-            .get(HttpProtocol::Http1, "http://origin.test/path#fragment")
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/path#fragment")
             .err()
             .ok_or("fragment-bearing forwarding target was accepted")?;
         assert_eq!(fragment_error.kind(), RequestErrorKind::InvalidTarget);
         let connection_error = forward_client
-            .get(HttpProtocol::Http1, "http://origin.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/")?
             .header(RequestHeader::new("Connection", "content-length"))
             .send()
             .await
@@ -1621,7 +1621,7 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .route(route.clone())
             .build()?;
         let h2_error = h2_client
-            .get(HttpProtocol::Http2, "http://origin.test/")?
+            .get_with_protocol(HttpProtocol::Http2, "http://origin.test/")?
             .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
             .send()
             .await
@@ -1635,7 +1635,7 @@ async fn unsupported_forward_combinations_fail_before_proxy_io() -> TestResult<(
             .route(route)
             .build()?;
         let h3_error = h3_client
-            .get(HttpProtocol::Http3, "http://origin.test/")?
+            .get_with_protocol(HttpProtocol::Http3, "http://origin.test/")?
             .send()
             .await
             .err()
@@ -1674,7 +1674,7 @@ async fn caller_proxy_authorization_is_forwarded_without_configured_credentials(
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(HttpProtocol::Http1, "http://origin.test/preemptive")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/preemptive")?
                 .header(RequestHeader::new("Proxy-Authorization", "Basic YWxpY2U6c2VjcmV0").sensitive())
                 .send()
                 .await?;
@@ -1711,7 +1711,7 @@ async fn caller_proxy_authorization_is_refused_directly_and_with_configured_cred
             let error = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .get(HttpProtocol::Http1, &target)?
+                .get_with_protocol(HttpProtocol::Http1, &target)?
                 .header(RequestHeader::new("Proxy-Authorization", "Basic secret"))
                 .send()
                 .await
@@ -1741,7 +1741,7 @@ async fn forward_proxy_connection_failure_has_proxy_category() -> TestResult<()>
         let error = client_builder(&identity, false)
             .route(route)
             .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/")?
             .send()
             .await
             .err()
@@ -1790,7 +1790,7 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
                 .build()?;
 
             session
-                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/first")?
                 .header(RequestHeader::new("Sec-CH-UA", "caller"))
                 .send()
                 .await?
@@ -1798,7 +1798,7 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
                 .collect()
                 .await?;
             session
-                .get(HttpProtocol::Http1, "http://origin.test/second")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/second")?
                 .send()
                 .await?
                 .into_body()
@@ -1920,7 +1920,7 @@ async fn forward_challenge_connections(
         let response = client_builder(&identity, false)
             .route(route)
             .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+            .get_with_protocol(HttpProtocol::Http1, "http://origin.test/challenged")?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -2167,7 +2167,11 @@ async fn post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connecti
             let result = client_builder(&identity, false)
                 .route(route)
                 .build()?
-                .request(HttpProtocol::Http1, Method::POST, "http://origin.test/post")?
+                .request_with_protocol(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://origin.test/post",
+                )?
                 .body(Bytes::from_static(b"payload"))
                 .send()
                 .await;
@@ -2245,7 +2249,7 @@ async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult
                 let error = client_builder(&identity, false)
                     .route(route)
                     .build()?
-                    .get(HttpProtocol::Http1, "http://origin.test/stalled")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://origin.test/stalled")?
                     .timeouts(timeouts)
                     .send()
                     .await
@@ -2317,7 +2321,7 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+                .get_with_protocol(HttpProtocol::Http1, "http://origin.test/challenged")?
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::NO_CONTENT);

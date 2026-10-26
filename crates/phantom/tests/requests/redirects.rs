@@ -147,7 +147,7 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("https://{address}/start"),
@@ -198,7 +198,7 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let error = match client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("https://{address}/start"),
@@ -255,7 +255,7 @@ async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> 
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("https://{address}/start"),
@@ -312,7 +312,7 @@ async fn body_preserving_redirect_rejects_a_buffered_stream_past_its_limit() -> 
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let error = match client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::POST,
                 &format!("https://{address}/start"),
@@ -390,7 +390,7 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/start"),
@@ -491,7 +491,7 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{address}/.well-known/phantom/h3-redirect"),
             )?
@@ -539,7 +539,7 @@ async fn plaintext_request_that_is_not_redirected_is_sent_with_a_policy() -> Tes
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .get(HttpProtocol::Http1, &format!("http://{address}/plain"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/plain"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -604,7 +604,7 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .get(HttpProtocol::Http1, &format!("http://{plain_address}/start"))?
+            .get_with_protocol(HttpProtocol::Http1, &format!("http://{plain_address}/start"))?
             .header(phantom::RequestHeader::new("Authorization", "Bearer origin"))
             .header(phantom::RequestHeader::new("X-Kept", "yes"))
             .send()
@@ -679,7 +679,7 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::new(3).ok_or("zero")?))
             .build()?;
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{first_address}/first"),
             )?
@@ -777,7 +777,7 @@ async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<(
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("http://{first_address}/first"),
             )?
@@ -870,7 +870,7 @@ async fn redirect_to_plaintext_preserves_exact_http2_and_the_attempt_budget() ->
             .build()?;
         let budget = phantom::HttpAttemptBudget::new(2);
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http2,
                 &format!("https://{secure_address}/start"),
             )?
@@ -949,7 +949,7 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
-            .get_negotiated(&format!("https://{secure_address}/start"))?
+            .get(&format!("https://{secure_address}/start"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
@@ -998,7 +998,7 @@ async fn send_redirect_probe(
     body: &'static [u8],
 ) -> Result<Response<phantom::ResponseBody>, phantom::RequestError> {
     session
-        .request(
+        .request_with_protocol(
             HttpProtocol::Http2,
             Method::POST,
             &format!("https://{address}/.well-known/phantom/redirect/{status}/start"),

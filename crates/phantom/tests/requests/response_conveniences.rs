@@ -93,7 +93,7 @@ async fn exchange(wire: Vec<u8>, decoding: ContentDecoding) -> TestResult<Respon
         let (head, response) = exchange_peer(peer, async {
             let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("http://{address}/private?token=sensitive"),
                 )?
@@ -320,7 +320,7 @@ async fn dropping_a_pending_read_closes_the_unfinished_body() -> TestResult<()> 
         let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
         let (closed, ()) = exchange_peer(peer, async {
             let response = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/"))?
                 .send()
                 .await?;
             let mut read = Box::pin(response_bytes(response, 100));

@@ -574,7 +574,7 @@ async fn a_successful_fixture_finish_preserves_the_actual_origin_request_count()
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let response = client
-            .get(HttpProtocol::Http2, &fixture.origin_url("/finish-positive"))?
+            .get_with_protocol(HttpProtocol::Http2, &fixture.origin_url("/finish-positive"))?
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);

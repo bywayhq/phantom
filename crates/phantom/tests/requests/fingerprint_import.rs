@@ -32,7 +32,7 @@ async fn imported_client_hello_fields_reach_the_public_clients_tcp_peer() -> Tes
     let client = Client::builder(imported)
         .resolve("import.invalid", [Ipv4Addr::LOCALHOST.into()])
         .build()?;
-    let request = client.get_negotiated(&format!("https://import.invalid:{}/", address.port()))?;
+    let request = client.get(&format!("https://import.invalid:{}/", address.port()))?;
     timeout(Duration::from_secs(10), async {
         let peer = async {
             let (mut stream, _) = listener.accept().await?;
@@ -160,7 +160,7 @@ async fn check_wire(increment: u32) -> TestResult<()> {
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let response = client
-            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/"))?
             .send()
             .await?;
         assert_eq!(response.status(), http::StatusCode::NO_CONTENT);

@@ -132,7 +132,7 @@ async fn control(
                         http2_fields: vec![RequestField::required_caller("x-claim")], http3_fields:None, http2_priority:None,
                         requested_client_hint_placement:false, restarts_for_connection_accept_ch:false,
                     })?;
-                    let request = if policy {client.get_negotiated("https://127.0.0.1/page")?} else {client.get(HttpProtocol::Http1,"https://127.0.0.1/page")?};
+                    let request = if policy {client.get("https://127.0.0.1/page")?} else {client.get_with_protocol(HttpProtocol::Http1,"https://127.0.0.1/page")?};
                     let response = request.template(&fields).headers(vec![RequestHeader::new("X-Claim", "second")]).send().await?;
                     assert_eq!(response.status(), 200);
                     assert_eq!(response.into_body().collect().await?.to_bytes(), "done");

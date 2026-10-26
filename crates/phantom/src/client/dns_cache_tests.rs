@@ -120,7 +120,10 @@ fn with_counting_cache(client: &Client, gate: watch::Receiver<bool>) -> (Client,
 }
 
 async fn get(client: &Client, url: &str) -> TestResult {
-    let response = client.get(HttpProtocol::Http1, url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, url)?
+        .send()
+        .await?;
     let body = response.into_body().collect_with_limit(16).await?;
     assert_eq!(&body[..], b"ok");
     Ok(())
@@ -495,7 +498,7 @@ async fn caller_negative_answers_keep_their_kind_through_request_errors() -> Tes
             let error = tokio::time::timeout(
                 Duration::from_secs(5),
                 client
-                    .get(HttpProtocol::Http1, "http://missing.phantom.test/")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://missing.phantom.test/")?
                     .send(),
             )
             .await?
@@ -532,7 +535,7 @@ async fn caller_dns_errors_are_retried_despite_the_negative_cache_setting() -> T
         let error = tokio::time::timeout(
             Duration::from_secs(5),
             client
-                .get(HttpProtocol::Http1, "http://invalid.phantom.test/")?
+                .get_with_protocol(HttpProtocol::Http1, "http://invalid.phantom.test/")?
                 .send(),
         )
         .await?

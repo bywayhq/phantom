@@ -28,7 +28,7 @@ async fn connect_udp_outer_pin_rejection_precedes_connect() -> TestResult<()> {
         };
         let caller = async {
             let error = client
-                .get(HttpProtocol::Http3, "https://127.0.0.1:443/")?
+                .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:443/")?
                 .send()
                 .await
                 .err()
@@ -77,7 +77,7 @@ async fn connect_udp_enforces_separate_matching_origin_and_proxy_pins() -> TestR
         };
         let caller = async {
             let response = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
                 .send()
                 .await?;
             assert_eq!(response.status(), 200);

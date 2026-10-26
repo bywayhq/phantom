@@ -93,7 +93,7 @@ async fn control(negotiated: bool, https: bool, mode: Mode) -> TestResult<()> {
                 }
                 drop(opening);
             } else if mode == Mode::Reuse {
-                let response = client.get_negotiated("https://127.0.0.1:443/page")?.send().await?;
+                let response = client.get("https://127.0.0.1:443/page")?.send().await?;
                 assert_eq!(response.status(), 200);
                 assert!(response.into_body().collect().await?.to_bytes().is_empty());
                 primary_ready.await?;

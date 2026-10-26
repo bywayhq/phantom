@@ -160,7 +160,7 @@ pub(crate) fn import(
         .map(|header| RequestHeader::new(header.name, header.value).sensitive())
         .collect();
     let builder = client
-        .request(HttpProtocol::Http1, method, absolute_uri)
+        .request_with_protocol(HttpProtocol::Http1, method, absolute_uri)
         .map_err(RawRequestError::request)?
         .headers(headers);
     if body.is_empty() {

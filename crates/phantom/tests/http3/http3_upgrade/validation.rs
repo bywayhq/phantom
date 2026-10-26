@@ -39,7 +39,7 @@ async fn firefox_advertisement_authenticates_without_spending_an_http_attempt_or
         let mut peer = fixture.alternative_progress();
         drain(
             client
-                .get_negotiated(&fixture.origin_url("/learn"))?
+                .get(&fixture.origin_url("/learn"))?
                 .attempt_budget(allowance.clone())
                 .send()
                 .await?,
@@ -53,7 +53,7 @@ async fn firefox_advertisement_authenticates_without_spending_an_http_attempt_or
 
         // An advertised but unchecked mapping cannot dispatch HTTP/3.
         let pending = client
-            .get_negotiated(&fixture.origin_url("/while-pending"))?
+            .get(&fixture.origin_url("/while-pending"))?
             .attempt_budget(allowance.clone())
             .send()
             .await?;
@@ -72,7 +72,7 @@ async fn firefox_advertisement_authenticates_without_spending_an_http_attempt_or
         assert_eq!(allowance.remaining(), 1);
 
         let response = client
-            .get_negotiated(&fixture.origin_url("/validated"))?
+            .get(&fixture.origin_url("/validated"))?
             .attempt_budget(allowance.clone())
             .send()
             .await?;
@@ -125,24 +125,21 @@ async fn importing_a_firefox_snapshot_waits_for_a_real_advertisement_to_start_va
             SystemTime::now() + Duration::from_secs(60),
         )]))?;
         // A completed origin exchange is a finite observation after import.
-        let response = client
-            .get_negotiated(&fixture.origin_url("/imported"))?
-            .send()
-            .await?;
+        let response = client.get(&fixture.origin_url("/imported"))?.send().await?;
         assert_eq!(protocol(&response)?, HttpProtocol::Http2);
         drain(response).await?;
         assert_eq!(fixture.alternative_progress().borrow().incoming, 0);
         assert_eq!(events.state.borrow().validated, 0);
         drain(
             client
-                .get(HttpProtocol::Http2, &fixture.origin_url("/advertise"))?
+                .get_with_protocol(HttpProtocol::Http2, &fixture.origin_url("/advertise"))?
                 .send()
                 .await?,
         )
         .await?;
         events.validated().await?;
         let response = client
-            .get_negotiated(&fixture.origin_url("/validated"))?
+            .get(&fixture.origin_url("/validated"))?
             .send()
             .await?;
         assert_eq!(protocol(&response)?, HttpProtocol::Http3);
@@ -205,10 +202,7 @@ async fn an_ech_authenticated_origin_does_not_start_advertisement_validation() -
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         for path in ["/ech-advertisement", "/same-ech-connection"] {
-            let response = client
-                .get_negotiated(&fixture.origin_url(path))?
-                .send()
-                .await?;
+            let response = client.get(&fixture.origin_url(path))?.send().await?;
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);
             drain(response).await?;
         }
@@ -261,13 +255,7 @@ async fn cancelled_validation(action: Cancel) -> TestResult<()> {
     tracing::callsite::rebuild_interest_cache();
     let outcome = AssertUnwindSafe(bounded(async {
         let mut peer = fixture.alternative_progress();
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         peer.wait_for(|seen| seen.incoming == 1).await?;
         assert_eq!(peer.borrow().handshakes, 0);
         match action {
@@ -277,7 +265,7 @@ async fn cancelled_validation(action: Cancel) -> TestResult<()> {
         }
         if !matches!(action, Cancel::Shutdown) {
             let response = client
-                .get_negotiated(&fixture.origin_url("/after-cancel"))?
+                .get(&fixture.origin_url("/after-cancel"))?
                 .send()
                 .await?;
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);

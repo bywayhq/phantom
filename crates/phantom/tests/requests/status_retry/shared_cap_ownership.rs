@@ -191,7 +191,7 @@ async fn request(address: SocketAddr) -> TestResult {
         .build()?;
 
     client
-        .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/prime"))?
         .send()
         .await?
         .into_body()
@@ -199,7 +199,7 @@ async fn request(address: SocketAddr) -> TestResult {
         .await?;
 
     let response = client
-        .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
+        .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/start"))?
         .send()
         .await?;
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);

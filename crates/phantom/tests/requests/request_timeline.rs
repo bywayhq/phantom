@@ -47,7 +47,7 @@ async fn streamed_body_finishes_after_headers_and_warm_requests_omit_setup() -> 
         });
         let caller = async {
             let client = client_builder(&identity, true).build()?;
-            let mut request = client.get_negotiated(&url)?;
+            let mut request = client.get(&url)?;
             let trace = record(&mut request);
             let again = request.diagnostics(NonZeroUsize::MIN);
             assert_eq!(trace.snapshot().outcome, RequestTimelineOutcome::NotStarted);
@@ -97,7 +97,7 @@ async fn streamed_body_finishes_after_headers_and_warm_requests_omit_setup() -> 
                 body.finished.ok_or("unfinished body")?
                     >= head.send_elapsed.ok_or("missing head duration")?
             );
-            let mut warm = client.get_negotiated(&url)?;
+            let mut warm = client.get(&url)?;
             let warm_trace = record(&mut warm);
             assert_eq!(
                 warm.send()
@@ -139,7 +139,7 @@ async fn cancelled_tls_setup_remains_inspectable() -> TestResult<()> {
         });
         let caller = async {
             let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-            let mut request = client.get(HttpProtocol::Http1, &url)?;
+            let mut request = client.get_with_protocol(HttpProtocol::Http1, &url)?;
             let trace = record(&mut request);
             let running = tokio::spawn(request.send());
             received.await?;
@@ -194,7 +194,7 @@ async fn dropping_an_unread_body_is_abandonment_and_does_not_leak_admission() ->
         let caller = async {
             let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
             for _ in 0..2 {
-                let mut request = client.get(HttpProtocol::Http1, &url)?;
+                let mut request = client.get_with_protocol(HttpProtocol::Http1, &url)?;
                 let trace = record(&mut request);
                 drop(request.send().await?);
                 let snapshot = trace.snapshot();
@@ -234,7 +234,7 @@ async fn empty_success_and_one_frame_collection_failure_have_distinct_outcomes()
         });
         let caller = async {
             let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-            let mut empty = client.get(HttpProtocol::Http1, &url)?;
+            let mut empty = client.get_with_protocol(HttpProtocol::Http1, &url)?;
             let trace = record(&mut empty);
             let response = empty.send().await?;
             let snapshot = trace.snapshot();
@@ -252,7 +252,7 @@ async fn empty_success_and_one_frame_collection_failure_have_distinct_outcomes()
                         && event.outcome == RequestTimingOutcome::Completed)
             );
             drop(response);
-            let mut oversized = client.get(HttpProtocol::Http1, &url)?;
+            let mut oversized = client.get_with_protocol(HttpProtocol::Http1, &url)?;
             let trace = record(&mut oversized);
             let error = oversized
                 .send()

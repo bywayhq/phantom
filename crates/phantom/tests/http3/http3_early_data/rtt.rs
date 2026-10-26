@@ -120,7 +120,7 @@ async fn probe(client: &Client, identity: &TestIdentity, expected: &str) -> Test
         )]))?;
         let observation = DelayObservation::default();
         let response = client
-            .get_negotiated(&fixture.origin_url("/probe"))?
+            .get(&fixture.origin_url("/probe"))?
             .send()
             .with_subscriber(observation.dispatch())
             .await?;
@@ -231,7 +231,7 @@ async fn early_publication(clear_while_pending: bool) -> TestResult<()> {
             .build()?;
         let subscriber = OutcomeSubscriber::default();
         let response = client
-            .get(HttpProtocol::Http3, &format!("https://{relay}/ticket"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{relay}/ticket"))?
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -251,7 +251,10 @@ async fn early_publication(clear_while_pending: bool) -> TestResult<()> {
             let client = client.clone();
             let url = format!("https://{relay}/early");
             async move {
-                let response = client.get(HttpProtocol::Http3, &url)?.send().await?;
+                let response = client
+                    .get_with_protocol(HttpProtocol::Http3, &url)?
+                    .send()
+                    .await?;
                 assert_eq!(response.status(), StatusCode::OK);
                 assert_eq!(
                     response.into_body().collect().await?.to_bytes(),

@@ -57,7 +57,7 @@ async fn http1_authenticates_before_remote_dns_connect() -> TestResult<()> {
             let client = client_builder(&identity, false).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!(
                         "https://{ORIGIN_NAME}:{}/authenticated",
@@ -114,7 +114,7 @@ async fn http2_authenticates_before_remote_dns_connect() -> TestResult<()> {
             let client = client_builder(&identity, true).route(route).build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http2,
                     &format!(
                         "https://{ORIGIN_NAME}:{}/authenticated",
@@ -155,7 +155,7 @@ async fn rejected_authentication_sends_no_connect_or_direct_origin_attempt() -> 
             let client = client_builder(&identity, false).route(route).build()?;
 
             let error = match client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!("https://{ORIGIN_NAME}:{}/", origin_address.port()),
                 )?
@@ -218,7 +218,7 @@ async fn http2_pool_separates_credentials_and_reuses_matches() -> TestResult<()>
                 ("/first-again", first_route),
             ] {
                 let response = session
-                    .get(
+                    .get_with_protocol(
                         HttpProtocol::Http2,
                         &format!("https://{ORIGIN_NAME}:{}{path}", origin_address.port()),
                     )?
@@ -394,7 +394,7 @@ async fn plaintext_http1_authenticates_before_remote_dns_connect() -> TestResult
                 .build()?;
 
             let response = client
-                .get(
+                .get_with_protocol(
                     HttpProtocol::Http1,
                     &format!(
                         "http://{ORIGIN_NAME}:{}/authenticated",

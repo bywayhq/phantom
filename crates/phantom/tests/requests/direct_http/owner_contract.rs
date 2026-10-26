@@ -233,7 +233,7 @@ impl Backup {
         let error = timeout(
             LIMIT,
             client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     http::Method::POST,
                     &format!("http://{address}/ownership"),

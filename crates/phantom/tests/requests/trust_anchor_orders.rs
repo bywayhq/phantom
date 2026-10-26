@@ -58,7 +58,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         let mut client_orders = Vec::new();
 
         for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
-            let request = client.get(protocol, &url)?.send();
+            let request = client.get_with_protocol(protocol, &url)?.send();
             assert!(timeout(TEST_TIMEOUT, request).await?.is_err());
             let connector = match protocol {
                 HttpProtocol::Http1 => Connector::Http1,
@@ -72,7 +72,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         // the ClientHello the client sends to the proxy.
         let https_proxy = Route::http_proxy(HttpProxy::new(&format!("https://{capture_address}"))?);
         let request = client
-            .get(HttpProtocol::Http1, &url)?
+            .get_with_protocol(HttpProtocol::Http1, &url)?
             .route(https_proxy)
             .send();
         assert!(timeout(TEST_TIMEOUT, request).await?.is_err());
@@ -89,7 +89,10 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
             proxy_listener,
             capture_address,
         ));
-        let request = client.get(HttpProtocol::Http1, &url)?.route(tunnel).send();
+        let request = client
+            .get_with_protocol(HttpProtocol::Http1, &url)?
+            .route(tunnel)
+            .send();
         assert!(timeout(TEST_TIMEOUT, request).await?.is_err());
         timeout(TEST_TIMEOUT, proxy).await???.cancel().await?;
         client_orders.push(drain_orders(Connector::ProxyTunnel, &mut orders_receiver)?);

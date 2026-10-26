@@ -124,7 +124,7 @@ async fn reused_connection(target: Option<u32>) -> TestResult<()> {
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let response = client
-            .get(HttpProtocol::Http2, &format!("https://{address}/ordinary"))?
+            .get_with_protocol(HttpProtocol::Http2, &format!("https://{address}/ordinary"))?
             .send()
             .await?;
         assert_eq!(response.status(), 200);

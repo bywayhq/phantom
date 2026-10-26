@@ -57,16 +57,16 @@ async fn replay_case(
         let session = client(&identity)?;
         let seed = format!("https://{address}/seed");
         let request = match protocol {
-            Some(protocol) => session.get(protocol, &seed)?,
-            None => session.get_negotiated(&seed)?,
+            Some(protocol) => session.get_with_protocol(protocol, &seed)?,
+            None => session.get(&seed)?,
         };
         request.send().await?.into_body().collect().await?;
         wait_for_first_close.await?;
         let budget = phantom::HttpAttemptBudget::new(allowance);
         let url = format!("https://{address}/limited");
         let request = match protocol {
-            Some(protocol) => session.get(protocol, &url)?,
-            None => session.get_negotiated(&url)?,
+            Some(protocol) => session.get_with_protocol(protocol, &url)?,
+            None => session.get(&url)?,
         };
         let result = request.attempt_budget(budget.clone()).send().await;
         if denied {

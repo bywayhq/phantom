@@ -132,7 +132,7 @@ async fn redirect_case(case: Case) -> TestResult<()> {
 
     let operation = async {
         let response = session
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http2,
                 &format!("https://{first_address}/start"),
             )?

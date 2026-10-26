@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-26
+
+- Breaking: negotiate the protocol with `Client::get(url)` and
+  `Client::request(method, url)`. Migrate: rename exact-protocol `get` and
+  `request` calls to `get_with_protocol` and `request_with_protocol`; rename
+  `get_negotiated` and `request_negotiated` to `get` and `request`.
+
+- Select a catalog profile and request context together with `catalog::profile_for`.
+
+- Encode bounded JSON and form uploads with `RequestBuilder::json` and `form`,
+  including content-type placement.
+
+- Lead request and capture guides with the basic workflows.
+
 - Use composed browser profiles, short selectors and client-default request
   templates in setup examples.
 

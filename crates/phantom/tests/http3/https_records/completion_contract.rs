@@ -154,7 +154,7 @@ async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> T
         );
         let client = client.as_ref().ok_or("client was not acquired")?;
 
-        let first = client.get_negotiated(&fixture.origin_url("/first"))?;
+        let first = client.get(&fixture.origin_url("/first"))?;
         held.request_started = true;
         let first = first.send().await?;
         let first_protocol = protocol(&first)?;
@@ -166,10 +166,7 @@ async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> T
 
         let pending_after_first = held.lookup.completion.borrow().is_none();
 
-        let second = client
-            .get_negotiated(&fixture.origin_url("/held"))?
-            .send()
-            .await?;
+        let second = client.get(&fixture.origin_url("/held"))?.send().await?;
         let second_protocol = protocol(&second)?;
         let second_body = second.into_body().collect().await?.to_bytes();
 
@@ -178,10 +175,7 @@ async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> T
 
         held.release.release();
         let completed = held.lookup.completed().await?;
-        let later = client
-            .get_negotiated(&fixture.origin_url("/released"))?
-            .send()
-            .await?;
+        let later = client.get(&fixture.origin_url("/released"))?.send().await?;
         let later_protocol = protocol(&later)?;
         let later_body = later.into_body().collect().await?.to_bytes();
 

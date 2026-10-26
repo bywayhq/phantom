@@ -27,7 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
     let client = Client::builder(profile).build()?;
 
-    let response = client.get(HttpProtocol::Http3, &url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http3, &url)?
+        .send()
+        .await?;
     println!("status: {}", response.status());
     if let Some(info) = response.extensions().get::<ResponseInfo>() {
         println!("protocol: {:?}", info.protocol());

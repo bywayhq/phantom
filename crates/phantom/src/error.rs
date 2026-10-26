@@ -436,7 +436,7 @@ pub enum RequestErrorKind {
 /// use phantom::{Client, HttpProtocol, RequestError, RequestErrorKind};
 ///
 /// async fn fetch(client: &Client) -> Result<(), RequestError> {
-///     match client.get(HttpProtocol::Http2, "https://example.com/")?.send().await {
+///     match client.get_with_protocol(HttpProtocol::Http2, "https://example.com/")?.send().await {
 ///         Ok(response) => println!("status {}", response.status()),
 ///         Err(error) if error.kind() == RequestErrorKind::Timeout => {
 ///             println!("timed out in {:?}", error.timeout_phase());

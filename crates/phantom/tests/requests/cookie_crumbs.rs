@@ -176,7 +176,7 @@ async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult
 
     let response = cookie_h3_request(async {
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 http::Method::GET,
                 &format!("https://{address}/cookies"),
@@ -294,7 +294,7 @@ async fn replay(
             let response = timeout(
                 TEST_TIMEOUT,
                 client
-                    .get(HttpProtocol::Http2, &url)?
+                    .get_with_protocol(HttpProtocol::Http2, &url)?
                     .headers(headers)
                     .send(),
             )

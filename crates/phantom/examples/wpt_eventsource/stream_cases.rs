@@ -91,7 +91,7 @@ pub(super) async fn invalid_mime(context: &Context) -> Result<(), BoxError> {
     )?;
     let response = context
         .client
-        .get(HttpProtocol::Http1, url.as_str())?
+        .get_with_protocol(HttpProtocol::Http1, url.as_str())?
         .send()
         .await?;
     let error = match SseStream::from_response(response) {
@@ -193,7 +193,7 @@ async fn open_stream(
     let url = endpoint(&context.base_url, path, query)?;
     let response = context
         .client
-        .get(HttpProtocol::Http1, url.as_str())?
+        .get_with_protocol(HttpProtocol::Http1, url.as_str())?
         .send()
         .await?;
     Ok(SseStream::from_response(response)?.into_body())

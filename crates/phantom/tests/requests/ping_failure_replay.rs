@@ -294,7 +294,7 @@ where
     F: Future<Output = Result<T, RequestError>>,
 {
     let first = client
-        .request(HttpProtocol::Http2, Method::GET, &server.url("/first"))?
+        .request_with_protocol(HttpProtocol::Http2, Method::GET, &server.url("/first"))?
         .send()
         .await?;
     assert_eq!(first.status(), StatusCode::OK);
@@ -360,7 +360,7 @@ async fn a_request_is_sent_again_at_most_twice_after_ping_failures() -> TestResu
 
         let client = every_request_pings_client(&identity)?;
         let error = match client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http2,
                 Method::GET,
                 &format!("https://{address}/limited"),
@@ -398,7 +398,7 @@ async fn a_ping_failure_sends_the_request_again_on_a_new_connection() -> TestRes
         let server = Server::start(&identity, true, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
         let request = client
-            .request(HttpProtocol::Http2, Method::GET, &server.url("/b"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::GET, &server.url("/b"))?
             .send();
         let response = after_an_idle_connection(&client, &server, request).await??;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -428,7 +428,7 @@ async fn shared_attempt_budget_stops_browser_required_ping_replay() -> TestResul
         let client = short_ping_timeout_client(&identity)?;
         let budget = phantom::HttpAttemptBudget::new(1);
         let request = client
-            .get(HttpProtocol::Http2, &server.url("/b"))?
+            .get_with_protocol(HttpProtocol::Http2, &server.url("/b"))?
             .attempt_budget(budget.clone())
             .send();
         let error = after_an_idle_connection(&client, &server, request)
@@ -455,7 +455,7 @@ async fn a_ping_failure_sends_a_post_with_its_owned_body_again() -> TestResult {
         let server = Server::start(&identity, true, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
         let request = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
             .body("payload")
             .send();
         let response = after_an_idle_connection(&client, &server, request).await??;
@@ -487,7 +487,7 @@ async fn a_ping_failure_sends_a_buffered_streaming_body_again() -> TestResult {
         let server = Server::start(&identity, true, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
         let request = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
             .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
             .send();
         let response = after_an_idle_connection(&client, &server, request).await??;
@@ -516,11 +516,11 @@ async fn a_negotiated_request_is_sent_again_after_a_ping_failure() -> TestResult
         let identity = TestIdentity::generate()?;
         let server = Server::start(&identity, true, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
-        let first = client.get_negotiated(&server.url("/first"))?.send().await?;
+        let first = client.get(&server.url("/first"))?.send().await?;
         assert_eq!(first.status(), StatusCode::OK);
         first.into_body().collect().await?;
         tokio::time::sleep(IDLE).await;
-        let response = client.get_negotiated(&server.url("/b"))?.send().await?;
+        let response = client.get(&server.url("/b"))?.send().await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
         drop(client);
@@ -593,7 +593,7 @@ async fn a_request_through_a_tunnel_is_sent_again_after_a_ping_failure() -> Test
             ))?))
             .build()?;
         let request = client
-            .request(HttpProtocol::Http2, Method::GET, &server.url("/b"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::GET, &server.url("/b"))?
             .send();
         let response = after_an_idle_connection(&client, &server, request).await??;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -627,7 +627,7 @@ async fn a_ping_failure_does_not_send_a_streaming_body_again() -> TestResult {
         let server = Server::start(&identity, false, connections.spawner()).await?;
         let client = short_ping_timeout_client(&identity)?;
         let request = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
             .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
             .send();
         let error = match after_an_idle_connection(&client, &server, request).await? {

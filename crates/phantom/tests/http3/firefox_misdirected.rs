@@ -155,7 +155,7 @@ async fn restart(policy: AltSvcPolicy) -> TestResult<()> {
         let allowance = HttpAttemptBudget::new(2);
         let send = async {
             let response = client
-                .get_negotiated(&url)?
+                .get(&url)?
                 .headers(caller_fields())
                 .attempt_budget(allowance.clone())
                 .send()

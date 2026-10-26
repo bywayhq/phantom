@@ -56,11 +56,11 @@ async fn digest_forwarding_checks_real_chunked_proxy_proofs_before_nonce_accepta
                 let identity = TestIdentity::generate()?;
                 let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_digest_auth("user", "password")?);
                 let client = client_builder(&identity, false).route(route).build()?;
-                let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+                let response = client.get_with_protocol(HttpProtocol::Http1, URL)?.send().await?;
                 let result = response.into_body().collect().await;
                 if matches!(location, ProofLocation::Trailer) { assert_eq!(result?.to_bytes(), "ok"); }
                 else { assert!(result.is_err(), "invalid trailer accepted: {location:?}"); }
-                let response = client.get(HttpProtocol::Http1, URL)?.send().await?;
+                let response = client.get_with_protocol(HttpProtocol::Http1, URL)?.send().await?;
                 assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
                 Ok(client)
             }.await;

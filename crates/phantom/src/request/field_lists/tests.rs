@@ -102,10 +102,7 @@ async fn a_race_won_by_the_origin_builds_each_candidate_list_once() -> TestResul
         ))?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(
             counts::take(),
@@ -137,10 +134,7 @@ async fn a_race_won_by_the_alternative_builds_each_list_once() -> TestResult {
         import_alternative(&client, origin, alternative.port())?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(counts::take(), RACED_ONCE);
         assert_eq!(protocol(&response)?, HttpProtocol::Http3);
@@ -177,7 +171,7 @@ async fn a_negotiated_setup_retry_builds_each_list_once() -> TestResult {
         counts::take();
 
         let response = client
-            .get_negotiated(&format!("https://{ORIGIN_NAME}:{port}/"))?
+            .get(&format!("https://{ORIGIN_NAME}:{port}/"))?
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
                 Duration::from_millis(10),
@@ -220,10 +214,7 @@ async fn a_negotiated_graceful_goaway_retry_builds_each_list_once() -> TestResul
         let client = client_builder(&identity, profile(false)).build()?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(counts::take(), NEGOTIATED_ONCE);
         assert_eq!(protocol(&response)?, HttpProtocol::Http1);
@@ -259,11 +250,11 @@ async fn a_reused_connection_replay_sends_the_lists_of_the_closed_attempt() -> T
             .retry_policy(RetryPolicy::none().with_reused_connection_replay(true))
             .build()?;
         let url = format!("https://{origin}/");
-        let first = client.get_negotiated(&url)?.send().await?;
+        let first = client.get(&url)?.send().await?;
         assert_eq!(first.into_body().collect_with_limit(16).await?, "ok");
         counts::take();
 
-        let response = client.get_negotiated(&url)?.send().await?;
+        let response = client.get(&url)?.send().await?;
 
         assert_eq!(counts::take(), NEGOTIATED_ONCE);
         assert_eq!(response.into_body().collect_with_limit(16).await?, "ok");
@@ -300,10 +291,7 @@ async fn a_refused_http2_stream_replay_builds_each_list_once() -> TestResult {
             .build()?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(counts::take(), NEGOTIATED_ONCE);
         assert_eq!(protocol(&response)?, HttpProtocol::Http1);
@@ -346,7 +334,7 @@ async fn a_ping_failure_resend_builds_each_list_once() -> TestResult {
         let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(http2);
         let client = client_builder(&identity, profile).build()?;
         let first = client
-            .get_negotiated(&format!("https://{origin}/first"))?
+            .get(&format!("https://{origin}/first"))?
             .send()
             .await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
@@ -354,10 +342,7 @@ async fn a_ping_failure_resend_builds_each_list_once() -> TestResult {
         tokio::time::sleep(Duration::from_millis(1_500)).await;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(counts::take(), NEGOTIATED_ONCE);
         assert_eq!(protocol(&response)?, HttpProtocol::Http1);
@@ -395,10 +380,7 @@ async fn an_alternative_replay_after_a_rejected_request_builds_its_list_once() -
         import_alternative(&client, origin, alternative.port())?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(
             counts::take(),
@@ -446,10 +428,7 @@ async fn a_critical_ch_retry_builds_the_lists_again_with_the_requested_hint() ->
         .build()?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(
             counts::take(),
@@ -512,10 +491,7 @@ async fn an_accept_ch_restart_builds_the_lists_again_with_the_hint() -> TestResu
         .build()?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(
             counts::take(),
@@ -591,10 +567,7 @@ async fn a_status_retry_builds_the_lists_again_with_the_response_s_cookie() -> T
             .build()?;
         counts::take();
 
-        let response = client
-            .get_negotiated(&format!("https://{origin}/"))?
-            .send()
-            .await?;
+        let response = client.get(&format!("https://{origin}/"))?.send().await?;
 
         assert_eq!(
             counts::take(),
@@ -934,7 +907,7 @@ fn pinned_alt_used_policy_preserves_the_optional_template_slot() -> TestResult {
                 .with_request_template(template);
             let client = Client::builder(profile).build()?;
             let mut request = client
-                .get(HttpProtocol::Http3, "https://origin.example:8443/")?
+                .get_with_protocol(HttpProtocol::Http3, "https://origin.example:8443/")?
                 .request;
             let original = super::attempt_headers(&client, &request, HttpProtocol::Http3, &[]);
             assert_eq!(
@@ -999,9 +972,7 @@ async fn reused_h3_framing_is_checked_without_taking_a_one_shot_body() -> TestRe
     use crate::{Route, request::RequestBodySource};
 
     let client = Client::builder(profile(true)).build()?;
-    let request = client
-        .get_negotiated("https://other.phantom.test/")?
-        .request;
+    let request = client.get("https://other.phantom.test/")?.request;
     let mut source = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
         Bytes::from_static(b"payload"),
     )));

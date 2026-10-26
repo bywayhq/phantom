@@ -16,20 +16,19 @@ for setup details.
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", version = "0.4" }
+phantom = { package = "phantom-http", version = "0.5" }
 tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 ```
 
 ```rust,no_run
-use phantom::{profile::browser::chrome, Client, HttpProtocol};
+use phantom::{profile::catalog::{profile_for, RequestTemplateKind}, Client};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = chrome::v154_windows()
-        .with_request_template(chrome::v154_windows_navigation_template());
+    let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
     let client = Client::builder(profile).build()?;
     let response = client
-        .get(HttpProtocol::Http2, "https://example.com/")?
+        .get("https://example.com/")?
         .send()
         .await?;
 
@@ -40,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This request selects HTTP/2 explicitly. The profile sets Chrome's connection
+TLS negotiates HTTP/1.1 or HTTP/2. The profile sets Chrome's connection
 settings and page-load headers once for the client. Choose another
 [request template](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
 for fetches or uploads. Reuse the client across requests to reuse connections

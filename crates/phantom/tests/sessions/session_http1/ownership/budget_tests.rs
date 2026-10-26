@@ -72,7 +72,7 @@ async fn finished_foreign_peer_cancellation_survives_a_real_budget_pending_join(
             .as_ref()
             .ok_or("original active HTTP/1 client missing")?;
         let caller = client
-            .get(HttpProtocol::Http1, INVALID_URI)
+            .get_with_protocol(HttpProtocol::Http1, INVALID_URI)
             .err()
             .ok_or("original invalid URI caller succeeded")?;
         original_uri_failure(&caller)?;

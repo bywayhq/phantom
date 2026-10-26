@@ -50,7 +50,11 @@ async fn key_log_holds_the_secrets_of_a_loopback_tls_connection() -> TestResult<
         .add_root_certificate_der(identity.root_der.clone())
         .key_log(NonZeroUsize::new(16).ok_or("16 is nonzero")?)
         .build()?;
-    let response = timeout(TEST_TIMEOUT, client.get(HttpProtocol::Http1, &url)?.send()).await??;
+    let response = timeout(
+        TEST_TIMEOUT,
+        client.get_with_protocol(HttpProtocol::Http1, &url)?.send(),
+    )
+    .await??;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     timeout(TEST_TIMEOUT, origin).await???;
 
@@ -69,7 +73,7 @@ async fn key_log_holds_the_secrets_of_a_loopback_quic_handshake() -> TestResult<
     let response = timeout(
         TEST_TIMEOUT,
         client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send(),
     )
     .await??;
@@ -111,7 +115,8 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
         ))?))
         .key_log(NonZeroUsize::new(16).ok_or("16 is nonzero")?)
         .build()?;
-    let mut request = client.get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?;
+    let mut request =
+        client.get_with_protocol(HttpProtocol::Http1, &format!("https://{origin_address}/"))?;
     let trace = request.diagnostics(NonZeroUsize::MIN.saturating_add(63));
     let response = timeout(TEST_TIMEOUT, request.send()).await??;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -210,7 +215,7 @@ async fn qlog_dir_that_does_not_exist_fails_the_connection_before_its_handshake(
     let result = timeout(
         TEST_TIMEOUT,
         client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send(),
     )
     .await?;
@@ -237,7 +242,7 @@ async fn send_http3_with_qlog(dir: &Path) -> TestResult<Vec<u8>> {
     let response = timeout(
         TEST_TIMEOUT,
         client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send(),
     )
     .await;

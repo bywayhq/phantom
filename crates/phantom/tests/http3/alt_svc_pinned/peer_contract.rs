@@ -24,7 +24,7 @@ async fn cancelling_a_driven_alternative_closes_its_connection_with_client_retai
         let (host, port) = alternative(address);
         let client = direct_client(&identity).build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{ORIGIN}/owner-cancellation"),
             )?
@@ -124,7 +124,7 @@ async fn a_completed_driven_alternative_failure_retains_its_original_type() -> T
         let (host, port) = alternative(address);
         let client = direct_client(&identity).build()?;
         let response = client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http3,
                 &format!("https://{ORIGIN}/typed-peer-failure"),
             )?

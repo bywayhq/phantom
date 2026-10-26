@@ -52,7 +52,7 @@ async fn multipart_reader_reaches_http1_and_http2_with_matching_type_and_no_leng
             let observed = collect_upload(
                 async {
                     let response = client
-                        .request(protocol, Method::POST, &url)?
+                        .request_with_protocol(protocol, Method::POST, &url)?
                         .template(&template)
                         .multipart_body(body)
                         .send()
@@ -97,7 +97,7 @@ async fn multipart_requires_content_type_placement_before_connecting() -> TestRe
         let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
         let body = StreamingMultipartBody::new("boundary", [], 1024)?;
         let error = client
-            .request(HttpProtocol::Http1, Method::POST, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
             .multipart_body(body)
             .send()
             .await
@@ -140,7 +140,7 @@ async fn multipart_does_not_replay_a_consumed_reader_on_307() -> TestResult<()> 
         });
         let operation = async {
             let error = client
-                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .request_with_protocol(HttpProtocol::Http1, Method::POST, &url)?
                 .header(RequestHeader::new("content-type", body.content_type()))
                 .multipart_body(body)
                 .send()

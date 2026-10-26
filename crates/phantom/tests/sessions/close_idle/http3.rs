@@ -52,7 +52,10 @@ async fn close_idle_replaces_http3_connections() -> TestResult<()> {
         let client = client(&identity)?;
         let url = format!("https://{address}/");
         for round in 0..2 {
-            let response = client.get(HttpProtocol::Http3, &url)?.send().await?;
+            let response = client
+                .get_with_protocol(HttpProtocol::Http3, &url)?
+                .send()
+                .await?;
             if response.status() != 204 {
                 return Err("unexpected status".into());
             }
@@ -100,12 +103,15 @@ async fn close_idle_preserves_http3_active_body_and_multiplexing() -> TestResult
         let client = client(&identity)?;
         let url = format!("https://{address}/");
         let held = client
-            .get(HttpProtocol::Http3, &url)?
+            .get_with_protocol(HttpProtocol::Http3, &url)?
             .send()
             .await?
             .into_body();
         client.close_idle_connections().await;
-        let second = client.get(HttpProtocol::Http3, &url)?.send().await?;
+        let second = client
+            .get_with_protocol(HttpProtocol::Http3, &url)?
+            .send()
+            .await?;
         if second.status() != 204 {
             return Err("unexpected second status".into());
         }

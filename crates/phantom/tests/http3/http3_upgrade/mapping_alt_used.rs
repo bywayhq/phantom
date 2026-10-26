@@ -52,13 +52,7 @@ async fn checked_setup_validates_only_later_plans_for_sequential_and_raced_alter
             )
             .await?;
             let teacher = upgrade_client_with(&identity, mapping_settings())?;
-            drain(
-                teacher
-                    .get_negotiated(&fixture.origin_url("/learn"))?
-                    .send()
-                    .await?,
-            )
-            .await?;
+            drain(teacher.get(&fixture.origin_url("/learn"))?.send().await?).await?;
             let snapshot = teacher.export_alt_svc().ok_or("Alt-Svc store missing")?;
             drop(teacher);
             let mut builder = upgrade_client_builder_with(&identity, mapping_settings())
@@ -76,7 +70,7 @@ async fn checked_setup_validates_only_later_plans_for_sequential_and_raced_alter
             let template = slotted_template()?;
             for path in ["/before-validation", "/after-validation"] {
                 let response = client
-                    .get_negotiated(&fixture.origin_url(path))?
+                    .get(&fixture.origin_url(path))?
                     .template(&template)
                     .send()
                     .await?;
@@ -128,7 +122,7 @@ async fn pinned_mapping_policy_sends_the_first_generated_field() -> TestResult<(
         let template = slotted_template()?;
         drain(
             client
-                .get(HttpProtocol::Http3, &fixture.origin_url("/pinned"))?
+                .get_with_protocol(HttpProtocol::Http3, &fixture.origin_url("/pinned"))?
                 .alt_svc_alternative(ORIGIN_NAME, fixture.alternative_address().port())
                 .template(&template)
                 .send()
@@ -184,27 +178,15 @@ async fn critical_ch_replay_keeps_the_unvalidated_plan_after_setup() -> TestResu
             .add_root_certificate_der(identity.root_der.clone())
             .alt_svc(NonZeroUsize::MIN)
             .build()?;
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/learn"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/learn"))?.send().await?).await?;
         let response = client
-            .get_negotiated(&fixture.origin_url("/critical"))?
+            .get(&fixture.origin_url("/critical"))?
             .header(RequestHeader::new("x-stable", "caller"))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         drain(response).await?;
-        drain(
-            client
-                .get_negotiated(&fixture.origin_url("/later"))?
-                .send()
-                .await?,
-        )
-        .await?;
+        drain(client.get(&fixture.origin_url("/later"))?.send().await?).await?;
         drop(client);
         let authority = fixture.alternative_address().to_string();
         let observed = fixture.finish().await?;

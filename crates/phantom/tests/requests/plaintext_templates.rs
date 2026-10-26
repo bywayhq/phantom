@@ -423,7 +423,7 @@ async fn send(
     let (mut heads, ()) = receive_heads(serve(listener, vec![no_content()]), async {
         let client = client(case.hints.clone(), route)?;
         let response = client
-            .get(HttpProtocol::Http1, url)?
+            .get_with_protocol(HttpProtocol::Http1, url)?
             .template(&PreparedRequestTemplate::new(case.template.clone())?)
             .headers(case.caller.clone())
             .send()
@@ -580,7 +580,7 @@ Content-Length: 0\r\n\r\n"
                     let client = client(Some(chrome::v154_windows_client_hints()), route)?;
                     for _ in 0..2 {
                         client
-                            .get(HttpProtocol::Http1, &url)?
+                            .get_with_protocol(HttpProtocol::Http1, &url)?
                             .template(&navigation)
                             .send()
                             .await?
@@ -654,7 +654,7 @@ Connection: close\r\nContent-Length: 0\r\n\r\n"
                     .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                     .build()?;
                 let response = client
-                    .get(HttpProtocol::Http1, "http://127.0.0.1/start")?
+                    .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1/start")?
                     .template(&template)
                     .content_decoding(ContentDecoding::advertised(1 << 20))
                     .send()

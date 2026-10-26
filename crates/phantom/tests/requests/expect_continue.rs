@@ -154,7 +154,7 @@ async fn http1_continue(control: Option<Control>) -> TestResult {
         };
 
         let response = plain_client()?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 target
@@ -229,7 +229,7 @@ async fn http1_wait_end(control: Option<Control>) -> TestResult {
         };
 
         let response = plain_client()?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 target
@@ -311,7 +311,7 @@ async fn http1_final(control: Option<Control>) -> TestResult {
         let client = plain_client()?;
         let url = target.unwrap_or_else(|| format!("http://{address}/upload"));
         let rejected = client
-            .request(HttpProtocol::Http1, Method::PUT, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::PUT, &url)?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
             .send()
@@ -320,7 +320,7 @@ async fn http1_final(control: Option<Control>) -> TestResult {
         rejected.into_body().collect().await?;
 
         let accepted = client
-            .request(HttpProtocol::Http1, Method::PUT, &url)?
+            .request_with_protocol(HttpProtocol::Http1, Method::PUT, &url)?
             .body("payload")
             .send()
             .await?;
@@ -397,7 +397,7 @@ async fn http1_redirect(control: Option<Control>) -> TestResult {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 target.as_deref().unwrap_or(&format!("http://{address}/upload")),
@@ -465,7 +465,7 @@ async fn http1_no_body(control: Option<Control>) -> TestResult {
         };
 
         let response = plain_client()?
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 target.as_deref().unwrap_or(&format!("http://{address}/")),
             )?
@@ -494,7 +494,7 @@ async fn http1_caller_field(control: Option<Control>) -> TestResult {
     let result = bounded(async {
         let client = plain_client()?;
         let error = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 "http://127.0.0.1:9/upload",
@@ -550,7 +550,7 @@ async fn http1_caller_field(control: Option<Control>) -> TestResult {
         };
 
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http1,
                 Method::PUT,
                 target
@@ -581,7 +581,7 @@ async fn http1_caller_field(control: Option<Control>) -> TestResult {
 #[tokio::test]
 async fn an_unrepresentable_wait_fails_before_any_connection() -> TestResult {
     let error = plain_client()?
-        .request(
+        .request_with_protocol(
             HttpProtocol::Http1,
             Method::PUT,
             "http://127.0.0.1:9/upload",
@@ -796,7 +796,7 @@ async fn http2_continue(control: Option<Control>) -> TestResult {
 
         let response = client_builder(&identity, true)
             .build()?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http2,
                 Method::PUT,
                 target
@@ -854,7 +854,7 @@ async fn negotiated_continue(control: Option<Control>) -> TestResult {
 
         let response = client_builder(&identity, true)
             .build()?
-            .request_negotiated(
+            .request(
                 Method::PUT,
                 target
                     .as_deref()
@@ -925,7 +925,7 @@ async fn http2_final(control: Option<Control>) -> TestResult {
 
         let response = client_builder(&identity, true)
             .build()?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http2,
                 Method::PUT,
                 target
@@ -998,7 +998,7 @@ async fn http2_final_body(control: Option<Control>) -> TestResult {
 
         let response = client_builder(&identity, true)
             .build()?
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http2,
                 Method::PUT,
                 target

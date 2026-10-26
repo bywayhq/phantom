@@ -84,9 +84,9 @@ async fn shared_attempt_budget_stops_hidden_graceful_goaway_replays() -> TestRes
             let budget = phantom::HttpAttemptBudget::new(1);
             let url = server.url("/limited");
             let request = if negotiated {
-                client.get_negotiated(&url)?
+                client.get(&url)?
             } else {
-                client.get(HttpProtocol::Http2, &url)?
+                client.get_with_protocol(HttpProtocol::Http2, &url)?
             };
             let error = request
                 .attempt_budget(budget.clone())
@@ -450,7 +450,7 @@ async fn refused_stream_replays_owned_body_post_when_policy_allows() -> TestResu
 
         let client = http2_client(&identity)?;
         let response = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
             .body(Bytes::from_static(b"payload"))
             .retry_policy(replay_policy(1)?)
             .send()
@@ -499,7 +499,7 @@ async fn goaway_above_last_stream_id_with_error_code_replays_when_policy_allows(
 
         let client = http2_client(&identity)?;
         let response = client
-            .request(HttpProtocol::Http2, Method::DELETE, &server.url("/item"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::DELETE, &server.url("/item"))?
             .body(Bytes::from_static(b"reason"))
             .retry_policy(replay_policy(1)?)
             .send()
@@ -537,7 +537,7 @@ async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
 
         let client = http2_client(&identity)?;
         let result = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
             .body(Bytes::from_static(b"payload"))
             .retry_policy(replay_policy(3)?)
             .send()
@@ -574,7 +574,7 @@ async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connectio
         .await?;
         let client = short_ping_timeout_client(&identity)?;
         let first = client
-            .request(HttpProtocol::Http2, Method::GET, &server.url("/first"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::GET, &server.url("/first"))?
             .send()
             .await?;
         assert_eq!(first.status(), StatusCode::OK);
@@ -583,7 +583,11 @@ async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connectio
         tokio::time::sleep(Duration::from_millis(1_500)).await;
         let error = expect_error(
             client
-                .request(HttpProtocol::Http2, Method::GET, &server.url("/unanswered"))?
+                .request_with_protocol(
+                    HttpProtocol::Http2,
+                    Method::GET,
+                    &server.url("/unanswered"),
+                )?
                 .retry_policy(replay_policy(1)?)
                 .send()
                 .await,
@@ -596,7 +600,7 @@ async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connectio
         );
 
         let next = client
-            .request(HttpProtocol::Http2, Method::GET, &server.url("/next"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::GET, &server.url("/next"))?
             .send()
             .await?;
         assert_eq!(next.status(), StatusCode::NO_CONTENT);
@@ -641,7 +645,7 @@ async fn unprocessed_replay_refuses_one_shot_streaming_body() -> TestResult {
 
         let client = http2_client(&identity)?;
         let result = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/stream"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/stream"))?
             .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
             .retry_policy(replay_policy(2)?)
             .send()
@@ -680,7 +684,7 @@ async fn refused_stream_replays_a_buffered_streaming_body() -> TestResult {
 
         let client = http2_client(&identity)?;
         let response = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
             .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
             .retry_policy(replay_policy(1)?)
             .send()
@@ -722,7 +726,7 @@ async fn unprocessed_replay_budget_is_bounded_across_redirects() -> TestResult {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let result = client
-            .get(HttpProtocol::Http2, &server.url("/first"))?
+            .get_with_protocol(HttpProtocol::Http2, &server.url("/first"))?
             .retry_policy(replay_policy(2)?)
             .send()
             .await;
@@ -760,7 +764,7 @@ async fn unprocessed_replay_is_disabled_by_default() -> TestResult {
 
         let client = http2_client(&identity)?;
         let result = client
-            .get(HttpProtocol::Http2, &server.url("/refused"))?
+            .get_with_protocol(HttpProtocol::Http2, &server.url("/refused"))?
             .send()
             .await;
         let error = expect_error(result, "a refused stream was replayed without policy")?;
@@ -799,7 +803,7 @@ async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResu
 
             let client = http2_client(&identity)?;
             let response = client
-                .get(HttpProtocol::Http2, &server.url("/graceful"))?
+                .get_with_protocol(HttpProtocol::Http2, &server.url("/graceful"))?
                 .retry_policy(phantom::RetryPolicy::none().with_max_retries(Some(0)))
                 .send()
                 .await?;
@@ -845,7 +849,7 @@ async fn replay_is_recorded_in_span() -> TestResult {
 
             let client = http2_client(&identity)?;
             let response = client
-                .request(HttpProtocol::Http2, Method::PATCH, &server.url("/span"))?
+                .request_with_protocol(HttpProtocol::Http2, Method::PATCH, &server.url("/span"))?
                 .body(Bytes::from_static(b"patch"))
                 .retry_policy(replay_policy(2)?)
                 .send()
@@ -939,7 +943,7 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
 
         let client = http3_client(&identity)?;
         let response = client
-            .request(
+            .request_with_protocol(
                 HttpProtocol::Http3,
                 Method::POST,
                 &format!("https://{address}/orders"),
@@ -1033,7 +1037,7 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
         let client = http3_client(&identity)?;
         let exchange = async {
             let first = client
-                .get(HttpProtocol::Http3, &format!("https://{address}/first"))?
+                .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/first"))?
                 .send()
                 .await?;
             assert_eq!(first.status(), StatusCode::OK);
@@ -1041,7 +1045,7 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
             goaway_received.await?;
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http3,
                     Method::PUT,
                     &format!("https://{address}/resource"),
@@ -1088,7 +1092,7 @@ async fn zero_shared_cap_returns_refused_stream_without_a_replay() -> TestResult
         .await?;
         let client = http2_client(&identity)?;
         let error = client
-            .request(HttpProtocol::Http2, Method::POST, &server.url("/capped"))?
+            .request_with_protocol(HttpProtocol::Http2, Method::POST, &server.url("/capped"))?
             .body(Bytes::from_static(b"payload"))
             .retry_policy(replay_policy(1)?.with_max_retries(Some(0)))
             .send()
@@ -1155,7 +1159,11 @@ mod tests {
             .await?;
             let client = http2_client(&identity)?;
             let request = client
-                .request(HttpProtocol::Http2, Method::POST, &server.url("/oversized"))?
+                .request_with_protocol(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &server.url("/oversized"),
+                )?
                 .body("payload!")
                 .send()
                 .await;
@@ -1189,7 +1197,7 @@ mod tests {
             })?;
             let client = http3_client(&identity)?;
             let request = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http3,
                     Method::POST,
                     &format!("https://{address}/oversized"),

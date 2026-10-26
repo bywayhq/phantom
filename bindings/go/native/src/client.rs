@@ -250,10 +250,16 @@ impl NativeClient {
         let method =
             Method::from_bytes(method.as_bytes()).map_err(|_| Failure::new("invalid_method"))?;
         let request = match self.protocol.as_str() {
-            "h1" => self.client.request(HttpProtocol::Http1, method, url),
-            "h2" => self.client.request(HttpProtocol::Http2, method, url),
-            "h3" => self.client.request(HttpProtocol::Http3, method, url),
-            "negotiated" => self.client.request_negotiated(method, url),
+            "h1" => self
+                .client
+                .request_with_protocol(HttpProtocol::Http1, method, url),
+            "h2" => self
+                .client
+                .request_with_protocol(HttpProtocol::Http2, method, url),
+            "h3" => self
+                .client
+                .request_with_protocol(HttpProtocol::Http3, method, url),
+            "negotiated" => self.client.request(method, url),
             _ => return Err(Failure::new("invalid_protocol")),
         };
         let mut request = request

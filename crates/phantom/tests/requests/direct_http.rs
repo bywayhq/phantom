@@ -49,7 +49,7 @@ async fn direct_http1_preserves_origin_form_order_and_streaming_body() -> TestRe
         let caller = async {
             let client = http1_client()?;
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("http://{address}/a/%2e%2e/final?value=%2f"),
@@ -106,7 +106,7 @@ async fn bounded_collection_accepts_exact_limit_and_rejects_excess() -> TestResu
         let caller = async {
             let client = http1_client()?;
             let exact = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/exact"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/exact"))?
                 .send()
                 .await?
                 .into_body()
@@ -115,7 +115,7 @@ async fn bounded_collection_accepts_exact_limit_and_rejects_excess() -> TestResu
             assert_eq!(exact, "direct");
 
             let Err(error) = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/excess"))?
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/excess"))?
                 .send()
                 .await?
                 .into_body()
@@ -157,7 +157,7 @@ async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> 
         let caller = async {
             let client = http1_client()?;
             let Err(conflict) = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("http://{address}/conflicting-trailers"),
@@ -172,7 +172,7 @@ async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> 
             assert_eq!(conflict.kind(), RequestErrorKind::RequestBody);
 
             let response = client
-                .request(
+                .request_with_protocol(
                     HttpProtocol::Http1,
                     Method::POST,
                     &format!("http://{address}/trailers"),
@@ -266,7 +266,7 @@ async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
             let client = http1_client()?;
             for (path, expected) in [("first", "first"), ("second", "second")] {
                 let response = client
-                    .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
                     .send()
                     .await?;
                 assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
@@ -323,7 +323,7 @@ async fn direct_plaintext_loopback_sends_and_learns_client_hints() -> TestResult
 
             for path in ["first", "second"] {
                 session
-                    .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
+                    .get_with_protocol(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
                     .send()
                     .await?
                     .into_body()
@@ -357,7 +357,7 @@ async fn http3_plaintext_fails_before_tcp_io() -> TestResult<()> {
         let target = format!("http://{origin_address}/unsupported");
 
         let error = client
-            .get(HttpProtocol::Http3, &target)?
+            .get_with_protocol(HttpProtocol::Http3, &target)?
             .send()
             .await
             .err()

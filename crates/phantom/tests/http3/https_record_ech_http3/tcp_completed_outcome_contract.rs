@@ -243,7 +243,7 @@ async fn drive_completed_exit(
         .resolve(ORIGIN_NAME, [Ipv4Addr::LOCALHOST.into()])
         .build()?;
     let response = client
-        .get(HttpProtocol::Http1, &origin.url("/completed-child-ready"))?
+        .get_with_protocol(HttpProtocol::Http1, &origin.url("/completed-child-ready"))?
         .send()
         .await?;
     let protocol = response

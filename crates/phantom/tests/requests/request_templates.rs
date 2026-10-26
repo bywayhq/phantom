@@ -324,7 +324,7 @@ async fn send_with_observed(
         let client = configure(builder, &url)?.build()?;
 
         let response = client
-            .get(protocol, &url)?
+            .get_with_protocol(protocol, &url)?
             .template(&PreparedRequestTemplate::new(template)?)
             .headers(caller)
             .send()
@@ -866,7 +866,7 @@ async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()
                 .add_root_certificate_der(identity.root_der.clone())
                 .build()?;
         let sent = client
-            .get_negotiated(&url)?
+            .get(&url)?
             .template(&PreparedRequestTemplate::new(
                 chrome::v154_windows_fetch_no_store_template(),
             )?)
@@ -1291,7 +1291,7 @@ async fn redirect_hop() -> TestResult<()> {
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = client
-            .get(HttpProtocol::Http1, &first_url)?
+            .get_with_protocol(HttpProtocol::Http1, &first_url)?
             .template(&PreparedRequestTemplate::new(
                 chrome::v154_windows_navigation_template(),
             )?)
@@ -1384,7 +1384,7 @@ async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> Tes
         let url = "https://127.0.0.1:9/";
         for template in templates {
             let mut builder = client
-                .get(HttpProtocol::Http2, url)?
+                .get_with_protocol(HttpProtocol::Http2, url)?
                 .template(&PreparedRequestTemplate::new(template)?)
                 .header(RequestHeader::new("referer", "https://127.0.0.1:9/"));
             if let Some(language) = language {
@@ -1415,7 +1415,7 @@ async fn brave_template_without_an_accept_language_fails_before_any_connection()
         brave::v154_windows_fetch_no_store_template(),
     ] {
         let error = client
-            .get(HttpProtocol::Http2, url)?
+            .get_with_protocol(HttpProtocol::Http2, url)?
             .template(&PreparedRequestTemplate::new(template)?)
             .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
             .header(RequestHeader::new("user-agent", "Mozilla/5.0"))
@@ -1437,7 +1437,7 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     // Nothing listens here; an attempted connection would fail differently.
     let url = "https://127.0.0.1:9/";
     let error = client
-        .get(HttpProtocol::Http2, url)?
+        .get_with_protocol(HttpProtocol::Http2, url)?
         .template(&PreparedRequestTemplate::new(
             chrome::v154_windows_fetch_no_store_template(),
         )?)
@@ -1452,7 +1452,7 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     // Automatic hints never go to an `http://` origin, but a caller hint
     // does, so it is refused there too.
     let error = client
-        .get(HttpProtocol::Http1, "http://127.0.0.1:9/")?
+        .get_with_protocol(HttpProtocol::Http1, "http://127.0.0.1:9/")?
         .template(&PreparedRequestTemplate::new(
             chrome::v154_windows_fetch_no_store_template(),
         )?)
@@ -1518,11 +1518,13 @@ async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> Te
         let template =
             PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
         let fetch = || {
-            client.get(HttpProtocol::Http1, &url).map(|request| {
-                request
-                    .template(&template)
-                    .header(RequestHeader::new("referer", url.as_str()))
-            })
+            client
+                .get_with_protocol(HttpProtocol::Http1, &url)
+                .map(|request| {
+                    request
+                        .template(&template)
+                        .header(RequestHeader::new("referer", url.as_str()))
+                })
         };
 
         let first = timeout(TEST_TIMEOUT, fetch()?.send())
@@ -1569,7 +1571,7 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
         let error = timeout(
             TEST_TIMEOUT,
             client
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .template(&PreparedRequestTemplate::new(
                     chrome::v154_windows_fetch_no_store_template(),
                 )?)
@@ -1601,7 +1603,7 @@ async fn template_without_http3_order_rejects_http3_before_any_connection() -> T
     let mut template = firefox::v157_windows_fetch_no_store_template();
     template.http3_fields = None;
     let error = client
-        .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
+        .get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:9/")?
         .template(&PreparedRequestTemplate::new(template)?)
         .send()
         .await
@@ -1634,7 +1636,7 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
         Route::socks5(Socks5Proxy::new(&format!("socks5://127.0.0.1:{port}"))?),
     ] {
         let error = client
-            .get_negotiated(&url)?
+            .get(&url)?
             .template(&template)
             .route(route)
             .send()
@@ -1652,7 +1654,7 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
 
     // A CONNECT-UDP route carries no negotiated request at all, and says so.
     let error = client
-        .get_negotiated(&url)?
+        .get(&url)?
         .template(&template)
         .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
             "https://127.0.0.1:{port}/udp/{{target_host}}/{{target_port}}/"
@@ -1674,7 +1676,7 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
     });
     let operation: TestResult<()> = async {
         let sent = client
-            .get_negotiated(&url)?
+            .get(&url)?
             .template(&template)
             .route(Route::http_proxy(HttpProxy::new(&format!(
                 "http://127.0.0.1:{port}"

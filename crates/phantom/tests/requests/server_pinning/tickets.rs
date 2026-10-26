@@ -40,7 +40,7 @@ async fn portable_tickets_require_the_same_canonical_origin_and_proxy_pins() -> 
         let caller = async {
             let url = format!("https://{address}/");
             source
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .send()
                 .await?
                 .into_body()
@@ -66,7 +66,7 @@ async fn portable_tickets_require_the_same_canonical_origin_and_proxy_pins() -> 
             }
             canonical.import_session_tickets(&snapshot, &key, &[])?;
             canonical
-                .get(HttpProtocol::Http1, &url)?
+                .get_with_protocol(HttpProtocol::Http1, &url)?
                 .send()
                 .await?
                 .into_body()

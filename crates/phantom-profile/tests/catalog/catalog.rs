@@ -14,6 +14,37 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 type ProfileFactory = fn() -> ClientProfile;
 
 #[test]
+fn profile_for_combines_one_recipe_and_request_kind() -> TestResult {
+    use phantom_profile::catalog::profile_for;
+
+    let settings = profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
+    assert_eq!(settings.http2(), browser::chrome::v154_windows().http2());
+    assert_eq!(
+        settings.request_template(),
+        Some(&browser::chrome::v154_windows_navigation_template())
+    );
+    assert!(
+        profile("chrome-154-windows")?
+            .instantiate(&[])?
+            .request_template()
+            .is_none()
+    );
+
+    assert!(matches!(
+        profile_for("unknown-browser", RequestTemplateKind::Navigation),
+        Err(CatalogError::UnknownProfile)
+    ));
+    assert!(matches!(
+        profile_for("edge-153-windows", RequestTemplateKind::Fetch),
+        Err(CatalogError::UnavailableTemplate {
+            kind: RequestTemplateKind::Fetch,
+            ..
+        })
+    ));
+    Ok(())
+}
+
+#[test]
 fn exact_lookup_never_replaces_a_missing_version_platform_or_revision() -> TestResult {
     for unknown in [
         "chrome-154",

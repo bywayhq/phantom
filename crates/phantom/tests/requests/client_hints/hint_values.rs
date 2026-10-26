@@ -183,7 +183,7 @@ async fn unsolicited_field(field: Option<(&str, &str)>) -> TestResult<Vec<u8>> {
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     });
     let operation = async {
-        let mut request = session.get(HttpProtocol::Http1, &url)?;
+        let mut request = session.get_with_protocol(HttpProtocol::Http1, &url)?;
         if let Some((name, value)) = field {
             request = request.header(RequestHeader::new(name, value));
         }
@@ -244,7 +244,10 @@ fn assert_one_value(headers: &HeaderMap, name: &str, value: &str) -> TestResult<
 }
 
 async fn collect_no_content(session: &Client, url: &str) -> TestResult<()> {
-    let response = session.get(HttpProtocol::Http2, url)?.send().await?;
+    let response = session
+        .get_with_protocol(HttpProtocol::Http2, url)?
+        .send()
+        .await?;
     if response.status() != StatusCode::NO_CONTENT {
         return Err("actual HTTP/2 control received a non-204 response".into());
     }

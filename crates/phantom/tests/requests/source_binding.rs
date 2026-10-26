@@ -54,7 +54,10 @@ async fn answer_one(listener: &TcpListener) -> TestResult<SocketAddr> {
 }
 
 async fn get(client: &Client, url: String) -> Result<(), RequestError> {
-    let response = client.get(HttpProtocol::Http1, &url)?.send().await?;
+    let response = client
+        .get_with_protocol(HttpProtocol::Http1, &url)?
+        .send()
+        .await?;
     drop(response);
     Ok(())
 }
@@ -227,7 +230,7 @@ async fn connect_udp_tcp_proxy_legs_leave_from_the_bound_address() -> TestResult
         .local_address(source)
         .route(Route::connect_udp(proxy))
         .build()?;
-        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
+        let request = client.get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
         let peer = timeout(TEST_TIMEOUT, async {
             tokio::select! {
                 accepted = listener.accept() => {
@@ -266,7 +269,7 @@ async fn connect_udp_http3_proxy_leg_leaves_from_the_bound_address() -> TestResu
             "https://{address}/udp/{{target_host}}/{{target_port}}/"
         ))?))
         .build()?;
-    let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
+    let request = client.get_with_protocol(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
     let peer = timeout(TEST_TIMEOUT, async {
         tokio::select! {
             incoming = endpoint.accept() => {
@@ -317,7 +320,7 @@ async fn connect_udp_proxy_legs_without_the_bound_family_fail_before_io() -> Tes
         let error = match timeout(
             TEST_TIMEOUT,
             client
-                .get(HttpProtocol::Http3, "https://[::1]:443/")?
+                .get_with_protocol(HttpProtocol::Http3, "https://[::1]:443/")?
                 .send(),
         )
         .await?
@@ -364,7 +367,7 @@ async fn http3_leaves_from_the_bound_address() -> TestResult<()> {
     };
     let request = async {
         let _ = client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send()
             .await;
         Ok::<_, RequestError>(())
@@ -390,7 +393,7 @@ async fn http3_without_an_address_of_the_bound_family_fails() -> TestResult<()> 
     let error = match timeout(
         TEST_TIMEOUT,
         client
-            .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{address}/"))?
             .send(),
     )
     .await?
@@ -450,7 +453,7 @@ async fn socks5_udp_association_sends_from_the_bound_address() -> TestResult<()>
     let response = timeout(
         TEST_TIMEOUT,
         client
-            .get(HttpProtocol::Http3, &format!("https://{origin}/"))?
+            .get_with_protocol(HttpProtocol::Http3, &format!("https://{origin}/"))?
             .send(),
     )
     .await??;

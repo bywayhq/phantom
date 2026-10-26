@@ -126,7 +126,7 @@ async fn dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live(
     let response = timeout(
         DEADLINE,
         client
-            .get(
+            .get_with_protocol(
                 HttpProtocol::Http1,
                 &format!("https://{origin_address}/ownership"),
             )?

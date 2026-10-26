@@ -128,9 +128,9 @@ async fn control(negotiated: bool) -> TestResult<()> {
                 observed = spare_ready => observed?,
             }
             let page = if negotiated {
-                client.get_negotiated(&page_uri)?
+                client.get(&page_uri)?
             } else {
-                client.get(HttpProtocol::Http1, &page_uri)?
+                client.get_with_protocol(HttpProtocol::Http1, &page_uri)?
             };
             let response = page.send().await?;
             assert_eq!(response.status(), 200);
@@ -223,7 +223,7 @@ async fn plaintext_policy_websocket_spare_is_claimed_by_ordinary_http_before_101
                 observed = spare_ready => observed?,
             }
             // Ordinary profile-policy plaintext uses the exact HTTP/1 pool.
-            let response = client.get_negotiated(&page_uri)?.send().await?;
+            let response = client.get(&page_uri)?.send().await?;
             assert_eq!(response.status(), 200);
             assert_eq!(response.into_body().collect().await?.to_bytes(), "done");
             release.send(()).map_err(|()| "plaintext 101 peer ended")?;

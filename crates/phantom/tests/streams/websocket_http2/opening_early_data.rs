@@ -75,9 +75,9 @@ async fn control(negotiated: bool, outcome: Outcome) -> TestResult<()> {
         let caller = async {
             let seed = format!("https://{address}/seed");
             let request = if negotiated {
-                client.get_negotiated(&seed)?
+                client.get(&seed)?
             } else {
-                client.get(HttpProtocol::Http2, &seed)?
+                client.get_with_protocol(HttpProtocol::Http2, &seed)?
             };
             let response = request.send().await?;
             assert_eq!(response.status(), 200);
