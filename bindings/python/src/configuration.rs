@@ -84,6 +84,7 @@ pub(super) fn retry_policy(settings: RetrySettings) -> PyResult<phantom::RetryPo
             policy
         }
     };
+
     if let Some(settings) = settings.status_retry {
         let statuses = settings
             .statuses
@@ -106,6 +107,7 @@ pub(super) fn retry_policy(settings: RetrySettings) -> PyResult<phantom::RetryPo
         }
         policy = policy.with_status_retry(status);
     }
+
     Ok(policy
         .with_reused_connection_replay(settings.reused_connection_replay)
         .with_unprocessed_replay(
@@ -291,7 +293,9 @@ mod tests {
                 None,
                 None,
             )?;
+
             let policy = retry_policy(fields.extract()?)?;
+
             assert_eq!(policy.max_connection_failures(), NonZeroUsize::new(3));
             assert_eq!(policy.delay(), Duration::from_millis(250));
             assert_eq!(policy.backoff_limit(), Some(Duration::from_secs(4)));
@@ -304,6 +308,7 @@ mod tests {
             let status = policy
                 .status_retry()
                 .ok_or_else(|| error::input("test_status_policy_missing"))?;
+
             assert!(status.retries(phantom::StatusCode::SERVICE_UNAVAILABLE));
             assert!(status.retries(phantom::StatusCode::TOO_MANY_REQUESTS));
             assert!(!status.retries(phantom::StatusCode::INTERNAL_SERVER_ERROR));
@@ -328,6 +333,7 @@ mod tests {
                 let code = std::ffi::CString::new(expression)
                     .map_err(|_| error::input("test_expression"))?;
                 let fields = py.eval(&code, None, None)?;
+
                 assert!(fields.extract::<RetrySettings>().is_err());
             }
 
@@ -339,10 +345,10 @@ mod tests {
                 None,
                 None,
             )?;
-            assert_eq!(
-                retry_policy(fields.extract()?)?,
-                phantom::RetryPolicy::none()
-            );
+
+            let policy = retry_policy(fields.extract()?)?;
+
+            assert_eq!(policy, phantom::RetryPolicy::none());
             Ok(())
         })
     }
