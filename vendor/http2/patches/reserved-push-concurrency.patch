@@ -1,0 +1,63 @@
+Backport a26b42746ae5c69fa32bb9411de3b5e7440cd165: charge reserved push streams to the local receive limit without counting response HEADERS again.
+
+diff --git a/src/client.rs b/src/client.rs
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -1017,9 +1017,9 @@
+     /// 0. If `max` is set to 0, then the remote will not be permitted to
+     /// initiate streams.
+     ///
+-    /// Note that streams in the reserved state, i.e., push promises that have
+-    /// been reserved but the stream has not started, do not count against this
+-    /// setting.
++    /// Although the HTTP/2 specification excludes streams in the reserved state
++    /// from this limit, this library counts reserved push streams against it to
++    /// protect resources. This includes promises whose responses have not started.
+     ///
+     /// Also note that if the remote *does* exceed the value set here, it is not
+     /// a protocol level error. Instead, the `http2` library will immediately reset
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -226,13 +226,14 @@
+         let is_initial = stream.state.recv_open(&frame)?;
+ 
+         if is_initial {
+-            // TODO: be smarter about this logic
+             if frame.stream_id() > self.last_processed_id {
+                 self.last_processed_id = frame.stream_id();
+             }
+ 
+-            // Increment the number of concurrent streams
+-            counts.inc_num_recv_streams(stream);
++            if !stream.is_counted {
++                // Reserved push streams already count toward the receive limit.
++                counts.inc_num_recv_streams(stream);
++            }
+         }
+ 
+         {
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -982,10 +982,6 @@
+             }
+         };
+ 
+-        // TODO: Streams in the reserved states do not count towards the concurrency
+-        // limit. However, it seems like there should be a cap otherwise this
+-        // could grow in memory indefinitely.
+-
+         // Ensure that we can reserve streams
+         self.actions.recv.ensure_can_reserve()?;
+ 
+@@ -1017,6 +1013,9 @@
+             let actions = &mut self.actions;
+ 
+             self.counts.transition(stream, |counts, stream| {
++                // Bound reserved remote streams even before response HEADERS.
++                // recv_headers observes is_counted and does not count them twice.
++                counts.inc_num_recv_streams(stream);
+                 let stream_valid = actions.recv.recv_push_promise(frame, stream);
+ 
+                 match stream_valid {

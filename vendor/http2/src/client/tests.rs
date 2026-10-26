@@ -2588,3 +2588,5 @@ mod received_trailers;
 mod queued_priority_suppression;
 
 mod live_weight_bands;
+
+mod security_hardening;

@@ -237,6 +237,27 @@ they apply to one request while the next keeps the connection defaults
 
 ## Security backports
 
+Three later upstream hardening fixes are retained without upgrading the
+baseline:
+
+- `duplicate-content-length.patch` rejects conflicting or invalid duplicate
+  Content-Length values, including HEAD responses and promised requests.
+  Equal numeric values remain valid.
+- `reserved-push-concurrency.patch` counts reserved push streams against the
+  local receive limit. Informational and final response headers do not count
+  them again; closing or rejecting a stream releases its slot.
+- `refused-stream-reset-budget.patch` charges buffered REFUSED_STREAM resets
+  against the local error-reset limit. Exhaustion sends
+  `GOAWAY(ENHANCE_YOUR_CALM, "too_many_internal_resets")`; an unlimited budget
+  stays unlimited. The backport retains this baseline's poll-based codec.
+
+These backport upstream commits
+[`d96d347`](https://github.com/0x676e67/http2/commit/d96d34751d79a19f8caa44b4565ceb451c719052),
+[`a26b427`](https://github.com/0x676e67/http2/commit/a26b42746ae5c69fa32bb9411de3b5e7440cd165)
+and [`8e9655f`](https://github.com/0x676e67/http2/commit/8e9655f8d7fd9fe7bf0ceb7ed61acdcbdf5ab984).
+`receive-security-tests.patch` adapts their regressions to the packaged
+crate's raw peer controls in `src/client/tests/security_hardening.rs`.
+
 The fork is based on h2 0.4.15 and does not carry later upstream fixes on its
 own. `empty-data-frame-budget.patch` backports the fix for RUSTSEC-2026-0258
 (GHSA-q83h-524g-xf6h, unbounded small and empty DATA frames), combining

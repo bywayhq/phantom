@@ -35,4 +35,8 @@ queued-priority-suppression-tests.patch
 queued-priority-suppression.patch
 queued-priority-cancel-tests.patch
 live-weight-bands.patch
+duplicate-content-length.patch
+reserved-push-concurrency.patch
+refused-stream-reset-budget.patch
+receive-security-tests.patch
 publish-identity.patch

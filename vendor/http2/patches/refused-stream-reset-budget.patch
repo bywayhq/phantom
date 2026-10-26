@@ -1,0 +1,56 @@
+Backport 8e9655f8d7fd9fe7bf0ceb7ed61acdcbdf5ab984 to the local poll-based codec: refused streams consume the local error-reset budget only when their reset is buffered.
+
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -1122,7 +1122,8 @@
+         &mut self,
+         cx: &mut Context,
+         dst: &mut Codec<T, Prioritized<B>>,
+-    ) -> Poll<io::Result<()>>
++        counts: &mut Counts,
++    ) -> Poll<Result<(), Error>>
+     where
+         T: AsyncWrite + Unpin,
+         B: Buf,
+@@ -1130,11 +1131,19 @@
+         if let Some(stream_id) = self.refused {
+             ready!(dst.poll_ready(cx))?;
+ 
++            if !counts.can_inc_num_local_error_resets() {
++                return Poll::Ready(Err(Error::library_go_away_data(
++                    Reason::ENHANCE_YOUR_CALM,
++                    "too_many_internal_resets",
++                )));
++            }
++
+             // Create the RST_STREAM frame
+             let frame = frame::Reset::new(stream_id, Reason::REFUSED_STREAM);
+ 
+             // Buffer the frame
+             dst.buffer(frame.into()).expect("invalid RST_STREAM frame");
++            counts.inc_num_local_error_resets();
+         }
+ 
+         self.refused = None;
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -194,13 +194,15 @@
+         &mut self,
+         cx: &mut Context,
+         dst: &mut Codec<T, Prioritized<B>>,
+-    ) -> Poll<io::Result<()>>
++    ) -> Poll<Result<(), Error>>
+     where
+         T: AsyncWrite + Unpin,
+     {
+         let mut me = self.inner.lock();
+         let me = &mut *me;
+-        me.actions.recv.send_pending_refusal(cx, dst)
++        me.actions
++            .recv
++            .send_pending_refusal(cx, dst, &mut me.counts)
+     }
+ 
+     /// Records a frame read from the peer for the preface PING. Returns `true`

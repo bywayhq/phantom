@@ -194,13 +194,15 @@ where
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, Prioritized<B>>,
-    ) -> Poll<io::Result<()>>
+    ) -> Poll<Result<(), Error>>
     where
         T: AsyncWrite + Unpin,
     {
         let mut me = self.inner.lock();
         let me = &mut *me;
-        me.actions.recv.send_pending_refusal(cx, dst)
+        me.actions
+            .recv
+            .send_pending_refusal(cx, dst, &mut me.counts)
     }
 
     /// Records a frame read from the peer for the preface PING. Returns `true`
@@ -982,10 +984,6 @@ impl Inner {
             }
         };
 
-        // TODO: Streams in the reserved states do not count towards the concurrency
-        // limit. However, it seems like there should be a cap otherwise this
-        // could grow in memory indefinitely.
-
         // Ensure that we can reserve streams
         self.actions.recv.ensure_can_reserve()?;
 
@@ -1017,6 +1015,9 @@ impl Inner {
             let actions = &mut self.actions;
 
             self.counts.transition(stream, |counts, stream| {
+                // Bound reserved remote streams even before response HEADERS.
+                // recv_headers observes is_counted and does not count them twice.
+                counts.inc_num_recv_streams(stream);
                 let stream_valid = actions.recv.recv_push_promise(frame, stream);
 
                 match stream_valid {

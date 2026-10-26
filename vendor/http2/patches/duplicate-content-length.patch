@@ -1,0 +1,52 @@
+Backport d96d34751d79a19f8caa44b4565ceb451c719052: validate every Content-Length, including HEAD responses and promised requests.
+
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -555,7 +555,7 @@
+ 
+         // A promised request "that indicates the presence of a request body
+         // MUST reset the promised stream with a stream error"
+-        if let Some(content_length) = req.headers().get(header::CONTENT_LENGTH) {
++        for content_length in req.headers().get_all(header::CONTENT_LENGTH) {
+             let parsed_length = parse_u64(content_length.as_bytes());
+             if parsed_length != Ok(0) {
+                 return Err(InvalidContentLength(parsed_length));
+diff --git a/src/proto/streams/recv.rs b/src/proto/streams/recv.rs
+--- a/src/proto/streams/recv.rs
++++ b/src/proto/streams/recv.rs
+@@ -235,11 +235,12 @@
+             counts.inc_num_recv_streams(stream);
+         }
+ 
+-        if !stream.content_length.is_head() {
++        {
+             use super::stream::ContentLength;
+             use http::header;
+ 
+-            if let Some(content_length) = frame.fields().get(header::CONTENT_LENGTH) {
++            let mut first_content_length = None;
++            for content_length in frame.fields().get_all(header::CONTENT_LENGTH) {
+                 let content_length = match frame::parse_u64(content_length.as_bytes()) {
+                     Ok(v) => v,
+                     Err(_) => {
+@@ -248,6 +249,19 @@
+                     }
+                 };
+ 
++                if let Some(first) = first_content_length {
++                    if content_length != first {
++                        proto_err!(stream: "conflicting content-length headers; stream={:?}", stream.id);
++                        return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
++                    }
++                } else {
++                    first_content_length = Some(content_length);
++                }
++            }
++
++            if let Some(content_length) =
++                first_content_length.filter(|_| !stream.content_length.is_head())
++            {
+                 stream.content_length = ContentLength::Remaining(content_length);
+                 // END_STREAM on headers frame with non-zero content-length is malformed.
+                 // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1

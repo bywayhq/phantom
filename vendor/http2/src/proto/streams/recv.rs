@@ -226,20 +226,22 @@ impl Recv {
         let is_initial = stream.state.recv_open(&frame)?;
 
         if is_initial {
-            // TODO: be smarter about this logic
             if frame.stream_id() > self.last_processed_id {
                 self.last_processed_id = frame.stream_id();
             }
 
-            // Increment the number of concurrent streams
-            counts.inc_num_recv_streams(stream);
+            if !stream.is_counted {
+                // Reserved push streams already count toward the receive limit.
+                counts.inc_num_recv_streams(stream);
+            }
         }
 
-        if !stream.content_length.is_head() {
+        {
             use super::stream::ContentLength;
             use http::header;
 
-            if let Some(content_length) = frame.fields().get(header::CONTENT_LENGTH) {
+            let mut first_content_length = None;
+            for content_length in frame.fields().get_all(header::CONTENT_LENGTH) {
                 let content_length = match frame::parse_u64(content_length.as_bytes()) {
                     Ok(v) => v,
                     Err(_) => {
@@ -248,6 +250,19 @@ impl Recv {
                     }
                 };
 
+                if let Some(first) = first_content_length {
+                    if content_length != first {
+                        proto_err!(stream: "conflicting content-length headers; stream={:?}", stream.id);
+                        return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
+                    }
+                } else {
+                    first_content_length = Some(content_length);
+                }
+            }
+
+            if let Some(content_length) =
+                first_content_length.filter(|_| !stream.content_length.is_head())
+            {
                 stream.content_length = ContentLength::Remaining(content_length);
                 // END_STREAM on headers frame with non-zero content-length is malformed.
                 // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
@@ -1107,7 +1122,8 @@ impl Recv {
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, Prioritized<B>>,
-    ) -> Poll<io::Result<()>>
+        counts: &mut Counts,
+    ) -> Poll<Result<(), Error>>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
@@ -1115,11 +1131,19 @@ impl Recv {
         if let Some(stream_id) = self.refused {
             ready!(dst.poll_ready(cx))?;
 
+            if !counts.can_inc_num_local_error_resets() {
+                return Poll::Ready(Err(Error::library_go_away_data(
+                    Reason::ENHANCE_YOUR_CALM,
+                    "too_many_internal_resets",
+                )));
+            }
+
             // Create the RST_STREAM frame
             let frame = frame::Reset::new(stream_id, Reason::REFUSED_STREAM);
 
             // Buffer the frame
             dst.buffer(frame.into()).expect("invalid RST_STREAM frame");
+            counts.inc_num_local_error_resets();
         }
 
         self.refused = None;
