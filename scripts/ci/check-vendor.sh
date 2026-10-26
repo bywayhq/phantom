@@ -282,8 +282,7 @@ case "${1:-}" in
     trap 'rm -rf "$native_staging"' EXIT
     scripts/ci/stage-btls-sys.sh "$native_staging/btls-sys"
     diff -qr --exclude=Cargo.lock --exclude=PHANTOM.md --exclude=NOTICE \
-      --exclude=publish-identity.patch --exclude=msvc-configuration-flags.patch \
-      --exclude=series --exclude=target \
+      --exclude=target \
       "$native_staging/btls-sys" vendor/btls-sys
     cargo check --manifest-path vendor/btls-sys/Cargo.toml --locked
     ;;

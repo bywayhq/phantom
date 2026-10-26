@@ -31,4 +31,6 @@ while IFS= read -r patch; do
   # Keep discovery of a parent repository from silently skipping these paths.
   (cd "$destination" && git --git-dir="$staging/no-repository" apply --check "$root/vendor/btls-sys/patches/$patch")
   (cd "$destination" && git --git-dir="$staging/no-repository" apply "$root/vendor/btls-sys/patches/$patch")
+  cp "$root/vendor/btls-sys/patches/$patch" "$destination/patches/$patch"
 done < "$root/vendor/btls-sys/patches/series"
+cp "$root/vendor/btls-sys/patches/series" "$destination/patches/series"

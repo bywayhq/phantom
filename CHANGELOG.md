@@ -15,6 +15,7 @@
 - Add opt-in public destination restrictions with `DestinationPolicy::public_only()`.
 - Strip registered secret headers across origins with
   `RedirectPolicy::credential_headers(...)`.
+  Reject cross-origin replays of buffered uploads with credential trailers.
 - Check native security fixes and fork ancestry alongside Rust advisories.
 - Update the security policy for published releases.
 
