@@ -442,7 +442,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn redirect_names_are_bounded_and_parsed_without_echoing_input() {
+    fn redirect_names_are_bounded_and_parsed_without_echoing_input() -> Result<()> {
         for names in [
             vec!["private invalid name".into()],
             vec![String::new()],
@@ -454,7 +454,9 @@ mod tests {
                 maximum_hops: None,
                 credential_headers: Some(names),
             };
-            let error = options.policy().err().expect("invalid names must fail");
+            let Err(error) = options.policy() else {
+                return Err(failure("TestFailure", "invalid names must fail"));
+            };
             assert!(!error.reason.contains("private"));
         }
         let options = RedirectPolicyOptions {
@@ -462,6 +464,7 @@ mod tests {
             maximum_hops: None,
             credential_headers: Some(vec!["X-Api-Key".into()]),
         };
-        assert_eq!(options.policy().expect("valid name").max_hops(), None);
+        assert_eq!(options.policy()?.max_hops(), None);
+        Ok(())
     }
 }
