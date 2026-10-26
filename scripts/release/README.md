@@ -74,10 +74,19 @@ checksums, registry index, and consumer lockfile.
 `--allow-dirty` is available for local preparation. Its archives are not
 the final release artifacts.
 
-The advisory check maps all renamed forks back to their upstream names and
-versions. It retains the complete audit report. A backport exception must
-name the exact upstream version and its retained patch. Review audit
-warnings and new native-library advisories as well as reported vulnerabilities.
+The advisory check retains the complete RustSec report, identity map and
+`retained-backports.json`. It checks direct upstream names and the HTTP/2 fork's
+`h2` lineage. That conservative `h2` baseline comes from the retained upstream
+changelog; it does not claim source equivalence. New findings and audit warnings
+stop the check.
+
+`advisory-fixes.json` binds each reviewed backport to exact source and patch
+hashes, patch-series membership and upstream identity. The BoringSSL check also
+requires the reviewed native revision and package version. Known Quinn source
+advisories have the same checks; its UDP dependency requires the reviewed fixed
+registry version. Refresh these records when those sources change, after
+reviewing the fix. These records cover the named advisories, not a live search
+for every upstream advisory.
 
 Before the first release, retain a public API listing with `cargo public-api`.
 Later releases compare against the previous published version with

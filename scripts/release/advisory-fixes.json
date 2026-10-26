@@ -1,7 +1,115 @@
 {
-  "RUSTSEC-2026-0258": {
-    "package": "http2",
-    "version": "0.5.20",
-    "evidence": "vendor/http2/PHANTOM.md; patches/empty-data-frame-budget.patch"
+  "lineage": [
+    {
+      "fork": "phantom-http2",
+      "upstream": [
+        "http2",
+        "0.5.20"
+      ],
+      "identity": [
+        "h2",
+        "0.4.15"
+      ],
+      "source": "https://github.com/0x676e67/http2/tree/v0.5.20",
+      "note": "Conservative advisory baseline from retained h2 changelog; not source equivalence.",
+      "files": {
+        "vendor/http2/CHANGELOG.md": "12d04d323772cd93980500bb0b1e9ef3c1d2d73a4b0a10ccb107961495cba7ec",
+        "vendor/http2/README.md": "c956bf6c819efd6a50fdf6f18d5825c56f81e9c588db472dfb43e134a534acb4"
+      }
+    }
+  ],
+  "rust-fixes": {
+    "RUSTSEC-2026-0258": {
+      "fork": "phantom-http2",
+      "identity": [
+        "h2",
+        "0.4.15"
+      ],
+      "files": {
+        "vendor/http2/src/client.rs": "8a5528e77f3cffc5c4865a4688f4c7aaf8dc71c651cd8704156b10b3157b01c1",
+        "vendor/http2/src/proto/connection.rs": "5726d03515e911797962cb624d8831aaceb03f6f5f7b7bea3f59e39d4904e51e",
+        "vendor/http2/src/proto/mod.rs": "d92f71aa1238ea2d1e60d1d3d0262c4b9890189a533f23d2e22181764ab0c107",
+        "vendor/http2/src/proto/streams/counts.rs": "af84771a50d7c6c5927733cba66eb9a181e90ae192da8df4e61166a71f57f679",
+        "vendor/http2/src/proto/streams/mod.rs": "dba2b5599ac28ee352db89e6a1b81ab3ff53d6d61912340d206a9483d4a993b5",
+        "vendor/http2/src/proto/streams/recv.rs": "791b29f6cb6c9818a6baab600a1852716f7027c9f1c9e3620791361ef3779d9c",
+        "vendor/http2/src/proto/streams/streams.rs": "5d2eac8e5197121319d182eae76e8fd53e8af598a3c978b931913909b3019d8c",
+        "vendor/http2/src/server.rs": "0a1ba28c2f399916dfc33a7ffcc49c4f25c800be1bf264a6bfe334c56a453b90"
+      },
+      "patches": {
+        "vendor/http2/patches/empty-data-frame-budget.patch": "5ce560d8ea8cd31a9b244477ec88ec7fabe5d6b9be6f43be373083666dd2e6fa"
+      }
+    }
+  },
+  "source-fixes": {
+    "CVE-2026-35189": {
+      "fork": "phantom-btls-sys",
+      "version": "0.5.6-phantom.3",
+      "boringssl-revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "upstream-fix": "9b639f5b3b086508c03f6a4a1792e4a6043777ac",
+      "source": "https://github.com/google/boringssl/blob/main/docs/advisories/2026-09-29.md",
+      "files": {
+        "vendor/btls-sys/deps/boringssl/include/openssl/x509.h": "077e3577776d73816ae792de2c4046847ba60d53e35937889721654295a8c11f",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/x_crl.cc": "718fa60a617995dae563ff6d7e627323ac16ec9ce326b0a92de51a18e3a3c84e",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/x509_vfy.cc": "ad916a648394276fb7a9701bac8dbdee4b758ac14f61717f911942c482fe08e6",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/internal.h": "f183f22e1c20532cc1abe72c8d3290b188ce985d3eab180adbe60f66b92673dd",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/v3_crld.cc": "0c0c2d3e3e10ec83bb19fe19bab8939de9fa5f3bdbcb4b7efe56fa1fccc4f43c",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/v3_purp.cc": "bb335b72ed0114524955813f48af88d5d7ba30d214c8819167b4a61374130000",
+        "vendor/btls-sys/deps/boringssl/crypto/x509/x509_test.cc": "52adeafcda9b5e638bcca732f260b71b4156b4d28204535a73704d6f80c8d92b"
+      },
+      "patches": {
+        "vendor/btls-sys/patches/relative-crldp-security.patch": "0eb2e702ded4110fbd7459693a27545f1acf4ab96abfd98359c64b69582027ff"
+      },
+      "upstream": [
+        "btls-sys",
+        "0.5.6"
+      ]
+    },
+    "GHSA-53rm-773f-4q8c": {
+      "fork": "phantom-quinn-proto",
+      "version": "0.11.18-phantom.7",
+      "upstream": [
+        "quinn-proto",
+        "0.11.18"
+      ],
+      "source": "https://github.com/quinn-rs/quinn/security/advisories/GHSA-53rm-773f-4q8c",
+      "upstream-fix": "73114d8289d42bd536c790fa00a9beed05a4e5fa",
+      "patches": {
+        "vendor/quinn-proto/patches/stream-limit-security.patch": "7bd5492ae77609da79f4df6c9482f769e6b8f53ab8da3f753d3130f6ccfb8505"
+      },
+      "files": {
+        "vendor/quinn-proto/src/connection/streams/state.rs": "b28ae1130c067124a9813a12be028d7eb9ee8e7548b616bc655c4398d4defb72"
+      }
+    },
+    "GHSA-wppq-2f6r-wfvm": {
+      "fork": "phantom-quinn-proto",
+      "version": "0.11.18-phantom.7",
+      "upstream": [
+        "quinn-proto",
+        "0.11.18"
+      ],
+      "source": "https://github.com/quinn-rs/quinn/security/advisories/GHSA-wppq-2f6r-wfvm",
+      "upstream-fixes": [
+        "74c33ff75281d7751488e410e21e4f030782b655",
+        "a6e78d1c8bf28630f1e92fbcc38f60e0a134b01a"
+      ],
+      "patches": {
+        "vendor/quinn-proto/patches/retry-token-rejection-security.patch": "1ad34fb6ff420a915a0f3ed2d276a98175265159c080e48c28ab6852f429ab80",
+        "vendor/quinn-proto/patches/initial-token-space-security.patch": "f482c1de8e0b0f045daab60db16c0f8292934b6ea913d1c4f7a5be9c953cf5bf"
+      },
+      "files": {
+        "vendor/quinn-proto/src/connection/mod.rs": "856138390603f0166ae3f8e979648b93ca1c8d7cdb0cd92bb5e8551b98a70e76",
+        "vendor/quinn-proto/src/connection/packet_builder.rs": "5a74a3b5044384f8d40073a1b0e14b746bfcb154492c7d1037347e559b763845",
+        "vendor/quinn-proto/src/tests/token.rs": "0996030424a37b8d3e0eab63bca69ef5a5c55295c7ce39e49dd2a264aaea5caf"
+      }
+    }
+  },
+  "registry-fixes": {
+    "GHSA-6pp4-4cxf-xf88": {
+      "identity": [
+        "quinn-udp",
+        "0.5.16"
+      ],
+      "source": "https://github.com/quinn-rs/quinn/security/advisories/GHSA-6pp4-4cxf-xf88"
+    }
   }
 }
