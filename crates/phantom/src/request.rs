@@ -1754,6 +1754,10 @@ pub(crate) enum RequestBodySource {
 }
 
 impl RequestBodySource {
+    pub(crate) fn has_credential_trailers(&self, policy: &RedirectPolicy) -> bool {
+        matches!(self, Self::Buffered(body) if body.has_credential_trailers(policy))
+    }
+
     fn has_trailers(&self) -> bool {
         match self {
             Self::Streaming(Some(body)) => body.metadata().has_trailers(),

@@ -5,6 +5,7 @@ use std::{
     convert::Infallible,
     future::Future,
     net::Ipv4Addr,
+    num::NonZeroUsize,
     pin::Pin,
     task::{Context, Poll},
     time::Duration,
@@ -15,7 +16,8 @@ use http::{HeaderMap, HeaderValue, Method, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
+    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestHeader, RequestTrailerName,
+    ResponseInfo,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, browser::chrome},
 };
 use tokio::{
@@ -198,6 +200,75 @@ async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> 
             framed,
             b"7\r\npayload\r\n0\r\nX-Repeat: alpha\r\nX-Middle: between\r\nX-Repeat: beta\r\n\r\n"
         );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn buffered_credential_trailers_never_reach_a_cross_origin_redirect_target() -> TestResult<()>
+{
+    bounded(async {
+        let source = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let source_address = source.local_addr()?;
+        let target = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let target_address = target.local_addr()?;
+        let server = spawn_peer(async move {
+            let (mut stream, _) = source.accept().await?;
+            let head = read_head(&mut stream).await?;
+            let expected = b"7\r\npayload\r\n0\r\nX-Api-Key: trailer-secret\r\n\r\n";
+            let mut body = vec![0_u8; expected.len()];
+            stream.read_exact(&mut body).await?;
+            assert!(head.starts_with(b"POST /start HTTP/1.1\r\n"));
+            assert_eq!(body, expected);
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 307 Temporary Redirect\r\nLocation: http://{target_address}/next\r\nContent-Length: 0\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await?;
+            Ok(())
+        });
+
+        let caller = async {
+            let client = http1_client()?;
+            let mut trailers = HeaderMap::new();
+            trailers.insert("x-api-key", HeaderValue::from_static("trailer-secret"));
+            let body = TrailerBody {
+                frames: [
+                    Frame::data(Bytes::from_static(b"payload")),
+                    Frame::trailers(trailers),
+                ]
+                .into(),
+            };
+            let Err(error) = client
+                .request_with_protocol(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{source_address}/start"),
+                )?
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN).credential_headers([
+                    http::header::HeaderName::from_static("x-api-key"),
+                ]))
+                .buffered_streaming_body_with_trailers(
+                    body,
+                    vec![RequestTrailerName::new("X-Api-Key")],
+                    64,
+                )
+                .send()
+                .await
+            else {
+                return Err("a credential trailer crossed origins".into());
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Redirect);
+            assert!(!error.to_string().contains("trailer-secret"));
+            assert!(timeout(NO_CONNECTION_WINDOW, target.accept()).await.is_err());
+            Ok(Some(client))
+        }
+        .await;
+        finish_peer(caller, server).await?;
         Ok(())
     })
     .await

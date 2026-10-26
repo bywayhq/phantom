@@ -166,6 +166,12 @@ impl ReplayBuffer {
         !self.trailer_names.is_empty()
     }
 
+    pub(crate) fn has_credential_trailers(&self, policy: &crate::RedirectPolicy) -> bool {
+        self.trailer_names
+            .iter()
+            .any(|name| policy.removes_credential_header(name.name()))
+    }
+
     pub(crate) fn exact_length(&self) -> Option<u64> {
         self.size_hint.exact()
     }

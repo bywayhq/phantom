@@ -220,7 +220,9 @@ impl RedirectPolicy {
     /// hop. They stay removed if a later hop returns to the original origin.
     /// Same-origin hops preserve them. Hooks run once, so their fields follow
     /// these rules. Generated cookies, client hints and proxy credentials keep
-    /// their own destination policies. This does not enable redirects.
+    /// their own destination policies. A cross-origin hop that retains a buffered
+    /// body with declared credential trailers fails with a redirect error.
+    /// This does not enable redirects.
     ///
     /// ```
     /// use std::num::NonZeroUsize;
@@ -398,6 +400,11 @@ impl RedirectState {
         }
         let same_origin = self.current_url.origin() == next_url.origin();
         if !same_origin {
+            if self.body.has_credential_trailers(&self.policy) {
+                return Err(RequestError::invalid_redirect_target(
+                    "cross-origin redirect cannot replay body-produced credential trailers",
+                ));
+            }
             self.headers
                 .retain(|header| !self.policy.removes_credential_header(header.name()));
             self.trailers

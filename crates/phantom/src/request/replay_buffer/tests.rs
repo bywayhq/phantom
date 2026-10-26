@@ -12,6 +12,8 @@ use phantom_net::request::RequestTrailerName;
 
 use super::{BufferedAttempt, NoReplay, ReplayBuffer};
 
+mod redirects;
+
 /// A body that yields scripted frames and then ends.
 struct Scripted {
     frames: VecDeque<Result<Frame<Bytes>, io::Error>>,
@@ -403,4 +405,23 @@ fn empty_frames_preserve_pending_takeover_and_owner_drop_cleanup() {
     assert_eq!(poll(&mut replay), Polled::End);
     assert!(replay.is_end_stream());
     assert!(super::lock(&shared).frames.is_empty());
+}
+
+#[test]
+fn credential_trailer_detection_uses_declared_names_without_reading_the_body() {
+    let policy = crate::RedirectPolicy::none()
+        .credential_headers([http::header::HeaderName::from_static("x-api-key")]);
+    for (names, expected) in [
+        (vec![], false),
+        (vec![RequestTrailerName::new("X-Checksum")], false),
+        (vec![RequestTrailerName::new("X-API-Key")], true),
+        (vec![RequestTrailerName::new("Authorization")], true),
+        (vec![RequestTrailerName::new("COOKIE2")], true),
+        (vec![RequestTrailerName::new("Cookie")], true),
+        (vec![RequestTrailerName::new("Proxy-Authorization")], true),
+    ] {
+        let buffer = ReplayBuffer::new(Scripted::data(&["body"]), names, 64);
+        assert_eq!(buffer.has_credential_trailers(&policy), expected);
+        assert_eq!(poll(&mut start(&buffer)), data("body"));
+    }
 }
