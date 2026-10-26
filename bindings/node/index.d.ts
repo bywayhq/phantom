@@ -185,6 +185,8 @@ export interface HostOverride {
 }
 /** At most 1024 combined records/addresses and 65536 UTF-8 bytes. */
 export interface NetworkOptions {
+  /** Restrict new direct connections to public IPs; proxies/custom streams are unsupported. */
+  readonly publicOnly?: boolean;
   /** Last core-canonical hostname wins; proxy-owned target resolution is unchanged. */
   readonly hostOverrides?: readonly HostOverride[];
   /** Last IP of each family wins; a single family excludes the other with no unbound fallback. */
@@ -211,8 +213,10 @@ export interface RestoreSessionOptions { readonly receivingRoutes?: readonly Ses
 export type ContentDecoding = Readonly<{mode: 'none'}>
   | Readonly<{mode: 'advertised'; maximumDecodedBytes: number | bigint}>;
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
-export type RedirectPolicy = Readonly<{mode: 'none'}>
-  | Readonly<{mode: 'limited'; maximumHops: number | bigint}>;
+/** Custom credential names are stripped permanently on cross-origin hops. */
+export type RedirectPolicy = (Readonly<{mode: 'none'}>
+  | Readonly<{mode: 'limited'; maximumHops: number | bigint}>)
+  & Readonly<{credentialHeaders?: readonly string[]}>;
 export interface ConnectionRetry {
   readonly maximum: number | bigint;
   readonly delayMs: number;

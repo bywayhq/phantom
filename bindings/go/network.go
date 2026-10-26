@@ -12,6 +12,9 @@ import (
 // Overrides, their addresses and local addresses together allow 1024 entries;
 // their UTF-8 representation, Interface and UnixSocket share the 64 KiB limit.
 type NetworkOptions struct {
+	// PublicOnly restricts new direct connections to ordinary public IPs.
+	// Proxies and custom streams are unsupported; existing connections remain reusable.
+	PublicOnly    bool
 	HostOverrides []HostOverride
 	// LocalAddresses bind sockets to these addresses. The last of each family
 	// wins; selecting only one family forbids an unbound fallback to the other.
@@ -39,6 +42,7 @@ type HostOverride struct {
 }
 
 type wireNetworkOptions struct {
+	PublicOnly     bool               `json:"public_only,omitempty"`
 	HostOverrides  []wireHostOverride `json:"host_overrides,omitempty"`
 	LocalAddresses []netip.Addr       `json:"local_addresses,omitempty"`
 	Interface      string             `json:"interface,omitempty"`
@@ -116,7 +120,7 @@ func networkWire(input *NetworkOptions) *wireNetworkOptions {
 	if input == nil {
 		return nil
 	}
-	result := &wireNetworkOptions{Interface: input.Interface,
+	result := &wireNetworkOptions{Interface: input.Interface, PublicOnly: input.PublicOnly,
 		LocalAddresses: slices.Clone(input.LocalAddresses),
 		HostOverrides:  make([]wireHostOverride, len(input.HostOverrides))}
 	if input.UnixSocket != nil {

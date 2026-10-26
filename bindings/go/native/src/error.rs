@@ -52,6 +52,7 @@ impl From<RequestError> for Failure {
             RequestErrorKind::Redirect => "redirect",
             RequestErrorKind::Resolve => "resolve",
             RequestErrorKind::Connect => "connect",
+            RequestErrorKind::DestinationDenied => "destination_denied",
             RequestErrorKind::Proxy => "proxy",
             RequestErrorKind::RuntimeUnavailable => "runtime_unavailable",
             RequestErrorKind::Capacity => "capacity",

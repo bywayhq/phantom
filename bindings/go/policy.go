@@ -1,6 +1,9 @@
 package phantom
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
 
 // DecodingMode selects encoded bytes or decoding of caller-advertised codings.
 type DecodingMode string
@@ -46,6 +49,23 @@ func contentDecodingWire(value ContentDecoding) (wireContentDecoding, error) {
 // The core owns method changes, byte-body replay and credential stripping.
 type RedirectPolicy struct {
 	MaximumHops uint64 `json:"maximum_hops"`
+	// CredentialHeaders adds names stripped permanently on cross-origin hops.
+	CredentialHeaders []string `json:"credential_headers,omitempty"`
+}
+
+func redirectPolicyWire(input RedirectPolicy) (RedirectPolicy, error) {
+	if len(input.CredentialHeaders) > 256 {
+		return RedirectPolicy{}, &Error{Kind: "input_limit"}
+	}
+	remaining := 64 * 1024
+	for _, name := range input.CredentialHeaders {
+		if len(name) > remaining {
+			return RedirectPolicy{}, &Error{Kind: "input_limit"}
+		}
+		remaining -= len(name)
+	}
+	input.CredentialHeaders = slices.Clone(input.CredentialHeaders)
+	return input, nil
 }
 
 // RedirectHistory contains the first requested number of selected hops.

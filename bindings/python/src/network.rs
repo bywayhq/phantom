@@ -4,7 +4,7 @@ use crate::error;
 use phantom::ClientBuilder;
 use pyo3::{
     prelude::*,
-    types::{PyString, PyTuple},
+    types::{PyBool, PyString, PyTuple},
 };
 use std::net::IpAddr;
 
@@ -17,6 +17,7 @@ pub(super) struct Network {
     locals: Vec<IpAddr>,
     interface: Option<String>,
     unix_socket: Option<String>,
+    public_only: bool,
 }
 
 fn text<'py>(value: &'py Bound<'_, PyAny>, kind: &'static str) -> PyResult<&'py str> {
@@ -51,7 +52,7 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         return Ok(Network::default());
     };
     let fields = tuple(value)?;
-    if !matches!(fields.len(), 3 | 4) {
+    if !matches!(fields.len(), 3..=5) {
         return Err(error::input("invalid_network"));
     }
     let overrides = fields.get_item(0)?;
@@ -59,8 +60,22 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
     let locals = fields.get_item(1)?;
     let locals = tuple(&locals)?;
     let interface = fields.get_item(2)?;
-    let unix_socket = if fields.len() == 4 {
-        Some(fields.get_item(3)?)
+    let public_only = if fields.len() == 5 {
+        fields
+            .get_item(4)?
+            .cast_exact::<PyBool>()
+            .map_err(|_| error::input("invalid_network"))?
+            .is_true()
+    } else {
+        false
+    };
+    let unix_socket = if fields.len() >= 4 {
+        let path = fields.get_item(3)?;
+        if fields.len() == 5 && path.is_none() {
+            None
+        } else {
+            Some(path)
+        }
     } else {
         None
     };
@@ -130,6 +145,7 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         Some(text(&interface, "invalid_network_interface")?.to_owned())
     };
     Ok(Network {
+        public_only,
         overrides,
         locals,
         interface,
@@ -162,6 +178,9 @@ impl Network {
                 return Err(error::input("unsupported_platform"));
             }
         }
+        if self.public_only {
+            builder = builder.destination_policy(phantom::DestinationPolicy::public_only());
+        }
         Ok(builder)
     }
 }
@@ -181,6 +200,8 @@ mod tests {
             )?;
             for source in [
                 c"([], (), None)",
+                c"((), (), None, None, 1)",
+                c"((), (), None, None, None)",
                 c"((), (), None, None)",
                 c"((), (), None, '')",
                 c"((), (), None, 'private\\x00path')",
@@ -211,6 +232,10 @@ mod tests {
             assert!(owned.overrides[0].1.is_empty());
             assert_eq!(owned.overrides[1].1.len(), 2);
             assert_eq!(owned.locals.len(), 1);
+            let public = py.eval(c"((), (), None, None, True)", None, None)?;
+            let owned = parse(Some(&public))?;
+            assert!(owned.public_only);
+            assert!(owned.unix_socket.is_none());
             let boundary = py.eval(c"((), (), 'é' * 32768)", None, None)?;
             assert!(parse(Some(&boundary)).is_ok());
             let path = py.eval(c"((), (), None, '/private/socket')", None, None)?;

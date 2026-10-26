@@ -314,3 +314,37 @@ func TestNetworkCoreRejectsInvalidNamesBindingsAndInterface(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicOnlyDeniesLiteralAndOverriddenLoopback(t *testing.T) {
+	var connections atomic.Int64
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("denied request reached peer") }))
+	defer server.Close()
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	server.Start()
+	client, err := New(Config{Profile: profile, Protocol: "h1", Timeout: 5 * time.Second,
+		Network: &NetworkOptions{PublicOnly: true, HostOverrides: []HostOverride{{Host: "network.invalid", Addresses: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	port := server.Listener.Addr().(*net.TCPAddr).Port
+	for _, host := range []string{"127.0.0.1", "network.invalid"} {
+		response, err := client.Do(context.Background(), Request{Method: "GET", URL: fmt.Sprintf("http://%s:%d/", host, port)})
+		if response != nil {
+			if err := response.Body.Close(); err != nil {
+				t.Error(err)
+			}
+			t.Fatal("denied request returned a response")
+		}
+		if kind(err) != "destination_denied" {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if connections.Load() != 0 {
+		t.Fatal("denied address was connected")
+	}
+}

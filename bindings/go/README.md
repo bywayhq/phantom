@@ -261,7 +261,12 @@ Messages omit URLs, credentials and native source chains. Responses retain
 counter covers caller-enabled setup retries only.
 
 `Config.RedirectPolicy` and `RetryPolicy` default to disabled. Set
-`RedirectPolicy{MaximumHops: 5}` to follow redirects. Use `StatusRetry` or
+`RedirectPolicy{MaximumHops: 5}` to follow redirects. Add
+`CredentialHeaders: []string{"x-api-key"}` to strip custom secrets permanently
+when a redirect changes origin. Standard credentials are always stripped.
+Use `NetworkOptions{PublicOnly: true}` to admit only public IPs for new direct
+connections. Proxies and custom streams are unsupported; live pools stay usable.
+Use `StatusRetry` or
 `ConnectionRetry` for bounded retries, with optional capped backoff, jitter and
 `Retry-After`. Request pointers inherit when nil and replace the whole policy
 otherwise. `Request.RedirectHistoryLimit` retains selected hops and their URLs.

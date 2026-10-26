@@ -17,6 +17,7 @@ pub(super) struct NetworkOptions {
     local_addresses: Vec<String>,
     interface: Option<String>,
     unix_socket: Option<String>,
+    public_only: bool,
 }
 
 #[derive(Deserialize)]
@@ -82,6 +83,9 @@ impl NetworkOptions {
         }
         if let Some(name) = self.interface {
             builder = builder.interface(&name);
+        }
+        if self.public_only {
+            builder = builder.destination_policy(phantom::DestinationPolicy::public_only());
         }
         Ok(builder)
     }

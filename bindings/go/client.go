@@ -100,6 +100,10 @@ func New(config Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	redirects, err := redirectPolicyWire(config.RedirectPolicy)
+	if err != nil {
+		return nil, err
+	}
 	retries, err := retryPolicyWire(config.RetryPolicy)
 	if err != nil {
 		return nil, err
@@ -170,7 +174,7 @@ func New(config Config) (*Client, error) {
 		RetryPolicy        wireRetryPolicy         `json:"retry_policy"`
 		Network            *wireNetworkOptions     `json:"network,omitempty"`
 		Pool               *wirePoolOptions        `json:"pool,omitempty"`
-	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, config.RedirectPolicy, retries, networkWire(config.Network), pool}
+	}{config.Profile, profileID, config.Protocol, config.Context, config.Proxy, !config.DisableCookies, config.BaseURL, config.ProxyCredentials, originRoots, proxyRoots, config.ServerSPKIPins, config.ProxyServerSPKIPins, certificate, certificateOrigins, timeouts, redirects, retries, networkWire(config.Network), pool}
 	value, err := dispatch(map[string]any{"kind": "new_client", "config": wire}, nil)
 	if err != nil {
 		return nil, err

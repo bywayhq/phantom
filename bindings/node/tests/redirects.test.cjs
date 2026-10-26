@@ -114,11 +114,14 @@ test('cross-origin credentials stay stripped even after returning to the origina
     response.end('ok');
   });
   const response = await client(t).request(first + '/start', {...options,
-    redirectPolicy: limited(2), headers: [field('authorization', 'Bearer private'), field('cookie', 'private=value')]});
+    redirectPolicy: {...limited(2), credentialHeaders: ['x-api-key']},
+    headers: [field('authorization', 'Bearer private'), field('cookie', 'private=value'), field('X-Api-Key', 'custom-secret')]});
   assert.equal(await response.text(2), 'ok');
   assert.equal(observed[0].authorization, 'Bearer private'); assert.equal(observed[0].cookie, 'private=value');
+  assert.equal(observed[0]['x-api-key'], 'custom-secret');
   for (const hop of observed.slice(1)) {
     assert.equal(hop.authorization, undefined); assert.equal(hop.cookie, undefined);
+    assert.equal(hop['x-api-key'], undefined);
   }
   assert.equal(observed.length, 3);
 });

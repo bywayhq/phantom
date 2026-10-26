@@ -194,20 +194,40 @@ def _redirect_count(value: int, *, positive: bool = False) -> int:
 
 @dataclass(frozen=True)
 class RedirectPolicy:
-    """Follow at most maximum_hops redirects; zero returns redirect responses."""
+    """Follow bounded redirects, stripping credential_headers across origins."""
 
     maximum_hops: int = 0
+    credential_headers: tuple[str, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         _redirect_count(self.maximum_hops)
+        if type(self.credential_headers) is not tuple:
+            raise TypeError("credential_headers must be a tuple")
+        if len(self.credential_headers) > 256:
+            raise ValueError("redirect credential names exceed 256 fields")
+        remaining = 65536
+        for name in self.credential_headers:
+            if type(name) is not str:
+                raise TypeError("credential_headers must contain strings")
+            if len(name) > remaining:
+                raise ValueError("redirect credential names exceed 65536 bytes")
+            try:
+                size = len(name.encode("utf-8"))
+            except UnicodeError:
+                raise ValueError("invalid redirect credential name") from None
+            remaining -= size
+            if remaining < 0:
+                raise ValueError("redirect credential names exceed 65536 bytes")
 
     @classmethod
     def none(cls) -> RedirectPolicy:
         return cls()
 
     @classmethod
-    def limited(cls, maximum_hops: int) -> RedirectPolicy:
-        return cls(_redirect_count(maximum_hops, positive=True))
+    def limited(
+        cls, maximum_hops: int, *, credential_headers: tuple[str, ...] = ()
+    ) -> RedirectPolicy:
+        return cls(_redirect_count(maximum_hops, positive=True), credential_headers)
 
 
 def _retry_count(value: int, *, positive: bool = False) -> int:

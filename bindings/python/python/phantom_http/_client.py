@@ -53,10 +53,12 @@ from ._transfer import TransferControl
 
 
 class _DiagnosticsFields(TypedDict, total=False):
+    redirect_credential_headers: tuple[str, ...]
     diagnostics: _native.NativeRequestDiagnostics
 
 
 class _ClientFields(TypedDict, total=False):
+    redirect_credential_headers: tuple[str, ...]
     network: _NetworkFields
     pool: _PoolFields
     server_spki_pins: tuple[bytes, ...]
@@ -162,6 +164,10 @@ class AsyncClient:
             client_fields["pool"] = pool_fields
         if network_fields is not None:
             client_fields["network"] = network_fields
+        if redirect_policy is not None and redirect_policy.credential_headers:
+            client_fields["redirect_credential_headers"] = (
+                redirect_policy.credential_headers
+            )
         self._native = _call(
             _native.NativeClient,
             profile._native if isinstance(profile, Profile) else profile,
@@ -389,6 +395,10 @@ class AsyncClient:
             diagnostic_fields: _DiagnosticsFields = {}
             if diagnostics is not None:
                 diagnostic_fields["diagnostics"] = diagnostics._native
+            if redirect_policy is not None and redirect_policy.credential_headers:
+                diagnostic_fields["redirect_credential_headers"] = (
+                    redirect_policy.credential_headers
+                )
             arguments = (
                 method,
                 url,

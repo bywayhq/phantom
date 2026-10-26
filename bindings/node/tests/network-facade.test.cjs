@@ -85,3 +85,13 @@ test('Unix socket paths are copied without expansion and share the network byte 
   }}), {code: 'InvalidArgument'});
   assert.equal(getters, 0); assert.equal(calls.length, 2);
 });
+
+test('public-only selection is explicit and requires a boolean', () => {
+  const {Client, calls} = facade();
+  new Client({profile: 'exact', route: 'direct', network: {publicOnly: true}});
+  assert.equal(calls[0].network.publicOnly, true);
+  for (const publicOnly of [null, 1, 'true', {}]) {
+    assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {publicOnly}}), {code: 'InvalidArgument'});
+  }
+  assert.equal(calls.length, 1);
+});

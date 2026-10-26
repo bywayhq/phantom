@@ -3,7 +3,7 @@ use std::{num::NonZeroUsize, time::Duration};
 use phantom::{RequestTimeoutOverrides, RequestTimeouts, Route, TimeoutOverride};
 use pyo3::{
     prelude::*,
-    types::{PyBytes, PyTuple},
+    types::{PyBytes, PyString, PyTuple},
 };
 
 use crate::error;
@@ -120,11 +120,61 @@ pub(super) fn retry_policy(settings: RetrySettings) -> PyResult<phantom::RetryPo
         .with_http2_fallback(settings.http2_fallback))
 }
 
-pub(super) fn redirect_policy(maximum: usize) -> phantom::RedirectPolicy {
-    NonZeroUsize::new(maximum).map_or_else(
-        phantom::RedirectPolicy::none,
-        phantom::RedirectPolicy::limited,
-    )
+pub(super) fn redirect_policy(
+    maximum: Option<usize>,
+    names: Option<&Bound<'_, PyAny>>,
+) -> PyResult<Option<phantom::RedirectPolicy>> {
+    let Some(maximum) = maximum else {
+        if names.is_some() {
+            return Err(error::input("invalid_redirect_policy"));
+        }
+        return Ok(None);
+    };
+    let mut parsed = Vec::new();
+    if let Some(names) = names {
+        let names = names
+            .cast_exact::<PyTuple>()
+            .map_err(|_| error::input("invalid_redirect_policy"))?;
+        if names.len() > 256 {
+            return Err(error::input("input_limit"));
+        }
+        let mut remaining = 65536_usize;
+        for name in names.iter() {
+            let name = name
+                .cast_exact::<PyString>()
+                .map_err(|_| error::input("invalid_redirect_policy"))?;
+            if name.len()? > remaining {
+                return Err(error::input("input_limit"));
+            }
+            let name = name
+                .to_str()
+                .map_err(|_| error::input("invalid_redirect_policy"))?;
+            remaining = remaining
+                .checked_sub(name.len())
+                .ok_or_else(|| error::input("input_limit"))?;
+        }
+        for name in names.iter() {
+            let name = name
+                .cast_exact::<PyString>()
+                .map_err(|_| error::input("invalid_redirect_policy"))?;
+            parsed.push(
+                http::header::HeaderName::from_bytes(
+                    name.to_str()
+                        .map_err(|_| error::input("invalid_redirect_policy"))?
+                        .as_bytes(),
+                )
+                .map_err(|_| error::input("invalid_redirect_policy"))?,
+            );
+        }
+    }
+    Ok(Some(
+        NonZeroUsize::new(maximum)
+            .map_or_else(
+                phantom::RedirectPolicy::none,
+                phantom::RedirectPolicy::limited,
+            )
+            .credential_headers(parsed),
+    ))
 }
 
 pub(super) fn route(
@@ -233,6 +283,34 @@ pub(super) fn client_timeouts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn redirect_names_are_exact_bounded_and_parsed() -> pyo3::PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| {
+            for source in [
+                c"[]",
+                c"('private invalid name',)",
+                c"('',)",
+                c"('x',) * 257",
+                c"('x' * 65537,)",
+                c"(1,)",
+            ] {
+                let value = py.eval(source, None, None)?;
+                assert!(super::redirect_policy(Some(1), Some(&value)).is_err());
+            }
+            let names = py.eval(c"('X-Api-Key',)", None, None)?;
+            assert!(super::redirect_policy(None, Some(&names)).is_err());
+            let policy = super::redirect_policy(Some(1), Some(&names))?;
+            assert_eq!(
+                policy
+                    .and_then(|policy| policy.max_hops())
+                    .map(std::num::NonZeroUsize::get),
+                Some(1)
+            );
+            Ok(())
+        })
+    }
 
     #[test]
     fn native_pin_boundary_rejects_invalid_shapes_and_keeps_core_canonicalization() -> PyResult<()>

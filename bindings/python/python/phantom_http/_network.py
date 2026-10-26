@@ -9,6 +9,13 @@ _NetworkDefaults: TypeAlias = tuple[
 _NetworkFields: TypeAlias = (
     _NetworkDefaults
     | tuple[tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str]
+    | tuple[
+        tuple[tuple[str, tuple[str, ...]], ...],
+        tuple[str, ...],
+        str | None,
+        str | None,
+        bool,
+    ]
 )
 
 
@@ -53,17 +60,22 @@ class NetworkOptions:
     URL authority and TLS verification. TCP recipes, proxies, H3, source/DNS
     overrides and encrypted session checkpoints are unavailable with it.
     Paths are used verbatim; the library does not create or remove them.
+    public_only admits public IPs for new direct connections. It excludes
+    special-purpose ranges and cannot enforce proxy egress or revoke live pools.
     """
 
     host_overrides: tuple[HostOverride, ...] = field(default=(), repr=False)
     local_addresses: tuple[str, ...] = field(default=(), repr=False)
     interface: str | None = field(default=None, repr=False)
     unix_socket: str | None = field(default=None, repr=False)
+    public_only: bool = False
 
     def __post_init__(self) -> None:
         self._native_fields()
 
     def _native_fields(self) -> _NetworkFields:
+        if type(self.public_only) is not bool:
+            raise TypeError("public_only must be boolean")
         if type(self.host_overrides) is not tuple:
             raise TypeError("host_overrides must be a tuple")
         if type(self.local_addresses) is not tuple:
@@ -96,6 +108,8 @@ class NetworkOptions:
             self.local_addresses,
             self.interface,
         )
+        if self.public_only:
+            return (*fields, self.unix_socket, True)
         if self.unix_socket is not None:
             return (*fields, self.unix_socket)
         return fields

@@ -122,7 +122,7 @@ pub(super) struct NativeClient {
 #[pymethods]
 impl NativeClient {
     #[new]
-    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None, client_certificate=None, client_certificates_for=None, network=None, pool=None))]
+    #[pyo3(signature = (profile, protocol, context=None, proxy=None, cookies=true, timeout_ms=None, base_url=None, roots=Vec::new(), proxy_roots=Vec::new(), proxy_username=None, proxy_password=None, timeouts=None, redirect_maximum_hops=None, retry_policy=None, server_spki_pins=None, proxy_server_spki_pins=None, client_certificate=None, client_certificates_for=None, network=None, pool=None, redirect_credential_headers=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         profile: &Bound<'_, PyAny>,
@@ -145,6 +145,7 @@ impl NativeClient {
         client_certificates_for: Option<&Bound<'_, PyAny>>,
         network: Option<&Bound<'_, PyAny>>,
         pool: Option<&Bound<'_, PyAny>>,
+        redirect_credential_headers: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let network = network::parse(network)?;
         let pool = pool::parse(pool)?;
@@ -161,8 +162,10 @@ impl NativeClient {
         let mut builder = Client::builder(profile)
             .route(configuration::route(proxy, proxy_username, proxy_password)?)
             .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
-        if let Some(maximum) = redirect_maximum_hops {
-            builder = builder.redirect_policy(configuration::redirect_policy(maximum));
+        if let Some(policy) =
+            configuration::redirect_policy(redirect_maximum_hops, redirect_credential_headers)?
+        {
+            builder = builder.redirect_policy(policy);
         }
         if let Some(policy) = retry_policy {
             builder = builder.retry_policy(configuration::retry_policy(policy)?);
@@ -256,7 +259,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None, redirect_credential_headers=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -281,6 +284,7 @@ impl NativeClient {
         body_length: Option<Bound<'_, PyAny>>,
         diagnostics: Option<PyRef<'_, NativeRequestDiagnostics>>,
         multipart: Option<PyRef<'_, NativeStreamingMultipart>>,
+        redirect_credential_headers: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
@@ -359,8 +363,10 @@ impl NativeClient {
         if let Some(maximum) = maximum_decoded_bytes {
             request = request.content_decoding(phantom::ContentDecoding::advertised(maximum));
         }
-        if let Some(maximum) = redirect_maximum_hops {
-            request = request.redirect_policy(configuration::redirect_policy(maximum));
+        if let Some(policy) =
+            configuration::redirect_policy(redirect_maximum_hops, redirect_credential_headers)?
+        {
+            request = request.redirect_policy(policy);
         }
         if let Some(maximum) = redirect_history_limit {
             request = request.redirect_history(

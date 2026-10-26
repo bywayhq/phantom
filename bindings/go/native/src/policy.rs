@@ -68,16 +68,38 @@ fn history_maximum(maximum: u64) -> Result<NonZeroUsize, Failure> {
 pub(super) struct RedirectPolicy {
     #[serde(default)]
     maximum_hops: u64,
+    #[serde(default)]
+    credential_headers: Vec<String>,
 }
 
 impl RedirectPolicy {
     pub(super) fn core(self) -> Result<phantom::RedirectPolicy, Failure> {
         let maximum = usize::try_from(self.maximum_hops)
             .map_err(|_| Failure::new("invalid_redirect_policy"))?;
-        Ok(NonZeroUsize::new(maximum).map_or_else(
-            phantom::RedirectPolicy::none,
-            phantom::RedirectPolicy::limited,
-        ))
+        if self.credential_headers.len() > 256
+            || self
+                .credential_headers
+                .iter()
+                .map(String::len)
+                .sum::<usize>()
+                > 65536
+        {
+            return Err(Failure::new("input_limit"));
+        }
+        let names = self
+            .credential_headers
+            .iter()
+            .map(|name| {
+                http::header::HeaderName::from_bytes(name.as_bytes())
+                    .map_err(|_| Failure::new("invalid_redirect_policy"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(NonZeroUsize::new(maximum)
+            .map_or_else(
+                phantom::RedirectPolicy::none,
+                phantom::RedirectPolicy::limited,
+            )
+            .credential_headers(names))
     }
 }
 
@@ -151,6 +173,16 @@ mod tests {
             r#"{"maximum_hops":1,"extra":true}"#,
         ] {
             assert!(serde_json::from_str::<RedirectPolicy>(input).is_err());
+        }
+        for input in [
+            serde_json::json!({"credential_headers": ["private invalid name"]}),
+            serde_json::json!({"credential_headers": [""]}),
+            serde_json::json!({"credential_headers": ["x".repeat(65537)]}),
+            serde_json::json!({"credential_headers": vec!["x"; 257]}),
+        ] {
+            let policy: RedirectPolicy =
+                serde_json::from_value(input).map_err(|_| Failure::new("invalid_json"))?;
+            assert!(policy.core().is_err());
         }
         assert_eq!(RedirectPolicy::default().core()?.max_hops(), None);
         let policy: RedirectPolicy = serde_json::from_str(r#"{"maximum_hops":7}"#)

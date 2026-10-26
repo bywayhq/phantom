@@ -228,8 +228,16 @@ class NativeClient:
         | tuple[
             tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str
         ]
+        | tuple[
+            tuple[tuple[str, tuple[str, ...]], ...],
+            tuple[str, ...],
+            str | None,
+            str | None,
+            bool,
+        ]
         | None = None,
         pool: tuple[int | float | None, ...] | None = None,
+        redirect_credential_headers: tuple[str, ...] | None = None,
     ) -> None: ...
     @property
     def cookies(self) -> NativeCookies: ...
@@ -272,6 +280,7 @@ class NativeClient:
         body_length: int | None = None,
         diagnostics: NativeRequestDiagnostics | None = None,
         multipart: NativeStreamingMultipart | None = None,
+        redirect_credential_headers: tuple[str, ...] | None = None,
     ) -> Awaitable[NativeResponse]: ...
     def close_idle_connections(self) -> Awaitable[None]: ...
     def refresh_connections(self) -> Awaitable[None]: ...

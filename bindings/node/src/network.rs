@@ -66,6 +66,9 @@ pub(crate) fn apply(mut builder: ClientBuilder, options: NetworkOptions) -> Resu
             ));
         }
     }
+    if options.public_only.unwrap_or(false) {
+        builder = builder.destination_policy(phantom::DestinationPolicy::public_only());
+    }
     Ok(builder)
 }
 
@@ -98,6 +101,7 @@ mod tests {
             local_addresses: None,
             interface: None,
             unix_socket: None,
+            public_only: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -110,6 +114,7 @@ mod tests {
             local_addresses: None,
             interface: None,
             unix_socket: None,
+            public_only: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -130,6 +135,7 @@ mod tests {
             local_addresses: None,
             interface: None,
             unix_socket: Some(path.into()),
+            public_only: None,
         }
     }
 

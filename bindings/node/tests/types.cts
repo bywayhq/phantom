@@ -152,7 +152,7 @@ void decoding;
 
 async function redirects(client: Client, response: Response): Promise<void> {
   await client.request('https://example.com/', {method: 'GET', protocol: 'http2', context: 'raw',
-    redirectPolicy: {mode: 'limited', maximumHops: 3n}, redirectHistoryLimit: 2});
+    redirectPolicy: {mode: 'limited', maximumHops: 3n, credentialHeaders: ['x-api-key'] as const}, redirectHistoryLimit: 2});
   const destination: string | undefined = response.redirectHistory?.entries[0]?.toUrl;
   // @ts-expect-error Limited redirects require a hop bound.
   new Client({profile: 'exact/id', route: 'direct', redirectPolicy: {mode: 'limited'}});

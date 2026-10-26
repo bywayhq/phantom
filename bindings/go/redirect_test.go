@@ -172,14 +172,14 @@ func TestRedirectRequestPoliciesAreOwnedBeforeAsyncWork(t *testing.T) {
 func TestRedirectMethodsReplayAndCrossOriginCredentials(t *testing.T) {
 	for _, status := range []int{303, 307, 308} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
-			type observed struct{ method, body, auth, cookie, safe string }
+			type observed struct{ method, body, auth, cookie, safe, custom string }
 			received := make(chan observed, 1)
 			destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				body, err := io.ReadAll(r.Body)
 				if err != nil {
 					t.Error(err)
 				}
-				received <- observed{r.Method, string(body), r.Header.Get("Authorization"), r.Header.Get("Cookie"), r.Header.Get("X-Safe")}
+				received <- observed{r.Method, string(body), r.Header.Get("Authorization"), r.Header.Get("Cookie"), r.Header.Get("X-Safe"), r.Header.Get("X-Api-Key")}
 				_, _ = io.WriteString(w, "ok")
 			}))
 			defer destination.Close()
@@ -187,20 +187,20 @@ func TestRedirectMethodsReplayAndCrossOriginCredentials(t *testing.T) {
 			source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				original.Add(1)
 				body, err := io.ReadAll(r.Body)
-				if err != nil || r.Method != "POST" || string(body) != "upload" || r.Header.Get("Authorization") != "Bearer secret" || r.Header.Get("Cookie") != "secret=value" {
+				if err != nil || r.Method != "POST" || string(body) != "upload" || r.Header.Get("Authorization") != "Bearer secret" || r.Header.Get("Cookie") != "secret=value" || r.Header.Get("X-Api-Key") != "custom-secret" {
 					t.Errorf("origin request differs: %s %q %v", r.Method, body, err)
 				}
 				w.Header().Set("Location", destination.URL+"/final")
 				w.WriteHeader(status)
 			}))
 			defer source.Close()
-			client, err := New(Config{Profile: profile, Protocol: "h1", DisableCookies: true, RedirectPolicy: RedirectPolicy{MaximumHops: 1}, Timeout: 5 * time.Second})
+			client, err := New(Config{Profile: profile, Protocol: "h1", DisableCookies: true, RedirectPolicy: RedirectPolicy{MaximumHops: 1, CredentialHeaders: []string{"x-api-key"}}, Timeout: 5 * time.Second})
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer client.Close()
 			response, err := client.Do(context.Background(), Request{Method: "POST", URL: source.URL, Body: []byte("upload"), Headers: []Header{
-				{Name: "Authorization", Value: []byte("Bearer secret")}, {Name: "Cookie", Value: []byte("secret=value")}, {Name: "X-Safe", Value: []byte("retained")}}, RedirectHistoryLimit: uint64Pointer(1)})
+				{Name: "Authorization", Value: []byte("Bearer secret")}, {Name: "Cookie", Value: []byte("secret=value")}, {Name: "X-Safe", Value: []byte("retained")}, {Name: "X-Api-Key", Value: []byte("custom-secret")}}, RedirectHistoryLimit: uint64Pointer(1)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -212,7 +212,7 @@ func TestRedirectMethodsReplayAndCrossOriginCredentials(t *testing.T) {
 			if status == 303 {
 				method, body = "GET", ""
 			}
-			if got != (observed{method, body, "", "", "retained"}) || original.Load() != 1 {
+			if got != (observed{method, body, "", "", "retained", ""}) || original.Load() != 1 {
 				t.Fatalf("destination=%v, original=%d", got, original.Load())
 			}
 			if response.RedirectHistory == nil || len(response.RedirectHistory.Entries) != 1 || response.RedirectHistory.Entries[0].NextMethod != method {
@@ -276,6 +276,23 @@ func TestRedirectsChargeSharedAttemptBudgetAndBoundMetadata(t *testing.T) {
 	for _, value := range []string{fmt.Sprint(history), fmt.Sprintf("%#v", history), fmt.Sprint(history.Entries[0]), fmt.Sprintf("%#v", history.Entries[0])} {
 		if strings.Contains(value, secret) {
 			t.Fatal("history formatting leaks URLs")
+		}
+	}
+}
+
+func TestRedirectCredentialNamesAreCopiedAndBounded(t *testing.T) {
+	input := RedirectPolicy{MaximumHops: 1, CredentialHeaders: []string{"x-api-key"}}
+	wire, err := redirectPolicyWire(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.CredentialHeaders[0] = "changed"
+	if wire.CredentialHeaders[0] != "x-api-key" {
+		t.Fatal("names were not owned")
+	}
+	for _, names := range [][]string{make([]string, 257), {strings.Repeat("x", 65537)}} {
+		if _, err := redirectPolicyWire(RedirectPolicy{CredentialHeaders: names}); kind(err) != "input_limit" {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 }

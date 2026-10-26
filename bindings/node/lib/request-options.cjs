@@ -4,7 +4,7 @@ const { types } = require('node:util');
 
 const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { PhantomError } = require('./errors.cjs');
-const { policyFields, integer, positiveCount } = require('./validation.cjs');
+const { policyFields, integer, positiveCount, orderedDataArray } = require('./validation.cjs');
 
 function requestFields(headers, trailers) {
   for (const [name, fields] of [['headers', headers], ['trailers', trailers]]) {
@@ -75,10 +75,19 @@ function contentDecoding(value) {
 
 function redirectPolicy(value) {
   if (value === undefined) return undefined;
-  const copy = policyFields(value, ['mode', 'maximumHops']);
-  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumHops')) return {mode: 'none'};
+  const copy = policyFields(value, ['mode', 'maximumHops', 'credentialHeaders']);
+  const names = copy.credentialHeaders === undefined ? undefined
+    : orderedDataArray(copy.credentialHeaders, 256, 'redirect credential names');
+  let remaining = 65536;
+  for (const name of names ?? []) {
+    if (typeof name !== 'string') throw new PhantomError('InvalidArgument', 'credentialHeaders require strings');
+    remaining -= Buffer.byteLength(name);
+    if (remaining < 0) throw new PhantomError('InputLimit', 'redirect credential names exceed 65536 bytes');
+  }
+  const credentials = names === undefined ? {} : {credentialHeaders: Object.freeze(names)};
+  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumHops')) return {mode: 'none', ...credentials};
   if (copy.mode === 'limited') return {
-    mode: 'limited', maximumHops: positiveCount(copy.maximumHops),
+    mode: 'limited', maximumHops: positiveCount(copy.maximumHops), ...credentials,
   };
   throw new PhantomError('InvalidArgument', 'choose none or limited with a positive hop count');
 }

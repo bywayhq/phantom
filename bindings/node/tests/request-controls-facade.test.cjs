@@ -62,3 +62,17 @@ test('headers and trailers share count and byte caps before native requests', as
   await assert.rejects(client.request('http://example.test/', {...options, headers: [{name: 'x', value: Buffer.alloc(65535)}], trailers: [field]}), {code: 'InputLimit'});
   assert.equal(requests.length, 2); await client.close();
 });
+
+test('redirect credential names are copied and bounded before submission', async () => {
+  const {Client, requests} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
+  const names = ['X-Api-Key'];
+  (await client.request('http://example.test/', {...options,
+    redirectPolicy: {mode: 'limited', maximumHops: 2, credentialHeaders: names}})).close();
+  names[0] = 'changed';
+  assert.deepEqual(requests[0].redirectPolicy.credentialHeaders, ['X-Api-Key']);
+  for (const credentialHeaders of [null, ['x'.repeat(65537)], Array(257).fill('x'), [1]]) {
+    await assert.rejects(client.request('http://example.test/', {...options,
+      redirectPolicy: {mode: 'none', credentialHeaders}}));
+  }
+  assert.equal(requests.length, 1); await client.close();
+});

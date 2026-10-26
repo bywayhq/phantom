@@ -115,3 +115,17 @@ test('native network address and source validation fails without echoing input',
     });
   }
 });
+
+test('public-only admission denies literal and overridden loopback before connecting', {timeout: 15000}, async (t) => {
+  let connections = 0;
+  const server = http.createServer((_, response) => response.end('unexpected'));
+  server.on('connection', () => {connections++;});
+  const port = await listen(t, server);
+  const owner = new Client({profile, route: 'direct', network: {publicOnly: true,
+    hostOverrides: [{host: 'network.invalid', addresses: ['127.0.0.1']}]}});
+  t.after(() => owner.close());
+  for (const host of ['127.0.0.1', 'network.invalid']) {
+    await assert.rejects(owner.request(`http://${host}:${port}/`, {...options, protocol: 'http1'}), code('DestinationDenied'));
+  }
+  assert.equal(connections, 0);
+});

@@ -145,6 +145,11 @@ Protocols are `h1`, `h2`, `h3` and `negotiated` (HTTP/2 or HTTP/1.1). Direct
 unsupported combinations fail. Redirect following and caller retries are opt-in.
 
 Use `redirect_policy=RedirectPolicy.limited(5)` on a client or request.
+Add `credential_headers=("x-api-key",)` to strip custom secrets permanently
+when a redirect changes origin. Standard credentials are always stripped.
+Use `network=NetworkOptions(public_only=True)` to admit only public destination
+IPs for new direct connections. Proxies and custom streams are unsupported;
+existing connections remain reusable.
 `redirect_history_limit=3` retains the first selected hops, including their URLs.
 Use `retry_policy=RetryPolicy(status_retry=StatusRetry(statuses=(503,),
 maximum=2, delay=0.1))` for eligible status retries. Import these types from

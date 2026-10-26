@@ -297,17 +297,27 @@ class AsyncRedirectTests(unittest.IsolatedAsyncioTestCase):
                 async with await client.request(
                     "GET",
                     source.url + "/external",
-                    headers=[("Authorization", "secret"), ("Cookie", "private=yes")],
-                    redirect_policy=RedirectPolicy.limited(2),
+                    headers=[
+                        ("Authorization", "secret"),
+                        ("Cookie", "private=yes"),
+                        ("X-Api-Key", "custom-secret"),
+                    ],
+                    redirect_policy=RedirectPolicy.limited(
+                        2, credential_headers=("x-api-key",)
+                    ),
                     redirect_history_limit=2,
                 ) as response:
                     self.assertEqual(await response.read(max_bytes=5), b"hello")
                     self.assertEqual(response.redirects_followed, 2)
                 self.assertEqual(dict(source.requests[0][3])["Authorization"], "secret")
+                self.assertEqual(
+                    dict(source.requests[0][3])["X-Api-Key"], "custom-secret"
+                )
                 for request in (destination.requests[0], source.requests[1]):
                     fields = {name.lower(): value for name, value in request[3]}
                     self.assertNotIn("authorization", fields)
                     self.assertNotIn("cookie", fields)
+                    self.assertNotIn("x-api-key", fields)
                 destination.destination = source.url + "/held"
                 pending = asyncio.create_task(
                     client.request(

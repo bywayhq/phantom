@@ -137,7 +137,10 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	}
 	var redirects *RedirectPolicy
 	if request.RedirectPolicy != nil {
-		snapshot := *request.RedirectPolicy
+		snapshot, err := redirectPolicyWire(*request.RedirectPolicy)
+		if err != nil {
+			return nil, err
+		}
 		redirects = &snapshot
 	}
 	var history *uint64

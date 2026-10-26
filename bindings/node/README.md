@@ -136,6 +136,8 @@ TLS names and HTTP authority stay unchanged. Later overrides replace earlier
 ones for the same hostname or address family. An empty address list makes that
 name fail local resolution. Proxy-resolved targets ignore these overrides.
 `network.interface` selects an OS interface; DNS queries are not source-bound.
+Use `network: {publicOnly: true}` to admit only public IPs for new direct
+connections. Proxies and custom streams are unsupported; live pools stay usable.
 Network settings allow 1024 combined records/addresses and 65,536 UTF-8 bytes.
 
 On Unix, `network: {unixSocket: '/run/service.sock'}` sends direct HTTP/1 or
@@ -298,7 +300,9 @@ settings come from the explicit base.
 ## Redirects
 
 Set client/request `redirectPolicy: {mode: 'limited', maximumHops: 5}` to follow
-redirects; the default returns them. Request policies replace client policies;
+redirects; the default returns them. Add `credentialHeaders: ["x-api-key"]`
+to strip custom secrets permanently when a redirect changes origin. Standard
+credentials are always stripped. Request policies replace client policies;
 `{mode: 'none'}` stops following. `redirectHistoryLimit: 3` retains the first
 selected hops in `response.redirectHistory`, including their URLs. Later hops
 increment `omittedHops`; disabled history is `null`.

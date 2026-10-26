@@ -23,7 +23,7 @@ function networkOptions(options) {
     }
     return result;
   };
-  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket']);
+  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket', 'publicOnly']);
   let remainingBytes = 65536, remainingEntries = 1024;
   const string = (value) => {
     if (typeof value !== 'string') throw new PhantomError('InvalidArgument', 'network fields require strings');
@@ -49,7 +49,11 @@ function networkOptions(options) {
   if (unixSocket !== undefined && (!unixSocket.length || !unixSocket.isWellFormed() || unixSocket.includes('\0'))) {
     throw new PhantomError('InvalidArgument', 'unixSocket must be a nonempty UTF-8 pathname without NUL');
   }
-  return Object.freeze({hostOverrides: Object.freeze(hostOverrides), localAddresses: Object.freeze(localAddresses),
+  const publicOnly = input.publicOnly?.value;
+  if (publicOnly !== undefined && typeof publicOnly !== 'boolean') {
+    throw new PhantomError('InvalidArgument', 'publicOnly must be boolean');
+  }
+  return Object.freeze({...(publicOnly === undefined ? {} : {publicOnly}), hostOverrides: Object.freeze(hostOverrides), localAddresses: Object.freeze(localAddresses),
     interface: interfaceName, ...(unixSocket === undefined ? {} : {unixSocket})});
 }
 

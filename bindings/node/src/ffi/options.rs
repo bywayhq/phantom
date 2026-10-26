@@ -121,6 +121,8 @@ pub struct NetworkOptions {
     pub interface: Option<String>,
     /// Fixed UTF-8 Unix socket path; omitted from Debug output.
     pub unix_socket: Option<String>,
+    /// Admit only ordinary public IPs for new direct connections.
+    pub public_only: Option<bool>,
 }
 
 impl std::fmt::Debug for NetworkOptions {
@@ -131,6 +133,7 @@ impl std::fmt::Debug for NetworkOptions {
             .field("local_addresses", &self.local_addresses)
             .field("interface", &self.interface)
             .field("unix_socket_configured", &self.unix_socket.is_some())
+            .field("public_only", &self.public_only)
             .finish()
     }
 }
@@ -273,6 +276,8 @@ pub struct RedirectPolicyOptions {
     pub mode: String,
     /// Positive hop bound for limited following.
     pub maximum_hops: Option<BigInt>,
+    /// Additional names stripped after the first cross-origin hop.
+    pub credential_headers: Option<Vec<String>>,
 }
 
 pub(crate) fn positive_count(value: BigInt) -> Result<std::num::NonZeroUsize> {
@@ -291,13 +296,29 @@ pub(crate) fn policy_count(value: BigInt) -> Result<usize> {
 
 impl RedirectPolicyOptions {
     pub(crate) fn policy(self) -> Result<phantom::RedirectPolicy> {
-        match (self.mode.as_str(), self.maximum_hops) {
+        let names = self.credential_headers.unwrap_or_default();
+        if names.len() > 256 || names.iter().map(String::len).sum::<usize>() > 65536 {
+            return Err(failure(
+                "InputLimit",
+                "redirect credential names exceed their input limit",
+            ));
+        }
+        let names = names
+            .iter()
+            .map(|name| {
+                http::header::HeaderName::from_bytes(name.as_bytes()).map_err(|_| {
+                    failure("InvalidArgument", "invalid redirect credential header name")
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let policy = match (self.mode.as_str(), self.maximum_hops) {
             ("none", None) => Ok(phantom::RedirectPolicy::none()),
             ("limited", Some(maximum)) => {
                 Ok(phantom::RedirectPolicy::limited(positive_count(maximum)?))
             }
             _ => Err(failure("InvalidArgument", "invalid redirect policy")),
-        }
+        }?;
+        Ok(policy.credential_headers(names))
     }
 }
 
@@ -413,5 +434,34 @@ impl fmt::Debug for RequestOptions {
         formatter
             .debug_struct("RequestOptions")
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redirect_names_are_bounded_and_parsed_without_echoing_input() {
+        for names in [
+            vec!["private invalid name".into()],
+            vec![String::new()],
+            vec!["x".repeat(65537)],
+            vec!["x".into(); 257],
+        ] {
+            let options = RedirectPolicyOptions {
+                mode: "none".into(),
+                maximum_hops: None,
+                credential_headers: Some(names),
+            };
+            let error = options.policy().err().expect("invalid names must fail");
+            assert!(!error.reason.contains("private"));
+        }
+        let options = RedirectPolicyOptions {
+            mode: "none".into(),
+            maximum_hops: None,
+            credential_headers: Some(vec!["X-Api-Key".into()]),
+        };
+        assert_eq!(options.policy().expect("valid name").max_hops(), None);
     }
 }

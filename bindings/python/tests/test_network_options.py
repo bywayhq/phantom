@@ -145,7 +145,71 @@ class NetworkFacadeTests(unittest.TestCase):
             self.assertEqual(len(calls), 1)
 
 
+class CredentialFacadeTests(unittest.IsolatedAsyncioTestCase):
+    def test_credential_names_are_immutable_bounded_and_forwarded(self):
+        policy = FACADE.RedirectPolicy.limited(2, credential_headers=("x-api-key",))
+        for names in (["x"], (1,), ("x",) * 257, ("x" * 65537,)):
+            with self.assertRaises((TypeError, ValueError)):
+                FACADE.RedirectPolicy.limited(1, credential_headers=names)
+        with patch.object(FACADE._native, "NativeClient", create=True) as native:
+            FACADE.AsyncClient(profile="exact", protocol="h1", redirect_policy=policy)
+            self.assertEqual(
+                native.call_args.kwargs["redirect_credential_headers"], ("x-api-key",)
+            )
+        self.assertNotIn("x-api-key", repr(policy))
+
+    async def test_request_override_forwards_custom_credentials(self):
+        calls = []
+
+        class Native:
+            cookies = object()
+
+            async def request(self, *arguments, **fields):
+                calls.append(fields)
+                return types.SimpleNamespace(status=204, protocol="h1", headers=[])
+
+        with patch.object(
+            FACADE._native, "NativeClient", return_value=Native(), create=True
+        ):
+            client = FACADE.AsyncClient(profile="exact", protocol="h1")
+            await client.request(
+                "GET",
+                "http://example.test/",
+                redirect_policy=FACADE.RedirectPolicy.limited(
+                    1, credential_headers=("x-api-key",)
+                ),
+            )
+        self.assertEqual(calls[0]["redirect_credential_headers"], ("x-api-key",))
+
+    def test_public_only_native_shape_and_boolean_validation(self):
+        network = FACADE.NetworkOptions(public_only=True)
+        self.assertEqual(network._native_fields(), ((), (), None, None, True))
+        for value in (1, "true", None):
+            with self.assertRaises(TypeError):
+                FACADE.NetworkOptions(public_only=value)
+
+
 class NetworkPublicTests(unittest.TestCase):
+    def test_public_only_denies_literal_and_overridden_loopback(self):
+        from phantom_http import Client, Error, HostOverride, NetworkOptions
+        from test_settings_transport import PROFILE, peer
+
+        with peer() as origin:
+            with Client(
+                profile=PROFILE,
+                protocol="h1",
+                timeout_ms=5000,
+                network=NetworkOptions(
+                    public_only=True,
+                    host_overrides=(HostOverride("network.invalid", ("127.0.0.1",)),),
+                ),
+            ) as client:
+                for host in ("127.0.0.1", "network.invalid"):
+                    with self.assertRaises(Error) as caught:
+                        client.request("GET", f"http://{host}:{origin.server_port}/")
+                    self.assertEqual(caught.exception.kind, "destination_denied")
+            self.assertEqual(origin.requests, [])
+
     def test_verified_tls_keeps_logical_host_and_source_across_fork_and_restore(self):
         from phantom_http import Client, HostOverride, NetworkOptions, Trust
         from test_settings_transport import FIXTURES, PROFILE, ROOT, peer

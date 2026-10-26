@@ -33,6 +33,7 @@ pub(super) fn request(error: RequestError) -> PyErr {
         RequestErrorKind::Redirect => "redirect",
         RequestErrorKind::Resolve => "resolve",
         RequestErrorKind::Connect => "connect",
+        RequestErrorKind::DestinationDenied => "destination_denied",
         RequestErrorKind::Proxy => "proxy",
         RequestErrorKind::RuntimeUnavailable => "runtime_unavailable",
         RequestErrorKind::Capacity => "capacity",
