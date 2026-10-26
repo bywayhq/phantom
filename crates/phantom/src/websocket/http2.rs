@@ -130,6 +130,7 @@ fn keeps_proxy_backup(
         }
         client
             .inner
+            .transport
             .websocket_https_proxy
             .as_ref()
             .map(|base| proxy.https_connector(base))
@@ -159,6 +160,7 @@ async fn extended_connect_proxy(
     let proxy_connector = if proxy.uses_tls() {
         let base = client
             .inner
+            .transport
             .websocket_https_proxy
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
@@ -192,7 +194,7 @@ async fn extended_connect_proxy(
         headers: proxy.ordered_connect_headers(),
         credentials: proxy.authentication(),
     };
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     let result = match owner {
         OpeningOwner::Exact(owner) => {
             let base = connectors
@@ -267,7 +269,7 @@ async fn extended_connect_socks(
         server_name: endpoint.host(),
         setup: phantom_net::route::DirectTlsSetup::Default,
     };
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     match owner {
         OpeningOwner::Exact(owner) => {
             let connector = owner
@@ -365,7 +367,7 @@ impl WebSocketRequestBuilder {
         let extension_offer = engine_config.deflate_offer();
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
-        let connectors = client.inner.connectors_for(&request.endpoint);
+        let connectors = client.inner.transport.connectors_for(&request.endpoint);
         let base = connectors
             .http2
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
@@ -614,11 +616,16 @@ impl WebSocketRequestBuilder {
                 let connect_authority = request.endpoint.tunnel_authority();
                 if proxy.uses_tls() {
                     let proxy_connector = &proxy.https_connector(
-                        client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
-                            WebSocketError::request(RequestError::unsupported_route(
-                                HttpProtocol::Http2,
-                            ))
-                        })?,
+                        client
+                            .inner
+                            .transport
+                            .websocket_https_proxy
+                            .as_ref()
+                            .ok_or_else(|| {
+                                WebSocketError::request(RequestError::unsupported_route(
+                                    HttpProtocol::Http2,
+                                ))
+                            })?,
                     );
                     if let Some(credentials) = proxy.authentication() {
                         // Keep the challenge/retry state machine out of the

@@ -150,7 +150,7 @@ struct State {
 
 impl Client {
     fn snapshot_context(&self) -> Result<Zeroizing<Vec<u8>>, SessionSnapshotError> {
-        if self.inner.custom_tcp_connector {
+        if self.inner.policy.custom_tcp_connector {
             return Err(super::PreparationError::Unsupported(
                 "session checkpoints with custom TCP connectors",
             )
@@ -158,10 +158,11 @@ impl Client {
         }
         let policy = self
             .inner
+            .transport
             .ticket_preparation
             .as_ref()
             .map_err(|error| *error)?;
-        let route = self.inner.session_snapshot_route()?;
+        let route = self.inner.defaults.session_snapshot_route()?;
         Ok(policy.session_snapshot_context(&route)?)
     }
 

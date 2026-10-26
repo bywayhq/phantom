@@ -63,6 +63,7 @@ impl WebSocketRequestBuilder {
         }
         let connector = client
             .inner
+            .transport
             .connectors_for(&request.endpoint)
             .http3
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http3))?;
@@ -137,7 +138,7 @@ impl WebSocketRequestBuilder {
             .map_err(WebSocketError::request)?
             .connect(
                 connector,
-                client.inner.connect_udp_proxy.as_deref(),
+                client.inner.transport.connect_udp_proxy.as_deref(),
                 endpoint,
                 route,
                 Http3TransportTarget::for_origin(endpoint),

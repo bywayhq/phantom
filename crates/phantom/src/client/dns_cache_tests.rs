@@ -106,10 +106,11 @@ fn with_counting_cache(client: &Client, gate: watch::Receiver<bool>) -> (Client,
         }
     });
     let mut inner = ClientInner::clone(&client.inner);
-    inner.bind_host_resolver(
+    inner.transport.bind_host_resolver(
         HostResolver::new()
             .with_resolver(resolver)
             .with_cache(settings()),
+        &inner.policy,
     );
     let client = Client {
         inner: Arc::new(inner),
@@ -176,6 +177,7 @@ async fn clones_share_the_cache_and_separate_clients_do_not() -> TestResult {
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let separate_cache = separate
         .inner
+        .transport
         .host_resolver
         .as_ref()
         .and_then(HostResolver::cache)
@@ -223,28 +225,59 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
             .map(|cache| *cache.settings())
     };
 
-    assert_eq!(settings(inner.host_resolver.as_ref()), expected);
+    assert_eq!(settings(inner.transport.host_resolver.as_ref()), expected);
     assert_eq!(
-        settings(inner.http1.as_ref().and_then(|c| c.host_resolver())),
+        settings(
+            inner
+                .transport
+                .http1
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         expected
     );
     assert_eq!(
-        settings(inner.http2.as_ref().and_then(|c| c.host_resolver())),
+        settings(
+            inner
+                .transport
+                .http2
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         expected
     );
     assert_eq!(
-        settings(inner.http1_or_2.as_ref().and_then(|c| c.host_resolver())),
+        settings(
+            inner
+                .transport
+                .http1_or_2
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         expected
     );
     assert_eq!(
-        settings(inner.http3.as_ref().and_then(|c| c.host_resolver())),
+        settings(
+            inner
+                .transport
+                .http3
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         expected
     );
     assert_eq!(
-        settings(inner.https_proxy.as_ref().and_then(|c| c.host_resolver())),
+        settings(
+            inner
+                .transport
+                .https_proxy
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         expected
     );
     let connect_udp = inner
+        .transport
         .connect_udp_proxy
         .as_ref()
         .ok_or("no CONNECT-UDP connectors")?;
@@ -260,6 +293,7 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
     assert_eq!(
         settings(
             inner
+                .transport
                 .websocket_http1
                 .as_ref()
                 .and_then(|c| c.host_resolver())
@@ -282,21 +316,23 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
     assert_eq!(
         replaced
             .inner
+            .transport
             .host_resolver
             .as_ref()
             .and_then(HostResolver::cache)
             .map(|cache| *cache.settings()),
         Some(firefox::v157_dns_cache())
     );
-    assert!(disabled.inner.host_resolver.is_none());
+    assert!(disabled.inner.transport.host_resolver.is_none());
     assert!(
         disabled
             .inner
+            .transport
             .http1
             .as_ref()
             .is_some_and(|c| c.host_resolver().is_none())
     );
-    assert!(without.inner.host_resolver.is_none());
+    assert!(without.inner.transport.host_resolver.is_none());
     Ok(())
 }
 
@@ -316,15 +352,27 @@ fn overrides_without_a_cache_reach_the_connectors() -> TestResult {
     };
 
     let inner = &client.inner;
-    let resolver = inner.host_resolver.as_ref();
+    let resolver = inner.transport.host_resolver.as_ref();
     assert!(resolver.is_some_and(|resolver| resolver.cache().is_none()));
     assert_eq!(pinned_in(resolver), Some(vec![pinned]));
     assert_eq!(
-        pinned_in(inner.http1.as_ref().and_then(|c| c.host_resolver())),
+        pinned_in(
+            inner
+                .transport
+                .http1
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         Some(vec![pinned])
     );
     assert_eq!(
-        pinned_in(inner.http2.as_ref().and_then(|c| c.host_resolver())),
+        pinned_in(
+            inner
+                .transport
+                .http2
+                .as_ref()
+                .and_then(|c| c.host_resolver())
+        ),
         Some(vec![pinned])
     );
     Ok(())
@@ -366,6 +414,7 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
         let client = build(profile)?;
         let address_udp = client
             .inner
+            .transport
             .host_resolver
             .as_ref()
             .and_then(HostResolver::resolver)

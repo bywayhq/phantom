@@ -60,7 +60,7 @@ pub(super) fn raced(
 ) -> Result<RacedFields, RequestError> {
     // An HTTP/3 connector is required before the body is looked at, as it is
     // for an attempt on the alternative alone.
-    if client.inner.http3.is_none() {
+    if client.inner.transport.http3.is_none() {
         return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
     }
     let framing = attempt.body.framing(request.expect_continue)?;
@@ -137,6 +137,7 @@ pub(super) fn reused_fields(
 ) -> Result<Http3Fields, RequestError> {
     let connector = client
         .inner
+        .transport
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
@@ -175,6 +176,7 @@ fn checked_alternative_fields(
 ) -> Result<Http3Fields, RequestError> {
     let connector = client
         .inner
+        .transport
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
@@ -187,7 +189,7 @@ fn checked_alternative_fields(
     counts::checked(&[HttpProtocol::Http3]);
     http3_pool::validate_request(
         connector,
-        client.inner.connect_udp_proxy.as_deref(),
+        client.inner.transport.connect_udp_proxy.as_deref(),
         route,
         Http3TransportTarget::for_alternative(alternative),
         attempt.method,

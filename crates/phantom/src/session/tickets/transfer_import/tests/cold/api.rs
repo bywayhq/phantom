@@ -199,7 +199,7 @@ async fn public_import_rejects_unconfigured_http2_intent_and_preserves_prior_tic
 {
     let fixture = ImportFixture::new()?;
     let recipient = builder(&fixture).route(Route::Direct).build()?;
-    assert!(recipient.inner.http2.is_none());
+    assert!(recipient.inner.transport.http2.is_none());
     let live = fixture.store(&recipient.state.tickets, 443)?;
     fixture.exchange(&live, false).await?;
     let prior = fixture.owner()?;
@@ -239,7 +239,7 @@ async fn public_import_rejects_unconfigured_http2_intent_and_preserves_prior_tic
     );
     let snapshot = SessionTicketSnapshot::from_bytes(&live_snapshot(&source, None)?)?;
     let matching = builder(&h2_fixture).route(Route::Direct).build()?;
-    assert!(matching.inner.http2.is_some());
+    assert!(matching.inner.transport.http2.is_some());
     matching.import_session_tickets(&snapshot, &KEY, &[])?;
     let accepted = cold_snapshot(&matching.state.tickets)?;
     assert_eq!(accepted.owners.len(), 1);

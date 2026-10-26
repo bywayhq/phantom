@@ -147,6 +147,7 @@ impl WebSocketRequestBuilder {
     ) -> Result<Self, WebSocketError> {
         let settings = client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .ok_or_else(WebSocketError::profile_policy_unavailable)?;
@@ -174,9 +175,9 @@ impl WebSocketRequestBuilder {
 
     fn new(client: Client, protocol: HttpProtocol, uri: &str) -> Result<Self, WebSocketError> {
         let available = match protocol {
-            HttpProtocol::Http1 => client.inner.http1.is_some(),
-            HttpProtocol::Http2 => client.inner.http2.is_some(),
-            HttpProtocol::Http3 => client.inner.http3.is_some(),
+            HttpProtocol::Http1 => client.inner.transport.http1.is_some(),
+            HttpProtocol::Http2 => client.inner.transport.http2.is_some(),
+            HttpProtocol::Http3 => client.inner.transport.http3.is_some(),
         };
         if !available {
             return Err(WebSocketError::protocol_unavailable(protocol));
@@ -185,10 +186,11 @@ impl WebSocketRequestBuilder {
         let trustworthy = request.trustworthy;
         let handshake_timeout = client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .and_then(|settings| settings.handshake_timeout);
-        let headers = match (protocol, client.inner.websocket.as_ref()) {
+        let headers = match (protocol, client.inner.defaults.websocket.as_ref()) {
             (HttpProtocol::Http1, Some(settings)) => {
                 profile_headers(&settings.http1_fields, trustworthy)?
             }
@@ -519,6 +521,7 @@ impl WebSocketRequestBuilder {
             .selected_route(&self.client, self.route.as_ref());
         self.client
             .inner
+            .policy
             .ensure_pinned_route(
                 match self.request.transport {
                     WebSocketTransport::Plaintext => "ws",
@@ -527,11 +530,10 @@ impl WebSocketRequestBuilder {
                 &route,
             )
             .map_err(WebSocketError::request)?;
-        if let Some(route) = route
-            .with_profile_connect(self.client.inner.proxy_connect.as_deref(), |name| {
-                opening_field_value(&self.headers, name)
-            })
-        {
+        if let Some(route) = route.with_profile_connect(
+            self.client.inner.defaults.proxy_connect.as_deref(),
+            |name| opening_field_value(&self.headers, name),
+        ) {
             self.route = Some(route);
         } else {
             self.route = Some(route);
@@ -562,6 +564,7 @@ impl WebSocketRequestBuilder {
         let reacquire = self
             .client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .is_some_and(|settings| {
@@ -615,6 +618,7 @@ impl WebSocketRequestBuilder {
         let policy = &self
             .client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .ok_or_else(WebSocketError::profile_policy_unavailable)?
@@ -751,6 +755,7 @@ impl ResolvedWebSocket {
         };
         client
             .inner
+            .defaults
             .selected_route(request_route, scheme, &self.endpoint)
     }
 

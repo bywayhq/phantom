@@ -239,6 +239,7 @@ mod tests {
         let endpoint = crate::authority::Endpoint::new("example.com".parse()?, 443)?;
         let settings = original
             .inner
+            .defaults
             .client_hints
             .as_ref()
             .ok_or("hints disabled")?;

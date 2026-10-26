@@ -251,7 +251,7 @@ impl Client {
         &self,
         key: &[u8; 32],
     ) -> Result<SessionTicketSnapshot, SessionTicketError> {
-        if self.inner.custom_tcp_connector {
+        if self.inner.policy.custom_tcp_connector {
             return Err(SessionTicketError::without_source(
                 SessionTicketErrorKind::Unsupported,
             ));
@@ -291,7 +291,7 @@ impl Client {
         key: &[u8; 32],
         receiving_routes: &[crate::Route],
     ) -> Result<(), SessionTicketError> {
-        if self.inner.custom_tcp_connector {
+        if self.inner.policy.custom_tcp_connector {
             return Err(SessionTicketError::without_source(
                 SessionTicketErrorKind::Unsupported,
             ));

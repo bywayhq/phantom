@@ -430,7 +430,7 @@ impl SseRequest {
     fn validate_headers(&self) -> Result<(), SseError> {
         validate_template(&self.headers, self.protocol)?;
 
-        if let Some(template) = &self.client.inner.request_template {
+        if let Some(template) = &self.client.inner.defaults.request_template {
             let retry = self.client.retry_policy();
             let fallback = self.protocol == HttpProtocol::Http3
                 && retry.http2_fallback()
@@ -452,8 +452,8 @@ impl SseRequest {
             }
         }
 
-        if let Some(hints) = &self.client.inner.client_hints {
-            let template = self.client.inner.request_template.as_ref();
+        if let Some(hints) = &self.client.inner.defaults.client_hints {
+            let template = self.client.inner.defaults.request_template.as_ref();
             let emits_managed_hint = hints.hints().iter().any(|hint| {
                 hint.name().eq_ignore_ascii_case(LAST_EVENT_ID)
                     && (hint.delivery() == ClientHintDelivery::Default

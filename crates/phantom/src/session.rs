@@ -370,7 +370,7 @@ impl ClientOptions {
     /// cloned from it afterwards keep the choice.
     pub(crate) fn apply_http3_early_data(&self, inner: &mut ClientInner) {
         if let Some(enabled) = self.http3_early_data {
-            inner.http3 = inner.http3.as_deref().map(|connector| {
+            inner.transport.http3 = inner.transport.http3.as_deref().map(|connector| {
                 Arc::new(if enabled {
                     connector.with_early_data()
                 } else {
@@ -530,18 +530,19 @@ impl ClientOptions {
         );
         let tickets = shared_tickets.unwrap_or_else(|| {
             Arc::new(tickets::TicketOwner::with_preparation(
-                inner.ticket_preparation.clone(),
+                inner.transport.ticket_preparation.clone(),
             ))
         });
         // One timer prunes the H1 and H2 connections of every pool, as
         // Firefox's connection manager prunes all of its connections on one.
-        let prune_timer = (inner.http1_idle_timer.is_some() || inner.http2_idle_timer.is_some())
-            .then(|| prune_timer::PruneTimer::new(inner.http1_idle_timer));
+        let prune_timer = (inner.policy.http1_idle_timer.is_some()
+            || inner.policy.http2_idle_timer.is_some())
+        .then(|| prune_timer::PruneTimer::new(inner.policy.http1_idle_timer));
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut http1_or_2 = http1_or_2_pool::Http1Or2Pool::new(
             self.max_retained_http1_connections,
             self.max_concurrent_http1_requests_per_origin
-                .unwrap_or(inner.http1_connections_per_origin),
+                .unwrap_or(inner.policy.http1_connections_per_origin),
             self.max_pending_http1_requests_per_origin,
             self.max_retained_http2_connections,
             self.max_concurrent_http2_requests_per_origin,
@@ -549,7 +550,7 @@ impl ClientOptions {
         )
         .with_max_http2_connections(self.max_http2_connections_per_origin)
         .with_setup_wait_limit(self.negotiated_setup_wait_limit)
-        .with_http1_used_idle_timeout(inner.http1_used_idle_timeout)
+        .with_http1_used_idle_timeout(inner.policy.http1_used_idle_timeout)
         .with_prune_timer(prune_timer.clone())
         .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
@@ -558,10 +559,10 @@ impl ClientOptions {
         let mut http1 = http1_pool::Http1Pool::new(
             self.max_retained_http1_connections,
             self.max_concurrent_http1_requests_per_origin
-                .unwrap_or(inner.http1_connections_per_origin),
+                .unwrap_or(inner.policy.http1_connections_per_origin),
             self.max_pending_http1_requests_per_origin,
         )
-        .with_used_idle_timeout(inner.http1_used_idle_timeout)
+        .with_used_idle_timeout(inner.policy.http1_used_idle_timeout)
         .with_prune_timer(prune_timer.clone())
         .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
@@ -573,7 +574,7 @@ impl ClientOptions {
             self.max_pending_http2_requests_per_origin,
         )
         .with_max_connections(self.max_http2_connections_per_origin)
-        .with_http1_used_idle_timeout(inner.http1_used_idle_timeout)
+        .with_http1_used_idle_timeout(inner.policy.http1_used_idle_timeout)
         .with_prune_timer(prune_timer)
         .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
@@ -626,7 +627,7 @@ impl ClientOptions {
             rtt_history,
             #[cfg(feature = "https-records")]
             https_records,
-            client_hints: inner.client_hints.is_some().then(|| {
+            client_hints: inner.defaults.client_hints.is_some().then(|| {
                 Arc::new(client_hints::ClientHintStore::new(
                     self.max_client_hint_origins,
                 ))
@@ -694,7 +695,7 @@ impl Client {
         self.state.http1_or_2.refresh_connections().await;
         self.state.http2.refresh_connections().await;
         let mut pools = self.state.http3.refresh_connections().await;
-        if let Some(default) = self.inner.default_connect_udp_pool()
+        if let Some(default) = self.inner.defaults.default_connect_udp_pool()
             && !pools.iter().any(|pool| pool.shares_scope(default))
         {
             pools.push(default.clone());
@@ -706,7 +707,7 @@ impl Client {
                 visited.push(pool);
             }
         }
-        self.inner.refresh_proxy_connections();
+        self.inner.transport.refresh_proxy_connections();
         drop(validation_refresh);
     }
 
@@ -735,7 +736,10 @@ impl Client {
         for pool in proxy_pools {
             pool.close_idle_connections();
         }
-        self.inner.close_idle_proxy_connections();
+        self.inner.transport.close_idle_proxy_connections();
+        if let Some(pool) = self.inner.defaults.default_connect_udp_pool() {
+            pool.close_idle_connections();
+        }
     }
 
     /// Clears this client's retained TCP TLS and QUIC session tickets.
@@ -996,6 +1000,7 @@ impl Client {
     pub(crate) fn invalidate_origin_dns(&self, endpoint: &crate::authority::Endpoint) {
         if let Some(cache) = self
             .inner
+            .transport
             .host_resolver
             .as_ref()
             .and_then(|resolver| resolver.cache())
@@ -1056,6 +1061,7 @@ impl Client {
         endpoint: &crate::authority::Endpoint,
     ) -> bool {
         self.inner
+            .transport
             .connectors_for(endpoint)
             .http3
             .is_some_and(|connector| {
@@ -1117,7 +1123,7 @@ impl Client {
         {
             return;
         }
-        let Some(connector) = self.inner.connectors_for(endpoint).http3 else {
+        let Some(connector) = self.inner.transport.connectors_for(endpoint).http3 else {
             return;
         };
         let start = |candidate| {
@@ -1126,7 +1132,7 @@ impl Client {
                 .start(alt_svc::jobs::AltSvcValidationJob {
                     pool: Arc::clone(&self.state.http3),
                     connector: Arc::clone(connector),
-                    connect_udp_proxy: self.inner.connect_udp_proxy.clone(),
+                    connect_udp_proxy: self.inner.transport.connect_udp_proxy.clone(),
                     endpoint: endpoint.clone(),
                     route: route.clone(),
                     candidate,
@@ -1273,6 +1279,7 @@ impl Client {
     pub fn clear_dns_cache(&self) {
         if let Some(cache) = self
             .inner
+            .transport
             .host_resolver
             .as_ref()
             .and_then(|resolver| resolver.cache())

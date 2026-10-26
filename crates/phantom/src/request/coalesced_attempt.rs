@@ -44,7 +44,12 @@ pub(super) async fn send_reused(
     {
         return Ok(ReusedOutcome::Miss);
     }
-    let Some(connector) = client.inner.connectors_for(&request.endpoint).http3 else {
+    let Some(connector) = client
+        .inner
+        .transport
+        .connectors_for(&request.endpoint)
+        .http3
+    else {
         return Ok(ReusedOutcome::Miss);
     };
     let hint_origin = client_hint_origin(client, request);

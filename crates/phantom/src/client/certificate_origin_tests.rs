@@ -86,16 +86,22 @@ fn mapped_origin_gets_its_own_connectors_with_the_client_s_early_data_choice() -
         .client_certificate_for("https://API.example:8443", certificate()?)
         .build()?;
     let inner = &client.inner;
-    let base = inner.http3.as_ref().ok_or("no HTTP/3 connector")?;
+    let base = inner
+        .transport
+        .http3
+        .as_ref()
+        .ok_or("no HTTP/3 connector")?;
 
-    let mapped = inner.connectors_for(&request_endpoint("https://api.EXAMPLE:8443/a")?);
+    let mapped = inner
+        .transport
+        .connectors_for(&request_endpoint("https://api.EXAMPLE:8443/a")?);
     let mapped_http3 = mapped.http3.ok_or("no mapped HTTP/3 connector")?;
     assert!(!Arc::ptr_eq(mapped_http3, base));
     assert!(!mapped_http3.sends_early_data());
     assert!(mapped.http1.is_some() && mapped.http1_or_2.is_some() && mapped.http2.is_some());
 
     for unmapped in ["https://api.example/", "https://other.example:8443/"] {
-        let connectors = inner.connectors_for(&request_endpoint(unmapped)?);
+        let connectors = inner.transport.connectors_for(&request_endpoint(unmapped)?);
         let http3 = connectors.http3.ok_or("no HTTP/3 connector")?;
         assert!(Arc::ptr_eq(http3, base), "{unmapped}");
     }
@@ -111,6 +117,7 @@ fn mapped_connectors_follow_the_profile_s_early_data() -> TestResult {
 
     let mapped = client
         .inner
+        .transport
         .connectors_for(&request_endpoint("https://api.example/")?);
 
     assert!(
@@ -129,6 +136,6 @@ fn later_mapping_for_a_host_and_port_replaces_the_earlier_one() -> TestResult {
         .client_certificate_for("https://api.example:8443", certificate()?)
         .build()?;
 
-    assert_eq!(client.inner.certificate_origins.len(), 2);
+    assert_eq!(client.inner.transport.certificate_origins.len(), 2);
     Ok(())
 }

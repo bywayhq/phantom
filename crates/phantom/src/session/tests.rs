@@ -133,6 +133,7 @@ fn client_early_data_choice_overrides_the_profile() -> Result<(), Box<dyn std::e
     let sends_early_data = |client: &Client| {
         client
             .inner
+            .transport
             .http3
             .as_ref()
             .is_some_and(|connector| connector.sends_early_data())

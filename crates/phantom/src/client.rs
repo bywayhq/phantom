@@ -1,4 +1,4 @@
-use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
@@ -12,10 +12,7 @@ use phantom_net::{
 };
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
-use phantom_profile::{
-    ClientHintSettings, ClientProfile, CookiePlacement, DnsCacheSettings, Http2ProxyConnections,
-    ProxyConnectTemplate, TcpSettings, UdpSettings,
-};
+use phantom_profile::{ClientProfile, DnsCacheSettings, TcpSettings, UdpSettings};
 use phantom_profile::{QuicTransportParameterKind, QuicTransportSettings};
 
 use crate::{
@@ -25,6 +22,14 @@ use crate::{
 };
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
+
+use self::{
+    connection_policy::ConnectionPolicy, defaults::RequestDefaults, transport::PreparedTransport,
+};
+
+mod connection_policy;
+mod defaults;
+mod transport;
 
 /// HTTP protocol selected for one request.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -107,322 +112,37 @@ pub struct Client {
     pub(crate) state: Arc<ClientState>,
 }
 
-/// Transport configuration shared by a client and its clones.
-///
-/// Cloning is shallow: TLS contexts, the HTTP/3 connectors, and the key log
-/// stay shared.
+/// Immutable settings shared by a client and its clones.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
-    pub(crate) ticket_preparation:
-        Result<Arc<crate::session::PreparedTicketPolicy>, crate::session::PreparationError>,
-    pub(crate) custom_tcp_connector: bool,
-    pub(crate) destination_policy: bool,
-    pub(crate) base_url: Option<crate::base_url::BaseUrl>,
-    pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
-    pub(crate) server_spki_pins: bool,
-    pub(crate) proxy_server_spki_pins: bool,
-    pub(crate) request_hooks: Option<crate::request_hook::SharedRequestHooks>,
-    pub(crate) http1: Option<Http1TlsConnector>,
-    pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
-    pub(crate) http2: Option<Http2TlsConnector>,
-    pub(crate) http3: Option<Arc<Http3Connector>>,
-    /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
-    pub(crate) connect_udp_proxy: Option<Arc<ConnectUdpConnectors>>,
-    /// Opens CONNECT tunnels through an HTTPS proxy, sharing HTTP/2 proxy
-    /// connections from the client's pool.
-    pub(crate) https_proxy: Option<HttpsProxyConnector>,
-    /// `https_proxy` for `http://` requests forwarded over HTTP/2, with the
-    /// pool the profile's [`Http2ProxyConnections`] gives them.
-    pub(crate) forward_https_proxy: Option<HttpsProxyConnector>,
-    /// `https_proxy` for WebSocket tunnels, with the pool the profile's
-    /// [`Http2ProxyConnections`] gives them.
-    #[cfg(feature = "websocket")]
-    pub(crate) websocket_https_proxy: Option<HttpsProxyConnector>,
-    /// Which HTTP/2 proxy requests share a connection.
-    pub(crate) http2_proxy_connections: Http2ProxyConnections,
-    /// HTTP/2 connections each proxy route may open; one unless the caller
-    /// opted into more.
-    pub(crate) http2_proxy_connections_per_route: NonZeroUsize,
-    /// How many times per redirect hop a request is sent again after its
-    /// HTTP/2 connection's PING failed; see
-    /// [`phantom_profile::Http2Settings::ping_failure_retries`].
-    pub(crate) http2_ping_failure_retries: u8,
-    /// Proxies that accepted Basic credentials, shared with the connectors.
-    pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
-    /// Host overrides, the address resolver, and the address cache, shared
-    /// with the connectors. `None` when the client asks the operating system
-    /// for every connection.
-    pub(crate) host_resolver: Option<HostResolver>,
-    pub(crate) client_hints: Option<ClientHintSettings>,
-    /// The profile's template, validated once when the client is built.
-    pub(crate) request_template: Option<PreparedRequestTemplate>,
-    /// The profile's HTTP/1.1 connection bound per origin and route.
-    pub(crate) http1_connections_per_origin: NonZeroUsize,
-    /// How long the profile reuses an idle HTTP/1.1 connection.
-    pub(crate) http1_used_idle_timeout: Option<Duration>,
-    /// The idle limit the profile also enforces on a timer between requests.
-    pub(crate) http1_idle_timer: Option<Duration>,
-    /// The limit after which the profile stops reusing an HTTP/2 connection
-    /// that reads nothing, also enforced on a timer between requests.
-    pub(crate) http2_idle_timer: Option<Duration>,
-    /// Profile position of caller and jar `Cookie` fields.
-    pub(crate) cookie_placement: CookiePlacement,
-    route: Option<Route>,
-    environment_proxies: Option<crate::EnvironmentProxies>,
-    /// Profile CONNECT fields for HTTP proxy routes that set none.
-    pub(crate) proxy_connect: Option<Arc<ProxyConnectTemplate>>,
-    /// Profile WebSocket templates and connection policy.
-    #[cfg(feature = "websocket")]
-    pub(crate) websocket: Option<WebSocketSettings>,
-    /// HTTP/1.1 connector with the policy's Upgrade-connection ALPN offer.
-    #[cfg(feature = "websocket")]
-    pub(crate) websocket_http1: Option<Http1TlsConnector>,
-    /// Origin connectors for each host and port with a certificate of its
-    /// own; [`Self::connectors_for`] picks among them and the fields above.
-    certificate_origins: Box<[CertificateOrigin]>,
-    #[cfg(feature = "diagnostics")]
-    pub(crate) key_log: Option<Arc<crate::KeyLog>>,
-}
-
-/// The origin connectors that present one host and port's client
-/// certificate, from [`ClientBuilder::client_certificate_for`].
-///
-/// Each connector is a clone of the client's connector for its protocol, so
-/// it shares the TLS context and settings, with an empty session cache and,
-/// for HTTP/3, a connection identity of its own.
-#[derive(Clone, Debug)]
-struct CertificateOrigin {
-    /// Canonical host, as [`Endpoint::host`] gives it.
-    host: Box<str>,
-    port: u16,
-    http1: Option<Http1TlsConnector>,
-    http1_or_2: Option<Http1Or2TlsConnector>,
-    http2: Option<Http2TlsConnector>,
-    http3: Option<Arc<Http3Connector>>,
-    #[cfg(feature = "websocket")]
-    websocket_http1: Option<Http1TlsConnector>,
-}
-
-/// The origin connectors that open connections to one host and port.
-///
-/// Every connection to an origin, including one to its Alt-Svc alternative
-/// or through a proxy tunnel, takes its connector from here, so that it
-/// presents the origin's client certificate. Whether a protocol is
-/// configured at all does not depend on the origin.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct OriginConnectors<'a> {
-    pub(crate) http1: Option<&'a Http1TlsConnector>,
-    pub(crate) http1_or_2: Option<&'a Http1Or2TlsConnector>,
-    pub(crate) http2: Option<&'a Http2TlsConnector>,
-    pub(crate) http3: Option<&'a Arc<Http3Connector>>,
-    #[cfg(feature = "websocket")]
-    pub(crate) websocket_http1: Option<&'a Http1TlsConnector>,
+    pub(crate) transport: PreparedTransport,
+    pub(crate) defaults: RequestDefaults,
+    pub(crate) policy: ConnectionPolicy,
 }
 
 impl ClientInner {
-    pub(crate) fn ensure_pinned_route(
-        &self,
-        scheme: &str,
-        route: &Route,
-    ) -> Result<(), crate::RequestError> {
-        if self.destination_policy && !matches!(route, Route::Direct) {
-            return Err(crate::RequestError::unsupported_destination_policy_route());
-        }
-        if self.custom_tcp_connector && !matches!(route, Route::Direct) {
-            return Err(crate::RequestError::unsupported_custom_connector_route());
-        }
-        if self.server_spki_pins && !matches!(scheme, "https" | "wss") {
-            return Err(crate::RequestError::server_pin_policy(
-                "server SPKI pins require a TLS origin",
-            ));
-        }
-        if self.proxy_server_spki_pins
-            && match route {
-                Route::HttpProxy(proxy) => !proxy.uses_tls(),
-                Route::Socks4(_) | Route::Socks5(_) => true,
-                Route::Direct | Route::ConnectUdp(_) => false,
-            }
-        {
-            return Err(crate::RequestError::server_pin_policy(
-                "proxy SPKI pins require a TLS proxy",
-            ));
-        }
-        Ok(())
-    }
-
-    pub(crate) fn refresh_proxy_connections(&self) {
-        for connector in [&self.https_proxy, &self.forward_https_proxy]
-            .into_iter()
-            .flatten()
-        {
-            connector.refresh_connections();
-        }
-        #[cfg(feature = "websocket")]
-        if let Some(connector) = &self.websocket_https_proxy {
-            connector.refresh_connections();
-        }
-    }
-
-    pub(crate) fn default_connect_udp_pool(
-        &self,
-    ) -> Option<&phantom_net::proxy::ConnectUdpProxyPool> {
-        match &self.route {
-            Some(Route::ConnectUdp(proxy)) => Some(proxy.pool()),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn close_idle_proxy_connections(&self) {
-        for connector in [&self.https_proxy, &self.forward_https_proxy]
-            .into_iter()
-            .flatten()
-        {
-            connector.close_idle_connections();
-        }
-        #[cfg(feature = "websocket")]
-        if let Some(connector) = &self.websocket_https_proxy {
-            connector.close_idle_connections();
-        }
-        if let Some(Route::ConnectUdp(proxy)) = &self.route {
-            proxy.pool().close_idle_connections();
-        }
-    }
-
-    pub(crate) fn selected_route(
-        &self,
-        request_route: Option<&Route>,
-        scheme: &str,
-        endpoint: &crate::authority::Endpoint,
-    ) -> Route {
-        if let Some(route) = request_route {
-            return route.clone();
-        }
-
-        if let Some(route) = &self.route {
-            return route.clone();
-        }
-
-        self.environment_proxies.as_ref().map_or_else(
-            || Route::Direct,
-            |proxies| proxies.route_for(scheme, endpoint),
-        )
-    }
-
-    #[cfg(feature = "session-snapshot")]
-    pub(crate) fn session_snapshot_route(&self) -> Result<Route, crate::session::PreparationError> {
-        if self.environment_proxies.is_some() {
-            return Err(crate::session::PreparationError::Unsupported(
-                "session checkpoints with environment proxy routing",
-            ));
-        }
-        Ok(self.route.clone().unwrap_or(Route::Direct))
-    }
-
-    /// Shared outer owners use the configured proxy route, not NO_PROXY for
-    /// the proxy's own address. Request-only routes are supplied at import.
-    pub(crate) fn ticket_import_route(
-        &self,
-        endpoint: &Endpoint,
-        shared_outer: bool,
-    ) -> Option<Route> {
-        if shared_outer {
-            self.route
-                .as_ref()
-                .filter(|route| matches!(route, Route::ConnectUdp(_)))
-                .cloned()
-        } else {
-            Some(self.selected_route(None, "https", endpoint))
-        }
-    }
-
-    /// Returns the origin connectors for `endpoint`'s host and port: those
-    /// with the certificate [`ClientBuilder::client_certificate_for`] mapped
-    /// to it, or otherwise the client-wide ones.
-    ///
-    /// The host matches without regard to ASCII case, as the connection
-    /// pools' keys do.
-    pub(crate) fn connectors_for(&self, endpoint: &Endpoint) -> OriginConnectors<'_> {
-        let mapped = self.certificate_origins.iter().find(|origin| {
-            origin.port == endpoint.port() && origin.host.eq_ignore_ascii_case(endpoint.host())
-        });
-        match mapped {
-            Some(origin) => OriginConnectors {
-                http1: origin.http1.as_ref(),
-                http1_or_2: origin.http1_or_2.as_ref(),
-                http2: origin.http2.as_ref(),
-                http3: origin.http3.as_ref(),
-                #[cfg(feature = "websocket")]
-                websocket_http1: origin.websocket_http1.as_ref(),
-            },
-            None => OriginConnectors {
-                http1: self.http1.as_ref(),
-                http1_or_2: self.http1_or_2.as_ref(),
-                http2: self.http2.as_ref(),
-                http3: self.http3.as_ref(),
-                #[cfg(feature = "websocket")]
-                websocket_http1: self.websocket_http1.as_ref(),
-            },
-        }
-    }
-
-    /// Derives one set of origin connectors per mapped host and port from
-    /// the client-wide connectors.
-    ///
-    /// Call it after every other change to the origin connectors, whose
-    /// clones it makes, so that each set has the same resolver, proxy
-    /// credentials, and early-data choice.
-    fn bind_certificate_origins(&mut self, origins: &[(Endpoint, ClientCertificate)]) {
-        self.certificate_origins = origins
-            .iter()
-            .map(|(endpoint, certificate)| CertificateOrigin {
-                host: endpoint.host().into(),
-                port: endpoint.port(),
-                http1: self
-                    .http1
-                    .clone()
-                    .map(|connector| connector.with_client_certificate(certificate)),
-                http1_or_2: self
-                    .http1_or_2
-                    .clone()
-                    .map(|connector| connector.with_client_certificate(certificate)),
-                http2: self
-                    .http2
-                    .clone()
-                    .map(|connector| connector.with_client_certificate(certificate)),
-                http3: self
-                    .http3
-                    .as_deref()
-                    .map(|connector| Arc::new(connector.with_client_certificate(certificate))),
-                #[cfg(feature = "websocket")]
-                websocket_http1: self
-                    .websocket_http1
-                    .clone()
-                    .map(|connector| connector.with_client_certificate(certificate)),
-            })
-            .collect();
-    }
-
     pub(crate) fn fork(&self, share_dns: bool, share_tickets: bool) -> Self {
         let mut inner = self.clone();
-        if let Some(resolver) = self.host_resolver.as_ref().filter(|_| !share_dns) {
+        if let Some(resolver) = self.transport.host_resolver.as_ref().filter(|_| !share_dns) {
             let mut fresh = resolver.clone();
             if let Some(cache) = resolver.cache() {
                 fresh = fresh.with_cache(*cache.settings());
             }
-            inner.bind_host_resolver(fresh);
+            inner.transport.bind_host_resolver(fresh, &inner.policy);
         }
-        if let Some(Route::ConnectUdp(proxy)) = &self.route {
-            inner.route = Some(Route::ConnectUdp(if share_tickets {
+        if let Some(Route::ConnectUdp(proxy)) = &self.defaults.route {
+            inner.defaults.route = Some(Route::ConnectUdp(if share_tickets {
                 proxy.fresh_with_shared_tickets()
             } else {
                 proxy.fresh()
             }));
         }
-        inner.https_proxy = inner
+        inner.transport.https_proxy = inner
+            .transport
             .https_proxy
             .take()
             .map(|base| base.with_isolated_session_cache());
-        inner.connect_udp_proxy = inner.connect_udp_proxy.take().map(|base| {
+        inner.transport.connect_udp_proxy = inner.transport.connect_udp_proxy.take().map(|base| {
             Arc::new(ConnectUdpConnectors {
                 http3: base
                     .http3
@@ -432,153 +152,18 @@ impl ClientInner {
                     connector
                         .with_isolated_session_cache()
                         .with_http2_proxy_pool(Http2ProxyPool::with_max_connections_per_route(
-                            inner.http2_proxy_connections_per_route,
+                            inner.policy.http2_proxy_connections_per_route,
                         ))
                 }),
             })
         });
-        if inner.proxy_credentials.is_some() {
+        if inner.transport.proxy_credentials.is_some() {
             let cache = ProxyCredentialCache::new();
-            inner.bind_proxy_credentials(&cache);
-            inner.proxy_credentials = Some(cache);
+            inner.transport.bind_proxy_credentials(&cache);
+            inner.transport.proxy_credentials = Some(cache);
         }
-        inner.bind_http2_proxy_pools();
+        inner.transport.bind_http2_proxy_pools(&inner.policy);
         inner
-    }
-
-    /// Gives the HTTPS proxy connectors new HTTP/2 connection pools: one for
-    /// every purpose, or one per purpose, as the profile says.
-    ///
-    /// Call it after every other change to `https_proxy`, whose clones it
-    /// makes.
-    fn bind_http2_proxy_pools(&mut self) {
-        let Some(base) = self.https_proxy.take() else {
-            return;
-        };
-        let per_route = self.http2_proxy_connections_per_route;
-        let new_pool = || Http2ProxyPool::with_max_connections_per_route(per_route);
-        let tunnels = new_pool();
-        let separate = self.http2_proxy_connections == Http2ProxyConnections::ByPurpose;
-        let own_pool = || {
-            if separate {
-                new_pool()
-            } else {
-                tunnels.clone()
-            }
-        };
-        self.forward_https_proxy = Some(base.clone().with_http2_proxy_pool(own_pool()));
-        #[cfg(feature = "websocket")]
-        {
-            self.websocket_https_proxy = Some(base.clone().with_http2_proxy_pool(own_pool()));
-        }
-        self.https_proxy = Some(base.with_http2_proxy_pool(tunnels));
-    }
-
-    /// Gives every connector that resolves host names the same resolver.
-    fn bind_host_resolver(&mut self, resolver: HostResolver) {
-        if self.custom_tcp_connector {
-            self.host_resolver = Some(resolver);
-            return;
-        }
-        let bind = |connector: Http1TlsConnector| connector.with_host_resolver(resolver.clone());
-        self.http1 = self.http1.take().map(bind);
-        self.http1_or_2 = self
-            .http1_or_2
-            .take()
-            .map(|connector| connector.with_host_resolver(resolver.clone()));
-        self.http2 = self
-            .http2
-            .take()
-            .map(|connector| connector.with_host_resolver(resolver.clone()));
-        self.http3 = self
-            .http3
-            .take()
-            .map(|connector| Arc::new(connector.with_host_resolver(resolver.clone())));
-        self.https_proxy = self
-            .https_proxy
-            .take()
-            .map(|connector| connector.with_host_resolver(resolver.clone()));
-        self.connect_udp_proxy = self.connect_udp_proxy.take().map(|connectors| {
-            Arc::new(ConnectUdpConnectors {
-                http3: connectors
-                    .http3
-                    .as_ref()
-                    .map(|connector| connector.with_host_resolver(resolver.clone())),
-                tcp: connectors
-                    .tcp
-                    .clone()
-                    .map(|connector| connector.with_host_resolver(resolver.clone())),
-            })
-        });
-        #[cfg(feature = "websocket")]
-        {
-            self.websocket_http1 = self.websocket_http1.take().map(bind);
-        }
-        for origin in &mut self.certificate_origins {
-            origin.http1 = origin
-                .http1
-                .take()
-                .map(|connector| connector.with_host_resolver(resolver.clone()));
-            origin.http1_or_2 = origin
-                .http1_or_2
-                .take()
-                .map(|connector| connector.with_host_resolver(resolver.clone()));
-            origin.http2 = origin
-                .http2
-                .take()
-                .map(|connector| connector.with_host_resolver(resolver.clone()));
-            origin.http3 = origin
-                .http3
-                .take()
-                .map(|connector| Arc::new(connector.with_host_resolver(resolver.clone())));
-            #[cfg(feature = "websocket")]
-            {
-                origin.websocket_http1 = origin
-                    .websocket_http1
-                    .take()
-                    .map(|connector| connector.with_host_resolver(resolver.clone()));
-            }
-        }
-        self.host_resolver = Some(resolver);
-    }
-
-    /// Gives every connector that can open an authenticated proxy tunnel the
-    /// same record.
-    fn bind_proxy_credentials(&mut self, cache: &ProxyCredentialCache) {
-        let bind =
-            |connector: Http1TlsConnector| connector.with_proxy_credential_cache(cache.clone());
-        self.http1 = self.http1.take().map(bind);
-        self.http1_or_2 = self
-            .http1_or_2
-            .take()
-            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
-        self.http2 = self
-            .http2
-            .take()
-            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
-        self.https_proxy = self
-            .https_proxy
-            .take()
-            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
-        #[cfg(feature = "websocket")]
-        {
-            self.websocket_http1 = self.websocket_http1.take().map(bind);
-        }
-        for origin in &mut self.certificate_origins {
-            origin.http1 = origin.http1.take().map(bind);
-            origin.http1_or_2 = origin
-                .http1_or_2
-                .take()
-                .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
-            origin.http2 = origin
-                .http2
-                .take()
-                .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
-            #[cfg(feature = "websocket")]
-            {
-                origin.websocket_http1 = origin.websocket_http1.take().map(bind);
-            }
-        }
     }
 }
 
@@ -628,7 +213,7 @@ impl Client {
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn key_log(&self) -> Option<&crate::KeyLog> {
-        self.inner.key_log.as_deref()
+        self.inner.transport.key_log.as_deref()
     }
 
     /// Starts one empty-body GET using exactly `protocol`.
@@ -2697,79 +2282,87 @@ impl ClientBuilder {
 
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
-            custom_tcp_connector: self.tcp_connector.is_some(),
-            destination_policy: self.destination_policy.is_some(),
-            ticket_preparation,
-            server_spki_pins: self.server_spki_pins.is_some(),
-            proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),
-            base_url: self.base_url,
-            header_hooks: self.header_hooks,
-            request_hooks: self.request_hooks,
-            http1,
-            http1_or_2,
-            http2,
-            http3: http3.map(Arc::new),
-            connect_udp_proxy: connect_udp_proxy.map(Arc::new),
-            https_proxy,
-            forward_https_proxy: None,
-            #[cfg(feature = "websocket")]
-            websocket_https_proxy: None,
-            http2_proxy_connections: self
-                .profile
-                .proxy_connect()
-                .map(|template| template.http2_connections)
-                .unwrap_or_default(),
-            http2_proxy_connections_per_route: self.http2_proxy_connections_per_route,
-            http2_ping_failure_retries: self
-                .profile
-                .http2()
-                .map_or(0, |settings| settings.ping_failure_retries),
-            proxy_credentials: None,
-            host_resolver: None,
-            client_hints,
-            request_template,
-            http1_connections_per_origin: self
-                .profile
-                .http1()
-                .map_or(NonZeroUsize::MIN, |http1| http1.max_connections_per_origin),
-            http1_used_idle_timeout: self
-                .profile
-                .http1()
-                .and_then(|http1| http1.idle_timeout.checked_on_request()),
-            http1_idle_timer: self
-                .profile
-                .http1()
-                .and_then(|http1| http1.idle_timeout.closed_on_timer()),
-            http2_idle_timer: self
-                .profile
-                .http2()
-                .and_then(|http2| http2.idle_timeout.closed_on_timer()),
-            cookie_placement: self.profile.cookie_placement().clone(),
-            route: self.route,
-            environment_proxies: self.environment_proxies,
-            proxy_connect: self.profile.proxy_connect().cloned().map(Arc::new),
-            #[cfg(feature = "websocket")]
-            websocket: self.profile.websocket().cloned(),
-            #[cfg(feature = "websocket")]
-            websocket_http1,
-            certificate_origins: Box::default(),
-            #[cfg(feature = "diagnostics")]
-            key_log,
+            transport: PreparedTransport {
+                ticket_preparation,
+                http1,
+                http1_or_2,
+                http2,
+                http3: http3.map(Arc::new),
+                connect_udp_proxy: connect_udp_proxy.map(Arc::new),
+                https_proxy,
+                forward_https_proxy: None,
+                #[cfg(feature = "websocket")]
+                websocket_https_proxy: None,
+                proxy_credentials: None,
+                host_resolver: None,
+                #[cfg(feature = "websocket")]
+                websocket_http1,
+                certificate_origins: Box::default(),
+                #[cfg(feature = "diagnostics")]
+                key_log,
+            },
+            defaults: RequestDefaults {
+                base_url: self.base_url,
+                header_hooks: self.header_hooks,
+                request_hooks: self.request_hooks,
+                client_hints,
+                request_template,
+                cookie_placement: self.profile.cookie_placement().clone(),
+                route: self.route,
+                environment_proxies: self.environment_proxies,
+                proxy_connect: self.profile.proxy_connect().cloned().map(Arc::new),
+                #[cfg(feature = "websocket")]
+                websocket: self.profile.websocket().cloned(),
+            },
+            policy: ConnectionPolicy {
+                custom_tcp_connector: self.tcp_connector.is_some(),
+                destination_policy: self.destination_policy.is_some(),
+                server_spki_pins: self.server_spki_pins.is_some(),
+                proxy_server_spki_pins: self.proxy_server_spki_pins.is_some(),
+                http2_proxy_connections: self
+                    .profile
+                    .proxy_connect()
+                    .map(|template| template.http2_connections)
+                    .unwrap_or_default(),
+                http2_proxy_connections_per_route: self.http2_proxy_connections_per_route,
+                http2_ping_failure_retries: self
+                    .profile
+                    .http2()
+                    .map_or(0, |settings| settings.ping_failure_retries),
+                http1_connections_per_origin: self
+                    .profile
+                    .http1()
+                    .map_or(NonZeroUsize::MIN, |http1| http1.max_connections_per_origin),
+                http1_used_idle_timeout: self
+                    .profile
+                    .http1()
+                    .and_then(|http1| http1.idle_timeout.checked_on_request()),
+                http1_idle_timer: self
+                    .profile
+                    .http1()
+                    .and_then(|http1| http1.idle_timeout.closed_on_timer()),
+                http2_idle_timer: self
+                    .profile
+                    .http2()
+                    .and_then(|http2| http2.idle_timeout.closed_on_timer()),
+            },
         };
 
         if self.preemptive_proxy_authentication {
             let cache = ProxyCredentialCache::new();
-            inner.bind_proxy_credentials(&cache);
-            inner.proxy_credentials = Some(cache);
+            inner.transport.bind_proxy_credentials(&cache);
+            inner.transport.proxy_credentials = Some(cache);
         }
 
         if let Some(resolver) = host_resolver {
-            inner.bind_host_resolver(resolver);
+            inner.transport.bind_host_resolver(resolver, &inner.policy);
         }
 
-        inner.bind_http2_proxy_pools();
+        inner.transport.bind_http2_proxy_pools(&inner.policy);
         self.options.apply_http3_early_data(&mut inner);
-        inner.bind_certificate_origins(&certificate_origins);
+        inner
+            .transport
+            .bind_certificate_origins(&certificate_origins);
         Ok(self.options.into_client(Arc::new(inner)))
     }
 }

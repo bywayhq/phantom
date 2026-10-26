@@ -190,7 +190,7 @@ impl ImportConfiguration<'_> {
                         source.protocol,
                         TicketCacheProtocol::Http2 | TicketCacheProtocol::Http3
                     );
-                if let Some(route) = client.ticket_import_route(origin, shared) {
+                if let Some(route) = client.defaults.ticket_import_route(origin, shared) {
                     candidates.push(route);
                 }
                 for route in *routes {
@@ -267,7 +267,7 @@ impl ImportConfiguration<'_> {
             #[cfg(test)]
             Self::Fixture => return matches!(route.ordinary(), Some(Route::Direct)),
         };
-        let connectors = client.connectors_for(origin);
+        let connectors = client.transport.connectors_for(origin);
         match source.leg {
             TicketCacheLeg::Origin => {
                 if source.server_name != origin.host() {
@@ -304,7 +304,7 @@ impl ImportConfiguration<'_> {
                     return false;
                 };
                 proxy.uses_tls()
-                    && client.https_proxy.is_some()
+                    && client.transport.https_proxy.is_some()
                     && source.server_name == proxy.host()
                     && source.protocol
                         == if proxy.uses_http2() {
@@ -317,7 +317,7 @@ impl ImportConfiguration<'_> {
                 let Some(proxy) = route.connect_udp() else {
                     return false;
                 };
-                let Some(outer) = &client.connect_udp_proxy else {
+                let Some(outer) = &client.transport.connect_udp_proxy else {
                     return false;
                 };
                 let supported = match (source.protocol, proxy.tcp_protocol()) {

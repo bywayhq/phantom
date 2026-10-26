@@ -189,6 +189,7 @@ pub(super) async fn send_once_raced(
     } = lifecycle;
     let negotiated = client
         .inner
+        .transport
         .connectors_for(&request.endpoint)
         .http1_or_2
         .ok_or_else(RequestError::unsupported_negotiation)?;
@@ -249,7 +250,7 @@ pub(super) async fn send_once_raced(
         || {
             client.state.http1_or_2.acquire_lease(
                 negotiated,
-                client.inner.https_proxy.as_ref(),
+                client.inner.transport.https_proxy.as_ref(),
                 &request.endpoint,
                 route,
                 request_span,
@@ -753,6 +754,7 @@ async fn alternative_setup(
     // serves the origin, and its connections pool under the origin's key.
     let connector = client
         .inner
+        .transport
         .connectors_for(&endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
@@ -768,7 +770,7 @@ async fn alternative_setup(
     admission
         .connect(
             connector,
-            client.inner.connect_udp_proxy.as_deref(),
+            client.inner.transport.connect_udp_proxy.as_deref(),
             &endpoint,
             &route,
             Http3TransportTarget::for_alternative(&alternative),
@@ -1076,6 +1078,7 @@ async fn dispatch_http3(
 ) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let connector = client
         .inner
+        .transport
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
@@ -1102,7 +1105,7 @@ async fn dispatch_http3(
         None => {
             box_send(client.state.http3.send_request(
                 connector,
-                client.inner.connect_udp_proxy.as_deref(),
+                client.inner.transport.connect_udp_proxy.as_deref(),
                 &request.endpoint,
                 route,
                 transport,

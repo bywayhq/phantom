@@ -84,7 +84,7 @@ async fn send_once_inner(
     let connect_route = if route.forwards(&request.uri) {
         None
     } else {
-        route.with_profile_connect(client.inner.proxy_connect.as_deref(), |name| {
+        route.with_profile_connect(client.inner.defaults.proxy_connect.as_deref(), |name| {
             request_field_value(request, &attempt.headers, name)
         })
     };
@@ -507,6 +507,7 @@ pub(super) async fn send_once_origin(
     } = attempt;
     let connector = client
         .inner
+        .transport
         .connectors_for(endpoint)
         .http1_or_2
         .ok_or_else(RequestError::unsupported_negotiation)?;
@@ -544,7 +545,7 @@ pub(super) async fn send_once_origin(
             .http1_or_2
             .send_request(
                 connector,
-                client.inner.https_proxy.as_ref(),
+                client.inner.transport.https_proxy.as_ref(),
                 endpoint,
                 route,
                 request_span,
@@ -670,6 +671,7 @@ pub(super) fn begin_accept_ch_restart(
 pub(super) fn retries_misdirected(client: &Client, request: &ResolvedRequest) -> bool {
     client
         .inner
+        .transport
         .connectors_for(&request.endpoint)
         .http3
         .is_some_and(|connector| {
@@ -864,6 +866,7 @@ pub(super) struct PreparedAttempt<'a> {
 pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> Option<String> {
     client
         .inner
+        .defaults
         .client_hints
         .as_ref()
         .filter(|_| is_potentially_trustworthy(&request.url))
@@ -934,7 +937,11 @@ fn pinned_alt_used<'a>(
         return None;
     }
 
-    let connector = client.inner.connectors_for(&request.endpoint).http3?;
+    let connector = client
+        .inner
+        .transport
+        .connectors_for(&request.endpoint)
+        .http3?;
     if !matches!(
         connector.alt_used_policy(),
         phantom_profile::Http3AltUsed::Append | phantom_profile::Http3AltUsed::ValidatedMapping
@@ -971,7 +978,7 @@ fn route_attempt_headers(
         Some(fields) => super::template::expand_on_route_with_alt_used(
             fields,
             request_headers,
-            client.inner.client_hints.as_ref(),
+            client.inner.defaults.client_hints.as_ref(),
             is_potentially_trustworthy(&request.url),
             forwarding,
             request.managed_headers,
@@ -1038,6 +1045,7 @@ pub(super) fn attempt_client_hints<'a>(
 ) -> Option<ClientHintContext<'a>> {
     client
         .inner
+        .defaults
         .client_hints
         .as_ref()
         .zip(client_hint_origin)
@@ -1070,16 +1078,21 @@ pub(super) fn observe_response(
     }
     (!path.requires_trustworthy_origin_for_client_hints()
         || is_potentially_trustworthy(&request.url))
-        && client.inner.client_hints.as_ref().is_some_and(|settings| {
-            client.learn_client_hints_and_should_retry(
-                &request.endpoint,
-                request.uri.scheme_str() == Some("https"),
-                settings,
-                response.headers(),
-                sent_headers,
-                request.managed_headers,
-            )
-        })
+        && client
+            .inner
+            .defaults
+            .client_hints
+            .as_ref()
+            .is_some_and(|settings| {
+                client.learn_client_hints_and_should_retry(
+                    &request.endpoint,
+                    request.uri.scheme_str() == Some("https"),
+                    settings,
+                    response.headers(),
+                    sent_headers,
+                    request.managed_headers,
+                )
+            })
 }
 
 pub(super) fn store_cookies(
@@ -1106,7 +1119,7 @@ fn inject_cookie(
         HttpProtocol::Http1 => "Cookie",
         HttpProtocol::Http2 | HttpProtocol::Http3 => "cookie",
     };
-    if place_caller_cookies(&client.inner.cookie_placement, name, headers) {
+    if place_caller_cookies(&client.inner.defaults.cookie_placement, name, headers) {
         return;
     }
 
@@ -1116,6 +1129,7 @@ fn inject_cookie(
     {
         let index = client
             .inner
+            .defaults
             .cookie_placement
             .insertion_index(headers.iter().map(RequestHeader::name))
             .unwrap_or(headers.len());
@@ -1229,6 +1243,7 @@ async fn dispatch_attempt(
         HttpProtocol::Http1 => {
             let connector = client
                 .inner
+                .transport
                 .connectors_for(endpoint)
                 .http1
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
@@ -1251,7 +1266,7 @@ async fn dispatch_attempt(
                 .http1
                 .send_request(
                     connector,
-                    client.inner.https_proxy.as_ref(),
+                    client.inner.transport.https_proxy.as_ref(),
                     endpoint,
                     route,
                     mode,
@@ -1276,6 +1291,7 @@ async fn dispatch_attempt(
         HttpProtocol::Http2 => {
             let connector = client
                 .inner
+                .transport
                 .connectors_for(endpoint)
                 .http2
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
@@ -1286,12 +1302,12 @@ async fn dispatch_attempt(
                     } else {
                         Http2ConnectionMode::Forward
                     },
-                    client.inner.forward_https_proxy.as_ref(),
+                    client.inner.transport.forward_https_proxy.as_ref(),
                 )
             } else {
                 (
                     Http2ConnectionMode::TlsOrigin,
-                    client.inner.https_proxy.as_ref(),
+                    client.inner.transport.https_proxy.as_ref(),
                 )
             };
             // The hints are fixed here, before a connection is chosen.
@@ -1322,6 +1338,7 @@ async fn dispatch_attempt(
         HttpProtocol::Http3 => {
             let connector = client
                 .inner
+                .transport
                 .connectors_for(endpoint)
                 .http3
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
@@ -1333,7 +1350,7 @@ async fn dispatch_attempt(
             };
             let fields = http3_pool::validate_request(
                 connector,
-                client.inner.connect_udp_proxy.as_deref(),
+                client.inner.transport.connect_udp_proxy.as_deref(),
                 route,
                 transport,
                 &method,
@@ -1349,7 +1366,7 @@ async fn dispatch_attempt(
             // HTTP/1.1 and HTTP/2 request as well.
             crate::session::box_send(client.state.http3.send_request(
                 connector,
-                client.inner.connect_udp_proxy.as_deref(),
+                client.inner.transport.connect_udp_proxy.as_deref(),
                 endpoint,
                 route,
                 transport,
@@ -1413,7 +1430,7 @@ impl<'a> ForwardAuthentication<'a> {
                 Some(Self::Basic(BasicForwardAuthentication {
                     proxy,
                     credentials,
-                    cache: client.inner.proxy_credentials.as_ref(),
+                    cache: client.inner.transport.proxy_credentials.as_ref(),
                 }))
             }
             HttpProxyCredentials::Digest(credentials) => {
@@ -1423,9 +1440,9 @@ impl<'a> ForwardAuthentication<'a> {
                 };
                 let transport = if proxy.uses_tls() {
                     let connector = if protocol == HttpProtocol::Http2 {
-                        client.inner.forward_https_proxy.as_ref()?
+                        client.inner.transport.forward_https_proxy.as_ref()?
                     } else {
-                        client.inner.https_proxy.as_ref()?
+                        client.inner.transport.https_proxy.as_ref()?
                     };
                     phantom_net::route::ProxyTransport::Tls {
                         endpoint,
@@ -1438,7 +1455,7 @@ impl<'a> ForwardAuthentication<'a> {
                 Some(Self::Digest(DigestForwardAuthentication::new(
                     credentials,
                     transport,
-                    client.inner.proxy_credentials.is_some(),
+                    client.inner.transport.proxy_credentials.is_some(),
                 )))
             }
         }

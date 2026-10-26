@@ -132,32 +132,49 @@ fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::e
 
     let expected = Some(&tcp);
     assert_eq!(
-        inner.http1.as_ref().and_then(|c| c.tcp_settings()),
+        inner
+            .transport
+            .http1
+            .as_ref()
+            .and_then(|c| c.tcp_settings()),
         expected
     );
     assert_eq!(
-        inner.http2.as_ref().and_then(|c| c.tcp_settings()),
+        inner
+            .transport
+            .http2
+            .as_ref()
+            .and_then(|c| c.tcp_settings()),
         expected
     );
     assert_eq!(
-        inner.http1_or_2.as_ref().and_then(|c| c.tcp_settings()),
+        inner
+            .transport
+            .http1_or_2
+            .as_ref()
+            .and_then(|c| c.tcp_settings()),
         expected
     );
     assert_eq!(
-        inner.http3.as_ref().and_then(|c| c.tcp_settings()),
+        inner
+            .transport
+            .http3
+            .as_ref()
+            .and_then(|c| c.tcp_settings()),
         expected
     );
     for proxy in [
-        &inner.https_proxy,
-        &inner.forward_https_proxy,
+        &inner.transport.https_proxy,
+        &inner.transport.forward_https_proxy,
         #[cfg(feature = "websocket")]
-        &inner.websocket_https_proxy,
+        &inner.transport.websocket_https_proxy,
     ] {
         let proxy = proxy.as_ref().ok_or("no HTTPS proxy connector")?;
         assert_eq!(proxy.tcp_settings(), expected);
     }
 
     let connect_udp = inner
+        .transport
         .connect_udp_proxy
         .as_ref()
         .ok_or("no CONNECT-UDP connectors")?;
@@ -170,6 +187,7 @@ fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::e
     #[cfg(feature = "websocket")]
     assert_eq!(
         inner
+            .transport
             .websocket_http1
             .as_ref()
             .and_then(|c| c.tcp_settings()),
@@ -196,10 +214,15 @@ fn profile_udp_settings_reach_every_http3_connector() -> Result<(), Box<dyn std:
 
     let expected = Some(&udp);
     assert_eq!(
-        inner.http3.as_ref().and_then(|c| c.udp_settings()),
+        inner
+            .transport
+            .http3
+            .as_ref()
+            .and_then(|c| c.udp_settings()),
         expected
     );
     let connect_udp = inner
+        .transport
         .connect_udp_proxy
         .as_ref()
         .ok_or("no CONNECT-UDP connectors")?;
@@ -211,7 +234,12 @@ fn profile_udp_settings_reach_every_http3_connector() -> Result<(), Box<dyn std:
     let without = ClientProfile::new(chrome::v154_tcp_tls()).with_http3(http3);
     let client = Client::builder(without).build()?;
     assert_eq!(
-        client.inner.http3.as_ref().and_then(|c| c.udp_settings()),
+        client
+            .inner
+            .transport
+            .http3
+            .as_ref()
+            .and_then(|c| c.udp_settings()),
         None
     );
     Ok(())
@@ -245,30 +273,47 @@ fn source_binding_reaches_every_connector() -> Result<(), Box<dyn std::error::Er
     let expected = phantom_net::SourceBinding::new().with_address(address);
     let expected = Some(&expected);
     assert_eq!(
-        inner.http1.as_ref().and_then(|c| c.source_binding()),
+        inner
+            .transport
+            .http1
+            .as_ref()
+            .and_then(|c| c.source_binding()),
         expected
     );
     assert_eq!(
-        inner.http2.as_ref().and_then(|c| c.source_binding()),
+        inner
+            .transport
+            .http2
+            .as_ref()
+            .and_then(|c| c.source_binding()),
         expected
     );
     assert_eq!(
-        inner.http1_or_2.as_ref().and_then(|c| c.source_binding()),
+        inner
+            .transport
+            .http1_or_2
+            .as_ref()
+            .and_then(|c| c.source_binding()),
         expected
     );
     assert_eq!(
-        inner.http3.as_ref().and_then(|c| c.source_binding()),
+        inner
+            .transport
+            .http3
+            .as_ref()
+            .and_then(|c| c.source_binding()),
         expected
     );
     for proxy in [
-        &inner.https_proxy,
-        &inner.forward_https_proxy,
+        &inner.transport.https_proxy,
+        &inner.transport.forward_https_proxy,
         #[cfg(feature = "websocket")]
-        &inner.websocket_https_proxy,
+        &inner.transport.websocket_https_proxy,
     ] {
         assert_eq!(proxy.as_ref().and_then(|c| c.source_binding()), expected);
     }
     let connect_udp = inner
+        .transport
         .connect_udp_proxy
         .as_ref()
         .ok_or("no CONNECT-UDP connectors")?;
@@ -283,6 +328,7 @@ fn source_binding_reaches_every_connector() -> Result<(), Box<dyn std::error::Er
     #[cfg(feature = "websocket")]
     assert_eq!(
         inner
+            .transport
             .websocket_http1
             .as_ref()
             .and_then(|c| c.source_binding()),
@@ -293,6 +339,7 @@ fn source_binding_reaches_every_connector() -> Result<(), Box<dyn std::error::Er
     assert_eq!(
         unbound
             .inner
+            .transport
             .http1
             .as_ref()
             .and_then(|c| c.source_binding()),

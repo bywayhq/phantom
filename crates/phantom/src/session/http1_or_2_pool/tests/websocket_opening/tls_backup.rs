@@ -82,7 +82,7 @@ async fn lifecycle(pool: Pool, policy: WebSocketTlsBackup) -> TestResult {
                 Pool::Negotiated => client.websocket_with_profile_policy(&uri)?,
             };
             let socket = builder.connect().await?;
-            let connectors = client.inner.connectors_for(&endpoint);
+            let connectors = client.inner.transport.connectors_for(&endpoint);
             // Only setup is gated here: the sibling itself uses verified native TLS.
             let family = match pool {
                 Pool::Exact => {

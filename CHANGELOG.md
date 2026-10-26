@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Separate prepared transports, request defaults and connection policies inside
+  the client without changing request or session behavior.
+
 - Leave TCP source-port selection to Windows in built-in profiles to avoid
   connection stalls under churn. This changes Chromium-family TCP behavior;
   callers can still opt into `TcpSettings::port_randomization`.

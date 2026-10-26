@@ -115,7 +115,7 @@ async fn direct_opening(
     base: &Http1TlsConnector,
 ) -> Result<(Http1TlsConnector, OpeningOwner), WebSocketError> {
     let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     // Cleartext profile-policy requests use the exact HTTP/1 pool.
     if !plaintext
         && matches!(upgrade_connector, Http1UpgradeConnector::PolicyAlpn)
@@ -124,6 +124,7 @@ async fn direct_opening(
         let owner = client.state.http1_or_2.origin_opening(endpoint).await;
         let websocket = client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
@@ -136,6 +137,7 @@ async fn direct_opening(
     }
     let cleartext_state = client
         .inner
+        .defaults
         .websocket
         .as_ref()
         .map_or(WebSocketCleartextState::Shared, |settings| {
@@ -177,6 +179,7 @@ async fn direct_opening(
     if !plaintext && matches!(upgrade_connector, Http1UpgradeConnector::PolicyAlpn) {
         let websocket = client
             .inner
+            .defaults
             .websocket
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
@@ -205,7 +208,7 @@ async fn pooled_tls_connector(
 ) -> Result<Option<Http1TlsConnector>, WebSocketError> {
     let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
     let state = &client.state;
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     match upgrade_connector {
         Http1UpgradeConnector::Profile => match connectors.http1 {
             Some(base) => Ok(Some(
@@ -218,7 +221,7 @@ async fn pooled_tls_connector(
             None => Ok(None),
         },
         Http1UpgradeConnector::PolicyAlpn => {
-            let Some(websocket) = &client.inner.websocket else {
+            let Some(websocket) = &client.inner.defaults.websocket else {
                 return Ok(None);
             };
             let protocols = &websocket.connection.http1_alpn_protocols;
@@ -259,6 +262,7 @@ fn retains_proxy(client: &Client, connector: &Http1TlsConnector, route: &Route) 
     let settings = if proxy.uses_tls() {
         client
             .inner
+            .transport
             .websocket_https_proxy
             .as_ref()
             .and_then(|connector| connector.tcp_settings())
@@ -285,7 +289,7 @@ async fn upgrade_proxy(
     let proxy = route.as_http_proxy().ok_or_else(|| {
         WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http1))
     })?;
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     let owner = if matches!(selection, Http1UpgradeConnector::PolicyAlpn)
         && connectors.http1_or_2.is_some()
     {
@@ -306,9 +310,14 @@ async fn upgrade_proxy(
         )
     };
     let outer = if proxy.uses_tls() {
-        let base = client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
-            WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http1))
-        })?;
+        let base = client
+            .inner
+            .transport
+            .websocket_https_proxy
+            .as_ref()
+            .ok_or_else(|| {
+                WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http1))
+            })?;
         Some(
             match &owner {
                 OpeningOwner::Exact(owner) => owner.proxy_connector(base, endpoint, route),
@@ -350,6 +359,7 @@ async fn upgrade_proxy(
             if matches!(selection, Http1UpgradeConnector::PolicyAlpn) {
                 let websocket = client
                     .inner
+                    .defaults
                     .websocket
                     .as_ref()
                     .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
@@ -373,6 +383,7 @@ async fn upgrade_proxy(
                 .map_err(WebSocketError::request)?;
             let websocket = client
                 .inner
+                .defaults
                 .websocket
                 .as_ref()
                 .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
@@ -410,7 +421,7 @@ async fn upgrade_socks(
     target: OriginForm,
     headers: Vec<RequestHeader>,
 ) -> Result<(Http1UpgradeOpening, OpeningOwner), WebSocketError> {
-    let connectors = client.inner.connectors_for(endpoint);
+    let connectors = client.inner.transport.connectors_for(endpoint);
     let owner = if !plaintext
         && matches!(selection, Http1UpgradeConnector::PolicyAlpn)
         && connectors.http1_or_2.is_some()
@@ -467,6 +478,7 @@ async fn upgrade_socks(
     };
     let websocket = client
         .inner
+        .defaults
         .websocket
         .as_ref()
         .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
@@ -581,7 +593,7 @@ impl WebSocketRequestBuilder {
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
 
-        let connectors = client.inner.connectors_for(&request.endpoint);
+        let connectors = client.inner.transport.connectors_for(&request.endpoint);
         let base = match upgrade_connector {
             Http1UpgradeConnector::Profile => connectors.http1,
             Http1UpgradeConnector::PolicyAlpn => connectors.websocket_http1,
@@ -614,6 +626,7 @@ impl WebSocketRequestBuilder {
             } else {
                 match client
                     .inner
+                    .defaults
                     .websocket
                     .as_ref()
                     .map_or(WebSocketTlsBackup::Keep, |settings| {
@@ -701,13 +714,20 @@ impl WebSocketRequestBuilder {
             let proxy_connector = if let Route::HttpProxy(proxy) = route
                 && proxy.uses_tls()
             {
-                Some(proxy.https_connector(
-                    client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
-                        WebSocketError::request(RequestError::unsupported_route(
-                            HttpProtocol::Http1,
-                        ))
-                    })?,
-                ))
+                Some(
+                    proxy.https_connector(
+                        client
+                            .inner
+                            .transport
+                            .websocket_https_proxy
+                            .as_ref()
+                            .ok_or_else(|| {
+                                WebSocketError::request(RequestError::unsupported_route(
+                                    HttpProtocol::Http1,
+                                ))
+                            })?,
+                    ),
+                )
             } else {
                 None
             };

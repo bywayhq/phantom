@@ -171,16 +171,22 @@ impl RequestBuilder {
         uri: &str,
     ) -> Result<Self, RequestError> {
         match selection {
-            ProtocolSelection::Exact(HttpProtocol::Http1) if client.inner.http1.is_none() => {
+            ProtocolSelection::Exact(HttpProtocol::Http1)
+                if client.inner.transport.http1.is_none() =>
+            {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http1));
             }
-            ProtocolSelection::Exact(HttpProtocol::Http2) if client.inner.http2.is_none() => {
+            ProtocolSelection::Exact(HttpProtocol::Http2)
+                if client.inner.transport.http2.is_none() =>
+            {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http2));
             }
-            ProtocolSelection::Exact(HttpProtocol::Http3) if client.inner.http3.is_none() => {
+            ProtocolSelection::Exact(HttpProtocol::Http3)
+                if client.inner.transport.http3.is_none() =>
+            {
                 return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
             }
-            ProtocolSelection::Http1Or2 if client.inner.http1_or_2.is_none() => {
+            ProtocolSelection::Http1Or2 if client.inner.transport.http1_or_2.is_none() => {
                 return Err(RequestError::unsupported_negotiation());
             }
             ProtocolSelection::Exact(
@@ -188,12 +194,12 @@ impl RequestBuilder {
             )
             | ProtocolSelection::Http1Or2 => {}
         }
-        let uri = match &client.inner.base_url {
+        let uri = match &client.inner.defaults.base_url {
             Some(base) => base.resolve(uri)?,
             None => parse_absolute_uri(uri).map_err(request_uri_error)?,
         };
         let mut request = ResolvedRequest::new(&uri)?;
-        request.template = client.inner.request_template.clone();
+        request.template = client.inner.defaults.request_template.clone();
         Ok(Self {
             client,
             request,
@@ -697,7 +703,7 @@ impl RequestBuilder {
     }
 
     pub(crate) fn selected_route(&self) -> Route {
-        self.client.inner.selected_route(
+        self.client.inner.defaults.selected_route(
             self.route.as_ref(),
             self.request.uri.scheme_str().unwrap_or_default(),
             &self.request.endpoint,
@@ -964,7 +970,7 @@ impl RequestBuilder {
         let hooks = crate::request_hook::ActiveRequestHooks::start(
             &self.method,
             &self.request.uri,
-            self.client.inner.request_hooks.as_ref(),
+            self.client.inner.defaults.request_hooks.as_ref(),
             self.request_hooks.as_ref(),
         );
         let origin = self.request.origin();
@@ -1088,7 +1094,7 @@ impl RequestBuilder {
                 protected: self.protected_hook_headers,
             };
             if self.client_header_hooks {
-                for hook in &self.client.inner.header_hooks {
+                for hook in &self.client.inner.defaults.header_hooks {
                     hook.run(&mut context).map_err(RequestError::header_hook)?;
                 }
             }
@@ -1209,7 +1215,7 @@ impl RequestBuilder {
                 scope,
                 initial_fallback,
                 &self.headers,
-                self.client.inner.client_hints.as_ref(),
+                self.client.inner.defaults.client_hints.as_ref(),
                 self.request.managed_headers,
                 (
                     secure_context::is_potentially_trustworthy(&self.request.url),
@@ -1248,7 +1254,7 @@ impl RequestBuilder {
         request.alternative = alternative;
         let body = body.with_continue_wait(request.expect_continue);
         let route_override = route;
-        let selected_route = client.inner.selected_route(
+        let selected_route = client.inner.defaults.selected_route(
             route_override.as_ref(),
             request.uri.scheme_str().unwrap_or_default(),
             &request.endpoint,
@@ -1256,9 +1262,10 @@ impl RequestBuilder {
         let route = &selected_route;
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         retries.set_attempt_budget(attempt_budget);
-        let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
+        let mut replays = ReplayState::new(client.inner.policy.http2_ping_failure_retries);
         client
             .inner
+            .policy
             .ensure_pinned_route(request.uri.scheme_str().unwrap_or_default(), route)?;
         ensure_request_supported(selection, route, &request)?;
         if request.alternative.is_none() {
@@ -1343,7 +1350,7 @@ impl RequestBuilder {
         let mut resolved = request;
 
         loop {
-            let selected_route = client.inner.selected_route(
+            let selected_route = client.inner.defaults.selected_route(
                 route_override.as_ref(),
                 resolved.uri.scheme_str().unwrap_or_default(),
                 &resolved.endpoint,
@@ -1366,6 +1373,7 @@ impl RequestBuilder {
             .map_err(|error| error.with_origin(resolved.origin()))?;
             client
                 .inner
+                .policy
                 .ensure_pinned_route(resolved.uri.scheme_str().unwrap_or(""), route)
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             ensure_request_supported(selection, route, &resolved)
@@ -1387,7 +1395,7 @@ impl RequestBuilder {
                     },
                     http2_fallback && resolved.alternative.is_none(),
                     redirect.headers(),
-                    client.inner.client_hints.as_ref(),
+                    client.inner.defaults.client_hints.as_ref(),
                     resolved.managed_headers,
                     (
                         secure_context::is_potentially_trustworthy(&resolved.url),
@@ -1460,7 +1468,9 @@ impl RequestBuilder {
                     return Ok(response);
                 }
                 RedirectAction::Follow { same_origin } => {
-                    if !same_origin && let Some(settings) = client.inner.client_hints.as_ref() {
+                    if !same_origin
+                        && let Some(settings) = client.inner.defaults.client_hints.as_ref()
+                    {
                         redirect.strip_client_hints(settings, resolved.managed_headers);
                     }
                     debug!(
@@ -1543,6 +1553,7 @@ fn negotiated_http3_available(client: &Client, request: &ResolvedRequest, route:
             && matches!(route, Route::Direct)
             && client
                 .inner
+                .transport
                 .connectors_for(&request.endpoint)
                 .http3
                 .is_some_and(|connector| {
@@ -1868,7 +1879,7 @@ fn ensure_http2_fallback_supported(
     {
         return Ok(());
     }
-    if client.inner.http2.is_none() {
+    if client.inner.transport.http2.is_none() {
         return Err(RequestError::unsupported_protocol(HttpProtocol::Http2));
     }
     // CONNECT-UDP carries only QUIC.

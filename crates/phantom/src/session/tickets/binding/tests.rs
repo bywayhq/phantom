@@ -295,6 +295,7 @@ fn descriptor_selects_actual_last_wins_certificate_without_binding_unrelated_map
     let descriptor = |client: &crate::Client| -> Result<_, Box<dyn Error>> {
         let prepared = client
             .inner
+            .transport
             .ticket_preparation
             .as_ref()
             .map_err(|error| *error)?;
@@ -481,7 +482,7 @@ fn unverified_client_stays_locally_constructible_but_transfer_ineligible() -> Te
         .server_authentication(phantom_net::ServerAuthentication::DangerDisabled)
         .build()?;
     assert!(matches!(
-        client.inner.ticket_preparation,
+        client.inner.transport.ticket_preparation,
         Err(PreparationError::Unsupported(
             "disabled server authentication"
         ))
@@ -1130,12 +1131,13 @@ fn real_client_construction_retains_ineligible_preparation_without_failing() -> 
     profile.client_hints().ok_or("missing hints")?.validate()?;
     let client = crate::Client::builder(profile).build()?;
     assert!(matches!(
-        client.inner.ticket_preparation,
+        client.inner.transport.ticket_preparation,
         Err(PreparationError::TooLarge)
     ));
     assert_eq!(client.clear_session_tickets()?, 0);
-    let owner =
-        super::super::TicketOwner::with_preparation(client.inner.ticket_preparation.clone());
+    let owner = super::super::TicketOwner::with_preparation(
+        client.inner.transport.ticket_preparation.clone(),
+    );
     assert!(matches!(
         owner.preparation,
         Some(Err(PreparationError::TooLarge))

@@ -17,6 +17,7 @@ fn new_requests_share_the_prepared_profile_default() -> Result<(), Box<dyn std::
     let client = crate::Client::builder(profile).build()?;
     let prepared = client
         .inner
+        .defaults
         .request_template
         .as_ref()
         .ok_or("default was not prepared")?;
@@ -164,6 +165,7 @@ fn query_pairs_keep_template_choices_body_waits_and_pinned_alternatives()
         crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
     let default = client
         .inner
+        .defaults
         .request_template
         .as_ref()
         .ok_or("missing default")?;
