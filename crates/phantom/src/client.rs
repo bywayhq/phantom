@@ -90,11 +90,12 @@ impl HttpProtocol {
 /// # Examples
 ///
 /// ```no_run
-/// use phantom::profile::{browser::chrome, ClientProfile};
+/// use phantom::profile::browser::chrome;
 /// use phantom::{Client, HttpProtocol};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
+/// let profile = chrome::v154_windows()
+///     .with_request_template(chrome::v154_windows_navigation_template());
 /// let client = Client::builder(profile).build()?;
 ///
 /// let response = client

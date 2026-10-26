@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Use composed browser profiles, short selectors and client-default request
+  templates in setup examples.
+
+- Share HTTP/1 idle cleanup and retirement tracking across connection pools.
+
+- Pass Python retry policies to native code as named settings.
+
+- Share primary-error retention across ALPS, HTTP/3 and SSE capture cleanup.
+
 - Separate prepared transports, request defaults and connection policies inside
   the client without changing request or session behavior.
 
