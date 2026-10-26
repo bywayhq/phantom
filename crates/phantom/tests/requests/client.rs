@@ -1162,6 +1162,7 @@ fn explicit_disabled_server_authentication_builds_with_http3() -> TestResult<()>
 
 #[test]
 fn client_builder_debug_reports_public_policy_without_secrets() {
+    const CREDENTIAL_NAME: &str = "x-private-api-key";
     const SEVEN: NonZeroUsize = match NonZeroUsize::new(7) {
         Some(value) => value,
         None => NonZeroUsize::MIN,
@@ -1181,11 +1182,17 @@ fn client_builder_debug_reports_public_policy_without_secrets() {
         "{:?}",
         Client::builder(ClientProfile::new(tls_settings()))
             .server_authentication(policy)
-            .redirect_policy(RedirectPolicy::limited(SEVEN))
+            .redirect_policy(
+                RedirectPolicy::limited(SEVEN)
+                    .credential_headers([http::header::HeaderName::from_static(CREDENTIAL_NAME)])
+            )
             .max_retained_http1_connections(SEVEN)
     );
     assert!(debug.contains(shown));
-    assert!(debug.contains("redirect_policy: RedirectPolicy { maximum: Some(7), custom: false }"));
+    assert!(debug.contains(
+        "redirect_policy: RedirectPolicy { maximum: Some(7), custom: false, credential_header_count: 1 }"
+    ));
+    assert!(!debug.contains(CREDENTIAL_NAME));
     assert!(debug.contains("max_retained_http1_connections: 7"));
 }
 
