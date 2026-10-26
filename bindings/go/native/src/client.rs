@@ -17,7 +17,7 @@ pub(super) struct Config {
     context: Option<String>,
     proxy: Option<String>,
     base_url: Option<String>,
-    network: Option<crate::network::NetworkOptions>,
+    network: Option<Box<crate::network::NetworkOptions>>,
     pool: Option<Box<crate::pool::PoolOptions>>,
     proxy_credentials: Option<ProxyCredentials>,
     #[serde(default)]
@@ -188,7 +188,7 @@ impl NativeClient {
         let mut builder = Client::builder(profile)
             .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
         if let Some(network) = config.network {
-            builder = network.apply(builder)?;
+            builder = (*network).apply(builder)?;
         }
         if let Some(pool) = config.pool {
             builder = (*pool).apply(builder)?;

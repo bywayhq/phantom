@@ -55,7 +55,7 @@ enum Command {
         prepared_body: u64,
     },
     NewClient {
-        config: Box<Config>,
+        config: Config,
     },
     ForkClient {
         client: u64,
@@ -830,7 +830,7 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 if state.clients.len() >= MAX_HANDLES {
                     return Err(Failure::new("capacity"));
                 }
-                let client = NativeClient::new(*config)?;
+                let client = NativeClient::new(config)?;
                 let id = state.id()?;
                 state.clients.insert(id, client);
                 Ok(json!({"id":id}))
