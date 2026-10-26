@@ -215,10 +215,12 @@ impl RedirectPolicy {
     /// Replaces the additional credential names removed on cross-origin hops.
     ///
     /// Names ignore ASCII case. The four standard credential fields are always
-    /// removed. Registered fields leave caller headers, static trailers and all
-    /// template lists at the first cross-origin hop, even if a later hop returns
-    /// to the original origin. Same-origin hops preserve them. Hooks run once,
-    /// so headers they add follow the same rules. This does not enable redirects.
+    /// removed. Registered names leave caller headers, static trailers, template
+    /// literal or conditional fields, and caller slots at the first cross-origin
+    /// hop. They stay removed if a later hop returns to the original origin.
+    /// Same-origin hops preserve them. Hooks run once, so their fields follow
+    /// these rules. Generated cookies, client hints and proxy credentials keep
+    /// their own destination policies. This does not enable redirects.
     ///
     /// ```
     /// use std::num::NonZeroUsize;

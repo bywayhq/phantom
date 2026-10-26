@@ -226,7 +226,8 @@ Enable only the behavior you need:
   [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
   Use `RedirectPolicy::none()` to inspect its redirect response yourself.
   Register custom secret headers with `RedirectPolicy::credential_headers`;
-  they leave caller headers, trailers and templates when a hop changes origin.
+  they leave caller headers, static trailers and template values or caller
+  slots when a hop changes origin.
   [`RedirectPolicy::custom`](crate::RedirectPolicy::custom) lets you follow,
   stop or reject each resolved URL while retaining a hop limit.
   Enable [`RequestBuilder::redirect_history`](crate::RequestBuilder::redirect_history)
