@@ -1,23 +1,42 @@
-use crate::error;
+use std::{num::NonZeroUsize, time::Duration};
+
 use phantom::{RequestTimeoutOverrides, RequestTimeouts, Route, TimeoutOverride};
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyTuple},
 };
-use std::num::NonZeroUsize;
-use std::time::Duration;
+
+use crate::error;
 
 pub(super) type TimeoutFields = Vec<(String, Option<f64>)>;
-type ConnectionRetryFields = (usize, f64, Option<f64>, bool);
-type StatusRetryFields = (Vec<u16>, usize, f64, Option<f64>, bool, Option<f64>);
-pub(super) type RetryFields = (
-    Option<ConnectionRetryFields>,
-    bool,
-    Option<usize>,
-    Option<StatusRetryFields>,
-    Option<usize>,
-    bool,
-);
+
+#[derive(FromPyObject)]
+struct ConnectionRetrySettings {
+    maximum: usize,
+    delay: f64,
+    maximum_delay: Option<f64>,
+    full_jitter: bool,
+}
+
+#[derive(FromPyObject)]
+struct StatusRetrySettings {
+    statuses: Vec<u16>,
+    maximum: usize,
+    delay: f64,
+    maximum_delay: Option<f64>,
+    full_jitter: bool,
+    retry_after_limit: Option<f64>,
+}
+
+#[derive(FromPyObject)]
+pub(super) struct RetrySettings {
+    connection_failures: Option<ConnectionRetrySettings>,
+    reused_connection_replay: bool,
+    unprocessed_replays: Option<usize>,
+    status_retry: Option<StatusRetrySettings>,
+    maximum_retries: Option<usize>,
+    http2_fallback: bool,
+}
 
 pub(super) fn server_pins(
     value: Option<&Bound<'_, PyAny>>,
@@ -50,45 +69,53 @@ fn retry_maximum(maximum: usize) -> PyResult<NonZeroUsize> {
     NonZeroUsize::new(maximum).ok_or_else(|| error::input("invalid_retry_maximum"))
 }
 
-pub(super) fn retry_policy(fields: RetryFields) -> PyResult<phantom::RetryPolicy> {
-    let (connection, reused, unprocessed, status, maximum, fallback) = fields;
-    let mut policy = match connection {
+pub(super) fn retry_policy(settings: RetrySettings) -> PyResult<phantom::RetryPolicy> {
+    let mut policy = match settings.connection_failures {
         None => phantom::RetryPolicy::none(),
-        Some((maximum, delay, cap, jitter)) => {
+        Some(connection) => {
             let mut policy = phantom::RetryPolicy::connection_failures(
-                retry_maximum(maximum)?,
-                retry_duration(delay)?,
+                retry_maximum(connection.maximum)?,
+                retry_duration(connection.delay)?,
             )
-            .with_full_jitter(jitter);
-            if let Some(cap) = cap {
+            .with_full_jitter(connection.full_jitter);
+            if let Some(cap) = connection.maximum_delay {
                 policy = policy.with_exponential_backoff(retry_duration(cap)?);
             }
             policy
         }
     };
-    if let Some((statuses, maximum, delay, cap, jitter, retry_after)) = status {
-        let statuses = statuses
+    if let Some(settings) = settings.status_retry {
+        let statuses = settings
+            .statuses
             .into_iter()
             .map(phantom::StatusCode::from_u16)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| error::input("invalid_retry_status"))?;
-        let mut status =
-            phantom::StatusRetry::new(&statuses, retry_maximum(maximum)?, retry_duration(delay)?)
-                .map_err(|_| error::input("invalid_retry_status"))?
-                .with_full_jitter(jitter);
-        if let Some(cap) = cap {
+        let mut status = phantom::StatusRetry::new(
+            &statuses,
+            retry_maximum(settings.maximum)?,
+            retry_duration(settings.delay)?,
+        )
+        .map_err(|_| error::input("invalid_retry_status"))?
+        .with_full_jitter(settings.full_jitter);
+        if let Some(cap) = settings.maximum_delay {
             status = status.with_exponential_backoff(retry_duration(cap)?);
         }
-        if let Some(maximum) = retry_after {
+        if let Some(maximum) = settings.retry_after_limit {
             status = status.honor_retry_after(retry_duration(maximum)?);
         }
         policy = policy.with_status_retry(status);
     }
     Ok(policy
-        .with_reused_connection_replay(reused)
-        .with_unprocessed_replay(unprocessed.map(retry_maximum).transpose()?)
-        .with_max_retries(maximum)
-        .with_http2_fallback(fallback))
+        .with_reused_connection_replay(settings.reused_connection_replay)
+        .with_unprocessed_replay(
+            settings
+                .unprocessed_replays
+                .map(retry_maximum)
+                .transpose()?,
+        )
+        .with_max_retries(settings.maximum_retries)
+        .with_http2_fallback(settings.http2_fallback))
 }
 
 pub(super) fn redirect_policy(maximum: usize) -> phantom::RedirectPolicy {
@@ -249,38 +276,74 @@ mod tests {
     }
 
     #[test]
-    fn retry_fields_preserve_every_core_class_and_schedule() -> PyResult<()> {
-        let policy = retry_policy((
-            Some((3, 0.25, Some(4.0), true)),
-            true,
-            Some(5),
-            Some((vec![503, 429, 503], 6, 0.5, Some(8.0), true, Some(9.0))),
-            Some(0),
-            true,
-        ))?;
-        assert_eq!(policy.max_connection_failures(), NonZeroUsize::new(3));
-        assert_eq!(policy.delay(), Duration::from_millis(250));
-        assert_eq!(policy.backoff_limit(), Some(Duration::from_secs(4)));
-        assert!(policy.full_jitter());
-        assert!(policy.reused_connection_replay());
-        assert_eq!(policy.unprocessed_replay(), NonZeroUsize::new(5));
-        assert_eq!(policy.max_retries(), Some(0));
-        assert!(policy.http2_fallback());
-        let status = policy
-            .status_retry()
-            .ok_or_else(|| error::input("test_status_policy_missing"))?;
-        assert!(status.retries(phantom::StatusCode::SERVICE_UNAVAILABLE));
-        assert!(status.retries(phantom::StatusCode::TOO_MANY_REQUESTS));
-        assert!(!status.retries(phantom::StatusCode::INTERNAL_SERVER_ERROR));
-        assert_eq!(status.max_retries().get(), 6);
-        assert_eq!(status.delay(), Duration::from_millis(500));
-        assert_eq!(status.backoff_limit(), Some(Duration::from_secs(8)));
-        assert_eq!(status.retry_after_limit(), Some(Duration::from_secs(9)));
-        assert!(status.full_jitter());
-        assert_eq!(
-            retry_policy((None, false, None, None, None, false))?,
-            phantom::RetryPolicy::none()
-        );
-        Ok(())
+    fn retry_attributes_preserve_every_core_class_and_schedule() -> PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| {
+            let fields = py.eval(
+                c"__import__('types').SimpleNamespace(
+                    http2_fallback=True, maximum_retries=0, unprocessed_replays=5,
+                    reused_connection_replay=True,
+                    connection_failures=__import__('types').SimpleNamespace(
+                        full_jitter=True, maximum_delay=4, delay=0.25, maximum=3),
+                    status_retry=__import__('types').SimpleNamespace(
+                        retry_after_limit=9, full_jitter=True, maximum_delay=8,
+                        delay=0.5, maximum=6, statuses=(503, 429, 503)))",
+                None,
+                None,
+            )?;
+            let policy = retry_policy(fields.extract()?)?;
+            assert_eq!(policy.max_connection_failures(), NonZeroUsize::new(3));
+            assert_eq!(policy.delay(), Duration::from_millis(250));
+            assert_eq!(policy.backoff_limit(), Some(Duration::from_secs(4)));
+            assert!(policy.full_jitter());
+            assert!(policy.reused_connection_replay());
+            assert_eq!(policy.unprocessed_replay(), NonZeroUsize::new(5));
+            assert_eq!(policy.max_retries(), Some(0));
+            assert!(policy.http2_fallback());
+
+            let status = policy
+                .status_retry()
+                .ok_or_else(|| error::input("test_status_policy_missing"))?;
+            assert!(status.retries(phantom::StatusCode::SERVICE_UNAVAILABLE));
+            assert!(status.retries(phantom::StatusCode::TOO_MANY_REQUESTS));
+            assert!(!status.retries(phantom::StatusCode::INTERNAL_SERVER_ERROR));
+            assert_eq!(status.max_retries().get(), 6);
+            assert_eq!(status.delay(), Duration::from_millis(500));
+            assert_eq!(status.backoff_limit(), Some(Duration::from_secs(8)));
+            assert_eq!(status.retry_after_limit(), Some(Duration::from_secs(9)));
+            assert!(status.full_jitter());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn retry_boundary_rejects_positional_and_incomplete_settings() -> PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| {
+            for expression in [
+                "(None, False, None, None, None, False)",
+                "__import__('types').SimpleNamespace()",
+                "__import__('types').SimpleNamespace(connection_failures=None)",
+            ] {
+                let code = std::ffi::CString::new(expression)
+                    .map_err(|_| error::input("test_expression"))?;
+                let fields = py.eval(&code, None, None)?;
+                assert!(fields.extract::<RetrySettings>().is_err());
+            }
+
+            let fields = py.eval(
+                c"__import__('types').SimpleNamespace(
+                    connection_failures=None, reused_connection_replay=False,
+                    unprocessed_replays=None, status_retry=None,
+                    maximum_retries=None, http2_fallback=False)",
+                None,
+                None,
+            )?;
+            assert_eq!(
+                retry_policy(fields.extract()?)?,
+                phantom::RetryPolicy::none()
+            );
+            Ok(())
+        })
     }
 }

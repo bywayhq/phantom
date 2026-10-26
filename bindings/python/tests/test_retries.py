@@ -48,21 +48,12 @@ class RetryFacadeTests(unittest.IsolatedAsyncioTestCase):
             maximum_retries=0,
             http2_fallback=True,
         )
-        expected = (
-            (maximum, 0.0, 2.0, True),
-            True,
-            maximum,
-            ([503, 429, 503], maximum, 0.25, 4.0, True, 8.0),
-            0,
-            True,
-        )
-        self.assertEqual(policy._native_fields(), expected)
         with self.assertRaises(dataclasses.FrozenInstanceError):
             policy.maximum_retries = 3
-        # A caller cannot mutate future submissions through a previous conversion.
-        fields = policy._native_fields()
-        fields[3][0].clear()
-        self.assertEqual(policy.status_retry.statuses, (503, 429, 503))
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            policy.connection_failures.maximum = 3
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            policy.status_retry.statuses = ()
         constructors, requests = [], []
 
         class Native:
@@ -77,15 +68,12 @@ class RetryFacadeTests(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(phantom_http._native, "NativeClient", Native):
             client = AsyncClient(**OPTIONS, retry_policy=policy)
-            self.assertEqual(constructors[0][-1], expected)
+            self.assertIs(constructors[0][-1], policy)
             for replacement in (None, RetryPolicy.none(), policy):
                 await client.request(
                     "GET", "http://origin.invalid", retry_policy=replacement
                 )
-                self.assertEqual(
-                    requests[-1][-1],
-                    None if replacement is None else replacement._native_fields(),
-                )
+                self.assertIs(requests[-1][-1], replacement)
             with self.assertRaises(TypeError):
                 AsyncClient(**OPTIONS, retry_policy={})
             with self.assertRaises(TypeError):
@@ -139,9 +127,7 @@ class RetryFacadeTests(unittest.IsolatedAsyncioTestCase):
                 RetryPolicy(**options)
         with self.assertRaises(ValueError):
             ConnectionRetry(maximum=1, delay=1, maximum_delay=0)
-        self.assertEqual(
-            RetryPolicy.none()._native_fields(), (None, False, None, None, None, False)
-        )
+        self.assertEqual(RetryPolicy.none(), RetryPolicy())
 
 
 class RetryHandler(http.server.BaseHTTPRequestHandler):

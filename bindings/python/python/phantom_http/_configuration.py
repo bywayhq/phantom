@@ -210,20 +210,6 @@ class RedirectPolicy:
         return cls(_redirect_count(maximum_hops, positive=True))
 
 
-_ConnectionRetryFields: TypeAlias = tuple[int, float, float | None, bool]
-_StatusRetryFields: TypeAlias = tuple[
-    list[int], int, float, float | None, bool, float | None
-]
-_RetryFields: TypeAlias = tuple[
-    _ConnectionRetryFields | None,
-    bool,
-    int | None,
-    _StatusRetryFields | None,
-    int | None,
-    bool,
-]
-
-
 def _retry_count(value: int, *, positive: bool = False) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError("retry counts must be integers")
@@ -265,14 +251,6 @@ class ConnectionRetry:
         _retry_count(self.maximum, positive=True)
         _retry_schedule(self.delay, self.maximum_delay, self.full_jitter)
 
-    def _native_fields(self) -> _ConnectionRetryFields:
-        return (
-            self.maximum,
-            _retry_seconds(self.delay),
-            None if self.maximum_delay is None else _retry_seconds(self.maximum_delay),
-            self.full_jitter,
-        )
-
 
 @dataclass(frozen=True, kw_only=True)
 class StatusRetry:
@@ -300,18 +278,6 @@ class StatusRetry:
         _retry_schedule(self.delay, self.maximum_delay, self.full_jitter)
         if self.retry_after_limit is not None:
             _retry_seconds(self.retry_after_limit)
-
-    def _native_fields(self) -> _StatusRetryFields:
-        return (
-            list(self.statuses),
-            self.maximum,
-            _retry_seconds(self.delay),
-            None if self.maximum_delay is None else _retry_seconds(self.maximum_delay),
-            self.full_jitter,
-            None
-            if self.retry_after_limit is None
-            else _retry_seconds(self.retry_after_limit),
-        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -346,18 +312,6 @@ class RetryPolicy:
     @classmethod
     def none(cls) -> RetryPolicy:
         return cls()
-
-    def _native_fields(self) -> _RetryFields:
-        return (
-            None
-            if self.connection_failures is None
-            else self.connection_failures._native_fields(),
-            self.reused_connection_replay,
-            self.unprocessed_replays,
-            None if self.status_retry is None else self.status_retry._native_fields(),
-            self.maximum_retries,
-            self.http2_fallback,
-        )
 
 
 @dataclass(frozen=True)

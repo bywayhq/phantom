@@ -177,7 +177,7 @@ class AsyncClient:
             None if route is None else route.password,
             None if timeouts is None else timeouts._native_fields(),
             None if redirect_policy is None else redirect_policy.maximum_hops,
-            None if retry_policy is None else retry_policy._native_fields(),
+            retry_policy,
             **client_fields,
         )
         self.cookies = Cookies(self._native.cookies)
@@ -405,7 +405,7 @@ class AsyncClient:
                 else content_decoding.maximum_decoded_bytes,
                 None if redirect_policy is None else redirect_policy.maximum_hops,
                 redirect_history_limit,
-                None if retry_policy is None else retry_policy._native_fields(),
+                retry_policy,
             )
             if multipart is not None:
                 operation = self._native.request(

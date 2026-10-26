@@ -2,7 +2,7 @@ from collections.abc import Awaitable
 from os import PathLike
 from typing import Literal, TypeAlias
 
-from ._configuration import _RetryFields
+from ._configuration import RetryPolicy
 
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
@@ -216,7 +216,7 @@ class NativeClient:
         proxy_password: str | None = None,
         timeouts: list[tuple[str, float | None]] | None = None,
         redirect_maximum_hops: int | None = None,
-        retry_policy: _RetryFields | None = None,
+        retry_policy: RetryPolicy | None = None,
         server_spki_pins: tuple[bytes, ...] | None = None,
         proxy_server_spki_pins: tuple[bytes, ...] | None = None,
         client_certificate: NativeClientCertificate | None = None,
@@ -263,7 +263,7 @@ class NativeClient:
         maximum_decoded_bytes: int | None = None,
         redirect_maximum_hops: int | None = None,
         redirect_history_limit: int | None = None,
-        retry_policy: _RetryFields | None = None,
+        retry_policy: RetryPolicy | None = None,
         producer: NativeUpload | None = None,
         transfer_control: NativeTransferControl | None = None,
         trailers: list[tuple[str, bytes, bool]] | None = None,
