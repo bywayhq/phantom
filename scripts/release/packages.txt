@@ -1,8 +1,3 @@
-vendor/http2/Cargo.toml
-vendor/wreq-proto/Cargo.toml
-vendor/h3/h3/Cargo.toml
-vendor/h3/h3-datagram/Cargo.toml
-vendor/h3/h3-quinn/Cargo.toml
 crates/phantom-profile/Cargo.toml
 crates/phantom-testkit/Cargo.toml
 crates/phantom-quic-btls/Cargo.toml

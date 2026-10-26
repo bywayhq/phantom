@@ -59,9 +59,9 @@ scripts/dev/with-cargo-lock.sh python3 scripts/release/check-advisories.py \
   --output target/release-advisories
 ```
 
-The package check creates the eleven archives in `packages.txt`: five workspace
-libraries, the CLI and the changed `http2`, `wreq-proto`, `h3`, `h3-datagram`
-and `h3-quinn` forks.
+The package check creates the six archives in `packages.txt`: five workspace
+libraries and the CLI. Add a fork to that release list only when its version
+changes.
 Unchanged forks keep their exact published versions and resolve from crates.io.
 The check serves the new archives from a temporary loopback registry with no
 publishing endpoint. The downstream consumer fetches those archives, builds

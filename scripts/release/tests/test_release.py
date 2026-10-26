@@ -244,7 +244,7 @@ class ReleaseChecks(unittest.TestCase):
             verify.CRATES_IO,
         )
 
-    def test_transport_forks_use_their_staged_archive_identities(self):
+    def test_transport_forks_use_their_published_archive_identities(self):
         versions = {name: version for name, version, _manifest in publish.plan()}
         workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
             "workspace"
@@ -254,7 +254,7 @@ class ReleaseChecks(unittest.TestCase):
                 dependency = workspace["dependencies"][alias].copy()
                 manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
                 native = tomllib.loads(manifest.read_text())["package"]
-                self.assertEqual(versions.get(native["name"]), native["version"])
+                self.assertNotIn(native["name"], versions)
                 self.assertEqual(dependency["version"], "=" + native["version"])
                 consumer = {
                     "package": {"name": "consumer", "version": "1.0.0"},
@@ -263,15 +263,18 @@ class ReleaseChecks(unittest.TestCase):
                 record = verify.index_record(consumer, "checksum", versions)["deps"][0]
                 self.assertEqual(record["package"], native["name"])
                 self.assertEqual(record["req"], "=" + native["version"])
-                self.assertIsNone(record["registry"])
+                self.assertEqual(record["registry"], verify.CRATES_IO)
 
         transport = tomllib.loads(
             (publish.ROOT / "vendor/wreq-proto/Cargo.toml").read_text()
         )
         http2 = transport["dependencies"]["http2"].copy()
         del http2["path"]
-        self.assertIn(http2["package"], versions)
-        self.assertEqual(http2["version"], "=" + versions[http2["package"]])
+        self.assertNotIn(http2["package"], versions)
+        http2_package = tomllib.loads(
+            (publish.ROOT / "vendor/http2/Cargo.toml").read_text()
+        )["package"]
+        self.assertEqual(http2["version"], "=" + http2_package["version"])
         transport["dependencies"]["http2"] = http2
         record = next(
             dependency
@@ -280,7 +283,7 @@ class ReleaseChecks(unittest.TestCase):
             ]
             if dependency["name"] == "http2"
         )
-        self.assertIsNone(record["registry"])
+        self.assertEqual(record["registry"], verify.CRATES_IO)
 
     def test_index_rejects_a_dependency_that_still_uses_git_or_path(self):
         for source in ["git", "path"]:
@@ -328,17 +331,12 @@ class ReleaseChecks(unittest.TestCase):
     ):
         plan = publish.plan()
         names = {entry[0] for entry in plan}
-        self.assertEqual(len(plan), 11)
-        self.assertEqual(plan[0][0], "phantom-http2")
+        self.assertEqual(len(plan), 6)
+        self.assertEqual(plan[0][0], "phantom-profile")
         self.assertEqual(plan[-1][0], "phantom-cli")
         self.assertEqual(
             names,
             {
-                "phantom-http2",
-                "phantom-wreq-proto",
-                "phantom-h3",
-                "phantom-h3-datagram",
-                "phantom-h3-quinn",
                 "phantom-testkit",
                 "phantom-profile",
                 "phantom-quic-btls",
