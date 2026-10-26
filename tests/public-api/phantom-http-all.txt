@@ -1101,6 +1101,7 @@ impl core::fmt::Debug for phantom::RedirectHop
 pub fn phantom::RedirectHop::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RedirectPolicy
 impl phantom::RedirectPolicy
+pub fn phantom::RedirectPolicy::credential_headers(self, impl core::iter::traits::collect::IntoIterator<Item = http::header::name::HeaderName>) -> Self
 pub fn phantom::RedirectPolicy::custom(core::num::nonzero::NonZeroUsize, impl core::ops::function::Fn(&phantom::RedirectAttempt<'_>) -> phantom::RedirectDecision + core::marker::Send + core::marker::Sync + 'static) -> Self
 pub const fn phantom::RedirectPolicy::limited(core::num::nonzero::NonZeroUsize) -> Self
 pub const fn phantom::RedirectPolicy::max_hops(&self) -> core::option::Option<core::num::nonzero::NonZeroUsize>

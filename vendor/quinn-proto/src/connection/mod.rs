@@ -4463,7 +4463,8 @@ mod tests {
                 .unwrap();
             let keys = conn
                 .crypto
-                .initial_keys(&conn.initial_dst_cid, Side::Server);
+                .initial_keys(&conn.initial_dst_cid, Side::Server)
+                .unwrap();
             let space = &mut conn.spaces[SpaceId::Initial];
             for pn in (0..32).step_by(2) {
                 space.pending_acks.insert_one(pn, now);

@@ -26,13 +26,13 @@
         "0.4.15"
       ],
       "files": {
-        "vendor/http2/src/client.rs": "8a5528e77f3cffc5c4865a4688f4c7aaf8dc71c651cd8704156b10b3157b01c1",
+        "vendor/http2/src/client.rs": "ec2183f4d4fb4de0023d43196d00a35e3159eb54965347590bdd050a390b2657",
         "vendor/http2/src/proto/connection.rs": "5726d03515e911797962cb624d8831aaceb03f6f5f7b7bea3f59e39d4904e51e",
         "vendor/http2/src/proto/mod.rs": "d92f71aa1238ea2d1e60d1d3d0262c4b9890189a533f23d2e22181764ab0c107",
         "vendor/http2/src/proto/streams/counts.rs": "af84771a50d7c6c5927733cba66eb9a181e90ae192da8df4e61166a71f57f679",
         "vendor/http2/src/proto/streams/mod.rs": "dba2b5599ac28ee352db89e6a1b81ab3ff53d6d61912340d206a9483d4a993b5",
-        "vendor/http2/src/proto/streams/recv.rs": "791b29f6cb6c9818a6baab600a1852716f7027c9f1c9e3620791361ef3779d9c",
-        "vendor/http2/src/proto/streams/streams.rs": "5d2eac8e5197121319d182eae76e8fd53e8af598a3c978b931913909b3019d8c",
+        "vendor/http2/src/proto/streams/recv.rs": "4716a788dbd935087797dcdced4f66ade3e7f0a41a3b0cbd6423cd8789445daa",
+        "vendor/http2/src/proto/streams/streams.rs": "48597d0e9186f7d7bf8b7cbc2a2e985727381d9764f3c7cb3d104b7ed1bbab44",
         "vendor/http2/src/server.rs": "0a1ba28c2f399916dfc33a7ffcc49c4f25c800be1bf264a6bfe334c56a453b90"
       },
       "patches": {
@@ -93,11 +93,11 @@
         "a6e78d1c8bf28630f1e92fbcc38f60e0a134b01a"
       ],
       "patches": {
-        "vendor/quinn-proto/patches/retry-token-rejection-security.patch": "1ad34fb6ff420a915a0f3ed2d276a98175265159c080e48c28ab6852f429ab80",
+        "vendor/quinn-proto/patches/retry-token-rejection-security.patch": "45ead5045adf60c7e7b7bf77cf44d9b817e7ebcb775723d2e78658bb6f994d45",
         "vendor/quinn-proto/patches/initial-token-space-security.patch": "f482c1de8e0b0f045daab60db16c0f8292934b6ea913d1c4f7a5be9c953cf5bf"
       },
       "files": {
-        "vendor/quinn-proto/src/connection/mod.rs": "856138390603f0166ae3f8e979648b93ca1c8d7cdb0cd92bb5e8551b98a70e76",
+        "vendor/quinn-proto/src/connection/mod.rs": "86f36b757b988fecca2d7ff76f99e0798ff298116c93c85139eccb6bbc62e4a4",
         "vendor/quinn-proto/src/connection/packet_builder.rs": "5a74a3b5044384f8d40073a1b0e14b746bfcb154492c7d1037347e559b763845",
         "vendor/quinn-proto/src/tests/token.rs": "0996030424a37b8d3e0eab63bca69ef5a5c55295c7ce39e49dd2a264aaea5caf"
       }

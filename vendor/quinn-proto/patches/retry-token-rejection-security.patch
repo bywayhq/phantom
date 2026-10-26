@@ -1,5 +1,3 @@
-Backport quinn-rs/quinn a6e78d1c8bf28630f1e92fbcc38f60e0a134b01a
-
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
@@ -33,7 +31,7 @@ diff --git a/src/connection/mod.rs b/src/connection/mod.rs
                      let max_frame_size = builder.max_size - buf.len();
                      match self.state {
                          State::Closed(state::Closed { ref reason }) => {
-@@ -4435,6 +4430,92 @@
+@@ -4435,6 +4430,93 @@
  mod tests {
      use super::*;
  
@@ -70,7 +68,8 @@ diff --git a/src/connection/mod.rs b/src/connection/mod.rs
 +                .unwrap();
 +            let keys = conn
 +                .crypto
-+                .initial_keys(&conn.initial_dst_cid, Side::Server);
++                .initial_keys(&conn.initial_dst_cid, Side::Server)
++                .unwrap();
 +            let space = &mut conn.spaces[SpaceId::Initial];
 +            for pn in (0..32).step_by(2) {
 +                space.pending_acks.insert_one(pn, now);
