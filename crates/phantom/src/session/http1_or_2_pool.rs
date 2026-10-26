@@ -3,7 +3,7 @@ use std::{
     num::NonZeroUsize,
     pin::pin,
     sync::{
-        Arc, MutexGuard, OnceLock, PoisonError, Weak,
+        Arc, MutexGuard, PoisonError, Weak,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -42,6 +42,10 @@ use tracing::{Span, debug};
 
 #[cfg(feature = "https-records")]
 use super::ech_retry::{EchRecoveries, EchRecovery};
+use super::http1_connections::{
+    IdleConnection, prune_idle_connections, spare_idle_time_left, take_idle_connections,
+};
+use super::retired_connections::ConnectionRetirement;
 use super::tickets::{
     TicketCacheBinding,
     binding::{TicketCacheLeg, TicketCacheProtocol},
@@ -51,7 +55,6 @@ use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     alt_svc::OriginEchConfigured,
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
-    http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
     http2_pool::{invalidates_http2_connection, is_graceful_goaway, send_on},
     prune_timer::{PruneTimer, Pruned, PrunedEntry},
@@ -124,15 +127,7 @@ impl Http1Or2Pool {
             let state = self.state.lock().await;
             for (_, entry) in &state.entries {
                 let mut connections = entry.connections.lock();
-                let mut index = 0;
-                while index < connections.http1_idle.len() {
-                    let connection = &connections.http1_idle[index].connection;
-                    if connection.is_exclusively_owned() && !connection.early_data_pending() {
-                        retired_http1.push(connections.http1_idle.remove(index));
-                    } else {
-                        index += 1;
-                    }
-                }
+                take_idle_connections(&mut connections.http1_idle, &mut retired_http1);
                 let mut index = 0;
                 while index < connections.http2.len() {
                     let connection = &connections.http2[index].connection;
@@ -2275,7 +2270,7 @@ fn connect_phase(
 /// extra connection per backup connection whose slower attempt is in
 /// flight, at most `max_http1` extra, until they are used or expire idle.
 struct EntryConnections {
-    retirement: OnceLock<Weak<super::retired_connections::RetiredConnections>>,
+    retirement: ConnectionRetirement,
     max_http1: NonZeroUsize,
     /// How long an idle H1 connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
@@ -2365,9 +2360,7 @@ impl ConnectionState {
         for index in (0..self.spares.len()).rev() {
             let spare = &self.spares[index];
             if spare.ready.is_some()
-                && spare.idle_since.is_some_and(|since| {
-                    limit.is_some_and(|limit| now.saturating_duration_since(since) >= limit)
-                })
+                && spare_idle_time_left(spare.idle_since, now, limit) == Some(Duration::ZERO)
             {
                 removed.push(self.spares.swap_remove(index));
             }
@@ -2784,29 +2777,23 @@ impl EntryConnections {
         registry: &Arc<super::retired_connections::RetiredConnections>,
     ) {
         let state = self.lock();
-        self.retirement.get_or_init(|| Arc::downgrade(registry));
-        if state.spares.iter().any(Spare::background_pending) {
-            registry.retain(self);
-        }
+        self.retirement.begin(
+            self,
+            registry,
+            state.spares.iter().any(Spare::background_pending),
+        );
     }
 
     fn retain_pending(self: &Arc<Self>) {
         let _state = self.lock();
-        if let Some(registry) = self.retirement.get().and_then(Weak::upgrade) {
-            registry.retain(self);
-        }
+        self.retirement.retain_pending(self);
     }
 
     fn release_retired(self: &Arc<Self>) {
         let removed = {
             let state = self.lock();
-            if state.spares.iter().any(Spare::background_pending) {
-                return;
-            }
             self.retirement
-                .get()
-                .and_then(Weak::upgrade)
-                .and_then(|registry| registry.take(self))
+                .take_finished(self, state.spares.iter().any(Spare::background_pending))
         };
         drop(removed);
     }
@@ -2836,7 +2823,7 @@ impl EntryConnections {
         };
         Self {
             max_http1,
-            retirement: OnceLock::new(),
+            retirement: ConnectionRetirement::default(),
             http1_used_idle_timeout: None,
             prune: None,
             family: Arc::default(),
@@ -3415,38 +3402,22 @@ impl EntryConnections {
 impl PrunedEntry for EntryConnections {
     fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned {
         let mut state = self.lock();
-        state.http1_idle.retain(|idle| {
-            idle.connection.is_reusable()
-                && http1_limit.is_none_or(|limit| idle.idle_for(now) < limit)
-        });
+        let http1_next = prune_idle_connections(&mut state.http1_idle, now, http1_limit);
         // Giving up an H2 connection past its idle limit closes it once no
         // stream is open (`ConnectionEntry.cpp:486-500`).
         state.http2.retain(|slot| slot.connection.is_reusable());
-        let http1_next = http1_limit.and_then(|limit| {
-            state
-                .http1_idle
-                .iter()
-                .map(|idle| limit.saturating_sub(idle.idle_for(now)))
-                .min()
-        });
         let http2_next = state
             .http2
             .iter()
             .filter_map(|slot| slot.connection.idle_time_left())
             .min();
         let expired = state.take_expired_proxy_spares(now, http1_limit);
-        let proxy_next = http1_limit.and_then(|limit| {
-            state
-                .spares
-                .iter()
-                .filter(|spare| spare.ready.is_some())
-                .filter_map(|spare| {
-                    spare
-                        .idle_since
-                        .map(|since| limit.saturating_sub(now.saturating_duration_since(since)))
-                })
-                .min()
-        });
+        let proxy_next = state
+            .spares
+            .iter()
+            .filter(|spare| spare.ready.is_some())
+            .filter_map(|spare| spare_idle_time_left(spare.idle_since, now, http1_limit))
+            .min();
         let result = Pruned {
             next: http1_next
                 .into_iter()

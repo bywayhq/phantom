@@ -1,6 +1,50 @@
 //! Keeps refreshed connection owners alive while their weak background setup runs.
 
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
+
+/// Links an old pool entry to the owners of unfinished background setup.
+#[derive(Default)]
+pub(super) struct ConnectionRetirement {
+    registry: OnceLock<Weak<RetiredConnections>>,
+}
+
+impl ConnectionRetirement {
+    // All methods run under the owner's connection lock, including calls into
+    // the registry. Setup completion cannot race a retain after its last take.
+    pub(super) fn begin<T: Send + Sync + 'static>(
+        &self,
+        owner: &Arc<T>,
+        registry: &Arc<RetiredConnections>,
+        pending: bool,
+    ) {
+        self.registry.get_or_init(|| Arc::downgrade(registry));
+        if pending {
+            registry.retain(owner);
+        }
+    }
+
+    pub(super) fn retain_pending<T: Send + Sync + 'static>(&self, owner: &Arc<T>) {
+        if let Some(registry) = self.registry.get().and_then(Weak::upgrade) {
+            registry.retain(owner);
+        }
+    }
+
+    // The caller drops the returned owner after releasing its connection lock.
+    pub(super) fn take_finished<T>(
+        &self,
+        owner: &Arc<T>,
+        pending: bool,
+    ) -> Option<Arc<dyn Send + Sync>> {
+        if pending {
+            return None;
+        }
+
+        self.registry
+            .get()
+            .and_then(Weak::upgrade)
+            .and_then(|registry| registry.take(owner))
+    }
+}
 
 pub(super) struct RetiredConnections {
     // Only identity and lifetime matter here; erase the recursive owner type.

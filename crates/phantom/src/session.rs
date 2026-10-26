@@ -24,6 +24,7 @@ pub(crate) mod client_hints;
 mod cookies;
 #[cfg(feature = "https-records")]
 mod ech_retry;
+mod http1_connections;
 pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
 mod http2_connections;
