@@ -225,6 +225,8 @@ Enable only the behavior you need:
   Override one request with
   [`RequestBuilder::redirect_policy`](crate::RequestBuilder::redirect_policy).
   Use `RedirectPolicy::none()` to inspect its redirect response yourself.
+  Register custom secret headers with `RedirectPolicy::credential_headers`;
+  they leave caller headers, trailers and templates when a hop changes origin.
   [`RedirectPolicy::custom`](crate::RedirectPolicy::custom) lets you follow,
   stop or reject each resolved URL while retaining a hop limit.
   Enable [`RequestBuilder::redirect_history`](crate::RequestBuilder::redirect_history)
@@ -252,7 +254,10 @@ to restrict actual IP addresses and ports before new direct TCP or QUIC
 connections. Denied candidates are skipped, including on redirects and
 discovered alternatives. If none are allowed, the request fails with
 `DestinationDenied`. Existing connections remain reusable. Proxies and custom
-connectors are unsupported with this policy.
+connectors are unsupported with this policy. Use
+[`DestinationPolicy::public_only`](crate::DestinationPolicy::public_only) to
+exclude private and special-purpose addresses, or `DestinationPolicy::from_fn`
+for your own address and port rules.
 
 ## Share and save session state
 

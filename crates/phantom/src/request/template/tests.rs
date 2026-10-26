@@ -713,13 +713,68 @@ fn template_after_a_cross_origin_hop_keeps_no_credential_slot()
         .map(|error| error.kind());
     assert_eq!(missing, Some(RequestErrorKind::RequestTemplate));
 
-    let after_hop = prepared.without_credentials();
+    let after_hop = prepared.without_credentials(&crate::RedirectPolicy::none());
 
     assert!(check(&after_hop, scope, false, &[], None, false).is_ok());
     let fields = after_hop
         .fields_for(HttpProtocol::Http1)
         .ok_or("the HTTP/1.1 list is missing")?;
     assert_eq!(names(&expand(fields, &[], None, true)), ["x-kept"]);
+    Ok(())
+}
+
+#[test]
+fn registered_credentials_leave_every_protocol_template_without_mutating_the_original()
+-> Result<(), Box<dyn std::error::Error>> {
+    use http::header::HeaderName;
+
+    let fields = vec![
+        RequestField::literal("x-literal-key", "secret"),
+        RequestField::by_trust("x-trust-key", "secure-secret", "insecure-secret"),
+        RequestField::unless_forwarded("x-route-key", "direct-secret"),
+        RequestField::required_caller("x-caller-key"),
+        RequestField::literal("x-kept", "yes"),
+    ];
+    let prepared = PreparedRequestTemplate::new(RequestTemplate {
+        http1_fields: fields.clone(),
+        http2_fields: fields.clone(),
+        http3_fields: Some(fields),
+        http2_priority: None,
+        requested_client_hint_placement: false,
+        restarts_for_connection_accept_ch: false,
+    })?;
+    let policy = crate::RedirectPolicy::none().credential_headers([
+        HeaderName::from_static("x-literal-key"),
+        HeaderName::from_static("x-trust-key"),
+        HeaderName::from_static("x-route-key"),
+        HeaderName::from_static("x-caller-key"),
+    ]);
+    let after_hop = prepared.without_credentials(&policy);
+
+    for protocol in [
+        HttpProtocol::Http1,
+        HttpProtocol::Http2,
+        HttpProtocol::Http3,
+    ] {
+        let fields = after_hop
+            .fields_for(protocol)
+            .ok_or("missing protocol list")?;
+        assert_eq!(names(&expand(fields, &[], None, true)), ["x-kept"]);
+        assert!(check(&after_hop, exact(protocol), false, &[], None, false).is_ok());
+        assert_eq!(
+            prepared
+                .fields_for(protocol)
+                .ok_or("missing original list")?
+                .len(),
+            5
+        );
+        assert_eq!(
+            check(&prepared, exact(protocol), false, &[], None, false)
+                .err()
+                .map(|error| error.kind()),
+            Some(RequestErrorKind::RequestTemplate)
+        );
+    }
     Ok(())
 }
 

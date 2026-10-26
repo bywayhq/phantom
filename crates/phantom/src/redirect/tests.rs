@@ -10,6 +10,7 @@ use crate::{RequestErrorKind, request::RequestBodySource};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+mod credentials;
 mod custom;
 
 fn redirect(status: StatusCode, location: &str) -> Result<Response<()>, http::Error> {

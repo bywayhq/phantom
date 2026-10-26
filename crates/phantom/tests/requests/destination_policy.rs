@@ -87,6 +87,35 @@ async fn denial_prevents_tcp_quic_and_fallback_without_spending_retries() -> Tes
 }
 
 #[tokio::test]
+async fn public_only_rejects_literals_and_overrides_before_any_connection() -> TestResult<()> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let port = listener.local_addr()?.port();
+    let client = Client::builder(profile())
+        .resolve("public-name.test", [IpAddr::V4(Ipv4Addr::LOCALHOST)])
+        .destination_policy(DestinationPolicy::public_only())
+        .build()?;
+
+    for authority in [
+        format!("127.0.0.1:{port}"),
+        format!("[::ffff:127.0.0.1]:{port}"),
+        format!("public-name.test:{port}"),
+    ] {
+        let error = timeout(
+            WAIT,
+            client
+                .get_with_protocol(HttpProtocol::Http1, &format!("http://{authority}/"))?
+                .send(),
+        )
+        .await?
+        .err()
+        .ok_or("nonpublic destination succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::DestinationDenied);
+    }
+    assert!(timeout(QUIET, listener.accept()).await.is_err());
+    Ok(())
+}
+
+#[tokio::test]
 async fn overrides_keep_allowed_order_and_never_connect_to_denied_candidates() -> TestResult<()> {
     let (allowed, denied) = loopback_listeners().await?;
     let port = allowed.local_addr()?.port();

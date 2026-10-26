@@ -1,6 +1,6 @@
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use http::{Method, StatusCode};
+use http::{Method, StatusCode, header::HeaderName};
 use phantom_net::request::RequestHeader;
 use phantom_profile::ClientHintSettings;
 use url::Url;
@@ -39,6 +39,8 @@ pub use history::{RedirectHistory, RedirectHop};
 /// removes `Authorization`, `Cookie`, `Cookie2`, and `Proxy-Authorization`
 /// fields and trailers, including the fields a request template sends
 /// itself, from that hop and every later one.
+/// Register other credential fields with [`Self::credential_headers`].
+/// A header's sensitive mark controls encoding and logging, not redirects.
 ///
 /// # Examples
 ///
@@ -60,6 +62,7 @@ pub use history::{RedirectHistory, RedirectHop};
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,
     callback: Option<Arc<RedirectCallback>>,
+    credential_headers: Vec<HeaderName>,
 }
 
 type RedirectCallback = dyn Fn(&RedirectAttempt<'_>) -> RedirectDecision + Send + Sync;
@@ -69,6 +72,7 @@ impl fmt::Debug for RedirectPolicy {
         f.debug_struct("RedirectPolicy")
             .field("maximum", &self.maximum)
             .field("custom", &self.callback.is_some())
+            .field("credential_header_count", &self.credential_headers.len())
             .finish()
     }
 }
@@ -156,6 +160,7 @@ impl RedirectPolicy {
         Self {
             maximum: None,
             callback: None,
+            credential_headers: Vec::new(),
         }
     }
 
@@ -168,6 +173,7 @@ impl RedirectPolicy {
         Self {
             maximum: Some(maximum),
             callback: None,
+            credential_headers: Vec::new(),
         }
     }
 
@@ -202,13 +208,44 @@ impl RedirectPolicy {
         Self {
             maximum: Some(maximum),
             callback: Some(Arc::new(callback)),
+            credential_headers: Vec::new(),
         }
+    }
+
+    /// Replaces the additional credential names removed on cross-origin hops.
+    ///
+    /// Names ignore ASCII case. The four standard credential fields are always
+    /// removed. Registered fields leave caller headers, static trailers and all
+    /// template lists at the first cross-origin hop, even if a later hop returns
+    /// to the original origin. Same-origin hops preserve them. Hooks run once,
+    /// so headers they add follow the same rules. This does not enable redirects.
+    ///
+    /// ```
+    /// use std::num::NonZeroUsize;
+    /// use http::header::HeaderName;
+    /// use phantom::RedirectPolicy;
+    ///
+    /// let policy = RedirectPolicy::limited(NonZeroUsize::MIN)
+    ///     .credential_headers([HeaderName::from_static("x-api-key")]);
+    /// ```
+    #[must_use]
+    pub fn credential_headers(mut self, names: impl IntoIterator<Item = HeaderName>) -> Self {
+        self.credential_headers = names.into_iter().collect();
+        self
     }
 
     /// Returns the configured redirect limit, or `None` when following is disabled.
     #[must_use]
     pub const fn max_hops(&self) -> Option<NonZeroUsize> {
         self.maximum
+    }
+
+    pub(crate) fn removes_credential_header(&self, name: &str) -> bool {
+        is_credential_header(name)
+            || self
+                .credential_headers
+                .iter()
+                .any(|credential| name.eq_ignore_ascii_case(credential.as_str()))
     }
 }
 
@@ -246,6 +283,10 @@ impl RedirectState {
             body,
             followed: 0,
         }
+    }
+
+    pub(crate) fn policy(&self) -> &RedirectPolicy {
+        &self.policy
     }
 
     pub(crate) fn current_url(&self) -> &Url {
@@ -356,9 +397,9 @@ impl RedirectState {
         let same_origin = self.current_url.origin() == next_url.origin();
         if !same_origin {
             self.headers
-                .retain(|header| !is_credential_header(header.name()));
+                .retain(|header| !self.policy.removes_credential_header(header.name()));
             self.trailers
-                .retain(|header| !is_credential_header(header.name()));
+                .retain(|header| !self.policy.removes_credential_header(header.name()));
         }
 
         self.current_url = next_url;

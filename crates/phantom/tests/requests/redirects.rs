@@ -657,16 +657,30 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
         };
         first = Some(HopServer::spawn(first_listener, heads_tx.clone(), routes));
         second = Some(HopServer::spawn(second_listener, heads_tx, routes));
-        let fields = |names: [&str; 3]| {
+        let fields = |names: [&str; 5]| {
             vec![
                 RequestField::literal(names[0], "Bearer template"),
                 RequestField::literal(names[1], "Basic dGVtcGxhdGU6c2VjcmV0"),
                 RequestField::literal(names[2], "yes"),
+                RequestField::literal(names[3], "template-key"),
+                RequestField::required_caller(names[4]),
             ]
         };
         let template = PreparedRequestTemplate::new(RequestTemplate {
-            http1_fields: fields(["Authorization", "Proxy-Authorization", "X-Kept"]),
-            http2_fields: fields(["authorization", "proxy-authorization", "x-kept"]),
+            http1_fields: fields([
+                "Authorization",
+                "Proxy-Authorization",
+                "X-Kept",
+                "X-Template-Key",
+                "X-Hook-Key",
+            ]),
+            http2_fields: fields([
+                "authorization",
+                "proxy-authorization",
+                "x-kept",
+                "x-template-key",
+                "x-hook-key",
+            ]),
             http3_fields: None,
             http2_priority: None,
             requested_client_hint_placement: false,
@@ -676,8 +690,16 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
         let profile = ClientProfile::new(tls_support::tls_settings())
             .with_cookie_placement(CookiePlacement::before_fields(["X-Kept"]));
         let session = Client::builder(profile)
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::new(3).ok_or("zero")?))
+            .redirect_policy(
+                RedirectPolicy::limited(NonZeroUsize::new(3).ok_or("zero")?).credential_headers([
+                    http::header::HeaderName::from_static("x-template-key"),
+                    http::header::HeaderName::from_static("x-caller-key"),
+                    http::header::HeaderName::from_static("x-hook-key"),
+                ]),
+            )
             .build()?;
+        let hook_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let observed = std::sync::Arc::clone(&hook_calls);
         let response = session
             .get_with_protocol(
                 HttpProtocol::Http1,
@@ -685,10 +707,17 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
             )?
             .template(&template)
             .header(RequestHeader::new("cOoKiE", "manual=kept").sensitive())
+            .header(RequestHeader::new("X-Caller-Key", "caller-key").sensitive())
+            .header(RequestHeader::new("X-Unregistered", "kept").sensitive())
+            .header_hook(move |context| {
+                observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                context.append(RequestHeader::new("x-hook-key", "hook-key").sensitive())
+            })
             .redirect_history(NonZeroUsize::new(3).ok_or("three is nonzero")?)
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(hook_calls.load(std::sync::atomic::Ordering::SeqCst), 1);
 
         let history = response
             .extensions()
@@ -723,6 +752,10 @@ async fn cross_origin_redirect_drops_template_and_caller_credentials() -> TestRe
                 "{path}"
             );
             assert_eq!(contains_header(&head, b"cookie"), credentials, "{path}");
+            for name in [b"x-template-key".as_slice(), b"x-caller-key", b"x-hook-key"] {
+                assert_eq!(contains_header(&head, name), credentials, "{path}");
+            }
+            assert!(contains_header(&head, b"x-unregistered"), "{path}");
             if credentials {
                 let text = std::str::from_utf8(&head)?;
                 assert!(

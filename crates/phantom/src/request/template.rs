@@ -83,12 +83,12 @@ impl PreparedRequestTemplate {
     /// with the caller's fields of the same names, which the redirect state
     /// removes. Caller slots for those names go too, so a required one is
     /// not left without the field it names.
-    pub(crate) fn without_credentials(&self) -> Self {
+    pub(crate) fn without_credentials(&self, policy: &crate::RedirectPolicy) -> Self {
         let keeps = |field: &RequestField| match field {
             RequestField::Literal { name, .. }
             | RequestField::ByTrust { name, .. }
             | RequestField::ByForwarding { name, .. }
-            | RequestField::Caller { name, .. } => !crate::redirect::is_credential_header(name),
+            | RequestField::Caller { name, .. } => !policy.removes_credential_header(name),
             _ => true,
         };
         if lists(&self.0.template).flatten().all(keeps) {

@@ -3,7 +3,7 @@
 use std::{
     error::Error,
     fmt, io,
-    net::SocketAddr,
+    net::{Ipv4Addr, SocketAddr},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -26,6 +26,48 @@ use std::{
 pub struct DestinationPolicy(Arc<dyn Fn(SocketAddr) -> bool + Send + Sync>);
 
 impl DestinationPolicy {
+    /// Permits ordinary public IPv4 and IPv6 unicast destinations.
+    ///
+    /// Denies private, loopback, link-local, multicast, documentation, reserved
+    /// and special-purpose ranges. IPv6 is limited to `2000::/3`, excluding
+    /// special-purpose and transition prefixes. IPv4-mapped IPv6 addresses use
+    /// the IPv4 rules; IPv6 addresses with a scope ID are denied.
+    ///
+    /// This deliberately excludes some globally reachable special-purpose
+    /// addresses. It classifies IP addresses, not local routing or custom
+    /// translation prefixes. The direct-route and connection-reuse limits of
+    /// [`DestinationPolicy`] still apply. No policy is enabled by default.
+    ///
+    /// ```
+    /// use phantom_net::DestinationPolicy;
+    /// let policy = DestinationPolicy::public_only();
+    /// # drop(policy);
+    /// ```
+    #[must_use]
+    pub fn public_only() -> Self {
+        Self::from_fn(|address| match address {
+            SocketAddr::V4(address) => public_ipv4(*address.ip()),
+            SocketAddr::V6(address) => {
+                if address.scope_id() != 0 {
+                    return false;
+                }
+
+                let ip = address.ip();
+                if let Some(mapped) = ip.to_ipv4_mapped() {
+                    return public_ipv4(mapped);
+                }
+
+                let [first, second, third, ..] = ip.segments();
+                first & 0xe000 == 0x2000
+                    && !(first == 0x2001 && second < 0x0200)
+                    && !(first == 0x2001 && second == 0x0db8)
+                    && first != 0x2002
+                    && !(first == 0x2620 && second == 0x004f && third == 0x8000)
+                    && !(first == 0x3fff && second < 0x1000)
+            }
+        })
+    }
+
     /// Builds a policy that permits an address when `permits` returns `true`.
     ///
     /// No connection is opened by this constructor. The address includes the
@@ -44,6 +86,29 @@ impl DestinationPolicy {
     pub(crate) fn permits(&self, address: SocketAddr) -> bool {
         (self.0)(address)
     }
+}
+
+// IANA IPv4/IPv6 Special-Purpose Address Registries, updated 2025-10-09:
+// https://www.iana.org/assignments/iana-ipv4-special-registry/
+// https://www.iana.org/assignments/iana-ipv6-special-registry/
+// Exclude whole special-purpose blocks, including their public exceptions.
+fn public_ipv4(address: Ipv4Addr) -> bool {
+    !matches!(
+        address.octets(),
+        [0 | 10 | 127 | 224..=255, ..]
+            | [100, 64..=127, ..]
+            | [169, 254, ..]
+            | [172, 16..=31, ..]
+            | [192, 0, 0 | 2, _]
+            | [192, 31, 196, _]
+            | [192, 52, 193, _]
+            | [192, 88, 99, _]
+            | [192, 168, ..]
+            | [192, 175, 48, _]
+            | [198, 18 | 19, ..]
+            | [198, 51, 100, _]
+            | [203, 0, 113, _]
+    )
 }
 
 impl fmt::Debug for DestinationPolicy {
@@ -133,3 +198,6 @@ pub(crate) fn check_origin(
         ),
     )
 }
+
+#[cfg(test)]
+mod tests;

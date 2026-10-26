@@ -1559,7 +1559,8 @@ impl RequestBuilder {
                     drop(response);
                     let mut template = resolved.template.take();
                     if !same_origin {
-                        template = template.map(|template| template.without_credentials());
+                        template = template
+                            .map(|template| template.without_credentials(redirect.policy()));
                     }
                     let expect_continue = resolved.expect_continue;
                     let transfer = resolved.transfer.take();
