@@ -59,7 +59,9 @@ use phantom::{Client, HttpProtocol};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::builder(chrome::v154_windows()).build()?;
+    let profile = chrome::v154_windows()
+        .with_request_template(chrome::v154_windows_navigation_template());
+    let client = Client::builder(profile).build()?;
     let response = client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .send()
@@ -86,8 +88,9 @@ fallback. To let TLS negotiate HTTP/1.1 or HTTP/2, use
 [`Client::get_negotiated`](crate::Client::get_negotiated).
 
 [`chrome::v154_windows`](crate::profile::browser::chrome::v154_windows) supplies
-Chrome 154's Windows connection settings. Add page-load or fetch headers with
-a request template from [Browser profiles](crate::guide::browser_profiles).
+Chrome 154's Windows connection settings. The template adds page-load headers
+as the client default. Choose a fetch or upload template when needed, as shown
+in [Browser profiles](crate::guide::browser_profiles).
 
 ## Keep the client for later requests
 

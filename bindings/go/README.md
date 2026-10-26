@@ -15,8 +15,9 @@ import (
 
 func example(ctx context.Context) error {
     client, err := phantom.New(phantom.Config{
-        Profile: "chrome/154.0.8037.97/windows-11-26200/r1",
+        Profile: "chrome-154-windows",
         Protocol: "negotiated",
+        Context: "navigation",
         Timeout: 30 * time.Second,
     })
     if err != nil { return err }
@@ -38,7 +39,8 @@ func fetch(ctx context.Context, client *phantom.Client, url string) ([]byte, err
 
 This example uses Chrome's Windows settings. Choose other profiles from the
 [catalog](../../crates/phantom-profile/catalog/profiles.json). Keep the client
-open for later requests and call `Do` from any goroutine.
+open for later requests and call `Do` from any goroutine. The navigation context
+supplies page-load headers for each request.
 
 ## Install
 

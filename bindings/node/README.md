@@ -7,12 +7,12 @@ profiles. CommonJS and ESM are supported on Node.js 22 and 24.
 import { Client } from '@byway/phantom';
 
 const client = new Client({
-  profile: 'chrome/154.0.8037.97/windows-11-26200/r1',
+  profile: 'chrome-154-windows',
   route: 'direct',
 });
 try {
   const response = await client.request('https://example.com/', {
-    method: 'GET', protocol: 'negotiated', context: 'raw', timeoutMs: 30_000,
+    method: 'GET', protocol: 'negotiated', context: 'navigation', timeoutMs: 30_000,
   });
   try {
     console.log(response.status, await response.text(1024 * 1024));
@@ -21,7 +21,8 @@ try {
 ```
 
 This example uses Chrome's Windows settings. Use `profiles()` to list other
-profiles, and reuse the client for later requests.
+profiles, and reuse the client for later requests. The navigation context
+supplies page-load headers.
 
 ## Install
 
@@ -267,7 +268,7 @@ stays disabled.
 import { Profile } from '@byway/phantom';
 
 const original = Profile.fromCatalog(
-  'chrome/154.0.8037.97/windows-11-26200/r1', 'navigation',
+  'chrome-154-windows', 'navigation',
 );
 const document = original.describe();
 document.profile.tls.session_ticket_order = 'OldestFirst';

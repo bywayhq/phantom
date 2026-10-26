@@ -25,7 +25,9 @@ use phantom::{profile::browser::chrome, Client, HttpProtocol};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::builder(chrome::v154_windows()).build()?;
+    let profile = chrome::v154_windows()
+        .with_request_template(chrome::v154_windows_navigation_template());
+    let client = Client::builder(profile).build()?;
     let response = client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .send()
@@ -38,10 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This request selects HTTP/2 explicitly. The profile configures the connection;
-[request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
-add headers for a navigation or fetch request. Reuse the client across requests
-so it can reuse connections and session state.
+This request selects HTTP/2 explicitly. The profile sets Chrome's connection
+settings and page-load headers once for the client. Choose another
+[request template](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
+for fetches or uploads. Reuse the client across requests to reuse connections
+and session state.
 
 ## Learn more
 

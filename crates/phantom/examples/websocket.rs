@@ -14,10 +14,7 @@
 
 use std::{env, process, time::Duration};
 
-use phantom::{
-    Client, WebSocketMessage,
-    profile::{ClientProfile, browser::chrome},
-};
+use phantom::{Client, WebSocketMessage, profile::browser::chrome};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -30,8 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let text = args.next().unwrap_or_else(|| "hello".to_owned());
 
-    let profile = ClientProfile::new(chrome::v154_tcp_tls());
-    let client = Client::builder(profile).build()?;
+    let client = Client::builder(chrome::v154_windows()).build()?;
 
     let connect = client.websocket(&url)?.connect();
     let mut socket = tokio::time::timeout(CONNECT_TIMEOUT, connect).await??;

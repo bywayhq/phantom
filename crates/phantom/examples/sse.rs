@@ -13,10 +13,7 @@
 
 use std::{env, process, time::Duration};
 
-use phantom::{
-    Client, HttpProtocol,
-    profile::{ClientProfile, browser::chrome},
-};
+use phantom::{Client, HttpProtocol, profile::browser::chrome};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,10 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(_) => usage(),
     };
 
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_client_hints(chrome::v154_windows_client_hints());
-    let client = Client::builder(profile).build()?;
+    let client = Client::builder(chrome::v154_windows()).build()?;
 
     let response = client
         .event_source(protocol, &url)?

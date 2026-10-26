@@ -6,9 +6,11 @@ profiles. Read bodies in chunks or collect them within an explicit byte limit.
 ```python
 from phantom_http import Client
 
-PROFILE = "chrome/154.0.8037.97/windows-11-26200/r1"
+PROFILE = "chrome-154-windows"
 
-with Client(profile=PROFILE, protocol="negotiated", timeout_ms=30_000) as client:
+with Client(
+    profile=PROFILE, protocol="negotiated", context="navigation", timeout_ms=30_000
+) as client:
     with client.request("GET", "https://example.com/") as response:
         response.raise_for_status()
         print(response.text(max_bytes=1_000_000))
@@ -16,7 +18,8 @@ with Client(profile=PROFILE, protocol="negotiated", timeout_ms=30_000) as client
 
 This example uses Chrome's Windows settings. Choose other profiles from the
 [catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json)
-and reuse the client for later requests.
+and reuse the client for later requests. The navigation context supplies
+page-load headers for each request.
 
 ## Install
 
@@ -54,7 +57,9 @@ from phantom_http import AsyncClient
 
 
 async def main():
-    async with AsyncClient(profile=PROFILE, protocol="h2", timeout_ms=30_000) as client:
+    async with AsyncClient(
+        profile=PROFILE, protocol="h2", context="navigation", timeout_ms=30_000
+    ) as client:
         async with await client.request("GET", "https://example.com/") as response:
             async for chunk in response.iter_bytes():
                 print(len(chunk))

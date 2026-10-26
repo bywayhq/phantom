@@ -19,10 +19,12 @@ these files in the matching checkout or run
 
 ## When writing code
 
-Check API signatures and feature requirements in this checkout. Reuse a client
-for shared pools and session state. Built-in profile constructors leave ordinary
-request templates unset; attach one when browser headers are needed. Preserve
-header order, select a protocol deliberately, and use bounded body readers.
+Check API signatures and feature requirements in this checkout. Start with a
+composed browser profile or a short catalog selector such as `chrome-154-windows`.
+Attach a default request template for the operation, then reuse the client for
+shared pools and session state. Override the template on individual requests
+when needed. Preserve header order, select a protocol deliberately, and use
+bounded body readers.
 
 For changes to Phantom itself, read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [AGENTS.md](AGENTS.md). Read [CHANGELOG.md](CHANGELOG.md) before upgrading.

@@ -22,7 +22,9 @@ const BODY_LIMIT: usize = 1 << 20;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = env::args().nth(1).unwrap_or_else(|| DEFAULT_URL.to_owned());
 
-    let client = Client::builder(chrome::v154_windows()).build()?;
+    let profile =
+        chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
+    let client = Client::builder(profile).build()?;
 
     let response = client.get(HttpProtocol::Http2, &url)?.send().await?;
     println!("status: {}", response.status());

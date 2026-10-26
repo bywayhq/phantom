@@ -15,7 +15,9 @@ use phantom::{profile::browser::chrome, Client, HttpProtocol};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::builder(chrome::v154_windows()).build()?;
+    let profile = chrome::v154_windows()
+        .with_request_template(chrome::v154_windows_navigation_template());
+    let client = Client::builder(profile).build()?;
     let response = client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .send()
