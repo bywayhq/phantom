@@ -52,9 +52,9 @@ fn cross_origin_body_preserving_redirects_reject_declared_credential_trailers() 
                 "http://example.test/next",
             ] {
                 let mut state = state(name, policy())?;
-                let error = state
-                    .follow(&redirect(status, destination)?)
-                    .expect_err("credential trailers must not cross origins");
+                let Err(error) = state.follow(&redirect(status, destination)?) else {
+                    return Err("credential trailers crossed origins".into());
+                };
                 assert_eq!(error.kind(), RequestErrorKind::Redirect);
                 assert_eq!(state.current_url().as_str(), "https://example.test/start");
                 assert_eq!(state.followed(), 0);
