@@ -1,6 +1,6 @@
 [package]
 name = "phantom-h3"
-version = "0.0.8-phantom.19"
+version = "0.0.8-phantom.20"
 rust-version = "1.88"
 authors = [
     "Sean McArthur <sean@seanmonstar.com>",
@@ -45,12 +45,12 @@ fastrand = "2.0.1"
 assert_matches = "1.5.0"
 futures-util = { version = "0.3", default-features = false, features = ["io"] }
 proptest = "1"
-quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.6", path = "../../quinn", default-features = false, features = [
+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.7", path = "../../quinn", default-features = false, features = [
     "runtime-tokio",
     "rustls",
     "ring",
 ] }
-quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.6", path = "../../quinn-proto", default-features = false }
+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.7", path = "../../quinn-proto", default-features = false }
 rcgen = "0.14"
 rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std"] }
 tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std"] }

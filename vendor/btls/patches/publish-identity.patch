@@ -5,7 +5,7 @@
 -name = "btls"
 -version = "0.5.6"
 +name = "phantom-btls"
-+version = "0.5.6-phantom.18"
++version = "0.5.6-phantom.19"
  authors = ["0x676e67 <gngppz@gmail.com>", "Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
  license = "Apache-2.0"
 -description = "BoringSSL bindings"
@@ -36,7 +36,7 @@
  openssl-macros = "0.1.1"
  libc = "0.2.185"
 -btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb" }
-+btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.2", path = "../btls-sys" }
++btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.3", path = "../btls-sys" }
  
  [dev-dependencies]
  hex = "0.4"

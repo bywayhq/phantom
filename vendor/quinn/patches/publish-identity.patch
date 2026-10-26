@@ -9,7 +9,7 @@ index 6883a43..13a50f7 100644
 -name = "quinn"
 -version = "0.11.12"
 +name = "phantom-quinn"
-+version = "0.11.12-phantom.6"
++version = "0.11.12-phantom.7"
  build = "build.rs"
 +exclude = [
 +    ".cargo_vcs_info.json",
@@ -47,7 +47,7 @@ index 6883a43..13a50f7 100644
 -version = "0.11.18"
 -default-features = false
 -package = "quinn-proto"
-+version = "=0.11.18-phantom.6"
++version = "=0.11.18-phantom.7"
 +package = "phantom-quinn-proto"
 +path = "../quinn-proto"
 +default-features = false

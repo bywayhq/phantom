@@ -14,6 +14,7 @@ on:
       - rust-toolchain.toml
       - scripts/ci/check-boringssl-native.sh
       - vendor/btls/**
+      - vendor/btls-sys/**
   schedule:
     - cron: "19 9 * * 3"
   workflow_dispatch:

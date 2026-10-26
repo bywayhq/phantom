@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.5.1 - 2026-10-26
+
+- Fix excessive certificate-verification memory use from relative CRL
+  distribution points (BoringSSL CVE-2026-35189).
+- Reject QUIC stream-limit bypasses and oversized Initial/Retry tokens
+  (GHSA-53rm-773f-4q8c and GHSA-wppq-2f6r-wfvm).
+- Update quinn-udp to avoid a truncated-datagram receive loop on Apple/BSD
+  (GHSA-6pp4-4cxf-xf88).
+- Reject conflicting HTTP/2 content lengths and enforce reserved-push and
+  refused-stream limits.
+- Add opt-in public destination restrictions with `DestinationPolicy::public_only()`.
+- Strip registered secret headers across origins with
+  `RedirectPolicy::credential_headers(...)`.
+- Check native security fixes and fork ancestry alongside Rust advisories.
+- Update the security policy for published releases.
+
 ## 0.5.0 - 2026-10-26
 
 - Breaking: negotiate the protocol with `Client::get(url)` and

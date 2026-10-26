@@ -1036,7 +1036,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.18"
+version = "0.5.6-phantom.19"
 dependencies = [
  "bitflags",
  "foreign-types",
@@ -1048,7 +1048,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls-sys"
-version = "0.5.6-phantom.2"
+version = "0.5.6-phantom.3"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3"
-version = "0.0.8-phantom.19"
+version = "0.0.8-phantom.20"
 dependencies = [
  "bytes",
  "fastrand",
@@ -1085,7 +1085,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-datagram"
-version = "0.0.2-phantom.19"
+version = "0.0.2-phantom.20"
 dependencies = [
  "bytes",
  "phantom-h3",
@@ -1094,7 +1094,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-quinn"
-version = "0.0.10-phantom.19"
+version = "0.0.10-phantom.20"
 dependencies = [
  "bytes",
  "futures-util",
@@ -1107,7 +1107,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "base64 0.23.1",
  "brotli",
@@ -1136,7 +1136,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http2"
-version = "0.5.20-phantom.23"
+version = "0.5.20-phantom.24"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-net"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "brotli",
  "bytes",
@@ -1189,11 +1189,11 @@ dependencies = [
 
 [[package]]
 name = "phantom-profile"
-version = "0.5.0"
+version = "0.5.1"
 
 [[package]]
 name = "phantom-quic-btls"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bytes",
  "foreign-types",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quinn"
-version = "0.11.12-phantom.6"
+version = "0.11.12-phantom.7"
 dependencies = [
  "bytes",
  "cfg_aliases",
@@ -1225,7 +1225,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quinn-proto"
-version = "0.11.18-phantom.6"
+version = "0.11.18-phantom.7"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",
@@ -1244,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-testkit"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "phantom-profile",
  "tokio",
@@ -1252,7 +1252,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.18"
+version = "0.5.6-phantom.19"
 dependencies = [
  "phantom-btls",
  "tokio",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.23"
+version = "0.2.5-phantom.24"
 dependencies = [
  "bytes",
  "futures-channel",

@@ -1,2 +1,3 @@
 msvc-configuration-flags.patch
+relative-crldp-security.patch
 publish-identity.patch

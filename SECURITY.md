@@ -6,16 +6,18 @@ maintainers can investigate and fix them before public disclosure.
 
 ## Supported versions
 
-Phantom is pre-1.0 and has no published releases.
+Security fixes target the latest release and the default branch.
 
 | Version | Supported |
 | --- | --- |
+| Latest published release | Yes |
 | Latest commit on the default branch | Yes |
-| Older commits | No |
+| Older releases and commits | No |
 | Forks and locally modified vendored packages | No |
 
-Security fixes land on the default branch. If your project pins a Git
-revision, move to a revision that contains the fix.
+Install the latest patch release for security fixes. If your project pins a
+Git revision, move to a revision that contains the fix. Phantom's bundled
+dependency patches are included in this support policy.
 
 ## Reporting a vulnerability
 
@@ -127,7 +129,6 @@ one rather than working around it if the justification no longer holds.
 Please allow maintainers time to reproduce, assess, and fix the issue before
 publishing details. Once remediation is ready, maintainers may use a GitHub
 Security Advisory to coordinate credit, affected and fixed commits, and
-disclosure. Reporters are credited unless they prefer to stay anonymous. Once
-Phantom is published to crates.io, maintainers intend to submit fixed
-vulnerabilities in published versions to the
+disclosure. Reporters are credited unless they prefer to stay anonymous.
+Maintainers may submit fixed vulnerabilities affecting published packages to the
 [RustSec Advisory Database](https://rustsec.org/).

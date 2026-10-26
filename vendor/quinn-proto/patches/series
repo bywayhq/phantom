@@ -10,4 +10,7 @@ ack-frequency-receive-format.patch
 supported-integer-multiples.patch
 strict-remembered-server-parameters.patch
 supported-rust-version.patch
+stream-limit-security.patch
+initial-token-space-security.patch
+retry-token-rejection-security.patch
 publish-identity.patch

@@ -10643,5 +10643,35 @@ TEST(X509Test, PathLenSelfIssuedNotCountedButStillVerified) {
                          {/*self_issued=*/true, /*pathlen=*/1}}));
 }
 
+TEST(X509Test, RelativeCRLDistributionPointsDoNotExpandIssuerNames) {
+  UniquePtr<X509> cert = CertFromPEM(kRootCAPEM);
+  ASSERT_TRUE(cert);
+  UniquePtr<STACK_OF(DIST_POINT)> points(sk_DIST_POINT_new_null());
+  ASSERT_TRUE(points);
+  for (size_t i = 0; i < 32; i++) {
+    UniquePtr<DIST_POINT> point(DIST_POINT_new());
+    ASSERT_TRUE(point);
+    point->distpoint = DIST_POINT_NAME_new();
+    ASSERT_TRUE(point->distpoint);
+    point->distpoint->type = 1;
+    point->distpoint->name.relativename = sk_X509_NAME_ENTRY_new_null();
+    ASSERT_TRUE(point->distpoint->name.relativename);
+    UniquePtr<X509_NAME_ENTRY> entry(X509_NAME_ENTRY_create_by_txt(
+        nullptr, "CN", MBSTRING_ASC,
+        reinterpret_cast<const uint8_t *>("relative"), -1));
+    ASSERT_TRUE(entry);
+    ASSERT_TRUE(PushToStack(point->distpoint->name.relativename, std::move(entry)));
+    ASSERT_TRUE(PushToStack(points.get(), std::move(point)));
+  }
+  ASSERT_TRUE(X509_add1_ext_i2d(cert.get(), NID_crl_distribution_points,
+                               points.get(), 0, X509V3_ADD_REPLACE));
+  ASSERT_TRUE(x509v3_cache_extensions(cert.get()));
+  const auto &cached = FromOpaque(cert.get())->crldp;
+  ASSERT_EQ(32u, sk_DIST_POINT_num(cached.get()));
+  for (size_t i = 0; i < sk_DIST_POINT_num(cached.get()); i++) {
+    EXPECT_EQ(nullptr, sk_DIST_POINT_value(cached.get(), i)->distpoint->dpname);
+  }
+}
+
 }  // namespace
 BSSL_NAMESPACE_END

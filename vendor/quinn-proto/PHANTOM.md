@@ -31,6 +31,18 @@ stable since Rust 1.87, for the existing whole-millisecond and version-body
 alignment checks. Apply it before `supported-rust-version.patch`; the guard
 order and accepted values stay unchanged.
 
+## Security backports
+
+`stream-limit-security.patch` rejects MAX_STREAM_DATA for streams beyond the
+remote stream limit (GHSA-53rm-773f-4q8c, upstream
+`73114d8289d42bd536c790fa00a9beed05a4e5fa`).
+`initial-token-space-security.patch` and `retry-token-rejection-security.patch`
+bound cached Initial and Retry tokens before packet construction
+(GHSA-wppq-2f6r-wfvm, upstream
+`74c33ff75281d7751488e410e21e4f030782b655` and
+`a6e78d1c8bf28630f1e92fbcc38f60e0a134b01a`). The upstream boundary tests are
+retained in `src/tests/token.rs` and `src/connection/streams/state.rs`.
+
 ## Publish identity
 
 `strict-remembered-server-parameters.patch` adds
@@ -44,7 +56,7 @@ The focused controls are `transport_parameters::tests`.
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
-`0.11.18-phantom.6`), keeps the upstream library name so source, tests, and
+`0.11.18-phantom.7`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and

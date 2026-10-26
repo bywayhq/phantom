@@ -14,6 +14,13 @@ this directory. The script verifies both source archive checksums.
 
 ## Canonical changes
 
+`relative-crldp-security.patch` backports BoringSSL
+`9b639f5b3b086508c03f6a4a1792e4a6043777ac` for CVE-2026-35189. Certificate
+verification no longer expands relative CRL distribution point names into
+copies of the issuer name. Those obsolete distribution points are ignored.
+The bounded native regression checks that cached extensions do not expand
+them; the later upstream CRL-scope test helpers are absent from this baseline.
+
 `patches/series` lists the packaging changes to replay on the native fork.
 `msvc-configuration-flags.patch` restores CMake's selected C/C++ profile
 flags for automatic MSVC builds. cmake-rs 0.1.58 otherwise replaces them
