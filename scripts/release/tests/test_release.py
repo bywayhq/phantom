@@ -205,7 +205,7 @@ class ReleaseChecks(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "omitted staged"):
                 verify.installed_package_sources(log, base, versions)
 
-    def test_tls_dependencies_use_their_published_archive_identities(self):
+    def test_tls_dependencies_use_selected_or_published_archive_identities(self):
         versions = {name: version for name, version, _manifest in publish.plan()}
         workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
             "workspace"
@@ -216,7 +216,8 @@ class ReleaseChecks(unittest.TestCase):
                 manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
                 package = tomllib.loads(manifest.read_text())["package"]
                 self.assertEqual(package["name"], "phantom-" + alias)
-                self.assertNotIn(package["name"], versions)
+                if package["name"] in versions:
+                    self.assertEqual(versions[package["name"]], package["version"])
                 self.assertEqual(dependency["package"], package["name"])
                 self.assertEqual(dependency["version"], "=" + package["version"])
                 consumer = {
@@ -226,7 +227,10 @@ class ReleaseChecks(unittest.TestCase):
                 record = verify.index_record(consumer, "checksum", versions)["deps"][0]
                 self.assertEqual(record["package"], package["name"])
                 self.assertEqual(record["req"], "=" + package["version"])
-                self.assertEqual(record["registry"], verify.CRATES_IO)
+                self.assertEqual(
+                    record["registry"],
+                    None if package["name"] in versions else verify.CRATES_IO,
+                )
 
         native = tomllib.loads(
             (publish.ROOT / "vendor/btls-sys/Cargo.toml").read_text()
@@ -238,23 +242,37 @@ class ReleaseChecks(unittest.TestCase):
         dependency = next(item for item in dependencies if item["name"] == "btls-sys")
         self.assertEqual(dependency["package"], native["name"])
         self.assertEqual(dependency["req"], "=" + native["version"])
-        self.assertEqual(dependency["registry"], verify.CRATES_IO)
+        self.assertEqual(
+            dependency["registry"],
+            None if native["name"] in versions else verify.CRATES_IO,
+        )
         self.assertEqual(
             next(item for item in dependencies if item["name"] == "libc")["registry"],
             verify.CRATES_IO,
         )
 
-    def test_transport_forks_use_their_published_archive_identities(self):
+    def test_transport_forks_use_selected_or_published_archive_identities(self):
         versions = {name: version for name, version, _manifest in publish.plan()}
         workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
             "workspace"
         ]
-        for alias in ("http2", "wreq-proto", "h3", "h3-datagram", "h3-quinn"):
+        for alias in (
+            "http2",
+            "wreq-proto",
+            "h3",
+            "h3-datagram",
+            "h3-quinn",
+            "quinn",
+            "quinn-proto",
+            "tokio-tungstenite",
+            "tungstenite",
+        ):
             with self.subTest(alias=alias):
                 dependency = workspace["dependencies"][alias].copy()
                 manifest = publish.ROOT / dependency.pop("path") / "Cargo.toml"
                 native = tomllib.loads(manifest.read_text())["package"]
-                self.assertNotIn(native["name"], versions)
+                if native["name"] in versions:
+                    self.assertEqual(versions[native["name"]], native["version"])
                 self.assertEqual(dependency["version"], "=" + native["version"])
                 consumer = {
                     "package": {"name": "consumer", "version": "1.0.0"},
@@ -263,14 +281,16 @@ class ReleaseChecks(unittest.TestCase):
                 record = verify.index_record(consumer, "checksum", versions)["deps"][0]
                 self.assertEqual(record["package"], native["name"])
                 self.assertEqual(record["req"], "=" + native["version"])
-                self.assertEqual(record["registry"], verify.CRATES_IO)
+                self.assertEqual(
+                    record["registry"],
+                    None if native["name"] in versions else verify.CRATES_IO,
+                )
 
         transport = tomllib.loads(
             (publish.ROOT / "vendor/wreq-proto/Cargo.toml").read_text()
         )
         http2 = transport["dependencies"]["http2"].copy()
         del http2["path"]
-        self.assertNotIn(http2["package"], versions)
         http2_package = tomllib.loads(
             (publish.ROOT / "vendor/http2/Cargo.toml").read_text()
         )["package"]
@@ -283,7 +303,10 @@ class ReleaseChecks(unittest.TestCase):
             ]
             if dependency["name"] == "http2"
         )
-        self.assertEqual(record["registry"], verify.CRATES_IO)
+        self.assertEqual(
+            record["registry"],
+            None if http2_package["name"] in versions else verify.CRATES_IO,
+        )
 
     def test_index_rejects_a_dependency_that_still_uses_git_or_path(self):
         for source in ["git", "path"]:
@@ -326,44 +349,56 @@ class ReleaseChecks(unittest.TestCase):
             publish.ensure_owner("phantom-http")
         command.assert_not_called()
 
-    def test_new_versions_follow_dependency_order_without_republishing_unchanged_forks(
-        self,
-    ):
+    def test_selected_archives_match_manifests_exact_pins_and_dependency_order(self):
         plan = publish.plan()
         names = {entry[0] for entry in plan}
-        self.assertEqual(len(plan), 6)
-        self.assertEqual(plan[0][0], "phantom-profile")
+        self.assertEqual(len(plan), len(names))
         self.assertEqual(plan[-1][0], "phantom-cli")
-        self.assertEqual(
-            names,
-            {
-                "phantom-testkit",
-                "phantom-profile",
-                "phantom-quic-btls",
-                "phantom-net",
-                "phantom-http",
-                "phantom-cli",
-            },
-        )
+        workspace_names = {
+            "phantom-testkit",
+            "phantom-profile",
+            "phantom-quic-btls",
+            "phantom-net",
+            "phantom-http",
+            "phantom-cli",
+        }
+        self.assertTrue(workspace_names <= names)
+        versions = {name: version for name, version, _manifest in plan}
         workspace = tomllib.loads((publish.ROOT / "Cargo.toml").read_text())[
             "workspace"
         ]
         seen = set()
-        for name, _version, manifest in plan:
+        for name, version, manifest in plan:
             data = tomllib.loads((publish.ROOT / manifest).read_text())
+            package = data["package"]
+            self.assertEqual(package["name"], name)
+            self.assertEqual(
+                version,
+                workspace["package"]["version"]
+                if package["version"] == {"workspace": True}
+                else package["version"],
+            )
+            if name not in workspace_names:
+                self.assertIn("phantom", package["metadata"])
+                self.assertIsInstance(package["version"], str)
             tables = [data, *data.get("target", {}).values()]
             for table in tables:
                 for kind in ("dependencies", "build-dependencies"):
                     for alias, dependency in table.get(kind, {}).items():
                         if isinstance(dependency, dict) and dependency.get("workspace"):
                             dependency = workspace["dependencies"][alias]
-                        package = (
+                        dependency_package = (
                             dependency.get("package", alias)
                             if isinstance(dependency, dict)
                             else alias
                         )
-                        if package in names:
-                            self.assertIn(package, seen)
+                        if dependency_package in names:
+                            self.assertIn(dependency_package, seen)
+                            if dependency_package not in workspace_names:
+                                self.assertEqual(
+                                    dependency["version"],
+                                    "=" + versions[dependency_package],
+                                )
             seen.add(name)
 
         core = tomllib.loads((publish.ROOT / "vendor/h3/h3/Cargo.toml").read_text())
