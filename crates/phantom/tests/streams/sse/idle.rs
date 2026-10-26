@@ -243,26 +243,32 @@ async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
 
     let (_source, ()) =
         peer_completion::run_wall_clock(&mut server, deadline, TEST_TIMEOUT, async {
-            let response = test_client(&identity, false)?
-                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-                .idle_timeout(Duration::from_secs(1))
-                .max_reconnects(0)
-                .connect()
-                .await?;
-            let mut source = response.into_body();
-            let started_at = Instant::now();
-            let error = read(&mut source, poll_stream)
-                .await
-                .err()
-                .ok_or("idle response remained open without a reconnect budget")?;
-            assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
-            assert_eq!(
-                Instant::now().duration_since(started_at),
-                Duration::from_secs(1)
-            );
-            assert!(source.is_closed());
-            assert_eq!(read(&mut source, poll_stream).await?, None);
-            Ok(source)
+            let result = async {
+                let response = test_client(&identity, false)?
+                    .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+                    .idle_timeout(Duration::from_secs(1))
+                    .max_reconnects(0)
+                    .connect()
+                    .await?;
+                let mut source = response.into_body();
+                let started_at = Instant::now();
+                let error = read(&mut source, poll_stream)
+                    .await
+                    .err()
+                    .ok_or("idle response remained open without a reconnect budget")?;
+                assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
+                assert_eq!(
+                    Instant::now().duration_since(started_at),
+                    Duration::from_secs(1)
+                );
+                assert!(source.is_closed());
+                assert_eq!(read(&mut source, poll_stream).await?, None);
+                Ok(source)
+            }
+            .await;
+            // Peer cleanup waits for real socket closure.
+            tokio::time::resume();
+            result
         })
         .await?;
     Ok(())
