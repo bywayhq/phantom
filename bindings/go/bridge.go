@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"unsafe"
 )
 
 const maxMetadata = 256 * 1024
@@ -34,6 +35,10 @@ type completion struct {
 	Error      *Error          `json:"error"`
 	DataLength int             `json:"data_length"`
 	data       []byte
+	head       *responseHead
+	eof        bool
+	trailers   ResponseTrailers
+	part       uint64
 }
 
 var scratch = sync.Pool{New: func() any { return make([]byte, maxMetadata) }}
@@ -65,6 +70,11 @@ func dispatch(command any, data []byte) (json.RawMessage, error) {
 	return response.Value, nil
 }
 func control(kind string, idName string, id uint64) error {
+	codes := map[string]uint64{"cancel": 5, "ack": 6, "close_body": 7, "close_upload": 8}
+	if code := codes[kind]; code != 0 {
+		_, err := submitOperation(code, id, 0, nil)
+		return err
+	}
 	_, err := dispatch(map[string]any{"kind": kind, idName: id}, nil)
 	return err
 }
@@ -77,13 +87,16 @@ var pump struct {
 }
 
 func completionPump() {
-	metadata := make([]byte, maxMetadata)
+	arena := make([]byte, maxMetadata)
 	data := make([]byte, maxChunk)
+	fields := make([]nativeOutputField, maxMetadata/int(unsafe.Sizeof(nativeOutputField{})))
+	hops := make([]nativeHop, maxMetadata/int(unsafe.Sizeof(nativeHop{})))
 	for {
-		length, err := nativeWait(metadata, data)
+		var native nativeEvent
+		err := nativeWaitEvent(&native, fields, hops, arena, data)
 		var event completion
-		if err == nil && (length <= 0 || length > len(metadata) || json.Unmarshal(metadata[:length], &event) != nil || event.DataLength < 0 || event.DataLength > len(data)) {
-			err = &Error{Kind: "native_abi"}
+		if err == nil {
+			event, err = eventCompletion(native, fields, hops, arena, data)
 		}
 		if err != nil {
 			pump.mu.Lock()
@@ -96,9 +109,6 @@ func completionPump() {
 				channel <- completion{Error: &Error{Kind: "native_abi"}}
 			}
 			return
-		}
-		if event.DataLength != 0 {
-			event.data = append([]byte(nil), data[:event.DataLength]...)
 		}
 		pump.mu.Lock()
 		channel := pump.pending[event.Operation]
@@ -118,6 +128,22 @@ func perform(ctx context.Context, command any, data []byte, accept func(completi
 
 // started runs outside the pump lock, after native admission and registration.
 func performStarted(ctx context.Context, command any, data []byte, started func(), accept func(completion) error) error {
+	return performSubmitted(ctx, func() (uint64, error) {
+		value, err := dispatch(command, data)
+		if err != nil {
+			return 0, err
+		}
+		var submitted struct {
+			Operation uint64 `json:"operation"`
+		}
+		if json.Unmarshal(value, &submitted) != nil || submitted.Operation == 0 {
+			return 0, &Error{Kind: "native_abi"}
+		}
+		return submitted.Operation, nil
+	}, started, accept)
+}
+
+func performSubmitted(ctx context.Context, submit func() (uint64, error), started func(), accept func(completion) error) error {
 	if ctx == nil {
 		return &Error{Kind: "invalid_context"}
 	}
@@ -139,26 +165,23 @@ func performStarted(ctx context.Context, command any, data []byte, started func(
 		pump.mu.Unlock()
 		return err
 	}
-	value, err := dispatch(command, data)
+	operation, err := submit()
 	if err != nil {
 		pump.mu.Unlock()
 		return err
 	}
-	var submitted struct {
-		Operation uint64 `json:"operation"`
-	}
-	if json.Unmarshal(value, &submitted) != nil || submitted.Operation == 0 {
+	if operation == 0 {
 		pump.mu.Unlock()
 		return &Error{Kind: "native_abi"}
 	}
 	channel := make(chan completion, 1)
-	pump.pending[submitted.Operation] = channel
+	pump.pending[operation] = channel
 	pump.mu.Unlock()
 	cancel := func() {
 		pump.mu.Lock()
-		delete(pump.pending, submitted.Operation)
+		delete(pump.pending, operation)
 		pump.mu.Unlock()
-		_ = control("cancel", "operation", submitted.Operation)
+		_ = control("cancel", "operation", operation)
 	}
 	stop := context.AfterFunc(ctx, cancel)
 	defer stop()
@@ -176,7 +199,7 @@ func performStarted(ctx context.Context, command any, data []byte, started func(
 			return err
 		}
 		if event.Error != nil {
-			_ = control("ack", "operation", submitted.Operation)
+			_ = control("ack", "operation", operation)
 			return event.Error
 		}
 		if err := accept(event); err != nil {
@@ -187,6 +210,6 @@ func performStarted(ctx context.Context, command any, data []byte, started func(
 			cancel()
 			return err
 		}
-		return control("ack", "operation", submitted.Operation)
+		return control("ack", "operation", operation)
 	}
 }

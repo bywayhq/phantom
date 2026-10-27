@@ -93,7 +93,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
                     .pop_front()
                     .ok_or_else(|| Failure::new("internal"))?
                     .completion;
-                let metadata: Value = serde_json::from_slice(&completion.metadata)
+                let metadata: Value = serde_json::from_slice(&completion.metadata())
                     .map_err(|_| Failure::new("internal"))?;
                 assert_eq!(
                     metadata["value"]["effective_url"],

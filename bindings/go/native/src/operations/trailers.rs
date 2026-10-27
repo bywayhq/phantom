@@ -2,43 +2,32 @@
 
 use phantom::ResponseTrailers;
 use serde::Serialize;
-use serde_json::Value;
 
-use crate::error::Failure;
-
-#[derive(Serialize)]
-struct Snapshot<'a> {
-    state: &'static str,
-    headers: Vec<Field<'a>>,
-}
+use crate::{client::Header, error::Failure};
 
 #[derive(Serialize)]
-struct Field<'a> {
-    name: &'a str,
-    value: &'a [u8],
-    sensitive: bool,
+pub(crate) struct Snapshot {
+    pub(crate) state: &'static str,
+    pub(crate) headers: Vec<Header>,
 }
 
-pub(super) fn snapshot(trailers: &ResponseTrailers) -> Result<Value, Failure> {
+pub(super) fn snapshot(trailers: &ResponseTrailers) -> Result<Snapshot, Failure> {
     let (state, headers) = match trailers {
         ResponseTrailers::Unavailable => ("unavailable", Vec::new()),
         ResponseTrailers::Complete(headers) => (
             "complete",
             headers
                 .iter()
-                .map(|field| Field {
-                    name: field.name(),
-                    value: field.value(),
+                .map(|field| Header {
+                    name: field.name().to_owned(),
+                    value: field.value().to_vec(),
                     sensitive: field.is_sensitive(),
                 })
                 .collect(),
         ),
-        // EOF must never turn an unfinished or future state into empty success.
         _ => return Err(Failure::new("unsupported_response_trailers")),
     };
-    // Global::finish applies the existing 256 KiB cap to this complete reply,
-    // replacing an oversized projection with a correlated metadata_limit error.
-    serde_json::to_value(Snapshot { state, headers }).map_err(|_| Failure::new("internal"))
+    Ok(Snapshot { state, headers })
 }
 
 #[cfg(test)]
@@ -48,13 +37,15 @@ mod tests {
     #[test]
     fn terminal_projection_distinguishes_empty_completion_and_unavailable() -> Result<(), Failure> {
         assert_eq!(
-            snapshot(&ResponseTrailers::Unavailable)?,
+            serde_json::to_value(snapshot(&ResponseTrailers::Unavailable)?)
+                .map_err(|_| Failure::new("internal"))?,
             serde_json::json!({
                 "state": "unavailable", "headers": []
             })
         );
         assert_eq!(
-            snapshot(&ResponseTrailers::Complete(Default::default()))?,
+            serde_json::to_value(snapshot(&ResponseTrailers::Complete(Default::default()))?)
+                .map_err(|_| Failure::new("internal"))?,
             serde_json::json!({
                 "state": "complete", "headers": []
             })

@@ -1,49 +1,13 @@
-//go:build (linux || darwin) && cgo
+//go:build (linux || darwin) && (amd64 || arm64)
 
 package phantom
 
-/*
-#cgo LDFLAGS: -lphantom_go
-#include "native.h"
-*/
-import "C"
+import "github.com/ebitengine/purego"
 
-import (
-	"runtime"
-	"unsafe"
-)
-
-func nativeSession(command, key, ciphertext, metadata, output []byte) (int, error) {
-	// All buffers are borrowed only for this synchronous copy; none is retained.
-	length := C.phantom_go_session((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(key))), C.size_t(len(key)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(ciphertext))), C.size_t(len(ciphertext)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(metadata))), C.size_t(len(metadata)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
-	runtime.KeepAlive(command)
-	runtime.KeepAlive(key)
-	runtime.KeepAlive(ciphertext)
-	runtime.KeepAlive(metadata)
-	runtime.KeepAlive(output)
-	return int(length), nil
+func openNative(path string) (uintptr, error) {
+	return purego.Dlopen(path, purego.RTLD_NOW|purego.RTLD_LOCAL)
 }
 
-func nativeDispatch(command, body, output []byte) (int, error) {
-	length := C.phantom_go_dispatch((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(body))), C.size_t(len(body)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
-	runtime.KeepAlive(command)
-	runtime.KeepAlive(body)
-	runtime.KeepAlive(output)
-	return int(length), nil
-}
-func nativeWait(metadata, data []byte) (int, error) {
-	length := C.phantom_go_wait((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(metadata))), C.size_t(len(metadata)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(data))), C.size_t(len(data)))
-	runtime.KeepAlive(metadata)
-	runtime.KeepAlive(data)
-	return int(length), nil
-}
-
-func nativeProfile(command, document, metadata, output []byte) (int, error) {
-	// Native copies synchronously and retains no pointers into these Go buffers.
-	length := C.phantom_go_profile((*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(command))), C.size_t(len(command)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(document))), C.size_t(len(document)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(metadata))), C.size_t(len(metadata)), (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(output))), C.size_t(len(output)))
-	runtime.KeepAlive(command)
-	runtime.KeepAlive(document)
-	runtime.KeepAlive(metadata)
-	runtime.KeepAlive(output)
-	return int(length), nil
+func nativeSymbol(handle uintptr, name string) (uintptr, error) {
+	return purego.Dlsym(handle, name)
 }

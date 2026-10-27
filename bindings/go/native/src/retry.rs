@@ -5,34 +5,34 @@ use std::{num::NonZeroUsize, time::Duration};
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub(super) struct RetryPolicy {
-    connection: Option<ConnectionRetry>,
-    status: Option<StatusRetry>,
-    reused_connection_replay: bool,
-    unprocessed_replays: Option<u64>,
-    maximum_retries: Option<u64>,
-    http2_fallback: bool,
+    pub(crate) connection: Option<ConnectionRetry>,
+    pub(crate) status: Option<StatusRetry>,
+    pub(crate) reused_connection_replay: bool,
+    pub(crate) unprocessed_replays: Option<u64>,
+    pub(crate) maximum_retries: Option<u64>,
+    pub(crate) http2_fallback: bool,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ConnectionRetry {
-    maximum: u64,
-    delay_ns: u64,
-    maximum_delay_ns: Option<u64>,
+pub(crate) struct ConnectionRetry {
+    pub(crate) maximum: u64,
+    pub(crate) delay_ns: u64,
+    pub(crate) maximum_delay_ns: Option<u64>,
     #[serde(default)]
-    full_jitter: bool,
+    pub(crate) full_jitter: bool,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct StatusRetry {
-    statuses: Vec<u16>,
-    maximum: u64,
-    delay_ns: u64,
-    maximum_delay_ns: Option<u64>,
+pub(crate) struct StatusRetry {
+    pub(crate) statuses: Vec<u16>,
+    pub(crate) maximum: u64,
+    pub(crate) delay_ns: u64,
+    pub(crate) maximum_delay_ns: Option<u64>,
     #[serde(default)]
-    full_jitter: bool,
-    retry_after_limit_ns: Option<u64>,
+    pub(crate) full_jitter: bool,
+    pub(crate) retry_after_limit_ns: Option<u64>,
 }
 
 fn invalid() -> Failure {

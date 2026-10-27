@@ -67,9 +67,9 @@ fn history_maximum(maximum: u64) -> Result<NonZeroUsize, Failure> {
 #[serde(deny_unknown_fields)]
 pub(super) struct RedirectPolicy {
     #[serde(default)]
-    maximum_hops: u64,
+    pub(crate) maximum_hops: u64,
     #[serde(default)]
-    credential_headers: Vec<String>,
+    pub(crate) credential_headers: Vec<String>,
 }
 
 impl RedirectPolicy {
@@ -104,21 +104,31 @@ impl RedirectPolicy {
 }
 
 #[derive(Serialize)]
-pub(super) struct RedirectHistory {
-    entries: Vec<RedirectHop>,
-    omitted_hops: usize,
+pub(crate) struct RedirectHistory {
+    pub(crate) entries: Vec<RedirectHop>,
+    pub(crate) omitted_hops: usize,
 }
 
 #[derive(Serialize)]
-struct RedirectHop {
-    from_url: String,
-    to_url: String,
-    method: String,
-    next_method: String,
-    status: u16,
+pub(crate) struct RedirectHop {
+    pub(crate) from_url: String,
+    pub(crate) to_url: String,
+    pub(crate) method: String,
+    pub(crate) next_method: String,
+    pub(crate) status: u16,
 }
 
 impl RedirectHistory {
+    pub(crate) fn metadata_size(&self) -> usize {
+        self.entries.iter().fold(16usize, |size, hop| {
+            size.saturating_add(72)
+                .saturating_add(hop.from_url.len())
+                .saturating_add(hop.to_url.len())
+                .saturating_add(hop.method.len())
+                .saturating_add(hop.next_method.len())
+        })
+    }
+
     pub(super) fn capture(
         history: &phantom::RedirectHistory,
         maximum: usize,

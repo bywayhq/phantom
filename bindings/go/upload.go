@@ -74,7 +74,7 @@ func (u *uploadLifetime) start() {
 		return
 	}
 	go func() {
-		_ = perform(u.ctx, map[string]any{"kind": "wait_upload", "upload": u.id}, nil, func(completion) error { return nil })
+		_ = performSubmitted(u.ctx, func() (uint64, error) { return submitOperation(3, u.id, 0, nil) }, nil, func(completion) error { return nil })
 		u.close()
 	}()
 	if u.multipart != nil {
@@ -85,7 +85,7 @@ func (u *uploadLifetime) start() {
 }
 
 func (u *uploadLifetime) write(bytes []byte, end *bool) error {
-	return perform(u.ctx, map[string]any{"kind": "write_upload", "upload": u.id, "end": end}, bytes, func(completion) error { return nil })
+	return performSubmitted(u.ctx, func() (uint64, error) { return submitOperation(2, u.id, boolean(end != nil && *end), bytes) }, nil, func(completion) error { return nil })
 }
 
 func (u *uploadLifetime) produce() {

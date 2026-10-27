@@ -38,8 +38,8 @@ func TestNativeIdentityRejectsWrongOrMalformedPairsWithoutLeakingValues(t *testi
 	for _, test := range []struct {
 		name, response, kind string
 	}{
-		{"version", `{"value":{"abi":1,"version":"secret-other-version"}}`, "native_version_mismatch"},
-		{"abi", `{"value":{"abi":2,"version":"0.2.0"}}`, "native_abi_mismatch"},
+		{"version", `{"value":{"abi":2,"version":"secret-other-version"}}`, "native_version_mismatch"},
+		{"abi", `{"value":{"abi":1,"version":"0.2.0"}}`, "native_abi_mismatch"},
 		{"old-library", `{"error":{"kind":"invalid_command"}}`, "native_abi_mismatch"},
 		{"missing-value", `{}`, "native_abi"},
 		{"bad-json", `secret-bad-json`, "native_abi"},

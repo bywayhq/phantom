@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
-enum Timeout {
+pub(crate) enum Timeout {
     Inherit {},
     Disabled {},
     Limit { nanoseconds: u64 },
@@ -31,11 +31,11 @@ impl Timeout {
 #[derive(Clone, Copy, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub(super) struct Timeouts {
-    pool_admission: Timeout,
-    connect: Timeout,
-    response_head: Timeout,
-    read_idle: Timeout,
-    total: Timeout,
+    pub(crate) pool_admission: Timeout,
+    pub(crate) connect: Timeout,
+    pub(crate) response_head: Timeout,
+    pub(crate) read_idle: Timeout,
+    pub(crate) total: Timeout,
 }
 
 impl Timeouts {

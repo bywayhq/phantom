@@ -2,7 +2,6 @@ package phantom
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"runtime"
@@ -89,22 +88,9 @@ func (body *Body) Read(output []byte) (int, error) {
 	var bytes []byte
 	eof := false
 	var trailers ResponseTrailers
-	err := perform(body.ctx, map[string]any{"kind": "read", "body": body.owner.id, "maximum": maximum}, nil, func(event completion) error {
-		var result struct {
-			EOF      bool            `json:"eof"`
-			Trailers json.RawMessage `json:"trailers"`
-		}
-		if json.Unmarshal(event.Value, &result) != nil {
-			return &Error{Kind: "native_abi"}
-		}
-		if result.EOF {
-			observed, err := decodeResponseTrailers(result.Trailers)
-			if err != nil {
-				return err
-			}
-			trailers = observed
-		}
-		eof = result.EOF
+	err := performSubmitted(body.ctx, func() (uint64, error) { return submitOperation(1, body.owner.id, uint64(maximum), nil) }, nil, func(event completion) error {
+		eof = event.eof
+		trailers = event.trailers
 		bytes = event.data
 		return nil
 	})

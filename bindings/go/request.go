@@ -2,10 +2,10 @@ package phantom
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"runtime"
 	"time"
+	"unsafe"
 )
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
@@ -126,7 +126,7 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	if err != nil {
 		return nil, err
 	}
-	// Copy pointer-selected policies before submission; asynchronous work owns only JSON bytes.
+	// Snapshot pointer-selected policies before native admission.
 	var retries *wireRetryPolicy
 	if request.RetryPolicy != nil {
 		snapshot, err := retryPolicyWire(*request.RetryPolicy)
@@ -151,11 +151,6 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 		}
 		history = &snapshot
 	}
-	type wireHeader struct {
-		Name      string   `json:"name"`
-		Value     []uint16 `json:"value"`
-		Sensitive bool     `json:"sensitive"`
-	}
 	if len(request.Trailers) > 256 || len(request.Headers) > 256-len(request.Trailers) {
 		return nil, &Error{Kind: "input_limit"}
 	}
@@ -163,18 +158,14 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	if size > 64*1024 {
 		return nil, &Error{Kind: "input_limit"}
 	}
-	encodeHeaders := func(input []Header) ([]wireHeader, error) {
-		fields := make([]wireHeader, 0, len(input))
+	encodeHeaders := func(input []Header) ([]nativeField, error) {
+		fields := make([]nativeField, 0, len(input))
 		for _, header := range input {
 			if len(header.Name) > 64*1024-size || len(header.Value) > 64*1024-size-len(header.Name) {
 				return nil, &Error{Kind: "input_limit"}
 			}
 			size += len(header.Name) + len(header.Value)
-			values := make([]uint16, len(header.Value))
-			for i, value := range header.Value {
-				values[i] = uint16(value)
-			}
-			fields = append(fields, wireHeader{header.Name, values, header.Sensitive})
+			fields = append(fields, nativeField{borrowedString(header.Name), borrowedBytes(header.Value), boolean(header.Sensitive)})
 		}
 		return fields, nil
 	}
@@ -202,53 +193,84 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 		}
 		transfer = &value
 	}
-	command := map[string]any{"kind": "request", "client": c.id.Load(), "method": request.Method, "url": request.URL, "headers": headers, "budget": budget, "timeouts": timeouts, "has_body": request.Body != nil, "content_decoding": decoding, "redirect_policy": redirects, "redirect_history_limit": history, "retry_policy": retries}
-	if len(trailers) != 0 {
-		command["trailers"] = trailers
+	native := nativeRequest{
+		Client: c.id.Load(), Method: borrowedString(request.Method), URL: borrowedString(request.URL),
+		Headers: unsafe.Pointer(unsafe.SliceData(headers)), HeaderCount: uint64(len(headers)),
+		Trailers: unsafe.Pointer(unsafe.SliceData(trailers)), TrailerCount: uint64(len(trailers)),
+		Flags: boolean(request.Body != nil), Budget: pointed(budget), Transfer: pointed(transfer), PreparedBody: pointed(prepared),
+	}
+	for i, value := range []wireTimeout{timeouts.PoolAdmission, timeouts.Connect, timeouts.ResponseHead, timeouts.ReadIdle, timeouts.Total} {
+		mode := uint64(0)
+		switch value.Mode {
+		case "disabled":
+			mode = 1
+		case "limit":
+			mode = 2
+		}
+		native.Timeouts[i] = nativeTimeout{Mode: mode, Nanoseconds: pointed(value.Nanoseconds)}
 	}
 	if expectContinue != nil {
-		command["expect_continue_nanoseconds"] = expectContinue
+		native.Flags |= 2
+		native.ExpectContinue = *expectContinue
 	}
-	if transfer != nil {
-		command["transfer"] = transfer
+	if decoding.Mode == "advertised" {
+		native.Flags |= 4
+		native.DecodedMaximum = pointed(decoding.MaximumDecodedBytes)
+	}
+	var credentials []nativeSpan
+	if redirects != nil {
+		native.Flags |= 8
+		native.RedirectMaximum = redirects.MaximumHops
+		for _, name := range redirects.CredentialHeaders {
+			credentials = append(credentials, borrowedString(name))
+		}
+		native.CredentialHeaders = unsafe.Pointer(unsafe.SliceData(credentials))
+		native.CredentialHeaderCount = uint64(len(credentials))
+	}
+	if history != nil {
+		native.Flags |= 16
+		native.RedirectHistory = *history
+	}
+	var statuses []uint16
+	if retries != nil {
+		native.Retry, statuses = nativeRetryValue(*retries)
 	}
 	if request.Diagnostics != nil {
-		value := request.Diagnostics.id.Load()
-		if value == 0 {
+		native.Diagnostics = request.Diagnostics.id.Load()
+		if native.Diagnostics == 0 {
 			return nil, &Error{Kind: "invalid_handle"}
 		}
-		command["diagnostics"] = value
-	}
-	if prepared != nil {
-		command["prepared_body"] = prepared
 	}
 	if upload != nil {
 		if err := upload.prepare(ctx, c.id.Load()); err != nil {
 			return nil, err
 		}
-		command["upload"] = upload.id
+		native.Upload = upload.id
 	}
-	err = performStarted(ctx, command, request.Body, upload.start, func(event completion) error {
-		var head struct {
-			Body                   uint64           `json:"body"`
-			Status                 int              `json:"status"`
-			Protocol               string           `json:"protocol"`
-			Headers                []Header         `json:"headers"`
-			EffectiveURL           string           `json:"effective_url"`
-			RedirectsFollowed      uint64           `json:"redirects_followed"`
-			ConnectionSetupRetries uint64           `json:"connection_setup_retries"`
-			DecodedContentCodings  []string         `json:"decoded_content_codings"`
-			RedirectHistory        *RedirectHistory `json:"redirect_history"`
+	err = performSubmitted(ctx, func() (uint64, error) {
+		var result nativeReply
+		err := nativeSubmit(&native, request.Body, &result)
+		runtime.KeepAlive(headers)
+		runtime.KeepAlive(trailers)
+		runtime.KeepAlive(credentials)
+		runtime.KeepAlive(statuses)
+		runtime.KeepAlive(request)
+		runtime.KeepAlive(redirects)
+		runtime.KeepAlive(retries)
+		if err != nil {
+			return 0, err
 		}
-		if json.Unmarshal(event.Value, &head) != nil || head.Body == 0 || head.EffectiveURL == "" {
+		return result.Operation, result.Error.err()
+	}, upload.start, func(event completion) error {
+		head := event.head
+		if head == nil {
 			return &Error{Kind: "native_abi"}
 		}
 		response = &Response{
 			Status: head.Status, Protocol: head.Protocol, Headers: head.Headers,
 			Body: newBody(ctx, c, head.Body, upload), EffectiveURL: head.EffectiveURL,
 			RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries,
-			DecodedContentCodings: head.DecodedContentCodings,
-			RedirectHistory:       head.RedirectHistory,
+			DecodedContentCodings: head.DecodedContentCodings, RedirectHistory: head.RedirectHistory,
 		}
 		return nil
 	})

@@ -74,39 +74,6 @@ pub(super) unsafe extern "C" fn phantom_go_dispatch(
     bytes.len()
 }
 
-// SAFETY: This uniquely prefixed symbol copies one bounded completion into
-// caller-owned buffers, synchronously, and contains unwinding at the C boundary.
-#[unsafe(no_mangle)]
-pub(super) unsafe extern "C" fn phantom_go_wait(
-    metadata: *mut u8,
-    metadata_capacity: usize,
-    data: *mut u8,
-    data_capacity: usize,
-) -> usize {
-    if metadata.is_null()
-        || data.is_null()
-        || metadata_capacity < operations::MAX_METADATA
-        || data_capacity < operations::MAX_CHUNK
-    {
-        return 0;
-    }
-    let completion = catch_unwind(AssertUnwindSafe(operations::wait));
-    let completion = match completion {
-        Ok(Ok(completion)) => completion,
-        _ => return 0,
-    };
-    if completion.metadata.len() > metadata_capacity || completion.data.len() > data_capacity {
-        return 0;
-    }
-    // SAFETY: Both capacities and nulls are checked above. The caller guarantees
-    // that these buffers do not overlap; the task/queue contains only owned bytes.
-    unsafe {
-        output(metadata, &completion.metadata);
-        output(data, &completion.data);
-    }
-    completion.metadata.len()
-}
-
 // SAFETY: The caller provides nonoverlapping borrowed buffers for this complete
 // synchronous authoring call. Nulls and lengths are checked before forming slices;
 // no pointer is retained by the profile registry, and unwinding is contained here.
@@ -214,3 +181,5 @@ pub(super) unsafe extern "C" fn phantom_go_session(
     }
     reply.len()
 }
+
+mod hot;

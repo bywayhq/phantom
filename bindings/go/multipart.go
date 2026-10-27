@@ -201,11 +201,9 @@ func (m *multipartLifetime) produce(u *uploadLifetime) {
 	used := make(map[int]bool)
 	for completed := 0; completed < len(m.sources); completed++ {
 		var index int
-		err := perform(u.ctx, map[string]any{"kind": "wait_upload_part", "upload": u.id}, nil, func(event completion) error {
-			var result struct {
-				Part int `json:"part"`
-			}
-			if json.Unmarshal(event.Value, &result) != nil || result.Part < 0 || result.Part >= len(m.parts) || !m.parts[result.Part].streaming || used[result.Part] || m.parts[result.Part].reader != m.sources[completed] {
+		err := performSubmitted(u.ctx, func() (uint64, error) { return submitOperation(4, u.id, 0, nil) }, nil, func(event completion) error {
+			result := struct{ Part int }{int(event.part)}
+			if result.Part < 0 || result.Part >= len(m.parts) || !m.parts[result.Part].streaming || used[result.Part] || m.parts[result.Part].reader != m.sources[completed] {
 				return &Error{Kind: "native_abi"}
 			}
 			index = result.Part

@@ -25,7 +25,7 @@ use response::{BodyOwner, Head, ReadLease, ReadResult, response_head};
 mod diagnostics;
 mod response;
 pub(super) mod session;
-mod trailers;
+pub(crate) mod trailers;
 mod transfer;
 
 pub(super) const MAX_METADATA: usize = 256 * 1024;
@@ -37,7 +37,7 @@ const MAX_HANDLES: usize = 64;
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-enum Command {
+pub(crate) enum Command {
     Identity,
     ParseClientCertificate {
         format: client_certificate::Format,
@@ -182,14 +182,14 @@ enum Command {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Maintenance {
+pub(crate) enum Maintenance {
     CloseIdleConnections,
     RefreshConnections,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Cache {
+pub(crate) enum Cache {
     Dns,
     ClientHints,
     AltSvc,
@@ -208,7 +208,7 @@ pub(super) fn failure(error: Failure) -> Vec<u8> {
 }
 
 fn native_identity() -> Value {
-    json!({"abi": 1, "version": env!("CARGO_PKG_VERSION")})
+    json!({"abi": 2, "version": env!("CARGO_PKG_VERSION")})
 }
 
 fn encode(result: Result<Value, Failure>) -> Vec<u8> {
@@ -259,10 +259,81 @@ struct Operation {
     response: Option<u64>,
     snapshot: Option<phantom::SessionSnapshot>,
 }
-pub(super) struct Completion {
-    pub(super) metadata: Vec<u8>,
-    pub(super) data: Bytes,
+pub(crate) struct Completion {
+    pub(crate) operation: u64,
+    pub(crate) result: Result<Completed, Failure>,
+    pub(crate) data: Bytes,
 }
+
+pub(crate) enum Completed {
+    Head(CompletedHead),
+    Data,
+    End(trailers::Snapshot),
+    Complete,
+    Part(usize),
+}
+
+#[derive(Serialize)]
+pub(crate) struct CompletedHead {
+    pub(crate) body: u64,
+    pub(crate) status: u16,
+    pub(crate) protocol: &'static str,
+    pub(crate) headers: Vec<Header>,
+    pub(crate) effective_url: String,
+    pub(crate) redirects_followed: usize,
+    pub(crate) connection_setup_retries: usize,
+    pub(crate) decoded_content_codings: Vec<&'static str>,
+    pub(crate) redirect_history: Option<crate::policy::RedirectHistory>,
+}
+
+impl Completion {
+    // Unit tests inspect the same typed projection through JSON assertions.
+    // The Go completion pump reads the owned typed result directly.
+    #[cfg(test)]
+    pub(super) fn metadata(&self) -> Vec<u8> {
+        let (value, error) = match &self.result {
+            Ok(Completed::Head(head)) => (serde_json::to_value(head).ok(), None),
+            Ok(Completed::Data) => (Some(json!({"eof":false})), None),
+            Ok(Completed::End(trailers)) => (Some(json!({"eof":true,"trailers":trailers})), None),
+            Ok(Completed::Complete) => (Some(json!({})), None),
+            Ok(Completed::Part(part)) => (Some(json!({"part":part})), None),
+            Err(error) => (None, Some(error)),
+        };
+        serde_json::to_vec(&json!({"operation":self.operation,"value":value,"error":error,"data_length":self.data.len()}))
+            .unwrap_or_else(|_| terminal_error(self.operation, "internal"))
+    }
+}
+
+impl Completed {
+    fn metadata_size(&self) -> usize {
+        let fields = |headers: &[Header]| {
+            headers.iter().fold(0usize, |size, header| {
+                size.saturating_add(40)
+                    .saturating_add(header.name.len())
+                    .saturating_add(header.value.len())
+            })
+        };
+        match self {
+            Self::Head(head) => 256usize
+                .saturating_add(head.effective_url.len())
+                .saturating_add(fields(&head.headers))
+                .saturating_add(
+                    head.decoded_content_codings
+                        .iter()
+                        .map(|name| name.len() + 40)
+                        .sum::<usize>(),
+                )
+                .saturating_add(
+                    head.redirect_history
+                        .as_ref()
+                        .map_or(0, |history| history.metadata_size()),
+                ),
+            Self::End(trailers) => 256usize.saturating_add(fields(&trailers.headers)),
+            _ => 256,
+        }
+    }
+}
+
 struct Queued {
     operation: u64,
     completion: Completion,
@@ -560,7 +631,8 @@ impl Global {
                 state.ready.push_back(Queued {
                     operation: id,
                     completion: Completion {
-                        metadata: terminal_error(id, "internal"),
+                        operation: id,
+                        result: Err(Failure::new("internal")),
                         data: Bytes::new(),
                     },
                 });
@@ -626,12 +698,20 @@ impl Global {
                 } else {
                     state.id().map(|body| {
                         state.bodies.insert(body, head.body);
-                        if let Some(operation) = state.operations.get_mut(&id) { operation.response = Some(body); }
-                        json!({"body":body,"status":head.status,"protocol":head.protocol,"headers":head.headers,
-                            "effective_url":head.effective_url,"redirects_followed":head.redirects_followed,
-                            "connection_setup_retries":head.connection_setup_retries,
-                            "decoded_content_codings":head.decoded_content_codings,
-                            "redirect_history":head.redirect_history})
+                        if let Some(operation) = state.operations.get_mut(&id) {
+                            operation.response = Some(body);
+                        }
+                        Completed::Head(CompletedHead {
+                            body,
+                            status: head.status,
+                            protocol: head.protocol,
+                            headers: head.headers,
+                            effective_url: head.effective_url,
+                            redirects_followed: head.redirects_followed,
+                            connection_setup_retries: head.connection_setup_retries,
+                            decoded_content_codings: head.decoded_content_codings,
+                            redirect_history: head.redirect_history,
+                        })
                     })
                 }
             }
@@ -648,14 +728,13 @@ impl Global {
                 match read {
                     ReadResult::Data(bytes) => {
                         data = bytes;
-                        Ok(json!({"eof": false}))
+                        Ok(Completed::Data)
                     }
-                    ReadResult::End(trailers) => trailers::snapshot(&trailers)
-                        .map(|trailers| json!({"eof": true, "trailers": trailers})),
+                    ReadResult::End(trailers) => trailers::snapshot(&trailers).map(Completed::End),
                 }
             }
-            Ok(Outcome::Complete) => Ok(json!({})),
-            Ok(Outcome::Part(index)) => Ok(json!({"part":index})),
+            Ok(Outcome::Complete) => Ok(Completed::Complete),
+            Ok(Outcome::Part(index)) => Ok(Completed::Part(index)),
             Err(error) => {
                 if let Some(Operation {
                     target: Target::Read(body),
@@ -668,21 +747,8 @@ impl Global {
                 Err(error)
             }
         };
-        let reply = match result {
-            Ok(value) => Reply {
-                value: Some(value),
-                error: None,
-            },
-            Err(error) => Reply {
-                value: None,
-                error: Some(error),
-            },
-        };
-        let metadata = match serde_json::to_vec(
-            &json!({"operation":id,"value":reply.value,"error":reply.error,"data_length":data.len()}),
-        ) {
-            Ok(bytes) if bytes.len() <= MAX_METADATA => bytes,
-            result => {
+        let result = match result {
+            Ok(value) if value.metadata_size() > MAX_METADATA => {
                 let body = state.operations.get(&id).and_then(|operation| {
                     operation.response.or(match operation.target {
                         Target::Read(body) => Some(body),
@@ -696,15 +762,9 @@ impl Global {
                     operation.response = None;
                 }
                 data = Bytes::new();
-                terminal_error(
-                    id,
-                    if result.is_ok() {
-                        "metadata_limit"
-                    } else {
-                        "internal"
-                    },
-                )
+                Err(Failure::new("metadata_limit"))
             }
+            result => result,
         };
         if let Some(operation) = state.operations.get_mut(&id) {
             operation.finished = true;
@@ -712,12 +772,17 @@ impl Global {
         }
         state.ready.push_back(Queued {
             operation: id,
-            completion: Completion { metadata, data },
+            completion: Completion {
+                operation: id,
+                result,
+                data,
+            },
         });
         self.ready.notify_one();
     }
 }
 
+#[cfg(test)]
 fn terminal_error(id: u64, kind: &str) -> Vec<u8> {
     // Both fields are internal scalars; this fallback always retains correlation.
     format!("{{\"operation\":{id},\"error\":{{\"kind\":\"{kind}\"}},\"data_length\":0}}")
@@ -743,7 +808,11 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         })();
         return result.unwrap_or_else(failure);
     }
-    encode((|| {
+    encode(execute(command, bytes))
+}
+
+pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> {
+    (|| {
         if matches!(command, Command::Identity) {
             return Ok(native_identity());
         }
@@ -1240,7 +1309,19 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
                 Ok(json!({"operation":id}))
             }
         }
-    })())
+    })()
+}
+
+pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
+    let mut state = global()?.lock();
+    let body = state
+        .operations
+        .get_mut(&id)
+        .and_then(|operation| operation.response.take());
+    if let Some(body) = body {
+        state.close_body(body);
+    }
+    Ok(())
 }
 
 pub(super) fn wait() -> Result<Completion, Failure> {
@@ -1276,7 +1357,7 @@ mod tests {
         let result: Value = serde_json::from_slice(&dispatch(br#"{"kind":"identity"}"#, &[]))?;
         assert_eq!(
             result["value"],
-            json!({"abi": 1, "version": env!("CARGO_PKG_VERSION")})
+            json!({"abi": 2, "version": env!("CARGO_PKG_VERSION")})
         );
         assert!(result["error"].is_null());
         Ok(())
@@ -1401,7 +1482,7 @@ mod tests {
             .ok_or_else(|| Failure::new("internal"))?
             .completion;
         let value: Value =
-            serde_json::from_slice(&completion.metadata).map_err(|_| Failure::new("internal"))?;
+            serde_json::from_slice(&completion.metadata()).map_err(|_| Failure::new("internal"))?;
         assert_eq!(value["operation"], id);
         assert_eq!(value["error"]["kind"], "metadata_limit");
         assert!(completion.data.is_empty());
@@ -1426,7 +1507,7 @@ mod tests {
             .ready
             .front()
             .ok_or_else(|| Failure::new("internal"))?;
-        let metadata: Value = serde_json::from_slice(&queued.completion.metadata)
+        let metadata: Value = serde_json::from_slice(&queued.completion.metadata())
             .map_err(|_| Failure::new("internal"))?;
         assert_eq!(metadata["operation"], id);
         assert_eq!(metadata["error"]["kind"], "internal");
@@ -1529,7 +1610,7 @@ mod tests {
             .pop_front()
             .ok_or_else(|| Failure::new("internal"))?
             .completion;
-        assert!(completion.metadata.len() <= MAX_METADATA);
+        assert!(completion.metadata().len() <= MAX_METADATA);
         {
             let mut state = global.state.lock().map_err(|_| Failure::new("internal"))?;
             assert_eq!(state.bodies.len(), 1);

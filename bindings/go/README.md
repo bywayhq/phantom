@@ -71,17 +71,15 @@ go mod edit -replace=github.com/bywayhq/phantom/bindings/go=/absolute/path/phant
 go mod edit -require=github.com/bywayhq/phantom/bindings/go@v0.0.0
 ```
 
-On Windows amd64, set `PHANTOM_GO_LIBRARY` to the absolute
-`target/debug/phantom_go.dll` path or place it beside your executable. Windows
-uses native DLL calls without cgo. Linux/macOS need cgo and a C compiler:
-point `CGO_LDFLAGS` at the native library directory with `-L`, then add that
-directory to `LD_LIBRARY_PATH` on Linux or `DYLD_LIBRARY_PATH` on macOS.
-The library remains loaded for the process lifetime.
+Set `PHANTOM_GO_LIBRARY` to the native library's absolute path, or place it
+beside your executable. Use `phantom_go.dll` on Windows, `libphantom_go.so`
+on Linux, or `libphantom_go.dylib` on macOS. Go builds do not need cgo or a
+C compiler. The native library remains loaded for the process lifetime.
 
 Phantom checks its ABI and package version once, before creating native
 resources. A mismatch returns `*Error` with `Kind` `native_abi_mismatch` or
 `native_version_mismatch`. Install the matching library and restart the process.
-On Windows, set `PHANTOM_GO_LIBRARY` before the first native operation.
+Set `PHANTOM_GO_LIBRARY` before the first native operation.
 
 ## Request settings
 
