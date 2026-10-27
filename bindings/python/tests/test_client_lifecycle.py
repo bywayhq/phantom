@@ -52,7 +52,7 @@ class SyncLifecycleTests(unittest.TestCase):
                 with self.assertRaises(TimeoutError):
                     client.close(timeout_ms=0)
                 self.assertTrue(client.is_closed)
-                with self.assertRaises(WebSocketError) as stopped:
+                with self.assertRaises(ClientClosed) as stopped:
                     client.websocket(url)
                 self.assertEqual(stopped.exception.kind, "client_closed")
                 socket.send("still usable")
@@ -82,6 +82,23 @@ class SyncLifecycleTests(unittest.TestCase):
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_closed_body_reports_an_error_but_completed_body_stays_at_eof(self):
+        with server() as (_, url):
+            async with AsyncClient(
+                profile=PROFILE, protocol="h1", context="raw"
+            ) as client:
+                complete = await client.get(url)
+                self.assertEqual(await complete.read(max_bytes=5), b"hello")
+                self.assertEqual(await complete.read(max_bytes=5), b"")
+                self.assertIsNone(await complete.read_chunk())
+
+                closed = await client.get(url)
+                await closed.aclose()
+                for read in (lambda: closed.read(max_bytes=5), closed.read_chunk):
+                    with self.assertRaises(Error) as failure:
+                        await read()
+                    self.assertEqual(failure.exception.kind, "body_closed")
+
     async def test_abort_stops_pending_upload_and_settles_its_source(self):
         with upload_server() as (_, url):
             client = AsyncClient(profile=PROFILE, protocol="h1", context="raw")
@@ -181,7 +198,7 @@ class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(opening.done())
                 self.assertFalse(disconnected.is_set())
                 await client.abort()
-                with self.assertRaises(WebSocketError) as stopped:
+                with self.assertRaises(ClientClosed) as stopped:
                     await opening
                 self.assertEqual(stopped.exception.kind, "client_closed")
                 self.assertTrue(await asyncio.to_thread(disconnected.wait, 5))
@@ -260,7 +277,7 @@ class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
                 socket = await client.websocket(url)
                 try:
                     await self.interrupt_shutdown(client, operation)
-                    with self.assertRaises(WebSocketError) as stopped:
+                    with self.assertRaises(ClientClosed) as stopped:
                         await client.websocket(url)
                     self.assertEqual(stopped.exception.kind, "client_closed")
                     await socket.send("still usable")

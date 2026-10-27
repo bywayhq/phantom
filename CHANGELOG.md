@@ -4,6 +4,7 @@
 
 - Python and Node add WebSockets with shared client connections and session
   state, message limits, cancellation and readable rejected handshakes.
+- Python body reads report `body_closed` after close or abort.
 - Breaking: Python `close()`/`aclose()` and Node `close()` wait for admitted
   work to finish. A timeout leaves that work usable.
   Migrate: use Python `abort()` or Node `destroy()` to cancel active work.
