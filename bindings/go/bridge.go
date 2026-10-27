@@ -69,8 +69,18 @@ func dispatch(command any, data []byte) (json.RawMessage, error) {
 	return response.Value, nil
 }
 func control(kind string, idName string, id uint64) error {
-	codes := map[string]uint64{"cancel": 5, "ack": 6, "close_body": 7, "close_upload": 8}
-	if code := codes[kind]; code != 0 {
+	var code uint64
+	switch kind {
+	case "cancel":
+		code = 5
+	case "ack":
+		code = 6
+	case "close_body":
+		code = 7
+	case "close_upload":
+		code = 8
+	}
+	if code != 0 {
 		_, err := submitOperation(code, id, 0, nil)
 		return err
 	}

@@ -15,27 +15,40 @@ type nativeField struct {
 }
 type nativeTimeout struct{ Mode, Nanoseconds uint64 }
 type nativeRetry struct {
-	Flags, ConnectionMaximum, ConnectionDelay, ConnectionMaximumDelay uint64
-	Statuses                                                          unsafe.Pointer
-	StatusCount                                                       uint64
-	StatusMaximum, StatusDelay, StatusMaximumDelay                    uint64
-	RetryAfter, Unprocessed, Maximum                                  uint64
+	Flags                  uint64
+	ConnectionMaximum      uint64
+	ConnectionDelay        uint64
+	ConnectionMaximumDelay uint64
+	Statuses               unsafe.Pointer
+	StatusCount            uint64
+	StatusMaximum          uint64
+	StatusDelay            uint64
+	StatusMaximumDelay     uint64
+	RetryAfter             uint64
+	Unprocessed            uint64
+	Maximum                uint64
 }
 type nativeRequest struct {
-	Client                                                                     uint64
-	Method, URL                                                                nativeSpan
-	Headers                                                                    unsafe.Pointer
-	HeaderCount                                                                uint64
-	Trailers                                                                   unsafe.Pointer
-	TrailerCount                                                               uint64
-	Flags, ExpectContinue, Budget, Transfer, Diagnostics, PreparedBody, Upload uint64
-	Timeouts                                                                   [5]nativeTimeout
-	DecodedMaximum                                                             uint64
-	RedirectMaximum                                                            uint64
-	CredentialHeaders                                                          unsafe.Pointer
-	CredentialHeaderCount                                                      uint64
-	RedirectHistory                                                            uint64
-	Retry                                                                      *nativeRetry
+	Client                uint64
+	Method, URL           nativeSpan
+	Headers               unsafe.Pointer
+	HeaderCount           uint64
+	Trailers              unsafe.Pointer
+	TrailerCount          uint64
+	Flags                 uint64
+	ExpectContinue        uint64
+	Budget                uint64
+	Transfer              uint64
+	Diagnostics           uint64
+	PreparedBody          uint64
+	Upload                uint64
+	Timeouts              [5]nativeTimeout
+	DecodedMaximum        uint64
+	RedirectMaximum       uint64
+	CredentialHeaders     unsafe.Pointer
+	CredentialHeaderCount uint64
+	RedirectHistory       uint64
+	Retry                 *nativeRetry
 }
 type nativeError struct{ Kind, Protocol, TimeoutPhase [64]byte }
 type nativeReply struct {
@@ -52,22 +65,36 @@ type nativeHop struct {
 	Status                       uint64
 }
 type nativeEvent struct {
-	Operation, Kind, Body, Status, Protocol, Redirects, SetupRetries         uint64
-	HistoryPresent, HistoryOmitted, Part, TrailerState, FieldCount, HopCount uint64
-	CodingCount, ArenaLength, DataLength                                     uint64
-	EffectiveURL                                                             nativeSlice
-	Error                                                                    nativeError
+	Operation      uint64
+	Kind           uint64
+	Body           uint64
+	Status         uint64
+	Protocol       uint64
+	Redirects      uint64
+	SetupRetries   uint64
+	HistoryPresent uint64
+	HistoryOmitted uint64
+	Part           uint64
+	TrailerState   uint64
+	FieldCount     uint64
+	HopCount       uint64
+	CodingCount    uint64
+	ArenaLength    uint64
+	DataLength     uint64
+	EffectiveURL   nativeSlice
+	Error          nativeError
 }
 
 type responseHead struct {
-	Body                                      uint64
-	Status                                    int
-	Protocol                                  string
-	Headers                                   []Header
-	EffectiveURL                              string
-	RedirectsFollowed, ConnectionSetupRetries uint64
-	DecodedContentCodings                     []string
-	RedirectHistory                           *RedirectHistory
+	Body                   uint64
+	Status                 int
+	Protocol               string
+	Headers                []Header
+	EffectiveURL           string
+	RedirectsFollowed      uint64
+	ConnectionSetupRetries uint64
+	DecodedContentCodings  []string
+	RedirectHistory        *RedirectHistory
 }
 
 func (value nativeError) err() error {
