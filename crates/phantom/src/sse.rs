@@ -13,7 +13,7 @@ use http_body::Body;
 use tokio::time::Instant;
 use tracing::{debug_span, field};
 
-use crate::{RequestError, ResponseBody, timeout::DeadlineTimer};
+use crate::{RequestError, ResponseBody, ResponseTrailers, timeout::DeadlineTimer};
 
 use self::decoder::Decoder;
 
@@ -330,6 +330,7 @@ impl StdError for SseError {
 #[must_use = "SSE streams must be read or deliberately dropped"]
 pub struct SseStream {
     body: Option<ResponseBody>,
+    trailers: ResponseTrailers,
     decoder: Decoder,
     idle_timeout: Option<Duration>,
     idle_deadline: Option<Instant>,
@@ -339,6 +340,27 @@ pub struct SseStream {
 }
 
 impl SseStream {
+    /// Checks event-stream response metadata without reading or consuming its body.
+    ///
+    /// Use this before transferring a response when its body must remain readable
+    /// after a validation failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same status, content-type and content-encoding errors as
+    /// [`Self::from_response`].
+    ///
+    /// ```
+    /// let response = http::Response::builder()
+    ///     .header("content-type", "text/event-stream")
+    ///     .body(())?;
+    /// phantom::SseStream::validate_response(&response)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn validate_response<B>(response: &Response<B>) -> Result<(), SseError> {
+        validate_response(response)
+    }
+
     /// Validates and converts a response using [`SseLimits::default`].
     ///
     /// # Errors
@@ -371,6 +393,7 @@ impl SseStream {
             parts,
             Self {
                 body: Some(body),
+                trailers: ResponseTrailers::Pending,
                 decoder: Decoder::new(limits),
                 idle_timeout: None,
                 idle_deadline: None,
@@ -401,6 +424,7 @@ impl SseStream {
             parts,
             Self {
                 body: Some(body),
+                trailers: ResponseTrailers::Pending,
                 decoder: Decoder::with_state(limits, last_event_id, Some(retry_delay)),
                 idle_timeout,
                 idle_deadline,
@@ -443,6 +467,27 @@ impl SseStream {
     #[must_use]
     pub const fn limits(&self) -> SseLimits {
         self.decoder.limits
+    }
+
+    /// Returns retained HTTP trailers without reading more events.
+    ///
+    /// Trailers remain pending until the response body reaches validated EOF.
+    /// A decode or body failure leaves unfinished trailers unavailable.
+    #[must_use]
+    pub fn trailers(&self) -> &ResponseTrailers {
+        self.body
+            .as_ref()
+            .map_or(&self.trailers, ResponseBody::trailers)
+    }
+
+    /// Consumes this stream and returns its retained HTTP trailers.
+    ///
+    /// An unfinished body is abandoned and returns [`ResponseTrailers::Unavailable`].
+    /// This method never reads or drains the body.
+    #[must_use]
+    pub fn into_trailers(mut self) -> ResponseTrailers {
+        self.finish();
+        self.trailers
     }
 
     fn poll_event(
@@ -536,7 +581,9 @@ impl SseStream {
 
     fn finish(&mut self) {
         self.finished = true;
-        self.body = None;
+        if let Some(body) = self.body.take() {
+            self.trailers = body.into_trailers();
+        }
         self.idle_timer = None;
         self.decoder.discard_pending();
     }
@@ -607,7 +654,7 @@ impl fmt::Debug for SseStream {
     }
 }
 
-fn validate_response(response: &Response<ResponseBody>) -> Result<(), SseError> {
+fn validate_response<B>(response: &Response<B>) -> Result<(), SseError> {
     if response.status() != StatusCode::OK {
         return Err(SseError::without_source(
             SseErrorKind::UnexpectedStatus,

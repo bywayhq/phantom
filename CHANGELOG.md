@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Validate SSE response metadata without consuming its body, and retain HTTP
+  trailers after event decoding completes.
 - Python and Node add WebSockets with shared client connections and session
   state, message limits, cancellation and readable rejected handshakes.
 - Aborting a Python client invalidates its unread response bodies.

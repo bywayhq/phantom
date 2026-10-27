@@ -27,6 +27,7 @@ use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
 
 mod idle;
+mod ownership;
 mod peer_completion;
 mod peer_ownership;
 mod polling;

@@ -149,3 +149,20 @@ fn event(data: &str, event: &str, id: &str) -> SseEvent {
 }
 
 type TestResult<T> = Result<T, Box<dyn Error>>;
+
+#[test]
+fn metadata_validation_preserves_a_rejected_response_body() -> TestResult<()> {
+    let response = http::Response::builder()
+        .status(http::StatusCode::FORBIDDEN)
+        .header(http::header::CONTENT_TYPE, "text/plain")
+        .body(b"denied".to_vec())?;
+
+    let error = super::SseStream::validate_response(&response)
+        .err()
+        .ok_or("rejected status accepted as SSE")?;
+
+    assert_eq!(error.kind(), SseErrorKind::UnexpectedStatus);
+    assert_eq!(response.status(), http::StatusCode::FORBIDDEN);
+    assert_eq!(response.into_body(), b"denied");
+    Ok(())
+}
