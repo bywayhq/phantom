@@ -256,6 +256,7 @@ struct Operation {
     abandoned: bool,
     finished: bool,
     delivered: bool,
+    reserved_response: Option<u64>,
     response: Option<u64>,
     snapshot: Option<phantom::SessionSnapshot>,
 }
@@ -405,7 +406,7 @@ impl State {
             | Target::UploadPart(upload) => {
                 // Each bounded upload owns one writer, one terminal waiter
                 // and, for multipart, one current-part demand waiter.
-                // They do not reduce ordinary request/read admission capacity.
+                // They do not reduce request or response-read admission capacity.
                 if self
                     .operations
                     .values()
@@ -453,6 +454,19 @@ impl State {
                     return Err(Failure::new("shutdown_in_progress"));
                 }
             }
+            Target::Read(_) => {
+                // Existing response bodies must remain readable while request,
+                // maintenance or snapshot work fills ordinary admission.
+                if self
+                    .operations
+                    .values()
+                    .filter(|op| matches!(op.target, Target::Read(_)))
+                    .count()
+                    >= MAX_HANDLES
+                {
+                    return Err(Failure::new("capacity"));
+                }
+            }
             _ => {
                 if self
                     .operations
@@ -460,7 +474,8 @@ impl State {
                     .filter(|op| {
                         !matches!(
                             op.target,
-                            Target::Shutdown(_)
+                            Target::Read(_)
+                                | Target::Shutdown(_)
                                 | Target::UploadWrite(_)
                                 | Target::UploadWait(_)
                                 | Target::UploadPart(_)
@@ -473,6 +488,21 @@ impl State {
                 }
             }
         }
+        let reserved_response = if matches!(target, Target::Request(_)) {
+            let pending = self
+                .operations
+                .values()
+                .filter(|operation| operation.reserved_response.is_some())
+                .count();
+            if self.bodies.len().saturating_add(pending) >= MAX_HANDLES {
+                return Err(Failure::new("capacity"));
+            }
+            // Both custody and the eventual body ID are acquired before send.
+            // Receiving a response cannot introduce a new admission failure.
+            Some(self.id()?)
+        } else {
+            None
+        };
         let id = self.id()?;
         let (cancel, receiver) = oneshot::channel();
         self.operations.insert(
@@ -483,6 +513,7 @@ impl State {
                 abandoned: false,
                 finished: false,
                 delivered: false,
+                reserved_response,
                 response: None,
                 snapshot: None,
             },
@@ -623,6 +654,7 @@ impl Global {
                     let _ = cancel.send(());
                 }
                 operation.response = None;
+                operation.reserved_response = None;
                 operation.snapshot = None;
                 operation.finished = true;
                 if operation.abandoned {
@@ -686,7 +718,7 @@ impl Global {
     }
     fn finish(&self, id: u64, result: Result<Outcome, Failure>) {
         let mut state = self.lock();
-        let Some(operation) = state.operations.get(&id) else {
+        let Some(operation) = state.operations.get_mut(&id) else {
             return;
         };
         if operation.abandoned {
@@ -696,31 +728,28 @@ impl Global {
         if operation.finished {
             return;
         }
+        let reserved_response = operation.reserved_response.take();
         let mut data = Bytes::new();
         let result = match result {
-            Ok(Outcome::Head(head)) => {
-                if state.bodies.len() >= MAX_HANDLES {
-                    Err(Failure::new("capacity"))
-                } else {
-                    state.id().map(|body| {
-                        state.bodies.insert(body, head.body);
-                        if let Some(operation) = state.operations.get_mut(&id) {
-                            operation.response = Some(body);
-                        }
-                        Completed::Head(CompletedHead {
-                            body,
-                            status: head.status,
-                            protocol: head.protocol,
-                            headers: head.headers,
-                            effective_url: head.effective_url,
-                            redirects_followed: head.redirects_followed,
-                            connection_setup_retries: head.connection_setup_retries,
-                            decoded_content_codings: head.decoded_content_codings,
-                            redirect_history: head.redirect_history,
-                        })
+            Ok(Outcome::Head(head)) => reserved_response
+                .ok_or_else(|| Failure::new("internal"))
+                .map(|body| {
+                    state.bodies.insert(body, head.body);
+                    if let Some(operation) = state.operations.get_mut(&id) {
+                        operation.response = Some(body);
+                    }
+                    Completed::Head(CompletedHead {
+                        body,
+                        status: head.status,
+                        protocol: head.protocol,
+                        headers: head.headers,
+                        effective_url: head.effective_url,
+                        redirects_followed: head.redirects_followed,
+                        connection_setup_retries: head.connection_setup_retries,
+                        decoded_content_codings: head.decoded_content_codings,
+                        redirect_history: head.redirect_history,
                     })
-                }
-            }
+                }),
             Ok(Outcome::Read(read)) => {
                 if matches!(&read, ReadResult::End(_))
                     && let Some(Operation {
@@ -1371,6 +1400,7 @@ mod tests {
     use std::sync::atomic::AtomicBool;
     use tokio::sync::Notify;
 
+    mod admission;
     mod response_info;
     mod session_sharing;
     mod uploads;

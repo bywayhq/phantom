@@ -323,11 +323,14 @@ count pointers must be positive. `NegotiatedSetupWaitLimit` is a duration pointe
 (nil waits for the existing handshake; zero permits a competing connection).
 These core limits are separate from the binding capacities below.
 
-Process-wide limits are 64 each for clients, budgets, transfer controls,
-response handles and ordinary operations, plus 64 separate shutdown operations.
+Process-wide limits are 64 each for clients, budgets and transfer controls.
+Pending requests and open responses share 64 response slots. A request reserves
+its slot before sending; close or finish responses to admit more requests.
+Ordinary operations, body reads and shutdowns each have 64 separate slots, so
+pending requests cannot prevent an existing response from being read.
 Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each
 and 16 MiB total in native buffers until responses close. Metadata limits are
-64 KiB per command, 256 response fields/32 KiB and 256 KiB per encoded reply.
+64 KiB per command, 256 response fields/32 KiB and 256 KiB per reply.
 
 ## Next
 
