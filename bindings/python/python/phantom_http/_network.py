@@ -1,22 +1,6 @@
 """Bounded network settings passed directly to the core client."""
 
 from dataclasses import dataclass, field
-from typing import TypeAlias
-
-_NetworkDefaults: TypeAlias = tuple[
-    tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
-]
-_NetworkFields: TypeAlias = (
-    _NetworkDefaults
-    | tuple[tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str]
-    | tuple[
-        tuple[tuple[str, tuple[str, ...]], ...],
-        tuple[str, ...],
-        str | None,
-        str | None,
-        bool,
-    ]
-)
 
 
 def _text_size(value: str, remaining: int, name: str) -> int:
@@ -71,9 +55,9 @@ class NetworkOptions:
     public_only: bool = False
 
     def __post_init__(self) -> None:
-        self._native_fields()
+        self._validate()
 
-    def _native_fields(self) -> _NetworkFields:
+    def _validate(self) -> None:
         if type(self.public_only) is not bool:
             raise TypeError("public_only must be boolean")
         if type(self.host_overrides) is not tuple:
@@ -103,13 +87,3 @@ class NetworkOptions:
             _text_size(self.unix_socket, remaining, "unix_socket")
             if not self.unix_socket or "\x00" in self.unix_socket:
                 raise ValueError("unix_socket must be a nonempty pathname without NUL")
-        fields: _NetworkDefaults = (
-            tuple((item.host, item.addresses) for item in self.host_overrides),
-            self.local_addresses,
-            self.interface,
-        )
-        if self.public_only:
-            return (*fields, self.unix_socket, True)
-        if self.unix_socket is not None:
-            return (*fields, self.unix_socket)
-        return fields

@@ -5,7 +5,7 @@ use std::{num::NonZeroUsize, time::Duration};
 use phantom::ClientBuilder;
 use pyo3::{
     prelude::*,
-    types::{PyFloat, PyInt, PyTuple},
+    types::{PyFloat, PyInt},
 };
 
 use crate::error;
@@ -34,15 +34,11 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Pool> {
     let Some(value) = value else {
         return Ok(Pool::default());
     };
-    let fields = value
-        .cast_exact::<PyTuple>()
-        .map_err(|_| error::input("invalid_pool"))?;
-    if fields.len() != 12 {
-        return Err(error::input("invalid_pool"));
-    }
     let mut pool = Pool::default();
     for (index, name) in COUNT_FIELDS.iter().enumerate() {
-        let value = fields.get_item(index)?;
+        let value = value
+            .getattr(*name)
+            .map_err(|_| error::input("invalid_pool"))?;
         if !value.is_none() {
             let count = value
                 .cast_exact::<PyInt>()
@@ -52,7 +48,9 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Pool> {
             pool.counts[index] = Some(NonZeroUsize::new(count).ok_or_else(|| error::input(name))?);
         }
     }
-    let value = fields.get_item(11)?;
+    let value = value
+        .getattr("negotiated_setup_wait_limit")
+        .map_err(|_| error::input("invalid_pool"))?;
     if !value.is_none() {
         let name = "negotiated_setup_wait_limit";
         if value.cast_exact::<PyInt>().is_err() && value.cast_exact::<PyFloat>().is_err() {
@@ -115,36 +113,69 @@ mod tests {
     fn native_counts_and_duration_reject_coercion_and_keep_omission() -> PyResult<()> {
         Python::initialize();
         Python::attach(|py| {
+            let scope = pyo3::types::PyDict::new(py);
+            py.run(
+                c"from types import SimpleNamespace
+def pool(**changes):
+    values = dict(max_retained_http1_connections=None,
+        max_concurrent_http1_requests_per_origin=None,
+        max_pending_http1_requests_per_origin=None,
+        max_retained_http2_connections=None,
+        max_concurrent_http2_requests_per_origin=None,
+        max_pending_http2_requests_per_origin=None,
+        max_http2_connections_per_origin=None,
+        max_retained_http3_connections=None,
+        max_concurrent_http3_requests_per_origin=None,
+        max_pending_http3_requests_per_origin=None,
+        max_http3_connections_per_origin=None,
+        negotiated_setup_wait_limit=None)
+    values.update(changes)
+    return SimpleNamespace(**values)
+class Coerce:
+    def __index__(self): raise ValueError('private')
+    def __float__(self): raise ValueError('private')
+class Subclass(int): pass
+class FloatSubclass(float): pass
+class Raising:
+    @property
+    def max_retained_http1_connections(self): raise ValueError('private')
+",
+                Some(&scope),
+                None,
+            )?;
             for source in [
-                c"(None,) * 12",
-                c"(1,) * 11 + (0,)",
-                c"(1,) * 11 + (0.000000001,)",
+                c"pool()",
+                c"pool(max_retained_http1_connections=1, negotiated_setup_wait_limit=0)",
+                c"pool(max_retained_http1_connections=1, negotiated_setup_wait_limit=0.000000001)",
             ] {
-                let value = py.eval(source, None, None)?;
+                let value = py.eval(source, Some(&scope), None)?;
                 let pool = parse(Some(&value))?;
-                if !value.get_item(0)?.is_none() {
+                if !value.getattr("max_retained_http1_connections")?.is_none() {
                     assert_eq!(pool.counts[0].map(NonZeroUsize::get), Some(1));
                     assert!(pool.setup_wait.is_some());
+                } else {
+                    assert!(pool.counts.iter().all(Option::is_none));
+                    assert!(pool.setup_wait.is_none());
                 }
             }
-            let scope = pyo3::types::PyDict::new(py);
-            py.run(c"class Coerce:\n    def __index__(self): raise ValueError('private')\n    def __float__(self): raise ValueError('private')\nclass Subclass(int): pass\n", Some(&scope), None)?;
             for source in [
-                c"[]",
-                c"(None,) * 11",
-                c"(True,) + (None,) * 11",
-                c"(0,) + (None,) * 11",
-                c"(-1,) + (None,) * 11",
-                c"(1 << 128,) + (None,) * 11",
-                c"(1.0,) + (None,) * 11",
-                c"(Coerce(),) + (None,) * 11",
-                c"(Subclass(1),) + (None,) * 11",
-                c"(None,) * 11 + (True,)",
-                c"(None,) * 11 + (float('nan'),)",
-                c"(None,) * 11 + (float('inf'),)",
-                c"(None,) * 11 + (-1,)",
-                c"(None,) * 11 + (1 << 128,)",
-                c"(None,) * 11 + (Coerce(),)",
+                c"object()",
+                c"SimpleNamespace()",
+                c"Raising()",
+                c"pool(max_retained_http1_connections=True)",
+                c"pool(max_retained_http1_connections=0)",
+                c"pool(max_retained_http1_connections=-1)",
+                c"pool(max_retained_http1_connections=1 << 128)",
+                c"pool(max_retained_http1_connections=1.0)",
+                c"pool(max_retained_http1_connections=Coerce())",
+                c"pool(max_retained_http1_connections=Subclass(1))",
+                c"pool(negotiated_setup_wait_limit=True)",
+                c"pool(negotiated_setup_wait_limit=FloatSubclass(1))",
+                c"pool(negotiated_setup_wait_limit=float('nan'))",
+                c"pool(negotiated_setup_wait_limit=float('inf'))",
+                c"pool(negotiated_setup_wait_limit=-1)",
+                c"pool(negotiated_setup_wait_limit=1 << 128)",
+                c"pool(negotiated_setup_wait_limit=Coerce())",
             ] {
                 let value = py.eval(source, Some(&scope), None)?;
                 let failure = parse(Some(&value))
@@ -155,6 +186,50 @@ mod tests {
                 assert_eq!(args.0, "input");
                 assert!(!args.1.contains("private"));
             }
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn named_pool_fields_are_read_once_and_apply_to_their_own_count() -> PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| {
+            let scope = pyo3::types::PyDict::new(py);
+            py.run(
+                c"class Settings:
+    def __init__(self):
+        self.reads = {}
+        self.values = dict(max_retained_http1_connections=1,
+            max_concurrent_http1_requests_per_origin=2,
+            max_pending_http1_requests_per_origin=3,
+            max_retained_http2_connections=4,
+            max_concurrent_http2_requests_per_origin=5,
+            max_pending_http2_requests_per_origin=6,
+            max_http2_connections_per_origin=7,
+            max_retained_http3_connections=8,
+            max_concurrent_http3_requests_per_origin=9,
+            max_pending_http3_requests_per_origin=10,
+            max_http3_connections_per_origin=11,
+            negotiated_setup_wait_limit=0)
+    def __getattr__(self, name):
+        self.reads[name] = self.reads.get(name, 0) + 1
+        if self.reads[name] != 1: raise ValueError('private')
+        return self.values[name]
+settings = Settings()
+",
+                Some(&scope),
+                None,
+            )?;
+            let value = scope
+                .get_item("settings")?
+                .ok_or_else(|| error::input("test_settings"))?;
+            let pool = parse(Some(&value))?;
+            assert_eq!(
+                pool.counts.map(|count| count.map(NonZeroUsize::get)),
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(Some)
+            );
+            assert_eq!(pool.setup_wait, Some(Duration::ZERO));
+            assert!(py.eval(c"len(settings.reads) == 12 and all(value == 1 for value in settings.reads.values())", Some(&scope), None)?.is_truthy()?);
             Ok(())
         })
     }

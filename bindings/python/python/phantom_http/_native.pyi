@@ -3,6 +3,8 @@ from os import PathLike
 from typing import Literal, TypeAlias
 
 from ._configuration import RetryPolicy
+from ._network import NetworkOptions
+from ._pool import PoolOptions
 
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
@@ -271,21 +273,8 @@ class NativeClient:
         client_certificate: NativeClientCertificate | None = None,
         client_certificates_for: tuple[tuple[str, NativeClientCertificate], ...]
         | None = None,
-        network: tuple[
-            tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None
-        ]
-        | tuple[
-            tuple[tuple[str, tuple[str, ...]], ...], tuple[str, ...], str | None, str
-        ]
-        | tuple[
-            tuple[tuple[str, tuple[str, ...]], ...],
-            tuple[str, ...],
-            str | None,
-            str | None,
-            bool,
-        ]
-        | None = None,
-        pool: tuple[int | float | None, ...] | None = None,
+        network: NetworkOptions | None = None,
+        pool: PoolOptions | None = None,
         redirect_credential_headers: tuple[str, ...] | None = None,
     ) -> None: ...
     @property

@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from phantom_http import (
     AsyncClient,
@@ -96,17 +97,25 @@ def unix_peer(path, **options):
 
 class NativeUnixValidationTests(unittest.TestCase):
     def test_native_path_validation_is_independent_and_redacted(self):
-        for fields in (
-            ((), (), None, ""),
-            ((), (), None, None),
-            ((), (), None, b"private"),
-            ((), (), None, "private\x00path"),
-            ((), (), None, "private\ud800"),
-            ((), (), "x", "é" * 32768),
-            ((), (), None, "private", "extra"),
+        for invalid in (
+            {"unix_socket": ""},
+            {"public_only": None},
+            {"unix_socket": b"private"},
+            {"unix_socket": "private\x00path"},
+            {"unix_socket": "private\ud800"},
+            {"interface": "x", "unix_socket": "é" * 32768},
+            {"unix_socket": "private", "public_only": "extra"},
         ):
+            fields = SimpleNamespace(
+                host_overrides=(),
+                local_addresses=(),
+                interface=None,
+                unix_socket=None,
+                public_only=False,
+            )
+            fields.__dict__.update(invalid)
             with (
-                self.subTest(fields=len(fields)),
+                self.subTest(fields=tuple(invalid)),
                 self.assertRaises(_native.NativeError) as caught,
             ):
                 _native.NativeClient(PROFILE, "h1", network=fields)

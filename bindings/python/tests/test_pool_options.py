@@ -28,9 +28,6 @@ class PoolFacadeTests(unittest.TestCase):
             max_http3_connections_per_origin=8,
             negotiated_setup_wait_limit=0.125,
         )
-        self.assertEqual(
-            settings._native_fields(), (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 8, 0.125)
-        )
         with self.assertRaises(dataclasses.FrozenInstanceError):
             settings.max_http2_connections_per_origin = 1
         calls = []
@@ -44,10 +41,10 @@ class PoolFacadeTests(unittest.TestCase):
             FACADE.AsyncClient(profile="exact", protocol="h1", pool=options())
             FACADE.AsyncClient(profile="exact", protocol="h1", pool=settings)
         self.assertNotIn("pool", calls[0])
-        self.assertEqual(calls[1]["pool"], (None,) * 12)
-        self.assertEqual(calls[2]["pool"], settings._native_fields())
+        self.assertEqual(calls[1]["pool"], options())
+        self.assertIs(calls[2]["pool"], settings)
         self.assertEqual(
-            options(negotiated_setup_wait_limit=0)._native_fields()[-1], 0.0
+            options(negotiated_setup_wait_limit=0).negotiated_setup_wait_limit, 0
         )
         options(max_retained_http1_connections=sys.maxsize * 2 + 1)
 
@@ -119,12 +116,18 @@ class PoolPublicTests(unittest.TestCase):
         from phantom_http import Client, Error, PoolOptions, _native
         from test_settings_transport import PROFILE
 
-        for index, value in ((0, True), (0, 0), (0, 1.0), (0, 1 << 128), (11, True)):
-            fields = [None] * 12
-            fields[index] = value
-            with self.subTest(index=index, value=value):
+        for name, value in (
+            ("max_retained_http1_connections", True),
+            ("max_retained_http1_connections", 0),
+            ("max_retained_http1_connections", 1.0),
+            ("max_retained_http1_connections", 1 << 128),
+            ("negotiated_setup_wait_limit", True),
+        ):
+            settings = PoolOptions()
+            object.__setattr__(settings, name, value)
+            with self.subTest(name=name, value=value):
                 with self.assertRaises(_native.NativeError) as caught:
-                    _native.NativeClient(PROFILE, "h1", pool=tuple(fields))
+                    _native.NativeClient(PROFILE, "h1", pool=settings)
                 self.assertEqual(caught.exception.args[0], "input")
         for settings in (
             PoolOptions(max_http3_connections_per_origin=9),

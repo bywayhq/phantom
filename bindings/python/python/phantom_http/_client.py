@@ -51,8 +51,8 @@ from ._errors import (
     _primary_error,
     _upload_error,
 )
-from ._network import NetworkOptions, _NetworkFields
-from ._pool import PoolOptions, _PoolFields
+from ._network import NetworkOptions
+from ._pool import PoolOptions
 from ._profile import Profile
 from ._request import (
     _Context,
@@ -103,8 +103,8 @@ class _RequestFields(TypedDict, total=False):
 
 class _ClientFields(TypedDict, total=False):
     redirect_credential_headers: tuple[str, ...]
-    network: _NetworkFields
-    pool: _PoolFields
+    network: NetworkOptions
+    pool: PoolOptions
     server_spki_pins: tuple[bytes, ...]
     proxy_server_spki_pins: tuple[bytes, ...]
     client_certificate: _native.NativeClientCertificate
@@ -175,10 +175,12 @@ class AsyncClient:
     ) -> None:
         if pool is not None and type(pool) is not PoolOptions:
             raise TypeError("pool must be PoolOptions")
-        pool_fields = None if pool is None else pool._native_fields()
+        if pool is not None:
+            pool._validate()
         if network is not None and type(network) is not NetworkOptions:
             raise TypeError("network must be NetworkOptions")
-        network_fields = None if network is None else network._native_fields()
+        if network is not None:
+            network._validate()
         client_fields = _certificates(client_certificate, client_certificates_for)
         if retry_policy is not None and not isinstance(retry_policy, RetryPolicy):
             raise TypeError("retry_policy must be RetryPolicy")
@@ -204,10 +206,10 @@ class AsyncClient:
             client_fields["server_spki_pins"] = roots.server_spki_pins
         if roots.proxy_server_spki_pins is not None:
             client_fields["proxy_server_spki_pins"] = roots.proxy_server_spki_pins
-        if pool_fields is not None:
-            client_fields["pool"] = pool_fields
-        if network_fields is not None:
-            client_fields["network"] = network_fields
+        if pool is not None:
+            client_fields["pool"] = pool
+        if network is not None:
+            client_fields["network"] = network
         if redirect_policy is not None and redirect_policy.credential_headers:
             client_fields["redirect_credential_headers"] = (
                 redirect_policy.credential_headers

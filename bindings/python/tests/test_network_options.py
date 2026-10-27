@@ -31,16 +31,10 @@ class NetworkFacadeTests(unittest.TestCase):
             interface="Secret-Interface",
         )
         self.assertEqual(
-            network._native_fields(),
-            (
-                (
-                    ("Secret.Invalid", ("127.0.0.2", "127.0.0.1")),
-                    ("Secret.Invalid", ()),
-                ),
-                ("::1", "127.0.0.1"),
-                "Secret-Interface",
-            ),
+            network.host_overrides, (override, FACADE.HostOverride("Secret.Invalid"))
         )
+        self.assertEqual(network.local_addresses, ("::1", "127.0.0.1"))
+        self.assertEqual(network.interface, "Secret-Interface")
         for value in (override, network):
             self.assertNotIn("Secret", repr(value))
         with self.assertRaises(dataclasses.FrozenInstanceError):
@@ -58,8 +52,8 @@ class NetworkFacadeTests(unittest.TestCase):
                 profile="exact", protocol="h1", network=FACADE.NetworkOptions()
             )
         self.assertNotIn("network", calls[0])
-        self.assertEqual(calls[1]["network"], network._native_fields())
-        self.assertEqual(calls[2]["network"], ((), (), None))
+        self.assertIs(calls[1]["network"], network)
+        self.assertEqual(calls[2]["network"], FACADE.NetworkOptions())
 
     def test_aggregate_utf8_and_combined_entry_boundaries_are_checked(self):
         options = FACADE.NetworkOptions
@@ -110,7 +104,7 @@ class NetworkFacadeTests(unittest.TestCase):
     def test_unix_path_is_owned_frozen_redacted_and_shares_the_byte_bound(self):
         options = FACADE.NetworkOptions
         network = options(unix_socket="/private/é.sock")
-        self.assertEqual(network._native_fields(), ((), (), None, "/private/é.sock"))
+        self.assertEqual(network.unix_socket, "/private/é.sock")
         self.assertNotIn("private", repr(network))
         with self.assertRaises(dataclasses.FrozenInstanceError):
             network.unix_socket = "/other"
@@ -138,7 +132,7 @@ class NetworkFacadeTests(unittest.TestCase):
 
         with patch.object(FACADE._native, "NativeClient", native, create=True):
             FACADE.AsyncClient(profile="exact", protocol="h1", network=network)
-            self.assertEqual(calls[0]["network"], network._native_fields())
+            self.assertIs(calls[0]["network"], network)
             object.__setattr__(network, "unix_socket", "private\x00path")
             with self.assertRaises(ValueError):
                 FACADE.AsyncClient(profile="exact", protocol="h1", network=network)
@@ -181,9 +175,10 @@ class CredentialFacadeTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(calls[0]["redirect_credential_headers"], ("x-api-key",))
 
-    def test_public_only_native_shape_and_boolean_validation(self):
+    def test_public_only_named_setting_and_boolean_validation(self):
         network = FACADE.NetworkOptions(public_only=True)
-        self.assertEqual(network._native_fields(), ((), (), None, None, True))
+        self.assertTrue(network.public_only)
+        self.assertIsNone(network.unix_socket)
         for value in (1, "true", None):
             with self.assertRaises(TypeError):
                 FACADE.NetworkOptions(public_only=value)
@@ -347,15 +342,33 @@ class NetworkPublicTests(unittest.TestCase):
                 Client(profile=PROFILE, protocol="h1", network=network)
             self.assertEqual(caught.exception.category, "input")
             self.assertNotIn("private", str(caught.exception))
-        for fields in (
-            ((), ("",) * 1025, None),
-            ((), (), "é" * 32769),
-            ([], (), None),
-            ((), (), LyingString("private")),
-            ((("host", (LyingString("127.0.0.1"),)),), (), None),
-            (((ThrowingString("private"), ()),), (), None),
-            ((), (ThrowingString("127.0.0.1"),), None),
+        for invalid in (
+            {"local_addresses": ("",) * 1025},
+            {"interface": "é" * 32769},
+            {"host_overrides": []},
+            {"interface": LyingString("private")},
+            {
+                "host_overrides": (
+                    types.SimpleNamespace(
+                        host="host", addresses=(LyingString("127.0.0.1"),)
+                    ),
+                )
+            },
+            {
+                "host_overrides": (
+                    types.SimpleNamespace(host=ThrowingString("private"), addresses=()),
+                )
+            },
+            {"local_addresses": (ThrowingString("127.0.0.1"),)},
         ):
+            fields = types.SimpleNamespace(
+                host_overrides=(),
+                local_addresses=(),
+                interface=None,
+                unix_socket=None,
+                public_only=False,
+            )
+            fields.__dict__.update(invalid)
             with self.assertRaises(_native.NativeError) as caught:
                 _native.NativeClient(PROFILE, "h1", network=fields)
             self.assertNotIn("private", str(caught.exception))
