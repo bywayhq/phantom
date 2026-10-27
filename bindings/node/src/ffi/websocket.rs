@@ -108,7 +108,7 @@ pub(super) fn rejection(
     let exchange = Exchange::new();
     exchange.claim_shared(permit, None)?;
     let _pending = Pending::new(Arc::clone(&exchange), Arc::clone(&owner));
-    owner.register(&exchange)?;
+    owner.register_admitted(&exchange)?;
     exchange.attach(response.into_body())?;
     Ok(WebSocketRejection {
         error,

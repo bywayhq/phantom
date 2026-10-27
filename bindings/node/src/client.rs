@@ -61,6 +61,7 @@ pub(crate) struct ClientState {
     maximum: usize,
     shutdown_pending: AtomicBool,
     closed: AtomicBool,
+    aborted: AtomicBool,
     exchanges: Mutex<Vec<Weak<Exchange>>>,
     sockets: Mutex<Vec<Weak<crate::websocket::Socket>>>,
 }
@@ -83,6 +84,7 @@ impl ClientState {
             maximum: self.maximum,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
+            aborted: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
         });
@@ -173,6 +175,7 @@ impl ClientState {
             maximum: maximum as usize,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
+            aborted: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
         });
@@ -181,12 +184,18 @@ impl ClientState {
     }
 
     pub(crate) fn register(&self, exchange: &Arc<Exchange>) -> Result<()> {
+        self.check_open()?;
+        self.register_admitted(exchange)
+    }
+
+    /// Transfers an existing admission from a WebSocket opening to its response.
+    pub(crate) fn register_admitted(&self, exchange: &Arc<Exchange>) -> Result<()> {
         let mut exchanges = self
             .exchanges
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        if self.is_closed() {
-            return Err(failure("ClientClosed", "client is closed"));
+        if self.aborted.load(Ordering::Acquire) {
+            return Err(failure("Cancelled", "client work was aborted"));
         }
         exchanges.retain(|entry| entry.upgrade().is_some_and(|entry| entry.is_active()));
         exchanges.push(Arc::downgrade(exchange));
@@ -243,6 +252,7 @@ impl ClientState {
 
     pub(crate) fn close(&self) {
         self.close_admission();
+        self.aborted.store(true, Ordering::Release);
         let sockets = {
             let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *sockets)
@@ -454,6 +464,7 @@ mod tests {
                 maximum: 1,
                 shutdown_pending: AtomicBool::new(false),
                 closed: AtomicBool::new(false),
+                aborted: AtomicBool::new(false),
                 exchanges: Mutex::new(Vec::new()),
                 sockets: Mutex::new(Vec::new()),
             })
@@ -508,6 +519,7 @@ mod tests {
             maximum: 1,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
+            aborted: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
         });

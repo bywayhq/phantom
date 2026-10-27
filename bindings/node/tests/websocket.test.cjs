@@ -174,6 +174,29 @@ test('graceful close preserves a rejected WebSocket body through timeout', async
   await closing;
 });
 
+test('graceful close preserves a pending opening and its late rejected body', async (t) => {
+  let rejectOpening, arrived;
+  const seen = new Promise((resolve) => {arrived = resolve;});
+  const server = http.createServer();
+  server.on('upgrade', (_request, socket) => {
+    rejectOpening = () => socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\nConnection: close\r\n\r\ndenied');
+    arrived();
+  });
+  const port = await listen(t, server);
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
+  let response;
+  const rejected = assert.rejects(client.websocket(`ws://127.0.0.1:${port}`), (error) => {
+    response = error.response; return failure('HandshakeRejected')(error);
+  });
+  await seen;
+  await assert.rejects(client.close({timeoutMs: 0}), {code: 'Timeout'});
+  const closing = client.close();
+  rejectOpening(); await rejected;
+  t.after(() => response?.close());
+  assert.equal(await response.text(6), 'denied');
+  await closing;
+});
+
 test('rejected WebSocket responses retain headers, bounded bodies, cancellation and admission', async (t) => {
   const server = http.createServer((_request, response) => response.end('ok'));
   server.on('upgrade', (_request, socket) => {
