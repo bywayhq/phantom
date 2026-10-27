@@ -250,7 +250,7 @@ class Client:
         self,
         url: str,
         *,
-        protocol: _WebSocketProtocol = "profile",
+        protocol: _WebSocketProtocol = "h1",
         headers: _Headers = (),
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
         handshake_timeout_ms: int | None = None,

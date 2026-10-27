@@ -258,7 +258,7 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                 first = await client.get(server.url + "/first")
                 self.assertEqual(await first.read(max_bytes=5), b"hello")
                 socket = await client.websocket(
-                    server.url.replace("https:", "wss:") + "/events"
+                    server.url.replace("https:", "wss:") + "/events", protocol="profile"
                 )
                 self.assertEqual(socket.protocol, "h2")
                 waiting = asyncio.create_task(socket.recv())

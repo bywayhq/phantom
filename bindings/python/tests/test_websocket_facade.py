@@ -95,7 +95,7 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
             [
                 (
                     "ws://localhost/events",
-                    "profile",
+                    "h1",
                     [("X-One", b"a", False), ("X-Two", b"b", True)],
                     8,
                     16,

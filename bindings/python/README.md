@@ -123,8 +123,9 @@ with Client(profile=PROFILE, context="raw") as client:
         print(socket.recv())
 ```
 
-The profile chooses the connection policy. Set `protocol="h1"`, `"h2"` or
-`"h3"` for an exact protocol. Requests keep the client's route, trust and
+The default is HTTP/1.1, matching Rust. Set `protocol="profile"` to use the
+profile's connection policy, or `"h2"` or `"h3"` for an exact protocol.
+Openings keep the client's route, trust and
 cookies. `headers` fills the profile's ordered opening fields.
 `handshake_timeout_ms` sets the opening deadline. HTTP request timeouts,
 retry/redirect policies and attempt budgets do not apply to WebSockets.

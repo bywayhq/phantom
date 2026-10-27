@@ -231,12 +231,12 @@ class AsyncClient:
         self,
         url: str,
         *,
-        protocol: _WebSocketProtocol = "profile",
+        protocol: _WebSocketProtocol = "h1",
         headers: _Headers = (),
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
         handshake_timeout_ms: int | None = None,
     ) -> _WebSocketConnect:
-        """Open with await or async with, following the profile's connection policy."""
+        """Open with await or async with; HTTP/1.1 is the default, as in Rust."""
         return _WebSocketConnect(
             self._native, url, protocol, headers, limits, handshake_timeout_ms
         )
