@@ -140,3 +140,14 @@ test('default and generated fields retain combined header and body limits', asyn
   assert.equal(requests.length, 0);
   await client.close(); await bare.close();
 });
+
+test('oversized form and query fields reject before allocating escaped output', async (t) => {
+  const {Client, requests} = facade();
+  const client = new Client({profile: 'exact', route: 'direct', context: 'raw'});
+  const encoding = t.mock.method(URLSearchParams.prototype, 'toString', () => {throw new Error('encoder must not run');});
+  await assert.rejects(client.get('/', {query: [['name', 'x'.repeat(65536)]]}), {code: 'InputLimit'});
+  await assert.rejects(client.post('/', {form: [['name', 'x'.repeat(16 * 1024 * 1024)]]}), {code: 'InputLimit'});
+  assert.equal(encoding.mock.calls.length, 0);
+  assert.equal(requests.length, 0);
+  await client.close();
+});

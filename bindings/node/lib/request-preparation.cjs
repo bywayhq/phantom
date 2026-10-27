@@ -64,8 +64,12 @@ function encodedFields(input, name, maximum) {
     if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string' || typeof pair[1] !== 'string') {
       throw new PhantomError('InvalidArgument', `${name} entries must be string pairs`);
     }
+    const separator = pieces.length === 0 ? 0 : 1;
+    if (pair[0].length + pair[1].length + 1 + separator > maximum - length) {
+      throw new PhantomError('InputLimit', `${name} exceeds its encoded byte limit`);
+    }
     const encoded = new URLSearchParams([[pair[0], pair[1]]]).toString();
-    length += encoded.length + (pieces.length === 0 ? 0 : 1);
+    length += encoded.length + separator;
     if (length > maximum) throw new PhantomError('InputLimit', `${name} exceeds its encoded byte limit`);
     pieces.push(encoded);
   }
