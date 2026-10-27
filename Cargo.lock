@@ -1520,6 +1520,7 @@ dependencies = [
 name = "phantom-go"
 version = "0.5.1"
 dependencies = [
+ "futures-util",
  "http",
  "http-body",
  "http-body-util",

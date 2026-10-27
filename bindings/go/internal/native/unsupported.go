@@ -38,3 +38,12 @@ func SSENext(uint64, *Reply) error {
 func SSEResult(uint64, *SSEEvent, []byte) error {
 	return &Failure{Kind: "unsupported_platform"}
 }
+
+func LoadWebSocket() error                          { return &Failure{Kind: "unsupported_platform"} }
+func WebSocketOpen(*WebSocketOpening, *Reply) error { return &Failure{Kind: "unsupported_platform"} }
+func WebSocketOperation(uint64, uint64, uint64, uint64, []byte, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func WebSocketCopy(uint64, *WebSocketResult, []byte) error {
+	return &Failure{Kind: "unsupported_platform"}
+}

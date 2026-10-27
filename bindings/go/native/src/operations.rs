@@ -28,6 +28,7 @@ pub(super) mod session;
 pub(crate) mod sse;
 pub(crate) mod trailers;
 mod transfer;
+pub(crate) mod websocket;
 
 pub(super) const MAX_METADATA: usize = 256 * 1024;
 pub(super) const MAX_COMMAND: usize = 64 * 1024;
@@ -250,6 +251,9 @@ impl Drop for UploadPermit {
 #[derive(Clone, Copy)]
 enum Target {
     Request(u64),
+    WebSocketOpen(u64),
+    WebSocketRead(u64),
+    WebSocketWrite(u64),
     Read(u64),
     Shutdown(u64),
     Maintenance(u64),
@@ -268,6 +272,8 @@ struct Operation {
     response: Option<u64>,
     snapshot: Option<phantom::SessionSnapshot>,
     event: Option<std::sync::Arc<sse::Read>>,
+    websocket: Option<std::sync::Arc<websocket::ResultData>>,
+    socket: Option<u64>,
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -363,6 +369,7 @@ struct State {
     diagnostics: HashMap<u64, std::sync::Arc<diagnostics::Owner>>,
     bodies: HashMap<u64, std::sync::Arc<BodyOwner>>,
     streams: HashMap<u64, std::sync::Arc<Upload>>,
+    sockets: HashMap<u64, std::sync::Arc<websocket::Socket>>,
     operations: HashMap<u64, Operation>,
     ready: VecDeque<Queued>,
 }
@@ -377,6 +384,7 @@ impl Default for State {
             diagnostics: HashMap::new(),
             bodies: HashMap::new(),
             streams: HashMap::new(),
+            sockets: HashMap::new(),
             operations: HashMap::new(),
             ready: VecDeque::new(),
         }
@@ -445,6 +453,37 @@ impl State {
                     return Err(Failure::new("upload_operation_pending"));
                 }
             }
+            Target::WebSocketRead(socket) | Target::WebSocketWrite(socket) => {
+                let pending = self.operations.values().any(|operation| {
+                    matches!(
+                        (target, operation.target),
+                        (Target::WebSocketRead(_), Target::WebSocketRead(id))
+                            | (Target::WebSocketWrite(_), Target::WebSocketWrite(id))
+                            if id == socket
+                    )
+                });
+                if pending {
+                    return Err(Failure::new(match target {
+                        Target::WebSocketRead(_) => "websocket_read_pending",
+                        _ => "websocket_write_pending",
+                    }));
+                }
+                if self
+                    .operations
+                    .values()
+                    .filter(|operation| {
+                        matches!(
+                            (target, operation.target),
+                            (Target::WebSocketRead(_), Target::WebSocketRead(_))
+                                | (Target::WebSocketWrite(_), Target::WebSocketWrite(_))
+                        )
+                    })
+                    .count()
+                    >= MAX_HANDLES
+                {
+                    return Err(Failure::new("capacity"));
+                }
+            }
             Target::Shutdown(client) => {
                 if self
                     .operations
@@ -484,6 +523,8 @@ impl State {
                         !matches!(
                             op.target,
                             Target::Read(_)
+                                | Target::WebSocketRead(_)
+                                | Target::WebSocketWrite(_)
                                 | Target::Shutdown(_)
                                 | Target::UploadWrite(_)
                                 | Target::UploadWait(_)
@@ -497,13 +538,19 @@ impl State {
                 }
             }
         }
-        let reserved_response = if matches!(target, Target::Request(_)) {
+        let reserved_response = if matches!(target, Target::Request(_) | Target::WebSocketOpen(_)) {
             let pending = self
                 .operations
                 .values()
                 .filter(|operation| operation.reserved_response.is_some())
                 .count();
-            if self.bodies.len().saturating_add(pending) >= MAX_HANDLES {
+            if self
+                .bodies
+                .len()
+                .saturating_add(self.sockets.len())
+                .saturating_add(pending)
+                >= MAX_HANDLES
+            {
                 return Err(Failure::new("capacity"));
             }
             // Both custody and the eventual body ID are acquired before send.
@@ -526,6 +573,8 @@ impl State {
                 response: None,
                 snapshot: None,
                 event: None,
+                websocket: None,
+                socket: None,
             },
         );
         Ok((id, receiver))
@@ -535,7 +584,20 @@ impl State {
             owner.close();
         }
     }
+    fn close_socket(&mut self, socket: u64) {
+        if let Some(owner) = self.sockets.remove(&socket) {
+            owner.abort();
+        }
+    }
     fn release_client(&mut self, client: u64) {
+        let sockets: Vec<_> = self
+            .sockets
+            .iter()
+            .filter_map(|(id, owner)| (owner.client == client).then_some(*id))
+            .collect();
+        for socket in &sockets {
+            self.close_socket(*socket);
+        }
         self.clients.remove(&client);
         let uploads: Vec<_> = self
             .streams
@@ -560,6 +622,7 @@ impl State {
             .iter()
             .filter_map(|(id, op)| match op.target {
                 Target::Request(owner)
+                | Target::WebSocketOpen(owner)
                 | Target::Shutdown(owner)
                 | Target::Maintenance(owner)
                 | Target::Session(owner)
@@ -568,6 +631,11 @@ impl State {
                     Some(*id)
                 }
                 Target::Read(body) if bodies.contains(&body) => Some(*id),
+                Target::WebSocketRead(socket) | Target::WebSocketWrite(socket)
+                    if sockets.contains(&socket) =>
+                {
+                    Some(*id)
+                }
                 Target::UploadWrite(upload)
                 | Target::UploadWait(upload)
                 | Target::UploadPart(upload)
@@ -594,7 +662,14 @@ impl State {
             Target::Read(body) => Some(body),
             _ => None,
         });
+        let socket = operation.socket.or(match operation.target {
+            Target::WebSocketRead(socket) | Target::WebSocketWrite(socket) => Some(socket),
+            _ => None,
+        });
         let finished = operation.finished;
+        if let Some(socket) = socket {
+            self.close_socket(socket);
+        }
         if let Some(body) = body {
             self.close_body(body);
         }
@@ -610,6 +685,7 @@ struct Global {
     ready: Condvar,
     settled: Notify,
     uploads: AtomicUsize,
+    websocket_bytes: AtomicUsize,
     runtime: tokio::runtime::Runtime,
 }
 fn global() -> Result<&'static Global, Failure> {
@@ -626,6 +702,7 @@ fn global() -> Result<&'static Global, Failure> {
                 ready: Condvar::new(),
                 settled: Notify::new(),
                 uploads: AtomicUsize::new(0),
+                websocket_bytes: AtomicUsize::new(0),
                 runtime,
             })
         })
@@ -639,6 +716,7 @@ enum Outcome {
     Complete,
     Part(usize),
     Event(sse::Read),
+    WebSocket(websocket::Finished),
 }
 
 impl Global {
@@ -654,6 +732,9 @@ impl Global {
     ) -> std::sync::MutexGuard<'a, State> {
         if !state.failed {
             state.failed = true;
+            for (_, socket) in state.sockets.drain() {
+                socket.abort();
+            }
             for (_, body) in state.bodies.drain() {
                 body.close();
             }
@@ -670,6 +751,8 @@ impl Global {
                 operation.reserved_response = None;
                 operation.snapshot = None;
                 operation.event = None;
+                operation.websocket = None;
+                operation.socket = None;
                 operation.finished = true;
                 if operation.abandoned {
                     return false;
@@ -717,9 +800,33 @@ impl Global {
             counter: &self.uploads,
         })
     }
+    fn websocket_bytes(&'static self, size: usize) -> Result<UploadPermit, Failure> {
+        const MAXIMUM: usize = 128 * 1024 * 1024;
+        let mut used = self.websocket_bytes.load(Ordering::SeqCst);
+        loop {
+            let next = used
+                .checked_add(size)
+                .filter(|next| *next <= MAXIMUM)
+                .ok_or_else(|| Failure::new("websocket_capacity"))?;
+            match self.websocket_bytes.compare_exchange(
+                used,
+                next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => {
+                    return Ok(UploadPermit {
+                        bytes: size,
+                        counter: &self.websocket_bytes,
+                    });
+                }
+                Err(actual) => used = actual,
+            }
+        }
+    }
     async fn shutdown(&self, client: u64, native: phantom::Client) -> Result<(), Failure> {
-        // Sends enter core lifecycle on their first poll. Preserve requests
-        // admitted by this registry before closing core admission.
+        // Sends/openings enter core lifecycle on their first poll. Preserve
+        // work admitted by this registry before closing core admission.
         loop {
             let settled = self.settled.notified();
             tokio::pin!(settled);
@@ -733,7 +840,7 @@ impl Global {
                     return Err(Failure::new("client_closed"));
                 }
                 state.operations.values().any(|operation| {
-                    matches!(operation.target, Target::Request(owner) if owner == client)
+                    matches!(operation.target, Target::Request(owner) | Target::WebSocketOpen(owner) if owner == client)
                         && !operation.finished
                 })
             };
@@ -775,6 +882,9 @@ impl Global {
         let reserved_response = operation.reserved_response.take();
         let mut data = Bytes::new();
         let result = match result {
+            Ok(Outcome::WebSocket(finished)) => {
+                websocket::finish(&mut state, id, reserved_response, finished)
+            }
             Ok(Outcome::Head(head)) => reserved_response
                 .ok_or_else(|| Failure::new("internal"))
                 .map(|body| {
@@ -856,8 +966,16 @@ impl Global {
                 if let Some(body) = body {
                     state.close_body(body);
                 }
+                let socket = state
+                    .operations
+                    .get(&id)
+                    .and_then(|operation| operation.socket);
+                if let Some(socket) = socket {
+                    state.close_socket(socket);
+                }
                 if let Some(operation) = state.operations.get_mut(&id) {
                     operation.response = None;
+                    operation.socket = None;
                 }
                 data = Bytes::new();
                 Err(Failure::new("metadata_limit"))
@@ -1490,6 +1608,13 @@ pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
     if let Some(body) = body {
         state.close_body(body);
     }
+    let socket = state
+        .operations
+        .get_mut(&id)
+        .and_then(|operation| operation.socket.take());
+    if let Some(socket) = socket {
+        state.close_socket(socket);
+    }
     Ok(())
 }
 
@@ -1521,6 +1646,7 @@ mod tests {
     mod session_sharing;
     mod sse;
     mod uploads;
+    mod websocket;
 
     #[test]
     fn identity_reports_native_package_without_allocating_a_handle()
@@ -1540,6 +1666,7 @@ mod tests {
             ready: Condvar::new(),
             settled: Notify::new(),
             uploads: AtomicUsize::new(0),
+            websocket_bytes: AtomicUsize::new(0),
             runtime: tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
                 .enable_all()

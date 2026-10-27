@@ -67,3 +67,30 @@ func ExampleClient_Do_requestContext() {
 		fmt.Println(response.Status, len(data))
 	}
 }
+
+func ExampleClient_WebSocket() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client, err := phantom.New(phantom.Config{Profile: "chrome-154-windows"})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer client.Close()
+	socket, err := client.WebSocket(ctx, "wss://example.com/events", phantom.WebSocketOptions{})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer socket.Abort()
+	if err := socket.Write(ctx, phantom.TextMessage, []byte("hello")); err != nil {
+		fmt.Println(err)
+		return
+	}
+	kind, data, err := socket.Read(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(kind, len(data))
+}
