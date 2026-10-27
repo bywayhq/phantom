@@ -349,6 +349,36 @@ class QuicInteropLifecycleTests(unittest.TestCase):
         )
         self.assertLess(last_remove, first_restore)
 
+    def test_long_commands_keep_subprocess_causes_in_bounded_reports(self):
+        command = [
+            str(Path("interpreters") / ("long-installation-root-" * 40) / "python.exe"),
+            "run.py",
+        ]
+        cases = [
+            (subprocess.TimeoutExpired(command, 1200), "timed out after 1200 seconds"),
+            (subprocess.CalledProcessError(7, command), "status 7"),
+            (subprocess.CalledProcessError(-15, command), "signal 15"),
+        ]
+        for cause, expected in cases:
+            with self.subTest(cause=type(cause).__name__, expected=expected):
+                with tempfile.TemporaryDirectory() as temporary:
+                    directory = Path(temporary)
+                    failure = quic_interop._report_failure(
+                        "controlled", directory, [("runner", cause)], [], False
+                    )
+                    summary = json.loads(
+                        (directory / "summary.json").read_text("utf-8")
+                    )
+
+                detail = summary["failures"][0]["detail"]
+                self.assertIn(expected, detail)
+                self.assertIn("interpreters", detail)
+                self.assertLess(detail.index(expected), detail.index("interpreters"))
+                self.assertLessEqual(len(detail), 500)
+                self.assertEqual(summary["detail"], "runner: " + detail)
+                self.assertEqual(str(failure), summary["detail"])
+                self.assertIs(failure.failures[0][1], cause)
+
     def test_timeout_cleans_owned_resources_before_restoring_files(self):
         control = self.fixture("timeout")
         error, summary = control.invoke()

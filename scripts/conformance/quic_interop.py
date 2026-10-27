@@ -483,10 +483,21 @@ class _RunnerInterrupted(KeyboardInterrupt):
         self.report_directory = report_directory
 
 
+def _failure_message(error: BaseException) -> str:
+    if isinstance(error, subprocess.TimeoutExpired):
+        message = f"command timed out after {error.timeout} seconds: {error.cmd!r}"
+    elif isinstance(error, subprocess.CalledProcessError):
+        if error.returncode < 0:
+            message = f"command terminated by signal {-error.returncode}: {error.cmd!r}"
+        else:
+            message = f"command exited with status {error.returncode}: {error.cmd!r}"
+    else:
+        message = str(error)
+    return " ".join(message.split())[:500]
+
+
 def _failure_detail(failures: list[tuple[str, BaseException]]) -> str:
-    return "; ".join(
-        f"{phase}: {' '.join(str(error).split())[:500]}" for phase, error in failures
-    )
+    return "; ".join(f"{phase}: {_failure_message(error)}" for phase, error in failures)
 
 
 def _report_failure(
@@ -506,7 +517,7 @@ def _report_failure(
                     "test": SUPPORTED_TEST,
                     "detail": _failure_detail(failures),
                     "failures": [
-                        {"phase": phase, "detail": " ".join(str(error).split())[:500]}
+                        {"phase": phase, "detail": _failure_message(error)}
                         for phase, error in failures
                     ],
                     "retained_paths": [str(path) for path in retained_paths],

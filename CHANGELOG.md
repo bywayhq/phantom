@@ -14,6 +14,7 @@
 - Go reserves response capacity before sending and keeps existing bodies
   readable when request or session operations fill admission capacity.
 - Avoid delaying Go uploads while waiting for further native events.
+- Keep timeout and exit reasons in QUIC reports when command paths are long.
 
 ## 0.5.1 - 2026-10-26
 
