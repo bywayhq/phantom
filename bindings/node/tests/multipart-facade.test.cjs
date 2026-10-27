@@ -32,6 +32,7 @@ function facade() {
     close() { if (this.trailers.state === 'pending') this.trailers = {state: 'unavailable', headers: null}; },
     async read() { this.trailers = {state: 'complete', headers: []}; return null; },
     async collect() { this.trailers = {state: 'complete', headers: []}; return Buffer.from('ok'); },
+    events() {return {lastEventId: '', retryMs: null, async read() {return null;}, close() {}};},
   };
   const owner = {calls: 0, request(...args) { this.calls++; this.args = args; return Promise.resolve(response); }, async close() { for (const upload of uploads) upload.stop(); }};
   const native = {NativeEnvironment: class {client() {return owner;}}, NativeCancellation: class {cancel() {}}, NativeUpload: Upload};
@@ -124,6 +125,24 @@ test('multipart cleanup cannot await its own response or client', async () => {
   };
   response = await client.request('https://example.test', {...request, multipart: multipart([{name: 'x', stream}])});
   assert.equal(await response.read(), null); await client.close();
+});
+
+test('SSE completion awaits multipart cleanup and rejects producer self-waits', async () => {
+  const {Client, uploads} = facade(), client = new Client({profile: 'exact', route: 'direct'}), stream = source();
+  let events, release;
+  stream.return = async () => {
+    await assert.rejects(events.read(), {code: 'InvalidOperation'});
+    await assert.rejects(events.return(), {code: 'InvalidOperation'});
+    await assert.rejects(events[Symbol.asyncDispose](), {code: 'InvalidOperation'});
+    await new Promise((resolve) => {release = resolve;});
+    return {done: true};
+  };
+  const response = await client.request('https://example.test', {...request, multipart: multipart([{name: 'x', stream}])});
+  events = response.events(); const reading = events.read(); let done = false;
+  reading.then(() => {done = true;}, () => {done = true;}); await tick();
+  assert.equal(done, false); assert.equal(uploads[0].done, undefined);
+  release(); assert.equal(await reading, null); assert.equal(uploads[0].done, true);
+  await client.close();
 });
 
 test('source throw retains original and all later close causes without formatting', async () => {

@@ -19,6 +19,8 @@ use crate::{
     error::{failure, request, total_timeout},
 };
 
+pub(crate) mod sse;
+
 const ACTIVE: u8 = 0;
 const EOF: u8 = 1;
 const CANCELLED: u8 = 2;
@@ -29,8 +31,15 @@ const COLLECTION_YIELD_ITERATIONS: usize = 16;
 
 #[derive(Debug)]
 struct Body {
-    stream: ResponseBody,
+    response: http::Response<ResponseBody>,
     pending: Bytes,
+    started: bool,
+}
+
+#[derive(Debug)]
+enum RetainedBody {
+    Http(Body),
+    Events(phantom::SseStream),
 }
 
 #[derive(Debug)]
@@ -49,7 +58,8 @@ pub(crate) struct Exchange {
     upload: Mutex<Option<Arc<crate::upload::Upload>>>,
     cancelled: watch::Sender<bool>,
     finished: watch::Sender<bool>,
-    body: Mutex<Option<Body>>,
+    body: Mutex<Option<RetainedBody>>,
+    event_state: Mutex<sse::EventState>,
     trailers: Mutex<ResponseTrailers>,
     permit: Mutex<Option<Admission>>,
     deadline: Mutex<Option<Instant>>,
@@ -67,6 +77,7 @@ impl Exchange {
             cancelled: watch::channel(false).0,
             finished: watch::channel(false).0,
             body: Mutex::new(None),
+            event_state: Mutex::new(sse::EventState::default()),
             trailers: Mutex::new(ResponseTrailers::Pending),
             permit: Mutex::new(None),
             deadline: Mutex::new(None),
@@ -160,13 +171,14 @@ impl Exchange {
         }
     }
 
-    pub(crate) fn attach(&self, stream: ResponseBody) -> Result<()> {
+    pub(crate) fn attach(&self, response: http::Response<ResponseBody>) -> Result<()> {
         let mut body = self.body.lock().unwrap_or_else(PoisonError::into_inner);
         self.check()?;
-        *body = Some(Body {
-            stream,
+        *body = Some(RetainedBody::Http(Body {
+            response,
             pending: Bytes::new(),
-        });
+            started: false,
+        }));
         Ok(())
     }
 
@@ -252,13 +264,7 @@ impl Exchange {
         if self.terminal.load(Ordering::Acquire) == EOF {
             return Ok(None);
         }
-        let mut body = match self.acquire_body() {
-            Ok(body) => body,
-            Err(error) => {
-                self.fail();
-                return Err(error);
-            }
-        };
+        let mut body = self.acquire_body()?;
         let next = async {
             loop {
                 if !body.pending.is_empty() {
@@ -268,7 +274,7 @@ impl Exchange {
                             .to_vec(),
                     ));
                 }
-                match body.stream.frame().await {
+                match body.response.body_mut().frame().await {
                     Some(Ok(frame)) => {
                         if let Ok(bytes) = frame.into_data() {
                             body.pending = bytes;
@@ -292,9 +298,9 @@ impl Exchange {
                     self.fail();
                     return Err(error);
                 }
-                *retained = Some(body);
+                *retained = Some(RetainedBody::Http(body));
             }
-            Ok(None) => self.finish(EOF, body.stream.into_trailers()),
+            Ok(None) => self.finish(EOF, body.response.into_body().into_trailers()),
             Err(_) => self.fail(),
         }
         result
@@ -305,13 +311,7 @@ impl Exchange {
         if self.terminal.load(Ordering::Acquire) == EOF {
             return Ok(Vec::new());
         }
-        let mut body = match self.acquire_body() {
-            Ok(body) => body,
-            Err(error) => {
-                self.fail();
-                return Err(error);
-            }
-        };
+        let mut body = self.acquire_body()?;
         let collect = async {
             let mut output = Vec::new();
             let mut consumed = 0usize;
@@ -329,7 +329,7 @@ impl Exchange {
                     iterations = 0;
                     self.check()?;
                 }
-                match body.stream.frame().await {
+                match body.response.body_mut().frame().await {
                     Some(Ok(frame)) => {
                         if let Ok(bytes) = frame.into_data() {
                             body.pending = bytes;
@@ -346,7 +346,7 @@ impl Exchange {
             result = collect => result.and_then(|output| self.check().map(|()| output)),
         };
         match &result {
-            Ok(_) => self.finish(EOF, body.stream.into_trailers()),
+            Ok(_) => self.finish(EOF, body.response.into_body().into_trailers()),
             Err(_) => self.fail(),
         }
         result
@@ -354,11 +354,26 @@ impl Exchange {
 
     fn acquire_body(&self) -> Result<Body> {
         let mut body = self.body.lock().unwrap_or_else(PoisonError::into_inner);
+        if matches!(*body, Some(RetainedBody::Events(_))) {
+            return Err(failure(
+                "BodyUsed",
+                "response body belongs to its event stream",
+            ));
+        }
         // Cancellation removes the idle body under this lock. Check while it is
         // held so that removal cannot turn a cancellation into BodyClosed.
-        self.check()?;
-        body.take()
-            .ok_or_else(|| failure("BodyClosed", "response body is closed"))
+        if let Err(error) = self.check() {
+            drop(body);
+            self.fail();
+            return Err(error);
+        }
+        match body.take() {
+            Some(RetainedBody::Http(mut body)) => {
+                body.started = true;
+                Ok(body)
+            }
+            _ => Err(failure("BodyClosed", "response body is closed")),
+        }
     }
 
     fn start_reading(self: &Arc<Self>) -> Result<Reading> {

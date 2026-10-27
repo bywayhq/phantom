@@ -8,6 +8,7 @@ use napi::{
 };
 use napi_derive::napi;
 
+use super::events::NativeEventStream;
 use super::options::WireHeader;
 use crate::{client::ClientState, error::failure, response::Exchange};
 
@@ -89,6 +90,22 @@ impl fmt::Debug for NativeResponse {
 
 #[napi]
 impl NativeResponse {
+    /// Transfers an untouched response to the core SSE decoder.
+    #[napi]
+    pub fn events(
+        &self,
+        maximum_line_bytes: u32,
+        maximum_event_bytes: u32,
+    ) -> Result<NativeEventStream> {
+        self.exchange.open_events(phantom::SseLimits::new(
+            maximum_line_bytes as usize,
+            maximum_event_bytes as usize,
+        ))?;
+        Ok(NativeEventStream {
+            exchange: Arc::clone(&self.exchange),
+            owner: Arc::clone(&self.owner),
+        })
+    }
     /// Actual protocol that produced this response.
     #[napi(getter)]
     #[must_use]

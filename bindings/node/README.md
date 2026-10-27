@@ -121,6 +121,26 @@ by native deadlines. The byte limit bounds input, not parsed-object memory.
 HTTP error statuses remain responses. Decode failures use `TextDecode` or
 `JsonDecode`; native errors retain their codes.
 
+## Read server-sent events
+
+Turn an unread `200 text/event-stream` response into an async iterator:
+
+```js
+const response = await client.get('https://example.com/events', {context: 'fetch'});
+const events = response.events();
+try {
+  for await (const event of events) console.log(event.event, event.data, event.id);
+} finally { events.close(); }
+```
+
+This consumes one response without reconnecting. `retryMs` is the latest retry
+delay as a `bigint`, or `null`; `lastEventId` retains the latest ID, including
+ID-only blocks. Both are available on the iterator after EOF. Lines default
+to 64 KiB and event blocks to 1 MiB of encoded bytes, excluding line endings.
+Set `maximumLineBytes` and `maximumEventBytes` in `events(options)` to change
+them; zero rejects nonempty input. Unsuitable response headers leave the body
+readable. Once converted, use the event iterator instead of raw body methods.
+
 ## Download to a file
 
 Use the response directly with `pipeline`. The same signal cancels the request

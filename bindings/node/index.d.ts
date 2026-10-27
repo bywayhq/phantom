@@ -6,7 +6,7 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
-  /** Core profile-document, client-certificate, prepared-body or session checkpoint category. */
+  /** Core profile-document, SSE, client-certificate, prepared-body or checkpoint category. */
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
@@ -313,6 +313,39 @@ export interface ResponseHeader {
 }
 export type ResponseTrailers = Readonly<{state: 'pending' | 'unavailable'; headers: null}>
   | Readonly<{state: 'complete'; headers: readonly ResponseHeader[]}>;
+export interface SseOptions {
+  /** Encoded bytes per line, excluding its terminator; default 65,536. Zero rejects nonempty lines. */
+  readonly maximumLineBytes?: number;
+  /** Encoded bytes per event block, excluding terminators; default 1,048,576. Zero rejects nonempty blocks. */
+  readonly maximumEventBytes?: number;
+}
+export interface SseEvent {
+  /** Data fields joined by newlines; invalid UTF-8 is replaced. */
+  readonly data: string;
+  /** Defaults to message. */
+  readonly event: string;
+  /** Persistent last-event ID at dispatch. */
+  readonly id: string;
+  /** Latest valid retry in milliseconds at dispatch; null until observed, including exact zero. */
+  readonly retryMs: bigint | null;
+}
+export class EventStream implements AsyncIterableIterator<SseEvent> {
+  private constructor();
+  /** Latest committed ID, including ID-only blocks consumed before EOF. */
+  readonly lastEventId: string;
+  /** Latest valid retry delay in milliseconds, or null before one is observed. */
+  readonly retryMs: bigint | null;
+  /** One read at a time; null at EOF. Terminal errors are returned once. */
+  read(): Promise<SseEvent | null>;
+  /** Cancels this response and interrupts a pending read. */
+  close(): void;
+  next(): Promise<IteratorResult<SseEvent>>;
+  return(): Promise<IteratorResult<SseEvent>>;
+  throw(error: unknown): Promise<never>;
+  [Symbol.asyncIterator](): AsyncIterableIterator<SseEvent>;
+  [Symbol.dispose](): void;
+  [Symbol.asyncDispose](): Promise<void>;
+}
 export class Response implements AsyncIterable<Buffer> {
   private constructor();
   readonly status: number;
@@ -335,6 +368,10 @@ export class Response implements AsyncIterable<Buffer> {
   text(maximumBytes: number): Promise<string>;
   /** Parses the remaining body within the byte limit; validate the returned value. */
   json(maximumBytes: number): Promise<unknown>;
+  /** Transfers an unread 200 text/event-stream response to the Rust decoder.
+   * Invalid metadata leaves the body readable. No reconnect or new request.
+   */
+  events(options?: SseOptions): EventStream;
   close(): void;
   [Symbol.asyncIterator](): AsyncIterator<Buffer>;
   [Symbol.asyncDispose](): Promise<void>;

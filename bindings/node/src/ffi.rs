@@ -12,6 +12,7 @@ mod client;
 mod controls;
 mod diagnostics;
 mod environment;
+mod events;
 mod options;
 mod prepared_body;
 mod profile;
@@ -33,6 +34,7 @@ pub use diagnostics::{
     DiagnosticTlsState, NativeRequestDiagnostics,
 };
 pub use environment::NativeEnvironment;
+pub use events::{NativeEventStream, SseEvent};
 pub use options::{
     ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, HostOverrideOptions,
     NetworkOptions, PoolOptions, RedirectPolicyOptions, RequestOptions, RetryPolicyOptions,

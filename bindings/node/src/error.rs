@@ -8,7 +8,11 @@ pub(crate) fn failure(code: &str, message: &str) -> Error {
 }
 
 pub(crate) fn request(error: phantom::RequestError) -> Error {
-    if let Some(error) = crate::multipart::request_error(&error) {
+    request_ref(&error)
+}
+
+pub(crate) fn request_ref(error: &phantom::RequestError) -> Error {
+    if let Some(error) = crate::multipart::request_error(error) {
         return error;
     }
     let protocol = match error.protocol() {
@@ -26,7 +30,7 @@ pub(crate) fn request(error: phantom::RequestError) -> Error {
         Some(phantom::TimeoutPhase::WebSocketHandshake) => "webSocketHandshake",
         _ => "",
     };
-    let details = connect_io_details(error.kind(), &error).unwrap_or_default();
+    let details = connect_io_details(error.kind(), error).unwrap_or_default();
     Error::new(
         Status::GenericFailure,
         format!(

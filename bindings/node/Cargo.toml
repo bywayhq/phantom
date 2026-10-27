@@ -19,7 +19,7 @@ http-body = "1.1.0"
 http-body-util = "0.1.3"
 napi = { version = "=3.14.2", features = ["napi8", "async"] }
 napi-derive = "=3.6.12"
-phantom = { package = "phantom-http", path = "../../crates/phantom", features = ["cookies", "fingerprint-import", "session-snapshot", "websocket"] }
+phantom = { package = "phantom-http", path = "../../crates/phantom", features = ["cookies", "fingerprint-import", "session-snapshot", "sse", "websocket"] }
 phantom-profile = { path = "../../crates/phantom-profile" }
 tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "sync", "time"] }
 zeroize.workspace = true

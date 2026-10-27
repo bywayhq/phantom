@@ -454,3 +454,23 @@ async function shutdownClient(client: Client): Promise<void> {
   // @ts-expect-error shutdown deadlines use numbers, not bigint
   await client.destroy({timeoutMs: 1n});
 }
+
+async function serverSentEvents(response: Response): Promise<void> {
+  const stream = response.events({maximumLineBytes: 65536, maximumEventBytes: 1048576});
+  const retry: bigint | null = stream.retryMs;
+  const id: string = stream.lastEventId;
+  for await (const event of stream) {
+    const data: string = event.data;
+    const name: string = event.event;
+    const eventRetry: bigint | null = event.retryMs;
+    void data; void name; void eventRetry;
+    break;
+  }
+  await stream[Symbol.asyncDispose]();
+  // @ts-expect-error Limits are bounded numbers, not bigint.
+  response.events({maximumLineBytes: 1n});
+  // @ts-expect-error SSE decoding does not reconnect.
+  response.events({reconnect: true});
+  void retry; void id;
+}
+void serverSentEvents;

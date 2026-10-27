@@ -109,7 +109,7 @@ pub(super) fn rejection(
     exchange.claim_shared(permit, None)?;
     let _pending = Pending::new(Arc::clone(&exchange), Arc::clone(&owner));
     owner.register_admitted(&exchange)?;
-    exchange.attach(response.into_body())?;
+    exchange.attach(response)?;
     Ok(WebSocketRejection {
         error,
         response: NativeResponse {

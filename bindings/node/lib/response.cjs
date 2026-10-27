@@ -4,6 +4,7 @@ const { inspect, TextDecoder } = require('node:util');
 
 const { bytes } = require('./bytes.cjs');
 const { PhantomError, translated } = require('./errors.cjs');
+const { EventStream, eventLimits } = require('./events.cjs');
 const { isUploadContext, uploadError } = require('./upload.cjs');
 const { integer } = require('./validation.cjs');
 
@@ -15,6 +16,8 @@ class Response {
   #owner;
   #upload;
   #reading = false;
+  #bodyStarted = false;
+  #events = false;
   constructor(response, cleanup, owner, upload) {
     this.#native = response;
     this.#cleanup = cleanup;
@@ -72,8 +75,10 @@ class Response {
   async read(maximumBytes = 65536) {
     this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes', 1, 65536);
+    if (this.#events) throw new PhantomError('BodyUsed', 'response body belongs to its event stream');
     if (this.#reading) throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
     this.#reading = true;
+    this.#bodyStarted = true;
     try {
       const part = await this.#native.read(maximumBytes);
       if (part === null) { this.#finished(); await this.#settleMultipart(); }
@@ -86,11 +91,12 @@ class Response {
   async bytes(maximumBytes) {
     this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes');
+    if (this.#events) throw new PhantomError('BodyUsed', 'response body belongs to its event stream');
     if (this.#reading) {
-      this.close();
       throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
     }
     this.#reading = true;
+    this.#bodyStarted = true;
     try {
       const body = await this.#native.collect(maximumBytes);
       this.#finished();
@@ -114,6 +120,17 @@ class Response {
     } catch {
       throw new PhantomError('JsonDecode', 'response JSON parsing failed');
     }
+  }
+  events(options) {
+    this.#checkMultipartWait();
+    const limits = eventLimits(options);
+    if (this.#reading) throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
+    if (this.#bodyStarted || this.#events) throw new PhantomError('BodyUsed', 'events require an unread response body');
+    let native;
+    try {native = this.#native.events(...limits);} catch (error) {throw translated(error);}
+    this.#events = true;
+    return new EventStream(native, () => this.#finished(), () => this.#settleMultipart(),
+      (error) => uploadError(error, this.#upload), () => this.#checkMultipartWait());
   }
   close() { this.#native.close(); this.#finished(); }
   [Symbol.asyncIterator]() {

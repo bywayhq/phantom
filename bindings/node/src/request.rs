@@ -301,7 +301,7 @@ impl Prepared {
                     )
                 })
                 .collect();
-            exchange.attach(response.into_body())?;
+            exchange.attach(response)?;
             Ok((
                 ResponseHead {
                     status,
