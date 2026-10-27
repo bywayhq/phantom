@@ -17,7 +17,10 @@ use std::sync::{
 use tokio::sync::Notify;
 
 pub(super) enum Stream {
-    Body { body: ResponseBody, pending: Bytes },
+    Body {
+        body: Box<ResponseBody>,
+        pending: Bytes,
+    },
     Events(Box<phantom::SseStream>),
 }
 pub(super) struct BodyOwner {
@@ -111,7 +114,7 @@ impl ReadLease {
                 let Some(Stream::Body { body, .. }) = self.stream.take() else {
                     return Err(Failure::new("internal"));
                 };
-                Ok(ReadResult::End(body.into_trailers()))
+                Ok(ReadResult::End((*body).into_trailers()))
             }
         }
     }
@@ -192,7 +195,7 @@ pub(super) fn response_head(
                 .into_body(),
         )),
         None => Stream::Body {
-            body: response.into_body(),
+            body: Box::new(response.into_body()),
             pending: Bytes::new(),
         },
     };
