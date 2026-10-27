@@ -340,7 +340,7 @@ mod tests {
     #[test]
     fn opening_owns_nested_input_before_asynchronous_admission() -> Result<(), Failure> {
         let mut url = b"wss://example.test/socket".to_vec();
-        let mut binary = vec![255, 0, 1];
+        let mut binary = [255, 0, 1];
         let fields = [Field {
             name: Span {
                 pointer: b"X-Token".as_ptr(),
@@ -371,11 +371,10 @@ mod tests {
         let mut value = wire(b"wss://example.test/");
         value.template_present = 1;
         value.template_count = 1;
-        // SAFETY: A null nonempty array is rejected before forming a slice.
-        assert_eq!(
-            unsafe { opening(&value) }.err().map(|error| error.kind),
-            Some("input_limit")
-        );
+        // SAFETY: The descriptor and URL are valid; the null nonempty template
+        // array is rejected before forming a slice.
+        let opening_error = unsafe { opening(&value) }.err().map(|error| error.kind);
+        assert_eq!(opening_error, Some("input_limit"));
         let policy = Deflate {
             parameters: ptr::null(),
             count: 1,
@@ -383,10 +382,9 @@ mod tests {
             window: 15,
             level: 6,
         };
-        // SAFETY: The bounded descriptor is valid; its null array is rejected.
-        assert_eq!(
-            unsafe { deflate(&policy) }.err().map(|error| error.kind),
-            Some("invalid_websocket_deflate")
-        );
+        // SAFETY: The descriptor is valid; its null nonempty parameters array
+        // is rejected before forming a slice.
+        let deflate_error = unsafe { deflate(&policy) }.err().map(|error| error.kind);
+        assert_eq!(deflate_error, Some("invalid_websocket_deflate"));
     }
 }
