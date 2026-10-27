@@ -12,6 +12,8 @@ export class PhantomError extends Error {
   readonly field?: string;
   /** Underlying host/native failure, available through explicit inspection. */
   readonly cause?: unknown;
+  /** HTTP status when a WebSocket opening response rejects the upgrade. */
+  readonly status?: number;
   /** Iterator cleanup failure; may become available after request settlement. */
   readonly cleanupError?: unknown;
 }
@@ -335,6 +337,50 @@ export class Response implements AsyncIterable<Buffer> {
   [Symbol.asyncIterator](): AsyncIterator<Buffer>;
   [Symbol.asyncDispose](): Promise<void>;
 }
+export interface WebSocketOptions {
+  /** Default http1; profile uses the recipe's connection policy. */
+  readonly protocol?: 'profile' | 'http1' | 'http2' | 'http3';
+  /** Fills the Rust opening template; also inherits client headers. */
+  readonly headers?: readonly Header[];
+  /** Covers opening and the entire connection lifetime. */
+  readonly signal?: AbortSignal;
+  /** Omit for the recipe's timer; null disables it. */
+  readonly handshakeTimeoutMs?: number | null;
+  /** Defaults to min(16 MiB, maximumMessageBytes). */
+  readonly maximumFrameBytes?: number;
+  /** At most 64 MiB; decompressed bytes count against this limit. */
+  readonly maximumMessageBytes?: number;
+  readonly maximumMessageFragments?: number;
+  /** Only connection-setup failures; no implicit reconnect or resend. */
+  readonly maximumConnectionFailures?: number;
+  readonly retryDelayMs?: number;
+}
+export type WebSocketMessage = Readonly<{type: 'text'; data: string}>
+  | Readonly<{type: 'binary' | 'ping' | 'pong'; data: Buffer}>
+  | Readonly<{type: 'close'; code: number | null; reason: string | null}>;
+export interface WebSocketHandshake {
+  readonly status: number;
+  readonly protocol: 'http1' | 'http2' | 'http3';
+  readonly selectedProtocol: string | null;
+  readonly headers: readonly Readonly<Header>[];
+}
+export class WebSocketConnection implements AsyncIterable<WebSocketMessage> {
+  private constructor();
+  readonly handshake: Readonly<WebSocketHandshake>;
+  /** Pulls one complete message or control event; null follows clean completion. */
+  receive(): Promise<WebSocketMessage | null>;
+  /** Resolves after flush; await each send for backpressure. */
+  send(data: string | Uint8Array): Promise<void>;
+  ping(data?: Uint8Array): Promise<void>;
+  pong(data?: Uint8Array): Promise<void>;
+  /** Flushes a Close frame; receive the peer's close to complete the handshake. */
+  close(code?: number, reason?: string): Promise<void>;
+  /** Cancels setup or I/O and releases this connection without a Close frame. */
+  abort(): void;
+  [Symbol.dispose](): void;
+  /** Breaking iteration aborts this connection. */
+  [Symbol.asyncIterator](): AsyncIterator<WebSocketMessage>;
+}
 export class Client {
   constructor(options: ClientOptions);
   /** Creates an open client with independent pools, even from a closed source. */
@@ -344,6 +390,7 @@ export class Client {
   /** Restores independent pools using this client's configuration; leaves this client unchanged. */
   restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;
   request(url: string | URL, options?: RequestOptions): Promise<Response>;
+  websocket(url: string | URL, options?: WebSocketOptions): Promise<WebSocketConnection>;
   get(url: string | URL, options?: MethodOptions): Promise<Response>;
   head(url: string | URL, options?: MethodOptions): Promise<Response>;
   post(url: string | URL, options?: MethodOptions): Promise<Response>;

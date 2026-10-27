@@ -17,6 +17,7 @@ mod prepared_body;
 mod profile;
 mod response;
 mod upload;
+mod websocket;
 
 pub use certificates::{
     ClientCertificateOrigin, NativeClientCertificate, client_certificate_der,
@@ -47,3 +48,4 @@ pub use profile::{
 };
 pub use response::{NativeResponse, RedirectHistoryInfo, RedirectHopInfo, ResponseTrailersInfo};
 pub use upload::{NativeUpload, StreamingMultipartField};
+pub use websocket::{NativeWebSocket, WebSocketEvent, WebSocketHandshake, WebSocketOptions};

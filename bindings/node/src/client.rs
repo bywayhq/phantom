@@ -62,6 +62,7 @@ pub(crate) struct ClientState {
     shutdown_pending: AtomicBool,
     closed: AtomicBool,
     exchanges: Mutex<Vec<Weak<Exchange>>>,
+    sockets: Mutex<Vec<Weak<crate::websocket::Socket>>>,
 }
 
 impl ClientState {
@@ -83,6 +84,7 @@ impl ClientState {
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
+            sockets: Mutex::new(Vec::new()),
         });
         environment.register(&state)?;
         Ok(state)
@@ -172,6 +174,7 @@ impl ClientState {
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
+            sockets: Mutex::new(Vec::new()),
         });
         environment.register(&state)?;
         Ok(state)
@@ -192,6 +195,14 @@ impl ClientState {
 
     pub(crate) fn is_closed(&self) -> bool {
         self.closed.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn register_socket(&self, socket: &Arc<crate::websocket::Socket>) -> Result<()> {
+        let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
+        self.check_open()?;
+        sockets.retain(|socket| socket.upgrade().is_some_and(|socket| socket.is_active()));
+        sockets.push(Arc::downgrade(socket));
+        Ok(())
     }
 
     pub(crate) fn check_open(&self) -> Result<()> {
@@ -217,6 +228,13 @@ impl ClientState {
     pub(crate) fn close(&self) {
         self.closed.store(true, Ordering::Release);
         self.admission.close();
+        let sockets = {
+            let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
+            std::mem::take(&mut *sockets)
+        };
+        for socket in sockets.into_iter().filter_map(|socket| socket.upgrade()) {
+            socket.abort();
+        }
         let exchanges = {
             let mut exchanges = self
                 .exchanges

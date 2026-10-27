@@ -17,6 +17,7 @@ const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes } = require
 const { clientPins, clientCertificates } = require('./tls.cjs');
 const { runUpload, pumpMultipart, pumpUpload, multipartOptions, uploadLength, claimMultipart, uploadError, isUploadContext } = require('./upload.cjs');
 const { integer, positiveCount } = require('./validation.cjs');
+const { openWebSocket } = require('./websocket.cjs');
 
 const clientToken = {};
 const environment = new native.NativeEnvironment();
@@ -171,6 +172,7 @@ class Client {
     if (options !== undefined && (options === null || typeof options !== 'object')) return this.request(url, options);
     return this.request(url, {...options, method});
   }
+  websocket(url, options) { return openWebSocket(this.#native, this, url, options, this.#defaults.headers); }
   get(url, options) { return this.#requestMethod('GET', url, options); }
   head(url, options) { return this.#requestMethod('HEAD', url, options); }
   post(url, options) { return this.#requestMethod('POST', url, options); }

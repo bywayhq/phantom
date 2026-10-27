@@ -139,11 +139,7 @@ function prepareRequest(defaults, url, options = {}) {
   // Validate caller fields before using their names to replace default fields.
   /** @type {{headers?: Header[], trailers?: Header[]}} */
   const fields = requestFields(options.headers, options.trailers);
-  let headers = fields.headers;
-  if (defaults.headers.length > 0) {
-    const replaced = new Set(fields.headers?.map((header) => header.name.toLowerCase()));
-    headers = [...defaults.headers.filter((header) => !replaced.has(header.name.toLowerCase())), ...(fields.headers ?? [])];
-  }
+  let headers = mergeHeaders(defaults.headers, fields.headers);
   const addedContentType = contentType !== undefined && !headers?.some((header) => header.name.toLowerCase() === 'content-type');
   if (addedContentType && contentType !== undefined) {
     headers ??= [];
@@ -159,4 +155,11 @@ function prepareRequest(defaults, url, options = {}) {
   }};
 }
 
-module.exports = { requestDefaults, prepareRequest };
+/** @param {readonly Header[]} defaults @param {Header[] | undefined} headers */
+function mergeHeaders(defaults, headers) {
+  if (defaults.length === 0) return headers;
+  const replaced = new Set(headers?.map((header) => header.name.toLowerCase()));
+  return [...defaults.filter((header) => !replaced.has(header.name.toLowerCase())), ...(headers ?? [])];
+}
+
+module.exports = { requestDefaults, prepareRequest, mergeHeaders };

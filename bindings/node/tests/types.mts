@@ -8,6 +8,15 @@ const pinned = new Client({profile: 'exact', route: 'direct',
   network: {publicOnly: true}, redirectPolicy: {mode: 'none', credentialHeaders: ['x-api-key']},
   serverSpkiPins: [new Uint8Array(32)] as const, proxyServerSpkiPins: [Buffer.alloc(32)] as const});
 void pinned;
+async function websocketUse(): Promise<void> {
+  const socket = await pinned.websocket('wss://example.com/events', {protocol: 'http1'});
+  await socket.send('hello');
+  const event = await socket.receive();
+  if (event?.type === 'text') event.data.toUpperCase();
+  else if (event?.type === 'binary') event.data.readUInt8(0);
+  await socket.close(); socket.abort();
+}
+void websocketUse;
 // @ts-expect-error Digest contents must be bytes, never numeric lists.
 new Client({profile: 'exact', route: 'direct', serverSpkiPins: [[1, 2, 3]]});
 

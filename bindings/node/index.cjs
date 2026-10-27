@@ -8,8 +8,9 @@ const { PreparedBody } = require('./lib/prepared-body.cjs');
 const { Profile } = require('./lib/profile.cjs');
 const { Response } = require('./lib/response.cjs');
 const { ClientCertificate } = require('./lib/tls.cjs');
+const { WebSocketConnection } = require('./lib/websocket.cjs');
 
 module.exports = {
   AttemptBudget, Client, ClientCertificate, PhantomError, PreparedBody, Profile,
-  RequestDiagnostics, Response, TransferControl, profiles: () => native.profileIds(),
+  RequestDiagnostics, Response, TransferControl, WebSocketConnection, profiles: () => native.profileIds(),
 };

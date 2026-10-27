@@ -26,6 +26,29 @@ async function use(): Promise<void> {
   await client.close();
 }
 void use;
+async function websocket(): Promise<void> {
+  const client = new Client({profile: 'chrome-154-windows', route: 'direct'});
+  const socket = await client.websocket(new URL('wss://example.com/events'), {
+    protocol: 'profile', maximumFrameBytes: 1024, maximumMessageBytes: 1024,
+    maximumMessageFragments: 8, handshakeTimeoutMs: null,
+    headers: [{name: 'Sec-WebSocket-Protocol', value: Buffer.from('chat')}],
+    signal: new AbortController().signal,
+  });
+  await socket.send('text'); await socket.send(Buffer.from([0, 255]));
+  await socket.ping(); await socket.pong(Buffer.from('x'));
+  for await (const message of socket) {
+    if (message.type === 'text') message.data.toUpperCase();
+    else if (message.type === 'close') { const code: number | null = message.code; void code; }
+    else message.data.readUInt8(0);
+  }
+  await socket.close(1000, 'done'); socket.abort(); socket[Symbol.dispose]();
+  // @ts-expect-error WebSocket messages are complete strings or bytes.
+  await socket.send({data: 'invalid'});
+  // @ts-expect-error Negotiation for WebSockets follows the profile policy.
+  await client.websocket('wss://example.com', {protocol: 'negotiated'});
+  await client.close();
+}
+void websocket;
 async function requestConveniences(): Promise<void> {
   const defaults = [{name: 'x-client', value: Buffer.from('one')}] as const;
   const client = new Client({profile: 'exact', route: 'direct', context: 'raw', protocol: 'http1', headers: defaults});

@@ -1,0 +1,338 @@
+//! WebSocket registration and synchronous ownership of Node inputs.
+
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+
+use napi::{
+    Env, Result,
+    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer},
+};
+use napi_derive::napi;
+use phantom::{
+    HttpProtocol, WebSocketCloseFrame, WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder,
+    WebSocketRetryPolicy,
+};
+
+use super::{buffer::copy_buffer, options::WireHeader};
+use crate::{
+    client::ClientState,
+    error::failure,
+    websocket::{Socket, error},
+};
+
+/// Settings applied to the Rust opening handshake.
+#[derive(Debug)]
+#[napi(object)]
+pub struct WebSocketOptions {
+    /// Absolute ws or wss URI.
+    pub url: String,
+    /// Exact protocol or the profile's connection policy.
+    pub protocol: String,
+    /// Ordered caller fields filling the profile's opening template.
+    pub headers: Option<Vec<WireHeader>>,
+    /// Override in milliseconds; zero disables the handshake timeout.
+    pub handshake_timeout_ms: Option<u32>,
+    /// Largest accepted frame, in bytes.
+    pub maximum_frame_bytes: Option<u32>,
+    /// Largest accepted or sent complete message, in bytes.
+    pub maximum_message_bytes: Option<u32>,
+    /// Largest accepted fragment count per message.
+    pub maximum_message_fragments: Option<u32>,
+    /// Connection-setup failures retried; zero leaves retries disabled.
+    pub maximum_connection_failures: Option<u32>,
+    /// Delay before a caller-enabled setup retry.
+    pub retry_delay_ms: Option<u32>,
+}
+
+/// Validated opening response without a body.
+#[derive(Debug)]
+#[napi(object)]
+pub struct WebSocketHandshake {
+    /// Accepted opening response status.
+    pub status: u32,
+    /// Actual HTTP version used by the handshake.
+    pub protocol: String,
+    /// Server-selected subprotocol, if present.
+    pub selected_protocol: Option<String>,
+    /// Exact ordered response fields.
+    pub headers: Vec<WireHeader>,
+}
+
+/// One complete data message or control event.
+#[derive(Debug)]
+#[napi(object)]
+pub struct WebSocketEvent {
+    /// text, binary, ping, pong, or close.
+    pub kind: String,
+    /// UTF-8 text only for a text message.
+    pub text: Option<String>,
+    /// Owned bytes for binary, ping and pong messages.
+    pub data: Option<Buffer>,
+    /// Peer close code, when supplied.
+    pub code: Option<u32>,
+    /// Peer close reason, when supplied.
+    pub reason: Option<String>,
+}
+
+/// Native message connection, owned by one JavaScript wrapper.
+#[derive(Debug)]
+#[napi]
+pub struct NativeWebSocket {
+    pub(super) socket: Arc<Socket>,
+}
+
+#[napi]
+impl NativeWebSocket {
+    /// Creates an unopened owner so AbortSignal also covers setup.
+    #[napi(constructor)]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            socket: Socket::new(),
+        }
+    }
+
+    /// Receives at most one message; concurrent receives fail explicitly.
+    #[napi]
+    pub fn receive(&self, env: Env) -> Result<AsyncBlock<Option<WebSocketEvent>>> {
+        let socket = Arc::clone(&self.socket);
+        AsyncBlockBuilder::new(async move { socket.receive().await?.map(event).transpose() })
+            .build(&env)
+    }
+
+    /// Copies one bounded payload on this environment before asynchronous send.
+    // Payload alternatives stay fixed typed parameters at the Node-API boundary.
+    #[allow(clippy::too_many_arguments)]
+    #[napi]
+    pub fn send(
+        &self,
+        env: Env,
+        kind: String,
+        text: Option<String>,
+        data: Option<Buffer>,
+        code: Option<u32>,
+        reason: Option<String>,
+    ) -> Result<AsyncBlock<()>> {
+        let message = match kind.as_str() {
+            "text" => {
+                let text =
+                    text.ok_or_else(|| failure("InvalidArgument", "WebSocket text is required"))?;
+                if text.len() > 64 * 1024 * 1024 {
+                    return Err(failure("InputLimit", "WebSocket text exceeds 64 MiB"));
+                }
+                WebSocketMessage::Text(text)
+            }
+            "binary" | "ping" | "pong" => {
+                let maximum = if kind == "binary" {
+                    64 * 1024 * 1024
+                } else {
+                    125
+                };
+                let bytes = copy_buffer(
+                    &env,
+                    data.ok_or_else(|| failure("InvalidArgument", "WebSocket bytes are required"))?,
+                    maximum,
+                )?
+                .into();
+                match kind.as_str() {
+                    "binary" => WebSocketMessage::Binary(bytes),
+                    "ping" => WebSocketMessage::Ping(bytes),
+                    _ => WebSocketMessage::Pong(bytes),
+                }
+            }
+            "close" => {
+                let frame = code
+                    .map(|code| {
+                        let code = u16::try_from(code).map_err(|_| {
+                            failure("InvalidArgument", "WebSocket close code exceeds u16")
+                        })?;
+                        WebSocketCloseFrame::new(code, reason.unwrap_or_default()).map_err(error)
+                    })
+                    .transpose()?;
+                WebSocketMessage::Close(frame)
+            }
+            _ => return Err(failure("InvalidArgument", "unknown WebSocket message kind")),
+        };
+        let socket = Arc::clone(&self.socket);
+        AsyncBlockBuilder::new(async move { socket.send(message).await }).build(&env)
+    }
+
+    /// Drops only this upgraded connection or extended CONNECT stream.
+    #[napi]
+    pub fn abort(&self) {
+        self.socket.abort();
+    }
+}
+
+impl Default for NativeWebSocket {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for NativeWebSocket {
+    fn drop(&mut self) {
+        self.socket.abort();
+    }
+}
+
+pub(super) fn prepare(
+    env: &Env,
+    client: &ClientState,
+    mut options: WebSocketOptions,
+) -> Result<WebSocketRequestBuilder> {
+    client.check_open()?;
+    if options.url.len() > 64 * 1024 {
+        return Err(failure("InputLimit", "WebSocket URL exceeds 65536 bytes"));
+    }
+    let mut builder = match options.protocol.as_str() {
+        "profile" => client.core.websocket_with_profile_policy(&options.url),
+        "http1" => client
+            .core
+            .websocket_with_protocol(HttpProtocol::Http1, &options.url),
+        "http2" => client
+            .core
+            .websocket_with_protocol(HttpProtocol::Http2, &options.url),
+        "http3" => client
+            .core
+            .websocket_with_protocol(HttpProtocol::Http3, &options.url),
+        _ => {
+            return Err(failure(
+                "InvalidProtocol",
+                "WebSocket protocol must be profile, http1, http2 or http3",
+            ));
+        }
+    }
+    .map_err(error)?;
+    let defaults = WebSocketLimits::default();
+    let positive = |value: u32| {
+        NonZeroUsize::new(value as usize)
+            .ok_or_else(|| failure("InvalidArgument", "WebSocket limits must be positive"))
+    };
+    let message = options
+        .maximum_message_bytes
+        .map(positive)
+        .transpose()?
+        .unwrap_or(defaults.max_message_size());
+    let frame = options
+        .maximum_frame_bytes
+        .map(positive)
+        .transpose()?
+        .unwrap_or(defaults.max_frame_size().min(message));
+    if message.get() > 64 * 1024 * 1024 {
+        return Err(failure(
+            "InputLimit",
+            "WebSocket message limit exceeds 64 MiB",
+        ));
+    }
+    let mut limits = WebSocketLimits::new(frame, message).map_err(error)?;
+    if let Some(fragments) = options.maximum_message_fragments {
+        limits = limits.with_max_message_fragments(positive(fragments)?);
+    }
+    builder = builder.limits(limits);
+    if let Some(timeout) = options.handshake_timeout_ms {
+        builder = builder
+            .handshake_timeout((timeout != 0).then(|| Duration::from_millis(u64::from(timeout))));
+    }
+    if let Some(maximum) = options
+        .maximum_connection_failures
+        .filter(|maximum| *maximum != 0)
+    {
+        builder = builder.retry_policy(WebSocketRetryPolicy::connection_failures(
+            positive(maximum)?,
+            Duration::from_millis(u64::from(options.retry_delay_ms.unwrap_or(0))),
+        ));
+    }
+    let headers = options.headers.take().unwrap_or_default();
+    if headers.len() > 256 {
+        return Err(failure("InputLimit", "WebSocket headers exceed 256 fields"));
+    }
+    let mut remaining = 64 * 1024_usize;
+    for header in headers {
+        remaining = remaining
+            .checked_sub(header.name.len())
+            .ok_or_else(|| failure("InputLimit", "WebSocket headers exceed 65536 bytes"))?;
+        let bytes = copy_buffer(env, header.value, remaining)?;
+        remaining -= bytes.len();
+        let field = phantom::RequestHeader::new(header.name, bytes);
+        builder = builder.header(if header.sensitive.unwrap_or(false) {
+            field.sensitive()
+        } else {
+            field
+        });
+    }
+    Ok(builder)
+}
+
+pub(super) fn handshake(socket: &phantom::WebSocket) -> Result<WebSocketHandshake> {
+    let response = socket.handshake_response();
+    let protocol = match response.version() {
+        http::Version::HTTP_11 => "http1",
+        http::Version::HTTP_2 => "http2",
+        http::Version::HTTP_3 => "http3",
+        _ => {
+            return Err(failure(
+                "Internal",
+                "WebSocket handshake HTTP version is unsupported",
+            ));
+        }
+    };
+    let headers = response
+        .extensions()
+        .get::<phantom::OrderedResponseHeaders>()
+        .ok_or_else(|| {
+            failure(
+                "Internal",
+                "WebSocket ordered handshake fields are unavailable",
+            )
+        })?
+        .iter()
+        .map(|header| WireHeader {
+            name: header.name().to_owned(),
+            value: header.value().to_vec().into(),
+            sensitive: Some(header.is_sensitive()),
+        })
+        .collect();
+    Ok(WebSocketHandshake {
+        status: u32::from(response.status().as_u16()),
+        protocol: protocol.to_owned(),
+        selected_protocol: socket.selected_protocol().map(str::to_owned),
+        headers,
+    })
+}
+
+fn event(message: WebSocketMessage) -> Result<WebSocketEvent> {
+    let mut event = WebSocketEvent {
+        kind: String::new(),
+        text: None,
+        data: None,
+        code: None,
+        reason: None,
+    };
+    match message {
+        WebSocketMessage::Text(text) => {
+            event.kind = "text".to_owned();
+            event.text = Some(text);
+        }
+        WebSocketMessage::Binary(data) => {
+            event.kind = "binary".to_owned();
+            event.data = Some(data.to_vec().into());
+        }
+        WebSocketMessage::Ping(data) => {
+            event.kind = "ping".to_owned();
+            event.data = Some(data.to_vec().into());
+        }
+        WebSocketMessage::Pong(data) => {
+            event.kind = "pong".to_owned();
+            event.data = Some(data.to_vec().into());
+        }
+        WebSocketMessage::Close(frame) => {
+            event.kind = "close".to_owned();
+            if let Some(frame) = frame {
+                event.code = Some(u32::from(frame.code()));
+                event.reason = Some(frame.reason().to_owned());
+            }
+        }
+        _ => return Err(failure("Internal", "unsupported WebSocket message kind")),
+    }
+    Ok(event)
+}

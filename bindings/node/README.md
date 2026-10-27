@@ -203,6 +203,29 @@ applies; proxies never receive the identity. Owners are immutable and reusable
 across clients and forks. Checkpoints require matching receiving identities;
 private keys are neither exported nor serialized.
 
+## WebSockets
+
+`client.websocket()` uses the client's Rust profile, route, trust and cookies.
+It opens HTTP/1.1 by default. Choose `protocol: 'profile'` for the recipe's
+connection policy, or an exact `http2` or `http3` transport.
+
+```js
+const socket = await client.websocket('wss://example.com/events', {signal});
+try {
+  await socket.send('hello');
+  console.log(await socket.receive());
+  await socket.close();
+  await socket.receive();
+} finally { socket.abort(); }
+```
+
+Messages are `{type, data}` with strings for text and Buffers for binary,
+ping and pong. Close events have `code` and `reason`. Async iteration also
+works. Await sends for backpressure; one send and one receive may run together.
+Concurrent reads or writes fail. Ping replies are automatic. `close()` flushes
+a Close frame; receive its reply before aborting for graceful shutdown.
+The signal and client shutdown cancel the connection. Compression is off.
+
 ## Cookies and connections
 
 Cookies are opt-in with `cookies: true`. Use `setCookie`, `cookieValue` and

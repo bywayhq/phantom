@@ -18,6 +18,7 @@ use super::{
     options::{RequestOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
+    websocket::{NativeWebSocket, WebSocketHandshake, WebSocketOptions},
 };
 use crate::{
     client::ClientState,
@@ -35,6 +36,49 @@ pub struct NativeClient {
 
 #[napi]
 impl NativeClient {
+    /// Opens a WebSocket using this client's native profile, route and trust.
+    #[napi]
+    pub fn websocket(
+        &self,
+        env: Env,
+        options: WebSocketOptions,
+        socket: &NativeWebSocket,
+    ) -> Result<AsyncBlock<WebSocketHandshake>> {
+        let builder = super::websocket::prepare(&env, &self.state, options)?;
+        let permit = Arc::clone(&self.state.admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("Capacity", "client has no free request slots"))?;
+        let socket = Arc::clone(&socket.socket);
+        let permit = socket.claim(permit, Arc::clone(&self.state))?;
+        if let Err(error) = self.state.register_socket(&socket) {
+            socket.abort();
+            return Err(error);
+        }
+        let owner = Arc::clone(&socket);
+        let pending = AsyncBlockBuilder::new(async move {
+            let _permit = permit;
+            let result = async {
+                let connected = tokio::select! {
+                    biased;
+                    error = socket.interrupted() => return Err(error),
+                    result = builder.connect() => result.map_err(crate::websocket::error)?,
+                };
+                let handshake = super::websocket::handshake(&connected)?;
+                socket.attach(connected)?;
+                Ok(handshake)
+            }
+            .await;
+            if result.is_err() {
+                socket.abort();
+            }
+            result
+        })
+        .build(&env);
+        if pending.is_err() {
+            owner.abort();
+        }
+        pending
+    }
     /// Encrypts supported state off the JavaScript and async runtime workers.
     #[napi]
     pub fn export_session(&self, env: Env, secret: Buffer) -> Result<AsyncBlock<Buffer>> {
