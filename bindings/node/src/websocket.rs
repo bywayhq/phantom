@@ -119,10 +119,14 @@ impl Socket {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take();
-        self.owner
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take();
+        let owner = {
+            self.owner
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .take()
+        };
+        // The last client drop closes registered sockets and can re-enter here.
+        drop(owner);
     }
 
     pub(crate) async fn receive(self: &Arc<Self>) -> Result<Option<WebSocketMessage>> {

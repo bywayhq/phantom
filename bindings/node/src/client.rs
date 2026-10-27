@@ -440,6 +440,7 @@ mod tests {
                 shutdown_pending: AtomicBool::new(false),
                 closed: AtomicBool::new(false),
                 exchanges: Mutex::new(Vec::new()),
+                sockets: Mutex::new(Vec::new()),
             })
         };
         let environment = Environment::default();
@@ -467,6 +468,59 @@ mod tests {
         assert!(replacement.shutdown().is_err());
         drop(shutdown);
         assert!(replacement.is_quiescent());
+        Ok(())
+    }
+
+    #[test]
+    fn aborting_a_socket_releases_the_last_client_owner_without_deadlocking() -> Result<()> {
+        let identifier = if cfg!(windows) {
+            "chrome/154.0.8037.97/windows-11-26200/r1"
+        } else if cfg!(target_os = "macos") {
+            "chrome/154.0.8037.95/macos-15.5-arm64/r1"
+        } else {
+            "chrome/154.0.8037.57/android-17-pixel7-emulator/r1"
+        };
+        let profile = ProfileState::catalog(identifier, None)?;
+        let core = Client::builder(profile.settings.clone())
+            .build()
+            .map_err(|_| failure("TestProfile", "client could not be built"))?;
+        let admission = Arc::new(Semaphore::new(1));
+        let client = Arc::new(ClientState {
+            core,
+            profile,
+            admission: Arc::clone(&admission),
+            timeouts: phantom::RequestTimeouts::new(),
+            maximum: 1,
+            shutdown_pending: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
+            exchanges: Mutex::new(Vec::new()),
+            sockets: Mutex::new(Vec::new()),
+        });
+        let socket = crate::websocket::Socket::new();
+        let permit = Arc::clone(&admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("TestAdmission", "initial admission failed"))?;
+        drop(socket.claim(permit, Arc::clone(&client))?);
+        client.register_socket(&socket)?;
+        let weak = Arc::downgrade(&client);
+        drop(client);
+
+        let (finished, completion) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            socket.abort();
+            finished
+                .send(())
+                .map_err(|_| failure("TestSocket", "abort completion receiver was dropped"))
+        });
+        completion
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| failure("TestSocket", "abort did not release the last client owner"))?;
+        worker
+            .join()
+            .map_err(|_| failure("TestSocket", "abort thread panicked"))??;
+
+        assert!(weak.upgrade().is_none());
+        assert_eq!(admission.available_permits(), 1);
         Ok(())
     }
 }
