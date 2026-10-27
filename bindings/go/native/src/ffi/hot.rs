@@ -607,7 +607,7 @@ mod tests {
         let mut method = b"POST".to_vec();
         let mut url = b"http://localhost/".to_vec();
         let name = b"X-Case";
-        let mut value = vec![255, 0];
+        let mut value = [255, 0];
         let field = Field {
             name: Span {
                 pointer: name.as_ptr(),
@@ -703,20 +703,12 @@ mod tests {
     #[test]
     fn foreign_arrays_are_bounded_before_forming_slices() {
         let mut remaining = operations::MAX_COMMAND;
-        // SAFETY: These intentionally empty pointers are rejected before access.
-        assert_eq!(
-            unsafe { fields(ptr::null(), 1, &mut remaining) }
-                .err()
-                .map(|error| error.kind),
-            Some("input_limit")
-        );
-        // SAFETY: The oversized count is rejected before dereferencing this pointer.
-        assert_eq!(
-            unsafe { fields(ptr::null(), 257, &mut remaining) }
-                .err()
-                .map(|error| error.kind),
-            Some("input_limit")
-        );
+        // SAFETY: A nonzero count with a null pointer is rejected before access.
+        let missing = unsafe { fields(ptr::null(), 1, &mut remaining) };
+        assert_eq!(missing.err().map(|error| error.kind), Some("input_limit"));
+        // SAFETY: The oversized count is rejected before dereferencing the pointer.
+        let oversized = unsafe { fields(ptr::null(), 257, &mut remaining) };
+        assert_eq!(oversized.err().map(|error| error.kind), Some("input_limit"));
         assert_eq!(remaining, operations::MAX_COMMAND);
     }
 
