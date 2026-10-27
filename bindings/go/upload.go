@@ -85,7 +85,13 @@ func (u *uploadLifetime) start() {
 }
 
 func (u *uploadLifetime) write(bytes []byte, end *bool) error {
-	return performSubmitted(u.ctx, func() (uint64, error) { return submitOperation(2, u.id, boolean(end != nil && *end), bytes) }, nil, func(completion) error { return nil })
+	return performSubmitted(u.ctx, func() (uint64, error) {
+		argument := uint64(0)
+		if end != nil {
+			argument = 1 + boolean(*end)
+		}
+		return submitOperation(2, u.id, argument, bytes)
+	}, nil, func(completion) error { return nil })
 }
 
 func (u *uploadLifetime) produce() {

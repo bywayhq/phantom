@@ -8,7 +8,7 @@ use super::Failure;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Limits {
+pub(crate) struct Limits {
     upload_bytes: Option<u64>,
     download_bytes: Option<u64>,
     upload_bytes_per_second: Option<u64>,

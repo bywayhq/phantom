@@ -808,13 +808,28 @@ pub(super) fn dispatch(input: &[u8], bytes: &[u8]) -> Vec<u8> {
         })();
         return result.unwrap_or_else(failure);
     }
-    encode(execute(command, bytes))
+    encode(execute(command, bytes).map(Execution::json))
 }
 
-pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> {
+pub(crate) enum Execution {
+    Operation(u64),
+    Complete,
+    Json(Value),
+}
+impl Execution {
+    fn json(self) -> Value {
+        match self {
+            Self::Operation(id) => json!({"operation":id}),
+            Self::Complete => json!({}),
+            Self::Json(value) => value,
+        }
+    }
+}
+
+pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failure> {
     (|| {
         if matches!(command, Command::Identity) {
-            return Ok(native_identity());
+            return Ok(Execution::Json(native_identity()));
         }
         // Preparation owns CPU work and needs neither an HTTP runtime nor its lock.
         let mut multipart = None;
@@ -825,14 +840,15 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 certificate_chain,
                 private_key,
             } => {
-                return client_certificate::parse(format, certificate_chain, private_key, bytes);
+                return client_certificate::parse(format, certificate_chain, private_key, bytes)
+                    .map(Execution::Json);
             }
             Command::ReleaseClientCertificate { certificate } => {
-                return client_certificate::release(certificate);
+                return client_certificate::release(certificate).map(Execution::Json);
             }
             Command::MultipartContentType { boundary } => {
                 return crate::multipart::content_type(&boundary)
-                    .map(|content_type| json!({"content_type": content_type}));
+                    .map(|content_type| Execution::Json(json!({"content_type": content_type})));
             }
             Command::NewMultipart {
                 client,
@@ -850,10 +866,10 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 }
             }
             Command::PrepareBody { encoding, maximum } => {
-                return prepared_body::prepare(encoding, bytes, maximum);
+                return prepared_body::prepare(encoding, bytes, maximum).map(Execution::Json);
             }
             Command::ReleasePreparedBody { prepared_body } => {
-                return prepared_body::release(prepared_body);
+                return prepared_body::release(prepared_body).map(Execution::Json);
             }
             command => command,
         };
@@ -888,7 +904,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
             return Err(Failure::new("internal"));
         }
         match command {
-            Command::Identity => Ok(native_identity()),
+            Command::Identity => Ok(Execution::Json(native_identity())),
             Command::PrepareBody { .. }
             | Command::ReleasePreparedBody { .. }
             | Command::ParseClientCertificate { .. }
@@ -902,12 +918,14 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 let client = NativeClient::new(config)?;
                 let id = state.id()?;
                 state.clients.insert(id, client);
-                Ok(json!({"id":id}))
+                Ok(Execution::Json(json!({"id":id})))
             }
-            Command::ForkClient { client, sharing } => state.fork_client(client, sharing),
+            Command::ForkClient { client, sharing } => {
+                state.fork_client(client, sharing).map(Execution::Json)
+            }
             Command::ReleaseClient { client } => {
                 state.release_client(client);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::NewBudget { maximum } => {
                 if state.budgets.len() >= MAX_HANDLES {
@@ -915,15 +933,15 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 }
                 let id = state.id()?;
                 state.budgets.insert(id, HttpAttemptBudget::new(maximum));
-                Ok(json!({"id":id}))
+                Ok(Execution::Json(json!({"id":id})))
             }
             Command::ReleaseBudget { budget } => {
                 state.budgets.remove(&budget);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
-            Command::BudgetRemaining { budget } => Ok(
+            Command::BudgetRemaining { budget } => Ok(Execution::Json(
                 json!({"remaining":state.budgets.get(&budget).ok_or_else(|| Failure::new("invalid_handle"))?.remaining()}),
-            ),
+            )),
             Command::BudgetAdmit { budget } => {
                 state
                     .budgets
@@ -931,7 +949,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     .ok_or_else(|| Failure::new("invalid_handle"))?
                     .try_admit()
                     .map_err(|_| Failure::new("attempt_budget_exhausted"))?;
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::NewTransfer { limits } => {
                 let control = limits.control()?;
@@ -940,18 +958,18 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 }
                 let id = state.id()?;
                 state.transfers.insert(id, control);
-                Ok(json!({"id": id}))
+                Ok(Execution::Json(json!({"id": id})))
             }
             Command::ReleaseTransfer { transfer } => {
                 state.transfers.remove(&transfer);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::TransferSnapshot { transfer } => {
                 let control = state
                     .transfers
                     .get(&transfer)
                     .ok_or_else(|| Failure::new("invalid_handle"))?;
-                Ok(transfer::snapshot(control))
+                Ok(Execution::Json(transfer::snapshot(control)))
             }
             Command::NewDiagnostics { maximum } => {
                 let owner = diagnostics::Owner::new(maximum)?;
@@ -960,11 +978,11 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 }
                 let id = state.id()?;
                 state.diagnostics.insert(id, std::sync::Arc::new(owner));
-                Ok(json!({"id": id}))
+                Ok(Execution::Json(json!({"id": id})))
             }
             Command::ReleaseDiagnostics { diagnostics } => {
                 state.diagnostics.remove(&diagnostics);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::DiagnosticsSnapshot { .. } => Err(Failure::new("internal")),
             Command::CookieSet { client, url, value } => {
@@ -977,11 +995,11 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     .ok_or_else(|| Failure::new("cookies_disabled"))?
                     .set_cookie(&url, &value)
                     .map_err(|_| Failure::new("invalid_cookie"))?;
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
-            Command::CookieGet { client, url } => Ok(
+            Command::CookieGet { client, url } => Ok(Execution::Json(
                 json!({"cookie":state.clients.get(&client).ok_or_else(|| Failure::new("invalid_handle"))?.client.cookie_jar().ok_or_else(|| Failure::new("cookies_disabled"))?.request_value(&url).map_err(|_| Failure::new("invalid_cookie_url"))?}),
-            ),
+            )),
             Command::CookieClear { client } => {
                 state
                     .clients
@@ -991,7 +1009,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     .cookie_jar()
                     .ok_or_else(|| Failure::new("cookies_disabled"))?
                     .clear();
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::NewUpload { client, length } => {
                 let owner = state
@@ -1009,7 +1027,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     id,
                     Upload::with_multipart(client, length, multipart, multipart_buffer),
                 );
-                Ok(json!({"id": id}))
+                Ok(Execution::Json(json!({"id": id})))
             }
             Command::WriteUpload { upload, end } => {
                 if (end.is_some() && !bytes.is_empty())
@@ -1028,7 +1046,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 global.spawn(id, cancel, async move {
                     owner.write(bytes, end).await.map(|()| Outcome::Complete)
                 });
-                Ok(json!({"operation": id}))
+                Ok(Execution::Operation(id))
             }
             Command::WaitUpload { upload } => {
                 let owner = state
@@ -1042,7 +1060,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     owner.closed().await;
                     Ok(Outcome::Complete)
                 });
-                Ok(json!({"operation": id}))
+                Ok(Execution::Operation(id))
             }
             Command::WaitUploadPart { upload } => {
                 let owner = state
@@ -1055,13 +1073,13 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 global.spawn(id, cancel, async move {
                     owner.next_part().await.map(Outcome::Part)
                 });
-                Ok(json!({"operation": id}))
+                Ok(Execution::Operation(id))
             }
             Command::CloseUpload { upload } => {
                 if let Some(owner) = state.streams.remove(&upload) {
                     owner.close();
                 }
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::ClearState { client, category } => {
                 let client = &state
@@ -1078,14 +1096,14 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                         let removed = client
                             .clear_session_tickets()
                             .map_err(|_| Failure::new("session_tickets"))?;
-                        return Ok(json!({"removed":removed}));
+                        return Ok(Execution::Json(json!({"removed":removed})));
                     }
                 }
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::Cancel { operation } => {
                 state.cancel(operation);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::Ack { operation } => {
                 let op = state
@@ -1096,11 +1114,11 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     return Err(Failure::new("operation_pending"));
                 }
                 state.operations.remove(&operation);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::CloseBody { body } => {
                 state.close_body(body);
-                Ok(json!({}))
+                Ok(Execution::Complete)
             }
             Command::Request {
                 client,
@@ -1242,7 +1260,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     })?;
                     response_head(response, client, permit, stream_upload).map(Outcome::Head)
                 });
-                Ok(json!({"operation":id}))
+                Ok(Execution::Operation(id))
             }
             Command::Read { body, maximum } => {
                 if maximum == 0 || maximum > MAX_CHUNK {
@@ -1271,7 +1289,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                 global.spawn(id, cancel, async move {
                     lease.read(maximum).await.map(Outcome::Read)
                 });
-                Ok(json!({"operation":id}))
+                Ok(Execution::Operation(id))
             }
             Command::Shutdown { client } => {
                 let entry = state
@@ -1286,7 +1304,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     native.shutdown().await;
                     Ok(Outcome::Complete)
                 });
-                Ok(json!({"operation":id}))
+                Ok(Execution::Operation(id))
             }
             Command::Maintain { client, action } => {
                 let entry = state
@@ -1306,7 +1324,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Value, Failure> 
                     }
                     Ok(Outcome::Complete)
                 });
-                Ok(json!({"operation":id}))
+                Ok(Execution::Operation(id))
             }
         }
     })()

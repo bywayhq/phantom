@@ -319,14 +319,16 @@ unsafe fn request(value: &Request) -> Result<Command, Failure> {
         upload: (value.upload != 0).then_some(value.upload),
     })
 }
-fn submitted(result: Result<serde_json::Value, Failure>) -> Reply {
+fn submitted(result: Result<operations::Execution, Failure>) -> Reply {
     match result {
-        Ok(value) => Reply {
-            operation: value
-                .get("operation")
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or(0),
+        Ok(operations::Execution::Operation(operation)) => Reply {
+            operation,
             error: Error::default(),
+        },
+        Ok(operations::Execution::Complete) => Reply::default(),
+        Ok(operations::Execution::Json(_)) => Reply {
+            operation: 0,
+            error: Failure::new("internal").into(),
         },
         Err(error) => Reply {
             operation: 0,
@@ -390,9 +392,9 @@ unsafe extern "C" fn phantom_go_operation(
                 body: id,
                 maximum: usize::try_from(argument).map_err(|_| Failure::new("chunk_size"))?,
             },
-            2 => Command::WriteUpload {
+            2 if argument <= 2 => Command::WriteUpload {
                 upload: id,
-                end: Some(argument != 0),
+                end: (argument != 0).then_some(argument == 2),
             },
             3 => Command::WaitUpload { upload: id },
             4 => Command::WaitUploadPart { upload: id },
