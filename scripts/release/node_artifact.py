@@ -21,6 +21,7 @@ SOURCES = (
     "index.d.mts",
     "README.md",
     "lib/bytes.cjs",
+    "lib/bytes.d.cts",
     "lib/client.cjs",
     "lib/controls.cjs",
     "lib/errors.cjs",
