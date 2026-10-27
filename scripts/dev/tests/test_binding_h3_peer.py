@@ -32,6 +32,7 @@ class H3PeerEnvironmentTests(unittest.TestCase):
             "PHANTOM_H3_PEER_PYTHON": str(self.python),
             "PHANTOM_H3_PEER_SCRIPT": "stale-script",
             "PHANTOM_HEADER_H3_PEER_SCRIPT": "stale-header-script",
+            "PHANTOM_WEBSOCKET_H3_PEER_SCRIPT": "stale-websocket-script",
             "PHANTOM_GO_LIBRARY": "retained-library",
         }
         with patch.object(
@@ -60,6 +61,13 @@ class H3PeerEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             environment["PHANTOM_HEADER_H3_PEER_SCRIPT"], "stale-header-script"
+        )
+        self.assertEqual(
+            result["PHANTOM_WEBSOCKET_H3_PEER_SCRIPT"],
+            str(staging / "binding_websocket_h3.py"),
+        )
+        self.assertEqual(
+            environment["PHANTOM_WEBSOCKET_H3_PEER_SCRIPT"], "stale-websocket-script"
         )
 
     def test_unsupported_runtime_fails_before_exposing_peer_files(self):

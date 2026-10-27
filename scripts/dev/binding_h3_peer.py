@@ -11,6 +11,7 @@ from pathlib import Path
 PEER_FILES = (
     "binding_upload_h3.py",
     "binding_headers_h3.py",
+    "binding_websocket_h3.py",
     "aioquic_versions.py",
     "loopback_tls.py",
 )
@@ -59,6 +60,9 @@ def peer_environment(root, directory, environment=None):
     environment["PHANTOM_H3_PEER_PYTHON"] = str(python)
     environment["PHANTOM_H3_PEER_SCRIPT"] = str(peer / PEER_FILES[0])
     environment["PHANTOM_HEADER_H3_PEER_SCRIPT"] = str(peer / "binding_headers_h3.py")
+    environment["PHANTOM_WEBSOCKET_H3_PEER_SCRIPT"] = str(
+        peer / "binding_websocket_h3.py"
+    )
     return environment
 
 
