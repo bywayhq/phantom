@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use phantom::{SseError, SseErrorKind, SseLimits, SseStream};
 use pyo3::prelude::*;
 
-use super::{BodyOwner, EXPIRED, OPEN, ReadLease, Stream};
+use super::{BodyOwner, COMPLETE, OPEN, ReadLease, Stream};
 use crate::error;
 
 #[derive(Default)]
@@ -93,7 +93,7 @@ impl NativeEventStream {
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
             let Some(Stream::Events(stream)) = lease.stream.as_mut() else {
-                if owner.state.load(std::sync::atomic::Ordering::SeqCst) == EXPIRED {
+                if owner.state.load(std::sync::atomic::Ordering::SeqCst) != COMPLETE {
                     return Err(owner.closed_error());
                 }
                 return Ok(None::<(String, String, String)>);

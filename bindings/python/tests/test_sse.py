@@ -183,6 +183,19 @@ class SyncEventTests(unittest.TestCase):
 
 
 class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
+    async def test_client_abort_is_an_error_instead_of_event_eof(self):
+        with server(EventHandler) as (_, url):
+            client = AsyncClient(profile=PROFILE, protocol="h1", context="raw")
+            try:
+                response = await client.get(url + "/events")
+                events = response.events()
+                await client.abort()
+                with self.assertRaises(Error) as failure:
+                    await anext(events)
+                self.assertEqual(failure.exception.kind, "body_closed")
+            finally:
+                await client.abort()
+
     async def test_rejected_upload_producer_close_keeps_native_events_readable(self):
         with H2Peer(event_stream=True) as peer:
             async with AsyncClient(
