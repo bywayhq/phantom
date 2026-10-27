@@ -136,6 +136,8 @@ pub(crate) enum Command {
         client: u64,
         method: String,
         url: String,
+        #[serde(default)]
+        context: crate::policy::RequestContext,
         headers: Vec<Header>,
         #[serde(default)]
         trailers: Vec<Header>,
@@ -1159,6 +1161,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                 client,
                 method,
                 url,
+                context,
                 headers,
                 trailers,
                 expect_continue_nanoseconds,
@@ -1212,6 +1215,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                         headers,
                         budget,
                         RequestPolicy {
+                            context,
                             timeouts,
                             content_decoding,
                             redirects: redirect_policy,

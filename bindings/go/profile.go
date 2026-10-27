@@ -20,8 +20,8 @@ func (*Profile) String() string   { return "phantom.Profile([redacted])" }
 func (*Profile) GoString() string { return "phantom.Profile([redacted])" }
 
 // NewCatalogProfile instantiates an exact catalog identifier. An empty context
-// attaches no template; a named context attaches navigation, fetch,
-// fetchNoStore or fetchUpload. Client Config.Context still selects how it is used.
+// attaches no template; a named context attaches an available request template.
+// Client Config.Context still selects how it is used.
 func NewCatalogProfile(identifier, context string) (*Profile, error) {
 	if len(identifier) > 64*1024 || len(context) > 64*1024-len(identifier) {
 		return nil, &Error{Kind: "input_limit"}

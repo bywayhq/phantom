@@ -74,6 +74,10 @@ fn template_kind(context: &str) -> Result<RequestTemplateKind, Failure> {
         "fetch" => Ok(RequestTemplateKind::Fetch),
         "fetchNoStore" => Ok(RequestTemplateKind::FetchNoStore),
         "fetchUpload" => Ok(RequestTemplateKind::FetchUpload),
+        "script" => Ok(RequestTemplateKind::Script),
+        "stylesheet" => Ok(RequestTemplateKind::Stylesheet),
+        "image" => Ok(RequestTemplateKind::Image),
+        "font" => Ok(RequestTemplateKind::Font),
         _ => Err(Failure::new("invalid_context")),
     }
 }

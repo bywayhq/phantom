@@ -121,6 +121,34 @@ func boolean(value bool) uint64 {
 	}
 	return 0
 }
+
+func requestContextFlags(context string) (uint64, error) {
+	var code uint64
+	switch context {
+	case "":
+	case "raw":
+		code = 1
+	case "navigation":
+		code = 2
+	case "fetch":
+		code = 3
+	case "fetchNoStore":
+		code = 4
+	case "fetchUpload":
+		code = 5
+	case "script":
+		code = 6
+	case "stylesheet":
+		code = 7
+	case "image":
+		code = 8
+	case "font":
+		code = 9
+	default:
+		return 0, &Error{Kind: "invalid_context"}
+	}
+	return code << 5, nil
+}
 func pointed(value *uint64) uint64 {
 	if value == nil {
 		return 0

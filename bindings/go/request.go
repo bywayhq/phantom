@@ -13,6 +13,10 @@ type Request struct {
 	Method  string
 	URL     string
 	Headers []Header
+	// Context selects this request's catalog template: navigation, fetch,
+	// fetchNoStore, fetchUpload, script, stylesheet, image or font.
+	// Empty inherits the client default; raw sends without a template.
+	Context string
 	// Trailers are emitted after the body, in order. HTTP/1 uses chunked coding;
 	// HTTP/2 and HTTP/3 require lowercase names. Invalid framing fails before I/O.
 	Trailers []Header
@@ -106,6 +110,10 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
 	}
+	contextFlags, err := requestContextFlags(request.Context)
+	if err != nil {
+		return nil, err
+	}
 	if len(request.Body) > maxUpload {
 		return nil, &Error{Kind: "upload_limit"}
 	}
@@ -197,7 +205,7 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 		Client: c.id.Load(), Method: borrowedString(request.Method), URL: borrowedString(request.URL),
 		Headers: unsafe.Pointer(unsafe.SliceData(headers)), HeaderCount: uint64(len(headers)),
 		Trailers: unsafe.Pointer(unsafe.SliceData(trailers)), TrailerCount: uint64(len(trailers)),
-		Flags: boolean(request.Body != nil), Budget: pointed(budget), Transfer: pointed(transfer), PreparedBody: pointed(prepared),
+		Flags: boolean(request.Body != nil) | contextFlags, Budget: pointed(budget), Transfer: pointed(transfer), PreparedBody: pointed(prepared),
 	}
 	for i, value := range []wireTimeout{timeouts.PoolAdmission, timeouts.Connect, timeouts.ResponseHead, timeouts.ReadIdle, timeouts.Total} {
 		mode := uint64(0)

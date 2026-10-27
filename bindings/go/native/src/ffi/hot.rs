@@ -252,7 +252,7 @@ unsafe fn retries(pointer: *const Retry) -> Result<Option<retry::RetryPolicy>, F
     }))
 }
 unsafe fn request(value: &Request) -> Result<Command, Failure> {
-    if value.flags & !31 != 0
+    if value.flags & !511 != 0
         || value.trailer_count > 256
         || value.header_count > 256 - value.trailer_count
         || value.credential_header_count > 256
@@ -260,6 +260,7 @@ unsafe fn request(value: &Request) -> Result<Command, Failure> {
     {
         return Err(Failure::new("input_limit"));
     }
+    let context = policy::RequestContext::from_code((value.flags >> 5) & 15)?;
     let mut remaining = operations::MAX_COMMAND;
     // SAFETY: Every nested span is lent only for this call; helpers copy it.
     let (method, url, headers, trailers) = unsafe {
@@ -287,6 +288,7 @@ unsafe fn request(value: &Request) -> Result<Command, Failure> {
         client: value.client,
         method,
         url,
+        context,
         headers,
         trailers,
         expect_continue_nanoseconds: (value.flags & 2 != 0).then_some(value.expect_continue),
@@ -619,7 +621,7 @@ mod tests {
             },
             sensitive: 1,
         };
-        let wire = Request {
+        let mut wire = Request {
             client: 1,
             method: Span {
                 pointer: method.as_ptr(),
@@ -633,7 +635,7 @@ mod tests {
             header_count: 1,
             trailers: ptr::null(),
             trailer_count: 0,
-            flags: 3,
+            flags: 3 | (5 << 5),
             expect_continue: 0,
             budget: 7,
             transfer: 0,
@@ -664,6 +666,7 @@ mod tests {
             budget,
             timeouts,
             expect_continue_nanoseconds,
+            context,
             ..
         } = command
         else {
@@ -677,10 +680,21 @@ mod tests {
         assert!(has_body);
         assert_eq!(budget, Some(7));
         assert_eq!(expect_continue_nanoseconds, Some(0));
+        assert_eq!(context, policy::RequestContext::FetchUpload);
         assert_eq!(
             timeouts.defaults().total_duration(),
             Some(std::time::Duration::ZERO)
         );
+        for code in 10..16 {
+            wire.flags = code << 5;
+            wire.method = Span {
+                pointer: ptr::null(),
+                length: 1,
+            };
+            // SAFETY: Invalid context codes are rejected before nested storage is read.
+            let error = unsafe { request(&wire) }.err();
+            assert_eq!(error.map(|error| error.kind), Some("invalid_context"));
+        }
         Ok(())
     }
 

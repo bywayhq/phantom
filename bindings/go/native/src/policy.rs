@@ -2,6 +2,58 @@ use crate::{error::Failure, timeouts::Timeouts};
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(super) enum RequestContext {
+    #[default]
+    Inherit,
+    Raw,
+    Navigation,
+    Fetch,
+    FetchNoStore,
+    FetchUpload,
+    Script,
+    Stylesheet,
+    Image,
+    Font,
+}
+
+impl RequestContext {
+    pub(super) fn from_code(code: u64) -> Result<Self, Failure> {
+        match code {
+            0 => Ok(Self::Inherit),
+            1 => Ok(Self::Raw),
+            2 => Ok(Self::Navigation),
+            3 => Ok(Self::Fetch),
+            4 => Ok(Self::FetchNoStore),
+            5 => Ok(Self::FetchUpload),
+            6 => Ok(Self::Script),
+            7 => Ok(Self::Stylesheet),
+            8 => Ok(Self::Image),
+            9 => Ok(Self::Font),
+            _ => Err(Failure::new("invalid_context")),
+        }
+    }
+
+    fn apply(self, request: phantom::RequestBuilder) -> Result<phantom::RequestBuilder, Failure> {
+        use phantom_profile::catalog::RequestTemplateKind;
+
+        let kind = match self {
+            Self::Inherit => return Ok(request),
+            Self::Raw => return Ok(request.without_template()),
+            Self::Navigation => RequestTemplateKind::Navigation,
+            Self::Fetch => RequestTemplateKind::Fetch,
+            Self::FetchNoStore => RequestTemplateKind::FetchNoStore,
+            Self::FetchUpload => RequestTemplateKind::FetchUpload,
+            Self::Script => RequestTemplateKind::Script,
+            Self::Stylesheet => RequestTemplateKind::Stylesheet,
+            Self::Image => RequestTemplateKind::Image,
+            Self::Font => RequestTemplateKind::Font,
+        };
+        request.context(kind).map_err(Failure::from)
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum ContentDecoding {
@@ -27,6 +79,7 @@ impl ContentDecoding {
 }
 
 pub(super) struct RequestPolicy {
+    pub(super) context: RequestContext,
     pub(super) timeouts: Timeouts,
     pub(super) content_decoding: ContentDecoding,
     pub(super) redirects: Option<RedirectPolicy>,
@@ -39,6 +92,7 @@ impl RequestPolicy {
         self,
         mut request: phantom::RequestBuilder,
     ) -> Result<phantom::RequestBuilder, Failure> {
+        request = self.context.apply(request)?;
         request = request
             .timeouts(self.timeouts.overrides())
             .content_decoding(self.content_decoding.core());

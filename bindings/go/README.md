@@ -42,6 +42,21 @@ This example uses Chrome's Windows settings. Choose other profiles from the
 open for later requests and call `Do` from any goroutine. The navigation context
 supplies page-load headers for each request.
 
+Set `Request.Context` when a request needs different headers:
+
+```go
+response, err := client.Do(ctx, phantom.Request{
+    Method: "GET", URL: "https://example.com/api", Context: "fetch",
+})
+```
+
+The same client keeps its connections and session. An empty request context
+inherits the client default; `"raw"` omits the template for that request.
+Available contexts are `"navigation"`, `"fetch"`, `"fetchNoStore"`, `"fetchUpload"`,
+`"script"`, `"stylesheet"`, `"image"` and `"font"`, depending on the profile.
+Supply required fields such as `Referer` and `Origin` in `Request.Headers`.
+Unavailable contexts return a `request_template` error before sending.
+
 ## Install
 
 There are no public module tags or registry releases yet. Download a matching
