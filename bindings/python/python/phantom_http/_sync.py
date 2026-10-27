@@ -426,41 +426,10 @@ class Client:
             and not isinstance(body, (bytes, PreparedBody, StreamingMultipartBody))
             else body
         )
-        if isinstance(source, StreamingMultipartBody):
-            return Response(
-                self,
-                self._run(
-                    lambda: self._async._request(
-                        method,
-                        url,
-                        context=context,
-                        params=params,
-                        json=json,
-                        form=form,
-                        maximum_body_bytes=maximum_body_bytes,
-                        headers=headers,
-                        trailers=trailers,
-                        expect_continue_ms=expect_continue_ms,
-                        body=source,
-                        body_length=body_length,
-                        upload=upload,
-                        budget=budget,
-                        timeout_ms=timeout_ms,
-                        timeouts=timeouts,
-                        content_decoding=content_decoding,
-                        redirect_policy=redirect_policy,
-                        redirect_history_limit=redirect_history_limit,
-                        retry_policy=retry_policy,
-                        transfer_control=transfer_control,
-                        diagnostics=diagnostics,
-                        _synchronous=True,
-                    )
-                ),
-            )
         return Response(
             self,
             self._run(
-                lambda: self._async.request(
+                lambda: self._async._request(
                     method,
                     url,
                     context=context,
@@ -483,6 +452,7 @@ class Client:
                     retry_policy=retry_policy,
                     transfer_control=transfer_control,
                     diagnostics=diagnostics,
+                    _synchronous=True,
                 )
             ),
         )

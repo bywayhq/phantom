@@ -121,7 +121,7 @@ class TransferMappingTests(unittest.IsolatedAsyncioTestCase):
             def __init__(self, **_):
                 pass
 
-            async def request(self, *_, **options):
+            async def _request(self, *_, _synchronous=False, **options):
                 calls.append(options)
                 return types.SimpleNamespace(status=200, protocol="h1", headers=[])
 

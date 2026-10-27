@@ -92,6 +92,13 @@ class _RequestFields(TypedDict, total=False):
     context: _RequestContext
     redirect_credential_headers: tuple[str, ...]
     diagnostics: _native.NativeRequestDiagnostics
+    multipart: _native.NativeStreamingMultipart
+    prepared_body: _native.NativePreparedBody
+    body_length: int
+    producer: _native.NativeUpload
+    transfer_control: _native.NativeTransferControl
+    trailers: list[tuple[str, bytes, bool]]
+    expect_continue_ms: int
 
 
 class _ClientFields(TypedDict, total=False):
@@ -535,16 +542,33 @@ class AsyncClient:
                     pump.settled.add_done_callback(
                         lambda _: self._uploads.discard(pump)
                     )
-            diagnostic_fields: _RequestFields = {}
+            native_fields: _RequestFields = {}
             if context is not None:
-                diagnostic_fields["context"] = context
+                native_fields["context"] = context
             if diagnostics is not None:
-                diagnostic_fields["diagnostics"] = diagnostics._native
+                native_fields["diagnostics"] = diagnostics._native
             if redirect_policy is not None and redirect_policy.credential_headers:
-                diagnostic_fields["redirect_credential_headers"] = (
+                native_fields["redirect_credential_headers"] = (
                     redirect_policy.credential_headers
                 )
-            arguments = (
+
+            if multipart is not None:
+                native_fields["multipart"] = cast(_multipart.Upload, pump).native
+            elif prepared is not None:
+                native_fields["prepared_body"] = prepared._native
+                if body_length is not None:
+                    native_fields["body_length"] = body_length
+            elif pump is not None:
+                native_fields["producer"] = cast("_native.NativeUpload", pump.native)
+
+            if transfer_control is not None:
+                native_fields["transfer_control"] = transfer_control._native
+            if ordered_trailers:
+                native_fields["trailers"] = ordered_trailers
+            if expect_continue_ms is not None:
+                native_fields["expect_continue_ms"] = expect_continue_ms
+
+            native = await self._native.request(
                 method,
                 url,
                 ordered,
@@ -561,63 +585,8 @@ class AsyncClient:
                 None if redirect_policy is None else redirect_policy.maximum_hops,
                 redirect_history_limit,
                 retry_policy,
+                **native_fields,
             )
-            if multipart is not None:
-                operation = self._native.request(
-                    *arguments,
-                    **diagnostic_fields,
-                    multipart=cast(_multipart.Upload, pump).native,
-                    transfer_control=None
-                    if transfer_control is None
-                    else transfer_control._native,
-                    trailers=ordered_trailers,
-                    expect_continue_ms=expect_continue_ms,
-                )
-            elif prepared is not None:
-                operation = self._native.request(
-                    *arguments,
-                    **diagnostic_fields,
-                    prepared_body=prepared._native,
-                    body_length=body_length,
-                    transfer_control=None
-                    if transfer_control is None
-                    else transfer_control._native,
-                    trailers=ordered_trailers,
-                    expect_continue_ms=expect_continue_ms,
-                )
-            elif ordered_trailers or expect_continue_ms is not None:
-                operation = self._native.request(
-                    *arguments,
-                    **diagnostic_fields,
-                    producer=None
-                    if pump is None
-                    else cast("_native.NativeUpload", pump.native),
-                    transfer_control=None
-                    if transfer_control is None
-                    else transfer_control._native,
-                    trailers=ordered_trailers,
-                    expect_continue_ms=expect_continue_ms,
-                )
-            elif transfer_control is not None:
-                operation = self._native.request(
-                    *arguments,
-                    **diagnostic_fields,
-                    producer=None
-                    if pump is None
-                    else cast("_native.NativeUpload", pump.native),
-                    transfer_control=transfer_control._native,
-                )
-            else:
-                operation = (
-                    self._native.request(*arguments, **diagnostic_fields)
-                    if pump is None
-                    else self._native.request(
-                        *arguments,
-                        producer=cast("_native.NativeUpload", pump.native),
-                        **diagnostic_fields,
-                    )
-                )
-            native = await operation
             return AsyncResponse(native, pump)
         except BaseException as error:
             if pump is not None:

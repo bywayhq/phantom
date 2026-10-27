@@ -203,7 +203,7 @@ class SignatureTests(unittest.TestCase):
                 self._uploads = set()
                 constructors.append(options)
 
-            async def request(self, method, url, **options):
+            async def _request(self, method, url, *, _synchronous=False, **options):
                 requests.append((method, url, options))
                 return types.SimpleNamespace(status=200, protocol="h1", headers=[])
 

@@ -6,19 +6,45 @@ from test_upload_errors import FACADE, NativeResponse
 
 
 class RequestFieldTests(unittest.IsolatedAsyncioTestCase):
-    async def test_order_duplicates_sensitivity_zero_and_omitted_call_shape(self):
+    async def test_order_duplicates_sensitivity_and_expect_continue_defaults(self):
         calls = []
 
         class NativeClient:
             cookies = object()
 
-            async def request(self, *arguments, **options):
-                calls.append((arguments, options))
+            async def request(
+                self,
+                *arguments,
+                producer=None,
+                transfer_control=None,
+                trailers=None,
+                expect_continue_ms=None,
+            ):
+                calls.append(
+                    (
+                        arguments,
+                        {
+                            "producer": producer,
+                            "transfer_control": transfer_control,
+                            "trailers": trailers,
+                            "expect_continue_ms": expect_continue_ms,
+                        },
+                    )
+                )
                 return NativeResponse()
 
         client = FACADE.AsyncClient._from_native(NativeClient())
         await client.request("POST", "http://origin.invalid", body=b"data")
-        self.assertEqual(calls[-1][1], {})
+        self.assertEqual(calls[-1][0][3], b"data")
+        self.assertEqual(
+            calls[-1][1],
+            {
+                "producer": None,
+                "transfer_control": None,
+                "trailers": None,
+                "expect_continue_ms": None,
+            },
+        )
         await client.request(
             "POST",
             "http://origin.invalid",
@@ -40,7 +66,10 @@ class RequestFieldTests(unittest.IsolatedAsyncioTestCase):
             },
         )
         await client.request("POST", "http://origin.invalid", trailers=())
-        self.assertEqual(calls[-1][1], {})
+        self.assertIsNone(calls[-1][1]["trailers"])
+        self.assertIsNone(calls[-1][1]["expect_continue_ms"])
+        await client.request("POST", "http://origin.invalid", expect_continue_ms=None)
+        self.assertIsNone(calls[-1][1]["expect_continue_ms"])
 
     async def test_validation_stops_before_native_submission(self):
         class NativeClient:
