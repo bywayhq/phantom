@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from phantom_http import AsyncClient, TimeoutError, Trust, WebSocketError
+from phantom_http import AsyncClient, Profile, TimeoutError, Trust, WebSocketError
 
 
 class HTTP3WebSocketTests(unittest.IsolatedAsyncioTestCase):
@@ -45,8 +45,14 @@ class HTTP3WebSocketTests(unittest.IsolatedAsyncioTestCase):
             try:
                 await event("ready")
                 ready = receipt("ready.json")
+                # Chrome's recipe leaves HTTP/3 WebSockets disabled.
+                document = Profile.from_catalog("chrome-154-windows").describe()
+                document["profile"]["http3"]["request"][
+                    "extended_connect_pseudo_header_order"
+                ] = ["Method", "Protocol", "Scheme", "Authority", "Path"]
+                profile = Profile.import_json(json.dumps(document).encode())
                 client = AsyncClient(
-                    profile="chrome-154-windows",
+                    profile=profile,
                     protocol="h3",
                     context="raw",
                     timeout_ms=10000,

@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const readline = require('node:readline');
 const {test} = require('node:test');
-const {Client} = require('..');
+const {Client, Profile} = require('..');
 
 async function bounded(promise, label, milliseconds = 10000) {
   let timer;
@@ -49,7 +49,12 @@ for (const reject of [false, true]) test(`HTTP/3 WebSocket ${reject ? 'rejection
   try {
     await event('ready');
     const ready = await receipt('ready.json');
-    client = new Client({profile: 'chrome-154-windows', route: 'direct',
+    // Chrome's recipe leaves HTTP/3 WebSockets disabled.
+    const document = Profile.fromCatalog('chrome-154-windows').describe();
+    document.profile.http3.request.extended_connect_pseudo_header_order =
+      ['Method', 'Protocol', 'Scheme', 'Authority', 'Path'];
+    const profile = Profile.fromDescription(document);
+    client = new Client({profile, route: 'direct',
       additionalRoots: [Buffer.from(ready.root_der)], timeouts: {totalMs: 10000}});
     const options = {method: 'GET', protocol: 'http3', context: 'raw'};
     const warm = await client.request(ready.url + '/warm', options);
