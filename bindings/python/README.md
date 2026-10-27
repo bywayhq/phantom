@@ -128,7 +128,7 @@ profile's connection policy, or `"h2"` or `"h3"` for an exact protocol.
 Openings keep the client's route, trust and
 cookies. `headers` fills the profile's ordered opening fields.
 `handshake_timeout_ms` inherits the profile deadline by default. Set `None`
-to disable it, or a nonnegative millisecond count for a finite limit.
+to disable it, or a positive millisecond count for a finite limit.
 `retry=WebSocketRetry(maximum=2, delay_ms=100)` enables connection-setup
 retries before the opening reaches the origin. HTTP request timeouts,
 retry/redirect policies and attempt budgets do not apply to WebSockets.

@@ -149,6 +149,19 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                         )
                     self.assertTrue(await asyncio.to_thread(disconnected.wait, 5))
 
+    async def test_zero_handshake_timeout_rejects_before_opening(self):
+        openings = []
+
+        def observe(connection, request):
+            openings.append(request.path)
+            return connection.respond(400, "unexpected opening")
+
+        with peer(lambda _: None, process_request=observe) as (url, _):
+            async with AsyncClient(profile=PROFILE, context="raw") as client:
+                with self.assertRaisesRegex(ValueError, "positive"):
+                    client.websocket(url, handshake_timeout_ms=0)
+        self.assertEqual(openings, [])
+
     async def test_graceful_close_shares_a_pending_reader_and_sends_empty_close(self):
         observed = []
 

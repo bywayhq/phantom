@@ -230,7 +230,7 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
         for timeout, expected in (
             (FACADE.INHERIT, (True, None)),
             (None, (False, None)),
-            (0, (False, 0)),
+            (500, (False, 500)),
         ):
             socket = await client.websocket(
                 "ws://local",
@@ -252,7 +252,11 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
         for values in ((0, 1, 1), (2, 1, 1), (1, 1, True)):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 FACADE.WebSocketLimits(*values)
-        for options in ({"protocol": "negotiated"}, {"handshake_timeout_ms": True}):
+        for options in (
+            {"protocol": "negotiated"},
+            {"handshake_timeout_ms": True},
+            {"handshake_timeout_ms": 0},
+        ):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 client.websocket("ws://local", **options)
         self.assertEqual(native.calls, [])

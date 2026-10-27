@@ -434,7 +434,15 @@ pub(super) fn connect<'py>(
     if !inherit_handshake_timeout {
         request = request.handshake_timeout(
             handshake_timeout_ms
-                .map(|value| unsigned(value).map(Duration::from_millis))
+                .map(|value| {
+                    unsigned(value).and_then(|value| {
+                        if value == 0 {
+                            Err(error::input("invalid_websocket_timeout"))
+                        } else {
+                            Ok(Duration::from_millis(value))
+                        }
+                    })
+                })
                 .transpose()?,
         );
     }

@@ -337,11 +337,11 @@ class _WebSocketConnect:
             and handshake_timeout_ms is not None
             and (
                 type(handshake_timeout_ms) is not int
-                or not 0 <= handshake_timeout_ms <= 2**64 - 1
+                or not 0 < handshake_timeout_ms <= 2**64 - 1
             )
         ):
             raise ValueError(
-                "handshake_timeout_ms must be a u64 integer, None or INHERIT"
+                "handshake_timeout_ms must be a positive u64 integer, None or INHERIT"
             )
         if retry is not None and not isinstance(retry, WebSocketRetry):
             raise TypeError("retry must be WebSocketRetry or None")
