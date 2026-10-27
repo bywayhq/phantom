@@ -209,8 +209,6 @@ class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
                 async def producer():
                     try:
                         yield b"start"
-                        await asyncio.Future()
-                    finally:
                         await ready.wait()
                         if events is not None:
                             try:
@@ -221,6 +219,8 @@ class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
                                 attempted.set_exception(
                                     AssertionError("producer close was accepted")
                                 )
+                        yield b"finish"
+                    finally:
                         closed.append(True)
 
                 try:
