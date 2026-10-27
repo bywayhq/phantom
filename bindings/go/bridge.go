@@ -105,7 +105,7 @@ func completionPump() {
 			pump.mu.Unlock()
 			for id, channel := range pending {
 				_ = control("cancel", "operation", id)
-				channel <- completion{Error: &Error{Kind: "native_abi"}}
+				channel <- completion{Error: &Error{Kind: "native_abi", cause: err}}
 			}
 			return
 		}
