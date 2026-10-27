@@ -31,6 +31,6 @@ pub use ffi::{
     PoolOptions, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
     ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, StatusRetryOptions,
     StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo, WireHeader,
-    client_certificate_der, client_certificate_pem, prepared_form, prepared_multipart,
-    profile_catalog, profile_ids, profile_import_json,
+    client_certificate_der, client_certificate_pem, prepared_encoded, prepared_form,
+    prepared_multipart, profile_catalog, profile_ids, profile_import_json,
 };
