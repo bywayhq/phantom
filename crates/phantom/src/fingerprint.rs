@@ -173,7 +173,7 @@ impl Error for FingerprintExportError {
 /// Uses the same format as [`import_profile_json`]. Arrays retain their order,
 /// duplicate candidate slots and raw bytes. Optional layers remain explicit
 /// `null`. The document includes configured literal header values and omits
-/// catalog identity. Export draws no random values.
+/// catalog identity and request-context association. Export draws no random values.
 ///
 /// # Errors
 ///

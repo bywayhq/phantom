@@ -30,23 +30,10 @@ const CONTEXTS: [(RequestTemplateKind, &str); 4] = [
     (RequestTemplateKind::Font, "font"),
 ];
 
-fn template(kind: RequestTemplateKind) -> TestResult<PreparedRequestTemplate> {
-    Ok(PreparedRequestTemplate::new(
-        catalog::profile("chrome-156-windows")?.request_template(kind)?,
-    )?)
-}
-
 fn profile() -> TestResult<ClientProfile> {
-    let selected = catalog::profile("chrome-156-windows")?.instantiate(&[])?;
-    Ok(ClientProfile::new(tls_settings())
-        .with_http2(selected.http2().ok_or("Chrome has no H2 settings")?.clone())
-        .with_http3(client_settings())
-        .with_client_hints(
-            selected
-                .client_hints()
-                .ok_or("Chrome has no hints")?
-                .clone(),
-        ))
+    Ok(catalog::profile("chrome-156-windows")?
+        .instantiate(&[])?
+        .with_http3(client_settings()))
 }
 
 fn resource_fields(protocol: HttpProtocol, resource: &str) -> TestResult<Fields> {
@@ -115,7 +102,7 @@ async fn observe(
             .build()?;
         let mut request = client
             .get_with_protocol(protocol, &url)?
-            .template(&template(kind)?)
+            .context(kind)?
             .header(RequestHeader::new("referer", referer.as_str()));
         if kind == RequestTemplateKind::Font {
             request = request.header(RequestHeader::new("origin", origin.as_str()));
@@ -222,9 +209,7 @@ async fn missing_resource_slots_fail_before_tcp_or_quic_io() -> TestResult<()> {
         };
         let url = format!("https://{address}/resource");
         for (kind, _) in CONTEXTS {
-            let mut request = client
-                .get_with_protocol(protocol, &url)?
-                .template(&template(kind)?);
+            let mut request = client.get_with_protocol(protocol, &url)?.context(kind)?;
             if kind == RequestTemplateKind::Font {
                 request = request.header(RequestHeader::new("origin", "https://caller.example"));
             }
@@ -236,7 +221,7 @@ async fn missing_resource_slots_fail_before_tcp_or_quic_io() -> TestResult<()> {
         }
         let request = client
             .get_with_protocol(protocol, &url)?
-            .template(&template(RequestTemplateKind::Font)?)
+            .context(RequestTemplateKind::Font)?
             .header(RequestHeader::new("referer", "https://caller.example/page"));
         let error = timeout(TEST_TIMEOUT, request.send())
             .await?
@@ -284,7 +269,7 @@ async fn untrustworthy_http_resource_requests_omit_hints_and_fetch_metadata() ->
                 .build()?;
             let mut request = client
                 .get_with_protocol(HttpProtocol::Http1, &url)?
-                .template(&template(kind)?)
+                .context(kind)?
                 .header(RequestHeader::new("referer", referer.as_str()));
             if kind == RequestTemplateKind::Font {
                 request = request.header(RequestHeader::new("origin", origin.as_str()));
@@ -369,7 +354,7 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
                 client.get_with_protocol(HttpProtocol::Http2, &url)?
             };
             let mut request = request
-                .template(&template(kind)?)
+                .context(kind)?
                 .header(RequestHeader::new("referer", format!("{url}page")));
             if kind == RequestTemplateKind::Font {
                 request = request.header(RequestHeader::new("origin", url.trim_end_matches('/')));
@@ -400,7 +385,7 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
         };
         responses.push(Some(
             request
-                .template(&template(RequestTemplateKind::Script)?)
+                .context(RequestTemplateKind::Script)?
                 .header(RequestHeader::new("referer", format!("{url}page")))
                 .send()
                 .await?,
@@ -420,7 +405,7 @@ async fn pooled_resources(negotiated: bool) -> TestResult<()> {
             client.get_with_protocol(HttpProtocol::Http2, &url)?
         };
         let last = request
-            .template(&template(RequestTemplateKind::Font)?)
+            .context(RequestTemplateKind::Font)?
             .header(RequestHeader::new("referer", format!("{url}page")))
             .header(RequestHeader::new("origin", url.trim_end_matches('/')))
             .send()

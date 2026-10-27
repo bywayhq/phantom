@@ -47,6 +47,7 @@ use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_set
 use wire::{Priority, RecordingIo, headers_priority};
 
 mod caller_cookie;
+mod context;
 mod default_profile;
 mod fixture;
 mod owner_contract;

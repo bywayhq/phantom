@@ -133,24 +133,20 @@ require `Origin`, with the stylesheet URL as `Referer`.
 
 ## Override the template for one request
 
-Keep navigation as the client default and prepare a fetch template for requests
-that need it. Supply the page URL for the fetch template's `Referer` slot:
+Keep navigation as the client default and choose fetch for an individual
+request. Both use the same connections, cookies and TLS state:
 
 ```rust,no_run
-use phantom::{
-    Client, HttpProtocol, PreparedRequestTemplate, RequestHeader,
-    profile::browser::chrome,
-};
+use phantom::{Client, RequestHeader};
+use phantom::profile::catalog::{profile_for, RequestTemplateKind};
 
 # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-let profile = chrome::v154_windows()
-    .with_request_template(chrome::v154_windows_navigation_template());
+let profile = profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
 let client = Client::builder(profile).build()?;
-let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_template())?;
 
 let response = client
-    .get_with_protocol(HttpProtocol::Http2, "https://example.com/data.json")?
-    .template(&fetch)
+    .get("https://example.com/data.json")?
+    .context(RequestTemplateKind::Fetch)?
     .header(RequestHeader::new("referer", "https://example.com/"))
     .send()
     .await?;
@@ -160,9 +156,11 @@ let _body = response.into_body().collect_with_limit(1 << 20).await?;
 # }
 ```
 
-`HttpProtocol::Http2` requires HTTP/2; it does not fall back to another protocol.
-Prepare a template once and reuse it. Calling `template` replaces the default
-for that request, leaving other requests on the client unchanged.
+Contexts are prepared on first use and shared by later requests. Each request's
+choice is independent. For custom fields, prepare a
+[PreparedRequestTemplate](crate::PreparedRequestTemplate) and pass it to
+[template](crate::RequestBuilder::template). Imported JSON profiles use this
+explicit path because they have no catalog context association.
 
 Some templates support fewer protocols than the composed profile. A template
 without HTTP/3 fields cannot be used for an exact HTTP/3 request. Missing required

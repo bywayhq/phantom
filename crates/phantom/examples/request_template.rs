@@ -14,8 +14,8 @@
 use std::env;
 
 use phantom::{
-    Client, HttpProtocol, PreparedRequestTemplate, RequestHeader, StatusCode,
-    profile::browser::chrome,
+    Client, HttpProtocol, RequestHeader, StatusCode,
+    profile::catalog::{RequestTemplateKind, profile_for},
 };
 use url::Url;
 
@@ -31,12 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target = args.next();
     let (page_url, fetch_url) = request_urls(&page_url, target.as_deref())?;
 
-    let profile =
-        chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
+    let profile = profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
     let client = Client::builder(profile).build()?;
-    // The client prepares its default navigation template. Prepare the fetch
-    // override once and reuse it for requests from the page.
-    let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get_with_protocol(HttpProtocol::Http2, page_url.as_str())?
@@ -52,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `Referer` is a caller slot in the fetch template: its value is the page URL.
     let data = client
         .get_with_protocol(HttpProtocol::Http2, fetch_url.as_str())?
-        .template(&fetch)
+        .context(RequestTemplateKind::FetchNoStore)?
         .header(RequestHeader::new("referer", page_url.as_str()))
         .send()
         .await?;

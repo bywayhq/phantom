@@ -95,6 +95,79 @@ fn template_override_and_opt_out_apply_only_to_the_current_request()
 }
 
 #[test]
+fn context_templates_are_lazy_shared_and_request_local() -> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::{
+        browser::chrome,
+        catalog::{self, RequestTemplateKind},
+    };
+
+    let profile = catalog::profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
+    let client = crate::Client::builder(profile).build()?;
+    let first = client
+        .get("https://example.test/")?
+        .context(RequestTemplateKind::Fetch)?;
+    let template = first.request.template.as_ref().ok_or("fetch missing")?;
+    let shared = client
+        .clone()
+        .get("https://example.test/")?
+        .context(RequestTemplateKind::Fetch)?;
+    let second = shared
+        .request
+        .template
+        .as_ref()
+        .ok_or("shared fetch missing")?;
+    assert!(std::ptr::eq(
+        template
+            .fields_for(HttpProtocol::Http2)
+            .ok_or("missing H2")?,
+        second.fields_for(HttpProtocol::Http2).ok_or("missing H2")?,
+    ));
+    let expected = chrome::v154_windows_navigation_template();
+    let inherited = client.get("https://example.test/")?;
+    assert_eq!(
+        inherited
+            .request
+            .template
+            .as_ref()
+            .and_then(|template| template.fields_for(HttpProtocol::Http2)),
+        Some(expected.http2_fields.as_slice())
+    );
+    assert!(first.without_template().request.template.is_none());
+    let explicit = crate::PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+    let overridden = client
+        .get("https://example.test/")?
+        .context(RequestTemplateKind::Fetch)?
+        .template(&explicit);
+    assert_eq!(
+        overridden
+            .request
+            .template
+            .as_ref()
+            .and_then(|template| template.fields_for(HttpProtocol::Http2)),
+        Some(expected.http2_fields.as_slice())
+    );
+    Ok(())
+}
+
+#[test]
+fn missing_contexts_fail_for_catalog_and_custom_profiles() -> Result<(), Box<dyn std::error::Error>>
+{
+    use phantom_profile::{ClientProfile, browser::chrome, catalog::RequestTemplateKind};
+
+    let catalog = crate::Client::builder(chrome::v154_windows()).build()?;
+    let custom = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
+    for client in [catalog, custom] {
+        let error = client
+            .get("https://example.test/")?
+            .context(RequestTemplateKind::Font)
+            .err()
+            .ok_or("unsupported context accepted")?;
+        assert_eq!(error.kind(), crate::RequestErrorKind::RequestTemplate);
+    }
+    Ok(())
+}
+
+#[test]
 fn appending_queries_keeps_raw_targets_and_normalized_redirect_state()
 -> Result<(), Box<dyn std::error::Error>> {
     let original = "https://example.test/a/%2e%2e/final?x=%2f+old&bare&x=second&&";

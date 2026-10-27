@@ -42,6 +42,25 @@ fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestRes
 }
 
 #[test]
+fn catalog_context_association_is_not_imported_as_wire_settings() -> TestResult {
+    let original = catalog::profile("chrome-154-windows")?.instantiate(&[])?;
+    let exported = super::super::export_profile_json(&original)?;
+    let imported = super::super::import_profile_json(&exported)?;
+    assert_eq!(original, imported);
+    assert_eq!(super::super::export_profile_json(&imported)?, exported);
+    assert!(original.request_context_profile().is_some());
+    assert!(imported.request_context_profile().is_none());
+    let client = crate::Client::builder(imported).build()?;
+    let error = client
+        .get("https://example.test/")?
+        .context(RequestTemplateKind::Navigation)
+        .err()
+        .ok_or("import invented catalog contexts")?;
+    assert_eq!(error.kind(), crate::RequestErrorKind::RequestTemplate);
+    Ok(())
+}
+
+#[test]
 fn explicit_tcp_port_randomization_survives_import_and_export() -> TestResult {
     use phantom_profile::TcpPortRandomization;
 
