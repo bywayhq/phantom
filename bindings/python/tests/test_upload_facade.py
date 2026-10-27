@@ -28,6 +28,9 @@ class NativeClient:
     async def shutdown(self, _):
         self.is_closed = True
 
+    def abort(self):
+        self.is_closed = True
+
 
 class SyncLifecycleTests(unittest.TestCase):
     def test_response_close_after_client_shutdown_is_idempotent(self):
@@ -79,17 +82,17 @@ class SyncLifecycleTests(unittest.TestCase):
             client._run(setup)
             try:
                 with self.assertRaises(TimeoutError):
-                    client.close(timeout_ms=0)
+                    client.abort(timeout_ms=0)
                 self.assertFalse(client._loop.is_closed())
                 self.assertFalse(pump.settled.done())
                 release.set()
-                client.close()
+                client.abort()
                 self.assertTrue(client._loop.is_closed())
                 self.assertTrue(pump.settled.done())
             finally:
                 if not client._loop.is_closed():
                     release.set()
-                    client.close()
+                    client.abort()
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):

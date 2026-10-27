@@ -1,4 +1,8 @@
-use crate::{error, upload::UploadOwner};
+use crate::{
+    error,
+    lifecycle::{Lifecycle, Registration},
+    upload::UploadOwner,
+};
 use http_body_util::BodyExt;
 use phantom::{Bytes, ResponseBody, ResponseTrailers};
 use pyo3::{exceptions::PyMemoryError, prelude::*, types::PyBytes};
@@ -16,7 +20,7 @@ struct Stream {
     body: ResponseBody,
     pending: Bytes,
 }
-struct BodyOwner {
+pub(super) struct BodyOwner {
     stream: Mutex<Option<Stream>>,
     trailers: Mutex<ResponseTrailers>,
     busy: AtomicBool,
@@ -25,10 +29,11 @@ struct BodyOwner {
     upload: Mutex<Option<UploadOwner>>,
     watchdog: Mutex<Option<tokio::task::AbortHandle>>,
     protocol: String,
+    registration: Mutex<Option<Registration>>,
 }
 
 impl BodyOwner {
-    fn close(&self, expired: bool) {
+    pub(super) fn close(&self, expired: bool) {
         self.finish(expired, ResponseTrailers::Unavailable);
     }
 
@@ -48,6 +53,10 @@ impl BodyOwner {
         }
         *retained = trailers;
         drop(retained);
+        self.registration
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
         if let Ok(mut stream) = self.stream.lock() {
             stream.take();
         }
@@ -307,8 +316,20 @@ impl NativeResponse {
                 upload: Mutex::new(None),
                 watchdog: Mutex::new(None),
                 protocol: protocol.clone(),
+                registration: Mutex::new(None),
             }),
         })
+    }
+    pub(super) fn track(&self, lifecycle: &Arc<Lifecycle>) {
+        let registration = lifecycle.response(Arc::downgrade(&self.owner));
+        let mut retained = self
+            .owner
+            .registration
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if self.owner.state.load(Ordering::SeqCst) == OPEN {
+            *retained = Some(registration);
+        }
     }
     pub(super) fn watch_upload(
         &self,
@@ -491,6 +512,7 @@ mod tests {
                 upload: std::sync::Mutex::new(None),
                 watchdog: std::sync::Mutex::new(None),
                 protocol: "h2".to_owned(),
+                registration: std::sync::Mutex::new(None),
             };
             owner.close(expired);
             owner.close(!expired);

@@ -7,11 +7,13 @@ from phantom_http import (
     AsyncClient,
     Client,
     ClientClosed,
+    Error,
     TimeoutError,
     WebSocketError,
 )
 from test_client import server
-from test_websocket import PROFILE, peer
+from test_uploads import server as upload_server
+from test_websocket import PROFILE, peer, stalled_handshake
 from websockets.datastructures import Headers
 from websockets.http11 import Response as PeerResponse
 
@@ -80,6 +82,138 @@ class SyncLifecycleTests(unittest.TestCase):
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_abort_stops_pending_upload_and_settles_its_source(self):
+        with upload_server() as (_, url):
+            client = AsyncClient(profile=PROFILE, protocol="h1", context="raw")
+            entered = asyncio.Event()
+            cleaned = asyncio.Event()
+
+            async def source():
+                try:
+                    entered.set()
+                    await asyncio.Future()
+                    yield b"unreachable payload"
+                finally:
+                    cleaned.set()
+
+            request = asyncio.create_task(
+                client.post(url, body=source(), body_length=7)
+            )
+            try:
+                await asyncio.wait_for(entered.wait(), 5)
+                await client.abort()
+                with self.assertRaises(Error):
+                    await request
+                self.assertTrue(cleaned.is_set())
+                self.assertFalse(client._uploads)
+            finally:
+                await client.abort()
+                if not request.done():
+                    request.cancel()
+                await asyncio.gather(request, return_exceptions=True)
+
+    async def test_abort_releases_rejected_handshake_body(self):
+        with peer(lambda _: None, process_request=reject) as (url, _):
+            client = AsyncClient(profile=PROFILE, context="raw")
+            with self.assertRaises(WebSocketError) as rejected:
+                await client.websocket(url)
+            response = rejected.exception.response
+            self.assertIsNotNone(response)
+            try:
+                await client.abort()
+                with self.assertRaises(Error) as closed:
+                    await response.read(max_bytes=6)
+                self.assertEqual(closed.exception.kind, "body_closed")
+            finally:
+                await response.aclose()
+                await client.abort()
+
+    async def test_upload_can_finish_after_timeout_and_cancelled_shutdown(self):
+        for operation in ("timeout", "cancel"):
+            with self.subTest(operation=operation), upload_server() as (origin, url):
+                client = AsyncClient(profile=PROFILE, protocol="h1", context="raw")
+                entered = asyncio.Event()
+                release = asyncio.Event()
+                cleaned = asyncio.Event()
+
+                async def source(entered=entered, release=release, cleaned=cleaned):
+                    try:
+                        entered.set()
+                        await release.wait()
+                        yield b"payload"
+                    finally:
+                        cleaned.set()
+
+                request = asyncio.create_task(
+                    client.post(url, body=source(), body_length=7)
+                )
+                await asyncio.wait_for(entered.wait(), 5)
+                try:
+                    await self.interrupt_shutdown(client, operation)
+                    self.assertFalse(request.done())
+                    self.assertFalse(cleaned.is_set())
+                    with self.assertRaises(ClientClosed):
+                        await client.get(url)
+                    release.set()
+                    response = await asyncio.wait_for(request, 5)
+                    self.assertEqual(await response.read(max_bytes=7), b"payload")
+                    await client.close()
+                    self.assertTrue(cleaned.is_set())
+                    self.assertEqual(
+                        [record[2] for record in origin.records], [b"payload"]
+                    )
+                finally:
+                    release.set()
+                    await client.abort()
+                    if not request.done():
+                        request.cancel()
+                    await asyncio.gather(request, return_exceptions=True)
+
+    async def test_graceful_shutdown_does_not_cancel_admitted_handshake(self):
+        with stalled_handshake() as (url, started, disconnected):
+            client = AsyncClient(profile=PROFILE, context="raw")
+            opening = asyncio.ensure_future(
+                client.websocket(url, handshake_timeout_ms=None)
+            )
+            try:
+                self.assertTrue(await asyncio.to_thread(started.wait, 5))
+                await self.interrupt_shutdown(client, "cancel")
+                self.assertFalse(opening.done())
+                self.assertFalse(disconnected.is_set())
+                await client.abort()
+                with self.assertRaises(WebSocketError) as stopped:
+                    await opening
+                self.assertEqual(stopped.exception.kind, "client_closed")
+                self.assertTrue(await asyncio.to_thread(disconnected.wait, 5))
+            finally:
+                await client.abort()
+                if not opening.done():
+                    opening.cancel()
+                await asyncio.gather(opening, return_exceptions=True)
+
+    async def test_abort_releases_bodies_and_sockets_but_not_independent_fork(self):
+        with server() as (_, url), peer(echo_until_close) as (socket_url, finished):
+            client = AsyncClient(profile=PROFILE, protocol="h1", context="raw")
+            fork = client.fork()
+            response = await client.get(url)
+            socket = await client.websocket(socket_url)
+            try:
+                await client.abort()
+                self.assertTrue(client.is_closed)
+                self.assertTrue(socket.is_closed)
+                with self.assertRaises(Error) as closed:
+                    await response.read(max_bytes=5)
+                self.assertEqual(closed.exception.kind, "body_closed")
+                self.assertFalse(fork.is_closed)
+                independent = await fork.get(url)
+                self.assertEqual(await independent.read(max_bytes=5), b"hello")
+                self.assertTrue(await asyncio.to_thread(finished.wait, 5))
+            finally:
+                await response.aclose()
+                socket.abort()
+                await client.abort()
+                await fork.close()
+
     async def interrupt_shutdown(self, client, operation):
         if operation == "timeout":
             with self.assertRaises(TimeoutError):

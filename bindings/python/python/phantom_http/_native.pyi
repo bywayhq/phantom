@@ -226,6 +226,7 @@ class NativeResponse:
     def read(self, maximum: int) -> Awaitable[bytes]: ...
 
 class NativeClient:
+    def abort(self) -> None: ...
     def websocket(
         self,
         url: str,

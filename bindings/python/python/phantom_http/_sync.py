@@ -498,6 +498,14 @@ class Client:
         self._run(lambda: self._async.close(timeout_ms=timeout_ms))
         self._loop.close()
 
+    def abort(self, *, timeout_ms: int = 5000) -> None:
+        """Stop active work and wait for bounded cleanup on this client's loop."""
+        self._check_thread_loop()
+        if self._loop.is_closed():
+            return
+        self._run(lambda: self._async.abort(timeout_ms=timeout_ms))
+        self._loop.close()
+
     def __enter__(self) -> Client:
         return self
 

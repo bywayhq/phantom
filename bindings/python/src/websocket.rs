@@ -23,7 +23,11 @@ use pyo3::{
 };
 use tokio::sync::Notify;
 
-use crate::{error, request_fields, runtime};
+use crate::{
+    error,
+    lifecycle::{Admission, Lifecycle, Registration},
+    request_fields, runtime,
+};
 
 type Writer = SplitSink<WebSocket, WebSocketMessage>;
 type Reader = SplitStream<WebSocket>;
@@ -74,13 +78,14 @@ fn error_details(error: &WebSocketError) -> PyErr {
     error::NativeError::new_err(("websocket", kind, None::<String>, phase))
 }
 
-fn handshake_error(error: WebSocketError, url: String) -> PyErr {
+fn handshake_error(error: WebSocketError, url: String, lifecycle: &Arc<Lifecycle>) -> PyErr {
     let failure = error_details(&error);
     let Some(response) = error.into_response() else {
         return failure;
     };
     let retained =
         crate::response::NativeResponse::websocket_rejection(response, url).and_then(|response| {
+            response.track(lifecycle);
             Python::attach(|py| {
                 failure
                     .value(py)
@@ -93,16 +98,21 @@ fn handshake_error(error: WebSocketError, url: String) -> PyErr {
     }
 }
 
-struct Owner {
+pub(super) struct Owner {
     writer: Mutex<Option<Writer>>,
     reader: Mutex<Option<Reader>>,
     closed: AtomicBool,
     changed: Notify,
+    registration: Mutex<Option<Registration>>,
 }
 
 impl Owner {
-    fn abort(&self) {
+    pub(super) fn abort(&self) {
         self.closed.store(true, Ordering::SeqCst);
+        self.registration
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
         self.writer
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -212,6 +222,7 @@ impl NativeWebSocket {
                 reader: Mutex::new(Some(reader)),
                 closed: AtomicBool::new(false),
                 changed: Notify::new(),
+                registration: Mutex::new(None),
             }),
             status,
             protocol,
@@ -383,6 +394,7 @@ impl Drop for NativeWebSocket {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn connect<'py>(
     client: &phantom::Client,
+    admission: Admission,
     py: Python<'py>,
     url: &str,
     protocol: &str,
@@ -456,10 +468,28 @@ pub(super) fn connect<'py>(
     let url = url.to_owned();
     runtime::initialize()?;
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
-        request
-            .connect()
-            .await
-            .map_err(|error| handshake_error(error, url))
-            .and_then(NativeWebSocket::new)
+        let opening = async {
+            let socket = request
+                .connect()
+                .await
+                .map_err(|error| handshake_error(error, url, admission.lifecycle()))
+                .and_then(NativeWebSocket::new)?;
+            let registration = admission.lifecycle().socket(Arc::downgrade(&socket.owner));
+            let mut retained = socket
+                .owner
+                .registration
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if !socket.owner.closed.load(Ordering::SeqCst) {
+                *retained = Some(registration);
+            }
+            drop(retained);
+            Ok(socket)
+        };
+        tokio::select! {
+            biased;
+            () = admission.aborted() => Err(failure("client_closed")),
+            result = opening => result,
+        }
     })
 }

@@ -2,7 +2,9 @@ use crate::{
     client_certificate::{self, NativeClientCertificate},
     configuration,
     diagnostics::NativeRequestDiagnostics,
-    error, network, pool,
+    error,
+    lifecycle::Lifecycle,
+    network, pool,
     prepared_body::NativePreparedBody,
     profile, request_fields,
     response::NativeResponse,
@@ -16,15 +18,7 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyInt, PyList},
 };
-use std::{
-    num::NonZeroUsize,
-    path::PathBuf,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::{num::NonZeroUsize, path::PathBuf, sync::Arc, time::Duration};
 
 pub(super) fn protocol_name(protocol: HttpProtocol) -> &'static str {
     match protocol {
@@ -92,31 +86,11 @@ impl NativeCookies {
     }
 }
 
-#[derive(Default)]
-struct Preparation {
-    closed: AtomicBool,
-    changed: tokio::sync::Notify,
-}
-impl Preparation {
-    async fn closed(&self) {
-        let changed = self.changed.notified();
-        tokio::pin!(changed);
-        changed.as_mut().enable();
-        if !self.closed.load(Ordering::SeqCst) {
-            changed.await;
-        }
-    }
-    fn close(&self) {
-        self.closed.store(true, Ordering::SeqCst);
-        self.changed.notify_waiters();
-    }
-}
-
 #[pyclass]
 pub(super) struct NativeClient {
     client: Client,
     protocol: String,
-    preparation: Arc<Preparation>,
+    lifecycle: Arc<Lifecycle>,
 }
 
 #[pymethods]
@@ -203,7 +177,7 @@ impl NativeClient {
         Ok(Self {
             client,
             protocol: protocol.to_owned(),
-            preparation: Arc::default(),
+            lifecycle: Arc::default(),
         })
     }
 
@@ -216,7 +190,7 @@ impl NativeClient {
 
     #[getter]
     fn is_closed(&self) -> bool {
-        self.client.is_closed()
+        self.lifecycle.is_closed() || self.client.is_closed()
     }
 
     fn fork(
@@ -237,7 +211,7 @@ impl NativeClient {
                     .tickets(tickets),
             ),
             protocol: self.protocol.clone(),
-            preparation: Arc::default(),
+            lifecycle: Arc::default(),
         }
     }
 
@@ -255,7 +229,7 @@ impl NativeClient {
         Ok(Self {
             client: session::restore(py, &self.client, snapshot, key, receiving_routes)?,
             protocol: self.protocol.clone(),
-            preparation: Arc::default(),
+            lifecycle: Arc::default(),
         })
     }
 
@@ -287,6 +261,7 @@ impl NativeClient {
         redirect_credential_headers: Option<&Bound<'_, PyAny>>,
         context: Option<&str>,
     ) -> PyResult<Bound<'py, PyAny>> {
+        let admission = self.lifecycle.admit("request")?;
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
             + usize::from(upload.is_some())
@@ -406,8 +381,8 @@ impl NativeClient {
             diagnostics.attach(&mut request)?;
         }
         let protocol = self.protocol.clone();
-        let preparation = Arc::clone(&self.preparation);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let lifecycle = Arc::clone(admission.lifecycle());
             let send = async move {
                 if let Some(path) = upload {
                     request =
@@ -427,6 +402,7 @@ impl NativeClient {
                 })?;
                 let response = NativeResponse::new(response)?;
                 response.watch_upload(upload_owner, deadline)?;
+                response.track(&lifecycle);
                 Ok(response)
             };
             let sending = async {
@@ -438,14 +414,10 @@ impl NativeClient {
                     send.await
                 }
             };
-            if bounded_upload {
-                tokio::select! {
-                    biased;
-                    () = preparation.closed() => Err(error::NativeError::new_err(("request", "client_closed", None::<String>, None::<String>))),
-                    response = sending => response,
-                }
-            } else {
-                sending.await
+            tokio::select! {
+                biased;
+                () = admission.aborted() => Err(error::NativeError::new_err(("request", "client_closed", None::<String>, None::<String>))),
+                response = sending => response,
             }
         })
     }
@@ -468,6 +440,7 @@ impl NativeClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         crate::websocket::connect(
             &self.client,
+            self.lifecycle.admit("websocket")?,
             py,
             url,
             protocol,
@@ -521,13 +494,23 @@ impl NativeClient {
     }
 
     fn shutdown<'py>(&self, py: Python<'py>, timeout_ms: u64) -> PyResult<Bound<'py, PyAny>> {
+        let deadline = tokio::time::Instant::now()
+            .checked_add(Duration::from_millis(timeout_ms))
+            .ok_or_else(|| error::input("invalid_timeout"))?;
+        self.lifecycle.close();
         let client = self.client.clone();
-        let preparation = Arc::clone(&self.preparation);
+        let lifecycle = Arc::clone(&self.lifecycle);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            preparation.close();
-            tokio::time::timeout(Duration::from_millis(timeout_ms), client.shutdown())
-                .await
-                .map_err(|_| error::input("shutdown_timeout"))
+            tokio::time::timeout_at(deadline, async {
+                lifecycle.drained().await;
+                client.shutdown().await;
+            })
+            .await
+            .map_err(|_| error::input("shutdown_timeout"))
         })
+    }
+
+    fn abort(&self) {
+        self.lifecycle.abort();
     }
 }

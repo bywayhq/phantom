@@ -116,6 +116,7 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
                 _payload: bytes = chunk
             chunks.close()
         client.close(timeout_ms=1000)
+        client.abort(timeout_ms=1000)
     return collected
 
 
@@ -155,6 +156,7 @@ async def asynchronous(profile: str, url: str) -> bytes:
             # Mypy's stdlib stub includes Any in this coroutine's send type.
             await cast(Awaitable[None], chunks.aclose())
         await client.close(timeout_ms=1000)
+        await client.abort(timeout_ms=1000)
     return collected
 
 

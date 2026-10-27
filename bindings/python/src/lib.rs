@@ -7,6 +7,7 @@ mod client_certificate;
 mod configuration;
 mod diagnostics;
 mod error;
+mod lifecycle;
 mod network;
 mod pool;
 mod prepared_body;

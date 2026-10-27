@@ -80,6 +80,13 @@ from ._websocket import (
 )
 
 
+def _shutdown_timeout(timeout_ms: int) -> None:
+    if type(timeout_ms) is not int:
+        raise TypeError("timeout_ms must be an integer")
+    if not 0 <= timeout_ms <= 2**64 - 1:
+        raise ValueError("timeout_ms must fit an unsigned 64-bit integer")
+
+
 class _RequestFields(TypedDict, total=False):
     context: _RequestContext
     redirect_credential_headers: tuple[str, ...]
@@ -635,15 +642,15 @@ class AsyncClient:
     async def close(self, *, timeout_ms: int = 5000) -> None:
         """Close admission and wait for active owners within this bound.
 
-        A timeout or cancellation leaves responses and WebSockets usable.
+        Admitted requests, uploads, responses and WebSockets can finish.
+        A timeout or cancellation leaves that work usable.
         Finish or close them, then call close again to complete shutdown.
         """
+        _shutdown_timeout(timeout_ms)
         started = asyncio.get_running_loop().time()
         pumps = tuple(self._uploads)
         for pump in pumps:
             pump.check_wait()
-        for pump in pumps:
-            pump.close()
         try:
             await self._native.shutdown(timeout_ms)
         except _native.NativeError as error:
@@ -660,6 +667,21 @@ class AsyncClient:
             for pump in pumps:
                 if pump.error is not None or pump.cleanup_error is not None:
                     raise _upload_error(pump) from None
+
+    async def abort(self, *, timeout_ms: int = 5000) -> None:
+        """Stop active work and wait for producer cleanup within timeout_ms.
+
+        Cleanup that exceeds this bound remains owned. Call abort again after
+        its finalizer can finish. Forked clients remain independent.
+        """
+        _shutdown_timeout(timeout_ms)
+        pumps = tuple(self._uploads)
+        for pump in pumps:
+            pump.check_wait()
+        _call(self._native.abort)
+        for pump in pumps:
+            pump.close()
+        await self.close(timeout_ms=timeout_ms)
 
     async def aclose(self, *, timeout_ms: int = 5000) -> None:
         """Close admission and settle active work within timeout_ms."""
