@@ -23,6 +23,7 @@ SOURCES = (
     "lib/bytes.cjs",
     "lib/bytes.d.cts",
     "lib/client.cjs",
+    "lib/client-native.d.cts",
     "lib/controls.cjs",
     "lib/errors.cjs",
     "lib/events.cjs",
