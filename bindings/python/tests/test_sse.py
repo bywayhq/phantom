@@ -209,6 +209,8 @@ class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
                 async def producer():
                     try:
                         yield b"start"
+                        await asyncio.Future()
+                    finally:
                         await ready.wait()
                         try:
                             await events.aclose()
@@ -218,11 +220,11 @@ class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
                             attempted.set_exception(
                                 AssertionError("producer close was accepted")
                             )
-                        yield b"finish"
-                    finally:
                         closed.append(True)
 
-                response = await client.post(peer.url + "/stall", body=producer())
+                response = await client.post(
+                    peer.url + "/upload-events", body=producer()
+                )
                 events = response.events()
                 ready.set()
                 self.assertIn("own cleanup", await asyncio.wait_for(attempted, 5))

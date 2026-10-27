@@ -110,6 +110,7 @@ class H2Peer:
                 stream.sendall(connection.data_to_send())
                 healthy = None
                 overflow = None
+                upload_events = None
                 while data := stream.recv(65536):
                     for event in connection.receive_data(data):
                         if isinstance(event, h2.events.RequestReceived):
@@ -117,8 +118,15 @@ class H2Peer:
                             self.requests.append((event.stream_id, path))
                             self.headers.append(event.headers)
                             fields = [(":status", "200")]
-                            if self.event_stream and path in (b"/stall", b"/events"):
+                            if self.event_stream and path in (
+                                b"/stall",
+                                b"/events",
+                                b"/upload-events",
+                            ):
                                 fields.append(("content-type", "text/event-stream"))
+                            if self.event_stream and path == b"/upload-events":
+                                upload_events = event.stream_id
+                                continue
                             if path == b"/decode-overflow":
                                 fields.append(("content-encoding", "gzip"))
                             connection.send_headers(event.stream_id, fields)
@@ -152,6 +160,22 @@ class H2Peer:
                                     connection.send_headers(
                                         event.stream_id, self.trailers, end_stream=True
                                     )
+                        elif isinstance(event, h2.events.DataReceived):
+                            connection.acknowledge_received_data(
+                                event.flow_controlled_length, event.stream_id
+                            )
+                            if event.stream_id == upload_events:
+                                connection.send_headers(
+                                    event.stream_id,
+                                    [
+                                        (":status", "200"),
+                                        ("content-type", "text/event-stream"),
+                                    ],
+                                )
+                                connection.send_data(
+                                    event.stream_id, b"data: first\n\n"
+                                )
+                                upload_events = None
                         elif isinstance(event, h2.events.StreamReset):
                             self.reset_code = event.error_code
                             self.reset_stream = event.stream_id
