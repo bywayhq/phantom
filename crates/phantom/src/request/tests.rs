@@ -155,7 +155,10 @@ fn missing_contexts_fail_for_catalog_and_custom_profiles() -> Result<(), Box<dyn
     use phantom_profile::{ClientProfile, browser::chrome, catalog::RequestTemplateKind};
 
     let catalog = crate::Client::builder(chrome::v154_windows()).build()?;
-    let custom = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
+    let custom = crate::Client::builder(
+        ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2()),
+    )
+    .build()?;
     for client in [catalog, custom] {
         let error = client
             .get("https://example.test/")?
