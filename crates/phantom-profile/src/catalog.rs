@@ -427,7 +427,10 @@ impl ProfileDefinition {
             }
         }
 
-        Ok(self.composition.instantiate())
+        Ok(self
+            .composition
+            .instantiate()
+            .with_request_context_profile(self.id))
     }
 
     /// Returns a fresh request template for the explicitly selected kind.

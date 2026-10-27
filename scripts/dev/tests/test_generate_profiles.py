@@ -147,7 +147,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         profiles = generator.validate(self.document)
         output = registry.generate_constructors(profiles)
         self.assertIn("pub fn v999_android()", output)
-        self.assertIn(entry["target"].upper() + ".instantiate()", output)
+        self.assertIn(entry["target"].upper() + "\n            .instantiate()", output)
         self.assertIn(entry["id"], generator.generate(profiles))
         added = next(p for p in profiles if p["id"] == entry["id"])
         self.assertEqual(added["metadata"]["revision"], 2)
@@ -171,7 +171,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         output = registry.generate_constructors(profiles)
         self.assertIn("pub fn v156_windows()", output)
         self.assertIn("pub fn v156_windows_other()", output)
-        self.assertIn("CHROMEWINDOWS156OTHER.instantiate()", output)
+        self.assertIn("CHROMEWINDOWS156OTHER\n            .instantiate()", output)
 
         collision = copy.deepcopy(variant)
         collision["id"] = "chrome/156.0.8078.48/windows-collision/r1"

@@ -744,6 +744,22 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn request_context_unavailable() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "request context requires a catalog profile with that context",
+        )
+    }
+
+    pub(crate) fn request_context(source: impl StdError + Send + Sync + 'static) -> Self {
+        Self::with_source(
+            RequestErrorKind::RequestTemplate,
+            None,
+            "request context could not be selected",
+            source,
+        )
+    }
+
     pub(crate) fn request_template_managed_default() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,

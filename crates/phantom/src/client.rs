@@ -24,7 +24,9 @@ use crate::{
 use crate::{WebSocketError, WebSocketRequestBuilder};
 
 use self::{
-    connection_policy::ConnectionPolicy, defaults::RequestDefaults, transport::PreparedTransport,
+    connection_policy::ConnectionPolicy,
+    defaults::{RequestContexts, RequestDefaults},
+    transport::PreparedTransport,
 };
 
 mod connection_policy;
@@ -2307,6 +2309,11 @@ impl ClientBuilder {
                 request_hooks: self.request_hooks,
                 client_hints,
                 request_template,
+                request_contexts: self
+                    .profile
+                    .request_context_profile()
+                    .map(RequestContexts::new)
+                    .map(Arc::new),
                 cookie_placement: self.profile.cookie_placement().clone(),
                 route: self.route,
                 environment_proxies: self.environment_proxies,

@@ -1,8 +1,11 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
-use phantom_profile::{ClientHintSettings, CookiePlacement, ProxyConnectTemplate};
+use phantom_profile::{
+    ClientHintSettings, CookiePlacement, InvalidRequestTemplate, ProxyConnectTemplate,
+    catalog::{self, CatalogError, ProfileId, RequestTemplateKind},
+};
 
 use crate::{PreparedRequestTemplate, Route, authority::Endpoint};
 
@@ -15,6 +18,7 @@ pub(crate) struct RequestDefaults {
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's template, validated once when the client is built.
     pub(crate) request_template: Option<PreparedRequestTemplate>,
+    pub(super) request_contexts: Option<Arc<RequestContexts>>,
     /// Profile position of caller and jar `Cookie` fields.
     pub(crate) cookie_placement: CookiePlacement,
     pub(super) route: Option<Route>,
@@ -26,7 +30,70 @@ pub(crate) struct RequestDefaults {
     pub(crate) websocket: Option<WebSocketSettings>,
 }
 
+/// Lazy templates shared by requests and forks of the same configured client.
+#[derive(Debug)]
+pub(super) struct RequestContexts {
+    profile: ProfileId,
+    templates: [OnceLock<Result<PreparedRequestTemplate, ContextError>>; 8],
+}
+
+#[derive(Clone, Debug)]
+enum ContextError {
+    Catalog(CatalogError),
+    Template(InvalidRequestTemplate),
+}
+
+impl RequestContexts {
+    pub(super) fn new(profile: ProfileId) -> Self {
+        Self {
+            profile,
+            templates: std::array::from_fn(|_| OnceLock::new()),
+        }
+    }
+
+    fn template(
+        &self,
+        kind: RequestTemplateKind,
+    ) -> Result<PreparedRequestTemplate, crate::RequestError> {
+        let index = match kind {
+            RequestTemplateKind::Navigation => 0,
+            RequestTemplateKind::FetchNoStore => 1,
+            RequestTemplateKind::Fetch => 2,
+            RequestTemplateKind::FetchUpload => 3,
+            RequestTemplateKind::Script => 4,
+            RequestTemplateKind::Stylesheet => 5,
+            RequestTemplateKind::Image => 6,
+            RequestTemplateKind::Font => 7,
+            _ => return Err(crate::RequestError::request_context_unavailable()),
+        };
+        match self.templates[index].get_or_init(|| {
+            let definition =
+                catalog::profile(self.profile.as_str()).map_err(ContextError::Catalog)?;
+            let template = definition
+                .request_template(kind)
+                .map_err(ContextError::Catalog)?;
+            PreparedRequestTemplate::new(template).map_err(ContextError::Template)
+        }) {
+            Ok(template) => Ok(template.clone()),
+            Err(ContextError::Catalog(error)) => Err(crate::RequestError::request_context(*error)),
+            Err(ContextError::Template(error)) => {
+                Err(crate::RequestError::request_context(error.clone()))
+            }
+        }
+    }
+}
+
 impl RequestDefaults {
+    pub(crate) fn context_template(
+        &self,
+        kind: RequestTemplateKind,
+    ) -> Result<PreparedRequestTemplate, crate::RequestError> {
+        self.request_contexts
+            .as_ref()
+            .ok_or_else(crate::RequestError::request_context_unavailable)?
+            .template(kind)
+    }
+
     pub(crate) fn default_connect_udp_pool(
         &self,
     ) -> Option<&phantom_net::proxy::ConnectUdpProxyPool> {

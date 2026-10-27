@@ -58,7 +58,10 @@ impl Http3ClientSettings {
 }
 
 /// Protocol settings selected for one client wire profile.
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// Equality compares wire settings, including the default request template.
+/// It does not compare the catalog association used for request contexts.
+#[derive(Clone, Debug)]
 pub struct ClientProfile {
     tcp: Option<TcpSettings>,
     udp: Option<UdpSettings>,
@@ -72,6 +75,7 @@ pub struct ClientProfile {
     proxy_connect: Option<ProxyConnectTemplate>,
     cookie_placement: CookiePlacement,
     request_template: Option<RequestTemplate>,
+    request_context_profile: Option<crate::catalog::ProfileId>,
 }
 
 impl ClientProfile {
@@ -91,6 +95,7 @@ impl ClientProfile {
             proxy_connect: None,
             cookie_placement: CookiePlacement::last(),
             request_template: None,
+            request_context_profile: None,
         }
     }
 
@@ -199,6 +204,24 @@ impl ClientProfile {
         self
     }
 
+    /// Returns the catalog recipe used for per-request context selection.
+    ///
+    /// This association survives settings overrides and cloning. Custom profiles
+    /// constructed with [`Self::new`] or imported from JSON have no association.
+    /// It is not a claim that customized settings still match that recipe.
+    #[must_use]
+    pub const fn request_context_profile(&self) -> Option<crate::catalog::ProfileId> {
+        self.request_context_profile
+    }
+
+    pub(crate) fn with_request_context_profile(
+        mut self,
+        profile: crate::catalog::ProfileId,
+    ) -> Self {
+        self.request_context_profile = Some(profile);
+        self
+    }
+
     /// Makes the draws the profile takes once per client, as
     /// [`TlsSettings::draw_per_client`] describes, for the TLS settings and
     /// then the HTTP/3 TLS settings, calling `random` once for each draw.
@@ -293,12 +316,51 @@ impl ClientProfile {
     }
 }
 
+impl PartialEq for ClientProfile {
+    fn eq(&self, other: &Self) -> bool {
+        self.tcp == other.tcp
+            && self.udp == other.udp
+            && self.dns_cache == other.dns_cache
+            && self.tls == other.tls
+            && self.http1 == other.http1
+            && self.http2 == other.http2
+            && self.http3 == other.http3
+            && self.client_hints == other.client_hints
+            && self.websocket == other.websocket
+            && self.proxy_connect == other.proxy_connect
+            && self.cookie_placement == other.cookie_placement
+            && self.request_template == other.request_template
+    }
+}
+
+impl Eq for ClientProfile {}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile,
         Http3ClientSettings, TlsVersion, TrustAnchorIds, browser::chrome, browser::opera,
     };
+
+    #[test]
+    fn catalog_contexts_survive_custom_defaults_and_do_not_change_wire_equality()
+    -> Result<(), crate::catalog::CatalogError> {
+        let definition = crate::catalog::profile("chrome-154-windows")?;
+        let composed = chrome::v154_windows();
+        let selected = definition.instantiate(&[])?;
+        assert_eq!(composed.request_context_profile(), Some(definition.id()));
+        assert_eq!(selected.request_context_profile(), Some(definition.id()));
+        let template = chrome::v154_windows_fetch_template();
+        let customized = composed.clone().with_request_template(template.clone());
+        assert_eq!(customized.request_context_profile(), Some(definition.id()));
+        assert_eq!(customized.request_template(), Some(&template));
+        assert_eq!(customized.without_request_template(), selected);
+
+        let mut without_association = composed.clone();
+        without_association.request_context_profile = None;
+        assert_eq!(without_association, composed);
+        Ok(())
+    }
 
     #[test]
     fn new_owns_tls_settings_without_enabling_http2() {

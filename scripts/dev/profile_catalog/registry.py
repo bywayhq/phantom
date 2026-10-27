@@ -506,7 +506,7 @@ def generate_constructors(profiles):
             for entry in profiles
         ):
             continue
-        lines.extend([f"pub(crate) mod {browser.lower()} {{"])
+        lines.extend(["#[rustfmt::skip]", f"pub(crate) mod {browser.lower()} {{"])
         for entry in sorted(profiles, key=lambda item: item["target"]):
             metadata = entry["metadata"]
             if (
@@ -526,7 +526,11 @@ def generate_constructors(profiles):
                     f"    /// Catalog: [`{entry['selector']}`](crate::catalog::profile).",
                     "    #[must_use]",
                     f"    pub fn {constructor(entry)}() -> crate::ClientProfile {{",
-                    f"        crate::catalog::connection_profile_definitions::{entry['target'].upper()}.instantiate()",
+                    f"        crate::catalog::connection_profile_definitions::{entry['target'].upper()}",
+                    "            .instantiate()",
+                    "            .with_request_context_profile(super::ProfileId(",
+                    f"                {rust_string(entry['id'])},",
+                    "            ))",
                     "    }",
                     "",
                 ]

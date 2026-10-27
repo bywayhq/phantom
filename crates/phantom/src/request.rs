@@ -6,6 +6,7 @@ use http_body::Body;
 use phantom_net::request::{
     AbsoluteForm, OriginForm, RequestBody, RequestHeader, RequestTrailerName,
 };
+use phantom_profile::catalog::RequestTemplateKind;
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::session::alt_svc::PinnedAlternative;
@@ -40,8 +41,9 @@ pub(crate) mod template;
 /// [`Client::get`] and [`Client::request`] build requests
 /// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are
 /// checked when [`Self::send`] runs, before any I/O.
-/// New requests inherit the profile's default template. Use [`Self::template`]
-/// to replace it or [`Self::without_template`] to opt out for one request.
+/// New requests inherit the profile's default template. Use [`Self::context`]
+/// to select another context, [`Self::template`] for a custom template, or
+/// [`Self::without_template`] to opt out for one request.
 ///
 /// # Examples
 ///
@@ -395,6 +397,39 @@ impl RequestBuilder {
             ),
             content_decoding: false,
         }
+    }
+
+    /// Selects this request's context from the client's catalog recipe.
+    ///
+    /// Replaces the default template for this request, without changing other
+    /// requests, connections or session state. Templates are prepared on first
+    /// use and shared by later requests. A later [`Self::template`] or
+    /// [`Self::without_template`] replaces this choice.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
+    /// before I/O when the profile has no catalog association, the context is
+    /// unavailable, or its template is invalid. Required caller fields such as
+    /// `Referer` are checked by [`Self::send`]. Imported JSON profiles have no
+    /// catalog association; use [`Self::template`] for their custom contexts.
+    ///
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use phantom::{Client, RequestHeader, profile::browser::chrome};
+    /// use phantom::profile::catalog::RequestTemplateKind;
+    ///
+    /// let client = Client::builder(chrome::v154_windows()).build()?;
+    /// let response = client.get("https://example.com/data")?
+    ///     .context(RequestTemplateKind::Fetch)?
+    ///     .header(RequestHeader::new("referer", "https://example.com/"))
+    ///     .send().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn context(mut self, kind: RequestTemplateKind) -> Result<Self, RequestError> {
+        self.request.template = Some(self.client.inner.defaults.context_template(kind)?);
+        Ok(self)
     }
 
     /// Sends the request with a browser template's headers and order.
