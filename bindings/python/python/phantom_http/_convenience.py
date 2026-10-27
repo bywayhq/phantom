@@ -17,7 +17,7 @@ from ._configuration import (
 )
 from ._diagnostics import RequestDiagnostics
 from ._errors import _call
-from ._request import _Headers, _UploadPath
+from ._request import _Headers, _RequestContext, _UploadPath
 from ._session import AttemptBudget
 from ._transfer import TransferControl
 
@@ -29,6 +29,7 @@ _JSON_UNSET = object()
 
 
 class _RequestOptions(TypedDict, total=False):
+    context: _RequestContext | None
     params: _Params | None
     json: object
     form: _Form | None

@@ -52,7 +52,14 @@ from ._errors import (
 from ._network import NetworkOptions, _NetworkFields
 from ._pool import PoolOptions, _PoolFields
 from ._profile import Profile
-from ._request import _Context, _Headers, _Protocol, _request_fields, _UploadPath
+from ._request import (
+    _Context,
+    _Headers,
+    _Protocol,
+    _request_fields,
+    _RequestContext,
+    _UploadPath,
+)
 from ._response import AsyncResponse
 from ._session import (
     _NO_SHARED_STATE,
@@ -64,7 +71,8 @@ from ._session import (
 from ._transfer import TransferControl
 
 
-class _DiagnosticsFields(TypedDict, total=False):
+class _RequestFields(TypedDict, total=False):
+    context: _RequestContext
     redirect_credential_headers: tuple[str, ...]
     diagnostics: _native.NativeRequestDiagnostics
 
@@ -306,6 +314,7 @@ class AsyncClient:
         method: str,
         url: str,
         *,
+        context: _RequestContext | None = None,
         params: _Params | None = None,
         json: object = _JSON_UNSET,
         form: _Form | None = None,
@@ -334,10 +343,12 @@ class AsyncClient:
 
         params appends ordered query fields. Choose one of json, form, body or
         upload. maximum_body_bytes bounds encoded JSON and form bodies.
+        context overrides the client default for this request; "raw" omits it.
         """
         return await self._request(
             method,
             url,
+            context=context,
             params=params,
             json=json,
             form=form,
@@ -364,6 +375,7 @@ class AsyncClient:
         method: str,
         url: str,
         *,
+        context: _RequestContext | None = None,
         params: _Params | None = None,
         json: object = _JSON_UNSET,
         form: _Form | None = None,
@@ -473,7 +485,9 @@ class AsyncClient:
                     pump.settled.add_done_callback(
                         lambda _: self._uploads.discard(pump)
                     )
-            diagnostic_fields: _DiagnosticsFields = {}
+            diagnostic_fields: _RequestFields = {}
+            if context is not None:
+                diagnostic_fields["context"] = context
             if diagnostics is not None:
                 diagnostic_fields["diagnostics"] = diagnostics._native
             if redirect_policy is not None and redirect_policy.credential_headers:

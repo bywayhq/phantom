@@ -259,7 +259,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None, redirect_credential_headers=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None, redirect_credential_headers=None, context=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -285,6 +285,7 @@ impl NativeClient {
         diagnostics: Option<PyRef<'_, NativeRequestDiagnostics>>,
         multipart: Option<PyRef<'_, NativeStreamingMultipart>>,
         redirect_credential_headers: Option<&Bound<'_, PyAny>>,
+        context: Option<&str>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let started = tokio::time::Instant::now();
         if usize::from(body.is_some())
@@ -328,6 +329,13 @@ impl NativeClient {
             _ => return Err(error::input("invalid_protocol")),
         }
         .map_err(error::request)?;
+        request = match context {
+            None => request,
+            Some("raw") => request.without_template(),
+            Some(context) => request
+                .context(profile::template_kind(context)?)
+                .map_err(error::request)?,
+        };
         let (headers, trailers) = request_fields::headers(headers, trailers)?;
         request = request.headers(headers).trailers(trailers);
         if let Some(wait) = request_fields::expect_wait(expect_continue_ms)? {

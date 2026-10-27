@@ -92,7 +92,13 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
         client.clear_alt_svc()
         client.clear_alt_svc_racing_history()
         response: Response = client.request(
-            "PUT", url, headers=headers(), upload=upload, budget=budget, timeout_ms=1000
+            "PUT",
+            url,
+            headers=headers(),
+            upload=upload,
+            budget=budget,
+            timeout_ms=1000,
+            context="fetch_upload",
         )
         with response:
             _status: int = response.status
@@ -118,6 +124,7 @@ async def asynchronous(profile: str, url: str) -> bytes:
         response: AsyncResponse = await client.request(
             "GET",
             url,
+            context="fetch",
             headers=[Header("X-Secret", b"value", sensitive=True), ("X-Other", "x")],
             budget=AttemptBudget(2),
             timeouts=TimeoutOverrides(connect=INHERIT, total=None, read_idle=0),

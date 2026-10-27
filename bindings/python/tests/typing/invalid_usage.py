@@ -27,7 +27,7 @@ from phantom_http import (
 
 def synchronous(profile: str, url: str) -> None:
     Client(profile=profile, protocol="h4")  # E: arg-type
-    Client(profile=profile, protocol="h1", context="image")  # E: arg-type
+    Client(profile=profile, protocol="h1", context="imaginary")  # E: arg-type
     Client(profile=profile, protocol="h1", retries=2)  # E: call-arg
     Client(profile=profile, protocol="h1", timeouts=TimeoutOverrides())  # E: arg-type
     Timeouts(connect="slow")  # E: arg-type
@@ -43,6 +43,8 @@ def synchronous(profile: str, url: str) -> None:
         client.request("PUT", url, upload=b"file")  # E: arg-type
         client.request("POST", url, body="text")  # E: arg-type
         client.request("GET", url, retries=2)  # E: call-arg
+        client.get(url, context="imaginary")  # E: arg-type
+        client.get(url, context="profile")  # E: arg-type
         client.request("GET", url, timeouts=Timeouts())  # E: arg-type
         response = client.request("GET", url)
         _text: str = response.read(max_bytes=100)  # E: assignment

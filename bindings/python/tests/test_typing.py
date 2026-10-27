@@ -252,6 +252,7 @@ class SignatureTests(unittest.TestCase):
                 fields = iter([("X-Duplicate", b"a"), ("X-Duplicate", "b")])
                 budget = object()
                 request = {
+                    "context": "fetch",
                     "headers": fields,
                     "trailers": (),
                     "expect_continue_ms": None,
@@ -300,6 +301,7 @@ class SignatureTests(unittest.TestCase):
                             request
                             if explicit
                             else {
+                                "context": None,
                                 "headers": (),
                                 "trailers": (),
                                 "expect_continue_ms": None,

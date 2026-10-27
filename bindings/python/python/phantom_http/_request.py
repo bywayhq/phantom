@@ -16,8 +16,18 @@ from ._configuration import (
 )
 
 _Protocol: TypeAlias = Literal["h1", "h2", "h3", "negotiated"]
-_CatalogContext: TypeAlias = Literal["navigation", "fetch"]
-_Context: TypeAlias = Literal["navigation", "fetch", "profile", "raw"]
+_CatalogContext: TypeAlias = Literal[
+    "navigation",
+    "fetch",
+    "fetch_no_store",
+    "fetch_upload",
+    "script",
+    "stylesheet",
+    "image",
+    "font",
+]
+_Context: TypeAlias = _CatalogContext | Literal["profile", "raw"]
+_RequestContext: TypeAlias = _CatalogContext | Literal["raw"]
 _Headers: TypeAlias = Iterable[Header | tuple[str, str | bytes]]
 _UploadPath: TypeAlias = str | PathLike[str]
 

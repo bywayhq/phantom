@@ -17,7 +17,26 @@ with Client(profile=PROFILE, context="navigation", timeout_ms=30_000) as client:
 This example uses Chrome's Windows settings. Choose other profiles from the
 [catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json)
 and reuse the client for later requests. The navigation context supplies
-page-load headers for each request.
+page-load headers by default. Override it on individual requests:
+
+```python
+with Client(profile=PROFILE, context="navigation") as client:
+    with client.get("https://example.com/") as page:
+        page.read(max_bytes=1_000_000)
+    with client.get(
+        "https://example.com/data",
+        context="fetch",
+        headers=[("Referer", "https://example.com/")],
+    ) as data:
+        print(data.json(max_bytes=1_000_000))
+```
+
+Async requests accept the same `context` option. Omit it to use the client
+default, or use `"raw"` to omit its template for one request. Named contexts
+must exist in the selected catalog profile. Supported names are `navigation`,
+`fetch`, `fetch_no_store`, `fetch_upload`, `script`, `stylesheet`, `image` and
+`font`. Resource templates require `Referer`; fonts also require `Origin`.
+
 The default protocol is negotiated from the profile. Set `protocol="h1"`,
 `"h2"` or `"h3"` when you need an exact protocol.
 

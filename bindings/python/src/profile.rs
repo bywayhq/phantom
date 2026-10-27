@@ -32,10 +32,16 @@ fn document_error(kind: FingerprintImportErrorKind, field: &str) -> PyErr {
     NativeProfileError::new_err((kind, field.to_owned()))
 }
 
-fn template_kind(context: &str) -> PyResult<RequestTemplateKind> {
+pub(super) fn template_kind(context: &str) -> PyResult<RequestTemplateKind> {
     match context {
         "navigation" => Ok(RequestTemplateKind::Navigation),
         "fetch" => Ok(RequestTemplateKind::Fetch),
+        "fetch_no_store" => Ok(RequestTemplateKind::FetchNoStore),
+        "fetch_upload" => Ok(RequestTemplateKind::FetchUpload),
+        "script" => Ok(RequestTemplateKind::Script),
+        "stylesheet" => Ok(RequestTemplateKind::Stylesheet),
+        "image" => Ok(RequestTemplateKind::Image),
+        "font" => Ok(RequestTemplateKind::Font),
         _ => Err(error::input("invalid_context")),
     }
 }

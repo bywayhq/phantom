@@ -49,7 +49,7 @@ from ._errors import (
 from ._network import NetworkOptions
 from ._pool import PoolOptions
 from ._profile import Profile
-from ._request import _Context, _Headers, _Protocol, _UploadPath
+from ._request import _Context, _Headers, _Protocol, _RequestContext, _UploadPath
 from ._response import AsyncResponse, RedirectHistory, ResponseTrailers
 from ._session import (
     _NO_SHARED_STATE,
@@ -324,6 +324,7 @@ class Client:
         method: str,
         url: str,
         *,
+        context: _RequestContext | None = None,
         params: _Params | None = None,
         json: object = _JSON_UNSET,
         form: _Form | None = None,
@@ -368,6 +369,7 @@ class Client:
                     lambda: self._async._request(
                         method,
                         url,
+                        context=context,
                         params=params,
                         json=json,
                         form=form,
@@ -397,6 +399,7 @@ class Client:
                 lambda: self._async.request(
                     method,
                     url,
+                    context=context,
                     params=params,
                     json=json,
                     form=form,
