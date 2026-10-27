@@ -528,7 +528,7 @@ def generate_constructors(profiles):
                     f"    pub fn {constructor(entry)}() -> crate::ClientProfile {{",
                     f"        crate::catalog::connection_profile_definitions::{entry['target'].upper()}",
                     "            .instantiate()",
-                    "            .with_request_context_profile(super::ProfileId(",
+                    "            .with_request_context_profile(crate::catalog::ProfileId(",
                     f"                {rust_string(entry['id'])},",
                     "            ))",
                     "    }",

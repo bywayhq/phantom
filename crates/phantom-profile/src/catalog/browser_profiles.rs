@@ -9,7 +9,7 @@ pub(crate) mod chrome {
     pub fn v154_android() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEANDROID154
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/154.0.8037.57/android-17-pixel7-emulator/r1",
             ))
     }
@@ -21,7 +21,7 @@ pub(crate) mod chrome {
     pub fn v156_linux() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMELINUX156
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
             ))
     }
@@ -33,7 +33,7 @@ pub(crate) mod chrome {
     pub fn v154_macos() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEMACOS154
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/154.0.8037.95/macos-15.5-arm64/r1",
             ))
     }
@@ -45,7 +45,7 @@ pub(crate) mod chrome {
     pub fn v156_macos() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEMACOS156
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
             ))
     }
@@ -57,7 +57,7 @@ pub(crate) mod chrome {
     pub fn v156_macos_intel() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEMACOS156INTEL
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
             ))
     }
@@ -69,7 +69,7 @@ pub(crate) mod chrome {
     pub fn v154_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEWINDOWS154
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/154.0.8037.97/windows-11-26200/r1",
             ))
     }
@@ -81,7 +81,7 @@ pub(crate) mod chrome {
     pub fn v156_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::CHROMEWINDOWS156
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "chrome/156.0.8078.48/windows-11-26200/r1",
             ))
     }
@@ -96,7 +96,7 @@ pub(crate) mod edge {
     pub fn v153_android() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::EDGEANDROID153
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
             ))
     }
@@ -108,7 +108,7 @@ pub(crate) mod edge {
     pub fn v153_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::EDGEWINDOWS153
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "edge/153.0.4234.48/windows-11-26200/r1",
             ))
     }
@@ -120,7 +120,7 @@ pub(crate) mod edge {
     pub fn v154_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::EDGEWINDOWS154
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "edge/154.0.4258.48/windows-11-26200/r1",
             ))
     }
@@ -135,7 +135,7 @@ pub(crate) mod brave {
     pub fn v153_android() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::BRAVEANDROID153
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "brave/153.1.95.104/android-17-pixel7-emulator/r1",
             ))
     }
@@ -147,7 +147,7 @@ pub(crate) mod brave {
     pub fn v154_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::BRAVEWINDOWS154
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "brave/154.1.96.59/windows-11-26200/r1",
             ))
     }
@@ -162,7 +162,7 @@ pub(crate) mod firefox {
     pub fn v156_android() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::FIREFOXANDROID156
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "firefox/156.0.1/android-35-emulator/r1",
             ))
     }
@@ -174,7 +174,7 @@ pub(crate) mod firefox {
     pub fn v157_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::FIREFOXWINDOWS157
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "firefox/157.0/windows-11-26200/r3",
             ))
     }
@@ -186,7 +186,7 @@ pub(crate) mod firefox {
     pub fn v157_windows_r2() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::FIREFOXWINDOWS157R2
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "firefox/157.0/windows-11-26200/r2",
             ))
     }
@@ -201,7 +201,7 @@ pub(crate) mod opera {
     pub fn v102_android() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::OPERAANDROID102
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
             ))
     }
@@ -213,7 +213,7 @@ pub(crate) mod opera {
     pub fn v136_windows() -> crate::ClientProfile {
         crate::catalog::connection_profile_definitions::OPERAWINDOWS136
             .instantiate()
-            .with_request_context_profile(super::ProfileId(
+            .with_request_context_profile(crate::catalog::ProfileId(
                 "opera/136.0.6008.52/windows-11-26200/r1",
             ))
     }
