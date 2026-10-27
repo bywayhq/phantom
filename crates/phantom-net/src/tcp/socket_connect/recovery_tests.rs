@@ -15,7 +15,8 @@ fn settings() -> TcpSettings {
         nodelay: true,
         send_buffer_size: NonZeroU32::new(32_768),
         port_randomization: Some(TcpPortRandomization {
-            minimum_windows_build: 22_621,
+            // Exercise recovery independently of browser profile build requirements.
+            minimum_windows_build: 0,
         }),
         ..TcpSettings::default()
     }
