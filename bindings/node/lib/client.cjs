@@ -1,4 +1,17 @@
+// @ts-check
 'use strict';
+
+/** @typedef {import('../index.js').ClientOptions} ClientOptions */
+/** @typedef {import('../index.js').RequestOptions} RequestOptions */
+/** @typedef {import('../index.js').MethodOptions} MethodOptions */
+/** @typedef {import('./request-preparation.cjs').RequestDefaults} RequestDefaults */
+/** @typedef {import('./client-native.cjs').NativeClient} NativeClient */
+/** @typedef {import('./upload.cjs').UploadIterator} UploadIterator */
+/** @typedef {import('./upload.cjs').MultipartSource} MultipartSource */
+/** @typedef {import('./upload.cjs').UploadProgress} UploadProgress */
+/** @typedef {import('./upload.cjs').UploadOutcome} UploadOutcome */
+/** @typedef {import('./upload.cjs').UploadFailure} UploadFailure */
+/** @typedef {import('./client-native.cjs').NativeUpload} NativeUpload */
 
 const { addAbortListener } = require('node:events');
 const { types } = require('node:util');
@@ -20,18 +33,28 @@ const { integer, positiveCount } = require('./validation.cjs');
 const { openWebSocket } = require('./websocket.cjs');
 
 const clientToken = {};
+/** @type {import('./client-native.cjs').NativeEnvironment} */
 const environment = new native.NativeEnvironment();
 
 class Client {
+  /** @type {NativeClient} */
   #native;
+  /** @type {RequestDefaults} */
   #defaults;
+  /** @type {Set<Promise<void>>} */
   #uploads = new Set();
+  /** @type {Promise<void> | undefined} */
   #closing;
+  /** @type {UploadFailure | undefined} */
   #uploadCleanupError;
 
+  /** @param {unknown} iterator
+   * @param {NativeUpload} upload @param {UploadProgress} outcome
+   * @returns {asserts outcome is UploadOutcome} */
   #trackUpload(iterator, upload, outcome) {
     outcome.context = this;
-    const pumping = runUpload(this, () => outcome.multipart ? pumpMultipart(iterator, upload, outcome) : pumpUpload(iterator, upload, outcome));
+    // Request preparation selects the matching producer before admitting upload.
+    const pumping = runUpload(this, () => outcome.multipart ? pumpMultipart(/** @type {(MultipartSource | undefined)[]} */ (iterator), upload, outcome) : pumpUpload(/** @type {UploadIterator} */ (iterator), upload, outcome));
     outcome.finished = pumping;
     this.#uploads.add(pumping);
 
@@ -43,37 +66,47 @@ class Client {
     pumping.then(settled, settled);
   }
 
+  /** @overload @param {ClientOptions} options */
+  /** @overload @param {NativeClient} options @param {object} token
+   * @param {RequestDefaults} defaults */
+  /** @param {ClientOptions | NativeClient} options @param {object} [token]
+   * @param {RequestDefaults} [defaults] */
   constructor(options, token, defaults) {
     if (token === clientToken) {
-      this.#native = options;
-      this.#defaults = defaults;
+      // Only fork and restore pass this token with their registered native owner.
+      this.#native = /** @type {NativeClient} */ (options);
+      this.#defaults = /** @type {RequestDefaults} */ (defaults);
       return;
     }
 
     try {
       if (options === null || typeof options !== 'object') throw new PhantomError('InvalidArgument', 'client options are required');
 
-      const serverSpkiPins = clientPins(options, 'serverSpkiPins');
-      const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
-      const certificates = clientCertificates(options);
-      const network = networkOptions(options);
-      const userId = Object.getOwnPropertyDescriptor(options, 'proxyUserId');
+      const config = /** @type {ClientOptions} */ (options);
+
+      const serverSpkiPins = clientPins(config, 'serverSpkiPins');
+      const proxyServerSpkiPins = clientPins(config, 'proxyServerSpkiPins');
+      /** @type {Pick<import('./client-native.cjs').NativeClientOptions, 'clientCertificate' | 'clientCertificatesFor'>} */
+      const certificates = clientCertificates(config);
+      const network = networkOptions(config);
+      const userId = Object.getOwnPropertyDescriptor(config, 'proxyUserId');
       if (userId && !Object.hasOwn(userId, 'value')) throw new PhantomError('InvalidArgument', 'proxyUserId must be a data field');
       const proxyUserId = userId?.value === undefined ? undefined : socks4UserId(userId.value);
-      const pool = poolOptions(options);
-      if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
-      const profile = typeof options.profile === 'string' ? undefined : profileHandle(options.profile);
-      this.#defaults = requestDefaults(options, profile?.contexts.includes('profile') ? 'profile' : undefined);
+      const pool = poolOptions(config);
+      if (config.maximumActiveRequests !== undefined) integer(config.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
+      const profile = typeof config.profile === 'string' ? undefined : profileHandle(config.profile);
+      this.#defaults = requestDefaults(config, profile?.contexts.includes('profile') ? 'profile' : undefined);
 
-      const { protocol, context, headers, ...nativeOptions } = options;
+      /** @type {Omit<ClientOptions, 'clientCertificate' | 'clientCertificatesFor'>} */
+      const { protocol, context, headers, ...nativeOptions } = config;
       this.#native = environment.client({
-        ...nativeOptions, profile: typeof options.profile === 'string' ? options.profile : undefined,
-        additionalRoots: options.additionalRoots?.map(bytes),
-        additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
+        ...nativeOptions, profile: typeof config.profile === 'string' ? config.profile : undefined,
+        additionalRoots: config.additionalRoots?.map(bytes),
+        additionalProxyRoots: config.additionalProxyRoots?.map(bytes),
         serverSpkiPins, proxyServerSpkiPins, ...certificates,
-        timeouts: phaseTimeouts(options.timeouts),
-        redirectPolicy: redirectPolicy(options.redirectPolicy),
-        retryPolicy: retryPolicy(options.retryPolicy),
+        timeouts: phaseTimeouts(config.timeouts),
+        redirectPolicy: redirectPolicy(config.redirectPolicy),
+        retryPolicy: retryPolicy(config.retryPolicy),
         network,
         proxyUserId,
         pool,
@@ -83,6 +116,7 @@ class Client {
     }
   }
 
+  /** @param {import('../index.js').SessionSharing} [sharing] */
   fork(sharing = {}) {
     try {
       return new Client(environment.fork(this.#native, sessionSharing(sharing)), clientToken, this.#defaults);
@@ -91,6 +125,7 @@ class Client {
     }
   }
 
+  /** @param {Uint8Array} key */
   async exportSession(key) {
     try {
       return await this.#native.exportSession(checkpointKey(key));
@@ -99,6 +134,8 @@ class Client {
     }
   }
 
+  /** @param {Uint8Array} snapshot @param {Uint8Array} key
+   * @param {import('../index.js').RestoreSessionOptions} [options] */
   async restoreSession(snapshot, key, options = {}) {
     try {
       const input = bytes(snapshot);
@@ -111,12 +148,17 @@ class Client {
     }
   }
 
-  async request(url, options) {
+  /** @param {string | URL} url @param {RequestOptions} [inputOptions] */
+  async request(url, inputOptions) {
+    /** @type {import('./client-native.cjs').NativeCancellation} */
     const cancellation = new native.NativeCancellation();
     let signal;
+    /** @type {Disposable | undefined} */
     let abortListener;
+    /** @type {NativeUpload | undefined} */
     let upload;
     let producer;
+    /** @type {UploadIterator | (MultipartSource | undefined)[] | undefined} */
     let iterator;
     let multipartUpload = false;
     const abort = () => cancellation.cancel();
@@ -127,7 +169,7 @@ class Client {
     };
 
     try {
-      ({ url, options } = prepareRequest(this.#defaults, url, options));
+      const { url: preparedUrl, options } = prepareRequest(this.#defaults, url, inputOptions);
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
@@ -157,8 +199,8 @@ class Client {
       }
 
       if (streaming) {
-        if (typeof options.body?.[Symbol.asyncIterator] !== 'function') throw new PhantomError('InvalidArgument', 'body must be bytes or an AsyncIterable of bytes');
-        iterator = options.body[Symbol.asyncIterator]();
+        if (typeof (/** @type {AsyncIterable<Uint8Array> | undefined} */ (options.body))?.[Symbol.asyncIterator] !== 'function') throw new PhantomError('InvalidArgument', 'body must be bytes or an AsyncIterable of bytes');
+        iterator = (/** @type {AsyncIterable<Uint8Array>} */ (options.body))[Symbol.asyncIterator]();
         if (iterator === null || typeof iterator?.next !== 'function') throw new PhantomError('InvalidArgument', 'body must provide an async iterator');
         upload = new native.NativeUpload(length);
       }
@@ -192,7 +234,7 @@ class Client {
 
       const extra = diagnostics === undefined ? [] : [diagnostics];
       const pending = this.#native.request({
-        url, method: options.method, protocol: options.protocol, context: options.context,
+        url: preparedUrl, method: options.method, protocol: options.protocol, context: options.context,
         ...fields, expectContinueMs: continueWait,
         body: byteBody,
         preparedBody: prepared,
@@ -224,20 +266,30 @@ class Client {
     }
   }
 
+  /** @param {string} method @param {string | URL} url @param {MethodOptions} [options] */
   #requestMethod(method, url, options) {
     if (options !== undefined && (options === null || typeof options !== 'object')) return this.request(url, options);
     return this.request(url, { ...options, method });
   }
 
+  /** @param {string | URL} url @param {import('../index.js').WebSocketOptions} [options] */
   websocket(url, options) { return openWebSocket(this.#native, this, url, options, this.#defaults.headers); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   get(url, options) { return this.#requestMethod('GET', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   head(url, options) { return this.#requestMethod('HEAD', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   post(url, options) { return this.#requestMethod('POST', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   put(url, options) { return this.#requestMethod('PUT', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   patch(url, options) { return this.#requestMethod('PATCH', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   delete(url, options) { return this.#requestMethod('DELETE', url, options); }
+  /** @param {string | URL} url @param {MethodOptions} [options] */
   options(url, options) { return this.#requestMethod('OPTIONS', url, options); }
 
+  /** @param {string} url @param {string} cookie */
   setCookie(url, cookie) {
     try {
       this.#native.setCookie(url, cookie);
@@ -246,6 +298,7 @@ class Client {
     }
   }
 
+  /** @param {string} url */
   cookieValue(url) {
     try {
       return this.#native.cookieValue(url);
@@ -318,6 +371,7 @@ class Client {
     }
   }
 
+  /** @param {{timeoutMs?: number}} [options] */
   async close({ timeoutMs = 5000 } = {}) {
     this.#checkShutdown(timeoutMs);
     if (this.#closing) return this.#closing;
@@ -332,6 +386,7 @@ class Client {
     }
   }
 
+  /** @param {{timeoutMs?: number}} [options] */
   async destroy({ timeoutMs = 5000 } = {}) {
     this.#checkShutdown(timeoutMs);
     try {
@@ -342,11 +397,13 @@ class Client {
     await this.close({ timeoutMs });
   }
 
+  /** @param {number} timeoutMs */
   #checkShutdown(timeoutMs) {
     integer(timeoutMs, 'timeoutMs');
     if (isUploadContext(this)) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own client shutdown');
   }
 
+  /** @param {number} timeoutMs */
   async #finishClose(timeoutMs) {
     const started = performance.now();
     try {

@@ -120,6 +120,12 @@ function retryStatuses(value) {
   return [...unique];
 }
 
+/** @overload @param {unknown} value @param {true} status
+ * @returns {import('./client-native.cjs').NativeConnectionRetry & {statuses: number[], retryAfterLimitMs?: number}} */
+/** @overload @param {unknown} value @param {false} status
+ * @returns {import('./client-native.cjs').NativeConnectionRetry} */
+/** @param {unknown} value @param {boolean} status
+ * @returns {import('./client-native.cjs').NativeConnectionRetry & {statuses?: number[], retryAfterLimitMs?: number}} */
 function retrySchedule(value, status) {
   const copy = policyFields(value, status
     ? ['statuses', 'maximum', 'delayMs', 'maximumDelayMs', 'fullJitter', 'retryAfterLimitMs']
@@ -134,6 +140,8 @@ function retrySchedule(value, status) {
   return result;
 }
 
+/** @param {import('../index.js').RetryPolicy | undefined} value
+ * @returns {import('./client-native.cjs').NativeRetryPolicy | undefined} */
 function retryPolicy(value) {
   if (value === undefined) return undefined;
   const copy = policyFields(value, ['connectionFailures', 'reusedConnectionReplay', 'unprocessedReplays',

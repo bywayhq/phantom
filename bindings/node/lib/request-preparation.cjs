@@ -8,10 +8,16 @@ const { encodedBody } = require('./prepared-body.cjs');
 const { requestFields } = require('./request-options.cjs');
 
 /** @typedef {import('../index.js').Header} Header */
+/** @typedef {import('./client-native.cjs').NativeHeader} NativeHeader */
 /** @typedef {import('../index.js').RequestOptions} RequestOptions */
 /** @typedef {import('../index.js').RequestContext} RequestContext */
 /** @typedef {import('../index.js').RequestProtocol} RequestProtocol */
-/** @typedef {Readonly<{protocol: RequestProtocol, context?: RequestContext, headers: readonly Header[]}>} RequestDefaults */
+/** @typedef {Readonly<{protocol: RequestProtocol, context?: RequestContext, headers: readonly NativeHeader[]}>} RequestDefaults */
+/** @typedef {Omit<RequestOptions, 'body' | 'method' | 'protocol' | 'context' | 'headers' | 'trailers'> & {
+ * body?: Exclude<RequestOptions['body'], string>, method: string,
+ * protocol: RequestProtocol, context: RequestContext,
+ * headers?: NativeHeader[], trailers?: NativeHeader[]
+ * }} PreparedRequestOptions */
 
 const maximumBodyBytes = 16 * 1024 * 1024;
 const maximumUrlBytes = 65536;
@@ -33,7 +39,7 @@ function requestDefaults(options, attachedContext) {
   const context = options.context === undefined ? attachedContext : options.context;
   validateSelections(protocol, context);
 
-  /** @type {Header[]} */
+  /** @type {NativeHeader[]} */
   const headers = requestFields(options.headers, undefined).headers ?? [];
   return Object.freeze({
     protocol, context,
@@ -98,7 +104,7 @@ function requestUrl(input, query) {
 
 /** @param {RequestDefaults} defaults @param {string | URL} url
  * @param {RequestOptions} [options]
- * @returns {{url: string, options: Omit<RequestOptions, 'body'> & {body?: Exclude<RequestOptions['body'], string>}}} */
+ * @returns {{url: string, options: PreparedRequestOptions}} */
 function prepareRequest(defaults, url, options = {}) {
   if (options === null || typeof options !== 'object') {
     throw new PhantomError('InvalidArgument', 'request options must be an object');
@@ -137,7 +143,7 @@ function prepareRequest(defaults, url, options = {}) {
     contentType = 'text/plain;charset=UTF-8';
   }
   // Validate caller fields before using their names to replace default fields.
-  /** @type {{headers?: Header[], trailers?: Header[]}} */
+  /** @type {{headers: NativeHeader[] | undefined, trailers: NativeHeader[] | undefined}} */
   const fields = requestFields(options.headers, options.trailers);
   let headers = mergeHeaders(defaults.headers, fields.headers);
   const addedContentType = contentType !== undefined && !headers?.some((header) => header.name.toLowerCase() === 'content-type');
@@ -155,7 +161,7 @@ function prepareRequest(defaults, url, options = {}) {
   }};
 }
 
-/** @param {readonly Header[]} defaults @param {Header[] | undefined} headers */
+/** @template {Header} Field @param {readonly Field[]} defaults @param {Field[] | undefined} headers */
 function mergeHeaders(defaults, headers) {
   if (defaults.length === 0) return headers;
   const replaced = new Set(headers?.map((header) => header.name.toLowerCase()));
