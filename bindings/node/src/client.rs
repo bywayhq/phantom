@@ -70,21 +70,19 @@ pub(crate) struct ClientState {
 }
 
 impl ClientState {
-    pub(crate) fn fork(
-        &self,
-        sharing: SessionSharing,
+    fn new(
+        core: Client,
+        profile: Arc<ProfileState>,
+        maximum: usize,
+        timeouts: phantom::RequestTimeouts,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
-        self.with_core(self.core.fork(sharing), environment)
-    }
-
-    pub(crate) fn with_core(&self, core: Client, environment: &Environment) -> Result<Arc<Self>> {
         let state = Arc::new(Self {
             core,
-            profile: Arc::clone(&self.profile),
-            admission: Arc::new(Semaphore::new(self.maximum)),
-            timeouts: self.timeouts,
-            maximum: self.maximum,
+            profile,
+            admission: Arc::new(Semaphore::new(maximum)),
+            timeouts,
+            maximum,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
             aborted: AtomicBool::new(false),
@@ -94,6 +92,24 @@ impl ClientState {
 
         environment.register(&state)?;
         Ok(state)
+    }
+
+    pub(crate) fn fork(
+        &self,
+        sharing: SessionSharing,
+        environment: &Environment,
+    ) -> Result<Arc<Self>> {
+        self.with_core(self.core.fork(sharing), environment)
+    }
+
+    pub(crate) fn with_core(&self, core: Client, environment: &Environment) -> Result<Arc<Self>> {
+        Self::new(
+            core,
+            Arc::clone(&self.profile),
+            self.maximum,
+            self.timeouts,
+            environment,
+        )
     }
 
     pub(crate) fn build(
@@ -179,21 +195,7 @@ impl ClientState {
             .build()
             .map_err(crate::client_certificate::build_error)?;
 
-        let state = Arc::new(Self {
-            core,
-            profile,
-            admission: Arc::new(Semaphore::new(maximum as usize)),
-            timeouts,
-            maximum: maximum as usize,
-            shutdown_pending: AtomicBool::new(false),
-            closed: AtomicBool::new(false),
-            aborted: AtomicBool::new(false),
-            exchanges: Mutex::new(Vec::new()),
-            sockets: Mutex::new(Vec::new()),
-        });
-
-        environment.register(&state)?;
-        Ok(state)
+        Self::new(core, profile, maximum as usize, timeouts, environment)
     }
 
     pub(crate) fn register(&self, exchange: &Arc<Exchange>) -> Result<()> {
