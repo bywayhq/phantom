@@ -1,6 +1,7 @@
 """Native SSE decoding against independent HTTP/1 and HTTP/2 peers."""
 
 import asyncio
+import threading
 import unittest
 
 from phantom_http import (
@@ -84,6 +85,29 @@ class EventHandler(Handler):
 
 
 class SyncEventTests(unittest.TestCase):
+    def test_rejected_cross_thread_close_keeps_native_events_readable(self):
+        with (
+            server(EventHandler) as (_, url),
+            Client(profile=PROFILE, protocol="h1", timeout_ms=5000) as client,
+            client.events("GET", url + "/events") as events,
+        ):
+            failures = []
+
+            def close_from_other_thread():
+                try:
+                    events.close()
+                except RuntimeError as error:
+                    failures.append(error)
+
+            worker = threading.Thread(target=close_from_other_thread)
+            worker.start()
+            worker.join(5)
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(len(failures), 1)
+            self.assertEqual(next(events).data, "one\ntwo")
+            events.close()
+            events.close()
+
     def test_iteration_utf8_defaults_and_complete_retry_state(self):
         with (
             server(EventHandler) as (_, url),
@@ -159,6 +183,45 @@ class SyncEventTests(unittest.TestCase):
 
 
 class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rejected_upload_producer_close_keeps_native_events_readable(self):
+        with H2Peer(event_stream=True) as peer:
+            async with AsyncClient(
+                profile=PROFILE, protocol="h2", context="raw", timeout_ms=5000
+            ) as client:
+                ready = asyncio.Event()
+                attempted = asyncio.get_running_loop().create_future()
+                closed = []
+                events = None
+
+                async def producer():
+                    try:
+                        yield b"start"
+                        await ready.wait()
+                        try:
+                            await events.aclose()
+                        except RuntimeError as error:
+                            attempted.set_result(str(error))
+                        else:
+                            attempted.set_exception(
+                                AssertionError("producer close was accepted")
+                            )
+                        yield b"finish"
+                    finally:
+                        closed.append(True)
+
+                response = await client.post(peer.url + "/stall", body=producer())
+                events = response.events()
+                ready.set()
+                self.assertIn("own cleanup", await asyncio.wait_for(attempted, 5))
+                self.assertEqual((await anext(events)).data, "first")
+                await events.aclose()
+                await events.aclose()
+                self.assertEqual(closed, [True])
+                for path in ("/after-one", "/after-two"):
+                    after = await client.get(peer.url + path)
+                    self.assertEqual(await after.read(max_bytes=5), b"hello")
+        self.assertFalse(peer.premature_close)
+
     async def test_redirect_budget_context_and_streamed_upload_use_ordinary_request(
         self,
     ):

@@ -85,12 +85,12 @@ class AsyncEventStream:
         return Event(*fields)
 
     def close(self) -> None:
-        self._finished = True
         self.response.close()
+        self._finished = True
 
     async def aclose(self, *, timeout_ms: int = 5000) -> None:
-        self._finished = True
         await self.response.aclose(timeout_ms=timeout_ms)
+        self._finished = True
 
     async def __aenter__(self) -> AsyncEventStream:
         return self
@@ -138,8 +138,8 @@ class EventStream:
             raise StopIteration from None
 
     def close(self) -> None:
-        self._stream._finished = True
         self.response.close()
+        self._stream._finished = True
 
     def __enter__(self) -> EventStream:
         return self

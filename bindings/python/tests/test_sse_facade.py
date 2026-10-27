@@ -3,7 +3,7 @@
 import asyncio
 import unittest
 
-from test_upload_errors import FACADE, NativeResponse
+from test_upload_errors import FACADE, NativeResponse, Pump
 
 
 class Decoder:
@@ -37,6 +37,41 @@ class Response(NativeResponse):
 
 
 class EventTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rejected_producer_self_close_keeps_events_readable(self):
+        native = Response(Decoder([("still live", "message", "")]))
+        pump = Pump()
+        pump.loop = asyncio.get_running_loop()
+        pump.task = asyncio.current_task()
+        # Exercise the real upload ownership checks without a native pump.
+        pump.check_wait = FACADE._upload.Upload.check_wait.__get__(pump)
+        pump.check_loop = FACADE._upload.Upload.check_loop.__get__(pump)
+        stream = FACADE.AsyncResponse(native, pump).events()
+        with self.assertRaisesRegex(RuntimeError, "own cleanup"):
+            await stream.aclose()
+        self.assertFalse(native.closed)
+        self.assertFalse(pump.closed)
+        self.assertEqual((await anext(stream)).data, "still live")
+        pump.task = None
+        await stream.aclose()
+        await stream.aclose()
+        self.assertTrue(native.closed)
+
+    async def test_rejected_wrong_loop_close_keeps_events_readable(self):
+        native = Response(Decoder([("still live", "message", "")]))
+        pump = Pump()
+        pump.loop = asyncio.new_event_loop()
+        pump.check_loop = FACADE._upload.Upload.check_loop.__get__(pump)
+        stream = FACADE.AsyncResponse(native, pump).events()
+        try:
+            with self.assertRaisesRegex(RuntimeError, "creating event loop"):
+                stream.close()
+            self.assertFalse(native.closed)
+            self.assertEqual((await anext(stream)).data, "still live")
+        finally:
+            pump.loop.close()
+            pump.loop = asyncio.get_running_loop()
+            await stream.aclose()
+
     async def test_iteration_returns_named_events_and_stops_after_eof(self):
         decoder = Decoder([("one\ntwo", "message", "7"), ("", "custom", "7")])
         native = Response(decoder)
@@ -149,6 +184,36 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SyncEventTests(unittest.TestCase):
+    def test_rejected_wrong_thread_close_keeps_events_readable(self):
+        import threading
+
+        native = Response(Decoder([("still live", "message", "")]))
+        client = object.__new__(FACADE.Client)
+        client._thread = threading.get_ident()
+        client._loop = asyncio.new_event_loop()
+        stream = FACADE.Response(client, FACADE.AsyncResponse(native)).events()
+        failures = []
+
+        def close_from_other_thread():
+            try:
+                stream.close()
+            except RuntimeError as error:
+                failures.append(error)
+
+        worker = threading.Thread(target=close_from_other_thread)
+        try:
+            worker.start()
+            worker.join(5)
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(len(failures), 1)
+            self.assertFalse(native.closed)
+            self.assertEqual(next(stream).data, "still live")
+            stream.close()
+            stream.close()
+            self.assertTrue(native.closed)
+        finally:
+            client._loop.close()
+
     def test_sync_iterator_and_close_use_client_loop(self):
         native = Response(Decoder([("hello", "message", "")]))
         client = object.__new__(FACADE.Client)
