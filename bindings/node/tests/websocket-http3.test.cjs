@@ -75,7 +75,7 @@ for (const reject of [false, true]) test(`HTTP/3 WebSocket ${reject ? 'rejection
       assert.equal(await rejected.text(4), 'nied');
       await client.close();
     } else {
-      socket = await client.websocket(url + '/echo', {protocol: 'http3', headers: [{name: 'Sec-WebSocket-Protocol', value: Buffer.from('chat')}]});
+      socket = await client.websocket(url + '/echo', {protocol: 'http3', headers: [{name: 'sec-websocket-protocol', value: Buffer.from('chat')}]});
       assert.equal(socket.handshake.status, 200);
       assert.equal(socket.handshake.protocol, 'http3');
       assert.equal(socket.handshake.selectedProtocol, 'chat');

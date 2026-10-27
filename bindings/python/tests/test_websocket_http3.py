@@ -88,7 +88,7 @@ class HTTP3WebSocketTests(unittest.IsolatedAsyncioTestCase):
                     socket = await client.websocket(
                         url + "/echo",
                         protocol="h3",
-                        headers=[("Sec-WebSocket-Protocol", "chat")],
+                        headers=[("sec-websocket-protocol", "chat")],
                     )
                     self.assertEqual(
                         (socket.status, socket.protocol, socket.selected_protocol),
