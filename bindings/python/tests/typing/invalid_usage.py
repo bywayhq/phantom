@@ -16,6 +16,7 @@ from phantom_http import (
     Response,
     RetryPolicy,
     SessionSharing,
+    SseLimits,
     StatusRetry,
     TimeoutOverrides,
     Timeouts,
@@ -26,6 +27,9 @@ from phantom_http import (
 
 
 def synchronous(profile: str, url: str) -> None:
+    SseLimits(max_line_bytes="unbounded")  # E: arg-type
+    Client(profile=profile).events("GET", url, context="profile")  # E: arg-type
+    Client(profile=profile).events("GET", url, limits=None)  # E: arg-type
     Client(profile=profile, protocol="h4")  # E: arg-type
     Client(profile=profile, protocol="h1", context="imaginary")  # E: arg-type
     Client(profile=profile, protocol="h1", retries=2)  # E: call-arg

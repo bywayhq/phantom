@@ -70,6 +70,7 @@ from ._session import (
     _checkpoint_bytes,
     _receiving_routes,
 )
+from ._sse import _DEFAULT_SSE_LIMITS, AsyncEventStream, SseLimits
 from ._transfer import TransferControl
 from ._websocket import (
     _DEFAULT_WEBSOCKET_LIMITS,
@@ -339,6 +340,24 @@ class AsyncClient:
         """Open a response and close it when the context exits."""
         async with await self.request(method, url, **options) as response:
             yield response
+
+    @asynccontextmanager
+    async def events(
+        self,
+        method: str,
+        url: str,
+        *,
+        limits: SseLimits = _DEFAULT_SSE_LIMITS,
+        **options: Unpack[_AsyncRequestOptions],
+    ) -> AsyncIterator[AsyncEventStream]:
+        """Read SSE from one ordinary request, without automatic reconnection."""
+        if not isinstance(limits, SseLimits):
+            raise TypeError("limits must be SseLimits")
+        async with (
+            self.stream(method, url, **options) as response,
+            response.events(limits=limits) as events,
+        ):
+            yield events
 
     async def request(
         self,

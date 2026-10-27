@@ -16,6 +16,10 @@ pub(super) fn io(_: std::io::Error) -> PyErr {
 }
 
 pub(super) fn request(error: RequestError) -> PyErr {
+    request_ref(&error)
+}
+
+pub(super) fn request_ref(error: &RequestError) -> PyErr {
     let kind = match error.kind() {
         RequestErrorKind::Timeout => "timeout",
         RequestErrorKind::AttemptBudgetExhausted => "attempt_budget_exhausted",

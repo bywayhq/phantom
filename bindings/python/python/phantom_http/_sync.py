@@ -59,6 +59,7 @@ from ._session import (
     _checkpoint_bytes,
     _receiving_routes,
 )
+from ._sse import _DEFAULT_SSE_LIMITS, EventStream, SseLimits
 from ._sync_websocket import WebSocket
 from ._transfer import TransferControl
 from ._websocket import (
@@ -126,6 +127,11 @@ class Response:
 
     def read(self, *, max_bytes: int) -> bytes:
         return self._client._run(lambda: self._response.read(max_bytes=max_bytes))
+
+    def events(self, *, limits: SseLimits = _DEFAULT_SSE_LIMITS) -> EventStream:
+        """Convert this unread response to a one-response event iterator."""
+        self._client._check_thread_loop()
+        return EventStream(self._client, self._response.events(limits=limits))
 
     def text(
         self, *, max_bytes: int, encoding: str = "utf-8", errors: str = "strict"
@@ -358,6 +364,24 @@ class Client:
         """Open a response and close it when the context exits."""
         with self.request(method, url, **options) as response:
             yield response
+
+    @contextlib.contextmanager
+    def events(
+        self,
+        method: str,
+        url: str,
+        *,
+        limits: SseLimits = _DEFAULT_SSE_LIMITS,
+        **options: Unpack[_SyncRequestOptions],
+    ) -> Iterator[EventStream]:
+        """Read SSE using the ordinary request options, without reconnecting."""
+        if not isinstance(limits, SseLimits):
+            raise TypeError("limits must be SseLimits")
+        with (
+            self.stream(method, url, **options) as response,
+            response.events(limits=limits) as events,
+        ):
+            yield events
 
     def request(
         self,

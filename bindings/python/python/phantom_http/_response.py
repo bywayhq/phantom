@@ -27,6 +27,7 @@ from ._errors import (
     _primary_error,
     _upload_error,
 )
+from ._sse import _DEFAULT_SSE_LIMITS, AsyncEventStream, SseLimits
 
 
 @dataclass(frozen=True)
@@ -169,6 +170,19 @@ class AsyncResponse:
         if self._upload is not None:
             self._upload.close()
 
+    def events(self, *, limits: SseLimits = _DEFAULT_SSE_LIMITS) -> AsyncEventStream:
+        """Consume an unread 200 text/event-stream response without reconnecting.
+
+        Invalid metadata leaves the body readable. A previous byte read or event
+        conversion is rejected without disturbing its current reader.
+        """
+        if not isinstance(limits, SseLimits):
+            raise TypeError("limits must be SseLimits")
+        native = _call(
+            self._native.events, limits.max_line_bytes, limits.max_event_bytes
+        )
+        return AsyncEventStream(self, native)
+
     async def aclose(self, *, timeout_ms: int = 5000) -> None:
         """Abort the body and settle cooperative producer cleanup."""
         if self._upload is not None:
@@ -190,7 +204,7 @@ class AsyncResponse:
         if (
             isinstance(primary, Error)
             and primary.category == "input"
-            and primary.kind == "concurrent_body_read"
+            and primary.kind in ("concurrent_body_read", "body_consumed")
         ):
             # The rejected call never acquired the other read's body lease.
             return primary

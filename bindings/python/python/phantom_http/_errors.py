@@ -135,6 +135,10 @@ class DecodeError(Error):
     """Text or JSON decoding failed without including response content."""
 
 
+class SseError(Error):
+    """SSE response validation or decoding exceeded its configured contract."""
+
+
 def _error(error: _native.NativeError) -> Error:
     category, kind, protocol, phase = cast(
         tuple[str, str, str | None, str | None], error.args
@@ -143,6 +147,8 @@ def _error(error: _native.NativeError) -> Error:
         return SessionSnapshotError(category, kind, protocol, phase)
     if category == "prepared_body":
         return PreparedBodyError(category, kind, protocol, phase)
+    if category == "sse":
+        return SseError(category, kind, protocol, phase)
     cls = {
         "timeout": TimeoutError,
         "shutdown_timeout": TimeoutError,

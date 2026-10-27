@@ -7,6 +7,7 @@ from typing import cast
 from phantom_http import (
     INHERIT,
     AsyncClient,
+    AsyncEventStream,
     AsyncResponse,
     AttemptBudget,
     BodyLimitExceeded,
@@ -16,6 +17,8 @@ from phantom_http import (
     Cookies,
     DecodeError,
     Error,
+    Event,
+    EventStream,
     Header,
     HostOverride,
     HTTPStatusError,
@@ -30,6 +33,8 @@ from phantom_http import (
     ResponseHeader,
     RetryPolicy,
     SessionSharing,
+    SseError,
+    SseLimits,
     StatusRetry,
     TimeoutOverrides,
     Timeouts,
@@ -38,6 +43,28 @@ from phantom_http import (
     TransferSnapshot,
     Trust,
 )
+
+
+async def events(async_client: AsyncClient, client: Client, url: str) -> None:
+    limits = SseLimits(max_line_bytes=131072)
+    try:
+        async with async_client.events(
+            "POST", url, json={"query": "events"}, context="fetch", limits=limits
+        ) as incoming:
+            asynchronous: AsyncEventStream = incoming
+            async for event in asynchronous:
+                typed: Event = event
+                print(typed.data, typed.event, typed.id, incoming.retry_ms)
+        with client.events("GET", url, limits=limits) as incoming_sync:
+            synchronous: EventStream = incoming_sync
+            for item in synchronous:
+                print(
+                    item.data,
+                    incoming_sync.response.status,
+                    incoming_sync.last_event_id,
+                )
+    except SseError as error:
+        print(error.kind)
 
 
 def headers() -> Generator[tuple[str, str | bytes], None, None]:

@@ -34,6 +34,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_request.py",
             "_response.py",
             "_session.py",
+            "_sse.py",
             "_sync.py",
             "_sync_websocket.py",
             "_websocket.py",
@@ -133,6 +134,8 @@ class SignatureTests(unittest.TestCase):
                 "https://a.invalid", "https://b.invalid", "GET", "GET", 302
             ),
             phantom_http.MultipartPart("field", b"value"),
+            phantom_http.Event("value", "message", "7"),
+            phantom_http.SseLimits(),
         )
         for value in values:
             with self.subTest(type=type(value).__name__):

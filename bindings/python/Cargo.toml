@@ -17,7 +17,7 @@ futures-util = { version = "=0.3.34", default-features = false, features = ["sin
 http = "1.4.0"
 http-body = "1.1.0"
 http-body-util = "0.1.3"
-phantom = { package = "phantom-http", path = "../../crates/phantom", features = ["cookies", "fingerprint-import", "session-snapshot", "websocket"] }
+phantom = { package = "phantom-http", path = "../../crates/phantom", features = ["cookies", "fingerprint-import", "session-snapshot", "sse", "websocket"] }
 phantom-profile = { path = "../../crates/phantom-profile" }
 pyo3 = { version = "=0.29.3", features = ["abi3-py310"] }
 pyo3-async-runtimes = { version = "=0.29.0", features = ["tokio-runtime"] }

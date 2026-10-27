@@ -35,6 +35,7 @@ class H2Peer:
         trailers=None,
         socket_path=None,
         websocket=False,
+        event_stream=False,
     ):
         self.listener = (
             socket.socket(socket.AF_UNIX)
@@ -56,6 +57,7 @@ class H2Peer:
             self.tls.set_alpn_protocols(["h2"])
         self.client_certificate = None
         self.websocket = websocket
+        self.event_stream = event_stream
         self.websocket_stream = None
         self.url = (
             f"{'https' if tls else 'http'}://localhost"
@@ -115,13 +117,18 @@ class H2Peer:
                             self.requests.append((event.stream_id, path))
                             self.headers.append(event.headers)
                             fields = [(":status", "200")]
+                            if self.event_stream and path in (b"/stall", b"/events"):
+                                fields.append(("content-type", "text/event-stream"))
                             if path == b"/decode-overflow":
                                 fields.append(("content-encoding", "gzip"))
                             connection.send_headers(event.stream_id, fields)
                             if dict(event.headers).get(b":protocol") == b"websocket":
                                 self.websocket_stream = event.stream_id
                             elif path == b"/stall":
-                                connection.send_data(event.stream_id, b"a")
+                                connection.send_data(
+                                    event.stream_id,
+                                    b"data: first\n\n" if self.event_stream else b"a",
+                                )
                             elif path in (b"/overflow", b"/decode-overflow"):
                                 overflow = event.stream_id
                             elif path == b"/healthy":
@@ -136,7 +143,9 @@ class H2Peer:
                             else:
                                 connection.send_data(
                                     event.stream_id,
-                                    b"hello",
+                                    b"data: hello\n\n"
+                                    if self.event_stream and path == b"/events"
+                                    else b"hello",
                                     end_stream=self.trailers is None,
                                 )
                                 if self.trailers is not None:

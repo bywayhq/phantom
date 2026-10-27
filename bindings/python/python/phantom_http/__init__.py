@@ -37,6 +37,7 @@ from ._errors import Error as Error
 from ._errors import PreparedBodyError as PreparedBodyError
 from ._errors import ProfileError as ProfileError
 from ._errors import SessionSnapshotError as SessionSnapshotError
+from ._errors import SseError as SseError
 from ._errors import TimeoutError as TimeoutError
 from ._errors import UploadError as UploadError
 from ._errors import _call as _call
@@ -57,6 +58,10 @@ from ._response import ResponseHeaders as ResponseHeaders
 from ._response import ResponseTrailers as ResponseTrailers
 from ._session import AttemptBudget as AttemptBudget
 from ._session import Cookies as Cookies
+from ._sse import AsyncEventStream as AsyncEventStream
+from ._sse import Event as Event
+from ._sse import EventStream as EventStream
+from ._sse import SseLimits as SseLimits
 from ._sync import Client as Client
 from ._sync import HTTPStatusError as HTTPStatusError
 from ._sync import Response as Response
@@ -88,6 +93,11 @@ for _public_type in (
     ProfileError,
     SessionSnapshotError,
     DecodeError,
+    SseError,
+    SseLimits,
+    Event,
+    EventStream,
+    AsyncEventStream,
     HTTPStatusError,
     MultipartPart,
     StreamingMultipartBody,

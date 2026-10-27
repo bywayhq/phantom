@@ -17,9 +17,18 @@ const CLOSED: u8 = 1;
 const EXPIRED: u8 = 2;
 const ABORTED: u8 = 3;
 
-struct Stream {
+mod sse;
+pub(super) use sse::NativeEventStream;
+
+struct BodyStream {
     body: ResponseBody,
     pending: Bytes,
+    head: Option<http::response::Parts>,
+}
+
+enum Stream {
+    Body(BodyStream),
+    Events(phantom::SseStream),
 }
 pub(super) struct BodyOwner {
     stream: Mutex<Option<Stream>>,
@@ -134,7 +143,11 @@ impl ReadLease {
             .stream
             .take()
             .ok_or_else(|| error::input("body_state"))?;
-        if !self.owner.finish(CLOSED, stream.body.into_trailers()) {
+        let trailers = match stream {
+            Stream::Body(stream) => stream.body.into_trailers(),
+            Stream::Events(stream) => stream.into_trailers(),
+        };
+        if !self.owner.finish(CLOSED, trailers) {
             return Err(self.owner.closed_error());
         }
         self.finished = true;
@@ -298,6 +311,7 @@ impl NativeResponse {
                 .to_owned()
             })
             .collect();
+        let (head, body) = response.into_parts();
         Ok(Self {
             status,
             protocol: protocol.clone(),
@@ -308,10 +322,11 @@ impl NativeResponse {
             redirect_history,
             headers,
             owner: Arc::new(BodyOwner {
-                stream: Mutex::new(Some(Stream {
-                    body: response.into_body(),
+                stream: Mutex::new(Some(Stream::Body(BodyStream {
+                    body,
                     pending: Bytes::new(),
-                })),
+                    head: Some(head),
+                }))),
                 trailers: Mutex::new(ResponseTrailers::Pending),
                 busy: AtomicBool::new(false),
                 state: AtomicU8::new(OPEN),
@@ -409,6 +424,14 @@ impl NativeResponse {
         Ok(())
     }
 
+    fn events(
+        &self,
+        maximum_line_bytes: usize,
+        maximum_event_bytes: usize,
+    ) -> PyResult<NativeEventStream> {
+        NativeEventStream::from_response(&self.owner, maximum_line_bytes, maximum_event_bytes)
+    }
+
     fn read_chunk<'py>(&self, py: Python<'py>, maximum: usize) -> PyResult<Bound<'py, PyAny>> {
         if maximum == 0 || maximum > 1024 * 1024 {
             return Err(error::input("chunk_size"));
@@ -416,12 +439,17 @@ impl NativeResponse {
         let owner = Arc::clone(&self.owner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
-            let Some(stream) = lease.stream.as_mut() else {
+            if matches!(lease.stream, Some(Stream::Events(_))) {
+                lease.restore()?;
+                return Err(error::input("body_consumed"));
+            }
+            let Some(Stream::Body(stream)) = lease.stream.as_mut() else {
                 if matches!(owner.state.load(Ordering::SeqCst), EXPIRED | ABORTED) {
                     return Err(owner.closed_error());
                 }
                 return Ok(None::<Py<PyBytes>>);
             };
+            stream.head = None;
             let changed = owner.changed.notified();
             tokio::pin!(changed);
             changed.as_mut().enable();
@@ -458,12 +486,17 @@ impl NativeResponse {
         let owner = Arc::clone(&self.owner);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
-            let Some(stream) = lease.stream.as_mut() else {
+            if matches!(lease.stream, Some(Stream::Events(_))) {
+                lease.restore()?;
+                return Err(error::input("body_consumed"));
+            }
+            let Some(Stream::Body(stream)) = lease.stream.as_mut() else {
                 if matches!(owner.state.load(Ordering::SeqCst), EXPIRED | ABORTED) {
                     return Err(owner.closed_error());
                 }
                 return Ok(Vec::<u8>::new());
             };
+            stream.head = None;
             let changed = owner.changed.notified();
             tokio::pin!(changed);
             changed.as_mut().enable();

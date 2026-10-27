@@ -30,6 +30,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<transfer::NativeTransferControl>()?;
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
+    module.add_class::<response::NativeEventStream>()?;
     module.add_class::<websocket::NativeWebSocket>()?;
     module.add_class::<upload::NativeUpload>()?;
     module.add_class::<streaming_multipart::NativeStreamingMultipart>()?;

@@ -405,6 +405,24 @@ ClientHello input includes its four-byte handshake header, without TLS records;
 QUIC input is extension 57's payload. Missing settings come from the explicit
 base.
 
+## Server-sent events
+
+Use `client.events(method, url, **request_options)` to read one response. It
+accepts the same contexts, bodies and policies as `request()`:
+
+```python
+async with client.events("GET", "https://example.com/events") as events:
+    async for event in events:
+        print(event.event, event.data, event.id)
+```
+
+The synchronous client supports `with` and `for`. You can also convert an
+unread response with `response.events()`. `SseLimits` defaults to 64 KiB per
+line and 1 MiB per event block. Invalid metadata leaves the body readable.
+Streams expose `last_event_id`, `retry_ms` and `response`; they do not reconnect.
+SSE validation and limit failures raise `SseError`; body failures retain their
+request error category. Closing or cancelling a read releases its response.
+
 ## Synchronous calls and errors
 
 `Client` uses one reusable Python event loop. Call it from its creating thread,
