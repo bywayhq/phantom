@@ -28,7 +28,7 @@ func loadNative() error {
 		if path == "" {
 			executable, err := os.Executable()
 			if err != nil {
-				library.err = &Error{Kind: "native_library_unavailable"}
+				library.err = &Error{Kind: "native_library_unavailable", cause: err}
 				return
 			}
 			path = filepath.Join(filepath.Dir(executable), nativeFilename)
@@ -39,7 +39,7 @@ func loadNative() error {
 		}
 		handle, err := openNative(path)
 		if err != nil {
-			library.err = &Error{Kind: "native_library_unavailable"}
+			library.err = &Error{Kind: "native_library_unavailable", cause: err}
 			return
 		}
 		library.handle = handle
@@ -53,7 +53,7 @@ func loadNative() error {
 		} {
 			address, err := nativeSymbol(handle, binding.name)
 			if err != nil {
-				library.err = &Error{Kind: "native_abi"}
+				library.err = &Error{Kind: "native_abi", cause: err}
 				return
 			}
 			*binding.target = address
@@ -115,7 +115,7 @@ func loadHot() error {
 		} {
 			address, err := nativeSymbol(library.handle, binding.name)
 			if err != nil {
-				library.hotErr = &Error{Kind: "native_abi"}
+				library.hotErr = &Error{Kind: "native_abi", cause: err}
 				return
 			}
 			*binding.target = address
