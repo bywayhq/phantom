@@ -1,5 +1,6 @@
 import contextlib
 import csv
+import hashlib
 import importlib.util
 import io
 import json
@@ -376,6 +377,12 @@ class PythonWheelTests(unittest.TestCase):
                     environment = cwd / "environment"
                     if "venv" in args:
                         environment.mkdir()
+                    if "download" in args:
+                        wheelhouse = Path(args[args.index("--dest") + 1])
+                        wheelhouse.mkdir()
+                        (
+                            wheelhouse / "typing_extensions-4.15.0-py3-none-any.whl"
+                        ).write_bytes(b"dependency wheel")
                     if "-c" in args:
                         if "importlib.metadata" in args[-1]:
                             return json.dumps(
@@ -417,7 +424,21 @@ class PythonWheelTests(unittest.TestCase):
                 )
             install = next(args for args in calls if "--no-index" in args)
             self.assertIn("--no-cache-dir", install)
-            self.assertIn("--no-deps", install)
+            self.assertNotIn("--no-deps", install)
+            download = next(args for args in calls if "download" in args)
+            self.assertIn("--only-binary=:all:", download)
+            self.assertEqual(
+                install[install.index("--find-links") + 1],
+                download[download.index("--dest") + 1],
+            )
+            self.assertEqual(
+                checked["dependency_wheels"],
+                {
+                    "typing_extensions-4.15.0-py3-none-any.whl": hashlib.sha256(
+                        b"dependency wheel"
+                    ).hexdigest(),
+                },
+            )
 
     def test_source_assembly_requires_three_exact_installed_consumers(self):
         archive, path, receipt, files = self.source_archive()

@@ -29,6 +29,7 @@ SOURCES = (
     "lib/prepared-body.cjs",
     "lib/profile.cjs",
     "lib/request-options.cjs",
+    "lib/request-preparation.cjs",
     "lib/response.cjs",
     "lib/session.cjs",
     "lib/tls.cjs",

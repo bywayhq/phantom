@@ -348,7 +348,6 @@ def check_development() -> None:
             "-m",
             "pip",
             "install",
-            "--no-deps",
             "--force-reinstall",
             str(built[0]),
         )
@@ -393,6 +392,22 @@ def installed_checks(wheel, commands, interpreter=None):
                 cwd=directory,
                 timeout=180,
             )
+        wheelhouse = directory / "dependency-wheels"
+        commands.run(
+            [
+                str(python),
+                "-I",
+                "-m",
+                "pip",
+                "download",
+                "--only-binary=:all:",
+                "--dest",
+                str(wheelhouse),
+                str(wheel),
+            ],
+            cwd=directory,
+            timeout=180,
+        )
         commands.run(
             [
                 str(python),
@@ -401,7 +416,8 @@ def installed_checks(wheel, commands, interpreter=None):
                 "pip",
                 "install",
                 "--no-index",
-                "--no-deps",
+                "--find-links",
+                str(wheelhouse),
                 "--no-cache-dir",
                 "--disable-pip-version-check",
                 str(wheel),
@@ -463,6 +479,10 @@ def installed_checks(wheel, commands, interpreter=None):
         )
         return {
             "installation": identity,
+            "dependency_wheels": {
+                path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in sorted(wheelhouse.glob("*.whl"))
+            },
             "loopback_checks": checks,
             "coverage": "full installed suite and typing"
             if interpreter is None

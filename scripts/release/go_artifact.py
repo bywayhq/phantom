@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 import re
-import shlex
 import shutil
 import tempfile
 import zipfile
@@ -151,7 +150,14 @@ def copy_module(source, destination):
     destination.mkdir()
     files = sorted(source.glob("*.go")) + [
         source / name
-        for name in ("go.mod", "native.h", "README.md", "LICENSE-MIT", "LICENSE-APACHE")
+        for name in (
+            "go.mod",
+            "go.sum",
+            "native.h",
+            "README.md",
+            "LICENSE-MIT",
+            "LICENSE-APACHE",
+        )
     ]
     for path in files:
         if path.is_symlink() or not path.is_file():
@@ -187,19 +193,92 @@ def installation_environment(directory, library, target):
         GOMODCACHE=str(directory / "module-cache"),
         GOCACHE=str(directory / "build-cache"),
     )
-    if target.endswith("windows-msvc"):
-        environment["CGO_ENABLED"] = "0"
-        environment["PHANTOM_GO_LIBRARY"] = str(library.resolve())
-    else:
-        environment["CGO_ENABLED"] = "1"
-        environment["CGO_LDFLAGS"] = "-L" + shlex.quote(str(library.parent))
-        loader = (
-            "DYLD_LIBRARY_PATH"
-            if target.endswith("apple-darwin")
-            else "LD_LIBRARY_PATH"
-        )
-        environment[loader] = str(library.parent)
+    for variable in ("CGO_LDFLAGS", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+        environment.pop(variable, None)
+    environment["CGO_ENABLED"] = "0"
+    environment["PHANTOM_GO_LIBRARY"] = str(library.resolve())
     return environment
+
+
+def stage_go_dependencies(source, proxy, notices, commands, environment):
+    """Retain checksum-verified module downloads for offline consumer checks."""
+    sums = (source / "go.sum").read_bytes()
+    expected = {tuple(line.split()) for line in sums.decode().splitlines()}
+    download_environment = {
+        **environment,
+        "GOPROXY": "https://proxy.golang.org",
+        "GOSUMDB": "sum.golang.org",
+    }
+    modules = (
+        commands.run(
+            [
+                "go",
+                "list",
+                "-mod=readonly",
+                "-m",
+                "-f",
+                "{{if not .Main}}{{.Path}}@{{.Version}}{{end}}",
+                "all",
+            ],
+            cwd=source,
+            env=download_environment,
+            timeout=180,
+        )
+        .decode()
+        .split()
+    )
+    records = []
+    for module in modules:
+        record = json.loads(
+            commands.run(
+                ["go", "mod", "download", "-json", module],
+                cwd=source,
+                env=download_environment,
+                timeout=180,
+            )
+        )
+        path, version = module.rsplit("@", 1)
+        if (
+            record.get("Error")
+            or record.get("Path") != path
+            or record.get("Version") != version
+            or (path, version, record.get("Sum")) not in expected
+            or (path, version + "/go.mod", record.get("GoModSum")) not in expected
+        ):
+            raise ValueError(f"Go dependency differs from pinned checksums: {module}")
+        # The downloaded cache already uses Go's escaped module-path spelling.
+        cached = Path(record["Zip"])
+        cache = Path(environment["GOMODCACHE"]) / "cache/download"
+        destination = proxy / cached.relative_to(cache).parent
+        destination.mkdir(parents=True, exist_ok=True)
+        for key in ("Zip", "GoMod", "Info"):
+            shutil.copyfile(record[key], destination / Path(record[key]).name)
+        license_file = Path(record["Dir"]) / "LICENSE"
+        notice = notices / path / version / "LICENSE"
+        notice.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(license_file, notice)
+        # purego records its copied Go-runtime code attribution in its README.
+        shutil.copyfile(
+            Path(record["Dir"]) / "README.md", notice.with_name("README.md")
+        )
+        records.append(
+            {
+                "module": module,
+                "sum": record["Sum"],
+                "go_mod_sum": record["GoModSum"],
+                "license_sha256": hashlib.sha256(license_file.read_bytes()).hexdigest(),
+            }
+        )
+    if (source / "go.sum").read_bytes() != sums:
+        raise ValueError("Go dependency download changed the pinned checksums")
+    if records:
+        go_root = Path(
+            commands.run(["go", "env", "GOROOT"], env=environment).decode().strip()
+        )
+        runtime_notice = notices / "go-runtime/LICENSE"
+        runtime_notice.parent.mkdir(parents=True)
+        shutil.copyfile(go_root / "LICENSE", runtime_notice)
+    return records
 
 
 def completed_tests(raw):
@@ -275,7 +354,7 @@ func main() {
 """
 
 
-def installed_checks(extracted, name, target, identity, commands, tools):
+def installed_checks(extracted, name, target, identity, commands, tools, proxy=None):
     folder = extracted / name
     payload = identity["payload_sha256"]
     files = {
@@ -293,6 +372,8 @@ def installed_checks(extracted, name, target, identity, commands, tools):
     module = folder / "module"
     library = folder / "lib" / LIBRARIES[target]
     environment = installation_environment(extracted, library, target)
+    if proxy is not None:
+        environment["GOPROXY"] = proxy.resolve().as_uri()
     go_environment = json.loads(
         commands.run(
             [
@@ -342,6 +423,7 @@ def installed_checks(extracted, name, target, identity, commands, tools):
     executable = consumer / (
         "consumer.exe" if target.endswith("windows-msvc") else "consumer"
     )
+    commands.run(["go", "mod", "tidy"], cwd=consumer, env=environment, timeout=180)
     commands.run(
         ["go", "build", "-mod=readonly", "-o", str(executable), "."],
         cwd=consumer,
@@ -404,6 +486,7 @@ def module_proxy_checks(extracted, library, target, proxy, module, commands, too
             )
         else:
             (directory / "go.sum").write_bytes(first_sums)
+        commands.run(["go", "mod", "tidy"], cwd=directory, env=environment, timeout=180)
         download = json.loads(
             commands.run(
                 ["go", "mod", "download", "-json", f"{MODULE}@{version}"],
@@ -573,25 +656,27 @@ def verify(target, output):
         "In your Go module, require github.com/bywayhq/phantom/bindings/go at\n"
         "v0.0.0 and add a local replace to this archive's module/ directory.\n"
         "No module tag or registry release is provided. Go 1.26 or newer is required.\n\n"
+        + f"Set PHANTOM_GO_LIBRARY to the absolute path of lib/{library.name},\n"
+        "or put that native library beside your executable. cgo is not required.\n"
+        "The Go module downloads its pinned purego dependency through Go modules.\n\n"
         + (
-            "Set PHANTOM_GO_LIBRARY to the absolute path of lib/phantom_go.dll.\n"
-            "Windows does not need cgo. Install the Microsoft x64 Visual C++ v14\n"
-            "runtime, at least as recent as the recorded MSVC build tools.\n\n"
+            "Install the Microsoft x64 Visual C++ v14 runtime, at least as recent\n"
+            "as the recorded MSVC build tools.\n\n"
             if target.endswith("windows-msvc")
-            else "Enable cgo and a C compiler. Set CGO_LDFLAGS to -L followed by\n"
-            "the quoted absolute lib/ directory. Set "
-            + (
-                "DYLD_LIBRARY_PATH"
-                if target.endswith("apple-darwin")
-                else "LD_LIBRARY_PATH"
-            )
-            + " to that directory before running your program.\n\n"
+            else ""
         )
         + "See module/README.md for the API and the receipt for tested hosts.\n"
         "This candidate is unsigned. SDK/OS runtimes are not bundled.\n",
         encoding="utf-8",
     )
     inventory = tools.copy_notices(metadata, package_ids, staging / "notices")
+    go_dependencies = stage_go_dependencies(
+        ROOT / "bindings/go",
+        proxy,
+        staging / "notices/go",
+        commands,
+        installation_environment(output / "dependency-download", library, target),
+    )
     sysroot = Path(commands.run(["rustc", "--print", "sysroot"]).decode().strip())
     tools.copy_rust_notices(sysroot, staging / "notices/rust-runtime")
     inspection = tools.dependency_inspection(
@@ -613,6 +698,7 @@ def verify(target, output):
         "tested_host": host,
         "native_sha256": tools.digest(staging / "lib" / library.name),
         "dependencies": inventory,
+        "go_dependencies": go_dependencies,
         "native_inspection": inspection,
         "build_environment": {
             key: os.environ[key]
@@ -634,7 +720,9 @@ def verify(target, output):
         if extracted.is_relative_to(ROOT):
             raise ValueError("Go installation checks must run outside checkout")
         tools.extract_archive(archive, extracted)
-        checks = installed_checks(extracted, name, target, identity, commands, tools)
+        checks = installed_checks(
+            extracted, name, target, identity, commands, tools, proxy=proxy
+        )
         checks["module_proxy"] = module_proxy_checks(
             extracted,
             extracted / name / "lib" / library.name,

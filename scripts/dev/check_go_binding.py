@@ -3,7 +3,6 @@
 import importlib.util
 import json
 import os
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -37,15 +36,13 @@ def main() -> None:
     run("cargo", "build", "--locked", "-p", "phantom-go")
     library = Path(metadata["target_directory"]) / "debug"
     environment = os.environ.copy()
-    if sys.platform == "win32":
-        environment["PHANTOM_GO_LIBRARY"] = str(library / "phantom_go.dll")
-    else:
-        environment["CGO_ENABLED"] = "1"
-        environment["CGO_LDFLAGS"] = (
-            environment.get("CGO_LDFLAGS", "") + " -L" + shlex.quote(str(library))
-        )
-        loader = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
-        environment[loader] = str(library) + os.pathsep + environment.get(loader, "")
+    name = {
+        "win32": "phantom_go.dll",
+        "darwin": "libphantom_go.dylib",
+        "linux": "libphantom_go.so",
+    }[sys.platform]
+    environment["CGO_ENABLED"] = "0"
+    environment["PHANTOM_GO_LIBRARY"] = str((library / name).resolve())
     module = root / "bindings" / "go"
     sources = [str(path) for path in sorted(module.glob("*.go"))]
     unformatted = subprocess.check_output(["gofmt", "-l", *sources], text=True)

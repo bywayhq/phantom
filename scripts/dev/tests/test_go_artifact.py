@@ -122,16 +122,79 @@ class GoArtifactTests(unittest.TestCase):
                     self.assertTrue(
                         Path(environment[variable]).is_relative_to(self.root)
                     )
-                if target == TARGET:
-                    self.assertEqual(environment["PHANTOM_GO_LIBRARY"], str(library))
-                    self.assertEqual(environment["CGO_ENABLED"], "0")
-                else:
-                    self.assertNotIn("wrong", environment["CGO_LDFLAGS"])
-                    loader = (
-                        "DYLD_LIBRARY_PATH" if "apple" in target else "LD_LIBRARY_PATH"
-                    )
-                    self.assertEqual(environment[loader], str(library.parent))
-                    self.assertEqual(environment["CGO_ENABLED"], "1")
+                self.assertEqual(environment["PHANTOM_GO_LIBRARY"], str(library))
+                self.assertEqual(environment["CGO_ENABLED"], "0")
+                for variable in ("CGO_LDFLAGS", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+                    self.assertNotIn(variable, environment)
+
+    def test_dependency_proxy_keeps_pinned_source_and_license(self):
+        source = self.root / "source"
+        source.mkdir()
+        sums = b"example.test/ffi v1.2.3 h1:source\nexample.test/ffi v1.2.3/go.mod h1:mod\n"
+        (source / "go.sum").write_bytes(sums)
+        cache = self.root / "cache"
+        download = cache / "cache/download/example.test/ffi/@v"
+        download.mkdir(parents=True)
+        for suffix in ("zip", "mod", "info"):
+            (download / f"v1.2.3.{suffix}").write_bytes(suffix.encode())
+        package = cache / "example.test/ffi@v1.2.3"
+        package.mkdir(parents=True)
+        (package / "LICENSE").write_bytes(b"ffi license")
+        (package / "README.md").write_bytes(b"Go runtime attribution")
+        go_root = self.root / "go-root"
+        go_root.mkdir()
+        (go_root / "LICENSE").write_bytes(b"Go runtime BSD license")
+        record = {
+            "Path": "example.test/ffi",
+            "Version": "v1.2.3",
+            "Sum": "h1:source",
+            "GoModSum": "h1:mod",
+            "Dir": str(package),
+            **{
+                key: str(download / f"v1.2.3.{suffix}")
+                for key, suffix in (("Zip", "zip"), ("GoMod", "mod"), ("Info", "info"))
+            },
+        }
+
+        class Commands:
+            def run(self, args, **_):
+                if args[1] == "list":
+                    return b"example.test/ffi@v1.2.3\n"
+                if args[1] == "env":
+                    return str(go_root).encode()
+                return json.dumps(record).encode()
+
+        proxy, notices = self.root / "proxy", self.root / "notices"
+        environment = {"GOMODCACHE": str(cache)}
+        records = artifact.stage_go_dependencies(
+            source, proxy, notices, Commands(), environment
+        )
+        self.assertEqual(records[0]["module"], "example.test/ffi@v1.2.3")
+        self.assertEqual(
+            (proxy / "example.test/ffi/@v/v1.2.3.zip").read_bytes(), b"zip"
+        )
+        self.assertEqual(
+            (notices / "example.test/ffi/v1.2.3/LICENSE").read_bytes(), b"ffi license"
+        )
+        self.assertEqual((source / "go.sum").read_bytes(), sums)
+        self.assertEqual(
+            (notices / "go-runtime/LICENSE").read_bytes(), b"Go runtime BSD license"
+        )
+        self.assertEqual(
+            (notices / "example.test/ffi/v1.2.3/README.md").read_bytes(),
+            b"Go runtime attribution",
+        )
+        for field in ("Sum", "GoModSum", "Version"):
+            original = record[field]
+            record[field] = "changed"
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(ValueError, "pinned"),
+            ):
+                artifact.stage_go_dependencies(
+                    source, proxy, notices, Commands(), environment
+                )
+            record[field] = original
 
     def events(self):
         return [
@@ -308,6 +371,7 @@ class GoArtifactTests(unittest.TestCase):
             patch.object(tools, "dependency_inspection", return_value=[]),
             patch.object(artifact, "artifact_tools", return_value=tools),
             patch.object(artifact, "stage_module_proxy", return_value={}),
+            patch.object(artifact, "stage_go_dependencies", return_value=[]),
             patch.object(
                 artifact, "installed_checks", side_effect=ValueError("failed control")
             ),
@@ -349,6 +413,7 @@ class GoArtifactTests(unittest.TestCase):
     def module_files(self):
         return {
             "go.mod": f"module {artifact.MODULE}\n\ngo 1.26\n".encode(),
+            "go.sum": b"",
             "version.go": b'package phantom\nconst nativePackageVersion = "0.2.0"\n',
             "native.h": b"native header\n",
             "LICENSE-MIT": b"MIT\n",
@@ -390,7 +455,7 @@ class GoArtifactTests(unittest.TestCase):
         )
         folder = proxy / artifact.MODULE / "@v"
         with zipfile.ZipFile(folder / "v0.2.0.zip") as archive:
-            self.assertEqual(len(archive.namelist()), 6)
+            self.assertEqual(len(archive.namelist()), 7)
             self.assertEqual(
                 archive.read(f"{artifact.MODULE}@v0.2.0/version.go"),
                 files["version.go"],

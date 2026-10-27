@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Python adds method helpers, ordered query fields, JSON/form bodies, streaming
+  context managers and duplicate-aware header lookup.
+- Node adds client request defaults, method helpers and ordered query,
+  JSON/form and UTF-8 bodies. Unexpected failures retain their cause.
+- Breaking: Go uses purego and a typed request/stream interface without cgo.
+  Migrate: replace Unix linker and loader flags with `PHANTOM_GO_LIBRARY`
+  pointing to the native library, or place it beside your executable.
 - Accept bounded, already encoded request bodies with an exact content type
   through `PreparedRequestBody::encoded`.
 

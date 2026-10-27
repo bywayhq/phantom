@@ -103,7 +103,8 @@ class PythonBindingEnvironmentTests(unittest.TestCase):
             self.assertEqual(self.commands[offset][1:4], ("-m", "pip", "install"))
             self.assertIn("maturin==1.15.0", self.commands[offset])
             self.assertIn("--locked", self.commands[offset + 1])
-            self.assertIn("--no-deps", self.commands[offset + 2])
+            self.assertNotIn("--no-deps", self.commands[offset + 2])
+            self.assertIn("--force-reinstall", self.commands[offset + 2])
             self.assertEqual(
                 self.commands[offset + 3][1:],
                 ("-m", "unittest", "discover", "-s", "bindings/python/tests", "-v"),
