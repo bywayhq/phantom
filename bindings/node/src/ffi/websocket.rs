@@ -1,6 +1,6 @@
 //! WebSocket registration and synchronous ownership of Node inputs.
 
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{fmt, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use napi::{
     Env, Result,
@@ -128,7 +128,6 @@ pub(super) fn rejection(
 }
 
 /// One complete data message or control event.
-#[derive(Debug)]
 #[napi(object)]
 pub struct WebSocketEvent {
     /// text, binary, ping, pong, or close.
@@ -141,6 +140,27 @@ pub struct WebSocketEvent {
     pub code: Option<u32>,
     /// Peer close reason, when supplied.
     pub reason: Option<String>,
+}
+
+impl fmt::Debug for WebSocketEvent {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = match self.kind.as_str() {
+            "text" => "text",
+            "binary" => "binary",
+            "ping" => "ping",
+            "pong" => "pong",
+            "close" => "close",
+            _ => "unknown",
+        };
+        formatter
+            .debug_struct("WebSocketEvent")
+            .field("kind", &kind)
+            .field("text_bytes", &self.text.as_ref().map(String::len))
+            .field("data_bytes", &self.data.as_ref().map(|data| data.len()))
+            .field("code", &self.code)
+            .field("reason_bytes", &self.reason.as_ref().map(String::len))
+            .finish()
+    }
 }
 
 /// Native message connection, owned by one JavaScript wrapper.
@@ -405,4 +425,39 @@ fn event(message: WebSocketMessage) -> Result<WebSocketEvent> {
         _ => return Err(failure("Internal", "unsupported WebSocket message kind")),
     }
     Ok(event)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WebSocketEvent;
+
+    #[test]
+    fn debug_retains_event_metadata_without_payloads() {
+        let event = WebSocketEvent {
+            kind: "binary".to_owned(),
+            text: Some("private text".to_owned()),
+            data: Some(b"private bytes".to_vec().into()),
+            code: Some(1000),
+            reason: Some("private reason".to_owned()),
+        };
+        let output = format!("{event:?}");
+        assert!(output.contains("kind: \"binary\""));
+        assert!(output.contains("text_bytes: Some(12)"));
+        assert!(output.contains("data_bytes: Some(13)"));
+        assert!(output.contains("code: Some(1000)"));
+        assert!(output.contains("reason_bytes: Some(14)"));
+        assert!(!output.contains("private"));
+        assert!(!output.contains("112, 114, 105, 118"));
+
+        let unknown = WebSocketEvent {
+            kind: "private kind".to_owned(),
+            text: None,
+            data: None,
+            code: None,
+            reason: None,
+        };
+        let output = format!("{unknown:?}");
+        assert!(output.contains("kind: \"unknown\""));
+        assert!(!output.contains("private"));
+    }
 }
