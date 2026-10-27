@@ -85,7 +85,7 @@ test('WebSocket assembles fragments, flushes automatic pong, and sends explicit 
   await socket.pong(Buffer.from('explicit')); assert.equal((await explicit)[0].toString(), 'explicit');
   await assert.rejects(socket.close(1005), failure('InvalidRequest'));
   await socket.send('still open');
-  socket.abort();
+  await socket.close(); assert.deepEqual(await socket.receive(), {type: 'close', code: null, reason: null});
 });
 
 test('WebSocket size limits reject outgoing data before writing and oversized incoming frames close', async (t) => {

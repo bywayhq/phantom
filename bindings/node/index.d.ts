@@ -373,7 +373,7 @@ export class WebSocketConnection implements AsyncIterable<WebSocketMessage> {
   send(data: string | Uint8Array): Promise<void>;
   ping(data?: Uint8Array): Promise<void>;
   pong(data?: Uint8Array): Promise<void>;
-  /** Flushes a Close frame; receive the peer's close to complete the handshake. */
+  /** Flushes a Close frame (empty when code is omitted); receive the peer's reply to finish. */
   close(code?: number, reason?: string): Promise<void>;
   /** Cancels setup or I/O and releases this connection without a Close frame. */
   abort(): void;

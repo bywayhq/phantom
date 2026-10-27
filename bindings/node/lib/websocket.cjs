@@ -80,7 +80,12 @@ class WebSocketConnection {
     if (this.#writing) throw new PhantomError('InvalidOperation', 'a WebSocket send is already pending');
     this.#writing = true;
     try { await this.#native.send(kind, text, data, code, reason); }
-    catch (error) { throw translated(error); }
+    catch (error) {
+      const failure = translated(error);
+      if ((failure.code === 'WebSocket' && !['Capacity', 'InvalidRequest'].includes(failure.kind))
+        || ['Cancelled', 'WebSocketClosed', 'NativeFailure'].includes(failure.code)) this.#finish();
+      throw failure;
+    }
     finally { this.#writing = false; }
   }
   /** @param {string | Uint8Array} data */
@@ -105,10 +110,12 @@ class WebSocketConnection {
   ping(data) { return this.#control('ping', data); }
   /** @param {Uint8Array} [data] */
   pong(data) { return this.#control('pong', data); }
-  close(code = 1000, reason = '') {
+  /** @param {number} [code] @param {string} [reason] */
+  close(code, reason = '') {
     try {
-      integer(code, 'code', 0, 65535);
+      if (code !== undefined) integer(code, 'code', 0, 65535);
       if (typeof reason !== 'string') throw new PhantomError('InvalidArgument', 'WebSocket close reason must be a string');
+      if (code === undefined && reason !== '') throw new PhantomError('InvalidArgument', 'WebSocket close reason requires a code');
       if (Buffer.byteLength(reason) > 123) throw new PhantomError('InputLimit', 'WebSocket close reason exceeds 123 UTF-8 bytes');
       return this.#send('close', undefined, undefined, code, reason);
     } catch (error) { return Promise.reject(translated(error)); }

@@ -117,3 +117,28 @@ test('invalid WebSocket inputs fail before opening and native handshake failures
   await assert.rejects(new failed.Client({profile: 'exact', route: 'direct'}).websocket('ws://example.test/'), {code: 'WebSocket', kind: 'HandshakeRejected', status: 403});
   assert(failed.sockets[0].aborted);
 });
+
+test('fatal sends release signal ownership while capacity and invalid close failures remain recoverable', async () => {
+  const {Client, sockets} = facade();
+  const client = new Client({profile: 'exact', route: 'direct'});
+  for (const kind of ['Capacity', 'InvalidRequest', 'Io']) {
+    const controller = new AbortController();
+    const socket = await client.websocket('ws://example.test/', {signal: controller.signal});
+    const native = sockets.at(-1);
+    native.write = () => Promise.reject(Error(`PHANTOM_WEBSOCKET:${kind}:::WebSocket send failed`));
+    await assert.rejects(socket.send('hello'), {code: 'WebSocket', kind});
+    if (kind === 'Io') {
+      assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+      assert(native.aborted);
+    } else {
+      assert.equal(getEventListeners(controller.signal, 'abort').length, 1);
+      assert.equal(native.aborted, undefined);
+      native.write = undefined; await socket.send('still open'); socket.abort();
+    }
+  }
+  const socket = await client.websocket('ws://example.test/');
+  await socket.close();
+  assert.deepEqual(sockets.at(-1).sent[0], ['close', undefined, undefined, undefined, '']);
+  await assert.rejects(socket.close(undefined, 'reason without a code'), {code: 'InvalidArgument'});
+  socket.abort(); await client.close();
+});
