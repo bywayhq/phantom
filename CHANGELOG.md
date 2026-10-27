@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Select navigation, fetch and resource contexts per request in Rust, Python
+  and Go, sharing the client's connections and session state. Node uses the
+  same template cache and also exposes resource contexts.
 - Python adds method helpers, ordered query fields, JSON/form bodies, streaming
   context managers and duplicate-aware header lookup.
 - Node adds client request defaults, method helpers and ordered query,

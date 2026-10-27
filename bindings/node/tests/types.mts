@@ -1,5 +1,9 @@
 import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type PoolOptions, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
 
+const resources = new Client({profile: 'chrome-156-windows', route: 'direct', context: 'navigation'});
+void resources.get('https://example.com/image.png', {context: 'image'});
+void Profile.fromCatalog('chrome-156-windows', 'font');
+
 const pinned = new Client({profile: 'exact', route: 'direct',
   network: {publicOnly: true}, redirectPolicy: {mode: 'none', credentialHeaders: ['x-api-key']},
   serverSpkiPins: [new Uint8Array(32)] as const, proxyServerSpkiPins: [Buffer.alloc(32)] as const});

@@ -48,7 +48,7 @@ function validateSelections(protocol, context) {
   if (typeof protocol !== 'string' || !['http1', 'http2', 'http3', 'negotiated'].includes(protocol)) {
     throw new PhantomError('InvalidProtocol', 'protocol must be http1, http2, http3 or negotiated');
   }
-  if (context !== undefined && (typeof context !== 'string' || !['raw', 'profile', 'navigation', 'fetch', 'fetchNoStore', 'fetchUpload'].includes(context))) {
+  if (context !== undefined && (typeof context !== 'string' || !['raw', 'profile', 'navigation', 'fetch', 'fetchNoStore', 'fetchUpload', 'script', 'stylesheet', 'image', 'font'].includes(context))) {
     throw new PhantomError('InvalidContext', 'context must be raw, profile or a catalog request context');
   }
 }

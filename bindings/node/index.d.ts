@@ -17,7 +17,8 @@ export class PhantomError extends Error {
 }
 /** Large unsigned integers use bigint rather than rounded JavaScript numbers. */
 export type ProfileValue = null | boolean | number | bigint | string | ProfileValue[] | { [key: string]: ProfileValue };
-export type CatalogContext = 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload';
+export type CatalogContext = 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload'
+  | 'script' | 'stylesheet' | 'image' | 'font';
 export type RequestContext = 'raw' | 'profile' | CatalogContext;
 export type RequestProtocol = 'http1' | 'http2' | 'http3' | 'negotiated';
 /** Order and duplicate names are preserved. Values are encoded as form fields. */

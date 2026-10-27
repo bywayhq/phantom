@@ -3,7 +3,7 @@
 use std::{fmt, sync::Arc};
 
 use napi::{Error, Result, Status};
-use phantom::{PreparedRequestTemplate, fingerprint};
+use phantom::{PreparedRequestTemplate, RequestBuilder, fingerprint};
 use phantom_profile::{
     ClientProfile,
     catalog::{self, ProfileDefinition, RequestTemplateKind},
@@ -158,6 +158,10 @@ impl ProfileState {
                 ("fetch", RequestTemplateKind::Fetch),
                 ("fetchNoStore", RequestTemplateKind::FetchNoStore),
                 ("fetchUpload", RequestTemplateKind::FetchUpload),
+                ("script", RequestTemplateKind::Script),
+                ("stylesheet", RequestTemplateKind::Stylesheet),
+                ("image", RequestTemplateKind::Image),
+                ("font", RequestTemplateKind::Font),
             ] {
                 if definition.request_template(kind).is_ok() {
                     contexts.push(context.to_owned());
@@ -167,19 +171,22 @@ impl ProfileState {
         contexts
     }
 
-    pub(crate) fn template(&self, context: &str) -> Result<Option<PreparedRequestTemplate>> {
+    pub(crate) fn apply_context(
+        &self,
+        builder: RequestBuilder,
+        context: &str,
+    ) -> Result<RequestBuilder> {
         match context {
-            "raw" => Ok(None),
-            "profile" => self.attached.clone().map(Some).ok_or_else(unavailable),
+            "raw" => Ok(builder.without_template()),
+            "profile" => self
+                .attached
+                .as_ref()
+                .map(|template| builder.template(template))
+                .ok_or_else(unavailable),
             _ => {
                 let kind = template_kind(context)?;
-                let definition = self.definition.ok_or_else(unavailable)?;
-                let template = definition
-                    .request_template(kind)
-                    .map_err(|_| unavailable())?;
-                PreparedRequestTemplate::new(template)
-                    .map(Some)
-                    .map_err(|_| failure("InvalidProfile", "request template is invalid"))
+                self.definition.ok_or_else(unavailable)?;
+                builder.context(kind).map_err(|_| unavailable())
             }
         }
     }
@@ -198,6 +205,10 @@ fn template_kind(context: &str) -> Result<RequestTemplateKind> {
         "fetch" => Ok(RequestTemplateKind::Fetch),
         "fetchNoStore" => Ok(RequestTemplateKind::FetchNoStore),
         "fetchUpload" => Ok(RequestTemplateKind::FetchUpload),
+        "script" => Ok(RequestTemplateKind::Script),
+        "stylesheet" => Ok(RequestTemplateKind::Stylesheet),
+        "image" => Ok(RequestTemplateKind::Image),
+        "font" => Ok(RequestTemplateKind::Font),
         _ => Err(failure("InvalidContext", "unknown named catalog context")),
     }
 }

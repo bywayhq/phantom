@@ -115,9 +115,7 @@ impl Prepared {
         if let Some(maximum) = options.redirect_history_limit {
             builder = builder.redirect_history(positive_count(maximum)?);
         }
-        if let Some(prepared) = client.profile.template(&options.context)? {
-            builder = builder.template(&prepared);
-        }
+        builder = client.profile.apply_context(builder, &options.context)?;
         if body.is_some() && options.file.is_some() {
             return Err(failure(
                 "InvalidBody",

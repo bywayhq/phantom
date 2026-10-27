@@ -23,6 +23,20 @@ This example uses Chrome's Windows settings. Use `profiles()` to list other
 profiles, and reuse the client for later requests. The navigation context
 supplies page-load headers.
 
+Override `context` on individual requests to mix page loads and fetches on
+the same client. For example:
+
+```js
+const response = await client.get('https://example.com/data', {
+  context: 'fetch',
+  headers: [{name: 'Referer', value: Buffer.from('https://example.com/')}],
+});
+response.close();
+```
+
+Use `Profile.fromCatalog(name).contexts` to check available contexts, including `script`,
+`stylesheet`, `image` and `font`. Use `raw` to skip the template for one request.
+
 ## Install
 
 Packages are not published to npm yet. Download a matching candidate from the
