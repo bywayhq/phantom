@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Accept bounded, already encoded request bodies with an exact content type
+  through `PreparedRequestBody::encoded`.
+
 ## 0.5.1 - 2026-10-26
 
 - Fix excessive certificate-verification memory use from relative CRL

@@ -38,6 +38,50 @@ pub struct PreparedRequestBody {
 }
 
 impl PreparedRequestBody {
+    /// Uses bytes encoded by your serializer with their exact content type.
+    ///
+    /// Shares the supplied bytes without copying or re-encoding them. The
+    /// content type must be a nonempty ASCII HTTP header value of at most
+    /// 4 KiB. This checks header syntax, not media-type or body syntax.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PreparedBodyError`] if the bytes exceed `maximum_bytes`,
+    /// the content type exceeds 4 KiB, or its header value is invalid.
+    ///
+    /// ```
+    /// # fn example() -> Result<(), phantom::PreparedBodyError> {
+    /// let body = phantom::PreparedRequestBody::encoded(
+    ///     bytes::Bytes::from_static(b"a,b\n1,2\n"), "text/csv", 1024,
+    /// )?;
+    /// assert_eq!(body.content_type(), "text/csv");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn encoded(
+        bytes: Bytes,
+        content_type: &str,
+        maximum_bytes: usize,
+    ) -> Result<Self, PreparedBodyError> {
+        if bytes.len() > maximum_bytes || content_type.len() > MAX_METADATA_BYTES {
+            return Err(PreparedBodyError::new(PreparedBodyErrorKind::TooLarge));
+        }
+
+        if content_type.is_empty()
+            || !content_type.is_ascii()
+            || http::HeaderValue::from_str(content_type).is_err()
+        {
+            return Err(PreparedBodyError::new(
+                PreparedBodyErrorKind::InvalidContentType,
+            ));
+        }
+
+        Ok(Self {
+            bytes,
+            content_type: content_type.into(),
+        })
+    }
+
     /// Encodes ordered UTF-8 name-value pairs, including duplicate names.
     ///
     /// Spaces become `+`; a literal `+` becomes `%2B`. Empty names and values
@@ -338,7 +382,7 @@ pub enum PreparedBodyErrorKind {
     InvalidName,
     /// A multipart filename contains an unsupported control character.
     InvalidFilename,
-    /// A part content type is not an accepted media type.
+    /// A content type has invalid syntax for its body constructor.
     InvalidContentType,
     /// A boundary has invalid length or characters.
     InvalidBoundary,

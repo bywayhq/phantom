@@ -8,6 +8,48 @@ use super::{
 type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
+fn encoded_body_preserves_serializer_bytes_and_metadata() -> TestResult {
+    let bytes = bytes::Bytes::from_static(b"{\"z\": 1, \"a\": 2}\n");
+    let body = PreparedRequestBody::encoded(bytes.clone(), "application/json", bytes.len())?;
+    assert_eq!(body.bytes(), &bytes);
+    assert_eq!(body.bytes().as_ptr(), bytes.as_ptr());
+    assert_eq!(body.content_type(), "application/json");
+    assert!(
+        PreparedRequestBody::encoded(bytes::Bytes::new(), "text/plain", 0)?
+            .bytes()
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[test]
+fn encoded_body_rejects_limits_and_header_injection() -> TestResult {
+    for content_type in [
+        "",
+        "text/plain\r\nx-secret: value",
+        "text/plain\0",
+        "text/é",
+    ] {
+        let error = PreparedRequestBody::encoded(bytes::Bytes::new(), content_type, 0)
+            .err()
+            .ok_or("invalid content type accepted")?;
+        assert_eq!(error.kind(), PreparedBodyErrorKind::InvalidContentType);
+        assert!(!error.to_string().contains(content_type) || content_type.is_empty());
+    }
+
+    for (bytes, content_type, maximum) in [
+        (bytes::Bytes::from_static(b"12"), "text/plain".to_owned(), 1),
+        (bytes::Bytes::new(), "a".repeat(MAX_METADATA_BYTES + 1), 0),
+    ] {
+        let error = PreparedRequestBody::encoded(bytes, &content_type, maximum)
+            .err()
+            .ok_or("encoded body limit ignored")?;
+        assert_eq!(error.kind(), PreparedBodyErrorKind::TooLarge);
+    }
+    Ok(())
+}
+
+#[test]
 fn form_keeps_order_duplicates_empty_fields_and_utf8_without_normalizing_newlines() -> TestResult {
     let body = PreparedRequestBody::form(
         [
