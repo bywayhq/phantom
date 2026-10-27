@@ -47,6 +47,7 @@ Set `Request.Context` when a request needs different headers:
 ```go
 response, err := client.Do(ctx, phantom.Request{
     Method: "GET", URL: "https://example.com/api", Context: "fetch",
+    Headers: []phantom.Header{{Name: "Referer", Value: []byte("https://example.com/")}},
 })
 ```
 
@@ -64,6 +65,7 @@ Use the same request options for an event-stream response, including POST bodies
 ```go
 response, err := client.Events(ctx, phantom.Request{
     Method: "GET", URL: "https://example.com/events", Context: "fetch",
+    Headers: []phantom.Header{{Name: "Referer", Value: []byte("https://example.com/")}},
 }, nil)
 if err != nil { return err }
 defer response.Events.Close()
