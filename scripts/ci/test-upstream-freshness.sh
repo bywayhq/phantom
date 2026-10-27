@@ -424,7 +424,7 @@ mkdir -p "$darwin_tmp"
 # The wrapper candidate replaces vendor/btls only; root dependency sources and
 # the packaged native library stay pinned to their reviewed versions.
 git -C "$probe_checkout" diff --quiet -- Cargo.toml
-grep -F -q 'btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.2", path = "../btls-sys" }' \
+grep -F -q 'btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.3", path = "../btls-sys" }' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -q 'upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
   "$probe_checkout/vendor/btls-sys/Cargo.toml"
