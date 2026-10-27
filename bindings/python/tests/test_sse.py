@@ -212,29 +212,33 @@ class AsyncEventTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.Future()
                     finally:
                         await ready.wait()
-                        try:
-                            await events.aclose()
-                        except RuntimeError as error:
-                            attempted.set_result(str(error))
-                        else:
-                            attempted.set_exception(
-                                AssertionError("producer close was accepted")
-                            )
+                        if events is not None:
+                            try:
+                                await events.aclose()
+                            except RuntimeError as error:
+                                attempted.set_result(str(error))
+                            else:
+                                attempted.set_exception(
+                                    AssertionError("producer close was accepted")
+                                )
                         closed.append(True)
 
-                response = await client.post(
-                    peer.url + "/upload-events", body=producer()
-                )
-                events = response.events()
-                ready.set()
-                self.assertIn("own cleanup", await asyncio.wait_for(attempted, 5))
-                self.assertEqual((await anext(events)).data, "first")
-                await events.aclose()
-                await events.aclose()
-                self.assertEqual(closed, [True])
-                for path in ("/after-one", "/after-two"):
-                    after = await client.get(peer.url + path)
-                    self.assertEqual(await after.read(max_bytes=5), b"hello")
+                try:
+                    response = await client.post(
+                        peer.url + "/upload-events", body=producer()
+                    )
+                    events = response.events()
+                    ready.set()
+                    self.assertIn("own cleanup", await asyncio.wait_for(attempted, 5))
+                    self.assertEqual((await anext(events)).data, "first")
+                    await events.aclose()
+                    await events.aclose()
+                    self.assertEqual(closed, [True])
+                    for path in ("/after-one", "/after-two"):
+                        after = await client.get(peer.url + path)
+                        self.assertEqual(await after.read(max_bytes=5), b"hello")
+                finally:
+                    ready.set()
         self.assertFalse(peer.premature_close)
 
     async def test_redirect_budget_context_and_streamed_upload_use_ordinary_request(
