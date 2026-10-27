@@ -14,6 +14,19 @@ func TestFetchUploadContextWorksForEachBodySource(t *testing.T) {
 		if r.Header.Get("Sec-Fetch-Mode") != "cors" || r.Header.Get("Sec-Fetch-Dest") != "empty" {
 			t.Errorf("upload context: %v", r.Header)
 		}
+		if r.Header.Get("Origin") != "http://"+r.Host || r.Referer() != "http://"+r.Host+"/page" {
+			t.Errorf("upload origin and referrer: %v", r.Header)
+		}
+		contentType := "application/x-www-form-urlencoded"
+		switch r.URL.Path {
+		case "/prepared":
+			contentType = "application/x-www-form-urlencoded;charset=UTF-8"
+		case "/multipart":
+			contentType = "multipart/form-data; boundary=context-bound"
+		}
+		if r.Header.Get("Content-Type") != contentType {
+			t.Errorf("upload content type: got %q, want %q", r.Header.Get("Content-Type"), contentType)
+		}
 		if r.URL.Path == "/multipart" {
 			if err := r.ParseMultipartForm(1024); err != nil {
 				t.Errorf("parse multipart: %v", err)
@@ -46,26 +59,35 @@ func TestFetchUploadContextWorksForEachBodySource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, request := range []Request{
-		{URL: peer.URL + "/bytes", Body: []byte("message=payload")},
-		{URL: peer.URL + "/stream", Upload: source},
-		{URL: peer.URL + "/prepared", PreparedBody: prepared},
-		{URL: peer.URL + "/multipart", Multipart: multipart},
+	for _, test := range []struct {
+		name    string
+		request Request
+	}{
+		{"bytes", Request{Body: []byte("message=payload")}},
+		{"stream", Request{Upload: source}},
+		{"prepared", Request{PreparedBody: prepared}},
+		{"multipart", Request{Multipart: multipart}},
 	} {
-		request.Method = "POST"
-		request.Context = "fetchUpload"
-		contentType := "application/x-www-form-urlencoded"
-		if request.Multipart != nil {
-			contentType = multipartType
-		}
-		request.Headers = []Header{{Name: "Origin", Value: []byte(peer.URL)}, {Name: "Referer", Value: []byte(peer.URL + "/page")}, {Name: "Content-Type", Value: []byte(contentType)}}
-		response, err := client.Do(context.Background(), request)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if data, err := response.Body.ReadAll(2); err != nil || string(data) != "ok" {
-			t.Fatalf("response: %q, %v", data, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			request := test.request
+			request.Method = "POST"
+			request.URL = peer.URL + "/" + test.name
+			request.Context = "fetchUpload"
+			contentType := "application/x-www-form-urlencoded"
+			if request.PreparedBody != nil {
+				contentType = request.PreparedBody.ContentType()
+			} else if request.Multipart != nil {
+				contentType = multipartType
+			}
+			request.Headers = []Header{{Name: "Origin", Value: []byte(peer.URL)}, {Name: "Referer", Value: []byte(peer.URL + "/page")}, {Name: "Content-Type", Value: []byte(contentType)}}
+			response, err := client.Do(context.Background(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data, err := response.Body.ReadAll(2); err != nil || string(data) != "ok" {
+				t.Fatalf("response: %q, %v", data, err)
+			}
+		})
 	}
 	waitUploadClosed(t, &source.closes)
 }
