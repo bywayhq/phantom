@@ -130,6 +130,40 @@ fn line_and_event_limits_fail_at_the_configured_boundary() -> TestResult<()> {
     Ok(())
 }
 
+#[test]
+fn tiny_data_fields_cannot_accumulate_past_the_event_limit() -> TestResult<()> {
+    let mut decoder = Decoder::new(SseLimits::new(128, 32));
+    for _ in 0..6 {
+        decoder.replace_chunk(Bytes::from_static(b"data:\n"));
+        assert_eq!(decoder.decode_available()?, None);
+    }
+
+    decoder.replace_chunk(Bytes::from_static(b"data:\n"));
+    let error = decoder
+        .decode_available()
+        .err()
+        .ok_or("unterminated event exceeded its bound")?;
+    assert_eq!(error.kind(), SseErrorKind::EventTooLarge);
+    Ok(())
+}
+
+#[test]
+fn an_unterminated_line_remains_bounded_across_chunks() -> TestResult<()> {
+    let mut decoder = Decoder::new(SseLimits::new(8, 128));
+    for _ in 0..8 {
+        decoder.replace_chunk(Bytes::from_static(b"x"));
+        assert_eq!(decoder.decode_available()?, None);
+    }
+
+    decoder.replace_chunk(Bytes::from_static(b"x"));
+    let error = decoder
+        .decode_available()
+        .err()
+        .ok_or("unterminated line exceeded its bound")?;
+    assert_eq!(error.kind(), SseErrorKind::LineTooLong);
+    Ok(())
+}
+
 fn decode_all(input: &str) -> Result<Vec<SseEvent>, super::SseError> {
     let mut decoder = Decoder::new(SseLimits::default());
     decoder.replace_chunk(Bytes::copy_from_slice(input.as_bytes()));
