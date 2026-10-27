@@ -15,7 +15,7 @@ use tokio::sync::Notify;
 const OPEN: u8 = 0;
 const CLOSED: u8 = 1;
 const EXPIRED: u8 = 2;
-const COMPLETE: u8 = 3;
+const ABORTED: u8 = 3;
 
 struct Stream {
     body: ResponseBody,
@@ -34,6 +34,10 @@ pub(super) struct BodyOwner {
 }
 
 impl BodyOwner {
+    pub(super) fn abort(&self) {
+        self.finish(ABORTED, ResponseTrailers::Unavailable);
+    }
+
     pub(super) fn close(&self, expired: bool) {
         self.finish(
             if expired { EXPIRED } else { CLOSED },
@@ -130,7 +134,7 @@ impl ReadLease {
             .stream
             .take()
             .ok_or_else(|| error::input("body_state"))?;
-        if !self.owner.finish(COMPLETE, stream.body.into_trailers()) {
+        if !self.owner.finish(CLOSED, stream.body.into_trailers()) {
             return Err(self.owner.closed_error());
         }
         self.finished = true;
@@ -413,7 +417,7 @@ impl NativeResponse {
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
             let Some(stream) = lease.stream.as_mut() else {
-                if owner.state.load(Ordering::SeqCst) != COMPLETE {
+                if matches!(owner.state.load(Ordering::SeqCst), EXPIRED | ABORTED) {
                     return Err(owner.closed_error());
                 }
                 return Ok(None::<Py<PyBytes>>);
@@ -455,7 +459,7 @@ impl NativeResponse {
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let mut lease = ReadLease::acquire(&owner)?;
             let Some(stream) = lease.stream.as_mut() else {
-                if owner.state.load(Ordering::SeqCst) != COMPLETE {
+                if matches!(owner.state.load(Ordering::SeqCst), EXPIRED | ABORTED) {
                     return Err(owner.closed_error());
                 }
                 return Ok(Vec::<u8>::new());

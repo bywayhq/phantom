@@ -27,7 +27,7 @@ impl Owner {
         match self {
             Self::Response(owner) => {
                 if let Some(owner) = owner.upgrade() {
-                    owner.close(false);
+                    owner.abort();
                 }
             }
             Self::Socket(owner) => {

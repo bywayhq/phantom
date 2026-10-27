@@ -82,7 +82,7 @@ class SyncLifecycleTests(unittest.TestCase):
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
-    async def test_closed_body_reports_an_error_but_completed_body_stays_at_eof(self):
+    async def test_client_abort_preserves_completed_eof_and_rejects_unread_body(self):
         with server() as (_, url):
             async with AsyncClient(
                 profile=PROFILE, protocol="h1", context="raw"
@@ -92,9 +92,11 @@ class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await complete.read(max_bytes=5), b"")
                 self.assertIsNone(await complete.read_chunk())
 
-                closed = await client.get(url)
-                await closed.aclose()
-                for read in (lambda: closed.read(max_bytes=5), closed.read_chunk):
+                unread = await client.get(url)
+                await client.abort()
+                self.assertEqual(await complete.read(max_bytes=5), b"")
+                self.assertIsNone(await complete.read_chunk())
+                for read in (lambda: unread.read(max_bytes=5), unread.read_chunk):
                     with self.assertRaises(Error) as failure:
                         await read()
                     self.assertEqual(failure.exception.kind, "body_closed")
