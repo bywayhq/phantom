@@ -360,6 +360,24 @@ Download caps count encoded data; decoded counters can include the body's
 unread buffer. Headers and transport overhead are excluded. Cancellation
 retains paced reservations and their gaps in the shared schedule.
 
+## WebSockets
+
+Use `client.WebSocket(ctx, url, WebSocketOptions{})`, then `Read`, `Write`,
+`Close` and `Abort`. The opening context bounds setup. Each later operation
+takes its own context. One reader and one writer can run concurrently.
+Cancellation after admission aborts that socket, preserving sibling streams.
+Keep reading to flush automatic Pong and Close replies.
+
+Empty `Protocol` follows the profile; `h1`, `h2` and `h3` select an exact
+protocol. `Handshake()` returns ordered headers, the selected subprotocol and
+negotiated compression. `WebSocketHandshakeError.Response` owns a rejected
+opening's body: read or close it. `Close` sends a Close frame; read the peer's
+reply to finish, or use `Abort` to release immediately.
+
+`WebSocketOptions` controls opening fields, limits, compression and setup
+retries. Client route, trust, cookies and destination policy apply. Ordinary
+HTTP templates, retry policies and caller attempt budgets do not apply.
+
 ## Capacity and feature limits
 
 Set `Config.Pool` to a `PoolOptions` value for per-origin active/pending bounds,
@@ -369,13 +387,19 @@ count pointers must be positive. `NegotiatedSetupWaitLimit` is a duration pointe
 These core limits are separate from the binding capacities below.
 
 Process-wide limits are 64 each for clients, budgets and transfer controls.
-Pending requests and open responses share 64 response slots. A request reserves
-its slot before sending; close or finish responses to admit more requests.
+Pending requests, open responses and WebSockets share 64 response slots.
+An opening reserves its slot before sending; close or finish owners to admit
+more requests.
 Ordinary operations, body reads and shutdowns each have 64 separate slots, so
 pending requests cannot prevent an existing response from being read.
 Exhaustion returns a typed error without waiting. Byte uploads allow 8 MiB each
 and 16 MiB total in native buffers until responses close. Metadata limits are
 64 KiB per command, 256 response fields/32 KiB and 256 KiB per reply.
+
+WebSocket reads and writes each have 64 separate operation slots. Idle reads
+do not reserve message-sized buffers. Native sends and retained message results
+share a 128 MiB allowance. Core framing buffers are separate and bounded by
+each socket's limits; messages can be up to 64 MiB.
 
 ## Next
 

@@ -47,3 +47,15 @@ uint64_t phantom_go_sse_version(void);
 uint64_t phantom_go_sse_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, uint64_t, struct phantom_go_reply *);
 uint64_t phantom_go_sse_next(uint64_t, struct phantom_go_reply *);
 uint64_t phantom_go_sse_result(uint64_t, struct phantom_go_sse_event *, uint8_t *, size_t);
+/* Optional WebSocket ABI 1. Negotiate before opening; HTTP/SSE layouts stay
+ * unchanged. Opening fields and write bytes are copied before async admission.
+ * Read/write operations use the completion pump. websocket_result probes the
+ * exact payload length at capacity zero, then copies operation-owned bytes.
+ * Ack/cancel releases the result. No foreign pointer survives a call.
+ */
+struct phantom_go_websocket_opening;
+struct phantom_go_websocket_message;
+uint64_t phantom_go_websocket_version(void);
+uint64_t phantom_go_websocket_open(const struct phantom_go_websocket_opening *, struct phantom_go_reply *);
+uint64_t phantom_go_websocket_operation(uint64_t, uint64_t, uint64_t, uint64_t, const uint8_t *, size_t, struct phantom_go_reply *);
+uint64_t phantom_go_websocket_result(uint64_t, struct phantom_go_websocket_message *, uint8_t *, size_t);

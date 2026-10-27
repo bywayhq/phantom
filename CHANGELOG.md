@@ -9,7 +9,7 @@
 - Python, Go and Node add native streams for reading server-sent events.
 - Rust SSE streams retain HTTP trailers and can validate response metadata
   without consuming its body. `SseEvent::into_parts` transfers owned fields.
-- Python and Node add WebSockets with shared client connections and session
+- Python, Go and Node add WebSockets with shared client connections and session
   state, message limits, cancellation and readable rejected handshakes.
 - Aborting a Python client invalidates its unread response bodies.
 - Breaking: Python `close()`/`aclose()` and Node `close()` wait for admitted

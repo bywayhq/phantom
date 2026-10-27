@@ -14,6 +14,7 @@ use std::{
 };
 
 mod sse;
+mod websocket;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
