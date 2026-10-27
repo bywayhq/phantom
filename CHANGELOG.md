@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Go shutdown waits for requests admitted before their first async poll.
 - Preserve the original native failure in pending Go operations.
 - Python, Go and Node add native streams for reading server-sent events.
 - Rust SSE streams retain HTTP trailers and can validate response metadata
