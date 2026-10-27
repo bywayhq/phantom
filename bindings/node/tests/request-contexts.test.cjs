@@ -38,8 +38,8 @@ test('concurrent resource contexts share one HTTP/2 session without changing the
   t.after(() => client.close());
   const url = `http://127.0.0.1:${server.address().port}`;
   const headers = [
-    {name: 'Referer', value: Buffer.from(url + '/page')},
-    {name: 'Origin', value: Buffer.from(url)},
+    {name: 'referer', value: Buffer.from(url + '/page')},
+    {name: 'origin', value: Buffer.from(url)},
   ];
   assert.equal(await (await client.get(url + '/default')).text(2), 'ok');
 
@@ -51,6 +51,8 @@ test('concurrent resource contexts share one HTTP/2 session without changing the
     const response = await client.get(url + '/' + context, {context, headers});
     assert.equal(await response.text(2), 'ok');
     assert.equal(observed.get('/' + context)['sec-fetch-dest'], destination);
+    assert.equal(observed.get('/' + context).referer, url + '/page');
+    assert.equal(observed.get('/' + context).origin, url);
   }));
   assert.equal(await (await client.get(url + '/default-again')).text(2), 'ok');
   assert.equal(observed.get('/default')['sec-fetch-dest'], 'document');
