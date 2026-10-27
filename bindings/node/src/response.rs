@@ -1,6 +1,7 @@
 //! Pull-driven body ownership and cancellation without JavaScript references.
 
 use std::{
+    fmt,
     sync::{
         Arc, Mutex, PoisonError,
         atomic::{AtomicBool, AtomicU8, Ordering},
@@ -29,11 +30,23 @@ pub(crate) const MAXIMUM_READ_BYTES: usize = 64 * 1024;
 const COLLECTION_YIELD_BYTES: usize = 64 * 1024;
 const COLLECTION_YIELD_ITERATIONS: usize = 16;
 
-#[derive(Debug)]
 struct Body {
     response: http::Response<ResponseBody>,
     pending: Bytes,
     started: bool,
+}
+
+impl fmt::Debug for Body {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Body")
+            .field("status", &self.response.status())
+            .field("protocol", &self.response.version())
+            .field("header_count", &self.response.headers().len())
+            .field("pending_bytes", &self.pending.len())
+            .field("started", &self.started)
+            .finish()
+    }
 }
 
 #[derive(Debug)]

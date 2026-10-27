@@ -2,6 +2,7 @@
 
 use std::{
     error::Error as _,
+    fmt,
     sync::{Arc, MutexGuard, PoisonError},
 };
 
@@ -11,10 +12,20 @@ use phantom::{SseEvent, SseLimits, SseStream};
 use super::{EOF, Exchange, RetainedBody};
 use crate::error::failure;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct EventState {
     pub(crate) last_event_id: String,
     pub(crate) retry_ms: Option<u64>,
+}
+
+impl fmt::Debug for EventState {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("EventState")
+            .field("last_event_id_bytes", &self.last_event_id.len())
+            .field("retry_ms", &self.retry_ms)
+            .finish()
+    }
 }
 
 impl Exchange {
@@ -118,4 +129,24 @@ pub(crate) fn error(error: phantom::SseError) -> napi::Error {
         napi::Status::GenericFailure,
         format!("PHANTOM_SSE:{:?}:{error}", error.kind()),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EventState, Exchange};
+
+    #[test]
+    fn exchange_debug_retains_event_metadata_without_the_event_id() {
+        let exchange = Exchange::new();
+        *exchange.event_state() = EventState {
+            last_event_id: "secret-é-id".to_owned(),
+            retry_ms: Some(17),
+        };
+
+        let output = format!("{exchange:?}");
+        assert!(output.contains("last_event_id_bytes: 12"));
+        assert!(output.contains("retry_ms: Some(17)"));
+        assert!(!output.contains("secret"));
+        assert!(!output.contains('é'));
+    }
 }
