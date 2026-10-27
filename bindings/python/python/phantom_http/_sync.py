@@ -10,7 +10,10 @@ from collections.abc import (
     Coroutine,
     Generator,
     Iterable,
+    Iterator,
 )
+
+from typing_extensions import Unpack
 
 from . import _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
@@ -25,6 +28,13 @@ from ._configuration import (
     TimeoutOverrides,
     Timeouts,
     Trust,
+)
+from ._convenience import (
+    _DEFAULT_BODY_LIMIT,
+    _JSON_UNSET,
+    _Form,
+    _Params,
+    _SyncRequestOptions,
 )
 from ._diagnostics import (
     RequestDiagnostics,
@@ -161,7 +171,7 @@ class Client:
         self,
         *,
         profile: str | Profile,
-        protocol: _Protocol,
+        protocol: _Protocol = "negotiated",
         context: _Context | None = None,
         proxy: str | Proxy | None = None,
         cookies: bool = True,
@@ -273,11 +283,51 @@ class Client:
             raise
         return client
 
+    def get(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send GET and return the response head."""
+        return self.request("GET", url, **options)
+
+    def head(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send HEAD and return the response head."""
+        return self.request("HEAD", url, **options)
+
+    def post(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send POST and return the response head."""
+        return self.request("POST", url, **options)
+
+    def put(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send PUT and return the response head."""
+        return self.request("PUT", url, **options)
+
+    def patch(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send PATCH and return the response head."""
+        return self.request("PATCH", url, **options)
+
+    def delete(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send DELETE and return the response head."""
+        return self.request("DELETE", url, **options)
+
+    def options(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
+        """Send OPTIONS and return the response head."""
+        return self.request("OPTIONS", url, **options)
+
+    @contextlib.contextmanager
+    def stream(
+        self, method: str, url: str, **options: Unpack[_SyncRequestOptions]
+    ) -> Iterator[Response]:
+        """Open a response and close it when the context exits."""
+        with self.request(method, url, **options) as response:
+            yield response
+
     def request(
         self,
         method: str,
         url: str,
         *,
+        params: _Params | None = None,
+        json: object = _JSON_UNSET,
+        form: _Form | None = None,
+        maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
@@ -298,6 +348,7 @@ class Client:
         transfer_control: TransferControl | None = None,
         diagnostics: RequestDiagnostics | None = None,
     ) -> Response:
+        """Send a request with the same options as AsyncClient.request."""
         if body is not None and not isinstance(
             body, (bytes, PreparedBody, StreamingMultipartBody, Iterable)
         ):
@@ -317,6 +368,10 @@ class Client:
                     lambda: self._async._request(
                         method,
                         url,
+                        params=params,
+                        json=json,
+                        form=form,
+                        maximum_body_bytes=maximum_body_bytes,
                         headers=headers,
                         trailers=trailers,
                         expect_continue_ms=expect_continue_ms,
@@ -342,6 +397,10 @@ class Client:
                 lambda: self._async.request(
                     method,
                     url,
+                    params=params,
+                    json=json,
+                    form=form,
+                    maximum_body_bytes=maximum_body_bytes,
                     headers=headers,
                     trailers=trailers,
                     expect_continue_ms=expect_continue_ms,

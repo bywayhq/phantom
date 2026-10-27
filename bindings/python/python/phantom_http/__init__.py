@@ -53,6 +53,7 @@ from ._response import AsyncResponse as AsyncResponse
 from ._response import RedirectHistory as RedirectHistory
 from ._response import RedirectHop as RedirectHop
 from ._response import ResponseHeader as ResponseHeader
+from ._response import ResponseHeaders as ResponseHeaders
 from ._response import ResponseTrailers as ResponseTrailers
 from ._session import AttemptBudget as AttemptBudget
 from ._session import Cookies as Cookies
@@ -89,6 +90,7 @@ for _public_type in (
     RedirectHop,
     RedirectHistory,
     ResponseHeader,
+    ResponseHeaders,
     ResponseTrailers,
     AsyncResponse,
     Response,

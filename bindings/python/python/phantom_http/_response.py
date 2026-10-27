@@ -13,7 +13,9 @@ from dataclasses import dataclass
 from dataclasses import field as _field
 from typing import (
     Literal,
+    TypeVar,
     cast,
+    overload,
 )
 
 from . import _native, _upload
@@ -56,6 +58,37 @@ class ResponseHeader:
     sensitive: bool
 
 
+_Default = TypeVar("_Default")
+
+
+class ResponseHeaders(tuple[ResponseHeader, ...]):
+    """Ordered raw fields with case-insensitive lookups; duplicates stay separate."""
+
+    @overload
+    def get(self, name: str) -> bytes | None: ...
+
+    @overload
+    def get(self, name: str, default: _Default) -> bytes | _Default: ...
+
+    def get(
+        self, name: str, default: _Default | None = None
+    ) -> bytes | _Default | None:
+        """Return the first matching raw value, or default when absent."""
+        if not isinstance(name, str):
+            raise TypeError("header name must be str")
+        key = name.lower()
+        return next(
+            (field.value for field in self if field.name.lower() == key), default
+        )
+
+    def get_list(self, name: str) -> list[bytes]:
+        """Return all matching raw values in received order, without joining them."""
+        if not isinstance(name, str):
+            raise TypeError("header name must be str")
+        key = name.lower()
+        return [field.value for field in self if field.name.lower() == key]
+
+
 @dataclass(frozen=True)
 class ResponseTrailers:
     """Non-draining snapshot; only complete has fields, possibly an empty tuple."""
@@ -74,7 +107,9 @@ class AsyncResponse:
         self._upload = upload
         self.status = native.status
         self.protocol = native.protocol
-        self.headers = tuple(ResponseHeader(*field) for field in native.headers)
+        self.headers = ResponseHeaders(
+            ResponseHeader(*field) for field in native.headers
+        )
 
     @property
     def url(self) -> str:

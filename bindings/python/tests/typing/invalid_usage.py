@@ -241,3 +241,10 @@ def invalid_pools() -> None:
     PoolOptions(negotiated_setup_wait_limit="private")  # E: arg-type
     PoolOptions().max_http2_connections_per_origin = 2  # E: misc
     Client(profile="exact", protocol="h1", pool={})  # E: arg-type
+
+
+def invalid_convenience(client: Client, url: str) -> None:
+    client.get(url, timeout_ms="slow")  # E: arg-type
+    client.get(url, params={"page": object()})  # E: arg-type
+    client.post(url, form={"field": 1})  # E: arg-type
+    client.stream("GET", url, unknown=True)  # E: call-arg

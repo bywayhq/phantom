@@ -1,7 +1,9 @@
 //! Immutable replayable bodies encoded by the public core adapters.
 
 use crate::error;
-use phantom::{MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody};
+use phantom::{
+    Bytes, MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,
+};
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyInt, PyList, PyString},
@@ -58,6 +60,28 @@ type Part<'py> = (
 
 #[pymethods]
 impl NativePreparedBody {
+    #[staticmethod]
+    fn encoded(
+        py: Python<'_>,
+        input: &Bound<'_, PyBytes>,
+        content_type: &Bound<'_, PyString>,
+        maximum_bytes: &Bound<'_, PyAny>,
+    ) -> PyResult<Self> {
+        let maximum = maximum(maximum_bytes)?;
+        let input = input.as_bytes();
+        if input.len() > maximum {
+            return Err(failure("too_large"));
+        }
+        let content_type = text(content_type, 4096)?;
+
+        // Immutable Python bytes remain rooted until this synchronous copy finishes.
+        py.detach(|| {
+            PreparedRequestBody::encoded(Bytes::copy_from_slice(input), content_type, maximum)
+        })
+        .map(|inner| Self { inner })
+        .map_err(prepared)
+    }
+
     #[staticmethod]
     fn form(
         py: Python<'_>,
@@ -161,6 +185,33 @@ impl NativePreparedBody {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_encoded_bytes_keep_order_and_validate_the_limit() -> PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| {
+            let input = PyBytes::new(py, br#"{"z":1,"a":2}"#);
+            let content_type = PyString::new(py, "application/json");
+            let cap = py.eval(c"13", None, None)?;
+            let body = NativePreparedBody::encoded(py, &input, &content_type, &cap)?;
+            assert_eq!(body.inner.bytes().as_ref(), br#"{"z":1,"a":2}"#);
+            assert_eq!(body.inner.content_type(), "application/json");
+            assert!(
+                NativePreparedBody::encoded(
+                    py,
+                    &input,
+                    &content_type,
+                    &py.eval(c"12", None, None)?
+                )
+                .is_err()
+            );
+            assert!(
+                NativePreparedBody::encoded(py, &input, &PyString::new(py, "bad\r\nvalue"), &cap)
+                    .is_err()
+            );
+            Ok(())
+        })
+    }
 
     #[test]
     fn native_form_is_replayable_and_maximum_is_exact() -> PyResult<()> {

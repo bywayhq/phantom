@@ -8,6 +8,7 @@ version = "0.5.1"
 description = "HTTP requests with explicit browser profiles"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = ["typing-extensions>=4.12.2,<5"]
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 

@@ -5,12 +5,16 @@ from __future__ import annotations
 import asyncio
 from collections.abc import (
     AsyncIterable,
+    AsyncIterator,
     Iterable,
 )
+from contextlib import asynccontextmanager
 from typing import (
     TypedDict,
     cast,
 )
+
+from typing_extensions import Unpack
 
 from . import _multipart, _native, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
@@ -25,6 +29,14 @@ from ._configuration import (
     Timeouts,
     Trust,
     _redirect_count,
+)
+from ._convenience import (
+    _DEFAULT_BODY_LIMIT,
+    _JSON_UNSET,
+    _AsyncRequestOptions,
+    _Form,
+    _Params,
+    _prepare_request,
 )
 from ._diagnostics import (
     RequestDiagnostics,
@@ -114,7 +126,7 @@ class AsyncClient:
         self,
         *,
         profile: str | Profile,
-        protocol: _Protocol,
+        protocol: _Protocol = "negotiated",
         context: _Context | None = None,
         proxy: str | Proxy | None = None,
         cookies: bool = True,
@@ -239,11 +251,65 @@ class AsyncClient:
         )
         return AsyncClient._from_native(native)
 
+    async def get(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send GET and return the response head."""
+        return await self.request("GET", url, **options)
+
+    async def head(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send HEAD and return the response head."""
+        return await self.request("HEAD", url, **options)
+
+    async def post(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send POST and return the response head."""
+        return await self.request("POST", url, **options)
+
+    async def put(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send PUT and return the response head."""
+        return await self.request("PUT", url, **options)
+
+    async def patch(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send PATCH and return the response head."""
+        return await self.request("PATCH", url, **options)
+
+    async def delete(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send DELETE and return the response head."""
+        return await self.request("DELETE", url, **options)
+
+    async def options(
+        self, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncResponse:
+        """Send OPTIONS and return the response head."""
+        return await self.request("OPTIONS", url, **options)
+
+    @asynccontextmanager
+    async def stream(
+        self, method: str, url: str, **options: Unpack[_AsyncRequestOptions]
+    ) -> AsyncIterator[AsyncResponse]:
+        """Open a response and close it when the context exits."""
+        async with await self.request(method, url, **options) as response:
+            yield response
+
     async def request(
         self,
         method: str,
         url: str,
         *,
+        params: _Params | None = None,
+        json: object = _JSON_UNSET,
+        form: _Form | None = None,
+        maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
@@ -264,10 +330,18 @@ class AsyncClient:
         transfer_control: TransferControl | None = None,
         diagnostics: RequestDiagnostics | None = None,
     ) -> AsyncResponse:
-        """Return the response head; close or read the owned body afterwards."""
+        """Return the response head; close or read the owned body afterwards.
+
+        params appends ordered query fields. Choose one of json, form, body or
+        upload. maximum_body_bytes bounds encoded JSON and form bodies.
+        """
         return await self._request(
             method,
             url,
+            params=params,
+            json=json,
+            form=form,
+            maximum_body_bytes=maximum_body_bytes,
             headers=headers,
             trailers=trailers,
             expect_continue_ms=expect_continue_ms,
@@ -290,6 +364,10 @@ class AsyncClient:
         method: str,
         url: str,
         *,
+        params: _Params | None = None,
+        json: object = _JSON_UNSET,
+        form: _Form | None = None,
+        maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
@@ -326,6 +404,9 @@ class AsyncClient:
                 lambda _: self._uploads.discard(multipart_pump)
             )
         try:
+            url, headers, body = _prepare_request(
+                url, headers, body, upload, params, json, form, maximum_body_bytes
+            )
             if timeouts is not None and not isinstance(timeouts, TimeoutOverrides):
                 raise TypeError("request timeouts must be TimeoutOverrides")
             if timeout_ms is not None and timeouts is not None:
@@ -538,6 +619,10 @@ class AsyncClient:
                 if pump.error is not None or pump.cleanup_error is not None:
                     raise _upload_error(pump) from None
 
+    async def aclose(self, *, timeout_ms: int = 5000) -> None:
+        """Close admission and settle active work within timeout_ms."""
+        await self.close(timeout_ms=timeout_ms)
+
     async def __aenter__(self) -> AsyncClient:
         return self
 
@@ -545,7 +630,7 @@ class AsyncClient:
         self, _: object, error: BaseException | None, __: object
     ) -> None:
         try:
-            await self.close()
+            await self.aclose()
         except BaseException as cleanup:
             if error is not None:
                 raise _primary_error(error, cleanup=cleanup) from None

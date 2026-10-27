@@ -28,6 +28,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_bodies.py",
             "_certificates.py",
             "_client.py",
+            "_convenience.py",
             "_errors.py",
             "_profile.py",
             "_request.py",
@@ -255,6 +256,12 @@ class SignatureTests(unittest.TestCase):
                     "trailers": (),
                     "expect_continue_ms": None,
                     "body": b"bytes",
+                    "params": None,
+                    "json": inspect.signature(AsyncClient.request)
+                    .parameters["json"]
+                    .default,
+                    "form": None,
+                    "maximum_body_bytes": 16 * 1024 * 1024,
                     "body_length": None,
                     "upload": None,
                     "content_decoding": None,
@@ -297,6 +304,12 @@ class SignatureTests(unittest.TestCase):
                                 "trailers": (),
                                 "expect_continue_ms": None,
                                 "body": None,
+                                "params": None,
+                                "json": inspect.signature(AsyncClient.request)
+                                .parameters["json"]
+                                .default,
+                                "form": None,
+                                "maximum_body_bytes": 16 * 1024 * 1024,
                                 "body_length": None,
                                 "upload": None,
                                 "content_decoding": None,

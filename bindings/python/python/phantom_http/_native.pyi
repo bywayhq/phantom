@@ -75,6 +75,10 @@ class NativeRequestDiagnostics:
 
 class NativePreparedBody:
     @staticmethod
+    def encoded(
+        input: bytes, content_type: str, maximum_bytes: int
+    ) -> NativePreparedBody: ...
+    @staticmethod
     def form(
         pairs: list[tuple[str, str]], maximum_bytes: int
     ) -> NativePreparedBody: ...

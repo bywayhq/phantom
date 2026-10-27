@@ -8,10 +8,8 @@ from phantom_http import Client
 
 PROFILE = "chrome-154-windows"
 
-with Client(
-    profile=PROFILE, protocol="negotiated", context="navigation", timeout_ms=30_000
-) as client:
-    with client.request("GET", "https://example.com/") as response:
+with Client(profile=PROFILE, context="navigation", timeout_ms=30_000) as client:
+    with client.get("https://example.com/", params={"page": 1}) as response:
         response.raise_for_status()
         print(response.text(max_bytes=1_000_000))
 ```
@@ -20,6 +18,8 @@ This example uses Chrome's Windows settings. Choose other profiles from the
 [catalog](https://github.com/bywayhq/phantom/blob/main/crates/phantom-profile/catalog/profiles.json)
 and reuse the client for later requests. The navigation context supplies
 page-load headers for each request.
+The default protocol is negotiated from the profile. Set `protocol="h1"`,
+`"h2"` or `"h3"` when you need an exact protocol.
 
 ## Install
 
@@ -60,7 +60,7 @@ async def main():
     async with AsyncClient(
         profile=PROFILE, protocol="h2", context="navigation", timeout_ms=30_000
     ) as client:
-        async with await client.request("GET", "https://example.com/") as response:
+        async with client.stream("GET", "https://example.com/") as response:
             async for chunk in response.iter_bytes():
                 print(len(chunk))
 
@@ -72,8 +72,11 @@ Reads pull data on demand. `await response.read_chunk(maximum)` returns bytes
 or `None` at EOF on async responses. Its limit is 1 byte through 1 MiB.
 `read(max_bytes=N)`, `text(max_bytes=N)` and
 `json(max_bytes=N)` consume the remaining body. Overflow closes the response.
-`response.headers` is a tuple of immutable `ResponseHeader(name, value, sensitive)`
-records, keeping order, duplicate names, raw bytes and compression markers.
+`response.headers.get(name)` returns the first raw byte value, or `None`.
+`get_list(name)` returns all matching values in order. Names match without
+regard to case. The headers also remain a tuple of immutable
+`ResponseHeader(name, value, sensitive)` records, preserving duplicate names,
+raw bytes and compression markers.
 `response.trailers` never reads the body. Its immutable snapshot is `pending`,
 `unavailable` after failure or abandonment, or `complete` after validated EOF.
 Complete `headers` use the same records; an empty tuple means no fields.
@@ -92,6 +95,32 @@ objects or parsing time. Parsing runs on your Python thread.
 
 ## Send a body
 
+Use `post`, `put`, `patch`, `get`, `head`, `delete` or `options` for common
+methods, or `request(method, url)` for any method. They accept the same request
+options. `stream(method, url)` closes the response when its context exits.
+
+```python
+with Client(profile=PROFILE, context="fetch") as client:
+    with client.post("https://example.com/items", json={"name": "sample"}) as response:
+        response.raise_for_status()
+    with client.post(
+        "https://example.com/search", form=[("tag", "a"), ("tag", "b")]
+    ) as response:
+        response.raise_for_status()
+```
+
+Choose one of `json`, `form`, `body` or `upload`. JSON uses Python's encoder,
+UTF-8 and compact separators; `json=None` sends `null`. Form accepts an ordered
+mapping or pairs, preserving duplicate names. JSON and form bodies default to
+a 16-MiB encoded limit; change it with `maximum_body_bytes`. They supply their
+Content-Type after your caller headers. An existing matching header keeps its
+position; conflicts and duplicates fail before sending. Template slots retain
+the protocol's header placement.
+
+`params` accepts a mapping or ordered pairs and appends to an existing query.
+Duplicate names stay ordered, `None` values are omitted, and booleans become
+`true` or `false`. Existing query escapes are preserved.
+
 Use `body=b"..."` for replayable bytes or `upload=path` for a one-shot file
 stream. Files use their opened length: growth is excluded and shrinkage fails.
 You can also pass an async iterable of bytes to `AsyncClient`, or an iterable
@@ -99,6 +128,8 @@ to `Client`. Producers are one-shot. Native demand copies at most 64 KiB per chu
 Set `body_length=N` for a known length. Checks cover demanded bytes and observed
 EOF; unread suffixes are not validated. The total deadline includes file setup
 and remains active after an early response.
+Use `await client.aclose()` for explicit async shutdown; `close()` remains
+available with the same awaitable behavior.
 
 Set `trailers=(Header("X-Final", b"value"), ...)` for ordered static trailers;
 HTTP/2 and HTTP/3 names must be lowercase. `expect_continue_ms=1000` opts into

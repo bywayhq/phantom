@@ -391,3 +391,29 @@ def operational_pools() -> None:
     )
     Client(profile="exact", protocol="h1", pool=pool)
     AsyncClient(profile="exact", protocol="h2", pool=pool)
+
+
+def everyday_sync(profile: str, url: str) -> None:
+    with Client(profile=profile) as client:
+        response: Response = client.get(url, params=[("tag", "a"), ("tag", "b")])
+        first: bytes | None = response.headers.get("content-type")
+        fallback: bytes | str = response.headers.get("missing", "fallback")
+        values: list[bytes] = response.headers.get_list("set-cookie")
+        response.close()
+        with client.stream("POST", url, json={"ok": True}) as streamed:
+            streamed.read(max_bytes=1024)
+        with client.post(
+            url, form={"query": "text"}, budget=AttemptBudget(1)
+        ) as encoded:
+            encoded.read(max_bytes=1024)
+        print(first, fallback, values)
+
+
+async def everyday_async(profile: str, url: str) -> None:
+    async with AsyncClient(profile=profile) as client:
+        async with client.stream("GET", url, params={"page": 1}) as response:
+            async for chunk in response.iter_bytes():
+                _chunk: bytes = chunk
+        response = await client.post(url, json=None, maximum_body_bytes=1024)
+        await response.aclose()
+        await client.aclose()
