@@ -1,5 +1,99 @@
 use super::*;
 
+#[test]
+fn shutdown_retains_an_admitted_http_request_before_its_first_poll() -> Result<(), Failure> {
+    let global = test_global()?;
+    let config = serde_json::from_value(json!({
+        "profile": "chrome-154-windows", "protocol": "h1", "cookies": false,
+    }))
+    .map_err(|_| Failure::new("test_config"))?;
+    let entry = NativeClient::new(config)?;
+    let native = entry.client.clone();
+    global.lock().clients.insert(1, entry);
+    let request = native
+        .request_with_protocol(
+            phantom::HttpProtocol::Http1,
+            phantom::Method::GET,
+            "http://127.0.0.1:1/",
+        )
+        .map_err(|_| Failure::new("test_request"))?
+        .without_template()
+        // Host is rejected locally after lifecycle admission, before I/O.
+        .header(phantom::RequestHeader::new("Host", "invalid.test"));
+    let (operation, _cancel) = global.lock().reserve(Target::Request(1))?;
+    global.runtime.block_on(async {
+        let mut shutdown = Box::pin(global.shutdown(1, native.clone()));
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        assert!(shutdown.as_mut().poll(&mut context).is_pending());
+        assert!(!native.is_closed());
+
+        let error = request
+            .send()
+            .await
+            .err()
+            .ok_or_else(|| Failure::new("test_request_accepted"))?;
+        assert_eq!(error.kind(), phantom::RequestErrorKind::InvalidHeader);
+        global.finish(operation, Err(Failure::new("invalid_header")));
+        tokio::time::timeout(std::time::Duration::from_secs(5), shutdown)
+            .await
+            .map_err(|_| Failure::new("test_shutdown_stalled"))??;
+        assert!(native.is_closed());
+        Ok(())
+    })
+}
+
+#[test]
+fn cancelled_shutdown_preserves_admitted_requests_until_their_tasks_settle() -> Result<(), Failure>
+{
+    let global = test_global()?;
+    let config = serde_json::from_value(json!({
+        "profile": "chrome-154-windows", "protocol": "h1", "cookies": false,
+    }))
+    .map_err(|_| Failure::new("test_config"))?;
+    let entry = NativeClient::new(config)?;
+    let native = entry.client.clone();
+    let independent = entry.fork(SessionSharing::default());
+    let other = independent.client.clone();
+    global.lock().clients.insert(1, entry);
+    global.lock().clients.insert(2, independent);
+    let (request, _cancel) = global.lock().reserve(Target::Request(1))?;
+    let (unrelated, _other_cancel) = global.lock().reserve(Target::Request(2))?;
+
+    global.runtime.block_on(async {
+        let mut shutdown = Box::pin(global.shutdown(1, native.clone()));
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        assert!(shutdown.as_mut().poll(&mut context).is_pending());
+        drop(shutdown);
+        assert!(!native.is_closed());
+        assert!(
+            global
+                .lock()
+                .operations
+                .get(&request)
+                .is_some_and(|op| !op.abandoned)
+        );
+
+        global.lock().cancel(request);
+        let mut retry = Box::pin(global.shutdown(1, native.clone()));
+        assert!(retry.as_mut().poll(&mut context).is_pending());
+        global.finish(request, Err(Failure::new("cancelled")));
+        tokio::time::timeout(std::time::Duration::from_secs(5), retry)
+            .await
+            .map_err(|_| Failure::new("test_shutdown_retry_stalled"))??;
+        assert!(native.is_closed());
+        assert!(!other.is_closed());
+        assert!(
+            global
+                .lock()
+                .operations
+                .get(&unrelated)
+                .is_some_and(|op| !op.abandoned)
+        );
+        global.finish(unrelated, Err(Failure::new("cancelled")));
+        Ok(())
+    })
+}
+
 fn head(body: std::sync::Arc<BodyOwner>) -> Outcome {
     Outcome::Head(Head {
         status: 200,

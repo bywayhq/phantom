@@ -18,7 +18,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
 };
-use tokio::sync::oneshot;
+use tokio::sync::{Notify, oneshot};
 
 use response::{BodyOwner, Head, ReadLease, ReadResult, response_head};
 
@@ -608,6 +608,7 @@ impl State {
 struct Global {
     state: Mutex<State>,
     ready: Condvar,
+    settled: Notify,
     uploads: AtomicUsize,
     runtime: tokio::runtime::Runtime,
 }
@@ -623,6 +624,7 @@ fn global() -> Result<&'static Global, Failure> {
             Ok(Global {
                 state: Mutex::new(State::default()),
                 ready: Condvar::new(),
+                settled: Notify::new(),
                 uploads: AtomicUsize::new(0),
                 runtime,
             })
@@ -688,6 +690,7 @@ impl Global {
                 });
             }
             self.ready.notify_all();
+            self.settled.notify_waiters();
         }
         state
     }
@@ -714,6 +717,34 @@ impl Global {
             counter: &self.uploads,
         })
     }
+    async fn shutdown(&self, client: u64, native: phantom::Client) -> Result<(), Failure> {
+        // Sends enter core lifecycle on their first poll. Preserve requests
+        // admitted by this registry before closing core admission.
+        loop {
+            let settled = self.settled.notified();
+            tokio::pin!(settled);
+            settled.as_mut().enable();
+            let pending = {
+                let state = self.lock();
+                if state.failed {
+                    return Err(Failure::new("internal"));
+                }
+                if !state.clients.contains_key(&client) {
+                    return Err(Failure::new("client_closed"));
+                }
+                state.operations.values().any(|operation| {
+                    matches!(operation.target, Target::Request(owner) if owner == client)
+                        && !operation.finished
+                })
+            };
+            if !pending {
+                break;
+            }
+            settled.await;
+        }
+        native.shutdown().await;
+        Ok(())
+    }
     fn spawn(
         &'static self,
         id: u64,
@@ -735,6 +766,7 @@ impl Global {
         };
         if operation.abandoned {
             state.operations.remove(&id);
+            self.settled.notify_waiters();
             return;
         }
         if operation.finished {
@@ -845,6 +877,7 @@ impl Global {
             },
         });
         self.ready.notify_one();
+        self.settled.notify_waiters();
     }
 }
 
@@ -1001,6 +1034,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
             }
             Command::ReleaseClient { client } => {
                 state.release_client(client);
+                global.settled.notify_waiters();
                 Ok(Execution::Complete)
             }
             Command::NewBudget { maximum } => {
@@ -1319,6 +1353,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                         Ok(Streaming::Single(body)) => request = request.streaming_body(body),
                         Err(error) => {
                             state.operations.remove(&id);
+                            global.settled.notify_waiters();
                             return Err(error);
                         }
                     }
@@ -1417,7 +1452,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                 let (id, cancel) = state.reserve(Target::Shutdown(client))?;
                 drop(state);
                 global.spawn(id, cancel, async move {
-                    native.shutdown().await;
+                    global.shutdown(client, native).await?;
                     Ok(Outcome::Complete)
                 });
                 Ok(Execution::Operation(id))
@@ -1503,6 +1538,7 @@ mod tests {
         Ok(Box::leak(Box::new(Global {
             state: Mutex::new(State::default()),
             ready: Condvar::new(),
+            settled: Notify::new(),
             uploads: AtomicUsize::new(0),
             runtime: tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
