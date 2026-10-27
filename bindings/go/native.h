@@ -34,3 +34,16 @@ size_t phantom_go_profile(const uint8_t *, size_t, const uint8_t *, size_t, uint
  * cancel releases a prepared export. No buffers/pointers survive the call.
  */
 size_t phantom_go_session(const uint8_t *, size_t, const uint8_t *, size_t, const uint8_t *, size_t, uint8_t *, size_t, uint8_t *, size_t);
+/* Optional SSE ABI 1, negotiated before any request. ABI 2 layouts and its
+ * completion kinds are unchanged. sse_request borrows the ordinary descriptor
+ * and body for this call only, with explicit line/event limits (<=1/8 MiB).
+ * sse_next completes through the ordinary pump. Its result remains owned by
+ * that operation until ack/cancel. sse_result probes exact lengths at capacity
+ * zero, then copies UTF-8 data/type/committed-ID bytes to disjoint caller output.
+ * It retains no foreign pointer and supports events above the pump's buffers.
+ */
+struct phantom_go_sse_event;
+uint64_t phantom_go_sse_version(void);
+uint64_t phantom_go_sse_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_sse_next(uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_sse_result(uint64_t, struct phantom_go_sse_event *, uint8_t *, size_t);

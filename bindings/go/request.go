@@ -58,7 +58,11 @@ type Request struct {
 
 // Do returns the response head and an owned pull-driven body. Keep ctx valid until
 // EOF or Body.Close; cancelling it also closes a body already returned to you.
-func (c *Client) Do(ctx context.Context, request Request) (response *Response, err error) {
+func (c *Client) Do(ctx context.Context, request Request) (*Response, error) {
+	return c.do(ctx, request, nil)
+}
+
+func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (response *Response, err error) {
 	var upload *uploadLifetime
 	if request.Upload != nil {
 		upload = &uploadLifetime{source: request.Upload}
@@ -109,6 +113,14 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	}
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
+	}
+	if events != nil {
+		if err := validateSSELimits(*events); err != nil {
+			return nil, err
+		}
+		if err := loadSSE(); err != nil {
+			return nil, err
+		}
 	}
 	contextFlags, err := requestContextFlags(request.Context)
 	if err != nil {
@@ -257,7 +269,12 @@ func (c *Client) Do(ctx context.Context, request Request) (response *Response, e
 	}
 	err = performSubmitted(ctx, func() (uint64, error) {
 		var result nativeReply
-		err := nativeSubmit(&native, request.Body, &result)
+		var err error
+		if events == nil {
+			err = nativeSubmit(&native, request.Body, &result)
+		} else {
+			err = nativeSSESubmit(&native, request.Body, *events, &result)
+		}
 		runtime.KeepAlive(headers)
 		runtime.KeepAlive(trailers)
 		runtime.KeepAlive(credentials)

@@ -57,6 +57,34 @@ Available contexts are `"navigation"`, `"fetch"`, `"fetchNoStore"`, `"fetchUploa
 Supply required fields such as `Referer` and `Origin` in `Request.Headers`.
 Unavailable contexts return a `request_template` error before sending.
 
+## Read server-sent events
+
+Use the same request options for an event-stream response, including POST bodies:
+
+```go
+response, err := client.Events(ctx, phantom.Request{
+    Method: "GET", URL: "https://example.com/events", Context: "fetch",
+}, nil)
+if err != nil { return err }
+defer response.Events.Close()
+for {
+    event, err := response.Events.Next()
+    if err == io.EOF { break }
+    if err != nil { return err }
+    fmt.Println(event.Data)
+}
+```
+
+Import `io` and `fmt` for this example. Reads use Rust's SSE decoder and stop
+when `ctx` is cancelled. Nil limits allow 64 KiB lines and 1 MiB event blocks;
+pass `SSELimits` to change them, up to 1 MiB and 8 MiB. Explicit zero rejects
+nonempty input. `LastEventID` and `RetryMilliseconds` expose committed state.
+This API reads one response and does not reconnect. Reconnecting EventSource
+is not exposed yet. Content encoding must be `identity`.
+
+SSE requires a matching native payload with the optional SSE ABI. Older payloads
+return `native_sse_unavailable` before sending.
+
 ## Install
 
 There are no public module tags or registry releases yet. Download a matching

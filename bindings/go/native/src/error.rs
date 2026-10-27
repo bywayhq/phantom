@@ -35,6 +35,12 @@ impl From<phantom::BuildError> for Failure {
 
 impl From<RequestError> for Failure {
     fn from(error: RequestError) -> Self {
+        Self::from(&error)
+    }
+}
+
+impl From<&RequestError> for Failure {
+    fn from(error: &RequestError) -> Self {
         let kind = match error.kind() {
             RequestErrorKind::Timeout => "timeout",
             RequestErrorKind::AttemptBudgetExhausted => "attempt_budget_exhausted",

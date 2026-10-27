@@ -16,9 +16,9 @@ use std::sync::{
 };
 use tokio::sync::Notify;
 
-pub(super) struct Stream {
-    pub(super) body: ResponseBody,
-    pub(super) pending: Bytes,
+pub(super) enum Stream {
+    Body { body: ResponseBody, pending: Bytes },
+    Events(Box<phantom::SseStream>),
 }
 pub(super) struct BodyOwner {
     pub(super) client: u64,
@@ -66,9 +66,12 @@ impl ReadLease {
         if self.owner.closed.load(Ordering::SeqCst) {
             return Err(Failure::new("body_closed"));
         }
+        let Stream::Body { body, pending } = stream else {
+            return Err(Failure::new("body_type"));
+        };
         let next = async {
-            while stream.pending.is_empty() {
-                let Some(frame) = stream.body.frame().await else {
+            while pending.is_empty() {
+                let Some(frame) = body.frame().await else {
                     return Ok::<Option<Bytes>, Failure>(None);
                 };
                 if let Ok(data) = frame
@@ -78,12 +81,10 @@ impl ReadLease {
                     })?
                     .into_data()
                 {
-                    stream.pending = data;
+                    *pending = data;
                 }
             }
-            Ok(Some(
-                stream.pending.split_to(maximum.min(stream.pending.len())),
-            ))
+            Ok(Some(pending.split_to(maximum.min(pending.len()))))
         };
         let bytes = tokio::select! {
             biased;
@@ -106,13 +107,12 @@ impl ReadLease {
         }
         match bytes {
             Some(bytes) => Ok(ReadResult::Data(bytes)),
-            None => Ok(ReadResult::End(
-                self.stream
-                    .take()
-                    .ok_or_else(|| Failure::new("internal"))?
-                    .body
-                    .into_trailers(),
-            )),
+            None => {
+                let Some(Stream::Body { body, .. }) = self.stream.take() else {
+                    return Err(Failure::new("internal"));
+                };
+                Ok(ReadResult::End(body.into_trailers()))
+            }
         }
     }
 }
@@ -134,6 +134,7 @@ pub(super) fn response_head(
     client: u64,
     upload: UploadPermit,
     stream_upload: Option<std::sync::Arc<Upload>>,
+    events: Option<super::sse::Limits>,
 ) -> Result<Head, Failure> {
     let info = response
         .extensions()
@@ -184,12 +185,20 @@ pub(super) fn response_head(
     {
         upload.close();
     }
-    let owner = std::sync::Arc::new(BodyOwner {
-        client,
-        stream: Mutex::new(Some(Stream {
+    let stream = match events {
+        Some(limits) => Stream::Events(Box::new(
+            phantom::SseStream::from_response_with_limits(response, limits.core()?)
+                .map_err(|error| super::sse::failure(&error))?
+                .into_body(),
+        )),
+        None => Stream::Body {
             body: response.into_body(),
             pending: Bytes::new(),
-        })),
+        },
+    };
+    let owner = std::sync::Arc::new(BodyOwner {
+        client,
+        stream: Mutex::new(Some(stream)),
         closed: AtomicBool::new(false),
         busy: AtomicBool::new(false),
         changed: Notify::new(),

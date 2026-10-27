@@ -21,3 +21,13 @@ func nativeOperation(uint64, uint64, uint64, []byte, *nativeReply) error {
 func nativeWaitEvent(*nativeEvent, []nativeOutputField, []nativeHop, []byte, []byte) error {
 	return &Error{Kind: "unsupported_platform"}
 }
+func loadSSE() error { return &Error{Kind: "unsupported_platform"} }
+func nativeSSESubmit(*nativeRequest, []byte, SSELimits, *nativeReply) error {
+	return &Error{Kind: "unsupported_platform"}
+}
+func nativeSSENext(uint64, *nativeReply) error {
+	return &Error{Kind: "unsupported_platform"}
+}
+func nativeSSEResult(uint64, *nativeSSEEvent, []byte) error {
+	return &Error{Kind: "unsupported_platform"}
+}

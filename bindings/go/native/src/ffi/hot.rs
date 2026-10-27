@@ -13,6 +13,8 @@ use std::{
     ptr, slice,
 };
 
+mod sse;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct Span {
@@ -316,6 +318,7 @@ unsafe fn request(value: &Request) -> Result<Command, Failure> {
         redirect_history_limit: (value.flags & 16 != 0).then_some(value.redirect_history),
         // SAFETY: Optional retry input is copied before returning from this call.
         retry_policy: unsafe { retries(value.retry)? },
+        events: None,
         has_body: value.flags & 1 != 0,
         prepared_body: (value.prepared_body != 0).then_some(value.prepared_body),
         upload: (value.upload != 0).then_some(value.upload),

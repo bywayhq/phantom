@@ -25,6 +25,7 @@ use response::{BodyOwner, Head, ReadLease, ReadResult, response_head};
 mod diagnostics;
 mod response;
 pub(super) mod session;
+pub(crate) mod sse;
 pub(crate) mod trailers;
 mod transfer;
 
@@ -152,6 +153,8 @@ pub(crate) enum Command {
         redirect_policy: Option<RedirectPolicy>,
         redirect_history_limit: Option<u64>,
         retry_policy: Option<crate::retry::RetryPolicy>,
+        #[serde(default)]
+        events: Option<sse::Limits>,
         has_body: bool,
         prepared_body: Option<u64>,
         upload: Option<u64>,
@@ -159,6 +162,9 @@ pub(crate) enum Command {
     Read {
         body: u64,
         maximum: usize,
+    },
+    NextEvent {
+        body: u64,
     },
     CloseBody {
         body: u64,
@@ -261,6 +267,7 @@ struct Operation {
     reserved_response: Option<u64>,
     response: Option<u64>,
     snapshot: Option<phantom::SessionSnapshot>,
+    event: Option<std::sync::Arc<sse::Read>>,
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -518,6 +525,7 @@ impl State {
                 reserved_response,
                 response: None,
                 snapshot: None,
+                event: None,
             },
         );
         Ok((id, receiver))
@@ -628,6 +636,7 @@ enum Outcome {
     Read(ReadResult),
     Complete,
     Part(usize),
+    Event(sse::Read),
 }
 
 impl Global {
@@ -658,6 +667,7 @@ impl Global {
                 operation.response = None;
                 operation.reserved_response = None;
                 operation.snapshot = None;
+                operation.event = None;
                 operation.finished = true;
                 if operation.abandoned {
                     return false;
@@ -770,6 +780,25 @@ impl Global {
                     ReadResult::End(trailers) => trailers::snapshot(&trailers).map(Completed::End),
                 }
             }
+            Ok(Outcome::Event(mut event)) => {
+                if event.finished()
+                    && let Some(Operation {
+                        target: Target::Read(body),
+                        ..
+                    }) = state.operations.get(&id)
+                {
+                    let body = *body;
+                    state.close_body(body);
+                }
+                let completed = event
+                    .trailers
+                    .take()
+                    .map_or(Completed::Complete, Completed::End);
+                if let Some(operation) = state.operations.get_mut(&id) {
+                    operation.event = Some(std::sync::Arc::new(event));
+                }
+                Ok(completed)
+            }
             Ok(Outcome::Complete) => Ok(Completed::Complete),
             Ok(Outcome::Part(index)) => Ok(Completed::Part(index)),
             Err(error) => {
@@ -861,6 +890,16 @@ impl Execution {
             Self::Json(value) => value,
         }
     }
+}
+
+pub(crate) fn event_result(id: u64) -> Result<std::sync::Arc<sse::Read>, Failure> {
+    let state = global()?.lock();
+    state
+        .operations
+        .get(&id)
+        .filter(|operation| !operation.abandoned && operation.delivered)
+        .and_then(|operation| operation.event.clone())
+        .ok_or_else(|| Failure::new("sse_result_unavailable"))
 }
 
 pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failure> {
@@ -1173,6 +1212,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                 redirect_policy,
                 redirect_history_limit,
                 retry_policy,
+                events,
                 has_body,
                 prepared_body: _,
                 upload,
@@ -1204,6 +1244,9 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                         protocol: None,
                         timeout_phase: Some("total"),
                     });
+                }
+                if let Some(limits) = events {
+                    limits.core()?;
                 }
                 let mut request = state
                     .clients
@@ -1297,7 +1340,8 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                             None => failure,
                         }
                     })?;
-                    response_head(response, client, permit, stream_upload).map(Outcome::Head)
+                    response_head(response, client, permit, stream_upload, events)
+                        .map(Outcome::Head)
                 });
                 Ok(Execution::Operation(id))
             }
@@ -1327,6 +1371,39 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                 drop(state);
                 global.spawn(id, cancel, async move {
                     lease.read(maximum).await.map(Outcome::Read)
+                });
+                Ok(Execution::Operation(id))
+            }
+            Command::NextEvent { body } => {
+                let owner = state
+                    .bodies
+                    .get(&body)
+                    .cloned()
+                    .ok_or_else(|| Failure::new("sse_closed"))?;
+                if state
+                    .operations
+                    .values()
+                    .any(|operation| matches!(operation.target, Target::Read(id) if id == body))
+                {
+                    return Err(Failure::new("concurrent_body_read"));
+                }
+                let (id, cancel) = state.reserve(Target::Read(body))?;
+                if owner
+                    .busy
+                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_err()
+                {
+                    state.operations.remove(&id);
+                    return Err(Failure::new("concurrent_body_read"));
+                }
+                let lease = ReadLease {
+                    owner,
+                    stream: None,
+                    restored: false,
+                };
+                drop(state);
+                global.spawn(id, cancel, async move {
+                    lease.next_event().await.map(Outcome::Event)
                 });
                 Ok(Execution::Operation(id))
             }
@@ -1407,6 +1484,7 @@ mod tests {
     mod admission;
     mod response_info;
     mod session_sharing;
+    mod sse;
     mod uploads;
 
     #[test]
