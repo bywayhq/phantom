@@ -68,6 +68,11 @@ def _query_url(url: str, params: _Params | None) -> str:
         pairs = cast(Mapping[str, _QueryValue], params).items()
     else:
         pairs = params
+    # Append without decoding or normalizing existing escapes or relative paths.
+    target, marker, fragment = url.partition("#")
+    separator = (
+        "?" if "?" not in target else ("" if target.endswith(("?", "&")) else "&")
+    )
     encoded: list[str] = []
     size = len(url.encode("utf-8"))
     for index, pair in enumerate(pairs):
@@ -87,18 +92,13 @@ def _query_url(url: str, params: _Params | None) -> str:
         if len(name) + len(str(value)) > 65536 - size:
             raise ValueError("url and params exceed 65536 bytes")
         field = urlencode(((name, value),))
-        size += len(field) + 1
+        size += len(field) + (1 if encoded else len(separator))
         if size > 65536:
             raise ValueError("url and params exceed 65536 bytes")
         encoded.append(field)
     if not encoded:
         return url
 
-    # Append without decoding or normalizing existing escapes or relative paths.
-    target, marker, fragment = url.partition("#")
-    separator = (
-        "?" if "?" not in target else ("" if target.endswith(("?", "&")) else "&")
-    )
     return target + separator + "&".join(encoded) + marker + fragment
 
 

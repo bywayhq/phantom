@@ -69,6 +69,29 @@ class ConvenienceTests(unittest.IsolatedAsyncioTestCase):
         await client.get("/empty?", params={"page": 1})
         self.assertEqual(native.calls[-1][0][1], "/empty?page=1")
 
+    async def test_query_accepts_exact_byte_limit_for_each_existing_separator(self):
+        native = NativeClient()
+        client = FACADE.AsyncClient._from_native(native)
+        for suffix, separator in (
+            ("?", ""),
+            ("?first=1&", ""),
+            ("?first=1", "&"),
+            ("", "?"),
+        ):
+            with self.subTest(suffix=suffix):
+                url = (
+                    "/"
+                    + "a" * (65536 - 1 - len(suffix) - len(separator) - len("p=1"))
+                    + suffix
+                )
+                await client.get(url, params={"p": 1})
+                self.assertEqual(len(native.calls[-1][0][1].encode()), 65536)
+
+                admitted = len(native.calls)
+                with self.assertRaisesRegex(ValueError, "65536 bytes"):
+                    await client.get(url, params={"p": 12})
+                self.assertEqual(len(native.calls), admitted)
+
     async def test_json_null_utf8_and_explicit_header_position(self):
         native = NativeClient()
         client = FACADE.AsyncClient._from_native(native)
