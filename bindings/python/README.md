@@ -147,6 +147,9 @@ can receive the peer's Close reply. `send_close()` only flushes Close, leaving
 you to receive the reply. Pass `None` for an empty Close frame. `abort()`
 releases the socket immediately.
 A rejected handshake has a readable `WebSocketError.response`.
+Client shutdown waits for open responses and sockets. If it times out, finish
+or close them and call `client.close()` again. Cancelling async shutdown leaves
+those responses and sockets usable.
 
 ## Send a body
 

@@ -633,7 +633,11 @@ class AsyncClient:
         _call(self._native.clear_alt_svc_racing_history)
 
     async def close(self, *, timeout_ms: int = 5000) -> None:
-        """Close admission and wait for active owners within this bound."""
+        """Close admission and wait for active owners within this bound.
+
+        A timeout or cancellation leaves responses and WebSockets usable.
+        Finish or close them, then call close again to complete shutdown.
+        """
         started = asyncio.get_running_loop().time()
         pumps = tuple(self._uploads)
         for pump in pumps:

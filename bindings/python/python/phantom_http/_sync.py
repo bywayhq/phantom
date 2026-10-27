@@ -490,16 +490,13 @@ class Client:
         self._async.clear_alt_svc_racing_history()
 
     def close(self, *, timeout_ms: int = 5000) -> None:
+        """Stop new requests and wait for responses and WebSockets to finish."""
         self._check_thread_loop()
         if self._loop.is_closed():
             return
-        try:
-            self._run(lambda: self._async.close(timeout_ms=timeout_ms))
-        finally:
-            # A noncooperative iterator finalizer remains owned by this loop.
-            # A later close can resume it instead of destroying pending tasks.
-            if not any(not upload.settled.done() for upload in self._async._uploads):
-                self._loop.close()
+        # A failed wait keeps this loop available to finish owners and retry.
+        self._run(lambda: self._async.close(timeout_ms=timeout_ms))
+        self._loop.close()
 
     def __enter__(self) -> Client:
         return self
