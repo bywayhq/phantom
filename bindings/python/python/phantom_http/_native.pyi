@@ -7,6 +7,27 @@ from ._configuration import RetryPolicy
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
 
+class NativeWebSocket:
+    status: int
+    protocol: str
+    selected_protocol: str | None
+    headers: list[tuple[str, bytes, bool]]
+    is_closed: bool
+    def send(self, data: str | bytes) -> Awaitable[None]: ...
+    def receive(
+        self,
+    ) -> Awaitable[
+        tuple[
+            Literal["text", "binary", "ping", "pong", "close"],
+            str | bytes | None,
+            int | None,
+        ]
+    ]: ...
+    def ping(self, data: bytes) -> Awaitable[None]: ...
+    def pong(self, data: bytes) -> Awaitable[None]: ...
+    def close(self, code: int, reason: str) -> Awaitable[None]: ...
+    def abort(self) -> None: ...
+
 class NativeClientCertificate:
     @staticmethod
     def from_pem(
@@ -205,6 +226,16 @@ class NativeResponse:
     def read(self, maximum: int) -> Awaitable[bytes]: ...
 
 class NativeClient:
+    def websocket(
+        self,
+        url: str,
+        protocol: str,
+        headers: list[tuple[str, bytes, bool]],
+        maximum_frame_bytes: int,
+        maximum_message_bytes: int,
+        maximum_fragments: int,
+        handshake_timeout_ms: int | None = None,
+    ) -> Awaitable[NativeWebSocket]: ...
     def __init__(
         self,
         profile: str | NativeProfile,

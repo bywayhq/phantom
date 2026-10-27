@@ -450,6 +450,32 @@ impl NativeClient {
         })
     }
 
+    #[pyo3(signature = (url, protocol, headers, maximum_frame_bytes, maximum_message_bytes, maximum_fragments, handshake_timeout_ms=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn websocket<'py>(
+        &self,
+        py: Python<'py>,
+        url: &str,
+        protocol: &str,
+        headers: &Bound<'py, PyList>,
+        maximum_frame_bytes: &Bound<'py, PyAny>,
+        maximum_message_bytes: &Bound<'py, PyAny>,
+        maximum_fragments: &Bound<'py, PyAny>,
+        handshake_timeout_ms: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        crate::websocket::connect(
+            &self.client,
+            py,
+            url,
+            protocol,
+            headers,
+            maximum_frame_bytes,
+            maximum_message_bytes,
+            maximum_fragments,
+            handshake_timeout_ms,
+        )
+    }
+
     fn close_idle_connections<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let client = self.client.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {

@@ -50,15 +50,20 @@ pub(super) fn request(error: RequestError) -> PyErr {
         _ => "unknown",
     };
     let protocol = error.protocol().map(super::client::protocol_name);
-    let phase = error.timeout_phase().map(|phase| match phase {
+    let phase = error.timeout_phase().map(timeout_phase);
+    NativeError::new_err(("request", kind, protocol, phase))
+}
+
+pub(super) fn timeout_phase(phase: phantom::TimeoutPhase) -> &'static str {
+    match phase {
         phantom::TimeoutPhase::PoolAdmission => "pool_admission",
         phantom::TimeoutPhase::Connect => "connect",
         phantom::TimeoutPhase::ResponseHead => "response_head",
         phantom::TimeoutPhase::ReadIdle => "read_idle",
         phantom::TimeoutPhase::Total => "total",
+        phantom::TimeoutPhase::WebSocketHandshake => "websocket_handshake",
         _ => "unknown",
-    });
-    NativeError::new_err(("request", kind, protocol, phase))
+    }
 }
 
 /// Preparation and unread streaming responses share the original total clock.

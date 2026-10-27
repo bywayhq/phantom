@@ -60,9 +60,18 @@ from ._session import Cookies as Cookies
 from ._sync import Client as Client
 from ._sync import HTTPStatusError as HTTPStatusError
 from ._sync import Response as Response
+from ._sync_websocket import WebSocket as WebSocket
 from ._transfer import TransferControl as TransferControl
 from ._transfer import TransferLimits as TransferLimits
 from ._transfer import TransferSnapshot as TransferSnapshot
+from ._websocket import AsyncWebSocket as AsyncWebSocket
+from ._websocket import WebSocketClose as WebSocketClose
+from ._websocket import WebSocketClosed as WebSocketClosed
+from ._websocket import WebSocketError as WebSocketError
+from ._websocket import WebSocketLimits as WebSocketLimits
+from ._websocket import WebSocketMessage as WebSocketMessage
+from ._websocket import WebSocketPing as WebSocketPing
+from ._websocket import WebSocketPong as WebSocketPong
 
 _NativeProfile = _native.NativeProfile
 
@@ -96,6 +105,14 @@ for _public_type in (
     Response,
     AsyncClient,
     Client,
+    WebSocket,
+    AsyncWebSocket,
+    WebSocketClose,
+    WebSocketClosed,
+    WebSocketError,
+    WebSocketLimits,
+    WebSocketPing,
+    WebSocketPong,
 ):
     _public_type.__module__ = __name__
 del _public_type

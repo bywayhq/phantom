@@ -112,6 +112,36 @@ Text uses your chosen Python codec and error policy, with UTF-8/strict defaults.
 JSON uses Python's standard decoder. Collection bounds input bytes, not parsed
 objects or parsing time. Parsing runs on your Python thread.
 
+## WebSockets
+
+Use `client.websocket(url)` with `with`, or `async with` on an async client:
+
+```python
+with Client(profile=PROFILE, context="raw") as client:
+    with client.websocket("wss://example.com/events") as socket:
+        socket.send("hello")
+        print(socket.recv())
+```
+
+The profile chooses the connection policy. Set `protocol="h1"`, `"h2"` or
+`"h3"` for an exact protocol. Requests keep the client's route, trust and
+cookies. `headers` fills the profile's ordered opening fields.
+`handshake_timeout_ms` sets the opening deadline. HTTP request timeouts,
+retry/redirect policies and attempt budgets do not apply to WebSockets.
+
+`send(str)` sends text and `send(bytes)` sends binary. `recv()` returns either
+and raises `WebSocketClosed` on a peer Close. `receive()` also exposes
+`WebSocketPing`, `WebSocketPong` and `WebSocketClose`. Ping replies are automatic.
+Iteration ends on normal closure. One async reader and writer may run together.
+`WebSocketLimits` bounds frames, reassembled messages and fragment counts.
+Compression is currently off.
+
+Reads pull messages without a background Python reader. Cancelling an operation
+aborts that socket. `close()` or async `aclose()` flushes Close and releases the
+transport, without waiting for the peer. The flush has a five-second default
+limit, adjustable with `timeout_ms`. `abort()` releases it immediately.
+A rejected handshake has a readable `WebSocketError.response`.
+
 ## Send a body
 
 Use `post`, `put`, `patch`, `get`, `head`, `delete` or `options` for common

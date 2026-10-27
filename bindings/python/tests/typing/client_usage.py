@@ -424,3 +424,25 @@ async def everyday_async(profile: str, url: str) -> None:
         response = await client.post(url, json=None, maximum_body_bytes=1024)
         await response.aclose()
         await client.aclose()
+
+
+async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
+    from phantom_http import WebSocketClose, WebSocketLimits, WebSocketPing
+
+    async with client.websocket(url, limits=WebSocketLimits(1024, 4096)) as socket:
+        await socket.send("hello")
+        data: str | bytes = await socket.recv()
+        event = await socket.receive()
+        if isinstance(event, WebSocketPing):
+            payload: bytes = event.data
+            await socket.pong(payload)
+        if isinstance(event, WebSocketClose):
+            code: int | None = event.code
+            print(code)
+        async for item in socket:
+            data = item
+        await socket.aclose(timeout_ms=1000)
+    with sync.websocket(url, protocol="h1") as blocking:
+        blocking.send(data)
+        for item in blocking:
+            data = item

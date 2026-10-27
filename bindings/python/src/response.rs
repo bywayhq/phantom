@@ -202,6 +202,20 @@ pub(super) struct NativeResponse {
 
 impl NativeResponse {
     pub(super) fn new(response: phantom::Response<ResponseBody>) -> PyResult<Self> {
+        Self::new_inner(response, None)
+    }
+
+    pub(super) fn websocket_rejection(
+        response: phantom::Response<ResponseBody>,
+        url: String,
+    ) -> PyResult<Self> {
+        Self::new_inner(response, Some(url))
+    }
+
+    fn new_inner(
+        response: phantom::Response<ResponseBody>,
+        websocket_url: Option<String>,
+    ) -> PyResult<Self> {
         let status = response.status().as_u16();
         let protocol = match response.version() {
             http::Version::HTTP_11 => "h1",
@@ -226,10 +240,16 @@ impl NativeResponse {
                     .collect()
             })
             .ok_or_else(|| error::input("ordered_headers_unavailable"))?;
-        let info = response_info(response.extensions())?;
-        let url = info.effective_uri().to_string();
-        let redirects_followed = info.redirects_followed();
-        let connection_setup_retries = info.retries_performed();
+        // WebSocket openings neither redirect nor apply HTTP response decoding.
+        let (url, info) = match websocket_url {
+            Some(url) => (url, None),
+            None => {
+                let info = response_info(response.extensions())?;
+                (info.effective_uri().to_string(), Some(info))
+            }
+        };
+        let redirects_followed = info.map_or(0, phantom::ResponseInfo::redirects_followed);
+        let connection_setup_retries = info.map_or(0, phantom::ResponseInfo::retries_performed);
         let redirect_history =
             response
                 .extensions()
@@ -253,8 +273,8 @@ impl NativeResponse {
                     )
                 });
         let decoded_content_codings = info
-            .decoded_content_codings()
-            .iter()
+            .into_iter()
+            .flat_map(phantom::ResponseInfo::decoded_content_codings)
             .map(|coding| {
                 match coding {
                     phantom::ContentCoding::Gzip => "gzip",

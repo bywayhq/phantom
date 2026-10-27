@@ -18,6 +18,7 @@ mod session;
 mod streaming_multipart;
 mod transfer;
 mod upload;
+mod websocket;
 
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -28,6 +29,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<transfer::NativeTransferControl>()?;
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
+    module.add_class::<websocket::NativeWebSocket>()?;
     module.add_class::<upload::NativeUpload>()?;
     module.add_class::<streaming_multipart::NativeStreamingMultipart>()?;
     module.add_class::<profile::NativeProfile>()?;

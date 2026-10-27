@@ -57,7 +57,15 @@ from ._session import (
     _checkpoint_bytes,
     _receiving_routes,
 )
+from ._sync_websocket import WebSocket
 from ._transfer import TransferControl
+from ._websocket import (
+    _DEFAULT_WEBSOCKET_LIMITS,
+    AsyncWebSocket,
+    WebSocketError,
+    WebSocketLimits,
+    _WebSocketProtocol,
+)
 
 
 class HTTPStatusError(Error):
@@ -237,6 +245,33 @@ class Client:
     @property
     def is_closed(self) -> bool:
         return self._async.is_closed
+
+    def websocket(
+        self,
+        url: str,
+        *,
+        protocol: _WebSocketProtocol = "profile",
+        headers: _Headers = (),
+        limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
+        handshake_timeout_ms: int | None = None,
+    ) -> WebSocket:
+        """Open a socket on this client's profile, route and synchronous loop."""
+
+        async def connect() -> AsyncWebSocket:
+            return await self._async.websocket(
+                url,
+                protocol=protocol,
+                headers=headers,
+                limits=limits,
+                handshake_timeout_ms=handshake_timeout_ms,
+            )
+
+        try:
+            return WebSocket(self, self._run(connect))
+        except WebSocketError as error:
+            if isinstance(error.response, AsyncResponse):
+                error.response = Response(self, error.response)
+            raise
 
     def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> Client:
         """Create a fork with its own synchronous loop and shutdown lifecycle."""

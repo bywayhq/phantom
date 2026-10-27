@@ -10,6 +10,7 @@ import unittest
 import h2.config
 import h2.connection
 import h2.events
+import h2.settings
 from phantom_http import (
     AsyncClient,
     BodyLimitExceeded,
@@ -33,6 +34,7 @@ class H2Peer:
         client_ca=None,
         trailers=None,
         socket_path=None,
+        websocket=False,
     ):
         self.listener = (
             socket.socket(socket.AF_UNIX)
@@ -53,6 +55,8 @@ class H2Peer:
                 self.tls.verify_mode = ssl.CERT_REQUIRED
             self.tls.set_alpn_protocols(["h2"])
         self.client_certificate = None
+        self.websocket = websocket
+        self.websocket_stream = None
         self.url = (
             f"{'https' if tls else 'http'}://localhost"
             if socket_path is not None
@@ -97,6 +101,10 @@ class H2Peer:
                     config=h2.config.H2Configuration(client_side=False)
                 )
                 connection.initiate_connection()
+                if self.websocket:
+                    connection.update_settings(
+                        {h2.settings.SettingCodes.ENABLE_CONNECT_PROTOCOL: 1}
+                    )
                 stream.sendall(connection.data_to_send())
                 healthy = None
                 overflow = None
@@ -110,7 +118,9 @@ class H2Peer:
                             if path == b"/decode-overflow":
                                 fields.append(("content-encoding", "gzip"))
                             connection.send_headers(event.stream_id, fields)
-                            if path == b"/stall":
+                            if dict(event.headers).get(b":protocol") == b"websocket":
+                                self.websocket_stream = event.stream_id
+                            elif path == b"/stall":
                                 connection.send_data(event.stream_id, b"a")
                             elif path in (b"/overflow", b"/decode-overflow"):
                                 overflow = event.stream_id
@@ -146,12 +156,16 @@ class H2Peer:
                                         healthy, self.trailers, end_stream=True
                                     )
                         elif isinstance(event, h2.events.ConnectionTerminated):
-                            self.premature_close = len(self.requests) != 3
+                            self.premature_close = len(self.requests) != (
+                                4 if self.websocket else 3
+                            )
                             return
                     output = connection.data_to_send()
                     if output:
                         stream.sendall(output)
-                self.premature_close = len(self.requests) != 3
+                self.premature_close = len(self.requests) != (
+                    4 if self.websocket else 3
+                )
         except Exception as error:
             self.error = error
 

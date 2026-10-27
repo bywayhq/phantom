@@ -250,3 +250,17 @@ def invalid_convenience(client: Client, url: str) -> None:
     client.get(url, params={"page": object()})  # E: arg-type
     client.post(url, form={"field": 1})  # E: arg-type
     client.stream("GET", url, unknown=True)  # E: call-arg
+
+
+async def invalid_websocket(client: AsyncClient, sync: Client) -> None:
+    from phantom_http import WebSocketLimits
+
+    client.websocket("ws://local", protocol="negotiated")  # E: arg-type
+    WebSocketLimits(maximum_frame_bytes="unbounded")  # E: arg-type
+    WebSocketLimits().maximum_fragments = 1  # E: misc
+    async with client.websocket("ws://local") as socket:
+        await socket.send({"data": "value"})  # E: arg-type
+        await socket.ping("text")  # E: arg-type
+        await socket.aclose(timeout_ms="slow")  # E: arg-type
+    with sync.websocket("ws://local") as blocking:
+        blocking.send(1)  # E: arg-type

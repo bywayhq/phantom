@@ -69,6 +69,12 @@ from ._session import (
     _receiving_routes,
 )
 from ._transfer import TransferControl
+from ._websocket import (
+    _DEFAULT_WEBSOCKET_LIMITS,
+    WebSocketLimits,
+    _WebSocketConnect,
+    _WebSocketProtocol,
+)
 
 
 class _RequestFields(TypedDict, total=False):
@@ -220,6 +226,20 @@ class AsyncClient:
         client.cookies = Cookies(native.cookies)
         client._uploads = set()
         return client
+
+    def websocket(
+        self,
+        url: str,
+        *,
+        protocol: _WebSocketProtocol = "profile",
+        headers: _Headers = (),
+        limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
+        handshake_timeout_ms: int | None = None,
+    ) -> _WebSocketConnect:
+        """Open with await or async with, following the profile's connection policy."""
+        return _WebSocketConnect(
+            self._native, url, protocol, headers, limits, handshake_timeout_ms
+        )
 
     def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> AsyncClient:
         """Create open independent pools, sharing only selected live state."""
