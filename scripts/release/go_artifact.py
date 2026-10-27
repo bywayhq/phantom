@@ -148,21 +148,27 @@ def build_records(raw, target):
 
 def copy_module(source, destination):
     destination.mkdir()
-    files = sorted(source.glob("*.go")) + [
-        source / name
-        for name in (
-            "go.mod",
-            "go.sum",
-            "native.h",
-            "README.md",
-            "LICENSE-MIT",
-            "LICENSE-APACHE",
-        )
-    ]
+    files = (
+        sorted(source.glob("*.go"))
+        + sorted((source / "internal").rglob("*.go"))
+        + [
+            source / name
+            for name in (
+                "go.mod",
+                "go.sum",
+                "native.h",
+                "README.md",
+                "LICENSE-MIT",
+                "LICENSE-APACHE",
+            )
+        ]
+    )
     for path in files:
         if path.is_symlink() or not path.is_file():
             raise ValueError(f"missing or nonregular Go module file: {path.name}")
-        shutil.copyfile(path, destination / path.name)
+        target = destination / path.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
     if (destination / "go.mod").read_text().splitlines()[0] != f"module {MODULE}":
         raise ValueError("unexpected Go module identity")
     for name in ("LICENSE-MIT", "LICENSE-APACHE"):
@@ -289,7 +295,7 @@ def completed_tests(raw):
             raise ValueError("extracted Go tests failed or skipped a control")
         if event.get("Action") == "pass":
             name = event.get("Test")
-            if name and "/" not in name:
+            if name and "/" not in name and event.get("Package") == MODULE:
                 passed.add(name)
             elif name is None and event.get("Package") == MODULE:
                 package_passed = True
@@ -436,7 +442,15 @@ def installed_checks(extracted, name, target, identity, commands, tools, proxy=N
     environment = h3_peer_environment(ROOT, extracted, environment)
     tests = completed_tests(
         commands.run(
-            ["go", "test", "-mod=readonly", "-count=1", "-json", "-timeout=5m", "."],
+            [
+                "go",
+                "test",
+                "-mod=readonly",
+                "-count=1",
+                "-json",
+                "-timeout=5m",
+                "./...",
+            ],
             cwd=module,
             env=environment,
             timeout=360,

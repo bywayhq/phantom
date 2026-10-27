@@ -74,6 +74,9 @@ class GoArtifactTests(unittest.TestCase):
         self.assertTrue((destination / "client_test.go").is_file())
         self.assertTrue((destination / "http2_test.go").is_file())
         self.assertTrue((destination / "native.h").is_file())
+        for source in (artifact.ROOT / "bindings/go/internal").rglob("*.go"):
+            relative = source.relative_to(artifact.ROOT / "bindings/go")
+            self.assertEqual((destination / relative).read_bytes(), source.read_bytes())
         self.assertFalse((destination / "native").exists())
         for name in ("LICENSE-MIT", "LICENSE-APACHE"):
             self.assertEqual(
@@ -226,6 +229,7 @@ class GoArtifactTests(unittest.TestCase):
             "missing-package",
             "duplicate-test",
             "missing-http3",
+            "foreign-control",
         ):
             changed = self.events()
             if mutation in {"skip", "fail"}:
@@ -236,6 +240,8 @@ class GoArtifactTests(unittest.TestCase):
                 changed.pop()
             elif mutation == "missing-http3":
                 changed[-2]["Test"] = "TestDifferentControl"
+            elif mutation == "foreign-control":
+                changed[0]["Package"] = artifact.MODULE + "/internal/native"
             else:
                 changed[0] = changed[1]
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
