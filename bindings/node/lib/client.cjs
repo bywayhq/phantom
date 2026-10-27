@@ -10,7 +10,8 @@ const native = require('./native.cjs');
 const { networkOptions, poolOptions } = require('./network.cjs');
 const { preparedBodyHandle } = require('./prepared-body.cjs');
 const { profileHandle } = require('./profile.cjs');
-const { phaseTimeouts, redirectPolicy, retryPolicy, requestFields, expectContinue, contentDecoding } = require('./request-options.cjs');
+const { requestDefaults, prepareRequest } = require('./request-preparation.cjs');
+const { phaseTimeouts, redirectPolicy, retryPolicy, expectContinue, contentDecoding } = require('./request-options.cjs');
 const { Response } = require('./response.cjs');
 const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes } = require('./session.cjs');
 const { clientPins, clientCertificates } = require('./tls.cjs');
@@ -22,6 +23,7 @@ const environment = new native.NativeEnvironment();
 
 class Client {
   #native;
+  #defaults;
   #uploads = new Set();
   #uploadCleanupError;
   #trackUpload(iterator, upload, outcome) {
@@ -36,9 +38,10 @@ class Client {
     };
     pumping.then(settled, settled);
   }
-  constructor(options, token) {
-    if (token === clientToken) { this.#native = options; return; }
+  constructor(options, token, defaults) {
+    if (token === clientToken) { this.#native = options; this.#defaults = defaults; return; }
     try {
+      if (options === null || typeof options !== 'object') throw new PhantomError('InvalidArgument', 'client options are required');
       const serverSpkiPins = clientPins(options, 'serverSpkiPins');
       const proxyServerSpkiPins = clientPins(options, 'proxyServerSpkiPins');
       const certificates = clientCertificates(options);
@@ -48,8 +51,11 @@ class Client {
       const proxyUserId = userId?.value === undefined ? undefined : socks4UserId(userId.value);
       const pool = poolOptions(options);
       if (options.maximumActiveRequests !== undefined) integer(options.maximumActiveRequests, 'maximumActiveRequests', 1, 1024);
+      const profile = typeof options.profile === 'string' ? undefined : profileHandle(options.profile);
+      this.#defaults = requestDefaults(options, profile?.contexts.includes('profile') ? 'profile' : undefined);
+      const {protocol, context, headers, ...nativeOptions} = options;
       this.#native = environment.client({
-        ...options, profile: typeof options.profile === 'string' ? options.profile : undefined,
+        ...nativeOptions, profile: typeof options.profile === 'string' ? options.profile : undefined,
         additionalRoots: options.additionalRoots?.map(bytes),
         additionalProxyRoots: options.additionalProxyRoots?.map(bytes),
         serverSpkiPins, proxyServerSpkiPins, ...certificates,
@@ -59,11 +65,11 @@ class Client {
         network,
         proxyUserId,
         pool,
-      }, typeof options.profile === 'string' ? undefined : profileHandle(options.profile));
+      }, profile);
     } catch (error) { throw translated(error); }
   }
   fork(sharing = {}) {
-    try { return new Client(environment.fork(this.#native, sessionSharing(sharing)), clientToken); }
+    try { return new Client(environment.fork(this.#native, sessionSharing(sharing)), clientToken, this.#defaults); }
     catch (error) { throw translated(error); }
   }
   async exportSession(key) {
@@ -75,7 +81,7 @@ class Client {
       const input = bytes(snapshot);
       if (apply(lengthOf, input, []) > 32 * 1024 * 1024) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'too_large');
       const restored = await environment.restoreSession(this.#native, input, checkpointKey(key), receivingRoutes(options));
-      return new Client(restored, clientToken);
+      return new Client(restored, clientToken, this.#defaults);
     } catch (error) { throw translated(error); }
   }
   async request(url, options) {
@@ -89,12 +95,12 @@ class Client {
     const abort = () => cancellation.cancel();
     const cleanup = () => { upload?.stop(); abortListener?.[Symbol.dispose](); abortListener = undefined; };
     try {
-      if (options === null || typeof options !== 'object') throw new PhantomError('InvalidArgument', 'request options are required');
+      ({url, options} = prepareRequest(this.#defaults, url, options));
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
       if (options.file) integer(options.file.maximumBytes, 'maximumBytes');
-      const fields = requestFields(options.headers, options.trailers);
+      const fields = {headers: options.headers, trailers: options.trailers};
       const continueWait = expectContinue(options.expectContinueMs);
       if (options.multipart !== undefined && (options.body !== undefined || options.file !== undefined || options.bodyLength !== undefined)) throw new PhantomError('InvalidArgument', 'multipart cannot be combined with body, file or bodyLength');
       const multipart = multipartOptions(options.multipart);
@@ -161,6 +167,17 @@ class Client {
       throw uploadError(error, producer, true);
     }
   }
+  #requestMethod(method, url, options) {
+    if (options !== undefined && (options === null || typeof options !== 'object')) return this.request(url, options);
+    return this.request(url, {...options, method});
+  }
+  get(url, options) { return this.#requestMethod('GET', url, options); }
+  head(url, options) { return this.#requestMethod('HEAD', url, options); }
+  post(url, options) { return this.#requestMethod('POST', url, options); }
+  put(url, options) { return this.#requestMethod('PUT', url, options); }
+  patch(url, options) { return this.#requestMethod('PATCH', url, options); }
+  delete(url, options) { return this.#requestMethod('DELETE', url, options); }
+  options(url, options) { return this.#requestMethod('OPTIONS', url, options); }
   setCookie(url, cookie) {
     try { this.#native.setCookie(url, cookie); } catch (error) { throw translated(error); }
   }

@@ -9,11 +9,10 @@ import { Client } from '@byway/phantom';
 const client = new Client({
   profile: 'chrome-154-windows',
   route: 'direct',
+  context: 'navigation',
 });
 try {
-  const response = await client.request('https://example.com/', {
-    method: 'GET', protocol: 'negotiated', context: 'navigation', timeoutMs: 30_000,
-  });
+  const response = await client.get('https://example.com/', {timeoutMs: 30_000});
   try {
     console.log(response.status, await response.text(1024 * 1024));
   } finally { response.close(); }
@@ -51,16 +50,44 @@ npm ci --ignore-scripts
 npm run copy-native
 ```
 
-## Read a response
+## Send a request
 
-Choose `http1`, `http2`, `http3` or `negotiated` explicitly. `response.protocol`
-reports the actual protocol. Select `raw` for caller headers, or an available
-catalog context such as `navigation`. Unsupported combinations fail.
+Set `context`, `protocol` and ordered `headers` once on the client. Requests
+can override them. Protocol defaults to `negotiated`; exact choices are `http1`,
+`http2` and `http3`. `response.protocol` reports the actual protocol. A composed
+`Profile.fromCatalog(id, context)` supplies its attached context automatically.
+Otherwise choose a context on the client or request: `raw` for caller headers,
+or a catalog context such as `navigation`. Unsupported combinations fail.
+
+Use `get`, `head`, `post`, `put`, `patch`, `delete` or `options`, or
+`request(url, {method})` for another method. `request(url)` defaults to GET.
+
+```js
+const response = await client.post('https://example.com/messages', {
+  json: {message: 'hello'},
+  query: [['tag', 'one'], ['tag', 'two']],
+});
+try { console.log(await response.text(1024 * 1024)); }
+finally { response.close(); }
+```
+
+`body: 'text'` encodes UTF-8. `json` uses `JSON.stringify`; `form` accepts
+`URLSearchParams` or ordered string pairs. Choose one payload. These helpers
+set the content type and exact length through the core's prepared-body rules.
+An explicit content type must match; duplicates fail. Byte bodies stay raw.
+`query` accepts the same ordered fields and appends them to the URL, preserving
+existing query spelling. URLs can be strings, relative to `baseUrl`, or `URL`
+objects. Buffered bodies are limited to 16 MiB, URLs to 65,536 encoded bytes.
 
 Headers are ordered `{name, value: Uint8Array, sensitive?}` entries, including
 duplicates. H2/H3 caller names must be lowercase. `response.headers` retains
 received spelling, order, raw bytes and actual `sensitive` markers.
 Inputs are copied before async work; shared byte buffers are rejected.
+Client defaults are copied at construction. Request fields replace defaults
+with the same name, ignoring case. Other defaults come first, then request
+fields in their supplied order. Forks and restored clients inherit defaults.
+
+## Read a response
 
 `read(maximumBytes)` pulls up to 65,536 bytes; `null` means EOF. Only one reader
 can be pending. `bytes(maximumBytes)`, `text(maximumBytes)` and

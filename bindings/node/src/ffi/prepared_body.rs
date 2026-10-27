@@ -91,6 +91,21 @@ pub(super) fn prepared_charge(remaining: &mut usize, count: usize) -> Result<()>
     Ok(())
 }
 
+/// Owns host-encoded bytes with the core's length and media-type policy.
+#[napi]
+pub fn prepared_encoded(
+    env: Env,
+    input: Buffer,
+    content_type: String,
+    maximum: BigInt,
+) -> Result<NativePreparedBody> {
+    let maximum = prepared_maximum(maximum)?;
+    let input = bytes::Bytes::from(copy_buffer(&env, input, maximum)?);
+    let body = phantom::PreparedRequestBody::encoded(input, &content_type, maximum)
+        .map_err(crate::prepared_body::core_error)?;
+    Ok(NativePreparedBody { body })
+}
+
 /// Encodes form inputs off the JavaScript thread, after bounded input ownership.
 #[napi]
 pub fn prepared_form(

@@ -100,4 +100,9 @@ class PreparedBody {
 
 function preparedBodyHandle(value) { return preparedHandles.get(value); }
 
-module.exports = { PreparedBody, preparedOptions, preparedFailure, preparedArray, preparedBodyHandle };
+/** @returns {import('../index.js').PreparedBody} */
+function encodedBody(input, contentType, maximumBytes) {
+  return new PreparedBody(native.preparedEncoded(bytes(input), contentType, BigInt(maximumBytes)), preparedToken);
+}
+
+module.exports = { PreparedBody, preparedOptions, preparedFailure, preparedArray, preparedBodyHandle, encodedBody };

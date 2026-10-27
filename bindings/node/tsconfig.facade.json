@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "strict": true,
+    "noEmit": true,
+    "module": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2022", "ESNext.Disposable"]
+  },
+  "files": ["lib/request-preparation.cjs"]
+}

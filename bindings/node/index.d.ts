@@ -10,7 +10,7 @@ export class PhantomError extends Error {
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
-  /** Caller upload failure, available only through explicit inspection. */
+  /** Underlying host/native failure, available through explicit inspection. */
   readonly cause?: unknown;
   /** Iterator cleanup failure; may become available after request settlement. */
   readonly cleanupError?: unknown;
@@ -19,6 +19,9 @@ export class PhantomError extends Error {
 export type ProfileValue = null | boolean | number | bigint | string | ProfileValue[] | { [key: string]: ProfileValue };
 export type CatalogContext = 'navigation' | 'fetch' | 'fetchNoStore' | 'fetchUpload';
 export type RequestContext = 'raw' | 'profile' | CatalogContext;
+export type RequestProtocol = 'http1' | 'http2' | 'http3' | 'negotiated';
+/** Order and duplicate names are preserved. Values are encoded as form fields. */
+export type OrderedFields = URLSearchParams | readonly (readonly [string, string])[];
 /** Imported fields and the settings supplied by the base profile. */
 export interface ImportedProfile {
   readonly profile: Profile;
@@ -123,6 +126,12 @@ export class ClientCertificate {
 }
 export interface ClientOptions {
   profile: string | Profile;
+  /** Default negotiated protocol; an explicit request choice overrides it. */
+  protocol?: RequestProtocol;
+  /** Defaults to an attached Profile template; otherwise set this or a request context. */
+  context?: RequestContext;
+  /** Copied at construction. Request fields replace same-name defaults, ignoring case. */
+  headers?: readonly Header[];
   route: 'direct' | 'proxy';
   proxy?: string;
   proxyUsername?: string;
@@ -249,16 +258,23 @@ export interface RedirectHistory {
 export interface RequestOptions {
   /** Single-use live observer; keep it to inspect failed/cancelled sends. */
   diagnostics?: RequestDiagnostics;
-  method: string;
-  protocol: 'http1' | 'http2' | 'http3' | 'negotiated';
-  context: RequestContext;
-  headers?: Header[];
+  /** Defaults to GET. Method helpers set their own method. */
+  method?: string;
+  protocol?: RequestProtocol;
+  context?: RequestContext;
+  headers?: readonly Header[];
+  /** Appended to the URL without changing existing query spelling. */
+  query?: OrderedFields;
+  /** JSON.stringify semantics; prepared application/json body. Exclusive with other payloads and bodyLength. */
+  json?: unknown;
+  /** Prepared application/x-www-form-urlencoded;charset=UTF-8 body. Exclusive with other payloads and bodyLength. */
+  form?: OrderedFields;
   /** Ordered static trailers; H2/H3 names must be lowercase. Sent only after successful body completion. */
   trailers?: Header[];
   /** Opt-in 100-continue wait in exact nonnegative milliseconds, including zero. */
   expectContinueMs?: number | bigint;
   /** Prepared bodies are reusable; async iterables are one-shot and pulled with native backpressure. */
-  body?: Uint8Array | AsyncIterable<Uint8Array> | PreparedBody;
+  body?: string | Uint8Array | AsyncIterable<Uint8Array> | PreparedBody;
   /**
    * Exclusive with body, bodyLength and file. Core encoded maximum includes framing.
    * Unknown total length; one-shot, including buffered parts. Only the demanded
@@ -283,6 +299,7 @@ export interface RequestOptions {
   retryPolicy?: RetryPolicy;
   redirectHistoryLimit?: number | bigint;
 }
+export type MethodOptions = Omit<RequestOptions, 'method'>;
 export interface ResponseHeader {
   readonly name: string;
   readonly value: Buffer;
@@ -325,7 +342,14 @@ export class Client {
   exportSession(key: Uint8Array): Promise<Buffer>;
   /** Restores independent pools using this client's configuration; leaves this client unchanged. */
   restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;
-  request(url: string, options: RequestOptions): Promise<Response>;
+  request(url: string | URL, options?: RequestOptions): Promise<Response>;
+  get(url: string | URL, options?: MethodOptions): Promise<Response>;
+  head(url: string | URL, options?: MethodOptions): Promise<Response>;
+  post(url: string | URL, options?: MethodOptions): Promise<Response>;
+  put(url: string | URL, options?: MethodOptions): Promise<Response>;
+  patch(url: string | URL, options?: MethodOptions): Promise<Response>;
+  delete(url: string | URL, options?: MethodOptions): Promise<Response>;
+  options(url: string | URL, options?: MethodOptions): Promise<Response>;
   setCookie(url: string, setCookie: string): void;
   cookieValue(url: string): string | null;
   clearCookies(): void;

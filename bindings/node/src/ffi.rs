@@ -39,7 +39,8 @@ pub use options::{
 };
 pub(crate) use options::{policy_count, positive_count};
 pub use prepared_body::{
-    FormField, MultipartField, NativePreparedBody, prepared_form, prepared_multipart,
+    FormField, MultipartField, NativePreparedBody, prepared_encoded, prepared_form,
+    prepared_multipart,
 };
 pub use profile::{
     NativeImportedProfile, NativeProfile, profile_catalog, profile_ids, profile_import_json,

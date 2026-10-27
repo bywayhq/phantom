@@ -26,6 +26,25 @@ async function use(): Promise<void> {
   await client.close();
 }
 void use;
+async function requestConveniences(): Promise<void> {
+  const defaults = [{name: 'x-client', value: Buffer.from('one')}] as const;
+  const client = new Client({profile: 'exact', route: 'direct', context: 'raw', protocol: 'http1', headers: defaults});
+  const response: Response = await client.get(new URL('https://example.com/'));
+  await client.request('child');
+  await client.post('child', {json: {word: 'hello'}, query: [['tag', 'one'], ['tag', 'two']] as const});
+  await client.put('child', {body: 'text'});
+  await client.patch('child', {form: new URLSearchParams([['name', 'value']])});
+  await client.delete('child'); await client.head('child'); await client.options('child');
+  // @ts-expect-error Ordered query values must be strings.
+  await client.get('child', {query: [['count', 1]]});
+  // @ts-expect-error Method helpers select their own method.
+  await client.post('child', {method: 'GET'});
+  // @ts-expect-error Protocol selections are explicit known values.
+  new Client({profile: 'exact', route: 'direct', protocol: 'automatic'});
+  void response;
+  await client.close();
+}
+void requestConveniences;
 function pinnedClients(): void {
   const pins: readonly Uint8Array[] = [Buffer.alloc(32)];
   const options: ClientOptions = {profile: 'exact', route: 'direct', serverSpkiPins: pins, proxyServerSpkiPins: pins};

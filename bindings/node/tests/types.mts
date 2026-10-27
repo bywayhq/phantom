@@ -44,6 +44,21 @@ async function use(): Promise<void> {
   void bytes;
 }
 void use;
+async function requestConveniences(): Promise<void> {
+  await using client = new Client({profile: Profile.fromCatalog('exact', 'navigation'), route: 'direct'});
+  const response: Response = await client.get(new URL('https://example.com/'));
+  await client.request('child');
+  await client.post('child', {json: {word: 'hello'}, query: [['tag', 'one'], ['tag', 'two']] as const});
+  await client.put('child', {body: 'text'});
+  await client.patch('child', {form: new URLSearchParams([['name', 'value']])});
+  await client.delete('child'); await client.head('child'); await client.options('child');
+  // @ts-expect-error Ordered form values must be strings.
+  await client.post('child', {form: [['count', 1]]});
+  // @ts-expect-error Method helpers select their own method.
+  await client.post('child', {method: 'GET'});
+  void response;
+}
+void requestConveniences;
 const custom: Profile = Profile.importJson(Profile.fromCatalog('exact/profile/id').exportJson());
 void custom;
 function fork(client: Client): Client {
