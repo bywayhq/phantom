@@ -3,6 +3,7 @@ package phantom
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -125,6 +126,10 @@ func completionPump() {
 		pump.mu.Unlock()
 		if channel != nil {
 			channel <- event
+			if event.kind == 1 || event.kind == 4 {
+				// Upload producers need acknowledgements and part demand to continue.
+				runtime.Gosched()
+			}
 		} else {
 			_ = control("cancel", "operation", event.Operation)
 		}

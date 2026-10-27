@@ -13,6 +13,7 @@
   through `PreparedRequestBody::encoded`.
 - Go reserves response capacity before sending and keeps existing bodies
   readable when request or session operations fill admission capacity.
+- Avoid delaying Go uploads while waiting for further native events.
 
 ## 0.5.1 - 2026-10-26
 
