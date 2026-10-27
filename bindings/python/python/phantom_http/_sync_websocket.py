@@ -48,10 +48,14 @@ class WebSocket:
     def pong(self, data: bytes = b"") -> None:
         self._client._run(lambda: self._socket.pong(data))
 
+    def send_close(self, code: int | None = 1000, reason: str = "") -> None:
+        """Flush Close without waiting for the peer's reply."""
+        self._client._run(lambda: self._socket.send_close(code, reason))
+
     def close(
-        self, code: int = 1000, reason: str = "", *, timeout_ms: int = 5000
+        self, code: int | None = 1000, reason: str = "", *, timeout_ms: int = 5000
     ) -> None:
-        """Flush Close and release the socket without waiting for the peer."""
+        """Complete the close handshake within timeout_ms, then release the socket."""
         self._client._run(
             lambda: self._socket.aclose(code, reason, timeout_ms=timeout_ms)
         )

@@ -35,6 +35,8 @@ class InstalledTypingTests(unittest.TestCase):
             "_response.py",
             "_session.py",
             "_sync.py",
+            "_sync_websocket.py",
+            "_websocket.py",
         ):
             self.assertTrue(package.joinpath(name).is_file(), name)
         with tempfile.TemporaryDirectory(

@@ -127,7 +127,10 @@ The default is HTTP/1.1, matching Rust. Set `protocol="profile"` to use the
 profile's connection policy, or `"h2"` or `"h3"` for an exact protocol.
 Openings keep the client's route, trust and
 cookies. `headers` fills the profile's ordered opening fields.
-`handshake_timeout_ms` sets the opening deadline. HTTP request timeouts,
+`handshake_timeout_ms` inherits the profile deadline by default. Set `None`
+to disable it, or a nonnegative millisecond count for a finite limit.
+`retry=WebSocketRetry(maximum=2, delay_ms=100)` enables connection-setup
+retries before the opening reaches the origin. HTTP request timeouts,
 retry/redirect policies and attempt budgets do not apply to WebSockets.
 
 `send(str)` sends text and `send(bytes)` sends binary. `recv()` returns either
@@ -138,9 +141,11 @@ Iteration ends on normal closure. One async reader and writer may run together.
 Compression is currently off.
 
 Reads pull messages without a background Python reader. Cancelling an operation
-aborts that socket. `close()` or async `aclose()` flushes Close and releases the
-transport, without waiting for the peer. The flush has a five-second default
-limit, adjustable with `timeout_ms`. `abort()` releases it immediately.
+aborts that socket. `close()` or async `aclose()` completes the peer handshake
+within five seconds by default, adjustable with `timeout_ms`. A pending reader
+can receive the peer's Close reply. `send_close()` only flushes Close, leaving
+you to receive the reply. Pass `None` for an empty Close frame. `abort()`
+releases the socket immediately.
 A rejected handshake has a readable `WebSocketError.response`.
 
 ## Send a body

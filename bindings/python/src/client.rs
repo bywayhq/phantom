@@ -450,7 +450,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (url, protocol, headers, maximum_frame_bytes, maximum_message_bytes, maximum_fragments, handshake_timeout_ms=None))]
+    #[pyo3(signature = (url, protocol, headers, maximum_frame_bytes, maximum_message_bytes, maximum_fragments, inherit_handshake_timeout, handshake_timeout_ms, maximum_connection_failures, retry_delay_ms))]
     #[allow(clippy::too_many_arguments)]
     fn websocket<'py>(
         &self,
@@ -461,7 +461,10 @@ impl NativeClient {
         maximum_frame_bytes: &Bound<'py, PyAny>,
         maximum_message_bytes: &Bound<'py, PyAny>,
         maximum_fragments: &Bound<'py, PyAny>,
+        inherit_handshake_timeout: bool,
         handshake_timeout_ms: Option<&Bound<'py, PyAny>>,
+        maximum_connection_failures: Option<&Bound<'py, PyAny>>,
+        retry_delay_ms: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         crate::websocket::connect(
             &self.client,
@@ -472,7 +475,10 @@ impl NativeClient {
             maximum_frame_bytes,
             maximum_message_bytes,
             maximum_fragments,
+            inherit_handshake_timeout,
             handshake_timeout_ms,
+            maximum_connection_failures,
+            retry_delay_ms,
         )
     }
 

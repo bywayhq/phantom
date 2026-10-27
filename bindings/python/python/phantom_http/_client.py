@@ -20,6 +20,7 @@ from . import _multipart, _native, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._configuration import (
+    INHERIT,
     ContentDecoding,
     Proxy,
     RedirectPolicy,
@@ -28,6 +29,7 @@ from ._configuration import (
     TimeoutOverrides,
     Timeouts,
     Trust,
+    _Inherit,
     _redirect_count,
 )
 from ._convenience import (
@@ -72,6 +74,7 @@ from ._transfer import TransferControl
 from ._websocket import (
     _DEFAULT_WEBSOCKET_LIMITS,
     WebSocketLimits,
+    WebSocketRetry,
     _WebSocketConnect,
     _WebSocketProtocol,
 )
@@ -234,11 +237,12 @@ class AsyncClient:
         protocol: _WebSocketProtocol = "h1",
         headers: _Headers = (),
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
-        handshake_timeout_ms: int | None = None,
+        handshake_timeout_ms: int | None | _Inherit = INHERIT,
+        retry: WebSocketRetry | None = None,
     ) -> _WebSocketConnect:
         """Open with await or async with; HTTP/1.1 is the default, as in Rust."""
         return _WebSocketConnect(
-            self._native, url, protocol, headers, limits, handshake_timeout_ms
+            self._native, url, protocol, headers, limits, handshake_timeout_ms, retry
         )
 
     def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> AsyncClient:

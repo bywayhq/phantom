@@ -20,6 +20,7 @@ from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._client import AsyncClient
 from ._configuration import (
+    INHERIT,
     ContentDecoding,
     Proxy,
     RedirectPolicy,
@@ -28,6 +29,7 @@ from ._configuration import (
     TimeoutOverrides,
     Timeouts,
     Trust,
+    _Inherit,
 )
 from ._convenience import (
     _DEFAULT_BODY_LIMIT,
@@ -64,6 +66,7 @@ from ._websocket import (
     AsyncWebSocket,
     WebSocketError,
     WebSocketLimits,
+    WebSocketRetry,
     _WebSocketProtocol,
 )
 
@@ -253,7 +256,8 @@ class Client:
         protocol: _WebSocketProtocol = "h1",
         headers: _Headers = (),
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
-        handshake_timeout_ms: int | None = None,
+        handshake_timeout_ms: int | None | _Inherit = INHERIT,
+        retry: WebSocketRetry | None = None,
     ) -> WebSocket:
         """Open a socket on this client's profile, route and synchronous loop."""
 
@@ -264,6 +268,7 @@ class Client:
                 headers=headers,
                 limits=limits,
                 handshake_timeout_ms=handshake_timeout_ms,
+                retry=retry,
             )
 
         try:

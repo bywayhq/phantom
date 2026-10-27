@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, TypeAlias, cast
 
 from . import _native
+from ._configuration import INHERIT, _Inherit
 from ._errors import Error, TimeoutError, _error, _primary_error
 from ._request import _Headers, _request_fields
 from ._response import AsyncResponse, ResponseHeader, ResponseHeaders
@@ -39,6 +40,20 @@ class WebSocketLimits:
 
 
 _DEFAULT_WEBSOCKET_LIMITS = WebSocketLimits()
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebSocketRetry:
+    """Retry setup failures before the opening reaches the origin; delay is milliseconds."""
+
+    maximum: int
+    delay_ms: int = 0
+
+    def __post_init__(self) -> None:
+        if type(self.maximum) is not int or not 1 <= self.maximum <= 2**32 - 1:
+            raise ValueError("WebSocket retry maximum must be a positive u32 integer")
+        if type(self.delay_ms) is not int or not 0 <= self.delay_ms <= 2**64 - 1:
+            raise ValueError("WebSocket retry delay_ms must be a u64 integer")
 
 
 @dataclass(frozen=True)
@@ -108,6 +123,17 @@ def _failure(error: _native.NativeError) -> Error:
     return failure
 
 
+def _close_frame(code: int | None, reason: str) -> None:
+    if code is not None and (type(code) is not int or not 0 <= code <= 65535):
+        raise ValueError("WebSocket close code must be a u16 integer or None")
+    if not isinstance(reason, str):
+        raise TypeError("WebSocket close reason must be str")
+    if code is None and reason:
+        raise ValueError("WebSocket close reason requires a code")
+    if len(reason) > 123 or len(reason.encode()) > 123:
+        raise ValueError("WebSocket close reason exceeds 123 UTF-8 bytes")
+
+
 class AsyncWebSocket:
     """One reader and one writer may run together; cancellation aborts this socket."""
 
@@ -122,6 +148,9 @@ class AsyncWebSocket:
             for name, value, sensitive in native.headers
         )
         self._close_frame: WebSocketClose | None = None
+        self._receiving = False
+        self._receive_idle = asyncio.Event()
+        self._receive_idle.set()
 
     @property
     def is_closed(self) -> bool:
@@ -147,23 +176,31 @@ class AsyncWebSocket:
         self._check_loop()
         if self.is_closed:
             raise WebSocketClosed(self._close_frame)
+        if self._receiving:
+            raise WebSocketError("websocket", "concurrent_receive", self.protocol)
+        self._receiving = True
+        self._receive_idle.clear()
         try:
-            kind, data, code = await self._native.receive()
-        except asyncio.CancelledError:
-            self.abort()
-            raise
-        except _native.NativeError as error:
-            raise _failure(error) from None
-        if kind == "text":
-            return cast(str, data)
-        if kind == "binary":
-            return cast(bytes, data)
-        if kind == "ping":
-            return WebSocketPing(cast(bytes, data))
-        if kind == "pong":
-            return WebSocketPong(cast(bytes, data))
-        self._close_frame = WebSocketClose(code, cast(str | None, data) or "")
-        return self._close_frame
+            try:
+                kind, data, code = await self._native.receive()
+            except asyncio.CancelledError:
+                self.abort()
+                raise
+            except _native.NativeError as error:
+                raise _failure(error) from None
+            if kind == "text":
+                return cast(str, data)
+            if kind == "binary":
+                return cast(bytes, data)
+            if kind == "ping":
+                return WebSocketPing(cast(bytes, data))
+            if kind == "pong":
+                return WebSocketPong(cast(bytes, data))
+            self._close_frame = WebSocketClose(code, cast(str | None, data) or "")
+            return self._close_frame
+        finally:
+            self._receiving = False
+            self._receive_idle.set()
 
     async def recv(self) -> str | bytes:
         """Pull the next data message, skipping Ping/Pong; Close raises WebSocketClosed."""
@@ -196,33 +233,53 @@ class AsyncWebSocket:
         except _native.NativeError as error:
             raise _failure(error) from None
 
+    async def send_close(self, code: int | None = 1000, reason: str = "") -> None:
+        """Flush Close without waiting for the peer; None sends an empty frame."""
+        self._check_loop()
+        _close_frame(code, reason)
+        try:
+            await self._native.close(code, reason)
+        except asyncio.CancelledError:
+            self.abort()
+            raise
+        except _native.NativeError as error:
+            raise _failure(error) from None
+
     async def aclose(
-        self, code: int = 1000, reason: str = "", *, timeout_ms: int = 5000
+        self, code: int | None = 1000, reason: str = "", *, timeout_ms: int = 5000
     ) -> None:
-        """Flush Close and release the transport; does not wait for the peer's reply."""
+        """Flush Close, await the peer reply, then release; timeout bounds both phases."""
         self._check_loop()
         if self.is_closed:
             return
         if type(timeout_ms) is not int or timeout_ms <= 0:
             raise ValueError("close timeout_ms must be a positive integer")
-        if type(code) is not int or not 0 <= code <= 65535:
-            raise ValueError("WebSocket close code must be a u16 integer")
-        if not isinstance(reason, str):
-            raise TypeError("WebSocket close reason must be str")
-        if len(reason) > 123 or len(reason.encode()) > 123:
-            raise ValueError("WebSocket close reason exceeds 123 UTF-8 bytes")
+
+        _close_frame(code, reason)
         try:
             closing = self._native.close(code, reason)
         except _native.NativeError as error:
             raise _failure(error) from None
+
+        async def handshake() -> None:
+            try:
+                await closing
+            except _native.NativeError as error:
+                raise _failure(error) from None
+            while not self.is_closed:
+                # An existing receive owns the stream until its next event or close.
+                await self._receive_idle.wait()
+                if self._receiving:
+                    continue
+                if not self.is_closed:
+                    await self.receive()
+
         try:
-            await asyncio.wait_for(closing, timeout_ms / 1000)
+            await asyncio.wait_for(handshake(), timeout_ms / 1000)
         except asyncio.TimeoutError:
             raise TimeoutError(
                 "websocket", "timeout", self.protocol, "websocket_close"
             ) from None
-        except _native.NativeError as error:
-            raise _failure(error) from None
         finally:
             self.abort()
 
@@ -264,7 +321,8 @@ class _WebSocketConnect:
         protocol: _WebSocketProtocol,
         headers: _Headers,
         limits: WebSocketLimits,
-        handshake_timeout_ms: int | None,
+        handshake_timeout_ms: int | None | _Inherit,
+        retry: WebSocketRetry | None,
     ) -> None:
         if not isinstance(url, str):
             raise TypeError("WebSocket url must be str")
@@ -274,10 +332,19 @@ class _WebSocketConnect:
             raise ValueError("WebSocket protocol must be profile, h1, h2 or h3")
         if not isinstance(limits, WebSocketLimits):
             raise TypeError("limits must be WebSocketLimits")
-        if handshake_timeout_ms is not None and (
-            type(handshake_timeout_ms) is not int or handshake_timeout_ms <= 0
+        if (
+            handshake_timeout_ms is not INHERIT
+            and handshake_timeout_ms is not None
+            and (
+                type(handshake_timeout_ms) is not int
+                or not 0 <= handshake_timeout_ms <= 2**64 - 1
+            )
         ):
-            raise ValueError("handshake_timeout_ms must be a positive integer")
+            raise ValueError(
+                "handshake_timeout_ms must be a u64 integer, None or INHERIT"
+            )
+        if retry is not None and not isinstance(retry, WebSocketRetry):
+            raise TypeError("retry must be WebSocketRetry or None")
         self._native = native
         self._arguments = (
             url,
@@ -286,7 +353,10 @@ class _WebSocketConnect:
             limits.maximum_frame_bytes,
             limits.maximum_message_bytes,
             limits.maximum_fragments,
-            handshake_timeout_ms,
+            handshake_timeout_ms is INHERIT,
+            handshake_timeout_ms if isinstance(handshake_timeout_ms, int) else None,
+            retry.maximum if retry is not None else None,
+            retry.delay_ms if retry is not None else 0,
         )
         self._used = False
         self._socket: AsyncWebSocket | None = None

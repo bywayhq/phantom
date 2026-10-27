@@ -15,7 +15,7 @@ use futures_util::{
 };
 use phantom::{
     Bytes, HttpProtocol, WebSocket, WebSocketCloseFrame, WebSocketError, WebSocketLimits,
-    WebSocketMessage,
+    WebSocketMessage, WebSocketRetryPolicy,
 };
 use pyo3::{
     prelude::*,
@@ -27,11 +27,6 @@ use crate::{error, request_fields, runtime};
 
 type Writer = SplitSink<WebSocket, WebSocketMessage>;
 type Reader = SplitStream<WebSocket>;
-enum AfterSend {
-    KeepOpen,
-    Close,
-}
-
 type NativeMessage = (&'static str, Py<PyAny>, Option<u16>);
 
 fn failure(kind: &str) -> PyErr {
@@ -230,7 +225,6 @@ impl NativeWebSocket {
         &self,
         py: Python<'py>,
         message: WebSocketMessage,
-        after_send: AfterSend,
     ) -> PyResult<Bound<'py, PyAny>> {
         let owner = Arc::clone(&self.owner);
         let mut lease = Lease::take(&owner, &owner.writer, "concurrent_send")?;
@@ -241,12 +235,7 @@ impl NativeWebSocket {
                 () = owner.closed() => return Err(failure("closed")),
                 result = stream.send(message) => result.map_err(websocket_error)?,
             }
-            if matches!(after_send, AfterSend::Close) {
-                owner.abort();
-                Ok(())
-            } else {
-                lease.restore(&owner.writer)
-            }
+            lease.restore(&owner.writer)
         })
     }
 }
@@ -290,7 +279,7 @@ impl NativeWebSocket {
                 "WebSocket data must be str or bytes",
             ));
         };
-        self.write(py, message, AfterSend::KeepOpen)
+        self.write(py, message)
     }
 
     fn ping<'py>(
@@ -304,7 +293,6 @@ impl NativeWebSocket {
         self.write(
             py,
             WebSocketMessage::Ping(Bytes::copy_from_slice(data.as_bytes())),
-            AfterSend::KeepOpen,
         )
     }
 
@@ -319,16 +307,25 @@ impl NativeWebSocket {
         self.write(
             py,
             WebSocketMessage::Pong(Bytes::copy_from_slice(data.as_bytes())),
-            AfterSend::KeepOpen,
         )
     }
 
-    fn close<'py>(&self, py: Python<'py>, code: u16, reason: &str) -> PyResult<Bound<'py, PyAny>> {
+    #[pyo3(signature = (code, reason))]
+    fn close<'py>(
+        &self,
+        py: Python<'py>,
+        code: Option<u16>,
+        reason: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
         if reason.len() > 123 {
             return Err(failure("capacity"));
         }
-        let frame = WebSocketCloseFrame::new(code, reason).map_err(websocket_error)?;
-        self.write(py, WebSocketMessage::Close(Some(frame)), AfterSend::Close)
+        let frame = match code {
+            Some(code) => Some(WebSocketCloseFrame::new(code, reason).map_err(websocket_error)?),
+            None if reason.is_empty() => None,
+            None => return Err(error::input("websocket_close_reason_requires_code")),
+        };
+        self.write(py, WebSocketMessage::Close(frame))
     }
 
     fn receive<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
@@ -393,7 +390,10 @@ pub(super) fn connect<'py>(
     maximum_frame_bytes: &Bound<'py, PyAny>,
     maximum_message_bytes: &Bound<'py, PyAny>,
     maximum_fragments: &Bound<'py, PyAny>,
+    inherit_handshake_timeout: bool,
     handshake_timeout_ms: Option<&Bound<'py, PyAny>>,
+    maximum_connection_failures: Option<&Bound<'py, PyAny>>,
+    retry_delay_ms: &Bound<'py, PyAny>,
 ) -> PyResult<Bound<'py, PyAny>> {
     if url.len() > 65536 {
         return Err(error::input("url_limit"));
@@ -424,14 +424,26 @@ pub(super) fn connect<'py>(
     for header in request_fields::headers(headers, None)?.0 {
         request = request.header(header);
     }
-    if let Some(timeout) = handshake_timeout_ms {
-        let timeout = timeout
+    let unsigned = |value: &Bound<'_, PyAny>| -> PyResult<u64> {
+        value
             .cast_exact::<PyInt>()
             .ok()
             .and_then(|value| value.extract::<u64>().ok())
-            .filter(|value| *value != 0)
-            .ok_or_else(|| error::input("invalid_websocket_timeout"))?;
-        request = request.handshake_timeout(Some(Duration::from_millis(timeout)));
+            .ok_or_else(|| error::input("invalid_websocket_duration"))
+    };
+    if !inherit_handshake_timeout {
+        request = request.handshake_timeout(
+            handshake_timeout_ms
+                .map(|value| unsigned(value).map(Duration::from_millis))
+                .transpose()?,
+        );
+    }
+    let delay = Duration::from_millis(unsigned(retry_delay_ms)?);
+    if let Some(maximum) = maximum_connection_failures {
+        request = request.retry_policy(WebSocketRetryPolicy::connection_failures(
+            positive(maximum)?,
+            delay,
+        ));
     }
     let url = url.to_owned();
     runtime::initialize()?;

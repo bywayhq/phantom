@@ -20,6 +20,9 @@ class Socket:
         self.waiting = asyncio.Event()
         self.close_wait = None
         self.close_error = None
+        self.reply_on_close = True
+        self.close_ping = False
+        self.incoming = asyncio.Queue()
 
     async def send(self, data):
         self.sent.append(data)
@@ -27,11 +30,12 @@ class Socket:
     async def receive(self):
         if self.events:
             message = self.events.pop(0)
-            if message[0] == "close":
-                self.is_closed = True
-            return message
-        self.waiting.set()
-        await asyncio.Future()
+        else:
+            self.waiting.set()
+            message = await self.incoming.get()
+        if message[0] == "close":
+            self.is_closed = True
+        return message
 
     async def ping(self, data):
         self.sent.append(("ping", data))
@@ -45,6 +49,12 @@ class Socket:
             raise self.close_error
         if self.close_wait:
             await self.close_wait
+        if self.close_ping:
+            self.incoming.put_nowait(("ping", b"before-close", None))
+        if self.reply_on_close:
+            self.incoming.put_nowait(
+                ("close", reason if code is not None else None, code)
+            )
 
     def abort(self):
         self.is_closed = True
@@ -100,7 +110,10 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                     8,
                     16,
                     4,
+                    False,
                     500,
+                    None,
+                    0,
                 )
             ],
         )
@@ -165,6 +178,73 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                 raise failure
         self.assertIs(observed.exception, failure)
         self.assertTrue(socket.is_closed)
+
+    async def test_close_coexists_with_pending_receive_and_preserves_empty_frame(self):
+        native = NativeClient()
+        socket = await FACADE.AsyncClient._from_native(native).websocket("ws://local")
+        native.sockets[0].close_ping = True
+        pending = asyncio.create_task(socket.recv())
+        await native.sockets[0].waiting.wait()
+        await socket.aclose(None)
+        with self.assertRaises(FACADE.WebSocketClosed) as closed:
+            await pending
+        self.assertIsNone(closed.exception.code)
+        self.assertEqual(native.sockets[0].sent, [("close", None, "")])
+        self.assertTrue(socket.is_closed)
+
+    async def test_close_waits_for_peer_and_cancellation_releases_socket(self):
+        for operation in ("timeout", "cancel"):
+            with self.subTest(operation=operation):
+                native = NativeClient()
+                socket = await FACADE.AsyncClient._from_native(native).websocket(
+                    "ws://local"
+                )
+                native.sockets[0].reply_on_close = False
+                closing = asyncio.create_task(
+                    socket.aclose(timeout_ms=10 if operation == "timeout" else 5000)
+                )
+                await native.sockets[0].waiting.wait()
+                if operation == "cancel":
+                    closing.cancel()
+                    expected = asyncio.CancelledError
+                else:
+                    expected = FACADE.TimeoutError
+                with self.assertRaises(expected):
+                    await closing
+                self.assertTrue(socket.is_closed)
+
+    async def test_send_close_flushes_without_consuming_peer_close(self):
+        native = NativeClient()
+        socket = await FACADE.AsyncClient._from_native(native).websocket("ws://local")
+        with self.assertRaises(ValueError):
+            await socket.send_close(None, "requires status")
+        self.assertFalse(socket.is_closed)
+        self.assertEqual(native.sockets[0].sent, [])
+        await socket.send_close(None)
+        self.assertFalse(socket.is_closed)
+        self.assertEqual(await socket.receive(), FACADE.WebSocketClose(None))
+
+    async def test_opening_options_distinguish_inherit_disabled_and_finite_timer(self):
+        native = NativeClient()
+        client = FACADE.AsyncClient._from_native(native)
+        for timeout, expected in (
+            (FACADE.INHERIT, (True, None)),
+            (None, (False, None)),
+            (0, (False, 0)),
+        ):
+            socket = await client.websocket(
+                "ws://local",
+                handshake_timeout_ms=timeout,
+                retry=FACADE.WebSocketRetry(maximum=2, delay_ms=20),
+            )
+            self.assertEqual(native.calls[-1][-4:], (*expected, 2, 20))
+            socket.abort()
+        with self.assertRaises(ValueError):
+            FACADE.WebSocketRetry(maximum=0)
+        with self.assertRaises(ValueError):
+            FACADE.WebSocketRetry(maximum=1, delay_ms=True)
+        with self.assertRaises(TypeError):
+            client.websocket("ws://local", retry={})
 
     async def test_invalid_limits_and_options_never_start_a_handshake(self):
         native = NativeClient()

@@ -72,6 +72,7 @@ from ._websocket import WebSocketLimits as WebSocketLimits
 from ._websocket import WebSocketMessage as WebSocketMessage
 from ._websocket import WebSocketPing as WebSocketPing
 from ._websocket import WebSocketPong as WebSocketPong
+from ._websocket import WebSocketRetry as WebSocketRetry
 
 _NativeProfile = _native.NativeProfile
 
@@ -111,6 +112,7 @@ for _public_type in (
     WebSocketClosed,
     WebSocketError,
     WebSocketLimits,
+    WebSocketRetry,
     WebSocketPing,
     WebSocketPong,
 ):

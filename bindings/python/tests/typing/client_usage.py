@@ -427,9 +427,19 @@ async def everyday_async(profile: str, url: str) -> None:
 
 
 async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
-    from phantom_http import WebSocketClose, WebSocketLimits, WebSocketPing
+    from phantom_http import (
+        WebSocketClose,
+        WebSocketLimits,
+        WebSocketPing,
+        WebSocketRetry,
+    )
 
-    async with client.websocket(url, limits=WebSocketLimits(1024, 4096)) as socket:
+    async with client.websocket(
+        url,
+        limits=WebSocketLimits(1024, 4096),
+        handshake_timeout_ms=None,
+        retry=WebSocketRetry(maximum=2, delay_ms=10),
+    ) as socket:
         await socket.send("hello")
         data: str | bytes = await socket.recv()
         event = await socket.receive()
@@ -441,8 +451,10 @@ async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
             print(code)
         async for item in socket:
             data = item
-        await socket.aclose(timeout_ms=1000)
+        await socket.send_close(None)
+        await socket.aclose(None, timeout_ms=1000)
     with sync.websocket(url, protocol="h1") as blocking:
         blocking.send(data)
+        blocking.send_close(None)
         for item in blocking:
             data = item

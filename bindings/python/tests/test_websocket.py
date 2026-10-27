@@ -18,6 +18,7 @@ from phantom_http import (
     WebSocketError,
     WebSocketLimits,
     WebSocketPing,
+    WebSocketRetry,
 )
 from test_http2 import H2Peer
 from test_settings_transport import FIXTURES, ROOT
@@ -132,7 +133,7 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                         client.websocket(
                             url,
                             protocol="h1",
-                            handshake_timeout_ms=5000 if operation == "cancel" else 500,
+                            handshake_timeout_ms=None if operation == "cancel" else 500,
                         )
                     )
                     self.assertTrue(await asyncio.to_thread(started.wait, 5))
@@ -147,6 +148,47 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                             failure.exception.timeout_phase, "websocket_handshake"
                         )
                     self.assertTrue(await asyncio.to_thread(disconnected.wait, 5))
+
+    async def test_graceful_close_shares_a_pending_reader_and_sends_empty_close(self):
+        observed = []
+
+        def wait_for_close(connection):
+            try:
+                connection.recv(timeout=5)
+            except ConnectionClosed as closed:
+                observed.append(closed.rcvd.code)
+
+        with peer(wait_for_close) as (url, finished):
+            async with AsyncClient(profile=PROFILE, context="raw") as client:
+                socket = await client.websocket(url)
+                reading = asyncio.create_task(socket.recv())
+                # Let recv acquire the single reader before close starts.
+                await asyncio.sleep(0)
+                await socket.aclose(None, timeout_ms=5000)
+                with self.assertRaises(WebSocketClosed) as closed:
+                    await reading
+                self.assertIsNone(closed.exception.code)
+                self.assertTrue(socket.is_closed)
+                self.assertTrue(await asyncio.to_thread(finished.wait, 5))
+        self.assertEqual(observed, [1005])
+
+    async def test_setup_retries_do_not_retry_an_http_rejection(self):
+        attempts = []
+
+        def reject(connection, request):
+            attempts.append(request.path)
+            return connection.respond(403, "denied")
+
+        with peer(lambda _: None, process_request=reject) as (url, _):
+            async with AsyncClient(profile=PROFILE, context="raw") as client:
+                with self.assertRaises(WebSocketError) as failure:
+                    await client.websocket(
+                        url, retry=WebSocketRetry(maximum=2, delay_ms=1)
+                    )
+                response = failure.exception.response
+                self.assertIsNotNone(response)
+                await response.read(max_bytes=6)
+        self.assertEqual(attempts, ["/"])
 
     async def test_verified_tls_profile_handshake_text_binary_and_ordered_headers(self):
         observed = []

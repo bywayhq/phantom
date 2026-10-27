@@ -253,11 +253,13 @@ def invalid_convenience(client: Client, url: str) -> None:
 
 
 async def invalid_websocket(client: AsyncClient, sync: Client) -> None:
-    from phantom_http import WebSocketLimits
+    from phantom_http import WebSocketLimits, WebSocketRetry
 
     client.websocket("ws://local", protocol="negotiated")  # E: arg-type
     WebSocketLimits(maximum_frame_bytes="unbounded")  # E: arg-type
     WebSocketLimits().maximum_fragments = 1  # E: misc
+    WebSocketRetry(maximum="two")  # E: arg-type
+    client.websocket("ws://local", retry={})  # E: arg-type
     async with client.websocket("ws://local") as socket:
         await socket.send({"data": "value"})  # E: arg-type
         await socket.ping("text")  # E: arg-type
