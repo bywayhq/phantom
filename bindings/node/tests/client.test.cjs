@@ -427,7 +427,15 @@ test('text and JSON retain native deadlines and concurrent-read failures', async
     const pathname = '/' + method;
     const overlapping = await client.request(url + pathname, request);
     const received = assert.doesNotReject(async () => {
-      assert.equal((await overlapping.read()).toString(), 'still readable');
+      const parts = [];
+      let remaining = Buffer.byteLength('still readable');
+      while (remaining > 0) {
+        const part = await overlapping.read(remaining);
+        assert.notEqual(part, null, 'body ended before the peer payload');
+        parts.push(part);
+        remaining -= part.length;
+      }
+      assert.equal(Buffer.concat(parts).toString(), 'still readable');
     });
     await assert.rejects(overlapping[method](100), code('ConcurrentRead'));
     responses.get(pathname).write('still readable');
