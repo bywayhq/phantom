@@ -116,11 +116,7 @@ impl NativeEventStream {
             }
             match result {
                 Ok(Some(event)) => {
-                    let fields = (
-                        event.data().to_owned(),
-                        event.event().to_owned(),
-                        event.id().to_owned(),
-                    );
+                    let fields = event.into_parts();
                     lease.restore()?;
                     Ok(Some(fields))
                 }
