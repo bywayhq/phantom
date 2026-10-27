@@ -1,11 +1,28 @@
+// @ts-check
 'use strict';
+
+/** @typedef {Error & {code: string, protocol?: string, timeoutPhase?: string,
+ * kind?: string, field?: string}} UploadFailure */
+/** @typedef {AsyncIterator<unknown, unknown, unknown>} UploadIterator */
+/** @typedef {import('node:stream').Readable |
+ * (AsyncIterableIterator<Uint8Array> & {return(value?: unknown): Promise<IteratorResult<Uint8Array>>})} MultipartSource */
+/** @typedef {{ready(): Promise<boolean>, stopped(): Promise<void>,
+ * nextPart(): Promise<number | null>, write(bytes: Buffer): void,
+ * end(): void, fail(): void, stop(): void, settled(): void}} NativeUpload */
+/** @typedef {{stopped: true, ready?: never, done?: never, value?: never,
+ * index?: never}} UploadStopped */
+/** @typedef {UploadStopped | {stopped?: false, ready: boolean}} UploadCredit */
+/** @typedef {UploadStopped | {stopped?: false, done?: boolean, value?: unknown}} UploadStep */
+/** @typedef {UploadStopped | {stopped?: false, index: number | null}} UploadPart */
 
 /** @typedef {{
  * multipart?: boolean, context?: object, finished?: Promise<void>,
- * error?: import('../index.js').PhantomError,
- * cleanupError?: import('../index.js').PhantomError,
+ * error?: UploadFailure, cleanupError?: UploadFailure,
  * original?: unknown, originalPresent?: boolean, cleanupOriginal?: unknown
- * }} UploadOutcome */
+ * }} UploadProgress */
+/** @typedef {UploadProgress & (
+ * {multipart: true, context: object | undefined, finished: Promise<void>} |
+ * {multipart?: false})} UploadOutcome */
 
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { Readable } = require('node:stream');
@@ -18,8 +35,11 @@ const { preparedOptions, preparedFailure, preparedArray } = require('./prepared-
 const { policyFields, integer } = require('./validation.cjs');
 
 const multipartClaims = new WeakSet();
+/** @type {AsyncLocalStorage<object>} */
 const uploadContext = new AsyncLocalStorage();
 
+/** @param {unknown} error @param {UploadProgress | undefined} outcome
+ * @param {boolean} [preferSource] @returns {UploadFailure} */
 function uploadError(error, outcome, preferSource = false) {
   const nativeError = translated(error);
   if (!outcome) return nativeError;
@@ -28,7 +48,7 @@ function uploadError(error, outcome, preferSource = false) {
     && !['Cancelled', 'Timeout'].includes(nativeError.code)
     ? outcome.error : nativeError;
   if (result !== nativeError) {
-    for (const field of ['protocol', 'timeoutPhase', 'kind', 'field']) {
+    for (const field of /** @type {const} */ (['protocol', 'timeoutPhase', 'kind', 'field'])) {
       if (result[field] === undefined) result[field] = nativeError[field];
     }
   }
@@ -42,6 +62,7 @@ function uploadError(error, outcome, preferSource = false) {
   return result;
 }
 
+/** @param {import('../index.js').StreamingMultipartOptions | undefined} value */
 function multipartOptions(value) {
   if (value === undefined) return undefined;
   const options = policyFields(value, ['boundary', 'maximumBytes', 'parts']);
@@ -97,16 +118,19 @@ function multipartOptions(value) {
   return { descriptor: value, boundary, maximumBytes, fields, sources };
 }
 
+/** @param {unknown} value @returns {bigint} */
 function uploadLength(value) {
   if ((typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
     || (typeof value === 'bigint' && value >= 0n && value <= 0xffffffffffffffffn)) return BigInt(value);
   throw new PhantomError('InvalidArgument', 'bodyLength must be an exact unsigned 64-bit integer');
 }
 
+/** @param {UploadIterator} iterator @param {NativeUpload} upload
+ * @param {UploadProgress} outcome @returns {Promise<void>} */
 async function pumpUpload(iterator, upload, outcome) {
   let ended = false;
   let terminated = false;
-  const stopped = upload.stopped().then(() => {
+  const stopped = upload.stopped().then(/** @returns {UploadStopped} */ () => {
     terminated = true;
     return { stopped: true };
   });
@@ -116,13 +140,13 @@ async function pumpUpload(iterator, upload, outcome) {
     let emptyChunks = 0;
     while (true) {
       if (!credit) {
-        const ready = await Promise.race([upload.ready().then((ready) => ({ ready })), stopped]);
+        const ready = await Promise.race([upload.ready().then(/** @returns {UploadCredit} */ (ready) => ({ ready })), stopped]);
         if (!ready.ready) return;
       }
 
       if (terminated) return;
 
-      const next = await Promise.race([Promise.resolve().then(async () => {
+      const next = await Promise.race([Promise.resolve().then(/** @returns {Promise<UploadStep>} */ async () => {
         try {
           if (terminated) return { stopped: true };
           const result = await iterator.next();
@@ -181,14 +205,18 @@ async function pumpUpload(iterator, upload, outcome) {
   }
 }
 
+/** @param {(MultipartSource | undefined)[]} sources @param {NativeUpload} upload
+ * @param {UploadProgress} outcome @returns {Promise<void>} */
 async function pumpMultipart(sources, upload, outcome) {
   let terminated = false;
-  const stopped = upload.stopped().then(() => {
+  const stopped = upload.stopped().then(/** @returns {UploadStopped} */ () => {
     terminated = true;
     return { stopped: true };
   });
   const closed = new Set();
+  /** @type {unknown[]} */
   const cleanupFailures = [];
+  /** @param {unknown} error */
   const rememberCleanup = (error) => {
     cleanupFailures.push(error);
     outcome.cleanupOriginal = cleanupFailures.length === 1 ? error : new AggregateError([...cleanupFailures], 'multipart cleanup failed');
@@ -196,6 +224,7 @@ async function pumpMultipart(sources, upload, outcome) {
     outcome.error ??= outcome.cleanupError;
   };
 
+  /** @param {MultipartSource | undefined} source */
   const closeSource = async (source) => {
     if (source === undefined || closed.has(source)) return;
 
@@ -208,7 +237,7 @@ async function pumpMultipart(sources, upload, outcome) {
         try {
           await done;
         } catch (error) {
-          if (wasErrored || error?.code !== 'ERR_STREAM_PREMATURE_CLOSE') throw error;
+          if (wasErrored || /** @type {{code?: unknown} | null | undefined} */ (error)?.code !== 'ERR_STREAM_PREMATURE_CLOSE') throw error;
         }
       } else {
         const result = await source.return();
@@ -221,12 +250,13 @@ async function pumpMultipart(sources, upload, outcome) {
 
   try {
     while (!terminated) {
-      const selected = await Promise.race([upload.nextPart().then((index) => ({ index })), stopped]);
+      const selected = await Promise.race([upload.nextPart().then(/** @returns {UploadPart} */ (index) => ({ index })), stopped]);
       if (selected.stopped || selected.index === null || selected.index === undefined) return;
 
       const source = sources[selected.index];
       if (source === undefined || closed.has(source)) throw new PhantomError('UploadSource', 'multipart source demand is invalid');
 
+      /** @type {UploadIterator} */
       let iterator;
       try {
         iterator = source[Symbol.asyncIterator]();
@@ -242,7 +272,7 @@ async function pumpMultipart(sources, upload, outcome) {
         if (!credit && !await upload.ready()) return;
         if (terminated) return;
 
-        const next = await Promise.race([Promise.resolve().then(async () => {
+        const next = await Promise.race([Promise.resolve().then(/** @returns {Promise<UploadStep>} */ async () => {
           try {
             if (terminated) return { stopped: true };
             const result = await iterator.next();
@@ -298,6 +328,7 @@ async function pumpMultipart(sources, upload, outcome) {
   }
 }
 
+/** @param {() => void} operation @returns {boolean} */
 function uploadOperation(operation) {
   try {
     operation();
@@ -309,10 +340,13 @@ function uploadOperation(operation) {
   }
 }
 
+/** @param {object} descriptor */
 function claimMultipart(descriptor) { multipartClaims.add(descriptor); }
 
+/** @param {object} owner @param {() => Promise<void>} operation */
 function runUpload(owner, operation) { return uploadContext.run(owner, operation); }
 
+/** @param {object} owner */
 function isUploadContext(owner) { return uploadContext.getStore() === owner; }
 
 module.exports = { isUploadContext, uploadError, runUpload, pumpMultipart, pumpUpload, multipartOptions, uploadLength, claimMultipart };
