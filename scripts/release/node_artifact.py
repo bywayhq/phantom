@@ -24,6 +24,7 @@ SOURCES = (
     "lib/client.cjs",
     "lib/controls.cjs",
     "lib/errors.cjs",
+    "lib/events.cjs",
     "lib/native.cjs",
     "lib/network.cjs",
     "lib/prepared-body.cjs",
