@@ -411,16 +411,30 @@ test('one total deadline covers pending response body completion', async (t) => 
 });
 
 test('text and JSON retain native deadlines and concurrent-read failures', async (t) => {
-  const { url } = await peer(t, (_req, res) => { res.writeHead(200); res.flushHeaders(); });
+  const responses = new Map();
+  const { url } = await peer(t, (req, res) => {
+    res.writeHead(200);
+    res.flushHeaders();
+    responses.set(req.url, res);
+  });
   const client = makeClient();
   t.after(() => client.close());
+
   for (const method of ['text', 'json']) {
     const response = await client.request(url, { ...request, timeoutMs: 1000 });
     await assert.rejects(response[method](100), code('Timeout'));
-    const overlapping = await client.request(url, request);
-    const pending = overlapping.read();
-    const cancelled = assert.rejects(pending, code('Cancelled'));
+
+    const pathname = '/' + method;
+    const overlapping = await client.request(url + pathname, request);
+    const received = assert.doesNotReject(async () => {
+      assert.equal((await overlapping.read()).toString(), 'still readable');
+    });
     await assert.rejects(overlapping[method](100), code('ConcurrentRead'));
+    responses.get(pathname).write('still readable');
+    await received;
+
+    const cancelled = assert.rejects(overlapping.read(), code('Cancelled'));
+    overlapping.close();
     await cancelled;
   }
 });

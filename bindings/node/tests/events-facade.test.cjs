@@ -66,6 +66,25 @@ test('pending and partially consumed raw reads prevent conversion without distur
   assert.equal(item.counts().closed, 0); item.response.close();
 });
 
+test('buffered helpers reject overlapping reads without closing their owner', async () => {
+  for (const method of ['bytes', 'text', 'json']) {
+    const item = response();
+    let release;
+    item.native.read = () => new Promise((resolve) => {release = resolve;});
+    const reading = item.response.read();
+
+    try {
+      await assert.rejects(item.response[method](100), {code: 'ConcurrentRead'});
+      assert.deepEqual(item.counts(), {closed: 0, finished: 0});
+      release(Buffer.from('still readable'));
+      assert.equal((await reading).toString(), 'still readable');
+    } finally {
+      release(Buffer.from('still readable'));
+      item.response.close();
+    }
+  }
+});
+
 test('SSE events retain exact retry values and iterator cleanup without prefetching', async () => {
   const item = response(); let reads = 0;
   const expected = [{data: 'one', event: 'message', id: 'first', retryMs: 0n},
