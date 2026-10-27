@@ -225,9 +225,24 @@ impl ClientState {
         Ok(Shutdown(Arc::clone(self)))
     }
 
-    pub(crate) fn close(&self) {
+    pub(crate) fn close_admission(&self) {
         self.closed.store(true, Ordering::Release);
-        self.admission.close();
+    }
+
+    pub(crate) async fn drain(&self) -> Result<()> {
+        // Binding admission includes setup that has not entered the core yet.
+        let permits = u32::try_from(self.maximum)
+            .map_err(|_| failure("Internal", "client admission limit exceeds u32"))?;
+        let _admission = Arc::clone(&self.admission)
+            .acquire_many_owned(permits)
+            .await
+            .map_err(|_| failure("ClientClosed", "client admission is unavailable"))?;
+        self.core.shutdown().await;
+        Ok(())
+    }
+
+    pub(crate) fn close(&self) {
+        self.close_admission();
         let sockets = {
             let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *sockets)

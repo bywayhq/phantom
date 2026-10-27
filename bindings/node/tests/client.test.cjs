@@ -446,7 +446,7 @@ test('file uploads use bounded one-shot streams and reject metadata beyond the c
   await assert.rejects(client.request(url, { ...request, method: 'POST', file: { path: filename, maximumBytes: 1 } }), code('InputLimit'));
 });
 
-test('abort interrupts an unfinished request and explicit shutdown cancels an idle body', async (t) => {
+test('abort interrupts an unfinished request and destroy cancels an idle body', async (t) => {
   let uploading;
   let resolveUpload;
   const uploadSeen = new Promise((resolve) => { resolveUpload = resolve; });
@@ -465,8 +465,40 @@ test('abort interrupts an unfinished request and explicit shutdown cancels an id
   await assert.rejects(pending, code('Cancelled'));
   assert.equal((await (await client.request(url + '/healthy', request)).bytes(2)).toString(), 'ok');
   const idle = await client.request(url + '/idle', request);
-  await client.close();
+  await client.destroy();
   await assert.rejects(idle.read(), code('Cancelled'));
+});
+
+test('graceful close leaves an admitted body usable after timeout and rejects new work', async (t) => {
+  let held;
+  const {url} = await peer(t, (_req, res) => {held = res; res.writeHead(200); res.flushHeaders();});
+  const client = makeClient(); t.after(() => client.destroy());
+  const response = await client.get(url, request);
+  await assert.rejects(client.close({timeoutMs: 0}), code('Timeout'));
+  await assert.rejects(client.get(url, request), code('ClientClosed'));
+  const closing = client.close();
+  held.end('complete');
+  assert.equal(await response.text(8), 'complete');
+  await closing;
+});
+
+test('graceful close drains an admitted file request before shutting down transport', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'phantom-node-drain-'));
+  t.after(() => fs.rm(directory, {recursive: true, force: true}));
+  const filename = path.join(directory, 'body');
+  await fs.writeFile(filename, 'file body');
+  let received;
+  const {url} = await peer(t, async (req, res) => {
+    const chunks = []; for await (const chunk of req) chunks.push(chunk);
+    received = Buffer.concat(chunks).toString(); res.end('ok');
+  });
+  const client = makeClient(); t.after(() => client.destroy());
+  const pending = client.post(url, {...request, method: 'POST', file: {path: filename, maximumBytes: 9}});
+  const closing = client.close();
+  const response = await pending;
+  assert.equal(await response.text(2), 'ok');
+  await closing;
+  assert.equal(received, 'file body');
 });
 
 test('invalid inputs produce typed redacted errors and explicit shutdown rejects new work', async () => {

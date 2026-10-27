@@ -274,22 +274,25 @@ impl NativeClient {
         })
         .build(&env)
     }
-    /// Cancels this client's owned work, then waits for public shutdown.
+    /// Stops admission and waits for existing responses and sockets to finish.
     #[napi]
     pub fn close(&self, env: Env, timeout_ms: u32) -> Result<AsyncBlock<()>> {
-        self.state.close();
         let shutdown = self.state.shutdown()?;
-        let client = self.state.core.clone();
+        self.state.close_admission();
+        let owner = Arc::clone(&self.state);
+        let deadline = Instant::now() + Duration::from_millis(u64::from(timeout_ms));
         AsyncBlockBuilder::new(async move {
             let _shutdown = shutdown;
-            tokio::time::timeout(
-                Duration::from_millis(u64::from(timeout_ms)),
-                client.shutdown(),
-            )
-            .await
-            .map_err(|_| failure("Timeout", "client shutdown deadline expired"))
+            tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), owner.drain())
+                .await
+                .map_err(|_| failure("Timeout", "client shutdown deadline expired"))?
         })
         .build(&env)
+    }
+    /// Cancels admitted work; close waits for its cleanup.
+    #[napi]
+    pub fn destroy(&self) {
+        self.state.close();
     }
     /// Adds a cookie through the native jar without exposing error inputs.
     #[napi]

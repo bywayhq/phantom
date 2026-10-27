@@ -410,7 +410,13 @@ export class Client {
   clearSessionTickets(): number;
   closeIdleConnections(): Promise<void>;
   refreshConnections(): Promise<void>;
+  /** Stops new requests and waits for admitted work, including open WebSockets.
+   * A timeout leaves existing responses and sockets usable. Close can be retried.
+   * Concurrent calls join the pending close and its original timeout.
+   */
   close(options?: { timeoutMs?: number }): Promise<void>;
+  /** Aborts admitted work, then waits for cleanup within the close timeout. */
+  destroy(options?: { timeoutMs?: number }): Promise<void>;
   [Symbol.asyncDispose](): Promise<void>;
 }
 export function profiles(): string[];

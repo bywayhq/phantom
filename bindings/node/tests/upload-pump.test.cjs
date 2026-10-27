@@ -64,6 +64,16 @@ test('blocked iterator cleanup retains pending ownership after bounded close tim
   await client.close(); assert.equal(upload.done, true);
 });
 
+test('client shutdown spends one timeout across native drain and upload cleanup', async () => {
+  const {Client, uploads, owner} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
+  const source = {[Symbol.asyncIterator]() {return this;}, async next() {return {done: true};},
+    return() {return new Promise((resolve) => setTimeout(() => resolve({done: true}), 25));}};
+  await client.request('http://example.test', {...options, body: source});
+  owner.close = async () => {await new Promise((resolve) => setTimeout(resolve, 60)); uploads[0].stop();};
+  await assert.rejects(client.close({timeoutMs: 50}), {code: 'Timeout'});
+  await client.close(); assert.equal(uploads[0].done, true);
+});
+
 test('empty chunks reuse credit and source or cleanup exceptions are redacted', async () => {
   const {Client, uploads, PhantomError} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
   let calls = 0;
@@ -92,8 +102,8 @@ test('a producer cannot self-wait on its own client shutdown', async () => {
   const {Client, uploads, PhantomError} = facade(); const client = new Client({profile: 'exact', route: 'direct'});
   const rejected = (error) => error instanceof PhantomError && error.code === 'InvalidOperation';
   let returned = false;
-  const source = { [Symbol.asyncIterator]() { return this; }, async next() { await assert.rejects(client.close(), rejected); return {done: false, value: Buffer.from('a')}; },
-    async return() { await assert.rejects(client.close(), rejected); returned = true; return {done: true}; } };
+  const source = { [Symbol.asyncIterator]() { return this; }, async next() { await assert.rejects(client.close(), rejected); await assert.rejects(client.destroy(), rejected); return {done: false, value: Buffer.from('a')}; },
+    async return() { await assert.rejects(client.close(), rejected); await assert.rejects(client.destroy(), rejected); returned = true; return {done: true}; } };
   const response = await client.request('http://example.test', {...options, body: source});
   uploads[0].grant(); await tick(); response.close(); await client.close();
   assert.equal(returned, true); assert.notEqual(uploads[0].failed, true);

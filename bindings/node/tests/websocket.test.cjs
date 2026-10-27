@@ -47,7 +47,7 @@ test('WebSocket uses Rust opening fields, selected subprotocol and owned binary 
     socket.on('message', (data, binary) => socket.send(data, {binary}));
   }, (server) => server.on('headers', (headers) => headers.push('X-Duplicate: one', 'X-Duplicate: two')));
   const client = new Client({profile, route: 'direct', headers: [{name: 'X-Client', value: Buffer.from('default')}]});
-  t.after(() => client.close());
+  t.after(() => client.destroy());
   const socket = await client.websocket(url + '/chat', {headers: [{name: 'Sec-WebSocket-Protocol', value: Buffer.from('chat')}], handshakeTimeoutMs: 5000});
   t.after(() => socket.abort());
   assert(socket instanceof WebSocketConnection);
@@ -73,7 +73,7 @@ test('WebSocket assembles fragments, flushes automatic pong, and sends explicit 
     socket.send('hel', {fin: false}); socket.send('lo', {fin: true});
     socket.ping(Buffer.from('automatic'));
   });
-  const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
   const socket = await client.websocket(url); t.after(() => socket.abort());
   assert.deepEqual(await socket.receive(), {type: 'text', data: 'hello'});
   const pong = once(upstream, 'pong');
@@ -91,7 +91,7 @@ test('WebSocket assembles fragments, flushes automatic pong, and sends explicit 
 test('WebSocket size limits reject outgoing data before writing and oversized incoming frames close', async (t) => {
   let upstream, sent = 0;
   const {url} = await peer(t, (socket) => {upstream = socket; socket.on('message', () => sent++);});
-  const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
   const socket = await client.websocket(url, {maximumFrameBytes: 4, maximumMessageBytes: 8}); t.after(() => socket.abort());
   await assert.rejects(socket.send('123456789'), failure('Capacity'));
   assert.equal(sent, 0);
@@ -105,7 +105,7 @@ test('WebSocket AbortSignal interrupts opening and reads, and handshake timeout 
   const seen = new Promise((resolve) => {arrived = resolve;});
   const server = http.createServer(); server.on('upgrade', () => arrived());
   const port = await listen(t, server);
-  const client = new Client({profile, route: 'direct'}); t.after(() => client.close());
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
   const controller = new AbortController();
   const opening = client.websocket(`ws://127.0.0.1:${port}`, {signal: controller.signal});
   const rejected = assert.rejects(opening, {code: 'Cancelled'});
@@ -118,11 +118,11 @@ test('WebSocket AbortSignal interrupts opening and reads, and handshake timeout 
   live.abort(); await cancelled;
 });
 
-test('client shutdown closes idle WebSockets and abort releases binding admission', async (t) => {
+test('destroy closes idle WebSockets and abort releases binding admission', async (t) => {
   const connections = [];
   const {url, http: endpoint} = await peer(t, (socket) => connections.push(socket));
   const client = new Client({profile, route: 'direct', maximumActiveRequests: 1});
-  t.after(() => client.close());
+  t.after(() => client.destroy());
   const socket = await client.websocket(url);
   await assert.rejects(client.get(endpoint, {context: 'raw'}), {code: 'Capacity'});
   socket.abort();
@@ -130,8 +130,48 @@ test('client shutdown closes idle WebSockets and abort releases binding admissio
   assert.equal(await response.text(2), 'ok'); response.close();
   const idle = await client.websocket(url);
   const closed = once(connections[1], 'close');
-  await client.close(); await closed;
+  await client.destroy(); await closed;
   await assert.rejects(idle.send('after shutdown'), {code: 'Cancelled'});
+});
+
+test('graceful close times out without aborting a live WebSocket and can resume', async (t) => {
+  const {url, http: endpoint} = await peer(t, (socket) => socket.on('message', (data) => socket.send(data)));
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
+  const socket = await client.websocket(url); t.after(() => socket.abort());
+  await assert.rejects(client.close({timeoutMs: 0}), {code: 'Timeout'});
+  await assert.rejects(client.get(endpoint, {context: 'raw'}), {code: 'ClientClosed'});
+  await assert.rejects(client.websocket(url), {code: 'ClientClosed'});
+  await socket.send('still open');
+  assert.equal((await socket.receive()).data.toString(), 'still open');
+  const closing = client.close();
+  await socket.close(1000, 'done');
+  assert.deepEqual(await socket.receive(), {type: 'close', code: 1000, reason: 'done'});
+  await closing;
+});
+
+test('destroy interrupts a pending graceful close and blocked WebSocket receive', async (t) => {
+  let connected;
+  const {url} = await peer(t, (socket) => {connected = socket;});
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
+  const socket = await client.websocket(url);
+  const received = assert.rejects(socket.receive(), {code: 'Cancelled'});
+  const closed = once(connected, 'close');
+  const closing = client.close();
+  await client.destroy(); await closing; await received; await closed;
+});
+
+test('graceful close preserves a rejected WebSocket body through timeout', async (t) => {
+  const server = http.createServer();
+  server.on('upgrade', (_request, socket) => socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\nConnection: close\r\n\r\ndenied'));
+  const port = await listen(t, server);
+  const client = new Client({profile, route: 'direct'}); t.after(() => client.destroy());
+  let response;
+  await assert.rejects(client.websocket(`ws://127.0.0.1:${port}`), (error) => {response = error.response; return failure('HandshakeRejected')(error);});
+  t.after(() => response?.close());
+  await assert.rejects(client.close({timeoutMs: 0}), {code: 'Timeout'});
+  const closing = client.close();
+  assert.equal(await response.text(6), 'denied');
+  await closing;
 });
 
 test('rejected WebSocket responses retain headers, bounded bodies, cancellation and admission', async (t) => {
@@ -142,7 +182,7 @@ test('rejected WebSocket responses retain headers, bounded bodies, cancellation 
   });
   const port = await listen(t, server);
   const client = new Client({profile, route: 'direct', maximumActiveRequests: 1});
-  t.after(() => client.close());
+  t.after(() => client.destroy());
   const url = `ws://127.0.0.1:${port}/denied`, endpoint = `http://127.0.0.1:${port}`;
   for (const action of ['read', 'limit', 'abort', 'close', 'shutdown']) {
     const controller = new AbortController();
@@ -158,7 +198,7 @@ test('rejected WebSocket responses retain headers, bounded bodies, cancellation 
     if (action === 'read') assert.equal(await response.text(6), 'denied');
     if (action === 'limit') await assert.rejects(response.bytes(5), {code: 'ResponseBodyLimit'});
     if (action === 'abort') {controller.abort(); await assert.rejects(response.read(), {code: 'Cancelled'});}
-    if (action === 'shutdown') {await client.close(); await assert.rejects(response.read(), {code: 'Cancelled'});}
+    if (action === 'shutdown') {await client.destroy(); await assert.rejects(response.read(), {code: 'Cancelled'});}
     response.close();
     if (action !== 'shutdown') {
       const healthy = await client.get(endpoint, {context: 'raw'});
@@ -191,7 +231,7 @@ test('HTTP/2 WebSocket abort leaves an unrelated response and pooled connection 
   const port = await listen(t, server);
   t.after(() => {for (const session of sockets) session.destroy();});
   const client = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')]});
-  t.after(() => client.close());
+  t.after(() => client.destroy());
   const endpoint = `https://127.0.0.1:${port}`;
   const warm = await client.get(endpoint, {context: 'raw'}); assert.equal(await warm.text(2), 'ok'); warm.close();
   const response = await client.get(endpoint + '/held', {context: 'raw'}); t.after(() => response.close());

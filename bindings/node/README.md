@@ -151,7 +151,11 @@ unfinished iterator on output failure, and imposes no total byte limit. Leaving
 `AbortSignal` interrupts setup, uploads and body reads; it remains attached
 after the response head. Other multiplexed streams remain usable. Pipeline
 can report `AbortError` or `AggregateError`; direct reads use `Cancelled`.
-`close()` cancels this client's work and waits up to five seconds by default.
+`close()` stops new requests and drains existing work, including WebSockets.
+Finish or close each response and socket while it waits. The default timeout
+is five seconds; a timeout leaves them usable, and you can retry close.
+Use `destroy()` to cancel them and wait for cleanup instead. Both accept
+`{timeoutMs}`; concurrent calls join the pending close and its timeout.
 
 Set client/request `timeouts` with `poolAdmissionMs`, `connectMs`,
 `responseHeadMs`, `readIdleMs` and `totalMs`. Omitted fields inherit; `null`
@@ -224,7 +228,7 @@ ping and pong. Close events have `code` and `reason`. Async iteration also
 works. Await sends for backpressure; one send and one receive may run together.
 Concurrent reads or writes fail. Ping replies are automatic. `close()` flushes
 a Close frame; receive its reply before aborting for graceful shutdown.
-The signal and client shutdown cancel the connection. Compression is off.
+The signal and `client.destroy()` cancel the connection. Compression is off.
 Rejected openings throw a `PhantomError` with `response`: the original headers
 and readable HTTP body. Read it within a byte limit or call `response.close()`.
 

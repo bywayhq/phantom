@@ -26,6 +26,7 @@ class Client {
   #native;
   #defaults;
   #uploads = new Set();
+  #closing;
   #uploadCleanupError;
   #trackUpload(iterator, upload, outcome) {
     outcome.context = this;
@@ -211,8 +212,22 @@ class Client {
     try { await this.#native.refreshConnections(); } catch (error) { throw translated(error); }
   }
   async close({ timeoutMs = 5000 } = {}) {
+    this.#checkShutdown(timeoutMs);
+    if (this.#closing) return this.#closing;
+    const pending = this.#finishClose(timeoutMs);
+    this.#closing = pending;
+    try { await pending; } finally { if (this.#closing === pending) this.#closing = undefined; }
+  }
+  async destroy({ timeoutMs = 5000 } = {}) {
+    this.#checkShutdown(timeoutMs);
+    try { this.#native.destroy(); } catch (error) { throw translated(error); }
+    await this.close({timeoutMs});
+  }
+  #checkShutdown(timeoutMs) {
     integer(timeoutMs, 'timeoutMs');
     if (isUploadContext(this)) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own client shutdown');
+  }
+  async #finishClose(timeoutMs) {
     const started = performance.now();
     try {
       await this.#native.close(timeoutMs);

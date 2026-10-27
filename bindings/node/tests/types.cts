@@ -447,3 +447,10 @@ poolLimits.maxConcurrentHttp1RequestsPerOrigin = 2;
 new Client({profile: 'exact', route: 'direct', pool: {maxRetainedHttp1Connections: 1n}});
 // @ts-expect-error Omit a setup wait to retain defaults; null is not a duration.
 new Client({profile: 'exact', route: 'direct', pool: {negotiatedSetupWaitLimitMs: null}});
+
+async function shutdownClient(client: Client): Promise<void> {
+  await client.close({timeoutMs: 10});
+  await client.destroy({timeoutMs: 0});
+  // @ts-expect-error shutdown deadlines use numbers, not bigint
+  await client.destroy({timeoutMs: 1n});
+}
