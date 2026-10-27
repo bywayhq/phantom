@@ -1,4 +1,21 @@
+// @ts-check
 'use strict';
+
+/** @typedef {import('../index.js').ResponseHeader} ResponseHeader */
+/** @typedef {import('../index.js').ResponseTrailers} ResponseTrailers */
+/** @typedef {import('./events.cjs').NativeEvents} NativeEvents */
+/** @typedef {import('./upload.cjs').UploadOutcome} UploadOutcome */
+/** @typedef {{
+ * status: number, protocol: 'http1' | 'http2' | 'http3', url: string,
+ * redirects: number, connectionRetries?: number | null,
+ * decodedContentCodings: import('../index.js').ContentCoding[],
+ * redirectHistory?: import('../index.js').RedirectHistory | null,
+ * headers: ResponseHeader[], trailers: ResponseTrailers,
+ * read(maximumBytes: number): Promise<Buffer | null>,
+ * collect(maximumBytes: number): Promise<Buffer>,
+ * events(maximumLineBytes: number, maximumEventBytes: number): NativeEvents,
+ * close(): void
+ * }} NativeResponse */
 
 const { inspect, TextDecoder } = require('node:util');
 
@@ -8,10 +25,12 @@ const { EventStream, eventLimits } = require('./events.cjs');
 const { isUploadContext, uploadError } = require('./upload.cjs');
 const { integer } = require('./validation.cjs');
 
+/** @type {FinalizationRegistry<() => void>} */
 const abandonedResponses = new FinalizationRegistry((cleanup) => cleanup());
 
 class Response {
   #native;
+  /** @type {(() => void) | undefined} */
   #cleanup;
   #owner;
   #upload;
@@ -19,6 +38,8 @@ class Response {
   #bodyStarted = false;
   #events = false;
 
+  /** @param {NativeResponse} response @param {() => void} cleanup
+   * @param {unknown} owner @param {UploadOutcome | undefined} [upload] */
   constructor(response, cleanup, owner, upload) {
     this.#native = response;
     this.#cleanup = cleanup;
@@ -49,6 +70,7 @@ class Response {
       Object.freeze({ name, value, sensitive })));
   }
 
+  /** @returns {ResponseTrailers} */
   get trailers() {
     try {
       const snapshot = this.#native.trailers;
@@ -85,6 +107,7 @@ class Response {
     if (this.#upload.error) throw uploadError(this.#upload.error, this.#upload, true);
   }
 
+  /** @param {number} [maximumBytes] @returns {Promise<Buffer | null>} */
   async read(maximumBytes = 65536) {
     this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes', 1, 65536);
@@ -110,6 +133,7 @@ class Response {
     }
   }
 
+  /** @param {number} maximumBytes @returns {Promise<Buffer>} */
   async bytes(maximumBytes) {
     this.#checkMultipartWait();
     integer(maximumBytes, 'maximumBytes');
@@ -134,6 +158,7 @@ class Response {
     }
   }
 
+  /** @param {number} maximumBytes @returns {Promise<string>} */
   async text(maximumBytes) {
     const body = await this.bytes(maximumBytes);
     try {
@@ -145,6 +170,7 @@ class Response {
     }
   }
 
+  /** @param {number} maximumBytes @returns {Promise<unknown>} */
   async json(maximumBytes) {
     const text = await this.text(maximumBytes);
     try {
@@ -154,9 +180,10 @@ class Response {
     }
   }
 
+  /** @param {import('../index.js').SseOptions} [options] */
   events(options) {
     this.#checkMultipartWait();
-    const limits = eventLimits(options);
+    const limits = /** @type {[number, number]} */ (eventLimits(options));
     if (this.#reading) throw new PhantomError('ConcurrentRead', 'only one body read may be pending');
     if (this.#bodyStarted || this.#events) throw new PhantomError('BodyUsed', 'events require an unread response body');
 
@@ -177,6 +204,7 @@ class Response {
     this.#finished();
   }
 
+  /** @returns {AsyncIterableIterator<Buffer>} */
   [Symbol.asyncIterator]() {
     const response = this;
     return {
@@ -188,6 +216,7 @@ class Response {
         response.close();
         return { done: true, value: undefined };
       },
+      /** @param {unknown} error */
       async throw(error) {
         response.close();
         throw error;

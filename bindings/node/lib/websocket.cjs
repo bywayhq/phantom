@@ -7,7 +7,7 @@
 /** @typedef {import('../index.js').WebSocketHandshake} WebSocketHandshake */
 /** @typedef {{kind: string, text?: string | null, data?: Buffer | null, code?: number | null, reason?: string | null}} NativeMessage */
 /** @typedef {{abort(): void, receive(): Promise<NativeMessage | null>, send(kind: string, text?: string, data?: Buffer, code?: number, reason?: string): Promise<void>}} NativeSocket */
-/** @typedef {{error: string, response: {close(): void}}} NativeRejection */
+/** @typedef {{error: string, response: import('./response.cjs').NativeResponse}} NativeRejection */
 
 const { addAbortListener } = require('node:events');
 

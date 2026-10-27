@@ -1,5 +1,12 @@
 'use strict';
 
+/** @typedef {{
+ * multipart?: boolean, context?: object, finished?: Promise<void>,
+ * error?: import('../index.js').PhantomError,
+ * cleanupError?: import('../index.js').PhantomError,
+ * original?: unknown, originalPresent?: boolean, cleanupOriginal?: unknown
+ * }} UploadOutcome */
+
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { Readable } = require('node:stream');
 const { finished } = require('node:stream/promises');

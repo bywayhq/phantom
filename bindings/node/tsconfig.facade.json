@@ -7,5 +7,5 @@
     "target": "ES2022",
     "lib": ["ES2022", "ESNext.Disposable"]
   },
-  "files": ["lib/request-preparation.cjs", "lib/websocket.cjs", "lib/events.cjs"]
+  "files": ["lib/request-preparation.cjs", "lib/response.cjs", "lib/websocket.cjs", "lib/events.cjs"]
 }
