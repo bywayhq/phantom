@@ -1,19 +1,23 @@
 package phantom
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bywayhq/phantom/bindings/go/internal/native"
+)
 
 func TestSSETransferRejectsInvalidLengthsFlagsAndUTF8(t *testing.T) {
 	for _, test := range []struct {
-		value  nativeSSEEvent
+		value  native.SSEEvent
 		output []byte
 	}{
-		{nativeSSEEvent{DataLength: ^uint64(0), TypeLength: 1}, nil},
-		{nativeSSEEvent{DataLength: maxSSEResult, TypeLength: 1}, nil},
-		{nativeSSEEvent{Flags: 8}, nil},
-		{nativeSSEEvent{Flags: 1, TypeLength: 1}, []byte("x")},
-		{nativeSSEEvent{TypeLength: 1}, []byte{255}},
-		{nativeSSEEvent{DataLength: 1, TypeLength: 1}, []byte("a")},
-		{nativeSSEEvent{}, nil},
+		{native.SSEEvent{DataLength: ^uint64(0), TypeLength: 1}, nil},
+		{native.SSEEvent{DataLength: native.MaxSSEResult, TypeLength: 1}, nil},
+		{native.SSEEvent{Flags: 8}, nil},
+		{native.SSEEvent{Flags: 1, TypeLength: 1}, []byte("x")},
+		{native.SSEEvent{TypeLength: 1}, []byte{255}},
+		{native.SSEEvent{DataLength: 1, TypeLength: 1}, []byte("a")},
+		{native.SSEEvent{}, nil},
 	} {
 		if _, err := decodeSSEEvent(test.value, test.output); kind(err) != "native_abi" {
 			t.Fatalf("invalid event accepted: %+v, %v", test.value, err)
@@ -23,7 +27,7 @@ func TestSSETransferRejectsInvalidLengthsFlagsAndUTF8(t *testing.T) {
 
 func TestSSETransferOwnsStringsAndPreservesLargeRetryValues(t *testing.T) {
 	data := []byte("valuepricecommitted")
-	result, err := decodeSSEEvent(nativeSSEEvent{DataLength: 5, TypeLength: 5, IDLength: 9, RetryMilliseconds: ^uint64(0), Flags: 2}, data)
+	result, err := decodeSSEEvent(native.SSEEvent{DataLength: 5, TypeLength: 5, IDLength: 9, RetryMilliseconds: ^uint64(0), Flags: 2}, data)
 	if err != nil {
 		t.Fatal(err)
 	}

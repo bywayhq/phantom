@@ -1,6 +1,6 @@
 //go:build (windows && amd64) || ((linux || darwin) && (amd64 || arm64))
 
-package phantom
+package native
 
 import (
 	"errors"
@@ -16,12 +16,20 @@ func TestSSECapabilityNegotiationRejectsOldAndPartialPayloads(t *testing.T) {
 			}
 			return 1, nil
 		}, func(uintptr) (uint64, error) { called = true; return 1, nil })
-		if kind(err) != "native_sse_unavailable" || called {
+		if failureKind(err) != "native_sse_unavailable" || called {
 			t.Fatalf("partial payload %s: %v, version called=%v", missing, err, called)
 		}
 	}
 	_, err := bindSSESymbols(func(string) (uintptr, error) { return 1, nil }, func(uintptr) (uint64, error) { return 2, nil })
-	if kind(err) != "native_sse_abi_mismatch" {
+	if failureKind(err) != "native_sse_abi_mismatch" {
 		t.Fatalf("unknown SSE ABI accepted: %v", err)
 	}
+}
+
+func failureKind(err error) string {
+	var failure *Failure
+	if errors.As(err, &failure) {
+		return failure.Kind
+	}
+	return ""
 }

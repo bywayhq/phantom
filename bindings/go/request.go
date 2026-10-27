@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"time"
 	"unsafe"
+
+	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
@@ -178,14 +180,14 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 	if size > 64*1024 {
 		return nil, &Error{Kind: "input_limit"}
 	}
-	encodeHeaders := func(input []Header) ([]nativeField, error) {
-		fields := make([]nativeField, 0, len(input))
+	encodeHeaders := func(input []Header) ([]native.Field, error) {
+		fields := make([]native.Field, 0, len(input))
 		for _, header := range input {
 			if len(header.Name) > 64*1024-size || len(header.Value) > 64*1024-size-len(header.Name) {
 				return nil, &Error{Kind: "input_limit"}
 			}
 			size += len(header.Name) + len(header.Value)
-			fields = append(fields, nativeField{borrowedString(header.Name), borrowedBytes(header.Value), boolean(header.Sensitive)})
+			fields = append(fields, native.Field{Name: native.BorrowedString(header.Name), Value: native.BorrowedBytes(header.Value), Sensitive: boolean(header.Sensitive)})
 		}
 		return fields, nil
 	}
@@ -213,8 +215,8 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		}
 		transfer = &value
 	}
-	native := nativeRequest{
-		Client: c.id.Load(), Method: borrowedString(request.Method), URL: borrowedString(request.URL),
+	descriptor := native.Request{
+		Client: c.id.Load(), Method: native.BorrowedString(request.Method), URL: native.BorrowedString(request.URL),
 		Headers: unsafe.Pointer(unsafe.SliceData(headers)), HeaderCount: uint64(len(headers)),
 		Trailers: unsafe.Pointer(unsafe.SliceData(trailers)), TrailerCount: uint64(len(trailers)),
 		Flags: boolean(request.Body != nil) | contextFlags, Budget: pointed(budget), Transfer: pointed(transfer), PreparedBody: pointed(prepared),
@@ -227,37 +229,37 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		case "limit":
 			mode = 2
 		}
-		native.Timeouts[i] = nativeTimeout{Mode: mode, Nanoseconds: pointed(value.Nanoseconds)}
+		descriptor.Timeouts[i] = native.Timeout{Mode: mode, Nanoseconds: pointed(value.Nanoseconds)}
 	}
 	if expectContinue != nil {
-		native.Flags |= 2
-		native.ExpectContinue = *expectContinue
+		descriptor.Flags |= 2
+		descriptor.ExpectContinue = *expectContinue
 	}
 	if decoding.Mode == "advertised" {
-		native.Flags |= 4
-		native.DecodedMaximum = pointed(decoding.MaximumDecodedBytes)
+		descriptor.Flags |= 4
+		descriptor.DecodedMaximum = pointed(decoding.MaximumDecodedBytes)
 	}
-	var credentials []nativeSpan
+	var credentials []native.Span
 	if redirects != nil {
-		native.Flags |= 8
-		native.RedirectMaximum = redirects.MaximumHops
+		descriptor.Flags |= 8
+		descriptor.RedirectMaximum = redirects.MaximumHops
 		for _, name := range redirects.CredentialHeaders {
-			credentials = append(credentials, borrowedString(name))
+			credentials = append(credentials, native.BorrowedString(name))
 		}
-		native.CredentialHeaders = unsafe.Pointer(unsafe.SliceData(credentials))
-		native.CredentialHeaderCount = uint64(len(credentials))
+		descriptor.CredentialHeaders = unsafe.Pointer(unsafe.SliceData(credentials))
+		descriptor.CredentialHeaderCount = uint64(len(credentials))
 	}
 	if history != nil {
-		native.Flags |= 16
-		native.RedirectHistory = *history
+		descriptor.Flags |= 16
+		descriptor.RedirectHistory = *history
 	}
 	var statuses []uint16
 	if retries != nil {
-		native.Retry, statuses = nativeRetryValue(*retries)
+		descriptor.Retry, statuses = nativeRetryValue(*retries)
 	}
 	if request.Diagnostics != nil {
-		native.Diagnostics = request.Diagnostics.id.Load()
-		if native.Diagnostics == 0 {
+		descriptor.Diagnostics = request.Diagnostics.id.Load()
+		if descriptor.Diagnostics == 0 {
 			return nil, &Error{Kind: "invalid_handle"}
 		}
 	}
@@ -265,15 +267,15 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err := upload.prepare(ctx, c.id.Load()); err != nil {
 			return nil, err
 		}
-		native.Upload = upload.id
+		descriptor.Upload = upload.id
 	}
 	err = performSubmitted(ctx, func() (uint64, error) {
-		var result nativeReply
+		var result native.Reply
 		var err error
 		if events == nil {
-			err = nativeSubmit(&native, request.Body, &result)
+			err = nativeSubmit(&descriptor, request.Body, &result)
 		} else {
-			err = nativeSSESubmit(&native, request.Body, *events, &result)
+			err = nativeSSESubmit(&descriptor, request.Body, *events, &result)
 		}
 		runtime.KeepAlive(headers)
 		runtime.KeepAlive(trailers)
@@ -285,7 +287,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err != nil {
 			return 0, err
 		}
-		return result.Operation, result.Error.err()
+		return result.Operation, nativeRecordError(result.Error)
 	}, upload.start, func(event completion) error {
 		head := event.head
 		if head == nil {

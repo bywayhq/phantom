@@ -1,5 +1,5 @@
 //go:build darwin && (amd64 || arm64)
 
-package phantom
+package native
 
 const nativeFilename = "libphantom_go.dylib"

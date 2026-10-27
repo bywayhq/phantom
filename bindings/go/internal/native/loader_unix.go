@@ -1,6 +1,6 @@
 //go:build (linux || darwin) && (amd64 || arm64)
 
-package phantom
+package native
 
 import "github.com/ebitengine/purego"
 

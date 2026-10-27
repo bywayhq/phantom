@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
 
 // SSEEvent is one dispatched event. ID is the stream's persistent last-event ID;
@@ -88,11 +90,11 @@ func (stream *EventStream) Next() (SSEEvent, error) {
 	var received receivedSSE
 	var trailers ResponseTrailers
 	err := performSubmitted(stream.body.ctx, func() (uint64, error) {
-		var reply nativeReply
+		var reply native.Reply
 		if err := nativeSSENext(stream.body.owner.id, &reply); err != nil {
 			return 0, err
 		}
-		return reply.Operation, reply.Error.err()
+		return reply.Operation, nativeRecordError(reply.Error)
 	}, nil, func(completion completion) error {
 		if completion.kind != 1 && completion.kind != 3 {
 			return &Error{Kind: "native_abi"}

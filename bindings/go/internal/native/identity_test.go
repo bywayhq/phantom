@@ -1,4 +1,4 @@
-package phantom
+package native
 
 import (
 	"encoding/json"
@@ -17,13 +17,13 @@ func TestNativeIdentityRunsOnceAcrossConcurrentFirstUses(t *testing.T) {
 		if string(command) != `{"kind":"identity"}` || body != nil {
 			t.Error("identity query must not send a request or payload")
 		}
-		value, _ := json.Marshal(map[string]any{"value": map[string]any{"abi": nativeABIVersion, "version": nativePackageVersion}})
+		value, _ := json.Marshal(map[string]any{"value": map[string]any{"abi": uint64(2), "version": "test-package"}})
 		return copy(output, value), nil
 	}
 	var group sync.WaitGroup
 	for range 64 {
 		group.Go(func() {
-			if err := check.check(call); err != nil {
+			if err := check.check(call, 2, "test-package"); err != nil {
 				t.Errorf("matching identity rejected: %v", err)
 			}
 		})
@@ -53,12 +53,12 @@ func TestNativeIdentityRejectsWrongOrMalformedPairsWithoutLeakingValues(t *testi
 				calls++
 				return copy(output, test.response), nil
 			}
-			err := check.check(call)
-			var native *Error
+			err := check.check(call, 2, "test-package")
+			var native *Failure
 			if !errors.As(err, &native) || native.Kind != test.kind || strings.Contains(err.Error(), "secret") {
 				t.Fatalf("unexpected identity failure: %#v", err)
 			}
-			if check.check(call) != err || calls != 1 {
+			if check.check(call, 2, "test-package") != err || calls != 1 {
 				t.Fatal("incompatible library must stay rejected without another FFI call")
 			}
 		})
@@ -68,8 +68,8 @@ func TestNativeIdentityRejectsWrongOrMalformedPairsWithoutLeakingValues(t *testi
 func TestNativeIdentityPreservesLoaderAndUnsupportedErrors(t *testing.T) {
 	for _, kind := range []string{"unsupported_platform", "native_library_unavailable", "native_library_path", "native_abi"} {
 		var check identityCheck
-		original := &Error{Kind: kind}
-		err := check.check(func(_, _, _ []byte) (int, error) { return 0, original })
+		original := &Failure{Kind: kind}
+		err := check.check(func(_, _, _ []byte) (int, error) { return 0, original }, 2, "test-package")
 		if err != original {
 			t.Fatalf("loader failure changed: got %v, want original %v", err, original)
 		}
@@ -77,10 +77,10 @@ func TestNativeIdentityPreservesLoaderAndUnsupportedErrors(t *testing.T) {
 }
 
 func TestNativeIdentityRejectsInvalidReturnedLengths(t *testing.T) {
-	for _, length := range []int{-1, 0, maxMetadata + 1} {
+	for _, length := range []int{-1, 0, 256*1024 + 1} {
 		var check identityCheck
-		err := check.check(func(_, _, _ []byte) (int, error) { return length, nil })
-		var native *Error
+		err := check.check(func(_, _, _ []byte) (int, error) { return length, nil }, 2, "test-package")
+		var native *Failure
 		if !errors.As(err, &native) || native.Kind != "native_abi" {
 			t.Fatalf("invalid native length %d accepted: %v", length, err)
 		}

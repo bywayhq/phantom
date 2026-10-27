@@ -1,6 +1,6 @@
 //go:build (windows && amd64) || ((linux || darwin) && (amd64 || arm64))
 
-package phantom
+package native
 
 import (
 	"errors"
@@ -14,8 +14,8 @@ import (
 func TestNativeLoaderPreservesCauseWithoutPrintingPath(t *testing.T) {
 	const marker = "PHANTOM_TEST_ISOLATED_LOADER"
 	if os.Getenv(marker) == "1" {
-		err := loadNative()
-		var failure *Error
+		err := Load()
+		var failure *Failure
 		if !errors.As(err, &failure) || failure.Kind != "native_library_unavailable" || errors.Unwrap(failure) == nil {
 			t.Fatalf("loader failure lost its underlying cause: %T", err)
 		}

@@ -6,25 +6,13 @@ import (
 	"runtime"
 	"sync"
 	"unsafe"
+
+	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
 
 const maxMetadata = 256 * 1024
 const maxChunk = 64 * 1024
 const maxUpload = 8 * 1024 * 1024
-
-// Error is a redacted native failure. HTTP statuses remain responses.
-type Error struct {
-	Kind         string `json:"kind"`
-	Protocol     string `json:"protocol"`
-	TimeoutPhase string `json:"timeout_phase"`
-	// Field is the canonical setting path for a profile import/export error.
-	Field string `json:"field"`
-	cause error
-}
-
-func (e *Error) Error() string { return "phantom: " + e.Kind }
-func (e *Error) Timeout() bool { return e.Kind == "timeout" }
-func (e *Error) Unwrap() error { return e.cause }
 
 type reply struct {
 	Value json.RawMessage `json:"value"`
@@ -69,6 +57,7 @@ func dispatch(command any, data []byte) (json.RawMessage, error) {
 	}
 	return response.Value, nil
 }
+
 func control(kind string, idName string, id uint64) error {
 	var code uint64
 	switch kind {
@@ -99,10 +88,10 @@ var pump struct {
 func completionPump() {
 	arena := make([]byte, maxMetadata)
 	data := make([]byte, maxChunk)
-	fields := make([]nativeOutputField, maxMetadata/int(unsafe.Sizeof(nativeOutputField{})))
-	hops := make([]nativeHop, maxMetadata/int(unsafe.Sizeof(nativeHop{})))
+	fields := make([]native.OutputField, maxMetadata/int(unsafe.Sizeof(native.OutputField{})))
+	hops := make([]native.Hop, maxMetadata/int(unsafe.Sizeof(native.Hop{})))
 	for {
-		var native nativeEvent
+		var native native.Event
 		err := nativeWaitEvent(&native, fields, hops, arena, data)
 		var event completion
 		if err == nil {
