@@ -83,19 +83,32 @@ test('encoded helpers retain redirect replay, exact shared budgets and content-t
   assert.equal(requests.length, 2);
 });
 
-test('attached templates supply context and generated body fields in their configured slots', {timeout: 30000}, async (t) => {
-  const {url, requests} = await peer(t);
-  const document = Profile.fromCatalog(profile, 'navigation').describe();
-  const fields = document.profile.request_template.http1_fields;
-  fields.unshift({variant: 'Literal', name: 'X-Before-Length', value: 'before'},
-    {variant: 'Caller', name: 'Content-Length', required: false},
-    {variant: 'Literal', name: 'X-After-Length', value: 'after'});
-  const client = new Client({profile: Profile.fromDescription(document), route: 'direct', protocol: 'http1'});
-  t.after(() => client.close());
-  assert.equal(await (await client.post(url, {json: {x: 1}})).text(2), 'ok');
-  const names = requests[0].headers.filter((_value, index) => index % 2 === 0).map((name) => name.toLowerCase());
-  const index = names.indexOf('content-length');
-  assert.ok(index > names.indexOf('x-before-length'));
-  assert.ok(index < names.indexOf('x-after-length'));
-  assert.equal(requests[0].body.toString(), '{"x":1}');
-});
+for (const template of ['chrome-154-windows', 'chrome-154-macos', 'chrome-154-android']) {
+  test(`attached ${template} template supplies context and generated body fields in their slots`, {timeout: 30000}, async (t) => {
+    const {url, requests} = await peer(t);
+    const document = Profile.fromCatalog(profile, 'navigation').describe();
+    // Templates are portable; the transport still belongs to the current host.
+    document.profile.request_template = Profile.fromCatalog(template, 'navigation').describe().profile.request_template;
+    const fields = document.profile.request_template.http1_fields;
+    fields.unshift({variant: 'Literal', name: 'X-Before-Length', value: 'before'},
+      {variant: 'Caller', name: 'Content-Length', required: false},
+      {variant: 'Literal', name: 'X-After-Length', value: 'after'});
+    const client = new Client({profile: Profile.fromDescription(document), route: 'direct', protocol: 'http1'});
+    t.after(() => client.close());
+    if (template === 'chrome-154-macos') {
+      const budget = new AttemptBudget(1);
+      await assert.rejects(client.post(url, {json: {x: 1}, attemptBudget: budget}), {code: 'RequestTemplate'});
+      assert.equal(budget.remaining, 1);
+      assert.equal(requests.length, 0);
+    }
+    const response = await client.post(url, {json: {x: 1}, headers: [{name: 'User-Agent', value: Buffer.from('template-fixture')}]});
+    assert.equal(await response.text(2), 'ok');
+    const head = requests[0].headers;
+    const names = head.filter((_value, index) => index % 2 === 0).map((name) => name.toLowerCase());
+    const index = names.indexOf('content-length');
+    assert.ok(index > names.indexOf('x-before-length'));
+    assert.ok(index < names.indexOf('x-after-length'));
+    assert.equal(head[names.indexOf('user-agent') * 2 + 1], 'template-fixture');
+    assert.equal(requests[0].body.toString(), '{"x":1}');
+  });
+}
