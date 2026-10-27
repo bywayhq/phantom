@@ -447,7 +447,7 @@ impl NativeResponse {
                 if matches!(owner.state.load(Ordering::SeqCst), EXPIRED | ABORTED) {
                     return Err(owner.closed_error());
                 }
-                return Ok(None::<Py<PyBytes>>);
+                return Ok(None::<Bytes>);
             };
             stream.head = None;
             let changed = owner.changed.notified();
@@ -478,7 +478,7 @@ impl NativeResponse {
                 return Ok(None);
             };
             lease.restore()?;
-            Python::attach(|py| Ok(Some(PyBytes::new(py, &bytes).unbind())))
+            Ok(Some(bytes))
         })
     }
 
