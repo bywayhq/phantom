@@ -70,12 +70,14 @@ impl Prepared {
         if client.is_closed() {
             return Err(failure("ClientClosed", "client is closed"));
         }
+
         if options.url.len() > 64 * 1024 || options.method.len() > 64 {
             return Err(failure(
                 "InputLimit",
                 "request target or method exceeds the binding limit",
             ));
         }
+
         let protocol = match options.protocol.as_str() {
             "http1" => Some(HttpProtocol::Http1),
             "http2" => Some(HttpProtocol::Http2),
@@ -99,6 +101,7 @@ impl Prepared {
         .map_err(request)?
         .headers(headers)
         .trailers(controls.trailers);
+
         if let Some(milliseconds) = options.expect_continue_ms {
             let wait = expect_continue_wait(milliseconds, started)?;
             builder = builder.expect_continue(wait);
@@ -116,12 +119,14 @@ impl Prepared {
             builder = builder.redirect_history(positive_count(maximum)?);
         }
         builder = client.profile.apply_context(builder, &options.context)?;
+
         if body.is_some() && options.file.is_some() {
             return Err(failure(
                 "InvalidBody",
                 "choose one byte, prepared, file or streaming body",
             ));
         }
+
         let upload = match body {
             Some(BodyInput::Prepared(body)) => {
                 builder = builder.prepared_body(body);
@@ -146,12 +151,14 @@ impl Prepared {
                 "file path must contain 1..4096 UTF-8 bytes",
             ));
         }
+
         if let Some(budget) = controls.attempt_budget {
             builder = builder.attempt_budget(budget);
         }
         if let Some(control) = controls.transfer_control {
             builder = builder.transfer_control(control);
         }
+
         let timeouts = options.timeouts.unwrap_or_default();
         if options.timeout_ms.is_some() && timeouts.total.is_some() {
             return Err(failure(
@@ -159,6 +166,7 @@ impl Prepared {
                 "choose timeoutMs or timeouts.totalMs, not both",
             ));
         }
+
         let mut overrides = timeouts.overrides()?;
         if let Some(milliseconds) = options.timeout_ms {
             overrides = overrides.total(phantom::TimeoutOverride::Limit(Duration::from_millis(
@@ -175,12 +183,14 @@ impl Prepared {
             })
             .transpose()?;
         builder = builder.timeouts(overrides);
+
         let permit = Arc::clone(&client.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;
         exchange.claim(permit, deadline)?;
         let pending = Pending::new(Arc::clone(&exchange), Arc::clone(client));
         client.register(&exchange)?;
+
         if let Some(upload) = upload {
             builder = if let Some(multipart) = upload.multipart() {
                 builder.multipart_body(multipart.take_body(&upload)?)
@@ -192,6 +202,7 @@ impl Prepared {
         if let Some(diagnostics) = controls.diagnostics {
             diagnostics.attach(&mut builder)?;
         }
+
         Ok(Self {
             builder,
             file,
@@ -207,12 +218,18 @@ impl Prepared {
             exchange,
             _pending,
         } = self;
+
         if exchange.upload_state().is_some() {
             let exchange = Arc::clone(&exchange);
             drop(tokio::spawn(async move {
-                tokio::select! { biased; () = exchange.finished() => {}, _ = exchange.interrupted() => exchange.fail() }
+                tokio::select! {
+                    biased;
+                    () = exchange.finished() => {},
+                    _ = exchange.interrupted() => exchange.fail()
+                }
             }));
         }
+
         let send = async {
             if let Some((path, maximum)) = file {
                 let file = tokio::fs::File::open(path)
@@ -228,11 +245,13 @@ impl Prepared {
                         "upload must be a regular file within maximumBytes",
                     ));
                 }
+
                 builder = builder.streaming_body(FileBody {
                     file,
                     remaining: metadata.len(),
                 });
             }
+
             let response = builder.send().await.map_err(request)?;
             let status = u32::from(response.status().as_u16());
             let info = response
@@ -247,6 +266,7 @@ impl Prepared {
             }
             .to_owned();
             let url = info.effective_uri().to_string();
+
             let count = |value| {
                 u32::try_from(value).map_err(|_| {
                     failure("Capacity", "response counter exceeds the supported range")
@@ -254,6 +274,7 @@ impl Prepared {
             };
             let redirects = count(info.redirects_followed())?;
             let connection_retries = count(info.retries_performed())?;
+
             let redirect_history = response
                 .extensions()
                 .get::<phantom::RedirectHistory>()
@@ -274,6 +295,7 @@ impl Prepared {
                     })
                 })
                 .transpose()?;
+
             let decoded_content_codings = info
                 .decoded_content_codings()
                 .iter()
@@ -288,6 +310,7 @@ impl Prepared {
                     )),
                 })
                 .collect::<Result<Vec<_>>>()?;
+
             let headers = response
                 .extensions()
                 .get::<phantom::OrderedResponseHeaders>()
@@ -301,6 +324,7 @@ impl Prepared {
                     )
                 })
                 .collect();
+
             exchange.attach(response)?;
             Ok((
                 ResponseHead {
@@ -316,6 +340,7 @@ impl Prepared {
                 Arc::clone(&exchange),
             ))
         };
+
         tokio::select! {
             biased;
             error = exchange.interrupted() => Err(error),

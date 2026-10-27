@@ -25,6 +25,7 @@ impl Environment {
         if self.closed.load(Ordering::Acquire) {
             return Err(failure("ClientClosed", "Node environment is closed"));
         }
+
         clients.retain(|client| {
             client
                 .upgrade()
@@ -36,6 +37,7 @@ impl Environment {
                 "too many clients in this Node environment",
             ));
         }
+
         clients.push(Arc::downgrade(client));
         Ok(())
     }
@@ -46,6 +48,7 @@ impl Environment {
             let mut clients = self.clients.lock().unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *clients)
         };
+
         for client in clients.into_iter().filter_map(|client| client.upgrade()) {
             client.close();
         }
@@ -88,6 +91,7 @@ impl ClientState {
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
         });
+
         environment.register(&state)?;
         Ok(state)
     }
@@ -108,6 +112,7 @@ impl ClientState {
                 "maximumActiveRequests must be 1..1024",
             ));
         }
+
         // Every request selects its context explicitly, including attached templates.
         let settings = profile.settings.clone().without_request_template();
         let mut builder = Client::builder(settings).route(route(
@@ -117,6 +122,7 @@ impl ClientState {
             options.proxy_password.as_deref(),
             options.proxy_user_id.as_deref(),
         )?);
+
         if let Some(network) = options.network {
             builder = crate::network::apply(builder, network)?;
         }
@@ -132,24 +138,28 @@ impl ClientState {
         if options.cookies.unwrap_or(false) {
             builder = builder.cookies();
         }
+
         for root in roots {
             builder = builder.add_root_certificate_der(root);
         }
         for root in proxy_roots {
             builder = builder.add_proxy_root_certificate_der(root);
         }
+
         if let Some(pins) = pins.origin {
             builder = builder.server_spki_pins(pins);
         }
         if let Some(pins) = pins.proxy {
             builder = builder.proxy_server_spki_pins(pins);
         }
+
         if let Some(certificate) = certificates.default {
             builder = builder.client_certificate(certificate);
         }
         for (origin, certificate) in certificates.origins {
             builder = builder.client_certificate_for(&origin, certificate);
         }
+
         if let Some(url) = options.base_url {
             builder = builder.base_url(&url).map_err(|_| {
                 failure(
@@ -158,6 +168,7 @@ impl ClientState {
                 )
             })?;
         }
+
         let timeouts = options
             .timeouts
             .unwrap_or_default()
@@ -167,6 +178,7 @@ impl ClientState {
         let core = builder
             .build()
             .map_err(crate::client_certificate::build_error)?;
+
         let state = Arc::new(Self {
             core,
             profile,
@@ -179,6 +191,7 @@ impl ClientState {
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
         });
+
         environment.register(&state)?;
         Ok(state)
     }
@@ -197,6 +210,7 @@ impl ClientState {
         if self.aborted.load(Ordering::Acquire) {
             return Err(failure("Cancelled", "client work was aborted"));
         }
+
         exchanges.retain(|entry| entry.upgrade().is_some_and(|entry| entry.is_active()));
         exchanges.push(Arc::downgrade(exchange));
         Ok(())
@@ -209,6 +223,7 @@ impl ClientState {
     pub(crate) fn register_socket(&self, socket: &Arc<crate::websocket::Socket>) -> Result<()> {
         let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
         self.check_open()?;
+
         sockets.retain(|socket| socket.upgrade().is_some_and(|socket| socket.is_active()));
         sockets.push(Arc::downgrade(socket));
         Ok(())
@@ -257,9 +272,11 @@ impl ClientState {
             let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *sockets)
         };
+
         for socket in sockets.into_iter().filter_map(|socket| socket.upgrade()) {
             socket.abort();
         }
+
         let exchanges = {
             let mut exchanges = self
                 .exchanges
@@ -267,6 +284,7 @@ impl ClientState {
                 .unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *exchanges)
         };
+
         for exchange in exchanges.into_iter().filter_map(|entry| entry.upgrade()) {
             exchange.cancel();
         }
@@ -288,18 +306,21 @@ pub(crate) fn route(
             "SOCKS4 uses proxyUserId and does not support password credentials",
         ));
     }
+
     if user_id.is_some() && !socks4 {
         return Err(failure(
             "InvalidProxy",
             "proxyUserId requires a SOCKS4 or SOCKS4a proxy",
         ));
     }
+
     if username.is_some() != password.is_some() || (kind == "direct" && username.is_some()) {
         return Err(failure(
             "InvalidProxy",
             "proxy credentials require a proxy and both username and password",
         ));
     }
+
     match (kind, proxy) {
         ("direct", None) => Ok(Route::direct()),
         ("proxy", Some(uri)) if uri.starts_with("http://") || uri.starts_with("https://") => {
