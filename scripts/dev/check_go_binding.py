@@ -44,8 +44,7 @@ def main() -> None:
     environment["CGO_ENABLED"] = "0"
     environment["PHANTOM_GO_LIBRARY"] = str((library / name).resolve())
     module = root / "bindings" / "go"
-    sources = [str(path) for path in sorted(module.glob("*.go"))]
-    unformatted = subprocess.check_output(["gofmt", "-l", *sources], text=True)
+    unformatted = subprocess.check_output(["gofmt", "-l", str(module)], text=True)
     if unformatted:
         raise RuntimeError("Go files need formatting:\n" + unformatted)
     with tempfile.TemporaryDirectory(prefix="phantom-go-h3-peer-") as temporary:
@@ -56,7 +55,7 @@ def main() -> None:
             "-count=1",
             "-timeout=5m",
             "-v",
-            ".",
+            "./...",
             cwd=module,
             env=environment,
         )
