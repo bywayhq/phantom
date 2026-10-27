@@ -89,6 +89,9 @@ func (body *Body) Read(output []byte) (int, error) {
 	eof := false
 	var trailers ResponseTrailers
 	err := performSubmitted(body.ctx, func() (uint64, error) { return submitOperation(1, body.owner.id, uint64(maximum), nil) }, nil, func(event completion) error {
+		if event.kind != 2 && event.kind != 3 {
+			return &Error{Kind: "native_abi"}
+		}
 		eof = event.eof
 		trailers = event.trailers
 		bytes = event.data

@@ -202,6 +202,9 @@ func (m *multipartLifetime) produce(u *uploadLifetime) {
 	for completed := 0; completed < len(m.sources); completed++ {
 		var index int
 		err := performSubmitted(u.ctx, func() (uint64, error) { return submitOperation(4, u.id, 0, nil) }, nil, func(event completion) error {
+			if event.kind != 4 {
+				return &Error{Kind: "native_abi"}
+			}
 			result := struct{ Part int }{int(event.part)}
 			if result.Part < 0 || result.Part >= len(m.parts) || !m.parts[result.Part].streaming || used[result.Part] || m.parts[result.Part].reader != m.sources[completed] {
 				return &Error{Kind: "native_abi"}

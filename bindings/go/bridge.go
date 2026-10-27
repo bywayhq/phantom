@@ -30,15 +30,14 @@ type reply struct {
 	Error *Error          `json:"error"`
 }
 type completion struct {
-	Operation  uint64          `json:"operation"`
-	Value      json.RawMessage `json:"value"`
-	Error      *Error          `json:"error"`
-	DataLength int             `json:"data_length"`
-	data       []byte
-	head       *responseHead
-	eof        bool
-	trailers   ResponseTrailers
-	part       uint64
+	Operation uint64
+	Error     *Error
+	kind      uint64
+	data      []byte
+	head      *responseHead
+	eof       bool
+	trailers  ResponseTrailers
+	part      uint64
 }
 
 var scratch = sync.Pool{New: func() any { return make([]byte, maxMetadata) }}

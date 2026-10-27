@@ -113,7 +113,7 @@ func submitOperation(kind, id, argument uint64, data []byte) (uint64, error) {
 }
 
 func eventCompletion(event nativeEvent, fields []nativeOutputField, hops []nativeHop, arena, data []byte) (completion, error) {
-	result := completion{Operation: event.Operation, Error: nil, part: event.Part}
+	result := completion{Operation: event.Operation, Error: nil, kind: event.Kind, part: event.Part}
 	invalid := func() (completion, error) { return completion{}, &Error{Kind: "native_abi"} }
 	if event.Operation == 0 || event.ArenaLength > uint64(len(arena)) || event.DataLength > uint64(len(data)) || event.FieldCount > uint64(len(fields)) || event.CodingCount > uint64(len(fields))-event.FieldCount || event.HopCount > uint64(len(hops)) {
 		return invalid()

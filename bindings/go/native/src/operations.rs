@@ -292,7 +292,13 @@ impl Completion {
     #[cfg(test)]
     pub(super) fn metadata(&self) -> Vec<u8> {
         let (value, error) = match &self.result {
-            Ok(Completed::Head(head)) => (serde_json::to_value(head).ok(), None),
+            Ok(Completed::Head(head)) => (
+                Some(match serde_json::to_value(head) {
+                    Ok(value) => value,
+                    Err(_) => return terminal_error(self.operation, "internal"),
+                }),
+                None,
+            ),
             Ok(Completed::Data) => (Some(json!({"eof":false})), None),
             Ok(Completed::End(trailers)) => (Some(json!({"eof":true,"trailers":trailers})), None),
             Ok(Completed::Complete) => (Some(json!({})), None),

@@ -4,7 +4,7 @@
 //! calls run synchronous CPU work; worker tasks never receive foreign buffers.
 //!
 //! The symbols use the target C ABI and usize/size_t widths. Clients pass
-//! only bytes and monotonic integer handles; no foreign callback or allocation
+//! concrete C descriptors, bytes and monotonic handles; no foreign callback or allocation
 //! ownership crosses this module. Lengths are bounded before slices are formed.
 //! Metadata and body copies finish before returning, including the blocking
 //! wait. Empty inputs may be null; outputs must be valid writable buffers.

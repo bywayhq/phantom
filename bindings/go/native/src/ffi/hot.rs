@@ -372,6 +372,26 @@ unsafe extern "C" fn phantom_go_request(
     1
 }
 
+fn operation(kind: u64, id: u64, argument: u64) -> Result<Command, Failure> {
+    Ok(match kind {
+        1 => Command::Read {
+            body: id,
+            maximum: usize::try_from(argument).map_err(|_| Failure::new("chunk_size"))?,
+        },
+        2 if argument <= 2 => Command::WriteUpload {
+            upload: id,
+            end: (argument != 0).then_some(argument == 2),
+        },
+        3 => Command::WaitUpload { upload: id },
+        4 => Command::WaitUploadPart { upload: id },
+        5 => Command::Cancel { operation: id },
+        6 => Command::Ack { operation: id },
+        7 => Command::CloseBody { body: id },
+        8 => Command::CloseUpload { upload: id },
+        _ => return Err(Failure::new("invalid_command")),
+    })
+}
+
 // SAFETY: Data is borrowed only for this call; reply is one writable aligned
 // value. Only owned commands/bytes reach the runtime and its tasks.
 #[unsafe(no_mangle)]
@@ -387,23 +407,7 @@ unsafe extern "C" fn phantom_go_operation(
         return 0;
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
-        let command = match kind {
-            1 => Command::Read {
-                body: id,
-                maximum: usize::try_from(argument).map_err(|_| Failure::new("chunk_size"))?,
-            },
-            2 if argument <= 2 => Command::WriteUpload {
-                upload: id,
-                end: (argument != 0).then_some(argument == 2),
-            },
-            3 => Command::WaitUpload { upload: id },
-            4 => Command::WaitUploadPart { upload: id },
-            5 => Command::Cancel { operation: id },
-            6 => Command::Ack { operation: id },
-            7 => Command::CloseBody { body: id },
-            8 => Command::CloseUpload { upload: id },
-            _ => return Err(Failure::new("invalid_command")),
-        };
+        let command = operation(kind, id, argument)?;
         // SAFETY: bytes validates null/length under the call-scoped contract.
         let data = unsafe {
             bytes(
@@ -592,4 +596,141 @@ unsafe extern "C" fn phantom_go_wait_event(
         ptr::write(event, result);
     }
     1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_request_copies_borrowed_fields_and_keeps_zero_limits() -> Result<(), Failure> {
+        let mut method = b"POST".to_vec();
+        let mut url = b"http://localhost/".to_vec();
+        let name = b"X-Case";
+        let mut value = vec![255, 0];
+        let field = Field {
+            name: Span {
+                pointer: name.as_ptr(),
+                length: name.len(),
+            },
+            value: Span {
+                pointer: value.as_ptr(),
+                length: value.len(),
+            },
+            sensitive: 1,
+        };
+        let wire = Request {
+            client: 1,
+            method: Span {
+                pointer: method.as_ptr(),
+                length: method.len(),
+            },
+            url: Span {
+                pointer: url.as_ptr(),
+                length: url.len(),
+            },
+            headers: &field,
+            header_count: 1,
+            trailers: ptr::null(),
+            trailer_count: 0,
+            flags: 3,
+            expect_continue: 0,
+            budget: 7,
+            transfer: 0,
+            diagnostics: 0,
+            prepared_body: 0,
+            upload: 0,
+            timeouts: [Timeout {
+                mode: 2,
+                nanoseconds: 0,
+            }; 5],
+            decoded_maximum: 0,
+            redirect_maximum: 0,
+            credential_headers: ptr::null(),
+            credential_header_count: 0,
+            redirect_history: 0,
+            retry: ptr::null(),
+        };
+        // SAFETY: The nested pointers lend live, aligned owned arrays for this call.
+        let command = unsafe { request(&wire)? };
+        method.fill(b'!');
+        url.fill(b'!');
+        value.fill(0);
+        let Command::Request {
+            method,
+            url,
+            headers,
+            has_body,
+            budget,
+            timeouts,
+            expect_continue_nanoseconds,
+            ..
+        } = command
+        else {
+            return Err(Failure::new("internal"));
+        };
+        assert_eq!(method, "POST");
+        assert_eq!(url, "http://localhost/");
+        assert_eq!(headers[0].name, "X-Case");
+        assert_eq!(headers[0].value, [255, 0]);
+        assert!(headers[0].sensitive);
+        assert!(has_body);
+        assert_eq!(budget, Some(7));
+        assert_eq!(expect_continue_nanoseconds, Some(0));
+        assert_eq!(
+            timeouts.defaults().total_duration(),
+            Some(std::time::Duration::ZERO)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn upload_operation_distinguishes_data_abort_and_completion() -> Result<(), Failure> {
+        for (argument, expected) in [(0, None), (1, Some(false)), (2, Some(true))] {
+            let Command::WriteUpload { upload, end } = operation(2, 11, argument)? else {
+                return Err(Failure::new("internal"));
+            };
+            assert_eq!(upload, 11);
+            assert_eq!(end, expected);
+        }
+        assert_eq!(
+            operation(2, 11, 3).err().map(|error| error.kind),
+            Some("invalid_command")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn foreign_arrays_are_bounded_before_forming_slices() {
+        let mut remaining = operations::MAX_COMMAND;
+        // SAFETY: These intentionally empty pointers are rejected before access.
+        assert_eq!(
+            unsafe { fields(ptr::null(), 1, &mut remaining) }
+                .err()
+                .map(|error| error.kind),
+            Some("input_limit")
+        );
+        // SAFETY: The oversized count is rejected before dereferencing this pointer.
+        assert_eq!(
+            unsafe { fields(ptr::null(), 257, &mut remaining) }
+                .err()
+                .map(|error| error.kind),
+            Some("input_limit")
+        );
+        assert_eq!(remaining, operations::MAX_COMMAND);
+    }
+
+    #[test]
+    fn typed_layout_matches_the_64_bit_c_contract() {
+        if size_of::<usize>() == 8 {
+            assert_eq!(size_of::<Span>(), 16);
+            assert_eq!(size_of::<Field>(), 40);
+            assert_eq!(size_of::<Request>(), 256);
+            assert_eq!(size_of::<Retry>(), 96);
+            assert_eq!(size_of::<Reply>(), 200);
+            assert_eq!(size_of::<Event>(), 336);
+            assert_eq!(size_of::<OutputField>(), 40);
+            assert_eq!(size_of::<Hop>(), 72);
+        }
+    }
 }
