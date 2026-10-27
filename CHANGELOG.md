@@ -11,6 +11,8 @@
   pointing to the native library, or place it beside your executable.
 - Accept bounded, already encoded request bodies with an exact content type
   through `PreparedRequestBody::encoded`.
+- Go reserves response capacity before sending and keeps existing bodies
+  readable when request or session operations fill admission capacity.
 
 ## 0.5.1 - 2026-10-26
 
