@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Python and Node add WebSockets with shared client connections and session
+  state, message limits, cancellation and readable rejected handshakes.
+- Breaking: Python `close()`/`aclose()` and Node `close()` wait for admitted
+  work to finish. A timeout leaves that work usable.
+  Migrate: use Python `abort()` or Node `destroy()` to cancel active work.
 - Select navigation, fetch and resource contexts per request in Rust, Python
   and Go, sharing the client's connections and session state. Node uses the
   same template cache and also exposes resource contexts.

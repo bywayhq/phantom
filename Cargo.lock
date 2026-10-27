@@ -1676,6 +1676,7 @@ name = "phantom-node"
 version = "0.5.1"
 dependencies = [
  "bytes",
+ "futures-util",
  "http",
  "http-body",
  "http-body-util",
@@ -1696,6 +1697,7 @@ version = "0.5.1"
 name = "phantom-python"
 version = "0.5.1"
 dependencies = [
+ "futures-util",
  "http",
  "http-body",
  "http-body-util",

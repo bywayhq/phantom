@@ -35,6 +35,7 @@ SOURCES = (
     "lib/tls.cjs",
     "lib/upload.cjs",
     "lib/validation.cjs",
+    "lib/websocket.cjs",
 )
 TARGETS = {
     "x86_64-pc-windows-msvc": ("win32", "x64", "phantom_node.dll"),

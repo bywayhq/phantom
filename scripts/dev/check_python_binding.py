@@ -28,6 +28,7 @@ TEST_DEPENDENCIES = (
     "hpack==4.2.0",
     "hyperframe==6.1.0",
     "mypy==1.19.1",
+    "websockets==15.0.1",
 )
 MAX_WHEEL_BYTES = 256 * 1024 * 1024
 
