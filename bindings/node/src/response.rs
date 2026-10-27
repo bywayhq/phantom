@@ -34,6 +34,12 @@ struct Body {
 }
 
 #[derive(Debug)]
+enum Admission {
+    Request { _permit: OwnedSemaphorePermit },
+    RejectedUpgrade { _permit: Arc<OwnedSemaphorePermit> },
+}
+
+#[derive(Debug)]
 pub(crate) struct Exchange {
     claimed: AtomicBool,
     terminal: AtomicU8,
@@ -45,7 +51,7 @@ pub(crate) struct Exchange {
     finished: watch::Sender<bool>,
     body: Mutex<Option<Body>>,
     trailers: Mutex<ResponseTrailers>,
-    permit: Mutex<Option<OwnedSemaphorePermit>>,
+    permit: Mutex<Option<Admission>>,
     deadline: Mutex<Option<Instant>>,
 }
 
@@ -72,6 +78,18 @@ impl Exchange {
         permit: OwnedSemaphorePermit,
         deadline: Option<Instant>,
     ) -> Result<()> {
+        self.claim_admission(Admission::Request { _permit: permit }, deadline)
+    }
+
+    pub(crate) fn claim_shared(
+        &self,
+        permit: Arc<OwnedSemaphorePermit>,
+        deadline: Option<Instant>,
+    ) -> Result<()> {
+        self.claim_admission(Admission::RejectedUpgrade { _permit: permit }, deadline)
+    }
+
+    fn claim_admission(&self, permit: Admission, deadline: Option<Instant>) -> Result<()> {
         if self.claimed.swap(true, Ordering::AcqRel) {
             return Err(failure(
                 "InvalidOperation",
@@ -439,6 +457,29 @@ mod tests {
         exchange.cancel();
         assert_eq!(admission.available_permits(), 0);
         assert!(Arc::clone(&admission).try_acquire_owned().is_err());
+        drop(pending);
+        assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_rejected_upgrade_retains_its_existing_slot_until_both_owners_release() -> Result<()> {
+        let admission = Arc::new(Semaphore::new(1));
+        let opening = Arc::new(
+            Arc::clone(&admission)
+                .try_acquire_owned()
+                .map_err(|_| failure("TestAdmission", "initial admission failed"))?,
+        );
+        let exchange = Exchange::new();
+        exchange.claim_shared(Arc::clone(&opening), None)?;
+        let pending = Pending {
+            exchange: Arc::clone(&exchange),
+            _owner: None,
+        };
+        drop(opening);
+        assert_eq!(admission.available_permits(), 0);
+        exchange.cancel();
+        assert_eq!(admission.available_permits(), 0);
         drop(pending);
         assert_eq!(admission.available_permits(), 1);
         Ok(())

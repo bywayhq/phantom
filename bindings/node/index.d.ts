@@ -14,6 +14,8 @@ export class PhantomError extends Error {
   readonly cause?: unknown;
   /** HTTP status when a WebSocket opening response rejects the upgrade. */
   readonly status?: number;
+  /** Rejected WebSocket opening; read or close its body to release the request slot. */
+  readonly response?: Response;
   /** Iterator cleanup failure; may become available after request settlement. */
   readonly cleanupError?: unknown;
 }
@@ -317,8 +319,8 @@ export class Response implements AsyncIterable<Buffer> {
   readonly protocol: 'http1' | 'http2' | 'http3';
   readonly url: string;
   readonly redirects: number;
-  /** Connection-setup retries only; excludes status retries and protocol replays. */
-  readonly connectionRetries: number;
+  /** Connection-setup retries only; null on a WebSocket rejection without attempt metadata. */
+  readonly connectionRetries: number | null;
   /** Selected chain in wire Content-Encoding order; not a completion signal. */
   readonly decodedContentCodings: readonly ContentCoding[];
   readonly redirectHistory: RedirectHistory | null;

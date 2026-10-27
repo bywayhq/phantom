@@ -25,7 +25,7 @@ class Response {
     this.protocol = response.protocol;
     this.url = response.url;
     this.redirects = response.redirects;
-    this.connectionRetries = response.connectionRetries;
+    this.connectionRetries = response.connectionRetries ?? null;
     Object.defineProperty(this, 'decodedContentCodings', {
       value: Object.freeze(response.decodedContentCodings), enumerable: true,
     });

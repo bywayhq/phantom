@@ -71,7 +71,7 @@ pub struct NativeResponse {
     pub(super) protocol: String,
     pub(super) url: String,
     pub(super) redirects: u32,
-    pub(super) connection_retries: u32,
+    pub(super) connection_retries: Option<u32>,
     pub(super) decoded_content_codings: Vec<String>,
     pub(super) redirect_history: Option<RedirectHistoryInfo>,
     pub(super) exchange: Arc<Exchange>,
@@ -107,10 +107,10 @@ impl NativeResponse {
     pub fn redirects(&self) -> u32 {
         self.redirects
     }
-    /// Connection-setup retries, excluding other replay classes.
+    /// Connection-setup retries; absent on a rejected WebSocket handshake.
     #[napi(getter)]
     #[must_use]
-    pub fn connection_retries(&self) -> u32 {
+    pub fn connection_retries(&self) -> Option<u32> {
         self.connection_retries
     }
     /// Selected coding chain in Content-Encoding order, not completion status.

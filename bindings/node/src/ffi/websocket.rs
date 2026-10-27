@@ -12,10 +12,11 @@ use phantom::{
     WebSocketRetryPolicy,
 };
 
-use super::{buffer::copy_buffer, options::WireHeader};
+use super::{buffer::copy_buffer, options::WireHeader, response::NativeResponse};
 use crate::{
     client::ClientState,
     error::failure,
+    response::{Exchange, Pending},
     websocket::{Socket, error},
 };
 
@@ -55,6 +56,75 @@ pub struct WebSocketHandshake {
     pub selected_protocol: Option<String>,
     /// Exact ordered response fields.
     pub headers: Vec<WireHeader>,
+}
+
+/// An unsuccessful opening with its unconsumed HTTP response.
+#[derive(Debug)]
+#[napi(object, object_from_js = false)]
+pub struct WebSocketRejection {
+    /// Typed failure encoded with the same WebSocket error taxonomy.
+    pub error: String,
+    /// Original ordered response fields and pull-driven body.
+    pub response: NativeResponse,
+}
+
+pub(super) fn rejection(
+    response: phantom::Response<phantom::ResponseBody>,
+    error: String,
+    url: String,
+    owner: Arc<ClientState>,
+    permit: Arc<tokio::sync::OwnedSemaphorePermit>,
+) -> Result<WebSocketRejection> {
+    let protocol = match response.version() {
+        http::Version::HTTP_11 => "http1",
+        http::Version::HTTP_2 => "http2",
+        http::Version::HTTP_3 => "http3",
+        _ => {
+            return Err(failure(
+                "Internal",
+                "WebSocket rejection HTTP version is unsupported",
+            ));
+        }
+    };
+    let headers = response
+        .extensions()
+        .get::<phantom::OrderedResponseHeaders>()
+        .ok_or_else(|| {
+            failure(
+                "Internal",
+                "WebSocket rejection header order is unavailable",
+            )
+        })?
+        .iter()
+        .map(|field| {
+            (
+                field.name().to_owned(),
+                field.value().to_vec(),
+                field.is_sensitive(),
+            )
+        })
+        .collect();
+    let status = u32::from(response.status().as_u16());
+    let exchange = Exchange::new();
+    exchange.claim_shared(permit, None)?;
+    let _pending = Pending::new(Arc::clone(&exchange), Arc::clone(&owner));
+    owner.register(&exchange)?;
+    exchange.attach(response.into_body())?;
+    Ok(WebSocketRejection {
+        error,
+        response: NativeResponse {
+            status,
+            headers,
+            protocol: protocol.to_owned(),
+            url,
+            redirects: 0,
+            connection_retries: None,
+            decoded_content_codings: Vec::new(),
+            redirect_history: None,
+            exchange,
+            owner,
+        },
+    })
 }
 
 /// One complete data message or control event.
@@ -178,7 +248,7 @@ impl Drop for NativeWebSocket {
 pub(super) fn prepare(
     env: &Env,
     client: &ClientState,
-    mut options: WebSocketOptions,
+    options: &mut WebSocketOptions,
 ) -> Result<WebSocketRequestBuilder> {
     client.check_open()?;
     if options.url.len() > 64 * 1024 {

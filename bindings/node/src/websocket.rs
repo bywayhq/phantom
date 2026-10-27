@@ -249,6 +249,10 @@ impl Drop for WriteHalf {
 }
 
 pub(crate) fn error(error: phantom::WebSocketError) -> napi::Error {
+    error_details(&error)
+}
+
+pub(crate) fn error_details(error: &phantom::WebSocketError) -> napi::Error {
     let phase = if error.timeout_phase().is_some() {
         "webSocketHandshake"
     } else {

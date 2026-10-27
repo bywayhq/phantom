@@ -7,7 +7,7 @@ use std::{
 
 use napi::{
     Env, Result,
-    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer},
+    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer, Either},
 };
 use napi_derive::napi;
 
@@ -18,7 +18,7 @@ use super::{
     options::{RequestOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
-    websocket::{NativeWebSocket, WebSocketHandshake, WebSocketOptions},
+    websocket::{NativeWebSocket, WebSocketHandshake, WebSocketOptions, WebSocketRejection},
 };
 use crate::{
     client::ClientState,
@@ -41,10 +41,11 @@ impl NativeClient {
     pub fn websocket(
         &self,
         env: Env,
-        options: WebSocketOptions,
+        mut options: WebSocketOptions,
         socket: &NativeWebSocket,
-    ) -> Result<AsyncBlock<WebSocketHandshake>> {
-        let builder = super::websocket::prepare(&env, &self.state, options)?;
+    ) -> Result<AsyncBlock<Either<WebSocketHandshake, WebSocketRejection>>> {
+        let builder = super::websocket::prepare(&env, &self.state, &mut options)?;
+        let url = options.url;
         let permit = Arc::clone(&self.state.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;
@@ -55,17 +56,30 @@ impl NativeClient {
             return Err(error);
         }
         let owner = Arc::clone(&socket);
+        let client = Arc::clone(&self.state);
         let pending = AsyncBlockBuilder::new(async move {
-            let _permit = permit;
             let result = async {
                 let connected = tokio::select! {
                     biased;
                     error = socket.interrupted() => return Err(error),
-                    result = builder.connect() => result.map_err(crate::websocket::error)?,
+                    result = builder.connect() => match result {
+                        Ok(connected) => connected,
+                        Err(error) => {
+                            let details = crate::websocket::error_details(&error);
+                            let Some(response) = error.into_response() else {
+                                return Err(details);
+                            };
+                            let rejection = super::websocket::rejection(
+                                response, details.reason, url, client, Arc::clone(&permit),
+                            )?;
+                            socket.abort();
+                            return Ok(Either::B(rejection));
+                        }
+                    },
                 };
                 let handshake = super::websocket::handshake(&connected)?;
                 socket.attach(connected)?;
-                Ok(handshake)
+                Ok(Either::A(handshake))
             }
             .await;
             if result.is_err() {
@@ -251,7 +265,7 @@ impl NativeClient {
                 protocol: head.protocol,
                 url: head.url,
                 redirects: head.redirects,
-                connection_retries: head.connection_retries,
+                connection_retries: Some(head.connection_retries),
                 decoded_content_codings: head.decoded_content_codings,
                 redirect_history: head.redirect_history,
                 exchange,

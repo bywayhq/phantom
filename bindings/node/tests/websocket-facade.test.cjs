@@ -142,3 +142,59 @@ test('fatal sends release signal ownership while capacity and invalid close fail
   await assert.rejects(socket.close(undefined, 'reason without a code'), {code: 'InvalidArgument'});
   socket.abort(); await client.close();
 });
+
+test('a rejected opening retains ordered response fields and bounded body ownership', async () => {
+  const replies = [];
+  const failed = facade(() => {
+    const response = {
+      status: 403, protocol: 'http1', url: 'ws://example.test/', redirects: 0,
+      connectionRetries: null, decodedContentCodings: [], redirectHistory: null,
+      headers: [{name: 'X-Duplicate', value: Buffer.from('one'), sensitive: false},
+        {name: 'X-Duplicate', value: Buffer.from('two'), sensitive: false}],
+      close() {this.closed = true;},
+      async collect(maximum) {
+        if (this.closed) throw Error('PHANTOM:Cancelled:request was cancelled');
+        if (maximum < 6) throw Error('PHANTOM:ResponseBodyLimit:response exceeds maximumBytes');
+        return Buffer.from('denied');
+      },
+    };
+    replies.push(response);
+    return {error: 'PHANTOM_WEBSOCKET:HandshakeRejected::403:WebSocket opening was rejected', response};
+  });
+  const client = new failed.Client({profile: 'exact', route: 'direct'});
+  for (const action of ['read', 'limit', 'abort', 'close']) {
+    const controller = new AbortController();
+    let failure;
+    await assert.rejects(client.websocket('ws://example.test/', {signal: controller.signal}), (error) => {
+      failure = error; return error.code === 'WebSocket' && error.kind === 'HandshakeRejected';
+    });
+    assert(failure.response instanceof failed.Response);
+    assert.equal(failure.response.connectionRetries, null);
+    assert.deepEqual(failure.response.headers.map(({name, value}) => [name, value.toString()]), [['X-Duplicate', 'one'], ['X-Duplicate', 'two']]);
+    assert.equal(replies.at(-1).closed, undefined);
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 1);
+    if (action === 'read') assert.equal(await failure.response.text(6), 'denied');
+    if (action === 'limit') await assert.rejects(failure.response.bytes(5), {code: 'ResponseBodyLimit'});
+    if (action === 'abort') {
+      controller.abort(); await assert.rejects(failure.response.bytes(6), {code: 'Cancelled'});
+    }
+    failure.response.close();
+    assert(replies.at(-1).closed);
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  }
+  await client.close();
+});
+
+test('abort during rejection handoff closes the response before reporting cancellation', async () => {
+  const controller = new AbortController();
+  const response = {close() {this.closed = true;}};
+  const failed = facade(() => {
+    controller.abort();
+    return {error: 'PHANTOM_WEBSOCKET:HandshakeRejected::403:WebSocket opening was rejected', response};
+  });
+  const client = new failed.Client({profile: 'exact', route: 'direct'});
+  await assert.rejects(client.websocket('ws://example.test/', {signal: controller.signal}), (error) => error.code === 'Cancelled' && error.response === undefined);
+  assert(response.closed);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  await client.close();
+});

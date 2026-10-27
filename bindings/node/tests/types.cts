@@ -16,7 +16,7 @@ async function use(): Promise<void> {
   const actual: 'http1' | 'http2' | 'http3' = response.protocol;
   const finalUrl: string = response.url;
   const redirects: number = response.redirects;
-  const retries: number = response.connectionRetries;
+  const retries: number | null = response.connectionRetries;
   void actual; void finalUrl; void redirects; void retries;
   await client.closeIdleConnections(); await client.refreshConnections();
   client.clearDnsCache(); client.clearAltSvc(); client.clearAltSvcRacingHistory(); client.clearClientHints();
@@ -48,6 +48,17 @@ async function websocket(): Promise<void> {
   await client.websocket('wss://example.com', {protocol: 'negotiated'});
   await client.close();
 }
+function rejectedWebSocket(error: unknown): void {
+  if (error instanceof PhantomError && error.response !== undefined) {
+    const response: Response = error.response;
+    const retries: number | null = response.connectionRetries;
+    void response.bytes(1024); void retries;
+    // @ts-expect-error Rejected handshakes may lack attempt metadata.
+    const definiteRetries: number = response.connectionRetries;
+    void definiteRetries;
+  }
+}
+void rejectedWebSocket;
 void websocket;
 async function requestConveniences(): Promise<void> {
   const defaults = [{name: 'x-client', value: Buffer.from('one')}] as const;

@@ -225,6 +225,8 @@ works. Await sends for backpressure; one send and one receive may run together.
 Concurrent reads or writes fail. Ping replies are automatic. `close()` flushes
 a Close frame; receive its reply before aborting for graceful shutdown.
 The signal and client shutdown cancel the connection. Compression is off.
+Rejected openings throw a `PhantomError` with `response`: the original headers
+and readable HTTP body. Read it within a byte limit or call `response.close()`.
 
 ## Cookies and connections
 

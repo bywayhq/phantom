@@ -48,4 +48,6 @@ pub use profile::{
 };
 pub use response::{NativeResponse, RedirectHistoryInfo, RedirectHopInfo, ResponseTrailersInfo};
 pub use upload::{NativeUpload, StreamingMultipartField};
-pub use websocket::{NativeWebSocket, WebSocketEvent, WebSocketHandshake, WebSocketOptions};
+pub use websocket::{
+    NativeWebSocket, WebSocketEvent, WebSocketHandshake, WebSocketOptions, WebSocketRejection,
+};

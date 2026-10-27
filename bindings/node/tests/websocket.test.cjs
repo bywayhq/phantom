@@ -134,6 +134,40 @@ test('client shutdown closes idle WebSockets and abort releases binding admissio
   await assert.rejects(idle.send('after shutdown'), {code: 'Cancelled'});
 });
 
+test('rejected WebSocket responses retain headers, bounded bodies, cancellation and admission', async (t) => {
+  const server = http.createServer((_request, response) => response.end('ok'));
+  server.on('upgrade', (_request, socket) => {
+    socket.write('HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\nX-Duplicate: one\r\nX-Duplicate: two\r\nConnection: close\r\n\r\ndenied');
+    socket.end();
+  });
+  const port = await listen(t, server);
+  const client = new Client({profile, route: 'direct', maximumActiveRequests: 1});
+  t.after(() => client.close());
+  const url = `ws://127.0.0.1:${port}/denied`, endpoint = `http://127.0.0.1:${port}`;
+  for (const action of ['read', 'limit', 'abort', 'close', 'shutdown']) {
+    const controller = new AbortController();
+    let failure;
+    await assert.rejects(client.websocket(url, {signal: controller.signal}), (error) => {
+      failure = error; return error.code === 'WebSocket' && error.kind === 'HandshakeRejected' && error.status === 403;
+    });
+    const response = failure.response;
+    assert.equal(response.status, 403); assert.equal(response.protocol, 'http1');
+    assert.equal(response.url, url); assert.equal(response.connectionRetries, null);
+    assert.deepEqual(response.headers.filter(({name}) => name.toLowerCase() === 'x-duplicate').map(({value}) => value.toString()), ['one', 'two']);
+    await assert.rejects(client.get(endpoint, {context: 'raw'}), {code: 'Capacity'});
+    if (action === 'read') assert.equal(await response.text(6), 'denied');
+    if (action === 'limit') await assert.rejects(response.bytes(5), {code: 'ResponseBodyLimit'});
+    if (action === 'abort') {controller.abort(); await assert.rejects(response.read(), {code: 'Cancelled'});}
+    if (action === 'shutdown') {await client.close(); await assert.rejects(response.read(), {code: 'Cancelled'});}
+    response.close();
+    if (action !== 'shutdown') {
+      const healthy = await client.get(endpoint, {context: 'raw'});
+      assert.equal(healthy.connectionRetries, 0);
+      assert.equal(await healthy.text(2), 'ok'); healthy.close();
+    }
+  }
+});
+
 test('HTTP/2 WebSocket abort leaves an unrelated response and pooled connection usable', async (t) => {
   const sessions = [], sockets = new Set();
   let held;
