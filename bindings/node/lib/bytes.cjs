@@ -2,7 +2,7 @@
 
 const { types } = require('node:util');
 
-const { PhantomError } = require('./errors.cjs');
+const { PhantomError, caused } = require('./errors.cjs');
 
 const apply = Reflect.apply;
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype);
@@ -16,7 +16,8 @@ function bytes(value) {
   }
   const backing = apply(backingOf, value, []);
   if (types.isSharedArrayBuffer(backing)) throw new PhantomError('InvalidArgument', 'shared byte buffers are unsupported');
-  return Buffer.isBuffer(value) ? value : Buffer.from(backing, apply(offsetOf, value, []), apply(lengthOf, value, []));
+  try { return Buffer.isBuffer(value) ? value : Buffer.from(backing, apply(offsetOf, value, []), apply(lengthOf, value, [])); }
+  catch (error) { throw caused(new PhantomError('InvalidArgument', 'bytes must not use a detached buffer'), error); }
 }
 
 module.exports = { bytes, apply, lengthOf, backingOf, offsetOf };
