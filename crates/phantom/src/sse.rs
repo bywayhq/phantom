@@ -167,6 +167,14 @@ impl SseEvent {
     pub fn id(&self) -> &str {
         &self.id
     }
+
+    /// Consumes this event and returns its owned data, event type and ID.
+    ///
+    /// No event strings are copied.
+    #[must_use]
+    pub fn into_parts(self) -> (String, String, String) {
+        (self.data, self.event, self.id)
+    }
 }
 
 /// Stable category of SSE response or decoding failure.
