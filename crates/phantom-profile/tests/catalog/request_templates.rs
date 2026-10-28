@@ -220,6 +220,17 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
                     definition.request_template(kind)?.validate()?;
                     supported += 1;
                 }
+                None if matches!(
+                    definition.selector(),
+                    "chrome-156-windows"
+                        | "chrome-156-linux"
+                        | "chrome-156-macos"
+                        | "chrome-156-macos-intel"
+                ) && kind == RequestTemplateKind::FetchNoStore =>
+                {
+                    definition.request_template(kind)?.validate()?;
+                    supported += 1;
+                }
                 None => {
                     assert_eq!(
                         definition.request_template(kind),
@@ -233,7 +244,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (37, 31));
+    assert_eq!((supported, unsupported), (41, 27));
     Ok(())
 }
 
