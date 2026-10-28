@@ -4,7 +4,7 @@
 
 ### Bindings
 
-- Python and Go add DNS-over-HTTPS and DNS-over-TLS endpoints with explicit
+- Python, Go and Node add DNS-over-HTTPS and DNS-over-TLS endpoints with explicit
   bootstrap addresses, trust roots and lookup limits.
 - Python adds pull-driven EventSource iterators with bounded reconnection,
   managed event IDs and graceful client shutdown.

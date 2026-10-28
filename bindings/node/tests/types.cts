@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type PoolOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type EncryptedDns, type NetworkOptions, type PoolOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
 import {Readable} from 'node:stream';
 
 async function use(): Promise<void> {
@@ -36,9 +36,9 @@ function encryptedDns(): void {
     kind: 'tls', serverName: 'dns.example', bootstrap: ['192.0.2.53:853'], timeoutMs: 1000, maxConcurrent: 8,
   }}});
   // @ts-expect-error HTTPS requires an endpoint.
-  const missing: import('../index.cjs').EncryptedDns = {kind: 'https', serverName: 'dns.example', bootstrap: [], timeoutMs: 1, maxConcurrent: 1};
+  const missing: EncryptedDns = {kind: 'https', serverName: 'dns.example', bootstrap: [], timeoutMs: 1, maxConcurrent: 1};
   // @ts-expect-error Cache selection supports false or omission.
-  const cache: import('../index.cjs').NetworkOptions = {dnsCache: true};
+  const cache: NetworkOptions = {dnsCache: true};
   void missing; void cache;
 }
 void encryptedDns;

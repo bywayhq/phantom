@@ -25,6 +25,7 @@ SOURCES = (
     "lib/client.cjs",
     "lib/client-native.d.cts",
     "lib/controls.cjs",
+    "lib/dns.cjs",
     "lib/errors.cjs",
     "lib/event-source.cjs",
     "lib/events.cjs",
@@ -242,6 +243,31 @@ def copied_tests(destination, native_package=None):
             ),
         ),
         "network.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "dns.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "dns-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "event-source.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+            ("path.resolve(__dirname, '..')", "require.resolve('@byway/phantom')", 1),
+        ),
+        "event-source-http3.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
+        "event-source-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "request-contexts.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
         "unix-socket.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
         "network-facade.test.cjs": (
             (
@@ -484,6 +510,12 @@ def public_checks(
                 "tests/pool-facade.test.cjs",
                 "tests/socks4-facade.test.cjs",
                 "tests/network.test.cjs",
+                "tests/dns.test.cjs",
+                "tests/dns-facade.test.cjs",
+                "tests/event-source.test.cjs",
+                "tests/event-source-http3.test.cjs",
+                "tests/event-source-facade.test.cjs",
+                "tests/request-contexts.test.cjs",
                 "tests/unix-socket.test.cjs",
                 "tests/network-facade.test.cjs",
                 "tests/multipart-facade.test.cjs",
