@@ -1,6 +1,7 @@
 import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type PoolOptions, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
 
 const resources = new Client({profile: 'chrome-156-windows', route: 'direct', context: 'navigation'});
+void resources.eventSource('https://example.com/events', {protocol: 'http2', maximumReconnects: 0});
 void resources.get('https://example.com/image.png', {context: 'image'});
 void Profile.fromCatalog('chrome-156-windows', 'font');
 

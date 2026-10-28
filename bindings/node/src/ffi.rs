@@ -12,6 +12,7 @@ mod client;
 mod controls;
 mod diagnostics;
 mod environment;
+mod event_source;
 mod events;
 mod options;
 mod prepared_body;
@@ -34,6 +35,9 @@ pub use diagnostics::{
     DiagnosticTlsState, NativeRequestDiagnostics,
 };
 pub use environment::NativeEnvironment;
+pub use event_source::{
+    EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions, NativeEventSource,
+};
 pub use events::{NativeEventStream, SseEvent};
 pub use options::{
     ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, HostOverrideOptions,

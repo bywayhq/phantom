@@ -67,6 +67,7 @@ pub(crate) struct ClientState {
     aborted: AtomicBool,
     exchanges: Mutex<Vec<Weak<Exchange>>>,
     sockets: Mutex<Vec<Weak<crate::websocket::Socket>>>,
+    event_sources: Mutex<Vec<Weak<crate::event_source::Source>>>,
 }
 
 impl ClientState {
@@ -88,6 +89,7 @@ impl ClientState {
             aborted: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
+            event_sources: Mutex::new(Vec::new()),
         });
 
         environment.register(&state)?;
@@ -238,6 +240,20 @@ impl ClientState {
         }
     }
 
+    pub(crate) fn register_event_source(
+        &self,
+        source: &Arc<crate::event_source::Source>,
+    ) -> Result<()> {
+        let mut sources = self
+            .event_sources
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        self.check_open()?;
+        sources.retain(|source| source.upgrade().is_some_and(|source| source.is_active()));
+        sources.push(Arc::downgrade(source));
+        Ok(())
+    }
+
     fn is_quiescent(&self) -> bool {
         self.admission.available_permits() == self.maximum
             && !self.shutdown_pending.load(Ordering::Acquire)
@@ -269,6 +285,16 @@ impl ClientState {
     pub(crate) fn close(&self) {
         self.close_admission();
         self.aborted.store(true, Ordering::Release);
+        let sources = {
+            let mut sources = self
+                .event_sources
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            std::mem::take(&mut *sources)
+        };
+        for source in sources.into_iter().filter_map(|source| source.upgrade()) {
+            source.close();
+        }
         let sockets = {
             let mut sockets = self.sockets.lock().unwrap_or_else(PoisonError::into_inner);
             std::mem::take(&mut *sockets)
@@ -489,6 +515,7 @@ mod tests {
                 aborted: AtomicBool::new(false),
                 exchanges: Mutex::new(Vec::new()),
                 sockets: Mutex::new(Vec::new()),
+                event_sources: Mutex::new(Vec::new()),
             })
         };
         let environment = Environment::default();
@@ -544,6 +571,7 @@ mod tests {
             aborted: AtomicBool::new(false),
             exchanges: Mutex::new(Vec::new()),
             sockets: Mutex::new(Vec::new()),
+            event_sources: Mutex::new(Vec::new()),
         });
         let socket = crate::websocket::Socket::new();
         let permit = Arc::clone(&admission)

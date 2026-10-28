@@ -3,6 +3,7 @@
 mod client;
 mod client_certificate;
 mod error;
+mod event_source;
 mod multipart;
 mod network;
 mod pool;
@@ -25,9 +26,10 @@ mod ffi;
 pub use ffi::{
     ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions, ContentDecodingOptions,
     DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
-    DiagnosticTlsState, FileUpload, FormField, HostOverrideOptions, MultipartField,
-    NativeAttemptBudget, NativeCancellation, NativeClient, NativeClientCertificate,
-    NativeEnvironment, NativeEventStream, NativeImportedProfile, NativePreparedBody, NativeProfile,
+    DiagnosticTlsState, EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions,
+    FileUpload, FormField, HostOverrideOptions, MultipartField, NativeAttemptBudget,
+    NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
+    NativeEventSource, NativeEventStream, NativeImportedProfile, NativePreparedBody, NativeProfile,
     NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload, NativeWebSocket,
     NetworkOptions, PoolOptions, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions,
     RequestOptions, ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, SseEvent,

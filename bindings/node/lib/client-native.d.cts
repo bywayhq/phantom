@@ -63,6 +63,7 @@ export interface NativeRequestOptions {
 }
 
 export interface NativeClient {
+  eventSource(options: object, source: import('./event-source.cjs').NativeSource): Promise<import('./event-source.cjs').NativeHead>;
   request(options: NativeRequestOptions, cancellation: NativeCancellation,
     budget?: NativeAttemptBudget, upload?: NativeUpload, transfer?: NativeTransferControl,
     diagnostics?: NativeRequestDiagnostics): Promise<NativeResponse>;
