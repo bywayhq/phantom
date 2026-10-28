@@ -94,7 +94,7 @@ fn explicit_tcp_port_randomization_survives_import_and_export() -> TestResult {
 
 #[test]
 fn retained_template_exports_preserve_fields_flags_priority_and_protocol_absences() -> TestResult {
-    assert_eq!(TEMPLATES.len(), 44);
+    assert_eq!(TEMPLATES.len(), 46);
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
         for kind in [
@@ -429,6 +429,16 @@ pub(super) const PROFILES: &[(&str, &str)] = &[
 ];
 
 const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
+    (
+        "chrome/156.0.8078.48/windows-11-26200/r1",
+        RequestTemplateKind::Fetch,
+        include_str!("fixtures/chrome-156-windows-fetch.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/windows-11-26200/r1",
+        RequestTemplateKind::FetchUpload,
+        include_str!("fixtures/chrome-156-windows-fetch-upload.json"),
+    ),
     (
         "chrome/156.0.8078.48/windows-11-26200/r1",
         RequestTemplateKind::FetchNoStore,

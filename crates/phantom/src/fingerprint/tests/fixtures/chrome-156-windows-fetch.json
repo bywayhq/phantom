@@ -1,0 +1,180 @@
+{
+  "http1_fields": [
+    {
+      "variant": "ByForwarding",
+      "name": "Connection",
+      "unforwarded": "keep-alive",
+      "forwarded": null
+    },
+    {
+      "variant": "ByForwarding",
+      "name": "Proxy-Connection",
+      "unforwarded": null,
+      "forwarded": "keep-alive"
+    },
+    {
+      "variant": "ProxyAuthorization",
+      "name": "Proxy-Authorization",
+      "attempt": "Every"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua-platform"
+    },
+    {
+      "variant": "Literal",
+      "name": "User-Agent",
+      "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua-mobile"
+    },
+    {
+      "variant": "ClientHints"
+    },
+    {
+      "variant": "Literal",
+      "name": "Accept",
+      "value": "*/*"
+    },
+    {
+      "variant": "ByTrust",
+      "name": "Sec-Fetch-Site",
+      "trustworthy": "same-origin",
+      "untrustworthy": null
+    },
+    {
+      "variant": "ByTrust",
+      "name": "Sec-Fetch-Mode",
+      "trustworthy": "cors",
+      "untrustworthy": null
+    },
+    {
+      "variant": "ByTrust",
+      "name": "Sec-Fetch-Dest",
+      "trustworthy": "empty",
+      "untrustworthy": null
+    },
+    {
+      "variant": "Caller",
+      "name": "Referer",
+      "required": false
+    },
+    {
+      "variant": "ByTrust",
+      "name": "Accept-Encoding",
+      "trustworthy": "gzip, deflate, br, zstd",
+      "untrustworthy": "gzip, deflate"
+    },
+    {
+      "variant": "Literal",
+      "name": "Accept-Language",
+      "value": "en-US,en;q=0.9"
+    },
+    {
+      "variant": "Caller",
+      "name": "If-None-Match",
+      "required": false
+    },
+    {
+      "variant": "Caller",
+      "name": "If-Modified-Since",
+      "required": false
+    }
+  ],
+  "http2_fields": [
+    {
+      "variant": "ProxyAuthorization",
+      "name": "proxy-authorization",
+      "attempt": "Every"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua-platform"
+    },
+    {
+      "variant": "Literal",
+      "name": "user-agent",
+      "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua"
+    },
+    {
+      "variant": "ClientHint",
+      "name": "sec-ch-ua-mobile"
+    },
+    {
+      "variant": "ClientHints"
+    },
+    {
+      "variant": "Literal",
+      "name": "accept",
+      "value": "*/*"
+    },
+    {
+      "variant": "ByTrust",
+      "name": "sec-fetch-site",
+      "trustworthy": "same-origin",
+      "untrustworthy": null
+    },
+    {
+      "variant": "ByTrust",
+      "name": "sec-fetch-mode",
+      "trustworthy": "cors",
+      "untrustworthy": null
+    },
+    {
+      "variant": "ByTrust",
+      "name": "sec-fetch-dest",
+      "trustworthy": "empty",
+      "untrustworthy": null
+    },
+    {
+      "variant": "Caller",
+      "name": "referer",
+      "required": false
+    },
+    {
+      "variant": "ByTrust",
+      "name": "accept-encoding",
+      "trustworthy": "gzip, deflate, br, zstd",
+      "untrustworthy": "gzip, deflate"
+    },
+    {
+      "variant": "Literal",
+      "name": "accept-language",
+      "value": "en-US,en;q=0.9"
+    },
+    {
+      "variant": "Caller",
+      "name": "if-none-match",
+      "required": false
+    },
+    {
+      "variant": "Caller",
+      "name": "if-modified-since",
+      "required": false
+    },
+    {
+      "variant": "Literal",
+      "name": "priority",
+      "value": "u=1, i"
+    }
+  ],
+  "http3_fields": null,
+  "http2_priority": {
+    "variant": "Fixed",
+    "dependency_stream_id": 0,
+    "weight": 220,
+    "exclusive": true
+  },
+  "requested_client_hint_placement": false,
+  "restarts_for_connection_accept_ch": false
+}
