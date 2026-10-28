@@ -27,13 +27,13 @@ test('encrypted DNS snapshots ordered data and preserves cache and padding absen
   dns.endpoint = 'changed';
   assert.deepEqual(calls[0].network.dns, {kind: 'https', endpoint: 'https://private.invalid/query',
     bootstrap: ['127.0.0.1'], timeoutMs: 1000, maxConcurrent: 4n, families: 'dual', roots: [],
-    paddingBlock: undefined, method: 'post', wire: 'chromium154', queryId: 27});
+    paddingBlock: 'inherit', method: 'post', wire: 'chromium154', queryId: 27});
   assert.equal(calls[0].network.dnsCache, false);
   assert(Object.isFrozen(calls[0].network.dns));
   assert(Object.isFrozen(calls[0].network.dns.bootstrap));
   for (const paddingBlock of [undefined, null, 64]) {
     new Client({profile: 'exact', route: 'direct', network: {dns: tls({paddingBlock})}});
-    assert.equal(calls.at(-1).network.dns.paddingBlock, paddingBlock);
+    assert.equal(calls.at(-1).network.dns.paddingBlock, paddingBlock === undefined ? 'inherit' : paddingBlock);
     assert.equal(calls.at(-1).network.dnsCache, undefined);
   }
 });
@@ -52,7 +52,7 @@ test('DNS rejects executable data, transport-mismatched fields and invalid bound
     https({maxConcurrent: 1.5}), https({maxConcurrent: true}), tls({maxConcurrent: 32768}),
     https({families: 'ipv6'}), https({method: 'auto'}), https({wire: 'private'}),
     https({queryId: 65536}), https({queryId: -1}), https({paddingBlock: 0}),
-    https({paddingBlock: false}), https({bootstrap: []}), https({bootstrap: Array(1)}),
+    https({paddingBlock: false}), https({paddingBlock: 'inherit'}), https({bootstrap: []}), https({bootstrap: Array(1)}),
     https({endpoint: 'private\ud800'}), https({roots: [new Uint8Array(new SharedArrayBuffer(1))]})]) {
     assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {dns}}), (error) => {
       assert(!String(error).includes('private'));

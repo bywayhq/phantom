@@ -9,7 +9,7 @@ use std::{
 
 use napi::{
     Env, Result,
-    bindgen_prelude::{BigInt, Buffer, Either3, Null, Undefined},
+    bindgen_prelude::{BigInt, Buffer, Either3, Null},
 };
 use napi_derive::napi;
 use phantom::{
@@ -46,8 +46,8 @@ pub struct DnsOptions {
     pub families: String,
     /// Additional DNS-only DER roots.
     pub roots: Vec<Buffer>,
-    /// Undefined keeps the preset, null disables padding, a number selects block bytes.
-    pub padding_block: Either3<Undefined, Null, f64>,
+    /// inherit keeps the preset, null disables padding, a number selects block bytes.
+    pub padding_block: Either3<String, Null, f64>,
     /// HTTPS-only post or get.
     pub method: Option<String>,
     /// HTTPS-only standard or chromium154.
@@ -79,9 +79,10 @@ fn u16_value(value: f64, field: &str) -> Result<u16> {
     Ok(value as u16)
 }
 
-fn padding(value: Either3<Undefined, Null, f64>) -> Result<Padding> {
+fn padding(value: Either3<String, Null, f64>) -> Result<Padding> {
     match value {
-        Either3::A(()) => Ok(Padding::Inherit),
+        Either3::A(value) if value == "inherit" => Ok(Padding::Inherit),
+        Either3::A(_) => Err(invalid("invalid DNS padding block")),
         Either3::B(Null) => Ok(Padding::Disabled),
         Either3::C(value) => u16_value(value, "invalid DNS padding block").and_then(|value| {
             NonZeroU16::new(value)
@@ -246,7 +247,11 @@ mod tests {
         assert!(padding(Either3::C(0.0)).is_err());
         assert_eq!(u16_value(0.0, "invalid DNS queryId").ok(), Some(0));
         assert_eq!(u16_value(65535.0, "invalid DNS queryId").ok(), Some(65535));
-        assert!(matches!(padding(Either3::A(())), Ok(Padding::Inherit)));
+        assert!(matches!(
+            padding(Either3::A("inherit".into())),
+            Ok(Padding::Inherit)
+        ));
+        assert!(padding(Either3::A("private".into())).is_err());
         assert!(matches!(padding(Either3::B(Null)), Ok(Padding::Disabled)));
         assert!(
             matches!(padding(Either3::C(128.0)), Ok(Padding::Block(block)) if block.get() == 128)
@@ -264,7 +269,7 @@ mod tests {
             max_concurrent: BigInt::from(1u64),
             families: "ipv4".into(),
             roots: Vec::new(),
-            padding_block: Either3::A(()),
+            padding_block: Either3::A("inherit".into()),
             method: Some("post".into()),
             wire: Some("standard".into()),
             query_id: Some(0.0),

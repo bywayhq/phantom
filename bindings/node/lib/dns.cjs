@@ -13,7 +13,7 @@ const { integer, orderedDataArray, policyFields, positiveCount } = require('./va
  * @property {bigint} maxConcurrent
  * @property {'dual' | 'ipv4'} families
  * @property {readonly Buffer[]} roots
- * @property {number | null | undefined} paddingBlock
+ * @property {number | null | 'inherit'} paddingBlock
  */
 /** @typedef {NativeDnsSettings & ({kind: 'https', endpoint: string, method: 'post' | 'get', wire: 'standard' | 'chromium154', queryId: number} | {kind: 'tls', serverName: string})} NativeDnsOptions */
 
@@ -57,8 +57,9 @@ function dnsOptions(value) {
   if (kind === 'tls' && maxConcurrent > 32767n) throw new PhantomError('InvalidArgument', 'DNS-over-TLS maxConcurrent must be at most 32767');
   const families = fields.families === undefined ? 'dual' : fields.families;
   if (families !== 'dual' && families !== 'ipv4') throw new PhantomError('InvalidArgument', 'dns.families must be dual or ipv4');
-  const paddingBlock = fields.paddingBlock === undefined || fields.paddingBlock === null
-    ? fields.paddingBlock : integer(fields.paddingBlock, 'dns.paddingBlock', 1, 65535);
+  // Keep inherited padding distinct from null at the native object boundary.
+  const paddingBlock = fields.paddingBlock === undefined ? 'inherit' : fields.paddingBlock === null
+    ? null : integer(fields.paddingBlock, 'dns.paddingBlock', 1, 65535);
   /** @type {NativeDnsSettings} */
   const common = {bootstrap: Object.freeze(bootstrap), timeoutMs, maxConcurrent,
     families, roots: Object.freeze(roots), paddingBlock};
