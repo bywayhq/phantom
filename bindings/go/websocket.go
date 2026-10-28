@@ -78,8 +78,9 @@ type WebSocket struct {
 }
 
 // WebSocket opens a profile-policy or exact-protocol connection. ctx bounds
-// setup only; later operations use their own contexts. Existing client route,
-// trust, destination policy and cookies apply. Ordinary HTTP request templates,
+// setup only; later operations use their own contexts. The client route applies
+// unless options overrides it; trust, destination policy and cookies still apply.
+// Ordinary HTTP request templates,
 // timeout/retry policies and caller attempt budgets do not apply to openings.
 func (c *Client) WebSocket(ctx context.Context, url string, options WebSocketOptions) (*WebSocket, error) {
 	if ctx == nil {
@@ -101,11 +102,22 @@ func (c *Client) WebSocket(ctx context.Context, url string, options WebSocketOpt
 	if err := nativeBoundaryError(native.LoadWebSocket()); err != nil {
 		return nil, err
 	}
+	if opening.route != nil {
+		if err := nativeBoundaryError(native.LoadWebSocketRoute()); err != nil {
+			return nil, err
+		}
+	}
 	var socket *WebSocket
 	var rejection *Response
 	err = performSubmitted(ctx, func() (uint64, error) {
 		var reply native.Reply
-		err := nativeBoundaryError(native.WebSocketOpen(&opening.descriptor, &reply))
+		var submitError error
+		if opening.route == nil {
+			submitError = native.WebSocketOpen(&opening.descriptor, &reply)
+		} else {
+			submitError = native.WebSocketOpenWithRoute(&opening.descriptor, opening.route, &reply)
+		}
+		err := nativeBoundaryError(submitError)
 		runtime.KeepAlive(opening)
 		runtime.KeepAlive(options)
 		runtime.KeepAlive(url)

@@ -8,6 +8,7 @@ use std::{
 
 use super::{Error, Field, Reply, Span, Timeout, bytes, fields, submitted, text};
 use crate::{
+    client,
     error::Failure,
     operations::{self, websocket},
 };
@@ -47,6 +48,13 @@ struct Opening {
     retries: u64,
     retry_delay: u64,
     deflate: *const Deflate,
+}
+#[repr(C)]
+struct RouteOverride {
+    proxy: Span,
+    username: Span,
+    password: Span,
+    credentials: u64,
 }
 #[repr(C)]
 #[derive(Default)]
@@ -213,6 +221,15 @@ unsafe fn deflate(value: *const Deflate) -> Result<Option<phantom::PerMessageDef
 }
 
 unsafe fn opening(value: &Opening) -> Result<websocket::Opening, Failure> {
+    let mut remaining = operations::MAX_COMMAND;
+    // SAFETY: The caller lends all nested input for this synchronous decode.
+    unsafe { opening_with_budget(value, &mut remaining) }
+}
+
+unsafe fn opening_with_budget(
+    value: &Opening,
+    remaining: &mut usize,
+) -> Result<websocket::Opening, Failure> {
     if value.template_present > 1
         || value.header_count > 256
         || value.template_count > 256 - value.header_count
@@ -221,12 +238,11 @@ unsafe fn opening(value: &Opening) -> Result<websocket::Opening, Failure> {
     {
         return Err(Failure::new("input_limit"));
     }
-    let mut remaining = operations::MAX_COMMAND;
     // SAFETY: All nested spans are validated and copied during this call.
     let (url, headers) = unsafe {
         (
-            text(value.url, &mut remaining)?,
-            fields(value.headers, value.header_count, &mut remaining)?,
+            text(value.url, remaining)?,
+            fields(value.headers, value.header_count, remaining)?,
         )
     };
     let template = if value.template_present == 0 {
@@ -243,7 +259,7 @@ unsafe fn opening(value: &Opening) -> Result<websocket::Opening, Failure> {
                 .iter()
                 .map(|entry| {
                     // SAFETY: Each nested Field is checked and copied by fields.
-                    let field = unsafe { fields(&entry.field, 1, &mut remaining)? }
+                    let field = unsafe { fields(&entry.field, 1, remaining)? }
                         .into_iter()
                         .next()
                         .ok_or_else(|| Failure::new("internal"))?;
@@ -285,7 +301,62 @@ unsafe fn opening(value: &Opening) -> Result<websocket::Opening, Failure> {
             .map_err(|_| Failure::new("invalid_websocket_retry"))?,
         retry_delay: Duration::from_nanos(value.retry_delay),
         deflate,
+        route: None,
     })
+}
+
+unsafe fn route(value: &RouteOverride, remaining: &mut usize) -> Result<phantom::Route, Failure> {
+    if value.credentials > 1 {
+        return Err(Failure::new("invalid_proxy_credentials"));
+    }
+    // SAFETY: Every span is call-scoped and checked before its owned copy.
+    let (proxy, username, password) = unsafe {
+        (
+            text(value.proxy, remaining)?,
+            text(value.username, remaining)?,
+            text(value.password, remaining)?,
+        )
+    };
+    if value.credentials == 0 && (!username.is_empty() || !password.is_empty()) {
+        return Err(Failure::new("invalid_proxy_credentials"));
+    }
+    let credentials =
+        (value.credentials == 1).then(|| client::ProxyCredentials::new(username, password));
+    client::route((!proxy.is_empty()).then_some(proxy.as_str()), credentials)
+}
+
+// SAFETY: This pointer-free symbol negotiates the separate route extension.
+#[unsafe(no_mangle)]
+extern "C" fn phantom_go_websocket_route_version() -> u64 {
+    1
+}
+
+// SAFETY: The caller lends aligned opening, route and writable reply descriptors.
+// All spans share one byte bound and are copied before asynchronous admission.
+#[unsafe(no_mangle)]
+unsafe extern "C" fn phantom_go_websocket_open_with_route(
+    value: *const Opening,
+    route_value: *const RouteOverride,
+    reply: *mut Reply,
+) -> u64 {
+    if value.is_null() || route_value.is_null() || reply.is_null() {
+        return 0;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let mut remaining = operations::MAX_COMMAND;
+        // SAFETY: The caller lends the route descriptor and its nested spans.
+        let selected = unsafe { route(&*route_value, &mut remaining)? };
+        // SAFETY: The caller lends the opening descriptor and its nested arrays.
+        let mut opening = unsafe { opening_with_budget(&*value, &mut remaining)? };
+        opening.route = Some(selected);
+        websocket::open(opening)
+    }))
+    .unwrap_or_else(|_| Err(Failure::new("internal")));
+    // SAFETY: The caller lends an aligned writable Reply for this call.
+    unsafe {
+        ptr::write(reply, submitted(result));
+    }
+    1
 }
 
 // SAFETY: The caller lends one aligned opening descriptor and writable reply;
@@ -310,6 +381,72 @@ unsafe extern "C" fn phantom_go_websocket_open(value: *const Opening, reply: *mu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn route_wire(proxy: &[u8]) -> RouteOverride {
+        let empty = Span {
+            pointer: ptr::null(),
+            length: 0,
+        };
+        RouteOverride {
+            proxy: Span {
+                pointer: proxy.as_ptr(),
+                length: proxy.len(),
+            },
+            username: empty,
+            password: empty,
+            credentials: 0,
+        }
+    }
+
+    #[test]
+    fn route_extension_copies_input_and_shares_opening_bounds() -> Result<(), Failure> {
+        let mut proxy = b"http://127.0.0.1:8080".to_vec();
+        let descriptor = route_wire(&proxy);
+        let mut remaining = operations::MAX_COMMAND;
+        // SAFETY: The descriptor and proxy bytes are live for this call.
+        let owned = unsafe { route(&descriptor, &mut remaining)? };
+        proxy.fill(b'x');
+        assert!(matches!(owned, phantom::Route::HttpProxy(_)));
+        assert!(format!("{owned:?}").contains("127.0.0.1"));
+        assert_eq!(remaining, operations::MAX_COMMAND - proxy.len());
+
+        let descriptor = wire(b"wss://example.test/socket");
+        remaining = 1;
+        // SAFETY: The descriptor's live spans exceed the remaining byte bound.
+        let failure = unsafe { opening_with_budget(&descriptor, &mut remaining) }.err();
+        assert_eq!(failure.map(|error| error.kind), Some("input_limit"));
+        Ok(())
+    }
+
+    #[test]
+    fn route_extension_rejects_bad_spans_and_credential_combinations() {
+        let direct = route_wire(b"");
+        let mut remaining = operations::MAX_COMMAND;
+        // SAFETY: Empty spans need no readable bytes and the descriptor is live.
+        let selected = unsafe { route(&direct, &mut remaining) };
+        assert!(matches!(selected, Ok(phantom::Route::Direct)));
+        let mut descriptor = direct;
+        descriptor.credentials = 1;
+        // SAFETY: The descriptor and its empty spans are live for this call.
+        let failure = unsafe { route(&descriptor, &mut remaining) }.err();
+        assert_eq!(
+            failure.map(|error| error.kind),
+            Some("invalid_proxy_credentials")
+        );
+        descriptor.credentials = 2;
+        // SAFETY: Invalid flags are rejected before any span access.
+        let failure = unsafe { route(&descriptor, &mut remaining) }.err();
+        assert_eq!(
+            failure.map(|error| error.kind),
+            Some("invalid_proxy_credentials")
+        );
+        descriptor.credentials = 0;
+        descriptor.proxy.length = 1;
+        descriptor.proxy.pointer = ptr::null();
+        // SAFETY: The null nonempty span is rejected before dereferencing it.
+        let failure = unsafe { route(&descriptor, &mut remaining) }.err();
+        assert_eq!(failure.map(|error| error.kind), Some("input_limit"));
+    }
 
     fn wire(url: &[u8]) -> Opening {
         Opening {

@@ -25,6 +25,13 @@ type WebSocketOpening struct {
 	Retries, RetryDelay            uint64
 	Deflate                        *WebSocketDeflate
 }
+
+// WebSocket route ABI 1 extends opening through a separate optional entry point.
+// It does not change WebSocketOpening or the existing WebSocket ABI 1 symbols.
+type WebSocketRoute struct {
+	Proxy, Username, Password Span
+	Credentials               uint64
+}
 type WebSocketResult struct {
 	Kind, Length, Code                      uint64
 	Compression, ServerWindow, ClientWindow uint64

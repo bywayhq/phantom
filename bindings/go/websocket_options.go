@@ -13,6 +13,9 @@ import (
 type WebSocketOptions struct {
 	Protocol string
 	Headers  []Header
+	// Nil inherits the client route; a pointer to "" selects direct routing.
+	Proxy            *string
+	ProxyCredentials *ProxyCredentials
 	// Template replaces the opening fields in order. Nil keeps profile fields.
 	// An empty, non-nil template is validated as an explicit replacement.
 	Template []WebSocketHeader
@@ -67,6 +70,7 @@ type websocketOpening struct {
 	headers    []native.Field
 	template   []native.WebSocketTemplateField
 	parameters []native.WebSocketDeflateParameter
+	route      *native.WebSocketRoute
 }
 
 func websocketOpeningValue(client uint64, url string, options WebSocketOptions) (websocketOpening, error) {
@@ -109,6 +113,19 @@ func websocketOpeningValue(client uint64, url string, options WebSocketOptions) 
 		return result, &Error{Kind: "input_limit"}
 	}
 	size := len(url)
+	if options.ProxyCredentials != nil && (options.Proxy == nil || *options.Proxy == "") {
+		return result, &Error{Kind: "invalid_proxy_credentials"}
+	}
+	if options.Proxy != nil {
+		result.route = &native.WebSocketRoute{Proxy: native.BorrowedString(*options.Proxy)}
+		size += len(*options.Proxy)
+		if options.ProxyCredentials != nil {
+			result.route.Credentials = 1
+			result.route.Username = native.BorrowedString(options.ProxyCredentials.Username)
+			result.route.Password = native.BorrowedString(options.ProxyCredentials.Password)
+			size += len(options.ProxyCredentials.Username) + len(options.ProxyCredentials.Password)
+		}
+	}
 	for _, header := range options.Headers {
 		size += len(header.Name) + len(header.Value)
 	}

@@ -35,6 +35,7 @@ pub(crate) struct Opening {
     pub(crate) retries: usize,
     pub(crate) retry_delay: Duration,
     pub(crate) deflate: Option<phantom::PerMessageDeflate>,
+    pub(crate) route: Option<phantom::Route>,
 }
 
 type Reader = SplitStream<WebSocket>;
@@ -187,6 +188,9 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
         _ => return Err(Failure::new("invalid_websocket_protocol")),
     }
     .map_err(failure)?;
+    if let Some(route) = opening.route {
+        request = request.route(route);
+    }
     if let Some(template) = opening.template {
         request = request.headers(template);
     }

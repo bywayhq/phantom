@@ -41,6 +41,10 @@ func SSEResult(uint64, *SSEEvent, []byte) error {
 
 func LoadWebSocket() error                          { return &Failure{Kind: "unsupported_platform"} }
 func WebSocketOpen(*WebSocketOpening, *Reply) error { return &Failure{Kind: "unsupported_platform"} }
+func LoadWebSocketRoute() error                     { return &Failure{Kind: "unsupported_platform"} }
+func WebSocketOpenWithRoute(*WebSocketOpening, *WebSocketRoute, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
 func WebSocketOperation(uint64, uint64, uint64, uint64, []byte, *Reply) error {
 	return &Failure{Kind: "unsupported_platform"}
 }

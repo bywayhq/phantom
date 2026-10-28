@@ -3,6 +3,7 @@ package phantom
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -32,6 +33,34 @@ func TestWebSocketOpeningValidation(t *testing.T) {
 				t.Fatalf("got %v; want %s", err, test.want)
 			}
 		})
+	}
+}
+
+func TestWebSocketRouteValidationAndInheritance(t *testing.T) {
+	direct, proxy := "", "http://127.0.0.1:8080"
+	for _, test := range []struct {
+		name    string
+		options WebSocketOptions
+		want    string
+	}{
+		{"credentials without route", WebSocketOptions{ProxyCredentials: &ProxyCredentials{Username: "private"}}, "invalid_proxy_credentials"},
+		{"credentials on direct", WebSocketOptions{Proxy: &direct, ProxyCredentials: &ProxyCredentials{Password: "private"}}, "invalid_proxy_credentials"},
+		{"proxy size", WebSocketOptions{Proxy: &proxy, ProxyCredentials: &ProxyCredentials{Password: strings.Repeat("x", 65536)}}, "input_limit"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := websocketOpeningValue(1, "wss://example.test/", test.options)
+			if kind(err) != test.want || strings.Contains(err.Error(), "private") {
+				t.Fatalf("expected redacted %s: %v", test.want, err)
+			}
+		})
+	}
+	inherited, err := websocketOpeningValue(1, "wss://example.test/", WebSocketOptions{})
+	if err != nil || inherited.route != nil {
+		t.Fatalf("inherited route changed: %v", err)
+	}
+	explicit, err := websocketOpeningValue(1, "wss://example.test/", WebSocketOptions{Proxy: &direct})
+	if err != nil || explicit.route == nil || explicit.route.Proxy.Length != 0 || explicit.route.Credentials != 0 {
+		t.Fatalf("explicit direct route lost: %v", err)
 	}
 }
 

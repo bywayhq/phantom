@@ -59,6 +59,12 @@ uint64_t phantom_go_websocket_version(void);
 uint64_t phantom_go_websocket_open(const struct phantom_go_websocket_opening *, struct phantom_go_reply *);
 uint64_t phantom_go_websocket_operation(uint64_t, uint64_t, uint64_t, uint64_t, const uint8_t *, size_t, struct phantom_go_reply *);
 uint64_t phantom_go_websocket_result(uint64_t, struct phantom_go_websocket_message *, uint8_t *, size_t);
+/* Optional WebSocket route ABI 1. The original opening layout stays unchanged.
+ * The separate route descriptor borrows proxy and credentials during the call;
+ * all bytes are bounded and copied before opening admission. */
+struct phantom_go_websocket_route;
+uint64_t phantom_go_websocket_route_version(void);
+uint64_t phantom_go_websocket_open_with_route(const struct phantom_go_websocket_opening *, const struct phantom_go_websocket_route *, struct phantom_go_reply *);
 /* Optional reconnecting EventSource ABI 1. Open copies all bounded options
  * synchronously. next/close/cancel-next use separate scalar verbs 1/2/3.
  * cancel-next preserves completion until the Rust read lease is restored;
