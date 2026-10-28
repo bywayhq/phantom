@@ -30,6 +30,12 @@ async fn concurrent_navigation_fetch_and_raw_requests_share_one_connection() -> 
 }
 
 #[tokio::test]
+async fn windows156_navigation_fetch_and_raw_requests_share_one_connection() -> TestResult<()> {
+    let profile = catalog::profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
+    mixed_contexts_share_one_connection(profile).await
+}
+
+#[tokio::test]
 async fn owned_navigation_fetch_and_raw_requests_share_one_connection() -> TestResult<()> {
     let navigation = chrome::v154_windows_navigation_template();
     let profile = ClientProfile::new(chrome::v154_tcp_tls())

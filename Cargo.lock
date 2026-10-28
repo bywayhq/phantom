@@ -1693,6 +1693,9 @@ dependencies = [
 [[package]]
 name = "phantom-profile"
 version = "0.5.1"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "phantom-python"

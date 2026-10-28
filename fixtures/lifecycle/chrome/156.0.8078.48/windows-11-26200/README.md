@@ -47,3 +47,20 @@ For headful H1 or H3, set `args` to
 | resources-headless.txt | 138c4aee12ab2aceafe5799ed441a9671437ffb9764625013981442242e9cec2 |
 | resources-h1.txt | ccc25154cb1b77315b4021356043a8ca127569bfcbdd171f51cba85a27d5b628 |
 | resources-h3.txt | e3b30199daa19fe8c795b7a29d8d3f34841cb160fd8fb36523489c279b94cbbd |
+
+## Fetch and upload requests
+
+`revalidate-h1.txt`, `revalidate-h2.txt`, `upload-h1.txt` and `upload-h2.txt`
+use the same Chrome build and Windows host. All four headful runs passed on
+one attempt, with disposable profiles. Source: `ef1a9d1903767461ff1c8a85622390890c3ea146`;
+Python 3.10.20, h2 4.4.1 and hpack 4.2.0.
+
+The captures retain ordered request headers and initial HTTP/2 priorities.
+Fetch covers ordinary GETs and ETag/Last-Modified validators. Upload covers
+string, untyped Blob and FormData bodies. Form navigation is recorded
+separately and does not define the fetch-upload template. Uploads completed
+with 200 response heads; the page did not read each upload response body.
+
+Use the manifest above with Python 3.10 and four entries: `revalidate` with
+`args: ["--headful", "--protocol", "h1"]`, then `h2`, followed by `upload-h1`
+and `upload-h2` with `args: ["--headful"]`. Give each entry a fresh output path.

@@ -5,6 +5,7 @@ use phantom_profile::{
     catalog::{CatalogError, RequestTemplateKind, profile, profiles},
 };
 
+mod fetch;
 pub(super) mod fetch_no_store;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;

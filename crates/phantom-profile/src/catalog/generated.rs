@@ -2081,6 +2081,16 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         location: "crates/phantom-profile/src/browser/chrome.rs",
                         build: "154.0.8037.58",
                     },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/revalidate-h1.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/upload-h1.txt",
+                        build: "156.0.8078.48",
+                    },
                 ],
                 limitations: &[],
             },
@@ -2097,6 +2107,16 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                         kind: EvidenceKind::Reused,
                         location: "crates/phantom-profile/src/browser/chrome.rs",
                         build: "154.0.8037.58",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/revalidate-h2.txt",
+                        build: "156.0.8078.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/upload-h2.txt",
+                        build: "156.0.8078.48",
                     },
                 ],
                 limitations: &[],
@@ -2207,6 +2227,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_WINDOWS156_NAVIGATION },
             RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_WINDOWS156_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROME_WINDOWS156_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchUpload, definition: &request_template_definitions::CHROME_WINDOWS156_FETCH_UPLOAD },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_WINDOWS156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_WINDOWS156_STYLESHEET },
             RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_WINDOWS156_IMAGE },

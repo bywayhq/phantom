@@ -3180,6 +3180,16 @@
               "kind": "Reused",
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/revalidate-h2.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/upload-h2.txt",
+              "build": "156.0.8078.48"
             }
           ]
         },
@@ -3280,6 +3290,16 @@
               "kind": "Reused",
               "location": "crates/phantom-profile/src/browser/chrome.rs",
               "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/revalidate-h1.txt",
+              "build": "156.0.8078.48"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/lifecycle/chrome/156.0.8078.48/windows-11-26200/upload-h1.txt",
+              "build": "156.0.8078.48"
             }
           ]
         },
@@ -3302,7 +3322,9 @@
         "Stylesheet": "chrome_windows156_stylesheet",
         "Image": "chrome_windows156_image",
         "Font": "chrome_windows156_font",
-        "FetchNoStore": "chrome_windows156_fetch_no_store"
+        "FetchNoStore": "chrome_windows156_fetch_no_store",
+        "Fetch": "chrome_windows156_fetch",
+        "FetchUpload": "chrome_windows156_fetch_upload"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",

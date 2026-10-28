@@ -129,6 +129,7 @@ in its API reference.
 The Chrome 156 desktop recipes also offer `FetchNoStore`, `Script`,
 `Stylesheet`, `Image` and `Font`
 through [`RequestTemplateKind`](crate::profile::catalog::RequestTemplateKind).
+Chrome 156 Windows also offers `Fetch` and `FetchUpload` over HTTP/1.1 and HTTP/2.
 Resource templates require a caller-supplied `Referer`. Fonts also
 require `Origin`, with the stylesheet URL as `Referer`.
 
@@ -142,7 +143,7 @@ use phantom::{Client, RequestHeader};
 use phantom::profile::catalog::{profile_for, RequestTemplateKind};
 
 # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-let profile = profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
+let profile = profile_for("chrome-156-windows", RequestTemplateKind::Navigation)?;
 let client = Client::builder(profile).build()?;
 
 let response = client

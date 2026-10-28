@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add HTTP/1.1 and HTTP/2 fetch and fetch-upload contexts to Chrome 156 Windows.
 - Breaking: select lifecycle capture protocols with `--protocol`.
   Migrate: replace `--resource-protocol` with `--protocol` in capture commands
   and manifests.
