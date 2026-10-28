@@ -1,6 +1,7 @@
 """Mixed request contexts retain one client's pools and ordered wire fields."""
 
 import asyncio
+import json
 import unittest
 
 from phantom_http import AsyncClient, AttemptBudget, Client, Error, Profile
@@ -101,10 +102,11 @@ class AsyncContextTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(budget.remaining, 0)
             self.assertEqual(len(peer.records), 1)
 
-    async def test_imported_template_remains_default_without_catalog_contexts(self):
-        profile = Profile.import_json(
-            Profile.from_catalog(PROFILE, context="navigation").export_json()
-        )
+    async def test_legacy_import_keeps_default_without_named_contexts(self):
+        document = Profile.from_catalog(PROFILE, context="navigation").describe()
+        document["version"] = 1
+        del document["profile"]["request_contexts"]
+        profile = Profile.import_json(json.dumps(document).encode())
         with server(ContextHandler) as (peer, url):
             async with AsyncClient(
                 profile=profile, protocol="h1", context="profile"
@@ -121,6 +123,56 @@ class AsyncContextTests(unittest.IsolatedAsyncioTestCase):
                     for record in peer.records
                 ],
                 ["navigate", None],
+            )
+
+    async def test_version_two_owned_context_keeps_default_raw_and_missing_choices(
+        self,
+    ):
+        document = Profile.from_catalog(PROFILE, context="navigation").describe()
+        self.assertEqual(document["version"], 2)
+        fetch = document["profile"]["request_contexts"]["Fetch"]
+        fetch["http1_fields"][:0] = [
+            {"variant": "Literal", "name": "X-Owned-First", "value": "first"},
+            {"variant": "Literal", "name": "X-Owned-Last", "value": "last"},
+        ]
+        document["profile"]["request_contexts"] = {"Fetch": fetch}
+        profile = Profile.import_json(json.dumps(document).encode())
+        self.assertIsNone(profile.catalog_id)
+        fetch["http1_fields"][0]["value"] = "changed-after-import"
+        with server(ContextHandler) as (peer, url):
+            async with AsyncClient(
+                profile=profile, protocol="h1", context="profile", timeout_ms=5000
+            ) as client:
+                budget = AttemptBudget(1)
+                with self.assertRaises(Error) as caught:
+                    await client.get(url, context="navigation", budget=budget)
+                self.assertEqual(caught.exception.kind, "request_template")
+                self.assertEqual(budget.remaining, 1)
+                self.assertEqual(peer.records, [])
+                for path, options in (
+                    ("/default", {}),
+                    ("/fetch", {"context": "fetch"}),
+                    ("/raw", {"context": "raw"}),
+                    ("/default-again", {}),
+                ):
+                    response = await client.get(
+                        url + path, headers=[("Referer", url + "/page")], **options
+                    )
+                    await response.read(max_bytes=0)
+            self.assertEqual(len(peer.records), 4)
+            self.assertEqual(len({record[2] for record in peer.records}), 1)
+            self.assertEqual(
+                [
+                    request_fields(record).get("sec-fetch-mode")
+                    for record in peer.records
+                ],
+                ["navigate", "cors", None, "navigate"],
+            )
+            fields = peer.records[1][1]
+            index = fields.index(("X-Owned-First", "first"))
+            self.assertEqual(
+                fields[index : index + 2],
+                [("X-Owned-First", "first"), ("X-Owned-Last", "last")],
             )
 
     async def test_resource_contexts_require_their_fields_and_keep_distinct_headers(

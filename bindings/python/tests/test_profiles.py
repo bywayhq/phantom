@@ -101,7 +101,7 @@ class ProfileDocumentTests(unittest.TestCase):
             AsyncClient(profile=without_template, protocol="h1", context="profile")
         self.assertEqual(caught.exception.kind, "context_unavailable")
 
-    def test_strict_errors_are_redacted_and_import_does_not_gain_contexts(self):
+    def test_strict_errors_are_redacted_and_legacy_import_has_no_contexts(self):
         for document, kind, field in (
             (b'{"secret":', "malformed_json", "document"),
             (b'{"format":"secret","format":"other"}', "duplicate_field", "document"),
@@ -129,7 +129,10 @@ class ProfileDocumentTests(unittest.TestCase):
             caught.exception.field, "request_template.restarts_for_connection_accept_ch"
         )
         self.assertNotIn("secret", str(caught.exception))
-        imported = Profile.import_json(Profile.from_catalog(PROFILE).export_json())
+        document = Profile.from_catalog(PROFILE).describe()
+        document["version"] = 1
+        del document["profile"]["request_contexts"]
+        imported = Profile.import_json(json.dumps(document).encode())
         for context in ("navigation", "fetch"):
             with self.subTest(context=context), self.assertRaises(Error) as caught:
                 AsyncClient(profile=imported, protocol="h1", context=context)

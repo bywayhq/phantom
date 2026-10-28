@@ -116,7 +116,7 @@ test('editable descriptions preserve native u64 precision and reject lossy JavaS
     code('ProfileImport')(error) && error.kind === 'UnsupportedSetting' && error.field === 'tls.session_ticket_order');
 });
 
-test('an imported profile drives ordered HTTP/1 fields while raw and catalog contexts stay explicit', {timeout: 30000}, async (t) => {
+test('a legacy imported profile keeps ordered HTTP/1 fields without named contexts', {timeout: 30000}, async (t) => {
   const observed = [];
   const sockets = new Set();
   const server = http.createServer((request, response) => { observed.push(request.rawHeaders); response.end('ok'); });
@@ -125,6 +125,8 @@ test('an imported profile drives ordered HTTP/1 fields while raw and catalog con
   await once(server, 'listening');
   t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => server.close(resolve)); });
   const document = custom();
+  document.version = 1;
+  delete document.profile.request_contexts;
   const selected = Profile.importJson(encode(document));
   const client = new Client({profile: selected, route: 'direct'});
   t.after(() => client.close());
@@ -146,6 +148,46 @@ test('an imported profile drives ordered HTTP/1 fields while raw and catalog con
   t.after(() => noTemplate.close());
   await assert.rejects(noTemplate.request(url, options), code('UnavailableContext'));
   assert.equal(observed.length, 3);
+});
+
+test('version-2 imports retain owned context documents and default/raw request behavior', {timeout: 30000}, async (t) => {
+  const observed = [];
+  const sockets = new Set();
+  const server = http.createServer((request, response) => {
+    observed.push(request.rawHeaders);
+    response.end('ok');
+  });
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => {
+    for (const socket of sockets) socket.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const document = custom();
+  assert.equal(document.version, 2);
+  const navigation = structuredClone(document.profile.request_template);
+  navigation.http1_fields.unshift({variant: 'Literal', name: 'X-Owned', value: 'owned'});
+  document.profile.request_contexts = {Navigation: navigation};
+  const selected = Profile.importJson(encode(document));
+  assert.equal(selected.catalogId, null);
+  assert.deepEqual(selected.describe().profile.request_contexts, {Navigation: navigation});
+  const client = new Client({profile: selected, route: 'direct', protocol: 'http1', context: 'profile'});
+  t.after(() => client.close());
+  const url = `http://127.0.0.1:${server.address().port}`;
+  assert.equal(await (await client.get(url + '/default', {headers: options.headers, timeoutMs: 5000})).text(2), 'ok');
+  assert.equal(await (await client.get(url + '/raw', {context: 'raw', headers: options.headers, timeoutMs: 5000})).text(2), 'ok');
+  assert.equal(await (await client.get(url + '/default-again', {headers: options.headers, timeoutMs: 5000})).text(2), 'ok');
+  assert.equal(observed.length, 3);
+  for (const fields of [observed[0], observed[2]]) {
+    const index = fields.indexOf('X-Custom-First');
+    assert(index >= 0);
+    assert.deepEqual(fields.slice(index, index + 4), ['X-Custom-First', 'first', 'X-Custom-Last', 'last']);
+  }
+  assert(!observed[1].includes('X-Custom-First'));
 });
 
 test('edited profile templates retain their HTTP/2 field order on a real client', {timeout: 30000}, async (t) => {
