@@ -126,9 +126,10 @@ For Chrome on Windows, choose the template that matches your operation:
 Templates supply request fields. Choose one for the request context documented
 in its API reference.
 
-The Chrome 156 recipes also offer `Script`, `Stylesheet`, `Image` and `Font`
+The Chrome 156 desktop recipes also offer `FetchNoStore`, `Script`,
+`Stylesheet`, `Image` and `Font`
 through [`RequestTemplateKind`](crate::profile::catalog::RequestTemplateKind).
-These same-origin templates require a caller-supplied `Referer`. Fonts also
+Resource templates require a caller-supplied `Referer`. Fonts also
 require `Origin`, with the stylesheet URL as `Referer`.
 
 ## Override the template for one request

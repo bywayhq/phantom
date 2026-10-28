@@ -51,6 +51,7 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
             let kind = match context.as_str() {
                 "navigation" => RequestTemplateKind::Navigation,
                 "fetch" => RequestTemplateKind::Fetch,
+                "fetch-no-store" => RequestTemplateKind::FetchNoStore,
                 "script" => RequestTemplateKind::Script,
                 "stylesheet" => RequestTemplateKind::Stylesheet,
                 "image" => RequestTemplateKind::Image,

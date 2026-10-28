@@ -81,6 +81,14 @@ const CONTEXTS: [(RequestTemplateKind, &str); 4] = [
 ];
 
 #[test]
+fn macos156_no_store_fetch_matches_both_platforms_and_all_three_protocols() -> TestResult {
+    for capture in &CAPTURES {
+        super::resource_templates::fetch_no_store::compare(capture.selector, capture.resources)?;
+    }
+    Ok(())
+}
+
+#[test]
 fn macos156_selects_exact_platforms_and_seven_observed_layers() -> TestResult {
     for capture in &CAPTURES {
         let definition = profile(capture.selector)?;
@@ -140,11 +148,7 @@ fn macos156_selects_exact_platforms_and_seven_observed_layers() -> TestResult {
         assert!(selected.websocket().is_none());
         assert!(selected.proxy_connect().is_none());
         assert!(selected.request_template().is_none());
-        for kind in [
-            RequestTemplateKind::Fetch,
-            RequestTemplateKind::FetchNoStore,
-            RequestTemplateKind::FetchUpload,
-        ] {
+        for kind in [RequestTemplateKind::Fetch, RequestTemplateKind::FetchUpload] {
             if capture.selector == "chrome-156-macos" && kind == RequestTemplateKind::Fetch {
                 assert_eq!(
                     definition.request_template(kind)?,

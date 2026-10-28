@@ -66,6 +66,7 @@ pub(super) fn command() -> Command {
                         .value_parser([
                             "navigation",
                             "fetch",
+                            "fetch-no-store",
                             "script",
                             "stylesheet",
                             "image",

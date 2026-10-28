@@ -43,6 +43,11 @@ const CONTEXTS: [(RequestTemplateKind, &str); 4] = [
 ];
 
 #[test]
+fn linux156_no_store_fetch_matches_all_three_protocol_captures() -> TestResult {
+    super::resource_templates::fetch_no_store::compare("chrome-156-linux", RESOURCES)
+}
+
+#[test]
 fn linux156_selects_its_seven_observed_layers() -> TestResult {
     let definition = profile("chrome-156-linux")?;
     assert_eq!(
@@ -100,11 +105,7 @@ fn linux156_selects_its_seven_observed_layers() -> TestResult {
     assert!(selected.websocket().is_none());
     assert!(selected.proxy_connect().is_none());
     assert!(selected.request_template().is_none());
-    for kind in [
-        RequestTemplateKind::Fetch,
-        RequestTemplateKind::FetchNoStore,
-        RequestTemplateKind::FetchUpload,
-    ] {
+    for kind in [RequestTemplateKind::Fetch, RequestTemplateKind::FetchUpload] {
         assert_eq!(
             definition.request_template(kind),
             Err(CatalogError::UnavailableTemplate {

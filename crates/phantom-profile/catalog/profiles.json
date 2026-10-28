@@ -3301,7 +3301,8 @@
         "Script": "chrome_windows156_script",
         "Stylesheet": "chrome_windows156_stylesheet",
         "Image": "chrome_windows156_image",
-        "Font": "chrome_windows156_font"
+        "Font": "chrome_windows156_font",
+        "FetchNoStore": "chrome_windows156_fetch_no_store"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",
@@ -3450,7 +3451,8 @@
         "Script": "chrome_linux156_script",
         "Stylesheet": "chrome_linux156_stylesheet",
         "Image": "chrome_linux156_image",
-        "Font": "chrome_linux156_font"
+        "Font": "chrome_linux156_font",
+        "FetchNoStore": "chrome_linux156_fetch_no_store"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",
@@ -3605,7 +3607,8 @@
         "Stylesheet": "chrome_macos156_stylesheet",
         "Image": "chrome_macos156_image",
         "Font": "chrome_macos156_font",
-        "Fetch": "chromium_fetch_caller_ua"
+        "Fetch": "chromium_fetch_caller_ua",
+        "FetchNoStore": "chrome_macos156_fetch_no_store"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",
@@ -3754,7 +3757,8 @@
         "Script": "chrome_macos156_script",
         "Stylesheet": "chrome_macos156_stylesheet",
         "Image": "chrome_macos156_image",
-        "Font": "chrome_macos156_font"
+        "Font": "chrome_macos156_font",
+        "FetchNoStore": "chrome_macos156_fetch_no_store"
       },
       "composition": {
         "TcpTls": "chromium_154_tcp_tls",

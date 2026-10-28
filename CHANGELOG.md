@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Add a hosted Windows native-DNS scene for multi-address selection.
+- Add no-store fetch contexts to Chrome 156 desktop profiles on Windows,
+  Linux and macOS.
 - Reduce Python streaming overhead by converting body chunks during async
   completion.
 - Go shutdown waits for requests admitted before their first async poll.

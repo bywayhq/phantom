@@ -173,6 +173,79 @@ fn explicit_selection_and_profile_round_trip() -> TestResult {
 }
 
 #[test]
+fn no_store_context_supplies_each_desktop_profile_without_caller_user_agent() -> TestResult {
+    for (profile, platform) in [
+        ("chrome-156-windows", "Windows NT 10.0; Win64; x64"),
+        ("chrome-156-linux", "X11; Linux x86_64"),
+        ("chrome-156-macos", "Macintosh; Intel Mac OS X 10_15_7"),
+        (
+            "chrome-156-macos-intel",
+            "Macintosh; Intel Mac OS X 10_15_7",
+        ),
+    ] {
+        let listener = listener()?;
+        let url = format!("http://{}/data", listener.local_addr()?);
+        let peer = thread::spawn(move || -> TestResult<Vec<u8>> {
+            let mut stream = accept(&listener)?;
+            let request = head(&mut stream)?;
+            stream.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+            )?;
+            Ok(request)
+        });
+        let output = command()
+            .args([
+                "request",
+                &url,
+                "--profile",
+                profile,
+                "--protocol",
+                "h1",
+                "--context",
+                "fetch-no-store",
+                "--timeout-ms",
+                "5000",
+            ])
+            .output()?;
+        let request = peer.join().map_err(|_| "peer panicked")??;
+        success(&output);
+        assert_eq!(output.stdout, b"ok");
+        let request = String::from_utf8(request)?;
+        assert!(request.starts_with("GET /data HTTP/1.1\r\n"));
+        assert!(request.contains("Pragma: no-cache\r\nCache-Control: no-cache\r\n"));
+        assert!(request.contains(&format!("User-Agent: Mozilla/5.0 ({platform})")));
+        assert!(request.contains("Chrome/156.0.0.0 Safari/537.36\r\n"));
+        assert!(request.contains("Sec-Fetch-Mode: cors\r\nSec-Fetch-Dest: empty\r\n"));
+        assert!(!request.contains("priority:"));
+    }
+
+    let listener = listener()?;
+    listener.set_nonblocking(true)?;
+    let url = format!("http://{}/data", listener.local_addr()?);
+    let unavailable = command()
+        .args([
+            "request",
+            &url,
+            "--profile",
+            "safari-26-macos",
+            "--protocol",
+            "h1",
+            "--context",
+            "fetch-no-store",
+        ])
+        .output()?;
+    assert_eq!(unavailable.status.code(), Some(1));
+    assert!(
+        String::from_utf8(unavailable.stderr)?.contains("has no FetchNoStore request template")
+    );
+    assert!(matches!(
+        listener.accept(),
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
+    ));
+    Ok(())
+}
+
+#[test]
 fn peer_description_keeps_source_identity_separate_from_browser_observations() -> TestResult {
     let description = command()
         .args(["profiles", "describe", "safari-26-macos"])

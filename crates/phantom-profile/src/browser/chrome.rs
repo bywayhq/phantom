@@ -4,6 +4,8 @@
 //! Chrome 154.0.8037.57 with Pixel 7 / Android 17 client hints. Android has no
 //! HTTP/1.1 pool, address-cache, proxy CONNECT or cookie-placement recipe.
 //!
+//! Chrome 156 desktop profiles provide `FetchNoStore` for same-origin GETs
+//! with `cache: "no-store"`.
 //! Select `Fetch` from the `chrome-156-macos` catalog profile for ordinary
 //! same-origin GETs. Supply `User-Agent` and any cache validators.
 

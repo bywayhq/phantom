@@ -60,8 +60,8 @@ class TemplateDeclarationTests(unittest.TestCase):
         templates = domain.validate_templates(self.actual)
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
-        self.assertEqual(len(templates), 40)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 56)
+        self.assertEqual(len(templates), 43)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 60)
         for target in ("FirefoxWindows157R2", "FirefoxWindows157"):
             firefox = next(row for row in profiles if row["target"] == target)
             self.assertEqual(
@@ -82,8 +82,20 @@ class TemplateDeclarationTests(unittest.TestCase):
                 "Stylesheet": "chrome_windows156_stylesheet",
                 "Image": "chrome_windows156_image",
                 "Font": "chrome_windows156_font",
+                "FetchNoStore": "chrome_windows156_fetch_no_store",
             },
         )
+        for target, platform in (
+            ("ChromeWindows156", "windows"),
+            ("ChromeLinux156", "linux"),
+            ("ChromeMacos156", "macos"),
+            ("ChromeMacos156Intel", "macos"),
+        ):
+            profile = next(row for row in profiles if row["target"] == target)
+            self.assertEqual(
+                profile["templates"]["FetchNoStore"],
+                f"chrome_{platform}156_fetch_no_store",
+            )
         navigation = templates["chrome_windows156_navigation"]
         self.assertEqual(
             [
@@ -128,7 +140,7 @@ class TemplateDeclarationTests(unittest.TestCase):
             for identifier in profile["templates"].values()
             for name in ("http1_fields", "http2_fields", "http3_fields")
         )
-        self.assertEqual(count, 1187)
+        self.assertEqual(count, 1235)
         self.assertEqual(
             domain.generate_templates(templates),
             cli.REQUEST_TEMPLATE_OUTPUT.read_text(encoding="utf-8"),

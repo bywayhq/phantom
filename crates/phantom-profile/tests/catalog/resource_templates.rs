@@ -5,6 +5,8 @@ use phantom_profile::{
     catalog::{CatalogError, RequestTemplateKind, profile, profiles},
 };
 
+pub(super) mod fetch_no_store;
+
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 type Fields = Vec<(String, Vec<u8>)>;
 

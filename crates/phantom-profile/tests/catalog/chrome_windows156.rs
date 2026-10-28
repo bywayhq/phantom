@@ -148,11 +148,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
     assert!(selected.websocket().is_none());
     assert!(selected.proxy_connect().is_none());
     assert!(selected.request_template().is_none());
-    for kind in [
-        RequestTemplateKind::Fetch,
-        RequestTemplateKind::FetchNoStore,
-        RequestTemplateKind::FetchUpload,
-    ] {
+    for kind in [RequestTemplateKind::Fetch, RequestTemplateKind::FetchUpload] {
         assert_eq!(
             definition.request_template(kind),
             Err(CatalogError::UnavailableTemplate {

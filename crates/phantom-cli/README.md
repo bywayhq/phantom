@@ -31,8 +31,8 @@ platform substitution occurs. Choose
 `--protocol h1`, `h2`, `h3`, or `negotiated`. Negotiation uses the library's
 HTTP/2 and HTTP/1.1 policy. The CLI does not enable HTTP/3 fallback or retries.
 
-Catalog requests have no request template unless you select `--context navigation`
-or `--context fetch`. A custom profile file keeps its configured template.
+Catalog requests have no request template unless you select `--context`.
+A custom profile file keeps its configured template.
 Missing templates and unsupported protocol/route combinations return errors.
 
 Use `--method METHOD` to replace GET. Repeat `--header 'Name: value'` to preserve
@@ -66,9 +66,10 @@ after downloading the response body.
 
 ## Profiles
 
-With `--profile chrome-156-windows`, `--context` also accepts `script`,
-`stylesheet`, `image` and `font`. Supply `Referer` with `--header`; fonts
-also need `Origin` and use the stylesheet URL as `Referer`.
+Chrome 156 desktop profiles accept `--context fetch-no-store` for same-origin
+GETs with `cache: "no-store"`. They also offer `script`, `stylesheet`, `image`
+and `font`. Supply `Referer` with `--header` for resources; fonts also need
+`Origin` and use the stylesheet URL as `Referer`.
 
 ```console
 phantom profiles describe chrome-154-windows

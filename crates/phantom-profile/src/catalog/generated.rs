@@ -1563,6 +1563,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMELINUX156,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_LINUX156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_LINUX156_FETCH_NO_STORE },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_LINUX156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_LINUX156_STYLESHEET },
             RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_LINUX156_IMAGE },
@@ -1751,6 +1752,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMEMACOS156INTEL,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_MACOS156_FETCH_NO_STORE },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_MACOS156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_MACOS156_STYLESHEET },
             RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_MACOS156_IMAGE },
@@ -1944,6 +1946,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMEMACOS156,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_MACOS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_MACOS156_FETCH_NO_STORE },
             RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROMIUM_FETCH_CALLER_UA },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_MACOS156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_MACOS156_STYLESHEET },
@@ -2203,6 +2206,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         composition: &connection_profile_definitions::CHROMEWINDOWS156,
         templates: &[
             RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_WINDOWS156_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_WINDOWS156_FETCH_NO_STORE },
             RequestTemplateBinding { kind: RequestTemplateKind::Script, definition: &request_template_definitions::CHROME_WINDOWS156_SCRIPT },
             RequestTemplateBinding { kind: RequestTemplateKind::Stylesheet, definition: &request_template_definitions::CHROME_WINDOWS156_STYLESHEET },
             RequestTemplateBinding { kind: RequestTemplateKind::Image, definition: &request_template_definitions::CHROME_WINDOWS156_IMAGE },
