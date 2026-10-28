@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
+import threading
 from pathlib import Path
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
@@ -40,6 +42,42 @@ def write_json(path: Path, value: dict) -> None:
     if len(data) > 65536:
         raise ValueError("peer receipt exceeds its bound")
     path.write_bytes(data)
+
+
+def stop_command() -> asyncio.Future[str]:
+    loop = asyncio.get_running_loop()
+    command = loop.create_future()
+    descriptor = sys.stdin.fileno()
+
+    def complete(value: str | Exception) -> None:
+        if command.done():
+            return
+        if isinstance(value, Exception):
+            command.set_exception(value)
+        else:
+            command.set_result(value)
+
+    def read() -> None:
+        try:
+            line = bytearray()
+            while len(line) < 6 and not line.endswith(b"\n"):
+                chunk = os.read(descriptor, 6 - len(line))
+                if not chunk:
+                    break
+                line.extend(chunk)
+            value = line.decode("ascii")
+        except Exception as error:
+            value = error
+        try:
+            loop.call_soon_threadsafe(complete, value)
+        except RuntimeError:
+            # The peer already exited; the daemon owns no buffered stdin lock.
+            return
+
+    # Raw reads avoid a TextIO lock during finalization. A daemon cannot keep
+    # this single-command subprocess alive after its deadline or peer failure.
+    threading.Thread(target=read, name="events-peer-stop", daemon=True).start()
+    return command
 
 
 class EventsProtocol(QuicConnectionProtocol):
@@ -206,7 +244,7 @@ async def run(directory: Path, reject: str | None) -> None:
     loop = asyncio.get_running_loop()
     previous = loop.get_exception_handler()
     loop.set_exception_handler(owner.callback_failed)
-    command = asyncio.create_task(asyncio.to_thread(sys.stdin.readline))
+    command = stop_command()
     try:
         port = server._transport.get_extra_info("sockname")[1]
         write_json(
