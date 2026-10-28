@@ -26,6 +26,7 @@ SOURCES = (
     "lib/client-native.d.cts",
     "lib/controls.cjs",
     "lib/errors.cjs",
+    "lib/event-source.cjs",
     "lib/events.cjs",
     "lib/native.cjs",
     "lib/network.cjs",
