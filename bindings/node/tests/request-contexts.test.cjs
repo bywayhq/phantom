@@ -69,24 +69,33 @@ test('concurrent resource contexts share one HTTP/2 session without changing the
 });
 
 test('client template defaults survive forks and restoration while each request can replace or remove them', {timeout: 30000}, async (t) => {
-  const http = require('node:http');
   const observed = [];
-  const server = http.createServer((request, response) => {
-    observed.push(request.headers);
-    response.end('ok');
+  const sessions = new Set();
+  const server = http2.createServer();
+  server.on('session', (session) => {
+    sessions.add(session);
+    session.on('error', () => {});
+  });
+  server.on('stream', (stream, headers) => {
+    observed.push(headers);
+    stream.respond({':status': 200});
+    stream.end('ok');
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(async () => {
+    for (const session of sessions) session.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
   const url = `http://127.0.0.1:${server.address().port}/`;
   const attached = Profile.fromCatalog(selector, 'navigation');
-  const client = new Client({profile: attached, route: 'direct', protocol: 'http1'});
+  const client = new Client({profile: attached, route: 'direct', protocol: 'http2'});
   const key = Buffer.alloc(32, 17);
   const restored = await client.restoreSession(await client.exportSession(key), key);
   const fork = client.fork();
-  const selected = new Client({profile: selector, route: 'direct', protocol: 'http1', context: 'navigation'});
-  const raw = new Client({profile: attached, route: 'direct', protocol: 'http1', context: 'raw'});
-  const unselected = new Client({profile: selector, route: 'direct', protocol: 'http1'});
+  const selected = new Client({profile: selector, route: 'direct', protocol: 'http2', context: 'navigation'});
+  const raw = new Client({profile: attached, route: 'direct', protocol: 'http2', context: 'raw'});
+  const unselected = new Client({profile: selector, route: 'direct', protocol: 'http2'});
   const clients = [client, restored, fork, selected, raw, unselected];
   t.after(async () => {
     for (const owner of clients) await owner.destroy();
@@ -95,10 +104,10 @@ test('client template defaults survive forks and restoration while each request 
   for (const owner of [client, restored, fork, selected]) {
     assert.equal(await (await owner.get(url)).text(2), 'ok');
     assert.equal(observed.at(-1)['sec-fetch-dest'], 'document');
-    assert.equal(await (await owner.get(url, {context: 'fetch', headers: [
-      {name: 'Referer', value: Buffer.from(url)},
+    assert.equal(await (await owner.get(url, {context: 'script', headers: [
+      {name: 'referer', value: Buffer.from(url)},
     ]})).text(2), 'ok');
-    assert.equal(observed.at(-1)['sec-fetch-dest'], 'empty');
+    assert.equal(observed.at(-1)['sec-fetch-dest'], 'script');
     assert.equal(await (await owner.get(url, {context: 'raw'})).text(2), 'ok');
     assert.equal(observed.at(-1)['sec-fetch-dest'], undefined);
     assert.equal(await (await owner.get(url)).text(2), 'ok');
