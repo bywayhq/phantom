@@ -200,6 +200,10 @@ class EvidenceTests(unittest.TestCase):
 
 
 class MetadataTests(unittest.TestCase):
+    def test_explicit_target_keeps_the_published_ech_config(self) -> None:
+        rdata = b"\x00\x01\x06server\x07phantom\x04test\0" + RDATA[3:]
+        self.assertEqual(capture.ech_config(rdata), bytes.fromhex("0006fe0d00020000"))
+
     def test_metadata_is_single_bounded_lowercase_hex_and_keeps_exact_bytes(
         self,
     ) -> None:

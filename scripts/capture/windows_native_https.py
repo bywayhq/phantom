@@ -12,11 +12,10 @@ from pathlib import Path
 from scripts.capture import chrome_ech, firefox_socket_hooks
 from scripts.capture.browser_launch import LaunchedBrowser, LaunchPlan
 from scripts.capture.capture_report import file_digest
-from scripts.capture.native_dns import HttpsAnswer, question
+from scripts.capture.native_dns import HttpsAnswer, https_parameters_offset, question
 from scripts.capture.process_container import ProcessContainer
 
 HOSTNAME = "server.phantom.test"
-PROBE_BODY = "phantom-native-https-ok\n"
 ROOT = Path(__file__).resolve().parents[2]
 IDENTITY = ROOT / "scripts/capture/fixtures/native-https"
 PEER = ROOT / "target/debug/examples/capture_ech_client_hello.exe"
@@ -27,7 +26,7 @@ FINISH_SECONDS = 15.0
 
 def ech_config(rdata: bytes) -> bytes:
     """Return the validated scene record's ECHConfigList."""
-    offset = 3
+    offset = https_parameters_offset(rdata)
     while offset < len(rdata):
         key, size = struct.unpack_from("!HH", rdata, offset)
         offset += 4
