@@ -462,7 +462,10 @@ class LifecycleOwnershipTests(unittest.IsolatedAsyncioTestCase):
                         fields = [
                             (":method", "GET"),
                             (":scheme", "https"),
-                            (":authority", "local"),
+                            (
+                                ":authority",
+                                f"{http_lifecycle.HOSTNAME}:{self.url.port}",
+                            ),
                         ]
                         self.connection.send_headers(
                             1,
@@ -496,13 +499,15 @@ class LifecycleOwnershipTests(unittest.IsolatedAsyncioTestCase):
                         writer.write(self.connection.data_to_send())
                     else:
                         writer.write(
-                            f"GET /start?run={self.token}&other=x,y HTTP/1.1\r\nHost: local\r\n\r\n".encode()
+                            f"GET /start?run={self.token}&other=x,y HTTP/1.1\r\n"
+                            f"Host: {http_lifecycle.HOSTNAME}:{self.url.port}\r\n\r\n".encode()
                         )
                         await writer.drain()
                         test.assertIn(b"200 OK", await test.response(reader))
                         writer.write(
                             payload
-                            + f"GET /done?run={self.token}&result=ok HTTP/1.1\r\nHost: local\r\n\r\n".encode()
+                            + f"GET /done?run={self.token}&result=ok HTTP/1.1\r\n"
+                            f"Host: {http_lifecycle.HOSTNAME}:{self.url.port}\r\n\r\n".encode()
                         )
                     await writer.drain()
                     return self

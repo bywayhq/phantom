@@ -1083,6 +1083,11 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 | `close` | `h2` and `http/1.1` | Fetches over HTTP/2, aborts an HTTP/1.1 response at a second origin, fetches there again, then the tool closes the browser over CDP or WebDriver BiDi |
 | `resources` | `h2` or explicit `http/1.1` or `h3` | Loads one local script, stylesheet, image and licensed Ahem font |
 
+`revalidate`, `upload-h1` and `upload-h2` also retain each request's complete
+ordered headers in `request_N_headers_json`, plus its initial HTTP/2 priority
+in `request_N_priority` (`null` when absent). These captures accept only their
+owned page requests and nonsecret headers. Upload bodies are counted, not kept.
+
 `resources` defaults to HTTP/2 and retains each request's initial HEADERS
 priority. Add `--resource-protocol h1` to observe HTTPS over HTTP/1.1 instead.
 H1 retains raw request lines and headers, including case, order and duplicates.

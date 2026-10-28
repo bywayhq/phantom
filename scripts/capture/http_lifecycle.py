@@ -4,7 +4,8 @@ One run serves a scripted page over TLS on loopback and keeps, for every
 connection the browser opens, how it ended (a TLS `close_notify`, a TCP end
 without one, or a reset), its HTTP/2 client frames other than DATA, and each
 request's field names in wire order with the values of the fields a scenario
-asks about.
+asks about. Revalidation and upload captures also keep their complete ordered
+nonsecret headers and initial HTTP/2 priority.
 
 | Scenario | ALPN | What the page does |
 | --- | --- | --- |
@@ -50,6 +51,7 @@ from .browser_remote import (
     wait_for_endpoint,
 )
 from .fixture_file import write_text_fixture
+from .http2_analysis import Priority
 from .http2_session import (
     CONNECTION_PREFACE,
     HOSTNAME,
@@ -61,7 +63,12 @@ from .http2_session import (
 from .http2_session import (
     ConnectionRecord as RawConnectionRecord,
 )
-from .http_lifecycle_resources import ASSETS, ResourceCapture, resource_page
+from .http_lifecycle_resources import (
+    ASSETS,
+    SAFE_FIELDS,
+    ResourceCapture,
+    resource_page,
+)
 
 FORMAT = "phantom-http-lifecycle-v1"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0"}
@@ -95,6 +102,8 @@ RECORDED_FIELDS = (
     "content-length",
     "transfer-encoding",
 )
+HEADER_SCENARIOS = frozenset(("revalidate", "upload-h1", "upload-h2"))
+HEADER_FIELDS = SAFE_FIELDS | set(RECORDED_FIELDS) | {"host", "connection"}
 READ_SIZE = 64 * 1024
 MAX_FRAMES = 2000
 MAX_REQUEST_HEAD = 64 * 1024
@@ -286,6 +295,8 @@ class RequestRecord:
     values: dict[str, str]
     body_bytes: int = 0
     status: int | None = None
+    ordered_fields: tuple[tuple[str, str], ...] | None = None
+    initial_priority: Priority | None = None
 
     def line(self) -> str:
         items = [
@@ -623,6 +634,7 @@ class Run:
     grace_timeout: asyncio.TimeoutError | None = None
     remote_disconnect: BaseException | None = None
     resources: ResourceCapture | None = None
+    header_origin: str | None = None
 
     def now(self) -> float:
         return time.perf_counter() - self.started
@@ -696,6 +708,83 @@ class Run:
         if len(self.requests) >= MAX_REQUESTS:
             raise ValueError("run exceeds the request limit")
         self.requests.append(request)
+
+    def record_headers(
+        self,
+        request: RequestRecord,
+        target: str,
+        fields: Sequence[tuple[str, str]],
+        priority: Priority | None = None,
+    ) -> None:
+        if self.header_origin is None:
+            return
+
+        paths = (
+            {"/etag", "/last-modified", "/both", "/heuristic"}
+            if self.scenario == "revalidate"
+            else {
+                "/post-small",
+                "/post-large",
+                "/post-blob",
+                "/post-multipart",
+                "/form-upload",
+            }
+        )
+        method = (
+            "POST" if request.path in paths and self.scenario != "revalidate" else "GET"
+        )
+        if (
+            not self.belongs(target)
+            or request.path != request_path(target)
+            or request.path not in paths | {"/start", "/done"}
+            or request.method != method
+        ):
+            raise ValueError("header capture requires an owned scenario path and token")
+
+        size = 0
+        for name, value in fields:
+            if name.lower() not in HEADER_FIELDS:
+                raise ValueError("header capture contains an unapproved header name")
+            if any(ord(c) < 32 and c != "\t" or ord(c) == 127 for c in value):
+                raise ValueError("header capture value contains a control byte")
+            try:
+                size += len(name.encode("latin-1")) + len(value.encode("latin-1")) + 4
+            except UnicodeEncodeError:
+                raise ValueError(
+                    "header capture fields must retain byte values"
+                ) from None
+            if size > MAX_REQUEST_HEAD:
+                raise ValueError("header capture exceeds the request head limit")
+
+        def values(name: str) -> list[str]:
+            return [value for field, value in fields if field.lower() == name]
+
+        authority = self.header_origin.removeprefix("https://")
+        if request.stream is None:
+            if values("host") != [authority]:
+                raise ValueError("header capture requires one owned HTTPS host")
+        elif any(
+            values(name) != [value]
+            for name, value in (
+                (":method", request.method),
+                (":scheme", "https"),
+                (":authority", authority),
+                (":path", target),
+            )
+        ) or values("host") not in ([], [authority]):
+            raise ValueError("header capture requires one owned HTTPS origin")
+
+        if values("origin") not in ([], [self.header_origin]) or values(
+            "referer"
+        ) not in (
+            [],
+            [f"{self.header_origin}/start?run={self.token}"],
+        ):
+            raise ValueError("header capture origin or referrer is not the owned page")
+
+        self.retain(size)
+        request.ordered_fields = tuple(fields)
+        request.initial_priority = priority
 
     def failure_state(self) -> str:
         """Describe bounded progress without request fields or URL inputs."""
@@ -779,7 +868,8 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
         H2Configuration(
             client_side=False,
             header_encoding=None,
-            normalize_inbound_headers=run.resources is None,
+            normalize_inbound_headers=run.resources is None
+            and run.header_origin is None,
         )
     )
     if run.resources is not None:
@@ -822,6 +912,17 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                     path,
                     [name for name, _ in fields],
                     recorded_values(fields),
+                )
+                priority = event.priority_updated
+                run.record_headers(
+                    request,
+                    head.get(":path", ""),
+                    fields,
+                    None
+                    if priority is None
+                    else Priority(
+                        priority.exclusive, priority.depends_on, priority.weight
+                    ),
                 )
                 if len(streams) >= MAX_STREAMS:
                     raise ValueError("connection exceeds the active stream limit")
@@ -925,7 +1026,14 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
             name, separator, value = line.partition(":")
             if not separator:
                 raise ValueError("invalid HTTP/1 header field")
-            fields.append((name, value.strip()))
+            fields.append(
+                (
+                    name,
+                    value.strip(" \t")
+                    if run.header_origin is not None
+                    else value.strip(),
+                )
+            )
         _validate_request_record(method, target, fields)
         head = {name.lower(): value for name, value in fields}
         path = request_path(target)
@@ -938,6 +1046,7 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
             [name for name, _ in fields],
             recorded_values(fields),
         )
+        run.record_headers(request, target, fields)
         if "chunked" in head.get("transfer-encoding", "").lower():
             raise ValueError("chunked request bodies are not supported")
         remaining = int(head.get("content-length", "0"))
@@ -1525,9 +1634,25 @@ def fixture(
             for n, line in enumerate(record.frames)
         )
     lines.append(f"request_count={len(run.requests)}")
-    lines.extend(
-        f"request_{n}={request.line()}" for n, request in enumerate(run.requests)
-    )
+    for n, request in enumerate(run.requests):
+        lines.append(f"request_{n}={request.line()}")
+        if request.ordered_fields is not None:
+            lines.append(
+                f"request_{n}_headers_json={json.dumps(request.ordered_fields)}"
+            )
+            priority = request.initial_priority
+            lines.append(
+                f"request_{n}_priority="
+                + json.dumps(
+                    None
+                    if priority is None
+                    else {
+                        "exclusive": priority.exclusive,
+                        "depends_on": priority.depends_on,
+                        "weight": priority.weight,
+                    }
+                )
+            )
     if run.resources is not None:
         lines.extend(
             run.resources.lines(run.page_result)
@@ -1595,6 +1720,8 @@ async def capture(args: argparse.Namespace) -> None:
             else await owner.start(args.listen, h1_context, "h1")
         )
         run.h1_origin = f"https://{HOSTNAME}:{h1_port}"
+        if args.scenario in HEADER_SCENARIOS:
+            run.header_origin = f"https://{HOSTNAME}:{port}"
         if args.scenario == "resources":
             run.resources = ResourceCapture(
                 run.token, port, getattr(args, "resource_protocol", "h2")
