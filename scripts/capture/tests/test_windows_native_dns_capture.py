@@ -215,6 +215,46 @@ class TtlAcceptanceTests(unittest.TestCase):
                 ]
                 self.assertEqual(summary["observation"], "limited")
 
+    def test_initial_answer_and_request_may_share_a_millisecond(self) -> None:
+        for queued, order in (
+            (1_001_999_999, "answer-before-interval"),
+            (1_002_000_000, "overlapping-interval"),
+            (1_002_100_000, "overlapping-interval"),
+        ):
+            observed, records = ttl_result()
+            records[0]["response_queued_ns"] = queued
+            with self.subTest(queued=queued):
+                summary = capture.validate_result(observed, records, scenario="ttl")[
+                    "ttl"
+                ]
+                self.assertEqual(
+                    summary["request_unix_ns_intervals"][0],
+                    [1_002_000_000, 1_003_000_000],
+                )
+                self.assertEqual(summary["initial_answer_request_order"], order)
+
+    def test_uncertain_ttl_boundaries_never_prove_an_inside_or_outside_read(
+        self,
+    ) -> None:
+        for index in (1, 2):
+            observed, records = ttl_result()
+            records[0]["response_queued_ns"] = 1_002_100_000
+            observed.origins.connections[0].requests = [(1003, "/close?i=0")]
+            observed.origins.connections[0].last_response_ms = 1004
+            observed.origins.connections[index].requests = [(6002, f"/close?i={index}")]
+            observed.origins.connections[index].last_response_ms = 6003
+            with (
+                self.subTest(index=index),
+                self.assertRaisesRegex(RuntimeError, "straddle"),
+            ):
+                capture.validate_result(observed, records, scenario="ttl")
+
+    def test_serial_response_and_next_read_may_share_a_millisecond(self) -> None:
+        observed, records = ttl_result()
+        observed.origins.connections[1].last_response_ms = 9003
+        summary = capture.validate_result(observed, records, scenario="ttl")["ttl"]
+        self.assertEqual(summary["request_ms"][2], 9003)
+
     def test_missing_repeated_or_reused_connections_never_complete_the_scene(
         self,
     ) -> None:
@@ -265,7 +305,7 @@ class TtlAcceptanceTests(unittest.TestCase):
                 observed.origins.connections[1].requests = [(6003, "/close?i=1")]
                 observed.origins.connections[1].last_response_ms = 6004
             elif case == "overlap":
-                observed.origins.connections[1].last_response_ms = 9003
+                observed.origins.connections[1].last_response_ms = 9004
             else:
                 records[0]["response_queued_ns"] = 1_003_000_000
             with self.subTest(case=case), self.assertRaises(RuntimeError):

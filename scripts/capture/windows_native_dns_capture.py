@@ -440,14 +440,18 @@ def validate_ttl(
     first_response = connections[0].last_response_ms
     relative = [stamp - first_response for stamp in requests[1:]]
     if any(
-        connections[index].last_response_ms >= requests[index + 1] for index in range(3)
+        connections[index].last_response_ms > requests[index + 1] for index in range(3)
     ):
         raise RuntimeError("TTL scene response reads overlapped")
     first_answer = min(entry["response_queued_ns"] for entry in answered)
     expires = first_answer + 5_000_000_000
+    # Origin stamps truncate to milliseconds; interval ends are exclusive.
+    request_intervals = [
+        [stamp * 1_000_000, (stamp + 1) * 1_000_000] for stamp in requests
+    ]
     if not (
-        first_answer <= requests[0] * 1_000_000
-        and requests[1] * 1_000_000 < expires < requests[2] * 1_000_000
+        first_answer < request_intervals[0][1]
+        and request_intervals[1][1] <= expires <= request_intervals[2][0]
     ):
         raise RuntimeError("TTL scene requests do not straddle the initial TTL5 answer")
 
@@ -467,16 +471,20 @@ def validate_ttl(
         f"Caching host [{firefox.TARGET_HOST}] record for 5 seconds " in line
         for line in cache_lines
     )
-    later_answers = sum(entry["unix_ns"] > expires for entry in answered)
+    later_answers = sum(entry["unix_ns"] >= expires for entry in answered)
     later_lookups = sum(
-        attached_ns + event["t"] * 1_000_000 > expires for event in lookups
+        attached_ns + event["t"] * 1_000_000 >= expires for event in lookups
     )
     return {
         "observation": "recorded" if published and later_lookups else "limited",
         "request_ms": requests,
+        "request_unix_ns_intervals": request_intervals,
         "response_sent_ms": [item.last_response_ms for item in connections],
         "requests_after_first_response_ms": relative,
         "initial_answer_queued_ns": first_answer,
+        "initial_answer_request_order": "answer-before-interval"
+        if first_answer < request_intervals[0][0]
+        else "overlapping-interval",
         "initial_answer_expiry_ns": expires,
         "native_ttl5_publication_observed": published,
         "post_expiry_a_queries": later_answers,
