@@ -15,6 +15,7 @@ use super::{
     buffer::{checkpoint_key, copy_buffer},
     controls::{NativeAttemptBudget, NativeCancellation, NativeTransferControl},
     diagnostics::NativeRequestDiagnostics,
+    event_source::{EventSourceHead, EventSourceOptions, NativeEventSource},
     options::{RequestOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
@@ -41,9 +42,9 @@ impl NativeClient {
     pub fn event_source(
         &self,
         env: Env,
-        options: super::event_source::EventSourceOptions,
-        source: &super::event_source::NativeEventSource,
-    ) -> Result<AsyncBlock<super::event_source::EventSourceHead>> {
+        options: EventSourceOptions,
+        source: &NativeEventSource,
+    ) -> Result<AsyncBlock<EventSourceHead>> {
         let builder = super::event_source::prepare(&env, &self.state, options)?;
         let permit = Arc::clone(&self.state.admission)
             .try_acquire_owned()
