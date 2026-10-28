@@ -15,6 +15,10 @@ ANSWER = (
     + bytes.fromhex("c00c000100010000000500047f000001")
 )
 HTTPS_RDATA = bytes.fromhex("00010000010003026832000500080006fe0d00020000")
+HTTPS_ORIGIN_RDATA = bytes.fromhex(
+    "000106736572766572077068616e746f6d047465737400"
+    "00010003026832000500080006fe0d00020000"
+)
 
 
 def named_query(name: str, kind: int) -> bytes:
@@ -38,6 +42,80 @@ def framed(wire: bytes) -> bytes:
 
 
 class DnsWireTests(unittest.TestCase):
+    def test_https_explicit_origin_retains_target_and_captured_parameters(self) -> None:
+        record = native_dns.HttpsAnswer(8443, HTTPS_ORIGIN_RDATA)
+        self.assertEqual(native_dns.https_parameters_offset(HTTPS_RDATA), 3)
+        self.assertEqual(native_dns.https_parameters_offset(record.rdata), 23)
+        self.assertEqual(record.rdata[23:], HTTPS_RDATA[3:])
+        query = named_query("_8443._https.server.phantom.test", 65)
+        expected = (
+            bytes.fromhex("123485000001000100000000")
+            + query[12:]
+            + bytes.fromhex("c00c0041000100000005002a")
+            + HTTPS_ORIGIN_RDATA
+        )
+        self.assertEqual(
+            native_dns.response(
+                query,
+                native_dns.question(query),
+                "server.phantom.test",
+                5,
+                https_answer=record,
+            ),
+            expected,
+        )
+
+    def test_https_explicit_target_rejects_other_names_and_wire_encodings(self) -> None:
+        for target in (
+            b"\x06Server\x07phantom\x04test\x00",
+            b"\x05other\x07phantom\x04test\x00",
+            b"\x05_8443\x06_https\x06server\x07phantom\x04test\x00",
+            b"\xc0\x0c",
+            b"\x06server\x07phantom\x04test",
+            b"\x06server\x07phantom\x04test\xc0\x0c",
+            b"\x40" + b"x" * 64 + b"\x00",
+        ):
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                native_dns.HttpsAnswer(8443, b"\x00\x01" + target + HTTPS_RDATA[3:])
+
+    def test_https_explicit_target_respects_complete_udp_response_limit(self) -> None:
+        name = "_8443._https.server.phantom.test"
+        query = named_query(name, 65)
+        prefix = HTTPS_ORIGIN_RDATA[:30]
+        # Query, answer header, OPT and ECH parameter header all count on the wire.
+        value_size = 512 - len(query) - 12 - 11 - len(prefix) - 4
+        for extra in (0, 1):
+            size = value_size + extra
+            ech = (size - 2).to_bytes(2, "big") + b"x" * (size - 2)
+            record = native_dns.HttpsAnswer(
+                8443, prefix + struct.pack("!HH", 5, size) + ech
+            )
+            if extra:
+                with self.assertRaisesRegex(ValueError, "512-byte"):
+                    native_dns.NativeDnsServer(
+                        "server.phantom.test", https_answer=record
+                    )
+            else:
+                native_dns.NativeDnsServer("server.phantom.test", https_answer=record)
+                edns = (
+                    query[:10]
+                    + b"\x00\x01"
+                    + query[12:]
+                    + bytes.fromhex("0000290200000000000000")
+                )
+                self.assertEqual(
+                    len(
+                        native_dns.response(
+                            edns,
+                            native_dns.question(edns),
+                            "server.phantom.test",
+                            5,
+                            https_answer=record,
+                        )
+                    ),
+                    512,
+                )
+
     def test_https_answer_keeps_captured_rdata_and_exact_name_scope(self) -> None:
         record = native_dns.HttpsAnswer(8443, HTTPS_RDATA)
         service = "_8443._https.server.phantom.test"

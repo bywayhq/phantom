@@ -22,6 +22,7 @@ MAX_QUERIES = 512
 MAX_TCP_CONNECTIONS = 64
 MAX_ACTIVE_TCP = 16
 IO_SECONDS = 5.0
+_HTTPS_TARGET = b"\x06server\x07phantom\x04test\x00"
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class Question:
 
 @dataclass(frozen=True)
 class HttpsAnswer:
-    """One captured priority-1/root HTTPS record for a nondefault origin port."""
+    """One captured priority-1 HTTPS record for a nondefault origin port."""
 
     port: int
     rdata: bytes
@@ -46,14 +47,7 @@ class HttpsAnswer:
             or self.port == 443
         ):
             raise ValueError("native HTTPS origin port must be in 1..65535 except 443")
-        if not isinstance(self.rdata, bytes) or not 3 <= len(self.rdata) <= 512:
-            raise ValueError("native HTTPS RDATA must be immutable bytes within 3..512")
-        if self.rdata[:3] != b"\x00\x01\x00":
-            raise ValueError(
-                "native HTTPS requires ServiceMode priority 1 and root target"
-            )
-
-        offset = 3
+        offset = https_parameters_offset(self.rdata)
         keys = []
         while offset < len(self.rdata):
             if len(self.rdata) - offset < 4:
@@ -84,6 +78,19 @@ class HttpsAnswer:
             offset += size
         if keys != [1, 5]:
             raise ValueError("native HTTPS requires captured ALPN and ECH parameters")
+
+
+def https_parameters_offset(rdata: bytes) -> int:
+    """Locate parameters after a root or exact server.phantom.test target."""
+    if not isinstance(rdata, bytes) or not 3 <= len(rdata) <= 512:
+        raise ValueError("native HTTPS RDATA must be immutable bytes within 3..512")
+    if rdata[:2] != b"\x00\x01":
+        raise ValueError("native HTTPS requires ServiceMode priority 1")
+    if rdata[2] == 0:
+        return 3
+    if rdata[2 : 2 + len(_HTTPS_TARGET)] == _HTTPS_TARGET:
+        return 2 + len(_HTTPS_TARGET)
+    raise ValueError("native HTTPS target must be root or server.phantom.test")
 
 
 def question(wire: bytes) -> Question:
