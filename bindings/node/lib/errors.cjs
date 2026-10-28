@@ -19,6 +19,11 @@ function translated(error) {
   if (error instanceof PhantomError) return error;
   const properties = error !== null && typeof error === 'object' ? Object.getOwnPropertyDescriptors(error) : {};
   const message = typeof properties.message?.value === 'string' ? properties.message.value : '';
+  const source = /^PHANTOM_EVENT_SOURCE:([A-Za-z0-9_]+):([^\n]*)(?:\n([\s\S]*))?$/.exec(message);
+  if (source) {
+    const failure = new PhantomError('Sse', source[2], undefined, undefined, source[1]);
+    return source[3] === undefined ? failure : caused(failure, translated(new Error(source[3])));
+  }
   const sse = /^PHANTOM_SSE:([A-Za-z0-9_]+):([\s\S]*)$/.exec(message);
   if (sse) return new PhantomError('Sse', sse[2], undefined, undefined, sse[1]);
   const websocket = /^PHANTOM_WEBSOCKET:([A-Za-z0-9_]+):([A-Za-z0-9_]*):([0-9]*):([\s\S]*)$/.exec(message);

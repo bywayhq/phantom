@@ -168,4 +168,4 @@ function mergeHeaders(defaults, headers) {
   return [...defaults.filter((header) => !replaced.has(header.name.toLowerCase())), ...(headers ?? [])];
 }
 
-module.exports = { requestDefaults, prepareRequest, mergeHeaders };
+module.exports = { requestDefaults, prepareRequest, mergeHeaders, requestUrl };

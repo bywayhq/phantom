@@ -36,6 +36,50 @@ pub struct NativeClient {
 
 #[napi]
 impl NativeClient {
+    /// Opens an exact-protocol, reconnecting source with native ownership.
+    #[napi]
+    pub fn event_source(
+        &self,
+        env: Env,
+        options: super::event_source::EventSourceOptions,
+        source: &super::event_source::NativeEventSource,
+    ) -> Result<AsyncBlock<super::event_source::EventSourceHead>> {
+        let builder = super::event_source::prepare(&env, &self.state, options)?;
+        let permit = Arc::clone(&self.state.admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("Capacity", "client has no free request slots"))?;
+        let source = Arc::clone(&source.source);
+        let permit = source.claim(permit, Arc::clone(&self.state))?;
+        if let Err(error) = self.state.register_event_source(&source) {
+            source.close();
+            return Err(error);
+        }
+        let owner = Arc::clone(&source);
+        let pending = AsyncBlockBuilder::new(async move {
+            let _permit = permit;
+            let result = async {
+                let response = tokio::select! {
+                    biased;
+                    error = source.interrupted() => return Err(error),
+                    response = builder.connect() => response.map_err(crate::event_source::error)?,
+                };
+                let head = super::event_source::head(&response)?;
+                source.attach(response.into_body())?;
+                Ok(head)
+            }
+            .await;
+            if result.is_err() {
+                source.close();
+            }
+            result
+        })
+        .build(&env);
+        if pending.is_err() {
+            owner.close();
+        }
+        pending
+    }
+
     /// Opens a WebSocket using this client's native profile, route and trust.
     #[napi]
     pub fn websocket(

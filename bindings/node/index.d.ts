@@ -329,6 +329,50 @@ export interface SseEvent {
   /** Latest valid retry in milliseconds at dispatch; null until observed, including exact zero. */
   readonly retryMs: bigint | null;
 }
+export type EventSourceHeader = Header | Readonly<{lastEventId: string}>;
+export interface EventSourceOptions {
+  /** Exact protocol; negotiated selection is not supported by the core source. */
+  readonly protocol: 'http1' | 'http2' | 'http3';
+  /** Ordered fields plus an optional managed ID position. Omission adds SSE Accept/cache fields. Client headers are inherited unless replaced by name. */
+  readonly headers?: readonly EventSourceHeader[];
+  readonly limits?: SseOptions;
+  /** Response-body inactivity. Omission disables it; zero is an immediate deadline. */
+  readonly idleTimeoutMs?: number;
+  /** Finite nonnegative milliseconds; default 3000. */
+  readonly initialRetryMs?: number;
+  readonly minimumRetryMs?: number;
+  /** Reconnects after the first attempt, including setup retries; default 3, zero disables. */
+  readonly maximumReconnects?: number;
+  /** Per-attempt limits end at the response head. Use idleTimeoutMs for body inactivity. */
+  readonly timeouts?: Omit<Timeouts, 'readIdleMs'>;
+  /** Inherited by every reconnect; omission retains the client route. */
+  readonly route?: SessionRoute;
+  /** Cancels the whole source, including setup, reads and reconnect sleep. */
+  readonly signal?: AbortSignal;
+}
+export type EventSourceEvent = Pick<SseEvent, 'data' | 'event' | 'id'>;
+export class EventSource implements AsyncIterableIterator<EventSourceEvent> {
+  private constructor();
+  readonly status: number;
+  readonly protocol: 'http1' | 'http2' | 'http3';
+  readonly url: string;
+  readonly headers: readonly ResponseHeader[];
+  readonly lastEventId: string;
+  /** Effective reconnect delay, including any configured minimum. */
+  readonly retryMs: bigint;
+  readonly reconnects: number;
+  readonly closed: boolean;
+  /** One pending read; a terminal error is returned once, followed by EOF. */
+  read(): Promise<EventSourceEvent | null>;
+  /** Interrupts setup, a pending read or backoff and releases this source. */
+  close(): void;
+  next(): Promise<IteratorResult<EventSourceEvent>>;
+  return(): Promise<IteratorResult<EventSourceEvent>>;
+  throw(error: unknown): Promise<never>;
+  [Symbol.asyncIterator](): AsyncIterableIterator<EventSourceEvent>;
+  [Symbol.dispose](): void;
+  [Symbol.asyncDispose](): Promise<void>;
+}
 export class EventStream implements AsyncIterableIterator<SseEvent> {
   private constructor();
   /** Latest committed ID, including ID-only blocks consumed before EOF. */
@@ -421,6 +465,8 @@ export class WebSocketConnection implements AsyncIterable<WebSocketMessage> {
   [Symbol.asyncIterator](): AsyncIterator<WebSocketMessage>;
 }
 export class Client {
+  /** Opens a pull-driven reconnecting GET source using the client's profile, defaults and state. */
+  eventSource(url: string | URL, options: EventSourceOptions): Promise<EventSource>;
   constructor(options: ClientOptions);
   /** Creates an open client with independent pools, even from a closed source. */
   fork(sharing?: SessionSharing): Client;

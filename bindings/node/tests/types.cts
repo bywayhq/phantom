@@ -474,3 +474,28 @@ async function serverSentEvents(response: Response): Promise<void> {
   void retry; void id;
 }
 void serverSentEvents;
+
+async function reconnectingEvents(client: Client): Promise<void> {
+  const source = await client.eventSource('/events', {
+    protocol: 'http2', headers: [{name: 'accept', value: Buffer.from('text/event-stream')},
+      {lastEventId: 'last-event-id'}], maximumReconnects: 3, limits: {maximumLineBytes: 0},
+    idleTimeoutMs: 10, minimumRetryMs: 0, route: {route: 'direct'},
+    timeouts: {connectMs: 1000, totalMs: null},
+  });
+  const delay: bigint = source.retryMs;
+  for await (const event of source) {
+    event.data.toUpperCase();
+    // @ts-expect-error Effective retry belongs to the source, not individual events.
+    void event.retryMs;
+    break;
+  }
+  await source[Symbol.asyncDispose]();
+  // @ts-expect-error Reconnecting sources require an exact protocol.
+  await client.eventSource('/events', {protocol: 'negotiated'});
+  // @ts-expect-error Use idleTimeoutMs for SSE body inactivity.
+  await client.eventSource('/events', {protocol: 'http1', timeouts: {readIdleMs: 1}});
+  // @ts-expect-error The core source does not support request-level attempt budgets.
+  await client.eventSource('/events', {protocol: 'http1', attemptBudget: new AttemptBudget(1)});
+  void delay;
+}
+void reconnectingEvents;
