@@ -8,11 +8,15 @@ use std::{
 use pyo3::PyResult;
 use tokio::sync::Notify;
 
-use crate::{error, response::BodyOwner, websocket::Owner as SocketOwner};
+use crate::{
+    error, event_source::Owner as EventSourceOwner, response::BodyOwner,
+    websocket::Owner as SocketOwner,
+};
 
 enum Owner {
     Response(Weak<BodyOwner>),
     Socket(Weak<SocketOwner>),
+    EventSource(Weak<EventSourceOwner>),
 }
 
 impl Owner {
@@ -20,6 +24,7 @@ impl Owner {
         match self {
             Self::Response(owner) => owner.as_ptr().addr(),
             Self::Socket(owner) => owner.as_ptr().addr(),
+            Self::EventSource(owner) => owner.as_ptr().addr(),
         }
     }
 
@@ -31,6 +36,11 @@ impl Owner {
                 }
             }
             Self::Socket(owner) => {
+                if let Some(owner) = owner.upgrade() {
+                    owner.abort();
+                }
+            }
+            Self::EventSource(owner) => {
                 if let Some(owner) = owner.upgrade() {
                     owner.abort();
                 }
@@ -129,6 +139,10 @@ impl Lifecycle {
 
     pub(super) fn socket(self: &Arc<Self>, owner: Weak<SocketOwner>) -> Registration {
         self.register(Owner::Socket(owner))
+    }
+
+    pub(super) fn event_source(self: &Arc<Self>, owner: Weak<EventSourceOwner>) -> Registration {
+        self.register(Owner::EventSource(owner))
     }
 
     fn register(self: &Arc<Self>, owner: Owner) -> Registration {
