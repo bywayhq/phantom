@@ -974,6 +974,90 @@ fn accept_and_reject_still_publish_one_https_record() -> TestResult {
 }
 
 #[test]
+fn native_dns_metadata_contains_the_published_service_record() -> TestResult {
+    for scenario in [super::Scenario::Accept, super::Scenario::Reject] {
+        let ech = scenario.ech_setup()?.ok_or("ECH scenario lost its keys")?;
+        let mut output = Vec::new();
+        super::write_native_dns_metadata(&mut output, &ech.published)?;
+        let text = std::str::from_utf8(&output)?;
+        let encoded = text
+            .strip_prefix("native_dns_https_rdata_hex=")
+            .and_then(|value| value.strip_suffix('\n'))
+            .ok_or("native DNS metadata does not contain one complete line")?;
+        assert!(encoded.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert!(!encoded.bytes().any(|byte| byte.is_ascii_uppercase()));
+        assert_eq!(encoded.len() % 2, 0);
+        let record = encoded
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|pair| -> CaptureResult<u8> {
+                Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?)
+            })
+            .collect::<CaptureResult<Vec<_>>>()?;
+
+        // ServiceMode priority 1, root target, ALPN key 1 with length-prefixed h2,
+        // followed by ECH key 5 and the actual published configuration list.
+        assert_eq!(
+            record.get(..12),
+            Some(&[0, 1, 0, 0, 1, 0, 3, 2, b'h', b'2', 0, 5][..])
+        );
+        let length = u16::from_be_bytes(
+            record
+                .get(12..14)
+                .ok_or("ECH parameter length is missing")?
+                .try_into()?,
+        );
+        assert_eq!(usize::from(length), ech.published.len());
+        assert_eq!(record.get(14..), Some(ech.published.as_slice()));
+        if matches!(scenario, super::Scenario::Reject) {
+            assert_ne!(record.get(16..), Some(ech.server.as_slice()));
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_dns_probe_is_cors_readable_without_changing_other_pages() -> TestResult {
+    for (request_line, fields, body) in [
+        (
+            "GET /native-dns-probe HTTP/1.1",
+            "content-type: text/plain\r\naccess-control-allow-origin: *\r\n",
+            "phantom-native-https-ok\n",
+        ),
+        (
+            "GET /native-dns-probe?extra HTTP/1.1",
+            "content-type: text/html\r\n",
+            "<!doctype html><meta charset=utf-8><link rel=icon href=\"data:,\">ok\n",
+        ),
+        (
+            "POST /native-dns-probe HTTP/1.1",
+            "content-type: text/html\r\n",
+            "<!doctype html><meta charset=utf-8><link rel=icon href=\"data:,\">ok\n",
+        ),
+    ] {
+        let (mut server, mut client) = tokio::io::duplex(4096);
+        let request = format!("{request_line}\r\nhost: server.phantom.test\r\n\r\n");
+        let (served, response) = timeout(IO_TIMEOUT, async {
+            tokio::try_join!(async { super::serve_page(&mut server).await }, async {
+                client.write_all(request.as_bytes()).await?;
+                let mut response = Vec::new();
+                client.read_to_end(&mut response).await?;
+                Ok::<_, std::io::Error>(response)
+            })
+        })
+        .await??;
+
+        assert!(served);
+        let expected = format!(
+            "HTTP/1.1 200 OK\r\n{fields}content-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        assert_eq!(response, expected.as_bytes(), "{request_line}");
+    }
+    Ok(())
+}
+
+#[test]
 fn no_https_record_arguments_require_tcp_without_resumption() -> TestResult {
     let metadata = [
         "no-https-record",

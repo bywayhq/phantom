@@ -35,6 +35,10 @@
 //! the SHA-256 of the certificate's public key, for
 //! `--ignore-certificate-errors-spki-list`. Standard error also reports
 //! capture failures. A DNS-over-HTTPS failure stops the capture.
+//! TCP ECH scenarios also emit `native_dns_https_rdata_hex=<hex>` before the
+//! ready line, so a native DNS peer can serve the same HTTPS record.
+//! `GET /native-dns-probe HTTP/1.1` returns a CORS-readable literal body for a
+//! controller that checks browser-side body completion.
 //! Standard output gets the fixture
 //! after the page request has been answered and no connection has arrived
 //! for the grace period.
@@ -159,6 +163,11 @@ async fn main() -> CaptureResult<()> {
         })
         .transpose()?;
     let spki = quic.as_ref().map(|_| identity.spki_sha256()).transpose()?;
+    if !arguments.quic
+        && let Some(ech) = &ech
+    {
+        write_native_dns_metadata(&mut io::stderr().lock(), &ech.published)?;
+    }
     let mut doh_capture = DohCapture::start(
         doh,
         doh_acceptor,
@@ -1360,15 +1369,24 @@ fn h3_connection_peer_observation(error: &h3::error::ConnectionError) -> bool {
 }
 
 async fn serve_page(stream: &mut (impl AsyncRead + AsyncWrite + Unpin)) -> io::Result<bool> {
-    let Some(_) = read_request_head(stream).await? else {
+    let Some(request) = read_request_head(stream).await? else {
         return Ok(false);
     };
+    let (body, fields): (&[u8], &str) =
+        if request.starts_with(b"GET /native-dns-probe HTTP/1.1\r\n") {
+            (
+                b"phantom-native-https-ok\n",
+                "content-type: text/plain\r\naccess-control-allow-origin: *\r\n",
+            )
+        } else {
+            (PAGE, "content-type: text/html\r\n")
+        };
     let head = format!(
-        "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
-        PAGE.len()
+        "HTTP/1.1 200 OK\r\n{fields}content-length: {}\r\nconnection: close\r\n\r\n",
+        body.len()
     );
     stream.write_all(head.as_bytes()).await?;
-    stream.write_all(PAGE).await?;
+    stream.write_all(body).await?;
     stream.shutdown().await?;
     Ok(true)
 }
@@ -1902,6 +1920,14 @@ fn https_rdata(ech_config_list: &[u8], quic: bool) -> Vec<u8> {
     rdata.extend_from_slice(&(ech_config_list.len() as u16).to_be_bytes());
     rdata.extend_from_slice(ech_config_list);
     rdata
+}
+
+fn write_native_dns_metadata(output: &mut impl io::Write, configs: &[u8]) -> io::Result<()> {
+    writeln!(
+        output,
+        "native_dns_https_rdata_hex={}",
+        hex(&https_rdata(configs, false))
+    )
 }
 
 fn type_name(record_type: u16) -> String {
