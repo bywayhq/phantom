@@ -12,6 +12,7 @@ PEER_FILES = (
     "binding_upload_h3.py",
     "binding_headers_h3.py",
     "binding_websocket_h3.py",
+    "binding_events_h3.py",
     "aioquic_versions.py",
     "loopback_tls.py",
 )
@@ -63,6 +64,7 @@ def peer_environment(root, directory, environment=None):
     environment["PHANTOM_WEBSOCKET_H3_PEER_SCRIPT"] = str(
         peer / "binding_websocket_h3.py"
     )
+    environment["PHANTOM_EVENTS_H3_PEER_SCRIPT"] = str(peer / "binding_events_h3.py")
     return environment
 
 
