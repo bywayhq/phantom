@@ -2,6 +2,7 @@
 
 mod client;
 mod client_certificate;
+mod dns;
 mod error;
 mod event_source;
 mod multipart;
@@ -26,15 +27,16 @@ mod ffi;
 pub use ffi::{
     ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions, ContentDecodingOptions,
     DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
-    DiagnosticTlsState, EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions,
-    FileUpload, FormField, HostOverrideOptions, MultipartField, NativeAttemptBudget,
-    NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
-    NativeEventSource, NativeEventStream, NativeImportedProfile, NativePreparedBody, NativeProfile,
-    NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload, NativeWebSocket,
-    NetworkOptions, PoolOptions, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions,
-    RequestOptions, ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, SseEvent,
-    StatusRetryOptions, StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo,
-    WebSocketEvent, WebSocketHandshake, WebSocketOptions, WebSocketRejection, WireHeader,
-    client_certificate_der, client_certificate_pem, prepared_encoded, prepared_form,
-    prepared_multipart, profile_catalog, profile_ids, profile_import_json,
+    DiagnosticTlsState, DnsOptions, EventSourceEvent, EventSourceHead, EventSourceHeader,
+    EventSourceOptions, FileUpload, FormField, HostOverrideOptions, MultipartField,
+    NativeAttemptBudget, NativeCancellation, NativeClient, NativeClientCertificate,
+    NativeEnvironment, NativeEventSource, NativeEventStream, NativeImportedProfile,
+    NativePreparedBody, NativeProfile, NativeRequestDiagnostics, NativeResponse,
+    NativeTransferControl, NativeUpload, NativeWebSocket, NetworkOptions, PoolOptions,
+    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, SseEvent, StatusRetryOptions,
+    StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo, WebSocketEvent,
+    WebSocketHandshake, WebSocketOptions, WebSocketRejection, WireHeader, client_certificate_der,
+    client_certificate_pem, prepared_encoded, prepared_form, prepared_multipart, profile_catalog,
+    profile_ids, profile_import_json,
 };

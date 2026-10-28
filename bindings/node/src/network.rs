@@ -11,6 +11,16 @@ const MAXIMUM_BYTES: usize = 65536;
 const MAXIMUM_ENTRIES: usize = 1024;
 
 pub(crate) fn apply(mut builder: ClientBuilder, options: NetworkOptions) -> Result<ClientBuilder> {
+    match options.dns_cache {
+        None => {}
+        Some(false) => builder = builder.no_dns_cache(),
+        Some(true) => {
+            return Err(failure(
+                "InvalidConfiguration",
+                "dnsCache must be false or omitted",
+            ));
+        }
+    }
     let overrides = options.host_overrides.unwrap_or_default();
     let locals = options.local_addresses.unwrap_or_default();
     let mut entries = overrides.len().saturating_add(locals.len());
@@ -102,6 +112,8 @@ mod tests {
             interface: None,
             unix_socket: None,
             public_only: None,
+            dns: None,
+            dns_cache: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -115,6 +127,8 @@ mod tests {
             interface: None,
             unix_socket: None,
             public_only: None,
+            dns: None,
+            dns_cache: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -136,6 +150,8 @@ mod tests {
             interface: None,
             unix_socket: Some(path.into()),
             public_only: None,
+            dns: None,
+            dns_cache: None,
         }
     }
 

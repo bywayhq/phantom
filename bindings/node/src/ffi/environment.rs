@@ -96,10 +96,13 @@ impl NativeEnvironment {
         ClientState::build(
             options,
             profile,
-            roots,
-            proxy_roots,
+            crate::tls::Roots {
+                origin: roots,
+                proxy: proxy_roots,
+            },
             pins,
             certificates,
+            &env,
             &self.state,
         )
         .map(|state| NativeClient { state })

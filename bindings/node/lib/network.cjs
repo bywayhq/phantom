@@ -4,6 +4,7 @@ const { types } = require('node:util');
 
 const { PhantomError } = require('./errors.cjs');
 const { orderedDataArray, integer } = require('./validation.cjs');
+const { dnsOptions } = require('./dns.cjs');
 
 function networkOptions(options) {
   const field = Object.getOwnPropertyDescriptor(options, 'network');
@@ -23,7 +24,10 @@ function networkOptions(options) {
     }
     return result;
   };
-  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket', 'publicOnly']);
+  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket', 'publicOnly', 'dns', 'dnsCache']);
+  const dns = dnsOptions(input.dns?.value);
+  const dnsCache = input.dnsCache?.value;
+  if (dnsCache !== undefined && dnsCache !== false) throw new PhantomError('InvalidArgument', 'dnsCache must be false or omitted');
   let remainingBytes = 65536, remainingEntries = 1024;
   const string = (value) => {
     if (typeof value !== 'string') throw new PhantomError('InvalidArgument', 'network fields require strings');
@@ -54,7 +58,8 @@ function networkOptions(options) {
     throw new PhantomError('InvalidArgument', 'publicOnly must be boolean');
   }
   return Object.freeze({...(publicOnly === undefined ? {} : {publicOnly}), hostOverrides: Object.freeze(hostOverrides), localAddresses: Object.freeze(localAddresses),
-    interface: interfaceName, ...(unixSocket === undefined ? {} : {unixSocket})});
+    interface: interfaceName, ...(unixSocket === undefined ? {} : {unixSocket}),
+    ...(dns === undefined ? {} : {dns}), ...(dnsCache === undefined ? {} : {dnsCache})});
 }
 
 function poolOptions(options) {

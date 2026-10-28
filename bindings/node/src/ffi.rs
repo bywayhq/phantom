@@ -11,6 +11,7 @@ mod certificates;
 mod client;
 mod controls;
 mod diagnostics;
+mod dns;
 mod environment;
 mod event_source;
 mod events;
@@ -34,6 +35,8 @@ pub use diagnostics::{
     DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
     DiagnosticTlsState, NativeRequestDiagnostics,
 };
+pub use dns::DnsOptions;
+pub(crate) use dns::resolver as dns_resolver;
 pub use environment::NativeEnvironment;
 pub use event_source::{
     EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions, NativeEventSource,

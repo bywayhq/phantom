@@ -5,6 +5,11 @@ use phantom::ServerSpkiPins;
 
 use crate::error::failure;
 
+pub(crate) struct Roots {
+    pub(crate) origin: Vec<Vec<u8>>,
+    pub(crate) proxy: Vec<Vec<u8>>,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct ServerPins {
     pub(crate) origin: Option<ServerSpkiPins>,

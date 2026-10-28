@@ -199,6 +199,10 @@ export interface HostOverride {
 }
 /** At most 1024 combined records/addresses and 65536 UTF-8 bytes. */
 export interface NetworkOptions {
+  /** Separate direct, verified encrypted address resolver. */
+  readonly dns?: EncryptedDns;
+  /** Disable address caching; omission retains the profile policy. */
+  readonly dnsCache?: false;
   /** Restrict new direct connections to public IPs; proxies/custom streams are unsupported. */
   readonly publicOnly?: boolean;
   /** Last core-canonical hostname wins; proxy-owned target resolution is unchanged. */
@@ -211,6 +215,24 @@ export interface NetworkOptions {
    * Unsupported on Windows and with host/source overrides, proxies, discovery or encrypted session checkpoints. */
   readonly unixSocket?: string;
 }
+/** DNS endpoint settings share 1024 bootstrap/root entries and 65536 UTF-8/DER bytes. */
+export interface DnsLookupOptions {
+  /** IP literals for HTTPS; IP:port socket addresses for TLS, with brackets around IPv6. */
+  readonly bootstrap: readonly string[];
+  /** Positive finite milliseconds for the whole lookup. */
+  readonly timeoutMs: number;
+  /** Positive exact lookup count; DNS-over-TLS permits at most 32767. */
+  readonly maxConcurrent: number | bigint;
+  readonly families?: 'dual' | 'ipv4';
+  /** Additional DNS-only DER trust anchors; verification remains required. */
+  readonly roots?: readonly Uint8Array[];
+  /** Omission keeps the preset; null disables padding; 1..65535 sets block bytes. */
+  readonly paddingBlock?: number | null;
+}
+export type EncryptedDns = (DnsLookupOptions & Readonly<{
+  kind: 'https'; endpoint: string; method?: 'post' | 'get';
+  wire?: 'standard' | 'chromium154'; queryId?: number;
+}>) | (DnsLookupOptions & Readonly<{kind: 'tls'; serverName: string}>);
 /** Selected live state only; pools and cancellation stay independent. */
 export interface SessionSharing {
   cookies?: boolean;

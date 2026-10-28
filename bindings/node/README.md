@@ -229,6 +229,22 @@ Use `network: {publicOnly: true}` to admit only public IPs for new direct
 connections. Proxies and custom streams are unsupported; live pools stay usable.
 Network settings allow 1024 combined records/addresses and 65,536 UTF-8 bytes.
 
+For encrypted DNS, pass `network.dns` with explicit bootstrap addresses:
+
+```js
+const network = {dns: {
+  kind: 'https', endpoint: 'https://dns.example/query', bootstrap: ['192.0.2.53'],
+  timeoutMs: 2000, maxConcurrent: 8,
+}};
+```
+
+Pass `network` to the client. HTTPS uses HTTP/2. TLS uses `kind: 'tls'`,
+`serverName` and IP:port bootstrap strings. Both verify identity and connect
+directly, independently of application proxy/source settings, without system or
+cleartext fallback. `roots` adds DNS-only DER anchors. `dnsCache: false` disables
+address caching; omission retains profile policy and record lifetimes.
+HTTPS-record discovery is separate.
+
 On Unix, `network: {unixSocket: '/run/service.sock'}` sends direct HTTP/1 or
 HTTP/2 through that socket. The URL still supplies HTTP authority and TLS
 identity. Paths are used as supplied. Source/DNS overrides, proxies, discovery

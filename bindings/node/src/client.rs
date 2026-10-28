@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use napi::Result;
+use napi::{Env, Result};
 use phantom::{Client, HttpProxy, Route, SessionSharing, Socks4Proxy, Socks5Proxy};
 use tokio::sync::Semaphore;
 
@@ -115,12 +115,12 @@ impl ClientState {
     }
 
     pub(crate) fn build(
-        options: ClientOptions,
+        mut options: ClientOptions,
         profile: Arc<ProfileState>,
-        roots: Vec<Vec<u8>>,
-        proxy_roots: Vec<Vec<u8>>,
+        roots: crate::tls::Roots,
         pins: crate::tls::ServerPins,
         certificates: crate::client_certificate::Certificates,
+        env: &Env,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
         let maximum = options.maximum_active_requests.unwrap_or(32);
@@ -132,6 +132,12 @@ impl ClientState {
         }
 
         let settings = profile.for_client(options.default_context.as_deref())?;
+        let resolver = options
+            .network
+            .as_mut()
+            .and_then(|network| network.dns.take())
+            .map(|dns| crate::ffi::dns_resolver(env, &settings, dns))
+            .transpose()?;
         let mut builder = Client::builder(settings).route(route(
             &options.route,
             options.proxy.as_deref(),
@@ -139,6 +145,10 @@ impl ClientState {
             options.proxy_password.as_deref(),
             options.proxy_user_id.as_deref(),
         )?);
+
+        if let Some(resolver) = resolver {
+            builder = builder.dns_resolver(resolver);
+        }
 
         if let Some(network) = options.network {
             builder = crate::network::apply(builder, network)?;
@@ -156,10 +166,10 @@ impl ClientState {
             builder = builder.cookies();
         }
 
-        for root in roots {
+        for root in roots.origin {
             builder = builder.add_root_certificate_der(root);
         }
-        for root in proxy_roots {
+        for root in roots.proxy {
             builder = builder.add_proxy_root_certificate_der(root);
         }
 

@@ -26,6 +26,22 @@ async function use(): Promise<void> {
   await client.close();
 }
 void use;
+
+function encryptedDns(): void {
+  new Client({profile: 'chrome-154-windows', route: 'direct', network: {dns: {
+    kind: 'https', endpoint: 'https://dns.example/query', bootstrap: ['192.0.2.53'],
+    timeoutMs: 1000, maxConcurrent: 8n, wire: 'chromium154', queryId: 42, paddingBlock: null,
+  }, dnsCache: false}});
+  new Client({profile: 'chrome-154-windows', route: 'direct', network: {dns: {
+    kind: 'tls', serverName: 'dns.example', bootstrap: ['192.0.2.53:853'], timeoutMs: 1000, maxConcurrent: 8,
+  }}});
+  // @ts-expect-error HTTPS requires an endpoint.
+  const missing: import('../index.cjs').EncryptedDns = {kind: 'https', serverName: 'dns.example', bootstrap: [], timeoutMs: 1, maxConcurrent: 1};
+  // @ts-expect-error Cache selection supports false or omission.
+  const cache: import('../index.cjs').NetworkOptions = {dnsCache: true};
+  void missing; void cache;
+}
+void encryptedDns;
 async function websocket(): Promise<void> {
   const client = new Client({profile: 'chrome-154-windows', route: 'direct'});
   const socket = await client.websocket(new URL('wss://example.com/events'), {

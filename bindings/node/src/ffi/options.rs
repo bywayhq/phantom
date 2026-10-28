@@ -10,6 +10,7 @@ use napi_derive::napi;
 
 use super::{
     certificates::{ClientCertificateOrigin, NativeClientCertificate},
+    dns::DnsOptions,
     prepared_body::NativePreparedBody,
 };
 use crate::error::failure;
@@ -115,6 +116,10 @@ pub struct HostOverrideOptions {
 /// Optional client network configuration, independent of the browser profile.
 #[napi(object)]
 pub struct NetworkOptions {
+    /// Verified encrypted address resolver.
+    pub dns: Option<DnsOptions>,
+    /// false disables the profile cache; absence inherits it.
+    pub dns_cache: Option<bool>,
     /// Ordered overrides; the last canonical matching hostname wins.
     pub host_overrides: Option<Vec<HostOverrideOptions>>,
     /// Ordered source IPs; the last address of each family wins.
@@ -131,6 +136,8 @@ impl std::fmt::Debug for NetworkOptions {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("NetworkOptions")
+            .field("encrypted_dns_configured", &self.dns.is_some())
+            .field("dns_cache", &self.dns_cache)
             .field("host_overrides", &self.host_overrides)
             .field("local_addresses", &self.local_addresses)
             .field("interface", &self.interface)
