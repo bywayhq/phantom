@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$StatePath,
     [int]$OwnerPid,
     [string]$Executable,
-    [ValidateSet('initial','two-server')][string]$DnsScene = 'initial'
+    [ValidateSet('initial','two-server','native-https-ech')][string]$DnsScene = 'initial',
+    [int]$OriginPort
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,14 +56,37 @@ function Intent-Servers($State) {
         (Canonical $servers) -ne (Canonical @($DnsAddress,'127.0.0.54'))) {
         throw 'NRPT server intent is outside the owned capture scope'
     }
+    if ($State.dns_scene -eq 'native-https-ech' -and (Canonical $servers) -ne (Canonical @($DnsAddress))) {
+        throw 'NRPT server intent is outside the owned capture scope'
+    }
     return $servers
+}
+
+function Intent-Namespaces($State) {
+    $scene = 'initial'
+    if ($State.PSObject.Properties['dns_scene']) { $scene = $State.dns_scene }
+    if ($scene -eq 'native-https-ech') {
+        $port = $State.origin_port
+        if ($State.hostname -ne 'server.phantom.test' -or
+            ($port -isnot [int] -and $port -isnot [long]) -or
+            $port -lt 1 -or $port -gt 65535 -or $port -eq 443) {
+            throw 'NRPT namespace intent is outside the owned capture scope'
+        }
+        return @('server.phantom.test', "_$port._https.server.phantom.test")
+    }
+    if ($scene -notin @('initial','two-server') -or $State.hostname -ne $TargetName -or
+        ($State.PSObject.Properties['origin_port'] -and $State.origin_port -ne 0)) {
+        throw 'NRPT namespace intent is outside the owned capture scope'
+    }
+    return @($TargetName)
 }
 
 function Owned-Rules($State) {
     $servers = @(Intent-Servers $State)
+    $namespaces = @(Intent-Namespaces $State | Sort-Object)
     return @(Get-DnsClientNrptRule | Where-Object {
         $_.DisplayName -eq $State.nonce -and $_.Comment -eq $State.nonce -and
-        (Canonical @($_.Namespace)) -eq (Canonical @($TargetName)) -and
+        (Canonical @($_.Namespace | Sort-Object)) -eq (Canonical $namespaces) -and
         (Canonical @($_.NameServers | ForEach-Object { [string]$_ })) -eq (Canonical $servers)
     })
 }
@@ -70,8 +94,8 @@ function Owned-Rules($State) {
 function Restore-Owned {
     $state = Read-State
     $null = @(Intent-Servers $state)
-    if ($state.hostname -ne $TargetName -or
-        $state.nonce -notmatch '^phantom-native-dns-[0-9a-f-]{36}$') {
+    $null = @(Intent-Namespaces $state)
+    if ($state.nonce -notmatch '^phantom-native-dns-[0-9a-f-]{36}$') {
         throw 'NRPT restoration intent is outside the owned capture scope'
     }
     $owned = @(Owned-Rules $state)
@@ -140,6 +164,7 @@ if ($Action -eq 'Watch') {
     while ($true) {
         $state = Read-State
         $null = @(Intent-Servers $state)
+        $null = @(Intent-Namespaces $state)
         if ($state.restored) { exit 0 }
         $owner = Get-Process -Id $state.owner_pid -ErrorAction SilentlyContinue
         $sameOwner = $false
@@ -168,12 +193,18 @@ while (-not $lock) {
 try {
     if ($Action -eq 'Install') {
         if (Test-Path -LiteralPath $StatePath) { throw 'NRPT state already exists' }
+        $scene = if ($DnsScene) { $DnsScene } else { 'initial' }
+        $hostname = if ($scene -eq 'native-https-ech') { 'server.phantom.test' } else { $TargetName }
+        $intent = [pscustomobject]@{ dns_scene = $scene; hostname = $hostname; origin_port = $OriginPort }
+        $namespaces = @(Intent-Namespaces $intent)
         $baseline = @(Rules)
         foreach ($rule in @(Get-DnsClientNrptPolicy -Effective) + $baseline) {
             foreach ($namespace in @($rule.Namespace)) {
-                if ($namespace -eq $TargetName -or $namespace -eq '.' -or
-                    ($namespace.StartsWith('.') -and $TargetName.EndsWith($namespace))) {
-                    throw 'an existing NRPT namespace applies to the capture hostname'
+                foreach ($name in $namespaces) {
+                    if ($namespace -eq $name -or $namespace -eq '.' -or
+                        ($namespace.StartsWith('.') -and $name.EndsWith($namespace, [StringComparison]::OrdinalIgnoreCase))) {
+                        throw 'an existing NRPT namespace applies to the capture hostname'
+                    }
                 }
             }
         }
@@ -181,7 +212,8 @@ try {
         $servers = @($DnsAddress)
         if ($DnsScene -eq 'two-server') { $servers += '127.0.0.54' }
         $state = [pscustomobject]@{
-            nonce = "phantom-native-dns-$([Guid]::NewGuid())"; hostname = $TargetName;
+            nonce = "phantom-native-dns-$([Guid]::NewGuid())"; hostname = $hostname;
+            dns_scene = $scene; origin_port = $OriginPort;
             server = $servers; baseline = $baseline; rule_name = $null;
             owner_pid = $OwnerPid; owner_start = $owner.StartTime.ToUniversalTime().ToString('o');
             deadline = [DateTime]::UtcNow.AddMinutes(5).ToString('o'); restored = $false; restored_at = $null;
@@ -204,12 +236,12 @@ try {
         if ([int](Get-Content -LiteralPath "$StatePath.ready") -ne $watch.Id -or $watch.HasExited) {
             throw 'NRPT watchdog readiness identity differs'
         }
-        $rule = Add-DnsClientNrptRule -Namespace $TargetName -NameServers $servers -DisplayName $state.nonce -Comment $state.nonce -PassThru
+        $rule = Add-DnsClientNrptRule -Namespace $namespaces -NameServers $servers -DisplayName $state.nonce -Comment $state.nonce -PassThru
         $state.rule_name = [string]$rule.Name
         Save-State $state
         if (@(Owned-Rules $state).Count -ne 1) { throw 'owned exact-name NRPT rule was not installed' }
         @{ nonce = $state.nonce; rule_name = $state.rule_name; watchdog_pid = $watch.Id;
-           deadline = $state.deadline; hostname = $TargetName; server = $servers } | ConvertTo-Json
+           deadline = $state.deadline; hostname = $hostname; namespaces = $namespaces; server = $servers } | ConvertTo-Json
     }
     elseif (Test-Path -LiteralPath $StatePath) {
         Restore-Owned | ConvertTo-Json -Depth 12

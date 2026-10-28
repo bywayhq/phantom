@@ -14,6 +14,19 @@ ANSWER = (
     + QUESTION
     + bytes.fromhex("c00c000100010000000500047f000001")
 )
+HTTPS_RDATA = bytes.fromhex("00010000010003026832000500080006fe0d00020000")
+
+
+def named_query(name: str, kind: int) -> bytes:
+    labels = b"".join(
+        bytes([len(label)]) + label.encode("ascii") for label in name.split(".")
+    )
+    return (
+        bytes.fromhex("123401000001000000000000")
+        + labels
+        + b"\x00"
+        + struct.pack("!HH", kind, 1)
+    )
 
 
 def query_kind(kind: int) -> bytes:
@@ -25,6 +38,114 @@ def framed(wire: bytes) -> bytes:
 
 
 class DnsWireTests(unittest.TestCase):
+    def test_https_answer_keeps_captured_rdata_and_exact_name_scope(self) -> None:
+        record = native_dns.HttpsAnswer(8443, HTTPS_RDATA)
+        service = "_8443._https.server.phantom.test"
+        query = named_query(service, 65)
+        expected = (
+            bytes.fromhex("123485000001000100000000")
+            + query[12:]
+            + bytes.fromhex("c00c00410001000000050016")
+            + HTTPS_RDATA
+        )
+        self.assertEqual(
+            native_dns.response(
+                query,
+                native_dns.question(query),
+                "server.phantom.test",
+                5,
+                https_answer=record,
+            ),
+            expected,
+        )
+        for name in ("server.phantom.test", service):
+            with self.subTest(name=name):
+                for kind in (1, 28):
+                    wire = named_query(name, kind)
+                    answer = native_dns.response(
+                        wire,
+                        native_dns.question(wire),
+                        "server.phantom.test",
+                        5,
+                        https_answer=record,
+                    )
+                    self.assertEqual(
+                        answer[6:8], (1 if kind == 1 else 0).to_bytes(2, "big")
+                    )
+                    if kind == 1:
+                        self.assertEqual(answer[-4:], b"\x7f\x00\x00\x01")
+        for name, kind, code in (
+            ("server.phantom.test", 65, 0),
+            ("_8444._https.server.phantom.test", 65, 5),
+            ("other.test", 1, 5),
+        ):
+            wire = named_query(name, kind)
+            answer = native_dns.response(
+                wire,
+                native_dns.question(wire),
+                "server.phantom.test",
+                5,
+                https_answer=record,
+            )
+            self.assertEqual(answer[3] & 15, code)
+            self.assertEqual(answer[6:8], b"\x00\x00")
+
+    def test_https_input_rejects_malformed_records_and_oversized_udp_before_binding(
+        self,
+    ) -> None:
+        for port in (0, 443, 65536, True, "8443"):
+            with self.subTest(port=port), self.assertRaises(ValueError):
+                native_dns.HttpsAnswer(port, HTTPS_RDATA)
+        for rdata in (
+            bytearray(HTTPS_RDATA),
+            b"",
+            b"\x00\x00\x00",
+            HTTPS_RDATA[:-1],
+            HTTPS_RDATA + b"\x00",
+            HTTPS_RDATA[:3] + HTTPS_RDATA[10:] + HTTPS_RDATA[3:10],
+            HTTPS_RDATA[:7] + b"\x00h2" + HTTPS_RDATA[10:],
+            HTTPS_RDATA[:14] + b"\x00\x05" + HTTPS_RDATA[16:],
+        ):
+            with self.subTest(rdata=rdata), self.assertRaises(ValueError):
+                native_dns.HttpsAnswer(8443, rdata)
+        ech = (450).to_bytes(2, "big") + b"x" * 450
+        large = HTTPS_RDATA[:10] + struct.pack("!HH", 5, len(ech)) + ech
+        with self.assertRaisesRegex(ValueError, "512-byte"):
+            native_dns.NativeDnsServer(
+                "server.phantom.test", https_answer=native_dns.HttpsAnswer(8443, large)
+            )
+
+    def test_https_response_including_opt_fits_exact_udp_boundary(self) -> None:
+        name = "_8443._https.server.phantom.test"
+        value_size = 512 - len(name) - 41 - 14
+        for extra in (0, 1):
+            size = value_size + extra
+            value = (size - 2).to_bytes(2, "big") + b"x" * (size - 2)
+            rdata = HTTPS_RDATA[:10] + struct.pack("!HH", 5, size) + value
+            record = native_dns.HttpsAnswer(8443, rdata)
+            if extra:
+                with self.assertRaisesRegex(ValueError, "512-byte"):
+                    native_dns.NativeDnsServer(
+                        "server.phantom.test", https_answer=record
+                    )
+            else:
+                native_dns.NativeDnsServer("server.phantom.test", https_answer=record)
+                wire = named_query(name, 65)
+                wire = (
+                    wire[:10]
+                    + b"\x00\x01"
+                    + wire[12:]
+                    + bytes.fromhex("0000290200000000000000")
+                )
+                answer = native_dns.response(
+                    wire,
+                    native_dns.question(wire),
+                    "server.phantom.test",
+                    5,
+                    https_answer=record,
+                )
+                self.assertEqual(len(answer), 512)
+
     def test_two_a_answers_keep_wire_order_and_equal_ttl(self) -> None:
         expected = (
             bytes.fromhex("123485000001000200000000")
@@ -162,6 +283,35 @@ class Replies(asyncio.DatagramProtocol):
 
 
 class NativeDnsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_positive_https_udp_and_tcp_preserve_record_and_journal(self) -> None:
+        await self.server.close()
+        self.server = native_dns.NativeDnsServer(
+            "server.phantom.test",
+            "127.0.0.1",
+            0,
+            https_answer=native_dns.HttpsAnswer(8443, HTTPS_RDATA),
+        )
+        await self.server.start()
+        query = named_query("_8443._https.server.phantom.test", 65)
+        expected = (
+            bytes.fromhex("123485000001000100000000")
+            + query[12:]
+            + bytes.fromhex("c00c00410001000000050016")
+            + HTTPS_RDATA
+        )
+        transport, replies = await self.udp()
+        transport.sendto(query)
+        actual, _ = await asyncio.wait_for(replies.received.get(), 2)
+        self.assertEqual(actual, expected)
+        reader, writer = await self.tcp()
+        writer.write(framed(query))
+        await writer.drain()
+        self.assertEqual(await self.read_frame(reader), expected)
+        self.assertEqual(
+            [entry["response_hex"] for entry in self.server.records()],
+            [expected.hex()] * 2,
+        )
+
     async def test_udp_and_tcp_send_both_a_records_without_reordering(self) -> None:
         await self.server.close()
         self.server = native_dns.NativeDnsServer(

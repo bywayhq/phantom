@@ -1,7 +1,8 @@
 """A bounded loopback DNS peer for one explicitly owned capture hostname.
 
 A answers contain configured loopback addresses, defaulting to 127.0.0.1;
-AAAA and HTTPS answers contain no records. This
+AAAA answers contain no records. An optional HTTPS answer owns its derived
+port-prefixed name and retains the supplied ServiceMode RDATA. This
 authoritative peer performs no recursion or DNSSEC validation. It accepts one
 uncompressed IN question and optionally one empty EDNS0 OPT without flags.
 Malformed/unsupported packets stop the capture rather than inventing a reply.
@@ -29,6 +30,60 @@ class Question:
     kind: int
     end: int
     edns_size: int | None
+
+
+@dataclass(frozen=True)
+class HttpsAnswer:
+    """One captured priority-1/root HTTPS record for a nondefault origin port."""
+
+    port: int
+    rdata: bytes
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.port) is not int
+            or not 1 <= self.port <= 65535
+            or self.port == 443
+        ):
+            raise ValueError("native HTTPS origin port must be in 1..65535 except 443")
+        if not isinstance(self.rdata, bytes) or not 3 <= len(self.rdata) <= 512:
+            raise ValueError("native HTTPS RDATA must be immutable bytes within 3..512")
+        if self.rdata[:3] != b"\x00\x01\x00":
+            raise ValueError(
+                "native HTTPS requires ServiceMode priority 1 and root target"
+            )
+
+        offset = 3
+        keys = []
+        while offset < len(self.rdata):
+            if len(self.rdata) - offset < 4:
+                raise ValueError("native HTTPS parameter header is truncated")
+            key, size = struct.unpack_from("!HH", self.rdata, offset)
+            offset += 4
+            if (keys and key <= keys[-1]) or offset + size > len(self.rdata):
+                raise ValueError("native HTTPS parameter order or length is invalid")
+            value = self.rdata[offset : offset + size]
+            if key == 1:
+                cursor = 0
+                while cursor < len(value):
+                    length = value[cursor]
+                    cursor += 1
+                    if length == 0 or cursor + length > len(value):
+                        raise ValueError("native HTTPS ALPN value is malformed")
+                    cursor += length
+                if not value:
+                    raise ValueError("native HTTPS ALPN value is empty")
+            elif key == 5:
+                if len(value) < 6 or int.from_bytes(value[:2], "big") != len(value) - 2:
+                    raise ValueError("native HTTPS ECHConfigList length is invalid")
+            else:
+                raise ValueError(
+                    "native HTTPS supports only captured ALPN and ECH parameters"
+                )
+            keys.append(key)
+            offset += size
+        if keys != [1, 5]:
+            raise ValueError("native HTTPS requires captured ALPN and ECH parameters")
 
 
 def question(wire: bytes) -> Question:
@@ -94,11 +149,16 @@ def response(
     hostname: str,
     ttl: int,
     ipv4_answers: tuple[str, ...] = ("127.0.0.1",),
+    https_answer: HttpsAnswer | None = None,
 ) -> bytes:
     """Echo the question; advertise authority only for the supported owned name."""
-    owned = parsed.name == hostname
+    https_name = (
+        f"_{https_answer.port}._https.{hostname}" if https_answer is not None else None
+    )
+    owned = parsed.name == hostname or parsed.name == https_name
     supported = parsed.kind in (1, 28, 65)
     answer = owned and parsed.kind == 1
+    https = parsed.name == https_name and parsed.kind == 65
     code = 0 if owned and supported else 5  # REFUSED outside this narrow contract.
     flags = 0x8000 | (struct.unpack("!H", wire[2:4])[0] & 0x0100) | code
     if owned and supported:
@@ -109,7 +169,7 @@ def response(
             int.from_bytes(wire[:2], "big"),
             flags,
             1,
-            len(ipv4_answers) if answer else 0,
+            len(ipv4_answers) if answer else int(https),
             0,
             int(parsed.edns_size is not None),
         )
@@ -122,6 +182,12 @@ def response(
                 + struct.pack("!HHIH", 1, 1, ttl, 4)
                 + ipaddress.IPv4Address(address).packed
             )
+    elif https:
+        output += (
+            b"\xc0\x0c"
+            + struct.pack("!HHIH", 65, 1, ttl, len(https_answer.rdata))
+            + https_answer.rdata
+        )
     if parsed.edns_size is not None:
         output += b"\x00" + struct.pack("!HHIH", 41, parsed.edns_size, 0, 0)
     return output
@@ -199,6 +265,9 @@ class NativeDnsServer:
     connections as capture failures, so another transport cannot defeat silence.
     `ipv4_answers` retains one or two distinct loopback addresses in wire order,
     with the same TTL on each A record.
+    `https_answer` also owns its port-prefixed name, answers A for both names,
+    and publishes the retained HTTPS RDATA only on that prefixed name. The
+    complete response including OPT fits 512 bytes without truncation.
     """
 
     def __init__(
@@ -211,6 +280,7 @@ class NativeDnsServer:
         ipv4_answers: tuple[str, ...] = ("127.0.0.1",),
         drop_first_udp_a: bool = False,
         drop_owned_udp: bool = False,
+        https_answer: HttpsAnswer | None = None,
     ) -> None:
         labels = hostname.removesuffix(".").split(".")
         if (
@@ -243,6 +313,19 @@ class NativeDnsServer:
                 "native DNS requires one or two distinct loopback A answers"
             )
         self.hostname = ".".join(labels).lower()
+        if https_answer is not None:
+            if not isinstance(https_answer, HttpsAnswer):
+                raise ValueError("native HTTPS answer must be HttpsAnswer")
+            https_name = f"_{https_answer.port}._https.{self.hostname}"
+            # Header, question, one RR and an empty OPT must fit without EDNS0.
+            if (
+                len(https_name) > 253
+                or len(https_name) + 41 + len(https_answer.rdata) > 512
+            ):
+                raise ValueError(
+                    "native HTTPS answer exceeds the 512-byte DNS response bound"
+                )
+        self.https_answer = https_answer
         self.address = (address, port)
         self.ttl = ttl
         self.ipv4_answers = ipv4_answers
@@ -358,7 +441,14 @@ class NativeDnsServer:
                 self._drop_first_udp_a = False
                 record["disposition"] = "dropped-first-udp-a"
                 return None
-            answer = response(wire, parsed, self.hostname, self.ttl, self.ipv4_answers)
+            answer = response(
+                wire,
+                parsed,
+                self.hostname,
+                self.ttl,
+                self.ipv4_answers,
+                self.https_answer,
+            )
         except BaseException as error:
             record["error"] = str(error)
             raise

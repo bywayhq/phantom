@@ -1618,7 +1618,7 @@ class GuardTests(unittest.TestCase):
                 "ForEach-Object { Invoke-Expression $_.Extent.Text }\n"
                 "[Console]::Error.WriteLine('guard-test:functions-loaded')\n"
                 f"$StatePath='{Path(temporary).as_posix()}/state.json'\n"
-                "$TargetName='127.0.0.1.nip.io'; $DnsAddress='127.0.0.53'\n"
+                "$TargetName='127.0.0.1.nip.io'; $DnsAddress='127.0.0.53'; $OriginPort=0\n"
                 "$script:removed=@(); $script:rules=@()\n"
                 "function Get-DnsClientNrptRule { $script:rules }\n"
                 "function Remove-DnsClientNrptRule { param($Name,[switch]$Force) "
@@ -1638,6 +1638,92 @@ class GuardTests(unittest.TestCase):
                     "guard PowerShell timed out; "
                     f"stdout={error.stdout!r}; stderr={error.stderr!r}"
                 ) from error
+
+    def test_https_install_owns_two_exact_names_and_restores_after_unsaved_guid(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-DnsClientNrptPolicy { @() }\n"
+            "function Get-Process { param($Id,$ErrorAction) [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z';Path='pwsh'} }\n"
+            "function Start-Process { param($FilePath,$WindowStyle,[switch]$PassThru,$ArgumentList,$RedirectStandardOutput,$RedirectStandardError)\n"
+            "$saved=Read-State; if ($saved.dns_scene -ne 'native-https-ech' -or $saved.origin_port -ne 8443 -or $saved.hostname -ne 'server.phantom.test') { throw 'intent not durable' };\n"
+            "Set-Content -LiteralPath \"$StatePath.ready\" -Value 456; [pscustomobject]@{Id=456;HasExited=$false;StartTime=[DateTime]'2026-10-23T00:00:00Z'} }\n"
+            "$script:added=0\n"
+            "function Add-DnsClientNrptRule { param([string[]]$Namespace,$NameServers,$DisplayName,$Comment,[switch]$PassThru)\n"
+            "if ($Namespace.Count -ne 2 -or $Namespace[0] -cne 'server.phantom.test' -or $Namespace[1] -cne '_8443._https.server.phantom.test') { throw 'names not passed as exact array' };\n"
+            "$script:added++; $rule=[pscustomobject]@{Name='new-guid';Namespace=@($Namespace[1],$Namespace[0]);NameServers=@($NameServers);DisplayName=$DisplayName;Comment=$Comment}; $script:rules=@($rule); $rule }\n"
+            "$Action='Install';$OwnerPid=123;$DnsScene='native-https-ech';$OriginPort=8443\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text } | Out-Null\n"
+            "if ($script:added -ne 1 -or (Read-State).rule_name -ne 'new-guid') { throw 'wrong rule count or identity' }\n"
+            "$saved=Read-State;$saved.rule_name=$null;Save-State $saved\n"
+            "function Get-Process { param($Id,$ErrorAction) $null }\n"
+            "$Action='Watch';$DnsScene='initial';$OriginPort=0\n"
+            "$ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text } | Out-Null\n"
+            "if (($script:removed -join ',') -ne 'new-guid' -or -not (Read-State).restored) { throw 'crash restoration failed' }\n"
+            "@{namespaces=@(Intent-Namespaces (Read-State));restored=(Read-State).restored} | ConvertTo-Json -Compress\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        report = json.loads(outcome.stdout)
+        self.assertEqual(
+            report["namespaces"],
+            ["server.phantom.test", "_8443._https.server.phantom.test"],
+        )
+        self.assertTrue(report["restored"])
+
+    def test_https_failed_watchdog_never_adds_rule(self) -> None:
+        outcome = self.invoke_functions(
+            "function Assert-Hosted { @{} }\n"
+            "function Get-DnsClientNrptPolicy { @() }\n"
+            "function Get-Process { param($Id) [pscustomobject]@{StartTime=[DateTime]'2026-10-23T00:00:00Z';Path='pwsh'} }\n"
+            "function Start-Process { [pscustomobject]@{Id=456;HasExited=$true;StartTime=[DateTime]'2026-10-23T00:00:00Z'} }\n"
+            "function Start-Sleep { throw 'an exited watchdog must not be polled' }\n"
+            "function Add-DnsClientNrptRule { throw 'rule must not be added' }\n"
+            "$Action='Install';$OwnerPid=123;$DnsScene='native-https-ech';$OriginPort=8443\n"
+            "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }; throw 'unexpected success' } catch { if ($_ -notmatch 'watchdog did not arm') { throw }; 'refused' }\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(outcome.stdout.strip(), "refused")
+
+    def test_https_install_refuses_policy_for_either_name_before_watchdog(self) -> None:
+        for namespace in (
+            "server.phantom.test",
+            "_8443._https.server.phantom.test",
+            ".phantom.test",
+            ".PHANTOM.TEST",
+            ".",
+        ):
+            with self.subTest(namespace=namespace):
+                outcome = self.invoke_functions(
+                    "function Assert-Hosted { @{} }\n"
+                    f"function Get-DnsClientNrptPolicy {{ [pscustomobject]@{{Namespace=@('{namespace}')}} }}\n"
+                    "function Start-Process { throw 'watchdog must not start' }\n"
+                    "function Add-DnsClientNrptRule { throw 'rule must not be added' }\n"
+                    "$Action='Install';$DnsScene='native-https-ech';$OriginPort=8443\n"
+                    "try { $ast.EndBlock.Statements | Where-Object { $_ -isnot [Management.Automation.Language.FunctionDefinitionAst] } | ForEach-Object { Invoke-Expression $_.Extent.Text }; throw 'unexpected success' } catch { if ($_ -notmatch 'existing NRPT namespace') { throw } }\n"
+                    "if (Test-Path -LiteralPath $StatePath) { throw 'collision created state' }; 'refused'\n"
+                )
+                self.assertEqual(outcome.returncode, 0, outcome.stderr)
+                self.assertEqual(outcome.stdout.strip(), "refused")
+
+    def test_https_namespace_intent_refuses_tampering_and_extra_rule_names(
+        self,
+    ) -> None:
+        outcome = self.invoke_functions(
+            "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
+            "foreach ($change in 'missing-scene','null-scene','unknown-scene','hostname','port-zero','port-443','port-string','port-bool') {\n"
+            "$state=[pscustomobject]@{hostname='server.phantom.test';dns_scene='native-https-ech';origin_port=8443;server=$DnsAddress;nonce=$nonce}\n"
+            "switch ($change) { 'missing-scene' {$state.PSObject.Properties.Remove('dns_scene')} 'null-scene' {$state.dns_scene=$null} 'unknown-scene' {$state.dns_scene='other'} 'hostname' {$state.hostname='other.test'} 'port-zero' {$state.origin_port=0} 'port-443' {$state.origin_port=443} 'port-string' {$state.origin_port='8443'} 'port-bool' {$state.origin_port=$true} }\n"
+            "try { Intent-Namespaces $state | Out-Null; throw 'unexpected success' } catch { if ($_ -notmatch 'namespace intent is outside') { throw } }\n"
+            "}\n"
+            "$state=[pscustomobject]@{hostname='server.phantom.test';dns_scene='native-https-ech';origin_port=8443;server=$DnsAddress;nonce=$nonce}\n"
+            "foreach ($names in @(@('server.phantom.test'),@('server.phantom.test','_8443._https.server.phantom.test','other.test'),@('server.phantom.test','server.phantom.test','_8443._https.server.phantom.test'))) {\n"
+            "$script:rules=@([pscustomobject]@{Name='unowned';Namespace=$names;NameServers=@($DnsAddress);DisplayName=$nonce;Comment=$nonce}); if (@(Owned-Rules $state).Count) { throw 'extra or missing rule name accepted' }\n"
+            "}\n"
+            "'refused'\n"
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        self.assertEqual(outcome.stdout.strip(), "refused")
 
     def test_hosted_guard_accepts_only_known_images_and_keeps_runner_checks(
         self,
@@ -1822,7 +1908,7 @@ class GuardTests(unittest.TestCase):
     def test_owned_native_address_keeps_exact_scope(self) -> None:
         outcome = self.invoke_functions(
             "$nonce='phantom-native-dns-11111111-1111-1111-1111-111111111111'\n"
-            "$state=[pscustomobject]@{nonce=$nonce;server=$DnsAddress}\n"
+            "$state=[pscustomobject]@{hostname=$TargetName;nonce=$nonce;server=$DnsAddress}\n"
             "$script:rules=@(\n"
             "[pscustomobject]@{Name='native';Namespace=@($TargetName);NameServers=[Net.IPAddress]::Parse('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
             "[pscustomobject]@{Name='string';Namespace=@($TargetName);NameServers=@('127.0.0.53');DisplayName=$nonce;Comment=$nonce},\n"
