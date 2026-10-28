@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a hosted Windows native-DNS scene for short-TTL cache observations.
 - Add a hosted Windows native-DNS scene for multi-address selection.
 - Reduce Python streaming overhead by converting body chunks during async
   completion.

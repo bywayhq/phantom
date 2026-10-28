@@ -2169,8 +2169,8 @@ check the current agent and tool hashes separately.
 
 ### Hosted native DNS
 
-The manual `Windows native DNS capture` workflow runs one headed Firefox 157
-lookup on a disposable Windows Server 2025 runner. It stages a pinned portable
+The manual `Windows native DNS capture` workflow runs headed Firefox 157
+on a disposable Windows Server 2025 runner. It stages a pinned portable
 browser, then routes only `127.0.0.1.nip.io` to a loopback DNS peer with NRPT.
 A separate watchdog and an always-run workflow step restore that rule before
 artifacts upload. The controller refuses desktop execution.
@@ -2180,8 +2180,8 @@ Success requires a later A query at the DNS peer and a complete HTTP response
 body. Raw DNS packets, hooks, origin records, MOZ_LOG and restoration results
 stay in `target/windows-native-dns-capture/`. The fresh profile disables TRR
 (`network.trr.mode=5`); no host cache flush or preliminary lookup runs.
-An absent HTTPS query stays absent. This is a native routing check, not a
-Windows 11 observation or a DNS TTL/cache measurement.
+An absent HTTPS query stays absent. These configured scenes do not establish
+Windows 11 behavior or untouched DNS defaults.
 
 Choose `drop-first-udp-a` in the workflow to check recovery after one
 unanswered A query. Success also requires a later UDP A reply. The default
@@ -2196,6 +2196,13 @@ network adapter's DNS servers.
 Choose `address-order` to return two IPv4 addresses with healthy loopback
 origins. The capture records DNS answer order, native resolver results and
 Firefox's connection choice.
+
+Choose `ttl` for four completed requests on separate connections. After the
+first body, the page waits until 2, 8 and 10 seconds to request again. The peer
+answers with TTL5. The capture checks that requests straddle expiry and retains
+native lookups and Firefox's cache log. Missing TTL publication or later native
+lookups leave the observation marked `limited`; they do not prove a cache
+policy. The scene keeps the same 30-second bound and changes no cache settings.
 
 ### macOS native DNS
 

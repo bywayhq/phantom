@@ -13,6 +13,7 @@ on:
           - drop-first-udp-a
           - two-server
           - address-order
+          - ttl
 
 permissions:
   contents: read
@@ -43,7 +44,7 @@ jobs:
           -r scripts/requirements.txt
           -r scripts/capture/hooks-requirements.txt
 
-      - name: Capture one post-attachment native lookup
+      - name: Capture the selected native DNS scene
         env:
           PHANTOM_CAPTURE_SCENARIO: ${{ inputs.scenario }}
         run: >-
