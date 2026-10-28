@@ -113,6 +113,18 @@ ordinary request, including bodies, contexts and attempt budgets.
 Both APIs require a matching native payload. Older payloads return
 `native_sse_unavailable` or `native_event_source_unavailable` before sending.
 
+## Open WebSockets
+
+Use `client.WebSocket(ctx, url, WebSocketOptions{})` for the profile's connection
+policy, or set `Protocol` to `"h1"`, `"h2"` or `"h3"`. Read and write with separate
+contexts and close or abort the socket when finished.
+
+`WebSocketOptions.Proxy` overrides the route for one opening. Nil inherits the
+client route; a pointer to `""` selects direct routing. `ProxyCredentials` belongs
+to that explicit proxy. Other openings keep the client default. Route overrides
+require a matching native payload; older libraries return
+`native_websocket_route_unavailable` before sending.
+
 ## Install
 
 There are no public module tags or registry releases yet. Download a matching
