@@ -101,6 +101,7 @@ class Client {
       const { protocol, context, headers, ...nativeOptions } = config;
       this.#native = environment.client({
         ...nativeOptions, profile: typeof config.profile === 'string' ? config.profile : undefined,
+        defaultContext: this.#defaults.context,
         additionalRoots: config.additionalRoots?.map(bytes),
         additionalProxyRoots: config.additionalProxyRoots?.map(bytes),
         serverSpkiPins, proxyServerSpkiPins, ...certificates,

@@ -44,7 +44,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   'clientCertificate' | 'clientCertificatesFor' | 'timeouts' |
   'redirectPolicy' | 'retryPolicy' | 'network' | 'pool'
 > & {
-  profile?: string; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
+  profile?: string; defaultContext?: RequestContext; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
   serverSpkiPins?: Buffer[]; proxyServerSpkiPins?: Buffer[];
   clientCertificate?: object;
   clientCertificatesFor?: { origin: string; certificate: object }[];
