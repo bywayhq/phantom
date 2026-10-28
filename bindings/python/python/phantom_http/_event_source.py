@@ -217,7 +217,10 @@ class EventSource:
             raise StopIteration from None
 
     def close(self, *, timeout_ms: int = 5000) -> None:
+        from ._client import _shutdown_timeout
+
         self._client._check_thread_loop()
+        _shutdown_timeout(timeout_ms)
         if self._client._loop.is_closed() and self.closed:
             return
         self._client._run(lambda: self._source.aclose(timeout_ms=timeout_ms))
