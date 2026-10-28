@@ -39,7 +39,7 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -72,6 +72,7 @@ DECODER = Path(socket_hooks.__file__)
 # A name that public DNS resolves to 127.0.0.1, so a lookup leaves the
 # browser's resolver while the connection stays on loopback.
 TARGET_HOST = socket_hooks.LOOKUP_HOST
+NATIVE_HTTPS_HOST = "server.phantom.test"
 MOZ_LOG_MODULES = (
     "timestamp,sync,nsSocketTransport:5,nsHttp:5,nsHostResolver:5,GetAddrInfo:5"
 )
@@ -802,6 +803,7 @@ class Origins:
     certificate: Any = None
     page_port: int = 0
     port: int = 0
+    external_https_origin: str | None = None
     connections: list[ServerConnection] = field(default_factory=list)
     open: list[tuple[ServerConnection, asyncio.StreamWriter]] = field(
         default_factory=list
@@ -927,6 +929,8 @@ class Origins:
 
     @property
     def target_url(self) -> str:
+        if self.external_https_origin is not None:
+            return self.external_https_origin
         return f"{self.scenario.scheme}://{self.scenario.hostname}:{self.port}"
 
     def cleanup_pending(self) -> bool:
@@ -1552,10 +1556,17 @@ class _FirefoxNative:
     """
 
     def __init__(
-        self, run: _FirefoxRun, plan: LaunchPlan, url: str, config: dict
+        self,
+        run: _FirefoxRun,
+        plan: LaunchPlan,
+        url: str,
+        config: dict,
+        *,
+        browser_factory: Callable[[LaunchPlan, str], LaunchedBrowser] | None = None,
     ) -> None:
         self.run = run
-        self.browser = LaunchedBrowser(plan, url)
+        factory = LaunchedBrowser if browser_factory is None else browser_factory
+        self.browser = factory(plan, url)
         self.hooks: Hooks | None = None
         self.config = config
         self.future: asyncio.Future | None = None
@@ -1934,6 +1945,28 @@ def connect_preferences(origins: Origins) -> tuple[tuple[str, bool | int | str],
     )
 
 
+def native_https_port(origin: str) -> int:
+    if not isinstance(origin, str) or len(origin) > 256:
+        raise ValueError("external HTTPS origin requires a bounded origin URL")
+    try:
+        parsed = urlsplit(origin)
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError(
+            "external HTTPS origin has an invalid port or hostname"
+        ) from error
+    if (
+        port is None
+        or port == 443
+        or not 0 < port <= 65535
+        or origin != f"https://{NATIVE_HTTPS_HOST}:{port}"
+    ):
+        raise ValueError(
+            "external HTTPS origin must name server.phantom.test on a non-443 port"
+        )
+    return port
+
+
 async def run_once(
     scenario: Scenario,
     executable: Path,
@@ -1941,7 +1974,10 @@ async def run_once(
     headful: bool = False,
     failure_path: Path | None = None,
     prepared: _FirefoxRun | None = None,
+    external_https_origin: str | None = None,
+    browser_factory: Callable[[LaunchPlan, str], LaunchedBrowser] | None = None,
 ) -> tuple[RunResult, str]:
+    """Capture one scene; the caller owns any external HTTPS peer and DNS policy."""
     owner = _FirefoxRun(scenario) if prepared is None else prepared
     origins = owner.origins
     primary = None
@@ -1949,6 +1985,15 @@ async def run_once(
     plan = None
     try:
         validate_waits(scenario)
+        if external_https_origin is not None:
+            if prepared is not None:
+                raise ValueError("external HTTPS origin cannot use prepared listeners")
+            if scenario.target != "http1" or scenario.rewrite_lookup:
+                raise ValueError(
+                    "external HTTPS origin requires a direct HTTP controller without lookup rewriting"
+                )
+            origins.port = native_https_port(external_https_origin)
+            origins.external_https_origin = external_https_origin
         if prepared is not None and (
             owner.native is not None
             or owner.cleanup is not None
@@ -2054,7 +2099,12 @@ async def run_once(
             if scenario.rewrite_lookup
             else {}
         )
-        owner.native = _FirefoxNative(owner, plan, url, config)
+        if browser_factory is None:
+            owner.native = _FirefoxNative(owner, plan, url, config)
+        else:
+            owner.native = _FirefoxNative(
+                owner, plan, url, config, browser_factory=browser_factory
+            )
         owner.native.start()
         await owner.wait(owner.native.started, ATTACH_LIMIT_SECONDS)
         await owner.wait(origins.page_requested, ATTACH_LIMIT_SECONDS)
@@ -2095,6 +2145,14 @@ async def run_once(
         reports, errors = hooks.snapshot()
         start_ms = reports[0]["time_ms"] if reports else now_ms()
         moz_log_text = parent_moz_log(owner.log_directory)
+        endpoints = ()
+        if origins.proxy is not None:
+            endpoints = (
+                (scenario.hostname, origins.port),
+                (TARGET_HOST, origins.proxy.address[1]),
+            )
+        elif external_https_origin is not None:
+            endpoints = ((NATIVE_HTTPS_HOST, origins.port),)
         result = RunResult(
             reports,
             errors,
@@ -2106,12 +2164,7 @@ async def run_once(
                 moz_log_text,
                 origins.port,
                 start_ms,
-                endpoints=(
-                    (scenario.hostname, origins.port),
-                    (TARGET_HOST, origins.proxy.address[1]),
-                )
-                if origins.proxy is not None
-                else (),
+                endpoints=endpoints,
             ),
             start_ms,
             moz_log_text,
