@@ -38,8 +38,8 @@ Reproduce with a manifest, substituting the exact executable and fresh paths:
 Run `uv run --no-project --python 3.12.10 --with-requirements scripts/requirements.txt python -m scripts.capture.run_matrix <manifest>.json --jobs 1 --retries 0 --work-dir <fresh-work>`.
 For headless, omit `args` and use new output/work paths. Check `--dry-run` first.
 For headful H1 or H3, set `args` to
-`["--headful", "--resource-protocol", "h1"]` or
-`["--headful", "--resource-protocol", "h3"]`, with separate fresh paths.
+`["--headful", "--protocol", "h1"]` or
+`["--headful", "--protocol", "h3"]`, with separate fresh paths.
 
 | File | SHA256 |
 | --- | --- |

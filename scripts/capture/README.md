@@ -1076,7 +1076,7 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 
 | Scenario | ALPN | What the page does |
 | --- | --- | --- |
-| `revalidate` | `h2` | Fetches four cacheable resources twice each; a matching `If-None-Match` or an `If-Modified-Since` gets `304` |
+| `revalidate` | `h2` or explicit `http/1.1` | Fetches four cacheable resources twice each; a matching `If-None-Match` or an `If-Modified-Since` gets `304` |
 | `upload-h1`, `upload-h2` | `http/1.1`, `h2` | POSTs 100 bytes, 1 MiB string and `Blob` bodies, a 1 MiB multipart `FormData`, and a form with a 1 MiB file |
 | `idle-ping` | `h2` | Fetches, leaves the connection idle for `--idle` seconds (75), fetches again |
 | `ping-unanswered` | `h2` | Fetches, waits 11.5 s, fetches again; from that request on the server writes nothing on the connection |
@@ -1088,10 +1088,13 @@ ordered headers in `request_N_headers_json`, plus its initial HTTP/2 priority
 in `request_N_priority` (`null` when absent). These captures accept only their
 owned page requests and nonsecret headers. Upload bodies are counted, not kept.
 
+Use `--protocol h1` or `--protocol h2` to restrict `revalidate` to one protocol.
+Without it, the listener advertises HTTP/2 and HTTP/1.1 as before.
+
 `resources` defaults to HTTP/2 and retains each request's initial HEADERS
-priority. Add `--resource-protocol h1` to observe HTTPS over HTTP/1.1 instead.
+priority. Add `--protocol h1` to observe HTTPS over HTTP/1.1 instead.
 H1 retains raw request lines and headers, including case, order and duplicates.
-Use `--resource-protocol h3` with desktop Chromium for HTTP/3. It retains client
+Use `--protocol h3` with desktop Chromium for HTTP/3. It retains client
 stream bytes, ordered fields and QPACK state for independent request decoding.
 All modes retain at most 512 KiB of plaintext peer bytes. They accept only six
 owned paths with the exact run token and reject credentials or unrelated

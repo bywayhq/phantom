@@ -32,9 +32,15 @@ class CliLoopTests(unittest.TestCase):
     def test_windows_tcp_selects_and_restores_policy_on_every_outcome(self) -> None:
         original = object()
         selected = object()
-        for protocol in ("h1", "h2"):
+        for scenario, protocol in (
+            (scenario, protocol)
+            for scenario in ("resources", "revalidate")
+            for protocol in (None, "h1", "h2")
+        ):
             for error in (None, ValueError("capture failed"), asyncio.CancelledError()):
-                with self.subTest(protocol=protocol, error=type(error).__name__):
+                with self.subTest(
+                    scenario=scenario, protocol=protocol, error=type(error).__name__
+                ):
                     changes = []
 
                     def run(operation, changes=changes, error=error):
@@ -60,9 +66,9 @@ class CliLoopTests(unittest.TestCase):
                         ) as select,
                         patch.object(asyncio, "run", run),
                     ):
-                        command = arguments(
-                            "--scenario", "resources", "--resource-protocol", protocol
-                        )
+                        command = arguments("--scenario", scenario)
+                        if protocol is not None:
+                            command.extend(("--protocol", protocol))
                         if error is None:
                             lifecycle.main(command)
                         else:
@@ -88,15 +94,14 @@ class CliLoopTests(unittest.TestCase):
                     patch.object(asyncio, "run", run),
                 ):
                     lifecycle.main(
-                        arguments(
-                            "--scenario", "resources", "--resource-protocol", protocol
-                        )
+                        arguments("--scenario", "resources", "--protocol", protocol)
                     )
                     change.assert_not_called()
 
     def test_invalid_options_and_dependencies_do_not_change_policy(self) -> None:
         for extra, version in (
             (("--idle", "nan"), lifecycle.SUPPORTED.get),
+            (("--resource-protocol", "h1"), lifecycle.SUPPORTED.get),
             ((), lambda _package: "wrong-version"),
         ):
             with self.subTest(extra=extra):

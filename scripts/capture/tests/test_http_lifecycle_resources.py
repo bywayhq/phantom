@@ -495,16 +495,14 @@ def h1_head(port: int, target: str, extra: bytes = b"") -> bytes:
 class ResourceH1EvidenceTests(unittest.TestCase):
     def test_explicit_protocol_options_are_scoped_and_default_remains_h2(self) -> None:
         http_lifecycle.validate_options(options(scenario="resources"))
-        http_lifecycle.validate_options(
-            options(scenario="resources", resource_protocol="h1")
-        )
+        http_lifecycle.validate_options(options(scenario="resources", protocol="h1"))
         for changes in (
-            {"resource_protocol": "h1"},
-            {"scenario": "resources", "resource_protocol": "h4"},
+            {"scenario": "close", "protocol": "h1"},
+            {"scenario": "resources", "protocol": "h4"},
         ):
             with (
                 self.subTest(changes=changes),
-                self.assertRaisesRegex(ValueError, "resource-protocol"),
+                self.assertRaisesRegex(ValueError, "--protocol"),
             ):
                 http_lifecycle.validate_options(options(**changes))
         self.assertEqual(ResourceCapture("token", 12345).protocol, "h2")
@@ -828,9 +826,7 @@ class ResourceH1OptionPeerTests(unittest.IsolatedAsyncioTestCase):
             self.assertRaises(ValueError) as raised,
         ):
             await asyncio.wait_for(
-                http_lifecycle.capture(
-                    options(scenario="resources", resource_protocol="h1")
-                ),
+                http_lifecycle.capture(options(scenario="resources", protocol="h1")),
                 5,
             )
         self.assertIs(raised.exception, primary)

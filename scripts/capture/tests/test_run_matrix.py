@@ -86,6 +86,67 @@ def fake_capture(**fields):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_fetch_and_upload_captures_forward_protocol_without_repeating(self) -> None:
+        captures = []
+        for scenario, protocol in (
+            ("revalidate", "h1"),
+            ("revalidate", "h2"),
+            ("upload-h1", None),
+            ("upload-h2", None),
+        ):
+            with self.subTest(scenario=scenario, protocol=protocol):
+                capture = {
+                    "tool": "http_lifecycle",
+                    "browsers": ["chrome"],
+                    "scenarios": [scenario],
+                    "repeat": 1,
+                    "output_dir": f"fetch/{scenario}/{protocol or 'default'}"
+                    + "/{browser}/{version}",
+                    "args": [] if protocol is None else ["--protocol", protocol],
+                }
+                jobs = expand_manifest(manifest(capture), base=Path("/repo"))
+                self.assertEqual(len(jobs), 1)
+                job = jobs[0]
+                self.assertEqual(
+                    job.id,
+                    f"http_lifecycle/chrome/{scenario}"
+                    + ("" if protocol is None else f"/{protocol}"),
+                )
+                self.assertEqual(
+                    job.outputs,
+                    (
+                        Path(
+                            f"/repo/fetch/{scenario}/{protocol or 'default'}"
+                            f"/chrome/154.0.8037.58/{scenario}.txt"
+                        ),
+                    ),
+                )
+                command = job.command("python")
+                self.assertEqual(command[command.index("--scenario") + 1], scenario)
+                if protocol is None:
+                    self.assertNotIn("--protocol", command)
+                else:
+                    self.assertEqual(command[command.index("--protocol") + 1], protocol)
+                self.assertNotIn("--repeat", command)
+                self.assertTrue(job.exclusive)
+
+                capture["repeat"] = 2
+                with self.assertRaisesRegex(ManifestError, "one run per job"):
+                    expand_manifest(manifest(capture), base=Path("/repo"))
+                captures.append({**capture, "repeat": 1})
+
+        jobs = expand_manifest(manifest(*captures), base=Path("/repo"))
+        self.assertEqual(
+            [job.id for job in jobs],
+            [
+                "http_lifecycle/chrome/revalidate/h1",
+                "http_lifecycle/chrome/revalidate/h2",
+                "http_lifecycle/chrome/upload-h1",
+                "http_lifecycle/chrome/upload-h2",
+            ],
+        )
+        self.assertEqual(len({path for job in jobs for path in job.outputs}), 4)
+
     def test_resource_capture_uses_one_lifecycle_run_without_netlog(self) -> None:
         jobs = expand_manifest(
             manifest(

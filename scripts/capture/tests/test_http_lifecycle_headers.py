@@ -106,6 +106,145 @@ class HeaderBoundaryTests(unittest.TestCase):
             self.assertIsNone(rejected.ordered_fields)
 
 
+class CaptureSelectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_selected_and_default_alpn_serve_the_unchanged_request(self) -> None:
+        cases = (
+            ("revalidate", "h1", "http/1.1", ("h2", "http/1.1")),
+            ("revalidate", "h2", "h2", ("h2", "http/1.1")),
+            ("revalidate", None, "h2", ("h2", "http/1.1")),
+            ("revalidate", None, "http/1.1", ("http/1.1",)),
+            ("resources", None, "h2", ("h2", "http/1.1")),
+            ("resources", "h1", "http/1.1", ("h2", "http/1.1")),
+            ("resources", "h2", "h2", ("h2", "http/1.1")),
+            ("upload-h1", None, "http/1.1", ("h2", "http/1.1")),
+            ("upload-h2", None, "h2", ("h2", "http/1.1")),
+        )
+        for scenario, selected, expected, offered in cases:
+            with self.subTest(scenario=scenario, selected=selected, offered=offered):
+                await self.capture_case(scenario, selected, expected, offered)
+
+    async def capture_case(
+        self,
+        scenario: str,
+        selected: str | None,
+        expected: str,
+        offered: tuple[str, ...],
+    ) -> None:
+        certificate = lifecycle.generate_certificate()
+        server_type = lifecycle.LifecycleServer
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.load_verify_locations(cadata=certificate.certificate_pem.decode())
+        context.set_alpn_protocols(list(offered))
+        owners = []
+        sent = []
+        primary = ValueError("controlled stop after the complete response")
+        test = self
+
+        def server(run: lifecycle.Run) -> lifecycle.LifecycleServer:
+            owner = server_type(run)
+            owners.append(owner)
+            return owner
+
+        class WireDriver:
+            def __init__(self, _plan: LaunchPlan, url: str) -> None:
+                self.url = lifecycle.urlsplit(url)
+
+            async def __aenter__(self) -> None:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(
+                        "127.0.0.1",
+                        self.url.port,
+                        ssl=context,
+                        server_hostname=HOSTNAME,
+                    ),
+                    5,
+                )
+                try:
+                    test.assertEqual(
+                        writer.get_extra_info("ssl_object").selected_alpn_protocol(),
+                        expected,
+                    )
+                    target = (
+                        ("/etag" if scenario == "revalidate" else "/start")
+                        + "?"
+                        + self.url.query
+                    )
+                    authority = f"{HOSTNAME}:{self.url.port}"
+                    if expected == "http/1.1":
+                        sent.extend((("Host", authority), ("aCcEpT", "*/*")))
+                        writer.write(
+                            f"GET {target} HTTP/1.1\r\nHost: {authority}\r\n"
+                            "aCcEpT: */*\r\n\r\n".encode()
+                        )
+                        await writer.drain()
+                        head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+                        test.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+                        length = next(
+                            int(line.split(b":", 1)[1])
+                            for line in head.split(b"\r\n")
+                            if line.lower().startswith(b"content-length:")
+                        )
+                        body = await asyncio.wait_for(reader.readexactly(length), 5)
+                    else:
+                        client = h2.connection.H2Connection()
+                        client.initiate_connection()
+                        sent.extend(
+                            (
+                                (":method", "GET"),
+                                (":scheme", "https"),
+                                (":authority", authority),
+                                (":path", target),
+                                ("accept", "*/*"),
+                            )
+                        )
+                        client.send_headers(1, sent, end_stream=True)
+                        writer.write(client.data_to_send())
+                        await writer.drain()
+                        body = bytearray()
+                        ended = False
+                        while not ended:
+                            data = await asyncio.wait_for(reader.read(65536), 5)
+                            test.assertTrue(data, "response ended before END_STREAM")
+                            for event in client.receive_data(data):
+                                if isinstance(event, h2.events.DataReceived):
+                                    body.extend(event.data)
+                                elif isinstance(event, h2.events.StreamEnded):
+                                    ended = True
+                    if scenario == "revalidate":
+                        test.assertEqual(body, b"v1")
+                    else:
+                        test.assertIn(b"<!doctype html>", body)
+                finally:
+                    writer.transport.abort()
+                    with contextlib.suppress(ConnectionError, ssl.SSLError):
+                        await asyncio.wait_for(writer.wait_closed(), 5)
+                raise primary
+
+            async def __aexit__(self, _kind, _value, _traceback) -> bool:
+                return False
+
+        with (
+            patch.object(lifecycle, "generate_certificate", return_value=certificate),
+            patch.object(lifecycle, "LifecycleServer", server),
+            patch.object(lifecycle, "BrowserDriver", WireDriver),
+            patch.object(lifecycle, "write_text_fixture") as publish,
+            self.assertRaises(ValueError) as raised,
+        ):
+            await asyncio.wait_for(
+                lifecycle.capture(options(scenario=scenario, protocol=selected)),
+                5,
+            )
+        self.assertIs(raised.exception, primary)
+        publish.assert_not_called()
+        run = owners[0].run
+        self.assertEqual(run.connections[0].alpn, expected)
+        self.assertEqual(run.requests[0].status, 200)
+        if scenario != "resources":
+            self.assertEqual(run.requests[0].ordered_fields, tuple(sent))
+        self.assertFalse(owners[0].protocols)
+        self.assertTrue(all(item.waiter.done() for item in owners[0].listeners))
+
+
 class HeaderPeerTests(unittest.IsolatedAsyncioTestCase):
     async def connect(self, scenario: str, protocol: str) -> None:
         certificate = lifecycle.generate_certificate()

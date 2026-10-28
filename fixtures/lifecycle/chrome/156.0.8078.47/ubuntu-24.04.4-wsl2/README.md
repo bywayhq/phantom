@@ -30,7 +30,7 @@ Reproduce a resource cell with the existing capture runner and short paths:
 {"operating_system":"Ubuntu24.04.4 WSL2 x86_64 kernel6.6.114.1-microsoft-standard-WSL2 WSLg1.0.73",
  "repeat":1,"browsers":{"chrome":{"version":"156.0.8078.47","path":"/path/to/google-chrome"}},
  "captures":[{"tool":"http_lifecycle","browsers":["chrome"],"scenarios":["resources"],
- "output_dir":"/tmp/pc/out","exclusive":true,"args":["--headful","--resource-protocol","h3"]}]}
+ "output_dir":"/tmp/pc/out","exclusive":true,"args":["--headful","--protocol","h3"]}]}
 ```
 
 ```sh
@@ -40,7 +40,7 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
 ```
 
 Inspect the plan, then omit `--dry-run` for one attempt. For H1 or H2, change
-`--resource-protocol` and use fresh output/work paths. For the snapshot, use
+`--protocol` and use fresh output/work paths. For the snapshot, use
 `"tool":"snapshot"`, omit `scenarios`, and pass `"args":["--headful"]`.
 Run as an unprivileged user with access to the headed display. Short `TMPDIR`
 and work paths keep Chrome's Unix-domain singleton socket within its path limit.

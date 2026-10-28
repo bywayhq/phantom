@@ -257,7 +257,7 @@ class StreamReplayTests(unittest.TestCase):
 
 class SelectionTests(unittest.TestCase):
     def test_explicit_h3_launch_keeps_traffic_on_owned_origin(self) -> None:
-        args = options(scenario="resources", resource_protocol="h3")
+        args = options(scenario="resources", protocol="h3")
         lifecycle.validate_options(args)
         plan = lifecycle.launch_plan(args, generate_certificate(), (12345,))
         self.assertIn("--enable-quic", plan.extra_arguments)
@@ -274,7 +274,7 @@ class SelectionTests(unittest.TestCase):
                     options(
                         **{
                             "scenario": "resources",
-                            "resource_protocol": "h3",
+                            "protocol": "h3",
                             **changes,
                         }
                     )
@@ -646,7 +646,7 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
         primary = OSError("controlled UDP acquisition failure")
         with tempfile.TemporaryDirectory() as directory:
             args = options(
-                scenario="resources", resource_protocol="h3", output_dir=Path(directory)
+                scenario="resources", protocol="h3", output_dir=Path(directory)
             )
             with (
                 patch.object(

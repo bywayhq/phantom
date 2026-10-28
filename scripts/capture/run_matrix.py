@@ -235,10 +235,10 @@ TOOLS = {
             "scripts.capture.http_lifecycle",
             DESKTOP_BROWSERS,
             scenario_file("{scenario}.txt"),
-            scenarios=("resources",),
+            scenarios=("resources", "revalidate", "upload-h1", "upload-h2"),
             takes_repeat=False,
             run_seconds=60,
-            timing="its resource fixtures keep connection and request order",
+            timing="its fixtures keep connection and request order",
         ),
         Tool(
             "sse_reconnect",
@@ -545,7 +545,9 @@ def expand_capture(
             if tool.name == "tunnelled_websocket":
                 proxy, origin = tunnelled_websocket_options(extra)
                 job_id += f"/{proxy}/{origin}"
-            if tool.name == "sse_reconnect" and option_value(extra, "--protocol"):
+            if tool.name in {"sse_reconnect", "http_lifecycle"} and option_value(
+                extra, "--protocol"
+            ):
                 job_id += "/" + str(option_value(extra, "--protocol"))
             if option_value(extra, "--fixture-prefix"):
                 job_id += "/" + str(option_value(extra, "--fixture-prefix"))

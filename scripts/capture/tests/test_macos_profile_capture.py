@@ -90,9 +90,7 @@ class ProfileCellsTests(unittest.TestCase):
             selected = manifest["captures"][0]
             self.assertEqual(selected["tool"], "http_lifecycle")
             self.assertEqual(selected["scenarios"], ["resources"])
-            self.assertEqual(
-                selected["args"], ["--headful", "--resource-protocol", name]
-            )
+            self.assertEqual(selected["args"], ["--headful", "--protocol", name])
         self.assertEqual(len(self.commands), 4)
         self.assertTrue((self.output / "h3/fixtures/resources.txt").is_file())
         self.assertEqual(

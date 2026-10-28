@@ -158,6 +158,7 @@ def options(**changes) -> argparse.Namespace:
         "browser_path": Path("unused"),
         "headful": False,
         "scenario": "revalidate",
+        "protocol": None,
         "listen": "127.0.0.1",
         "idle": 75.0,
         "output_dir": Path("unused-output"),
@@ -169,6 +170,35 @@ def options(**changes) -> argparse.Namespace:
 
 
 class OptionTests(unittest.TestCase):
+    def test_protocol_selection_is_explicit_and_scoped_before_acquisition(self) -> None:
+        for scenario in ("resources", "revalidate"):
+            for protocol in (None, "h1", "h2"):
+                with self.subTest(scenario=scenario, protocol=protocol):
+                    http_lifecycle.validate_options(
+                        options(scenario=scenario, protocol=protocol)
+                    )
+        for scenario, protocol in (
+            ("resources", "h4"),
+            ("revalidate", "h3"),
+            *(
+                (scenario, protocol)
+                for scenario in SCENARIOS
+                if scenario not in {"resources", "revalidate"}
+                for protocol in ("h1", "h2", "h3")
+            ),
+        ):
+            with (
+                self.subTest(scenario=scenario, protocol=protocol),
+                patch.object(http_lifecycle, "generate_certificate") as acquire,
+                self.assertRaisesRegex(ValueError, "--protocol"),
+            ):
+                asyncio.run(
+                    http_lifecycle.capture(
+                        options(scenario=scenario, protocol=protocol)
+                    )
+                )
+            acquire.assert_not_called()
+
     def test_invalid_idle_and_firefox_addresses_fail_before_acquisition(self) -> None:
         for args in (
             *(

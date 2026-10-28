@@ -163,7 +163,7 @@ def capture_profile(output: Path, chrome: Path, work: Path, record: dict) -> Non
             capture["args"].extend(["--run-timeout", "60"])
         else:
             capture["scenarios"] = ["resources"]
-            capture["args"].extend(["--resource-protocol", name])
+            capture["args"].extend(["--protocol", name])
         manifest = cell / "manifest.json"
         manifest.write_text(
             json.dumps(

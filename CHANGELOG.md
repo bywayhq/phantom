@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Breaking: select lifecycle capture protocols with `--protocol`.
+  Migrate: replace `--resource-protocol` with `--protocol` in capture commands
+  and manifests.
 - Add a hosted Windows native-DNS scene for HTTPS records and ECH acceptance.
 - Breaking: profile exports include named request contexts, so imported profiles
   and offline bundles support per-request context selection on one client. Migrate: readers

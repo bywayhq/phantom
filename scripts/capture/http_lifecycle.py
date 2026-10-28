@@ -9,7 +9,7 @@ nonsecret headers and initial HTTP/2 priority.
 
 | Scenario | ALPN | What the page does |
 | --- | --- | --- |
-| `revalidate` | h2 | Fetches four cacheable resources twice each |
+| `revalidate` | h2 or explicit http/1.1 | Fetches four cacheable resources twice each |
 | `upload-h1`, `upload-h2` | http/1.1, h2 | POSTs a small body, 1 MiB bodies, a multipart `FormData`, and a form |
 | `idle-ping` | h2 | Fetches, waits `--idle` seconds on the open connection, fetches again |
 | `ping-unanswered` | h2 | Fetches, waits 11.5 s, fetches again; the server goes silent on that connection |
@@ -1530,10 +1530,10 @@ def launch_plan(
             f"--host-resolver-rules=MAP {HOSTNAME} {replacement}, EXCLUDE localhost",
             "--ignore-certificate-errors-spki-list=" + certificate.spki_sha256_base64,
             "--enable-quic"
-            if getattr(args, "resource_protocol", "h2") == "h3"
+            if getattr(args, "protocol", None) == "h3"
             else "--disable-quic",
         ]
-        if getattr(args, "resource_protocol", "h2") == "h3":
+        if getattr(args, "protocol", None) == "h3":
             extra.append(f"--origin-to-force-quic-on={HOSTNAME}:{ports[0]}")
         if remote:
             extra.append("--remote-debugging-port=0")
@@ -1663,13 +1663,13 @@ def fixture(
 
 
 def validate_options(args: argparse.Namespace) -> None:
-    protocol = getattr(args, "resource_protocol", "h2")
-    if protocol not in {"h1", "h2", "h3"}:
-        raise ValueError("--resource-protocol must be h1, h2 or h3")
-    if protocol != "h2" and args.scenario != "resources":
-        raise ValueError(
-            f"--resource-protocol {protocol} requires --scenario resources"
-        )
+    protocol = getattr(args, "protocol", None)
+    if protocol not in {None, "h1", "h2", "h3"}:
+        raise ValueError("--protocol must be h1, h2 or h3")
+    if protocol is not None and args.scenario not in {"resources", "revalidate"}:
+        raise ValueError("--protocol requires --scenario resources or revalidate")
+    if protocol == "h3" and args.scenario != "resources":
+        raise ValueError("--protocol h3 requires --scenario resources")
     if protocol == "h3" and args.browser not in DESKTOP_CHROMIUM_BROWSERS:
         raise ValueError("HTTP/3 resources require a desktop Chromium browser")
     address = ipaddress.ip_address(args.listen)
@@ -1687,7 +1687,8 @@ def validate_options(args: argparse.Namespace) -> None:
 
 async def capture(args: argparse.Namespace) -> None:
     validate_options(args)
-    if getattr(args, "resource_protocol", "h2") == "h3":
+    protocol = getattr(args, "protocol", None)
+    if protocol == "h3":
         from .http_lifecycle_resources_h3 import capture as capture_h3
 
         await capture_h3(args)
@@ -1696,13 +1697,9 @@ async def capture(args: argparse.Namespace) -> None:
     main_context = server_context(certificate)
     main_context.set_alpn_protocols(
         ["http/1.1"]
-        if args.scenario == "upload-h1"
-        or (
-            args.scenario == "resources"
-            and getattr(args, "resource_protocol", "h2") == "h1"
-        )
+        if args.scenario == "upload-h1" or protocol == "h1"
         else ["h2"]
-        if args.scenario == "resources"
+        if args.scenario == "resources" or protocol == "h2"
         else ["h2", "http/1.1"]
     )
     h1_context = server_context(certificate)
@@ -1723,9 +1720,7 @@ async def capture(args: argparse.Namespace) -> None:
         if args.scenario in HEADER_SCENARIOS:
             run.header_origin = f"https://{HOSTNAME}:{port}"
         if args.scenario == "resources":
-            run.resources = ResourceCapture(
-                run.token, port, getattr(args, "resource_protocol", "h2")
-            )
+            run.resources = ResourceCapture(run.token, port, protocol or "h2")
         plan = launch_plan(args, certificate, (port, h1_port))
         url = f"https://{HOSTNAME}:{port}/start?run={run.token}"
         async with BrowserDriver(plan, url) as driver:
@@ -1776,10 +1771,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--listen", default="127.0.0.1")
     parser.add_argument("--scenario", choices=SCENARIOS, required=True)
     parser.add_argument(
-        "--resource-protocol",
+        "--protocol",
         choices=("h1", "h2", "h3"),
-        default="h2",
-        help="HTTPS protocol for the resources scenario (default: h2)",
+        help="restrict resources or revalidate to one HTTPS protocol; "
+        "HTTP/3 requires resources (default: resources h2, revalidate negotiates)",
     )
     parser.add_argument("--idle", type=float, default=75.0)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -1791,7 +1786,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")
-    if sys.platform != "win32" or args.resource_protocol == "h3":
+    if sys.platform != "win32" or args.protocol == "h3":
         asyncio.run(capture(args))
         return
 
