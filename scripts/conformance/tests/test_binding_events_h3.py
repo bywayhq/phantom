@@ -3,6 +3,8 @@
 import contextlib
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -144,3 +146,65 @@ class EventsOracleTests(unittest.TestCase):
             ):
                 with self.subTest(value=value), self.assertRaises(ValueError):
                     self.protocol(directory).receive(value)
+
+
+class StopCommandProcessTests(unittest.TestCase):
+    def test_deadline_and_failure_exit_with_stdin_still_open(self) -> None:
+        for fail in (False, True):
+            program = f"""import asyncio
+from scripts.conformance.binding_events_h3 import stop_command
+async def run():
+    command = stop_command()
+    if {fail!r}:
+        await asyncio.sleep(0.05)
+        raise RuntimeError("controlled peer failure")
+    try:
+        await asyncio.wait_for(command, 0.05)
+    except asyncio.TimeoutError:
+        print("expired", flush=True)
+asyncio.run(run())
+"""
+            with self.subTest(fail=fail):
+                output, error, code = self.child(program)
+                self.assertEqual(code, 1 if fail else 0, error.decode())
+                if fail:
+                    self.assertIn(b"controlled peer failure", error)
+                else:
+                    self.assertEqual(output, b"expired\n")
+                    self.assertEqual(error, b"")
+
+    def test_stop_command_is_accepted_without_waiting_for_stdin_eof(self) -> None:
+        program = """import asyncio
+from scripts.conformance.binding_events_h3 import stop_command
+async def run():
+    print(repr(await stop_command()), flush=True)
+asyncio.run(run())
+"""
+        output, error, code = self.child(program, b"stop\n")
+        self.assertEqual(code, 0, error.decode())
+        self.assertEqual(output, b"'stop\\n'\n")
+        self.assertEqual(error, b"")
+
+    def child(
+        self, program: str, command: bytes | None = None
+    ) -> tuple[bytes, bytes, int]:
+        process = subprocess.Popen(
+            [sys.executable, "-c", program],
+            cwd=Path(__file__).resolve().parents[3],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            if command is not None:
+                process.stdin.write(command)
+                process.stdin.flush()
+            # Keep stdin open until the child exits: closing it would hide the bug.
+            process.wait(timeout=5)
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.stdin.close()
+            process.stdin = None
+            output, error = process.communicate(timeout=5)
+        return output.replace(b"\r\n", b"\n"), error, process.returncode
