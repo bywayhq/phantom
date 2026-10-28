@@ -277,8 +277,9 @@ class Client:
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
         handshake_timeout_ms: int | None | _Inherit = INHERIT,
         retry: WebSocketRetry | None = None,
+        proxy: str | Proxy | None | _Inherit = INHERIT,
     ) -> WebSocket:
-        """Open a socket on this client's profile, route and synchronous loop."""
+        """Open a socket on this client's profile and synchronous loop."""
 
         async def connect() -> AsyncWebSocket:
             return await self._async.websocket(
@@ -288,6 +289,7 @@ class Client:
                 limits=limits,
                 handshake_timeout_ms=handshake_timeout_ms,
                 retry=retry,
+                proxy=proxy,
             )
 
         try:

@@ -24,7 +24,7 @@ use pyo3::{
 use tokio::sync::Notify;
 
 use crate::{
-    error,
+    configuration, error,
     lifecycle::{Admission, Lifecycle, Registration},
     request_fields, runtime,
 };
@@ -406,6 +406,10 @@ pub(super) fn connect<'py>(
     handshake_timeout_ms: Option<&Bound<'py, PyAny>>,
     maximum_connection_failures: Option<&Bound<'py, PyAny>>,
     retry_delay_ms: &Bound<'py, PyAny>,
+    inherit_proxy: bool,
+    proxy: Option<&str>,
+    proxy_username: Option<&str>,
+    proxy_password: Option<&str>,
 ) -> PyResult<Bound<'py, PyAny>> {
     if url.len() > 65536 {
         return Err(error::input("url_limit"));
@@ -433,6 +437,13 @@ pub(super) fn connect<'py>(
     }
     .map_err(websocket_error)?
     .limits(limits);
+
+    if !inherit_proxy {
+        request = request.route(configuration::route(proxy, proxy_username, proxy_password)?);
+    } else if proxy.is_some() || proxy_username.is_some() || proxy_password.is_some() {
+        return Err(error::input("invalid_websocket_proxy"));
+    }
+
     for header in request_fields::headers(headers, None)?.0 {
         request = request.header(header);
     }

@@ -283,6 +283,10 @@ class NativeClient:
         handshake_timeout_ms: int | None,
         maximum_connection_failures: int | None,
         retry_delay_ms: int,
+        inherit_proxy: bool = True,
+        proxy: str | None = None,
+        proxy_username: str | None = None,
+        proxy_password: str | None = None,
     ) -> Awaitable[NativeWebSocket]: ...
     def __init__(
         self,

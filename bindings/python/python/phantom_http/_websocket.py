@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, TypeAlias, cast
 
 from . import _native
-from ._configuration import INHERIT, _Inherit
+from ._configuration import INHERIT, Proxy, _Inherit
 from ._errors import Error, TimeoutError, _error, _primary_error
 from ._request import _Headers, _request_fields
 from ._response import AsyncResponse, ResponseHeader, ResponseHeaders
@@ -323,6 +323,7 @@ class _WebSocketConnect:
         limits: WebSocketLimits,
         handshake_timeout_ms: int | None | _Inherit,
         retry: WebSocketRetry | None,
+        proxy: str | Proxy | None | _Inherit,
     ) -> None:
         if not isinstance(url, str):
             raise TypeError("WebSocket url must be str")
@@ -345,6 +346,13 @@ class _WebSocketConnect:
             )
         if retry is not None and not isinstance(retry, WebSocketRetry):
             raise TypeError("retry must be WebSocketRetry or None")
+        if (
+            not isinstance(proxy, _Inherit)
+            and proxy is not None
+            and not isinstance(proxy, (str, Proxy))
+        ):
+            raise TypeError("proxy must be str, Proxy, None or INHERIT")
+        selected_proxy = Proxy(proxy) if isinstance(proxy, str) else proxy
         self._native = native
         self._arguments = (
             url,
@@ -357,6 +365,10 @@ class _WebSocketConnect:
             handshake_timeout_ms if isinstance(handshake_timeout_ms, int) else None,
             retry.maximum if retry is not None else None,
             retry.delay_ms if retry is not None else 0,
+            isinstance(proxy, _Inherit),
+            selected_proxy.url if isinstance(selected_proxy, Proxy) else None,
+            selected_proxy.username if isinstance(selected_proxy, Proxy) else None,
+            selected_proxy.password if isinstance(selected_proxy, Proxy) else None,
         )
         self._used = False
         self._socket: AsyncWebSocket | None = None

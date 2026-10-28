@@ -125,8 +125,9 @@ with Client(profile=PROFILE, context="raw") as client:
 
 The default is HTTP/1.1, matching Rust. Set `protocol="profile"` to use the
 profile's connection policy, or `"h2"` or `"h3"` for an exact protocol.
-Openings keep the client's route, trust and
-cookies. `headers` fills the profile's ordered opening fields.
+Openings inherit the client's route, trust and cookies. Pass `proxy=None` for
+direct access or `proxy=Proxy(...)` to select a proxy for one opening.
+`headers` fills the profile's ordered opening fields.
 `handshake_timeout_ms` inherits the profile deadline by default. Set `None`
 to disable it, or a positive millisecond count for a finite limit.
 `retry=WebSocketRetry(maximum=2, delay_ms=100)` enables connection-setup

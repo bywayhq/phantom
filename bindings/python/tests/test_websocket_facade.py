@@ -114,6 +114,10 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                     500,
                     None,
                     0,
+                    True,
+                    None,
+                    None,
+                    None,
                 )
             ],
         )
@@ -237,7 +241,7 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
                 handshake_timeout_ms=timeout,
                 retry=FACADE.WebSocketRetry(maximum=2, delay_ms=20),
             )
-            self.assertEqual(native.calls[-1][-4:], (*expected, 2, 20))
+            self.assertEqual(native.calls[-1][6:10], (*expected, 2, 20))
             socket.abort()
         with self.assertRaises(ValueError):
             FACADE.WebSocketRetry(maximum=0)
@@ -245,6 +249,37 @@ class WebSocketTests(unittest.IsolatedAsyncioTestCase):
             FACADE.WebSocketRetry(maximum=1, delay_ms=True)
         with self.assertRaises(TypeError):
             client.websocket("ws://local", retry={})
+
+    async def test_routes_are_selected_for_each_opening_without_changing_defaults(self):
+        native = NativeClient()
+        client = FACADE.AsyncClient._from_native(native)
+        for proxy, expected in (
+            (FACADE.INHERIT, (True, None, None, None)),
+            (None, (False, None, None, None)),
+            ("http://proxy.invalid", (False, "http://proxy.invalid", None, None)),
+            (
+                FACADE.Proxy("http://proxy.invalid", "user", "secret"),
+                (False, "http://proxy.invalid", "user", "secret"),
+            ),
+        ):
+            socket = await client.websocket("ws://local", proxy=proxy)
+            self.assertEqual(native.calls[-1][10:], expected)
+            socket.abort()
+        socket = await client.websocket("ws://local")
+        self.assertEqual(native.calls[-1][10:], (True, None, None, None))
+        socket.abort()
+
+    async def test_invalid_route_types_fail_before_starting_an_opening(self):
+        native = NativeClient()
+        client = FACADE.AsyncClient._from_native(native)
+        for value in (False, 42, {}, ["secret"]):
+            with (
+                self.subTest(value=type(value)),
+                self.assertRaises(TypeError) as caught,
+            ):
+                client.websocket("ws://local", proxy=value)
+            self.assertNotIn("secret", str(caught.exception))
+        self.assertEqual(native.calls, [])
 
     async def test_invalid_limits_and_options_never_start_a_handshake(self):
         native = NativeClient()
@@ -270,11 +305,16 @@ class SynchronousWebSocketTests(unittest.TestCase):
         client._loop = asyncio.new_event_loop()
         client._async = FACADE.AsyncClient._from_native(native)
         try:
-            with client.websocket("ws://local", protocol="h1") as socket:
+            with client.websocket(
+                "ws://local", protocol="h1", proxy=FACADE.Proxy("http://proxy.invalid")
+            ) as socket:
                 socket.send("hello")
                 native.sockets[0].events = [("binary", b"world", None)]
                 self.assertEqual(socket.recv(), b"world")
                 self.assertIs(socket._socket._loop, client._loop)
             self.assertTrue(socket.is_closed)
+            self.assertEqual(
+                native.calls[0][10:], (False, "http://proxy.invalid", None, None)
+            )
         finally:
             client.close()

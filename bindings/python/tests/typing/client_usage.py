@@ -503,6 +503,7 @@ async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
         limits=WebSocketLimits(1024, 4096),
         handshake_timeout_ms=None,
         retry=WebSocketRetry(maximum=2, delay_ms=10),
+        proxy=Proxy("http://proxy.invalid", username="user", password="secret"),
     ) as socket:
         await socket.send("hello")
         data: str | bytes = await socket.recv()
@@ -517,7 +518,7 @@ async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
             data = item
         await socket.send_close(None)
         await socket.aclose(None, timeout_ms=1000)
-    with sync.websocket(url, protocol="h1") as blocking:
+    with sync.websocket(url, protocol="h1", proxy=None) as blocking:
         blocking.send(data)
         blocking.send_close(None)
         for item in blocking:

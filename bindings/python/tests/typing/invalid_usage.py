@@ -266,6 +266,8 @@ async def invalid_websocket(client: AsyncClient, sync: Client) -> None:
     WebSocketLimits().maximum_fragments = 1  # E: misc
     WebSocketRetry(maximum="two")  # E: arg-type
     client.websocket("ws://local", retry={})  # E: arg-type
+    client.websocket("ws://local", proxy=1)  # E: arg-type
+    sync.websocket("ws://local", proxy={})  # E: arg-type
     async with client.websocket("ws://local") as socket:
         await socket.send({"data": "value"})  # E: arg-type
         await socket.ping("text")  # E: arg-type

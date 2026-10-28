@@ -267,10 +267,18 @@ class AsyncClient:
         limits: WebSocketLimits = _DEFAULT_WEBSOCKET_LIMITS,
         handshake_timeout_ms: int | None | _Inherit = INHERIT,
         retry: WebSocketRetry | None = None,
+        proxy: str | Proxy | None | _Inherit = INHERIT,
     ) -> _WebSocketConnect:
         """Open with await or async with; HTTP/1.1 is the default, as in Rust."""
         return _WebSocketConnect(
-            self._native, url, protocol, headers, limits, handshake_timeout_ms, retry
+            self._native,
+            url,
+            protocol,
+            headers,
+            limits,
+            handshake_timeout_ms,
+            retry,
+            proxy,
         )
 
     def fork(self, *, sharing: SessionSharing = _NO_SHARED_STATE) -> AsyncClient:
