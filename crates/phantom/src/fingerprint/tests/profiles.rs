@@ -95,7 +95,7 @@ fn explicit_tcp_port_randomization_survives_import_and_export() -> TestResult {
 
 #[test]
 fn retained_template_exports_preserve_fields_flags_priority_and_protocol_absences() -> TestResult {
-    assert_eq!(TEMPLATES.len(), 40);
+    assert_eq!(TEMPLATES.len(), 44);
     for definition in catalog::profiles() {
         let id = definition.id().as_str();
         for kind in [
@@ -421,6 +421,26 @@ pub(super) const PROFILES: &[(&str, &str)] = &[
 ];
 
 const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
+    (
+        "chrome/156.0.8078.48/windows-11-26200/r1",
+        RequestTemplateKind::FetchNoStore,
+        include_str!("fixtures/chrome-156-windows-fetch-no-store.json"),
+    ),
+    (
+        "chrome/156.0.8078.47/ubuntu-24.04.4-wsl2/r1",
+        RequestTemplateKind::FetchNoStore,
+        include_str!("fixtures/chrome-156-linux-fetch-no-store.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-26.6.2-arm64/r1",
+        RequestTemplateKind::FetchNoStore,
+        include_str!("fixtures/chrome-156-macos-fetch-no-store.json"),
+    ),
+    (
+        "chrome/156.0.8078.48/macos-15.7.9-x86-64/r1",
+        RequestTemplateKind::FetchNoStore,
+        include_str!("fixtures/chrome-156-macos-fetch-no-store.json"),
+    ),
     (
         "edge/154.0.4258.48/windows-11-26200/r1",
         RequestTemplateKind::Fetch,
