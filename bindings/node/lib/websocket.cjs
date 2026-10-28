@@ -216,7 +216,17 @@ async function openWebSocket(client, owner, input, options = {}, defaults = []) 
     const route = Object.getOwnPropertyDescriptor(options, 'route');
     if (route !== undefined) {
       if (!Object.hasOwn(route, 'value')) throw new PhantomError('InvalidArgument', 'WebSocket route must be a data field');
-      if (route.value !== undefined) settings.route = receivingRoutes({receivingRoutes: [route.value]})[0];
+      if (route.value !== undefined) {
+        const selected = receivingRoutes({receivingRoutes: [route.value]})[0];
+        let remaining = 65536;
+        for (const value of [selected.proxy, selected.proxyUsername, selected.proxyPassword, selected.proxyUserId]) {
+          if (value === undefined) continue;
+          if (value.length > remaining) throw new PhantomError('InputLimit', 'WebSocket route exceeds 65536 bytes');
+          remaining -= Buffer.byteLength(value);
+          if (remaining < 0) throw new PhantomError('InputLimit', 'WebSocket route exceeds 65536 bytes');
+        }
+        settings.route = selected;
+      }
     }
 
     for (const name of /** @type {const} */ (['maximumFrameBytes', 'maximumMessageBytes', 'maximumMessageFragments'])) {

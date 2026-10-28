@@ -101,6 +101,20 @@ test('invalid or executable WebSocket routes fail without opening or invoking ge
   await client.close();
 });
 
+test('WebSocket routes bound aggregate URI and credential UTF-8 bytes before native opening', async () => {
+  const {Client, calls} = facade();
+  const client = new Client({profile: 'exact', route: 'direct'});
+  for (const route of [{route: 'proxy', proxy: 'é'.repeat(32769)},
+    {route: 'proxy', proxy: 'http://127.0.0.1:8080', proxyUsername: 'é'.repeat(16384), proxyPassword: 'é'.repeat(16384)}]) {
+    await assert.rejects(client.websocket('ws://example.test/', {route}), {code: 'InputLimit'});
+  }
+  assert.equal(calls.length, 0);
+  const socket = await client.websocket('ws://example.test/', {route: {route: 'proxy', proxy: 'é'.repeat(32768)}});
+  assert.equal(Buffer.byteLength(calls[0].route.proxy), 65536);
+  socket.abort();
+  await client.close();
+});
+
 test('one pending receive and send progress independently while duplicate operations fail', async () => {
   const {Client, sockets} = facade();
   const client = new Client({profile: 'exact', route: 'direct'});

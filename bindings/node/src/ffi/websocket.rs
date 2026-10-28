@@ -300,13 +300,7 @@ pub(super) fn prepare(
     }
     .map_err(error)?;
     if let Some(route) = options.route.take() {
-        builder = builder.route(crate::client::route(
-            &route.route,
-            route.proxy.as_deref(),
-            route.proxy_username.as_deref(),
-            route.proxy_password.as_deref(),
-            route.proxy_user_id.as_deref(),
-        )?);
+        builder = builder.route(opening_route(route)?);
     }
 
     let defaults = WebSocketLimits::default();
@@ -406,6 +400,30 @@ pub(super) fn handshake(socket: &phantom::WebSocket) -> Result<WebSocketHandshak
     })
 }
 
+fn opening_route(route: SessionRouteOptions) -> Result<phantom::Route> {
+    let mut remaining = 64 * 1024_usize;
+    for value in [
+        route.proxy.as_deref(),
+        route.proxy_username.as_deref(),
+        route.proxy_password.as_deref(),
+        route.proxy_user_id.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        remaining = remaining
+            .checked_sub(value.len())
+            .ok_or_else(|| failure("InputLimit", "WebSocket route exceeds 65536 bytes"))?;
+    }
+    crate::client::route(
+        &route.route,
+        route.proxy.as_deref(),
+        route.proxy_username.as_deref(),
+        route.proxy_password.as_deref(),
+        route.proxy_user_id.as_deref(),
+    )
+}
+
 fn event(message: WebSocketMessage) -> Result<WebSocketEvent> {
     let mut event = WebSocketEvent {
         kind: String::new(),
@@ -445,7 +463,31 @@ fn event(message: WebSocketMessage) -> Result<WebSocketEvent> {
 
 #[cfg(test)]
 mod tests {
-    use super::WebSocketEvent;
+    use super::{SessionRouteOptions, WebSocketEvent, opening_route};
+
+    #[test]
+    fn route_bytes_are_bounded_before_proxy_and_authentication_parsing() {
+        let route = |proxy, username, password| SessionRouteOptions {
+            route: "proxy".to_owned(),
+            proxy: Some(proxy),
+            proxy_username: username,
+            proxy_password: password,
+            proxy_user_id: None,
+        };
+        let exact = opening_route(route("é".repeat(32768), None, None)).err();
+        assert!(exact.is_some_and(|error| error.reason.starts_with("PHANTOM:InvalidProxy:")));
+        for route in [
+            route(format!("{}a", "é".repeat(32768)), None, None),
+            route(
+                "http://127.0.0.1:8080".to_owned(),
+                Some("é".repeat(16384)),
+                Some("é".repeat(16384)),
+            ),
+        ] {
+            let failure = opening_route(route).err();
+            assert!(failure.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
+        }
+    }
 
     #[test]
     fn debug_retains_event_metadata_without_payloads() {
