@@ -18,7 +18,9 @@ test('HTTP/3 head fields retain raw QPACK order, bytes and markers after close',
   let timer;
   try {
     await new Promise((resolve, reject) => {
-      timer = setTimeout(() => reject(new Error('missing header peer ready')), 10000);
+      timer = setTimeout(() => reject(new Error(
+        `missing header peer ready (exit ${peer.exitCode}, output ${JSON.stringify(output)}): ${stderr}`,
+      )), 10000);
       peer.stdout.setEncoding('utf8').on('data', (value) => {
         output += value;
         if (output.length > 1024) { reject(new Error('oversized header peer event')); return; }
