@@ -198,9 +198,27 @@ func TestUnavailableRequestContextsNeverReachTheOrigin(t *testing.T) {
 	}
 }
 
-func TestImportedProfileContextKeepsItsDefaultAndRejectsCatalogSelection(t *testing.T) {
+func TestVersionOneImportedProfileKeepsItsDefaultAndRejectsNamedContexts(t *testing.T) {
 	owner := catalogProfile(t, "navigation")
 	document, err := owner.ExportJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var definition map[string]json.RawMessage
+	if err := json.Unmarshal(document, &definition); err != nil {
+		t.Fatal(err)
+	}
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal(definition["profile"], &settings); err != nil {
+		t.Fatal(err)
+	}
+	delete(settings, "request_contexts")
+	definition["version"] = json.RawMessage("1")
+	definition["profile"], err = json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err = json.Marshal(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,11 +227,6 @@ func TestImportedProfileContextKeepsItsDefaultAndRejectsCatalogSelection(t *test
 		t.Fatal(err)
 	}
 	defer custom.Close()
-	client, err := New(Config{ProfileSettings: custom, Protocol: "h1", Context: "profile", Timeout: 5 * time.Second})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.Close()
 	var hits atomic.Uint64
 	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
@@ -222,6 +235,11 @@ func TestImportedProfileContextKeepsItsDefaultAndRejectsCatalogSelection(t *test
 		}
 	}))
 	defer peer.Close()
+	client, err := New(Config{ProfileSettings: custom, Protocol: "h1", Context: "profile", Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
 	for _, name := range []string{"", "raw", ""} {
 		observed, err := contextResponse(client.Do(context.Background(), Request{Method: "GET", URL: peer.URL, Context: name}))
 		if err != nil {
@@ -235,8 +253,64 @@ func TestImportedProfileContextKeepsItsDefaultAndRejectsCatalogSelection(t *test
 			t.Fatalf("context %q changed default: %+v", name, observed)
 		}
 	}
-	_, err = client.Do(context.Background(), Request{Method: "GET", URL: peer.URL, Context: "fetch"})
+	response, err := client.Do(context.Background(), Request{Method: "GET", URL: peer.URL, Context: "fetch"})
+	if response != nil {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			t.Errorf("close unexpected response: %v", closeErr)
+		}
+	}
 	if kind(err) != "request_template" || hits.Load() != 3 {
-		t.Fatalf("imported settings invented catalog context: error=%v, sends=%d", err, hits.Load())
+		t.Fatalf("legacy settings invented a named context: error=%v, sends=%d", err, hits.Load())
+	}
+}
+
+func TestVersionTwoImportedProfileRetainsOwnedContextsAndDefault(t *testing.T) {
+	owner := catalogProfile(t, "navigation")
+	document, err := owner.ExportJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom, err := ImportProfileJSON(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer custom.Close()
+	clear(document)
+	if custom.CatalogID() != "" {
+		t.Fatal("imported contexts acquired a catalog identity")
+	}
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewEncoder(w).Encode(contextObservation{Mode: r.Header.Get("Sec-Fetch-Mode"), Destination: r.Header.Get("Sec-Fetch-Dest"), Address: r.RemoteAddr}); err != nil {
+			t.Errorf("write observation: %v", err)
+		}
+	}))
+	defer peer.Close()
+	client, err := New(Config{ProfileSettings: custom, Protocol: "h1", Context: "profile", Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	address := ""
+	for _, test := range []struct {
+		context, mode, destination string
+	}{
+		{"", "navigate", "document"},
+		{"fetch", "cors", "empty"},
+		{"raw", "", ""},
+		{"navigation", "navigate", "document"},
+		{"", "navigate", "document"},
+	} {
+		observed, err := contextResponse(client.Do(context.Background(), Request{Method: "GET", URL: peer.URL, Context: test.context}))
+		if err != nil {
+			t.Fatalf("context %q: %v", test.context, err)
+		}
+		if observed.Mode != test.mode || observed.Destination != test.destination {
+			t.Fatalf("context %q: %+v", test.context, observed)
+		}
+		if address == "" {
+			address = observed.Address
+		} else if observed.Address != address {
+			t.Fatalf("context %q opened another connection: %s != %s", test.context, observed.Address, address)
+		}
 	}
 }
