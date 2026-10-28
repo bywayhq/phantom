@@ -279,7 +279,6 @@ fn https_error(failure: DohBuildError) -> PyErr {
             Some(BuildErrorKind::TrustStore) => "invalid_dns_roots",
             _ => "invalid_dns_profile",
         },
-        _ => "invalid_dns",
     };
     error::input(kind)
 }
