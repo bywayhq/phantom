@@ -12,6 +12,7 @@ on:
           - initial
           - drop-first-udp-a
           - two-server
+          - address-order
 
 permissions:
   contents: read

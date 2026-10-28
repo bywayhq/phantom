@@ -1,6 +1,7 @@
 """A bounded loopback DNS peer for one explicitly owned capture hostname.
 
-A answers contain 127.0.0.1; AAAA and HTTPS answers contain no records. This
+A answers contain configured loopback addresses, defaulting to 127.0.0.1;
+AAAA and HTTPS answers contain no records. This
 authoritative peer performs no recursion or DNSSEC validation. It accepts one
 uncompressed IN question and optionally one empty EDNS0 OPT without flags.
 Malformed/unsupported packets stop the capture rather than inventing a reply.

@@ -2193,6 +2193,10 @@ them at `127.0.0.54`. The capture records when each configured peer receives
 the lookup. This uses an exact-name NRPT rule, rather than changing the
 network adapter's DNS servers.
 
+Choose `address-order` to return two IPv4 addresses with healthy loopback
+origins. The capture records DNS answer order, native resolver results and
+Firefox's connection choice.
+
 ### macOS native DNS
 
 `mac_native_dns_capture.py` routes one random test domain to a loopback DNS
