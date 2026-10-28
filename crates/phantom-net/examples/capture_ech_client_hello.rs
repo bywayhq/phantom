@@ -1878,7 +1878,7 @@ fn dns_response(query: &[u8], answers: &DnsAnswers) -> Option<(Vec<u8>, String)>
         && record_type == DNS_TYPE_HTTPS
     {
         if let Some(configs) = &selected.ech_config_list {
-            records.push((DNS_TYPE_HTTPS, https_rdata(configs, selected.quic)));
+            records.push((DNS_TYPE_HTTPS, https_rdata(configs, selected.quic, None)));
         }
     } else if name != hostname && name != https_name {
         // NXDOMAIN
@@ -1908,11 +1908,19 @@ fn dns_response(query: &[u8], answers: &DnsAnswers) -> Option<(Vec<u8>, String)>
     Some((response, format!("{} {name}", type_name(record_type))))
 }
 
-/// One ServiceMode record for the origin itself: priority 1, TargetName `.`,
+/// One ServiceMode record for the origin itself: priority 1, the supplied
+/// fixed capture hostname or TargetName `.`,
 /// `alpn=h2`, or `alpn=h3,h2` for a QUIC capture, and `ech`.
-fn https_rdata(ech_config_list: &[u8], quic: bool) -> Vec<u8> {
+fn https_rdata(ech_config_list: &[u8], quic: bool, target: Option<&str>) -> Vec<u8> {
     let alpn: &[u8] = if quic { b"\x02h3\x02h2" } else { b"\x02h2" };
-    let mut rdata = vec![0x00, 0x01, 0x00];
+    let mut rdata = vec![0x00, 0x01];
+    if let Some(target) = target {
+        for label in target.split('.') {
+            rdata.push(label.len() as u8);
+            rdata.extend_from_slice(label.as_bytes());
+        }
+    }
+    rdata.push(0);
     rdata.extend_from_slice(&1_u16.to_be_bytes());
     rdata.extend_from_slice(&(alpn.len() as u16).to_be_bytes());
     rdata.extend_from_slice(alpn);
@@ -1923,10 +1931,12 @@ fn https_rdata(ech_config_list: &[u8], quic: bool) -> Vec<u8> {
 }
 
 fn write_native_dns_metadata(output: &mut impl io::Write, configs: &[u8]) -> io::Result<()> {
+    // Firefox 157's native non-443 lookup compares TargetName with the origin's
+    // canonical name; an explicit target avoids retaining the prefixed owner.
     writeln!(
         output,
         "native_dns_https_rdata_hex={}",
-        hex(&https_rdata(configs, false))
+        hex(&https_rdata(configs, false, Some(HOSTNAME)))
     )
 }
 

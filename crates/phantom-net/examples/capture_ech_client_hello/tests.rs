@@ -995,23 +995,46 @@ fn native_dns_metadata_contains_the_published_service_record() -> TestResult {
             })
             .collect::<CaptureResult<Vec<_>>>()?;
 
-        // ServiceMode priority 1, root target, ALPN key 1 with length-prefixed h2,
-        // followed by ECH key 5 and the actual published configuration list.
+        assert_eq!(record.get(..2), Some(&[0, 1][..]));
+        let mut offset = 2;
+        let mut labels = Vec::new();
+        loop {
+            let size = usize::from(*record.get(offset).ok_or("target label is missing")?);
+            offset += 1;
+            if size == 0 {
+                break;
+            }
+            let label = record
+                .get(offset..offset + size)
+                .ok_or("target label is truncated")?;
+            labels.push(std::str::from_utf8(label)?);
+            offset += size;
+        }
+        assert_eq!(labels, ["server", "phantom", "test"]);
+
+        // ALPN key 1 with length-prefixed h2, followed by ECH key 5.
         assert_eq!(
-            record.get(..12),
-            Some(&[0, 1, 0, 0, 1, 0, 3, 2, b'h', b'2', 0, 5][..])
+            record.get(offset..offset + 9),
+            Some(&[0, 1, 0, 3, 2, b'h', b'2', 0, 5][..])
         );
         let length = u16::from_be_bytes(
             record
-                .get(12..14)
+                .get(offset + 9..offset + 11)
                 .ok_or("ECH parameter length is missing")?
                 .try_into()?,
         );
         assert_eq!(usize::from(length), ech.published.len());
-        assert_eq!(record.get(14..), Some(ech.published.as_slice()));
+        assert_eq!(record.get(offset + 11..), Some(ech.published.as_slice()));
         if matches!(scenario, super::Scenario::Reject) {
-            assert_ne!(record.get(16..), Some(ech.server.as_slice()));
+            assert_ne!(record.get(offset + 13..), Some(ech.server.as_slice()));
         }
+
+        let doh_record = super::https_rdata(&ech.published, false, None);
+        assert_eq!(
+            doh_record.get(..12),
+            Some(&[0, 1, 0, 0, 1, 0, 3, 2, b'h', b'2', 0, 5][..])
+        );
+        assert_eq!(doh_record.get(3..), record.get(offset..));
     }
     Ok(())
 }
