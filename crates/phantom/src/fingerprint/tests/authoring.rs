@@ -14,7 +14,9 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn round_trip(profile: &ClientProfile) -> TestResult {
     let bytes = export_profile_json(profile)?;
-    assert_eq!(import_profile_json(&bytes)?, *profile);
+    let imported = import_profile_json(&bytes)?;
+    assert_eq!(imported, *profile);
+    assert_eq!(export_profile_json(&imported)?, bytes);
     assert_eq!(export_profile_json(profile)?, bytes);
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&bytes)?,
@@ -92,6 +94,10 @@ fn edited_export_retains_order_and_changes_only_selected_settings() -> TestResul
     ] {
         assert_eq!(before["profile"][key], after["profile"][key], "{key}");
     }
+    assert_eq!(
+        before["profile"]["request_contexts"],
+        after["profile"]["request_contexts"]
+    );
     round_trip(&imported)
 }
 

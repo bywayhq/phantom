@@ -28,6 +28,7 @@ mod proxy_connect;
 mod quic;
 mod quic_import;
 mod registry;
+mod request_contexts;
 mod request_template;
 mod tcp;
 mod tls;
@@ -168,12 +169,13 @@ impl Error for FingerprintExportError {
     }
 }
 
-/// Describes all configured settings as an editable version-1 JSON document.
+/// Describes all configured settings as an editable version-2 JSON document.
 ///
 /// Uses the same format as [`import_profile_json`]. Arrays retain their order,
 /// duplicate candidate slots and raw bytes. Optional layers remain explicit
 /// `null`. The document includes configured literal header values and omits
-/// catalog identity and request-context association. Export draws no random values.
+/// catalog identity. Available request contexts are included as owned templates,
+/// so imports need no catalog lookup. Export draws no random values.
 ///
 /// # Errors
 ///
@@ -204,13 +206,15 @@ pub fn export_profile_json(
         .map_err(FingerprintExportError)
 }
 
-/// Imports a version-1 `phantom.custom-profile` JSON document.
+/// Imports a version-1 or version-2 `phantom.custom-profile` JSON document.
 ///
 /// Returns owned custom settings.
 /// Arrays preserve their supplied order. Optional layers require explicit
 /// `null`; present layers require all their fields. Import performs no I/O,
 /// client construction, catalog selection or random draws. Backend and host
 /// support are checked when the caller builds a client.
+/// Version 2 includes a `request_contexts` object with up to eight named
+/// templates. Version 1 retains only the selected default template.
 ///
 /// Input is limited to 16 MiB, nesting to 16, strings to 64 KiB, object fields
 /// to 64, arrays to 65,535 elements and total values to 1,048,576.
@@ -240,30 +244,32 @@ fn import_document(document: &json::Value) -> Result<ClientProfile> {
         ));
     }
     document.record(&["format", "version", "profile"], "document")?;
-    if document.member("version", "version")?.number("version")? != 1 {
+    let version = document.member("version", "version")?.number("version")?;
+    if !matches!(version, 1 | 2) {
         return Err(FingerprintImportError::new(
             FingerprintImportErrorKind::UnsupportedFormat,
             "version",
         ));
     }
     let p = document.member("profile", "profile")?;
-    p.record(
-        &[
-            "tls",
-            "tcp",
-            "udp",
-            "dns_cache",
-            "http1",
-            "http2",
-            "http3",
-            "client_hints",
-            "websocket",
-            "proxy_connect",
-            "cookie_placement",
-            "request_template",
-        ],
-        "profile",
-    )?;
+    let mut fields = vec![
+        "tls",
+        "tcp",
+        "udp",
+        "dns_cache",
+        "http1",
+        "http2",
+        "http3",
+        "client_hints",
+        "websocket",
+        "proxy_connect",
+        "cookie_placement",
+        "request_template",
+    ];
+    if version == 2 {
+        fields.push("request_contexts");
+    }
+    p.record(&fields, "profile")?;
     let mut profile = ClientProfile::new(tls::parse(p.member("tls", "tls")?)?);
     macro_rules! optional_layer {
         ($name:literal, $module:ident, $method:ident) => {
@@ -282,6 +288,11 @@ fn import_document(document: &json::Value) -> Result<ClientProfile> {
     optional_layer!("websocket", websocket, with_websocket);
     optional_layer!("proxy_connect", proxy_connect, with_proxy_connect);
     optional_layer!("request_template", request_template, with_request_template);
+    if version == 2 {
+        profile = profile.with_request_contexts(request_contexts::parse(
+            p.member("request_contexts", "request_contexts")?,
+        )?);
+    }
     Ok(profile.with_cookie_placement(cookie::parse(
         p.member("cookie_placement", "cookie_placement")?,
     )?))

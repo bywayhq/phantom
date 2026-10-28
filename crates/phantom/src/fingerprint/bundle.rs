@@ -39,8 +39,8 @@ impl ProfileProvenance {
 /// A validated version-1 `phantom.profile-bundle` document.
 ///
 /// Entries are owned custom settings with exact names. Each entry contains
-/// one complete custom-profile document, including its
-/// selected request template. Catalog context associations are not included.
+/// one complete custom-profile document, including its selected request template.
+/// Version-2 entries also retain named contexts without catalog associations.
 /// No I/O, client construction or random draws occur during import.
 /// Existing clients keep the settings they were built with.
 ///

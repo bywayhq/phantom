@@ -42,7 +42,7 @@ fn all_catalog_base_profiles_preserve_every_typed_value_and_absence() -> TestRes
 }
 
 #[test]
-fn catalog_context_association_is_not_imported_as_wire_settings() -> TestResult {
+fn exported_contexts_are_owned_without_importing_catalog_identity() -> TestResult {
     let original = catalog::profile("chrome-154-windows")?.instantiate(&[])?;
     let exported = super::super::export_profile_json(&original)?;
     let imported = super::super::import_profile_json(&exported)?;
@@ -51,12 +51,9 @@ fn catalog_context_association_is_not_imported_as_wire_settings() -> TestResult 
     assert!(original.request_context_profile().is_some());
     assert!(imported.request_context_profile().is_none());
     let client = crate::Client::builder(imported).build()?;
-    let error = client
+    client
         .get("https://example.test/")?
-        .context(RequestTemplateKind::Navigation)
-        .err()
-        .ok_or("import invented catalog contexts")?;
-    assert_eq!(error.kind(), crate::RequestErrorKind::RequestTemplate);
+        .context(RequestTemplateKind::Navigation)?;
     Ok(())
 }
 
@@ -287,7 +284,16 @@ fn pinned_firefox_grease_bundles_do_not_follow_the_new_catalog_revision() -> Tes
             vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
         )?)
     );
-    assert_eq!(describe_profile(restored)?, legacy);
+    let exported = describe_profile(restored)?;
+    assert_eq!(exported["version"], 2);
+    assert_eq!(
+        exported["profile"]["request_contexts"],
+        serde_json::json!({})
+    );
+    let mut expected = legacy;
+    expected["version"] = 2.into();
+    expected["profile"]["request_contexts"] = serde_json::json!({});
+    assert_eq!(exported, expected);
     assert_eq!(
         import_profile_json(&export_profile_json(restored)?)?,
         *restored

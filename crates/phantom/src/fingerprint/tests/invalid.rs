@@ -45,7 +45,7 @@ fn foreign_lossy_fingerprints_and_unknown_versions_are_not_completed() -> TestRe
         Kind::UnsupportedFormat
     );
     let mut value = document(0)?;
-    value["version"] = json!(2);
+    value["version"] = json!(3);
     assert_eq!(error(&value)?.kind(), Kind::UnsupportedFormat);
     assert_eq!(
         import_profile_json(b"0123456789abcdef")

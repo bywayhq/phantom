@@ -160,8 +160,8 @@ let _body = response.into_body().collect_with_limit(1 << 20).await?;
 Contexts are prepared on first use and shared by later requests. Each request's
 choice is independent. For custom fields, prepare a
 [PreparedRequestTemplate](crate::PreparedRequestTemplate) and pass it to
-[template](crate::RequestBuilder::template). Imported JSON profiles use this
-explicit path because they have no catalog context association.
+[template](crate::RequestBuilder::template). Version-2 JSON exports preserve
+available contexts, so imported profiles support the same per-request selection.
 
 Some templates support fewer protocols than the composed profile. A template
 without HTTP/3 fields cannot be used for an exact HTTP/3 request. Missing required
@@ -237,7 +237,7 @@ let client = Client::builder(settings.clone()).build()?;
 
 Pin `bundle.sha256()` to identify its exact bytes, including whitespace.
 Revision labels and publisher references are unauthenticated metadata.
-Entries contain one selected request template.
+Entries retain their default template and any exported request contexts.
 Loading a different bundle never changes an existing client. The CLI can install
 bundle files and select older digests for offline rollback.
 

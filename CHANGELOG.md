@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Breaking: profile exports include named request contexts, so imported profiles and offline
+  bundles support per-request context selection on one client. Migrate: readers
+  of `phantom.custom-profile` must accept version 2 and its `request_contexts`
+  object; version-1 documents still import with their selected template only.
 - Add a hosted Windows native-DNS scene for short-TTL cache observations.
 - Add a hosted Windows native-DNS scene for multi-address selection.
 - Add no-store fetch contexts to Chrome 156 desktop profiles on Windows,

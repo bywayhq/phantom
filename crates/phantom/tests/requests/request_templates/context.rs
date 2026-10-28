@@ -45,6 +45,18 @@ async fn owned_navigation_fetch_and_raw_requests_share_one_connection() -> TestR
     mixed_contexts_share_one_connection(profile).await
 }
 
+#[cfg(feature = "fingerprint-import")]
+#[tokio::test]
+async fn imported_navigation_fetch_and_raw_requests_share_one_connection() -> TestResult<()> {
+    let profile = catalog::profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
+    let bytes = phantom::fingerprint::export_profile_json(&profile)?;
+    let imported = phantom::fingerprint::import_profile_json(&bytes)?;
+    assert!(imported.request_context_profile().is_none());
+    drop(bytes);
+    drop(profile);
+    mixed_contexts_share_one_connection(imported).await
+}
+
 async fn mixed_contexts_share_one_connection(profile: ClientProfile) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

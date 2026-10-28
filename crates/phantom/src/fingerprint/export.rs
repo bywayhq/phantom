@@ -155,13 +155,35 @@ impl Encode for Duration {
 
 impl Encode for ClientProfile {
     fn encode(&self, encoder: &mut Encoder, field: &str) -> Result<Value> {
-        object!(encoder, field,
+        let profile: Result<Value> = object!(encoder, field,
             "tls" => self.tls(), "tcp" => &self.tcp(), "udp" => &self.udp(),
             "dns_cache" => &self.dns_cache(), "http1" => &self.http1(),
             "http2" => &self.http2(), "http3" => &self.http3(),
             "client_hints" => &self.client_hints(), "websocket" => &self.websocket(),
             "proxy_connect" => &self.proxy_connect(), "cookie_placement" => self.cookie_placement(),
-            "request_template" => &self.request_template())
+            "request_template" => &self.request_template());
+        let Value::Object(mut fields) = profile? else {
+            return Err(FingerprintImportError::new(Kind::UnsupportedSetting, field));
+        };
+        let contexts_field = format!("{field}.request_contexts");
+        encoder.claim(&contexts_field, 1, 0)?;
+        let mut contexts = Map::new();
+        for (kind, template) in super::request_contexts::entries(self)? {
+            let (token, _) = super::request_contexts::KINDS
+                .iter()
+                .find(|(_, candidate)| *candidate == kind)
+                .ok_or_else(|| {
+                    FingerprintImportError::new(Kind::UnsupportedSetting, &contexts_field)
+                })?;
+            contexts.insert(
+                (*token).into(),
+                template
+                    .as_ref()
+                    .encode(encoder, &format!("{contexts_field}.{token}"))?,
+            );
+        }
+        fields.insert("request_contexts".into(), Value::Object(contexts));
+        Ok(Value::Object(fields))
     }
 }
 impl<T: Encode + ?Sized> Encode for &T {
@@ -190,7 +212,7 @@ pub(super) fn describe(profile: &ClientProfile) -> Result<(Value, Vec<u8>)> {
     let mut encoder = Encoder::default();
     let mut document = Map::new();
     document.insert("format".into(), Value::from("phantom.custom-profile"));
-    document.insert("version".into(), Value::from(1));
+    document.insert("version".into(), Value::from(2));
     document.insert("profile".into(), profile.encode(&mut encoder, "profile")?);
     let document = Value::Object(document);
     let mut output = BoundedOutput(Vec::new());
@@ -202,6 +224,12 @@ pub(super) fn describe(profile: &ClientProfile) -> Result<(Value, Vec<u8>)> {
         return Err(FingerprintImportError::new(
             Kind::UnsupportedSetting,
             "profile",
+        ));
+    }
+    if super::request_contexts::entries(&restored)? != super::request_contexts::entries(profile)? {
+        return Err(FingerprintImportError::new(
+            Kind::UnsupportedSetting,
+            "request_contexts",
         ));
     }
     Ok((document, output.0))
