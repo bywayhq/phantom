@@ -553,13 +553,18 @@ class AcceptanceTests(unittest.TestCase):
             capture.validate_result(missing, [answer()])
 
     def test_body_check_precedes_done_and_does_not_rewrite_dns(self) -> None:
-        for scene in capture.SCENARIOS.values():
+        for name, scene in capture.SCENARIOS.items():
             with self.subTest(scene=scene.name):
+                expected = (
+                    "text !== 'phantom-native-https-ok\\n'"
+                    if name == "native-https-ech"
+                    else "text !== 'ok\\n'"
+                )
                 self.assertFalse(scene.rewrite_lookup)
                 self.assertEqual(scene.target, "http1")
                 self.assertEqual(scene.limit_seconds, 30)
                 self.assertLess(
-                    scene.script.index("text !== 'ok\\n'"),
+                    scene.script.index(expected),
                     scene.script.index("fetch('/done'"),
                 )
 

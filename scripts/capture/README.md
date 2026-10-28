@@ -2204,6 +2204,13 @@ native lookups and Firefox's cache log. Missing TTL publication or later native
 lookups leave the observation marked `limited`; they do not prove a cache
 policy. The scene keeps the same 30-second bound and changes no cache settings.
 
+Choose `native-https-ech` to serve an HTTPS record containing ECH. The workflow
+builds the existing TLS peer before installing an exact-name rule for
+`server.phantom.test` and its actual `_port._https` name. A test CA is trusted
+only in the disposable profile. Success requires a positive native API return,
+accepted ECH and the complete probe body. Wire bytes, native return metadata
+and TLS acceptance are retained separately. HTTP/3 stays disabled.
+
 ### macOS native DNS
 
 `mac_native_dns_capture.py` routes one random test domain to a loopback DNS

@@ -17,6 +17,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from scripts.capture import firefox_socket_hooks as firefox
+from scripts.capture import windows_native_https
 from scripts.capture.browser_failures import raise_browser_failures
 from scripts.capture.capture_report import file_digest
 from scripts.capture.native_dns import NativeDnsServer, question, response
@@ -44,6 +45,19 @@ SCENARIO = firefox.Scenario(
     + f"return {firefox.DONE}; }})",
 )
 SCENARIOS = {
+    "native-https-ech": replace(
+        SCENARIO,
+        name="native-https-ech",
+        question="Does a native HTTPS answer lead to accepted ECH and a complete body?",
+        script=(
+            "fetch(T + '/native-dns-probe', {mode: 'cors', cache: 'no-store'})"
+            ".then(async r => { if (!r.ok) throw new Error('target status mismatch');"
+            "const text = await r.text();"
+            "if (text !== 'phantom-native-https-ok\\n') "
+            "throw new Error('target body mismatch');"
+            f"return {firefox.DONE}; }});"
+        ),
+    ),
     "initial": SCENARIO,
     "drop-first-udp-a": replace(
         SCENARIO,
@@ -86,6 +100,13 @@ ADDRESS_ORDER = ("127.0.0.2", "127.0.0.1")
 SOURCE_PATHS = (
     "scripts/capture/windows_native_dns_capture.py",
     "scripts/capture/windows_native_dns_guard.ps1",
+    "scripts/capture/windows_native_https.py",
+    "scripts/capture/chrome_ech.py",
+    "scripts/capture/fixtures/native-https/ca.pem",
+    "scripts/capture/fixtures/native-https/certificate.pem",
+    "scripts/capture/fixtures/native-https/key.pem",
+    "scripts/capture/fixtures/native-https/cert9.db",
+    "crates/phantom-net/examples/capture_ech_client_hello.rs",
     "scripts/capture/native_dns.py",
     "scripts/capture/firefox_socket_hooks.py",
     "scripts/capture/firefox_socket_hooks.js",
@@ -725,6 +746,8 @@ def validate_two_server(records: list[dict], attached_ns: int) -> dict:
 
 
 def dns_records(peers: list[NativeDnsServer]) -> list[dict]:
+    if not peers:
+        return []
     if len(peers) == 1:
         return peers[0].records()
     records = [
@@ -738,7 +761,14 @@ def dns_records(peers: list[NativeDnsServer]) -> list[dict]:
 
 async def capture(executable: Path, record: dict, *, scenario: str = "initial") -> None:
     selected = SCENARIOS[scenario]
-    if scenario == "two-server":
+    https = (
+        windows_native_https.NativeHttpsPeer(OUTPUT, record)
+        if scenario == "native-https-ech"
+        else None
+    )
+    if https is not None:
+        peers = []
+    elif scenario == "two-server":
         peers = [
             NativeDnsServer(firefox.TARGET_HOST, "127.0.0.53", drop_owned_udp=True),
             NativeDnsServer(firefox.TARGET_HOST, "127.0.0.54"),
@@ -764,6 +794,14 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
             raise_browser_failures(None, await prepared.finish(primary))
 
     try:
+        if https is not None:
+            # The actual TLS port and publication exist before DNS policy changes.
+            await https.start()
+            peers.append(
+                NativeDnsServer(
+                    windows_native_https.HOSTNAME, https_answer=https.answer
+                )
+            )
         if prepared is not None:
             record["literal_origin_controls"] = await prepare_address_origins(
                 prepared.origins
@@ -777,8 +815,20 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
                 for role, peer in zip(("primary", "secondary"), peers, strict=True)
             ]
         extra = ("-DnsScene", "two-server") if scenario == "two-server" else ()
+        if https is not None:
+            extra = (
+                "-DnsScene",
+                "native-https-ech",
+                "-OriginPort",
+                str(https.answer.port),
+            )
         record["nrpt"] = guard(record, "Install", "-OwnerPid", str(os.getpid()), *extra)
         options = {"prepared": prepared} if prepared is not None else {}
+        if https is not None:
+            options = {
+                "external_https_origin": https.origin,
+                "browser_factory": https.browser,
+            }
         browser = asyncio.create_task(
             firefox.run_once(
                 selected,
@@ -810,9 +860,15 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
         record["launch_arguments"] = arguments
         record["hook_errors"] = result.errors
         record["timed_out"] = result.timed_out
-        record["positive"] = validate_result(
-            result, dns_records(peers), scenario=scenario
-        )
+        if https is None:
+            record["positive"] = validate_result(
+                result, dns_records(peers), scenario=scenario
+            )
+        else:
+            fixture = await https.completed()
+            record["positive"] = windows_native_https.validate(
+                result, dns_records(peers), https.answer, fixture
+            )
         (OUTPUT / "hooks.txt").write_text(
             "\n".join(firefox.render_run(0, result)) + "\n", encoding="utf-8"
         )
@@ -836,6 +892,8 @@ async def capture(executable: Path, record: dict, *, scenario: str = "initial") 
             cleanup.append(error)
         # DNS peers close in parallel under their existing per-peer bound.
         closing_work = [peer.close() for peer in peers]
+        if https is not None:
+            closing_work.append(https.close())
         if prepared is not None:
             closing_work.append(close_prepared())
         closing = asyncio.gather(*closing_work, return_exceptions=True)
@@ -921,16 +979,24 @@ def main(argv: list[str] | None = None) -> None:
         "runner": "windows-2025",
         "scenario": arguments.scenario,
         "scope": (
-            "configured native TTL5 publication and lookups across expiry; "
+            "native HTTPS publication, API return and accepted ECH over TCP; "
+            "configured Server2025 capture"
+            if arguments.scenario == "native-https-ech"
+            else "configured native TTL5 publication and lookups across expiry; "
             "not untouched defaults or network changes"
             if arguments.scenario == "ttl"
             else "native A resolution and complete HTTP body; not DNS cache/TTL policy"
         ),
         "interventions": {
-            "exact_name_nrpt": firefox.TARGET_HOST,
+            "exact_name_nrpt": (
+                "server.phantom.test and its actual _port._https service name"
+                if arguments.scenario == "native-https-ech"
+                else firefox.TARGET_HOST
+            ),
             "network.trr.mode": 5,
             "network.proxy.type": 0,
             "lookup_rewrite": False,
+            "profile_test_ca": arguments.scenario == "native-https-ech",
             "drop_first_udp_a": arguments.scenario == "drop-first-udp-a",
             "primary_drop_owned_udp": arguments.scenario == "two-server",
             "ipv4_answers": list(ADDRESS_ORDER)

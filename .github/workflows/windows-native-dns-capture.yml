@@ -14,6 +14,7 @@ on:
           - two-server
           - address-order
           - ttl
+          - native-https-ech
 
 permissions:
   contents: read
@@ -25,7 +26,7 @@ concurrency:
 jobs:
   capture:
     runs-on: windows-2025
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.scenario == 'native-https-ech' && 45 || 15 }}
     steps:
       - name: Check out capture source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,6 +44,16 @@ jobs:
           python -m pip install --require-hashes
           -r scripts/requirements.txt
           -r scripts/capture/hooks-requirements.txt
+
+      - name: Build the TLS capture peer before DNS changes
+        if: inputs.scenario == 'native-https-ech'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in git cmake clang nasm; do command -v "$tool"; done
+          rustup show active-toolchain
+          bash scripts/dev/with-cargo-lock.sh cargo build -p phantom-net \
+            --example capture_ech_client_hello --all-features --locked --jobs 2
 
       - name: Capture the selected native DNS scene
         env:

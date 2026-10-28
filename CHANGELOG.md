@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a hosted Windows native-DNS scene for HTTPS records and ECH acceptance.
 - Breaking: profile exports include named request contexts, so imported profiles
   and offline bundles support per-request context selection on one client. Migrate: readers
   of `phantom.custom-profile` must accept version 2 and its `request_contexts`
