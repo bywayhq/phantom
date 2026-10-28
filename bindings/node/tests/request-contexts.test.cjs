@@ -61,8 +61,12 @@ test('concurrent resource contexts share one HTTP/2 session without changing the
   assert.equal(observed.get('/raw')['sec-fetch-dest'], undefined);
   assert.equal(sessions.size, 1);
 
+  const unavailableClient = new Client({
+    profile: Profile.fromCatalog('chrome-156-linux'), route: 'direct', protocol: 'http2',
+  });
+  t.after(() => unavailableClient.close());
   const budget = new AttemptBudget(1);
-  await assert.rejects(client.get(url + '/unavailable', {context: 'fetchUpload', attemptBudget: budget}),
+  await assert.rejects(unavailableClient.get(url + '/unavailable', {context: 'fetchUpload', attemptBudget: budget}),
     {code: 'UnavailableContext'});
   assert.equal(budget.remaining, 1);
   assert.equal(observed.has('/unavailable'), false);
