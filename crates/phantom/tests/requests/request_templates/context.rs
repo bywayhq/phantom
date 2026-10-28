@@ -179,13 +179,15 @@ async fn unavailable_contexts_open_no_connection() -> TestResult<()> {
             "Uppercase",
             "invalid",
         ));
-    let owned = ClientProfile::new(chrome::v154_tcp_tls()).with_request_contexts([
-        (
-            RequestTemplateKind::Fetch,
-            chrome::v154_windows_fetch_template(),
-        ),
-        (RequestTemplateKind::Script, invalid),
-    ]);
+    let owned = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_request_contexts([
+            (
+                RequestTemplateKind::Fetch,
+                chrome::v154_windows_fetch_template(),
+            ),
+            (RequestTemplateKind::Script, invalid),
+        ]);
     for (profile, kind) in [
         (chrome::v154_windows(), RequestTemplateKind::Font),
         (owned.clone(), RequestTemplateKind::Navigation),
