@@ -206,6 +206,18 @@ class ValidationTests(unittest.TestCase):
                     "https://example.invalid/events", **{"protocol": "h1", **changes}
                 )
 
+    def test_closed_sync_source_still_validates_close_timeout(self):
+        client = object.__new__(FACADE.Client)
+        client._thread = threading.get_ident()
+        client._loop = asyncio.new_event_loop()
+        client._loop.close()
+        source = FACADE.EventSource(client, FACADE.AsyncEventSource(Source()))
+        source._source.close()
+        with self.assertRaises(ValueError):
+            source.close(timeout_ms=-1)
+        source.close()
+        self.assertTrue(source.closed)
+
     def test_sync_wrong_thread_close_preserves_source(self):
         native = Source()
         client = object.__new__(FACADE.Client)
