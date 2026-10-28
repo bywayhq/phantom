@@ -6,9 +6,18 @@ const { toUSVString } = require('node:util');
 const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { integer, orderedDataArray, policyFields, positiveCount } = require('./validation.cjs');
 
-/** @typedef {import('../index.js').EncryptedDns} EncryptedDns */
+/**
+ * @typedef {object} NativeDnsSettings
+ * @property {readonly string[]} bootstrap
+ * @property {number} timeoutMs
+ * @property {bigint} maxConcurrent
+ * @property {'dual' | 'ipv4'} families
+ * @property {readonly Buffer[]} roots
+ * @property {number | null | undefined} paddingBlock
+ */
+/** @typedef {NativeDnsSettings & ({kind: 'https', endpoint: string, method: 'post' | 'get', wire: 'standard' | 'chromium154', queryId: number} | {kind: 'tls', serverName: string})} NativeDnsOptions */
 
-/** @param {unknown} value @returns {EncryptedDns | undefined} */
+/** @param {unknown} value @returns {NativeDnsOptions | undefined} */
 function dnsOptions(value) {
   if (value === undefined) return undefined;
   const fields = policyFields(value, ['kind', 'endpoint', 'serverName', 'bootstrap',
@@ -50,6 +59,7 @@ function dnsOptions(value) {
   if (families !== 'dual' && families !== 'ipv4') throw new PhantomError('InvalidArgument', 'dns.families must be dual or ipv4');
   const paddingBlock = fields.paddingBlock === undefined || fields.paddingBlock === null
     ? fields.paddingBlock : integer(fields.paddingBlock, 'dns.paddingBlock', 1, 65535);
+  /** @type {NativeDnsSettings} */
   const common = {bootstrap: Object.freeze(bootstrap), timeoutMs, maxConcurrent,
     families, roots: Object.freeze(roots), paddingBlock};
   if (kind === 'tls') return Object.freeze({...common, kind, serverName: identity});

@@ -38,6 +38,10 @@ export interface NativeUpload extends UploadPump {
   configureMultipart(boundary: string, fields: MultipartField[], maximumBytes: bigint): void;
 }
 
+type NativeNetworkOptions = Omit<NetworkOptions, 'dns'> & {
+  readonly dns?: import('./dns.cjs').NativeDnsOptions;
+};
+
 export type NativeClientOptions = Omit<ClientOptions,
   'profile' | 'protocol' | 'context' | 'headers' | 'additionalRoots' |
   'additionalProxyRoots' | 'serverSpkiPins' | 'proxyServerSpkiPins' |
@@ -49,7 +53,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   clientCertificate?: object;
   clientCertificatesFor?: { origin: string; certificate: object }[];
   timeouts?: PhaseTimeouts; redirectPolicy?: RedirectPolicy; retryPolicy?: NativeRetryPolicy;
-  network?: NetworkOptions; pool?: PoolOptions;
+  network?: NativeNetworkOptions; pool?: PoolOptions;
 };
 
 export interface NativeRequestOptions {
