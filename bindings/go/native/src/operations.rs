@@ -501,11 +501,9 @@ impl State {
                 {
                     return Err(Failure::new("capacity"));
                 }
-                if self
-                    .operations
-                    .values()
-                    .any(|op| matches!(op.target, Target::Shutdown(id) if id == client))
-                {
+                if self.operations.values().any(|op| {
+                    matches!(op.target, Target::Shutdown(id) if id == client) && !op.abandoned
+                }) {
                     return Err(Failure::new("shutdown_in_progress"));
                 }
             }
@@ -868,7 +866,8 @@ impl Global {
     }
     async fn shutdown(&self, client: u64, native: phantom::Client) -> Result<(), Failure> {
         // Sends/openings enter core lifecycle on their first poll. Preserve
-        // work admitted by this registry before closing core admission.
+        // work admitted by this registry before closing core admission. A
+        // retry also waits for cancelled shutdown futures to release custody.
         loop {
             let settled = self.settled.notified();
             tokio::pin!(settled);
@@ -882,9 +881,18 @@ impl Global {
                     return Err(Failure::new("client_closed"));
                 }
                 state.operations.values().any(|operation| {
-                    matches!(operation.target, Target::Request(owner) | Target::WebSocketOpen(owner) | Target::EventSourceOpen(owner) if owner == client)
-                        && !operation.finished
-                }) || state.sources.values().any(|owner| owner.client == client && !owner.is_closed())
+                    !operation.finished
+                        && match operation.target {
+                            Target::Request(owner)
+                            | Target::WebSocketOpen(owner)
+                            | Target::EventSourceOpen(owner) => owner == client,
+                            Target::Shutdown(owner) => owner == client && operation.abandoned,
+                            _ => false,
+                        }
+                }) || state
+                    .sources
+                    .values()
+                    .any(|owner| owner.client == client && !owner.is_closed())
             };
             if !pending {
                 break;

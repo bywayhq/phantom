@@ -94,6 +94,67 @@ fn cancelled_shutdown_preserves_admitted_requests_until_their_tasks_settle() -> 
     })
 }
 
+#[test]
+fn shutdown_retry_waits_for_cancelled_native_waits_to_settle() -> Result<(), Failure> {
+    let global = test_global()?;
+    let config = serde_json::from_value(json!({
+        "profile": "chrome-154-windows", "protocol": "h1", "cookies": false,
+    }))
+    .map_err(|_| Failure::new("test_config"))?;
+    let entry = NativeClient::new(config)?;
+    let native = entry.client.clone();
+    let independent = entry.fork(SessionSharing::default());
+    let other = independent.client.clone();
+    global.lock().clients.insert(1, entry);
+    global.lock().clients.insert(2, independent);
+
+    let (cancelled, mut receiver) = global.lock().reserve(Target::Shutdown(1))?;
+    global.lock().cancel(cancelled);
+    assert!(receiver.try_recv().is_ok());
+    // The worker has received cancellation, but its monitor has not yet
+    // removed the reservation. Retry must wait for that cleanup, not fail.
+    let (retry, mut retry_receiver) = global.lock().reserve(Target::Shutdown(1))?;
+    assert_eq!(
+        global
+            .lock()
+            .reserve(Target::Shutdown(1))
+            .err()
+            .map(|error| error.kind),
+        Some("shutdown_in_progress")
+    );
+    let (unrelated, _other_receiver) = global.lock().reserve(Target::Shutdown(2))?;
+    global.lock().cancel(unrelated);
+
+    global.runtime.block_on(async {
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        let mut waiting = Box::pin(global.shutdown(1, native.clone()));
+        assert!(waiting.as_mut().poll(&mut context).is_pending());
+        assert!(!native.is_closed());
+
+        global.lock().cancel(retry);
+        assert!(retry_receiver.try_recv().is_ok());
+        drop(waiting);
+        let (next, _next_receiver) = global.lock().reserve(Target::Shutdown(1))?;
+        let mut waiting = Box::pin(global.shutdown(1, native.clone()));
+        assert!(waiting.as_mut().poll(&mut context).is_pending());
+
+        global.finish(cancelled, Err(Failure::new("cancelled")));
+        assert!(waiting.as_mut().poll(&mut context).is_pending());
+        assert!(!native.is_closed());
+
+        global.finish(retry, Err(Failure::new("cancelled")));
+        tokio::time::timeout(std::time::Duration::from_secs(5), waiting)
+            .await
+            .map_err(|_| Failure::new("test_shutdown_retry_stalled"))??;
+        assert!(native.is_closed());
+        assert!(!other.is_closed());
+        assert!(global.lock().operations.contains_key(&unrelated));
+        global.finish(next, Ok(Outcome::Complete));
+        global.finish(unrelated, Err(Failure::new("cancelled")));
+        Ok(())
+    })
+}
+
 fn head(body: std::sync::Arc<BodyOwner>) -> Outcome {
     Outcome::Head(Head {
         status: 200,
