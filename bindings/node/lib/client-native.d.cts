@@ -44,7 +44,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   'clientCertificate' | 'clientCertificatesFor' | 'timeouts' |
   'redirectPolicy' | 'retryPolicy' | 'network' | 'pool'
 > & {
-  profile?: string; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
+  profile?: string; defaultContext?: RequestContext; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
   serverSpkiPins?: Buffer[]; proxyServerSpkiPins?: Buffer[];
   clientCertificate?: object;
   clientCertificatesFor?: { origin: string; certificate: object }[];
@@ -63,6 +63,7 @@ export interface NativeRequestOptions {
 }
 
 export interface NativeClient {
+  eventSource(options: object, source: import('./event-source.cjs').NativeSource): Promise<import('./event-source.cjs').NativeHead>;
   request(options: NativeRequestOptions, cancellation: NativeCancellation,
     budget?: NativeAttemptBudget, upload?: NativeUpload, transfer?: NativeTransferControl,
     diagnostics?: NativeRequestDiagnostics): Promise<NativeResponse>;

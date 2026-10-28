@@ -81,11 +81,18 @@ Import `io` and `fmt` for this example. Reads use Rust's SSE decoder and stop
 when `ctx` is cancelled. Nil limits allow 64 KiB lines and 1 MiB event blocks;
 pass `SSELimits` to change them, up to 1 MiB and 8 MiB. Explicit zero rejects
 nonempty input. `LastEventID` and `RetryMilliseconds` expose committed state.
-This API reads one response and does not reconnect. Reconnecting EventSource
-is not exposed yet. Content encoding must be `identity`.
 
-SSE requires a matching native payload with the optional SSE ABI. Older payloads
-return `native_sse_unavailable` before sending.
+For a reconnecting GET, use `client.EventSource(ctx, url,
+EventSourceOptions{Protocol: "h2"})`, then `source.Next(ctx)`. Close the
+source when finished. Each read has its own context; cancelling a read preserves
+the source. `Headers` can position the managed ID with `LastEventID`.
+`IdleTimeout`, retry controls and `MaxReconnects` govern reconnects. Phase
+`Timeouts` end at each response head; use `IdleTimeout` instead of `ReadIdle`.
+Graceful client shutdown waits for open sources. Use `Client.Events` for an
+ordinary request, including bodies, contexts and attempt budgets.
+
+Both APIs require a matching native payload. Older payloads return
+`native_sse_unavailable` or `native_event_source_unavailable` before sending.
 
 ## Install
 

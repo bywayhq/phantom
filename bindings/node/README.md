@@ -141,6 +141,30 @@ Set `maximumLineBytes` and `maximumEventBytes` in `events(options)` to change
 them; zero rejects nonempty input. Unsuitable response headers leave the body
 readable. Once converted, use the event iterator instead of raw body methods.
 
+For bounded reconnects, open a source with an exact protocol:
+
+```js
+const source = await client.eventSource('https://example.com/events', {
+  protocol: 'http2', maximumReconnects: 3, idleTimeoutMs: 30_000,
+});
+try {
+  for await (const event of source) console.log(event.data);
+} finally { source.close(); }
+```
+
+The source inherits client headers, template, cookies and route. Ordered
+`headers` replace matching client fields by name. They can include
+`{lastEventId: 'last-event-id'}` to position the reconnect ID. Omit `headers`
+to add SSE Accept/cache fields. `retryMs` reports the effective delay as a
+`bigint`; `initialRetryMs` defaults to 3000 and `minimumRetryMs` sets its floor.
+`limits` uses the same byte limits as `events()`. A 204 response stops the source.
+
+Reads drive reconnects without prefetching. `signal` or `close()` interrupts
+setup, reads and backoff. Graceful client close waits for the source; close it
+to release that wait. Per-attempt `timeouts` end at the response head; use
+`idleTimeoutMs` for body inactivity. Use `response.events()` when you need
+ordinary request controls such as per-request context or an attempt budget.
+
 ## Download to a file
 
 Use the response directly with `pipeline`. The same signal cancels the request

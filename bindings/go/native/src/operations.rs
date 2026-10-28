@@ -23,6 +23,7 @@ use tokio::sync::{Notify, oneshot};
 use response::{BodyOwner, Head, ReadLease, ReadResult, response_head};
 
 mod diagnostics;
+pub(crate) mod event_source;
 mod response;
 pub(super) mod session;
 pub(crate) mod sse;
@@ -252,6 +253,8 @@ impl Drop for UploadPermit {
 enum Target {
     Request(u64),
     WebSocketOpen(u64),
+    EventSourceOpen(u64),
+    EventSourceRead(u64),
     WebSocketRead(u64),
     WebSocketWrite(u64),
     Read(u64),
@@ -274,6 +277,8 @@ struct Operation {
     event: Option<std::sync::Arc<sse::Read>>,
     websocket: Option<std::sync::Arc<websocket::ResultData>>,
     socket: Option<u64>,
+    source: Option<u64>,
+    source_result: Option<std::sync::Arc<event_source::ResultData>>,
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -370,6 +375,7 @@ struct State {
     bodies: HashMap<u64, std::sync::Arc<BodyOwner>>,
     streams: HashMap<u64, std::sync::Arc<Upload>>,
     sockets: HashMap<u64, std::sync::Arc<websocket::Socket>>,
+    sources: HashMap<u64, std::sync::Arc<event_source::Owner>>,
     operations: HashMap<u64, Operation>,
     ready: VecDeque<Queued>,
 }
@@ -385,6 +391,7 @@ impl Default for State {
             bodies: HashMap::new(),
             streams: HashMap::new(),
             sockets: HashMap::new(),
+            sources: HashMap::new(),
             operations: HashMap::new(),
             ready: VecDeque::new(),
         }
@@ -502,13 +509,13 @@ impl State {
                     return Err(Failure::new("shutdown_in_progress"));
                 }
             }
-            Target::Read(_) => {
+            Target::Read(_) | Target::EventSourceRead(_) => {
                 // Existing response bodies must remain readable while request,
                 // maintenance or snapshot work fills ordinary admission.
                 if self
                     .operations
                     .values()
-                    .filter(|op| matches!(op.target, Target::Read(_)))
+                    .filter(|op| matches!(op.target, Target::Read(_) | Target::EventSourceRead(_)))
                     .count()
                     >= MAX_HANDLES
                 {
@@ -523,6 +530,7 @@ impl State {
                         !matches!(
                             op.target,
                             Target::Read(_)
+                                | Target::EventSourceRead(_)
                                 | Target::WebSocketRead(_)
                                 | Target::WebSocketWrite(_)
                                 | Target::Shutdown(_)
@@ -538,7 +546,10 @@ impl State {
                 }
             }
         }
-        let reserved_response = if matches!(target, Target::Request(_) | Target::WebSocketOpen(_)) {
+        let reserved_response = if matches!(
+            target,
+            Target::Request(_) | Target::WebSocketOpen(_) | Target::EventSourceOpen(_)
+        ) {
             let pending = self
                 .operations
                 .values()
@@ -548,6 +559,7 @@ impl State {
                 .bodies
                 .len()
                 .saturating_add(self.sockets.len())
+                .saturating_add(self.sources.len())
                 .saturating_add(pending)
                 >= MAX_HANDLES
             {
@@ -575,6 +587,8 @@ impl State {
                 event: None,
                 websocket: None,
                 socket: None,
+                source: None,
+                source_result: None,
             },
         );
         Ok((id, receiver))
@@ -589,7 +603,20 @@ impl State {
             owner.abort();
         }
     }
+    fn close_source(&mut self, source: u64) {
+        if let Some(owner) = self.sources.remove(&source) {
+            owner.close();
+        }
+    }
     fn release_client(&mut self, client: u64) {
+        let sources: Vec<_> = self
+            .sources
+            .iter()
+            .filter_map(|(id, owner)| (owner.client == client).then_some(*id))
+            .collect();
+        for source in &sources {
+            self.close_source(*source);
+        }
         let sockets: Vec<_> = self
             .sockets
             .iter()
@@ -623,6 +650,7 @@ impl State {
             .filter_map(|(id, op)| match op.target {
                 Target::Request(owner)
                 | Target::WebSocketOpen(owner)
+                | Target::EventSourceOpen(owner)
                 | Target::Shutdown(owner)
                 | Target::Maintenance(owner)
                 | Target::Session(owner)
@@ -631,6 +659,7 @@ impl State {
                     Some(*id)
                 }
                 Target::Read(body) if bodies.contains(&body) => Some(*id),
+                Target::EventSourceRead(source) if sources.contains(&source) => Some(*id),
                 Target::WebSocketRead(socket) | Target::WebSocketWrite(socket)
                     if sockets.contains(&socket) =>
                 {
@@ -666,7 +695,14 @@ impl State {
             Target::WebSocketRead(socket) | Target::WebSocketWrite(socket) => Some(socket),
             _ => None,
         });
+        let source = operation.source.or(match operation.target {
+            Target::EventSourceRead(source) => Some(source),
+            _ => None,
+        });
         let finished = operation.finished;
+        if let Some(source) = source {
+            self.close_source(source);
+        }
         if let Some(socket) = socket {
             self.close_socket(socket);
         }
@@ -717,6 +753,7 @@ enum Outcome {
     Part(usize),
     Event(sse::Read),
     WebSocket(websocket::Finished),
+    EventSource(event_source::Finished),
 }
 
 impl Global {
@@ -732,6 +769,9 @@ impl Global {
     ) -> std::sync::MutexGuard<'a, State> {
         if !state.failed {
             state.failed = true;
+            for (_, source) in state.sources.drain() {
+                source.close();
+            }
             for (_, socket) in state.sockets.drain() {
                 socket.abort();
             }
@@ -753,6 +793,8 @@ impl Global {
                 operation.event = None;
                 operation.websocket = None;
                 operation.socket = None;
+                operation.source = None;
+                operation.source_result = None;
                 operation.finished = true;
                 if operation.abandoned {
                     return false;
@@ -840,9 +882,9 @@ impl Global {
                     return Err(Failure::new("client_closed"));
                 }
                 state.operations.values().any(|operation| {
-                    matches!(operation.target, Target::Request(owner) | Target::WebSocketOpen(owner) if owner == client)
+                    matches!(operation.target, Target::Request(owner) | Target::WebSocketOpen(owner) | Target::EventSourceOpen(owner) if owner == client)
                         && !operation.finished
-                })
+                }) || state.sources.values().any(|owner| owner.client == client && !owner.is_closed())
             };
             if !pending {
                 break;
@@ -882,6 +924,9 @@ impl Global {
         let reserved_response = operation.reserved_response.take();
         let mut data = Bytes::new();
         let result = match result {
+            Ok(Outcome::EventSource(finished)) => {
+                event_source::finish(&mut state, id, reserved_response, finished)
+            }
             Ok(Outcome::WebSocket(finished)) => {
                 websocket::finish(&mut state, id, reserved_response, finished)
             }
@@ -973,7 +1018,15 @@ impl Global {
                 if let Some(socket) = socket {
                     state.close_socket(socket);
                 }
+                let source = state
+                    .operations
+                    .get(&id)
+                    .and_then(|operation| operation.source);
+                if let Some(source) = source {
+                    state.close_source(source);
+                }
                 if let Some(operation) = state.operations.get_mut(&id) {
+                    operation.source = None;
                     operation.response = None;
                     operation.socket = None;
                 }
@@ -1615,6 +1668,13 @@ pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
     if let Some(socket) = socket {
         state.close_socket(socket);
     }
+    let source = state
+        .operations
+        .get_mut(&id)
+        .and_then(|operation| operation.source.take());
+    if let Some(source) = source {
+        state.close_source(source);
+    }
     Ok(())
 }
 
@@ -1642,6 +1702,7 @@ mod tests {
     use tokio::sync::Notify;
 
     mod admission;
+    mod event_source;
     mod response_info;
     mod session_sharing;
     mod sse;

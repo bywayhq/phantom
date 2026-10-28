@@ -171,6 +171,21 @@ impl ProfileState {
         contexts
     }
 
+    pub(crate) fn for_client(&self, context: Option<&str>) -> Result<ClientProfile> {
+        match context {
+            None | Some("raw") => Ok(self.settings.clone().without_request_template()),
+            Some("profile") if self.attached.is_some() => Ok(self.settings.clone()),
+            Some("profile") => Err(unavailable()),
+            Some(context) => Ok(self
+                .settings
+                .clone()
+                .with_request_template(catalog_template(
+                    self.definition.ok_or_else(unavailable)?,
+                    context,
+                )?)),
+        }
+    }
+
     pub(crate) fn apply_context(
         &self,
         builder: RequestBuilder,
@@ -236,6 +251,54 @@ fn document_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn client_defaults_select_existing_templates_without_changing_the_profile()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let identifier = "chrome/154.0.8037.97/windows-11-26200/r1";
+        let catalog = ProfileState::catalog(identifier, None)?;
+        let before = catalog.export()?;
+        let expected = catalog_template(catalog.definition.ok_or("missing catalog")?, "fetch")?;
+        let selected = catalog.for_client(Some("fetch"))?;
+        assert_eq!(selected.request_template(), Some(&expected));
+        assert!(catalog.for_client(None)?.request_template().is_none());
+        assert!(
+            catalog
+                .for_client(Some("raw"))?
+                .request_template()
+                .is_none()
+        );
+        assert!(catalog.for_client(Some("profile")).is_err());
+        assert_eq!(
+            catalog.for_client(Some("fetchUpload"))?.request_template(),
+            Some(&phantom_profile::browser::chrome::v154_windows_fetch_upload_template())
+        );
+        assert!(catalog.for_client(Some("unknown")).is_err());
+        assert_eq!(catalog.export()?, before);
+
+        let macos = ProfileState::catalog("chrome/154.0.8037.95/macos-15.5-arm64/r1", None)?;
+        assert!(macos.for_client(Some("fetchUpload")).is_err());
+
+        let attached = ProfileState::catalog(identifier, Some("navigation"))?;
+        assert_eq!(
+            attached.for_client(Some("profile"))?.request_template(),
+            attached.settings.request_template()
+        );
+        assert!(
+            attached
+                .for_client(Some("raw"))?
+                .request_template()
+                .is_none()
+        );
+        let imported = ProfileState::import(&attached.export()?)?;
+        assert_eq!(
+            imported.for_client(Some("profile"))?.request_template(),
+            attached.settings.request_template()
+        );
+        assert!(imported.for_client(Some("fetch")).is_err());
+        assert!(imported.for_client(None)?.request_template().is_none());
+        Ok(())
+    }
 
     #[test]
     fn captured_handshake_import_owns_settings_without_catalog_evidence()

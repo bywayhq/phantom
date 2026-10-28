@@ -19,6 +19,7 @@ const { types } = require('node:util');
 const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { attemptBudgetHandle, transferControlHandle, requestDiagnosticsHandle } = require('./controls.cjs');
 const { PhantomError, translated } = require('./errors.cjs');
+const { openEventSource } = require('./event-source.cjs');
 const native = require('./native.cjs');
 const { networkOptions, poolOptions } = require('./network.cjs');
 const { preparedBodyHandle } = require('./prepared-body.cjs');
@@ -101,6 +102,7 @@ class Client {
       const { protocol, context, headers, ...nativeOptions } = config;
       this.#native = environment.client({
         ...nativeOptions, profile: typeof config.profile === 'string' ? config.profile : undefined,
+        defaultContext: this.#defaults.context,
         additionalRoots: config.additionalRoots?.map(bytes),
         additionalProxyRoots: config.additionalProxyRoots?.map(bytes),
         serverSpkiPins, proxyServerSpkiPins, ...certificates,
@@ -274,6 +276,9 @@ class Client {
 
   /** @param {string | URL} url @param {import('../index.js').WebSocketOptions} [options] */
   websocket(url, options) { return openWebSocket(this.#native, this, url, options, this.#defaults.headers); }
+
+  /** @param {string | URL} url @param {import('../index.js').EventSourceOptions} options */
+  eventSource(url, options) { return openEventSource(this.#native, this, url, options, this.#defaults.headers); }
   /** @param {string | URL} url @param {MethodOptions} [options] */
   get(url, options) { return this.#requestMethod('GET', url, options); }
   /** @param {string | URL} url @param {MethodOptions} [options] */
