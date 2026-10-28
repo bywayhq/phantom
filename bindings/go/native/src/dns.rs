@@ -196,7 +196,10 @@ impl Dns {
                     .map(|address| address.parse::<SocketAddr>())
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| Failure::new("invalid_dns_bootstrap"))?;
-                if bootstrap.iter().any(|address| address.port() == 0) {
+                if bootstrap.iter().any(|address| {
+                    address.port() == 0
+                        || matches!(address, SocketAddr::V6(address) if address.scope_id() != 0)
+                }) {
                     return Err(Failure::new("invalid_dns_bootstrap"));
                 }
                 let families = match families {
@@ -246,4 +249,111 @@ fn https_error(error: DohBuildError) -> Failure {
             _ => "invalid_dns_profile",
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn https() -> serde_json::Value {
+        serde_json::json!({
+            "kind": "https", "endpoint": "https://dns.invalid/query",
+            "bootstrap": ["127.0.0.1"], "timeout_ns": 1_000_000_000,
+            "max_concurrent": 2, "families": "ipv4", "additional_roots_der": [],
+            "method": "post", "wire": "standard", "query_id": 0,
+        })
+    }
+
+    fn validated(
+        value: serde_json::Value,
+        mut entries: usize,
+        mut bytes: usize,
+    ) -> Result<Dns, Failure> {
+        let dns: Dns = serde_json::from_value(value)
+            .map_err(|_| Failure::new("invalid_test_configuration"))?;
+        dns.validate(&mut entries, &mut bytes)?;
+        Ok(dns)
+    }
+
+    #[test]
+    fn encrypted_dns_schema_rejects_wrong_kind_fields_and_unknown_controls() {
+        for (field, value) in [
+            ("kind", serde_json::json!("private")),
+            ("unknown", serde_json::json!(true)),
+            ("server_name", serde_json::json!("private.invalid")),
+            ("families", serde_json::json!("ipv6")),
+            ("method", serde_json::json!("PUT")),
+            ("wire", serde_json::json!("private")),
+            ("query_id", serde_json::json!(65536)),
+            ("padding_block", serde_json::json!(65536)),
+            ("additional_roots_der", serde_json::json!([[256]])),
+        ] {
+            let mut value_before = https();
+            value_before[field] = value;
+            assert!(
+                serde_json::from_value::<Dns>(value_before).is_err(),
+                "{field}"
+            );
+        }
+        let mut tls = https();
+        tls["kind"] = serde_json::json!("tls");
+        assert!(serde_json::from_value::<Dns>(tls).is_err());
+    }
+
+    #[test]
+    fn encrypted_dns_limits_share_network_bounds() {
+        assert!(validated(https(), 1023, 65536).is_ok());
+        assert_eq!(
+            validated(https(), 1024, 65536).err().map(|e| e.kind),
+            Some("input_limit")
+        );
+        assert_eq!(
+            validated(https(), 0, 1).err().map(|e| e.kind),
+            Some("input_limit")
+        );
+        for (field, value, expected) in [
+            ("bootstrap", serde_json::json!([]), "invalid_dns_bootstrap"),
+            ("timeout_ns", serde_json::json!(0), "invalid_dns_timeout"),
+            ("max_concurrent", serde_json::json!(0), "invalid_dns_limits"),
+        ] {
+            let mut input = https();
+            input[field] = value;
+            assert_eq!(
+                validated(input, 0, 65536).err().map(|e| e.kind),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn encrypted_dns_uses_selected_profile_and_redacts_build_errors() -> Result<(), Failure> {
+        let profile = crate::profile::named("chrome-154-windows", None)?;
+        let mut input = https();
+        input["endpoint"] = serde_json::json!("https://private:secret@dns.invalid/query");
+        assert_eq!(
+            validated(input, 0, 65536)?
+                .build(&profile)
+                .err()
+                .map(|e| e.kind),
+            Some("invalid_dns_endpoint")
+        );
+        let mut input = https();
+        input["bootstrap"] = serde_json::json!(["private.invalid"]);
+        assert_eq!(
+            validated(input, 0, 65536)?
+                .build(&profile)
+                .err()
+                .map(|e| e.kind),
+            Some("invalid_dns_bootstrap")
+        );
+        let profile = ClientProfile::new(profile.tls().clone());
+        assert_eq!(
+            validated(https(), 0, 65536)?
+                .build(&profile)
+                .err()
+                .map(|e| e.kind),
+            Some("dns_missing_http2")
+        );
+        Ok(())
+    }
 }

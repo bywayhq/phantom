@@ -71,10 +71,10 @@ type DNSOverTLS struct {
 func (*DNSOverHTTPS) encryptedDNS() {}
 func (*DNSOverTLS) encryptedDNS()   {}
 
-func (*DNSOverHTTPS) String() string   { return "phantom.DNSOverHTTPS([redacted])" }
-func (*DNSOverHTTPS) GoString() string { return "phantom.DNSOverHTTPS([redacted])" }
-func (*DNSOverTLS) String() string     { return "phantom.DNSOverTLS([redacted])" }
-func (*DNSOverTLS) GoString() string   { return "phantom.DNSOverTLS([redacted])" }
+func (DNSOverHTTPS) String() string   { return "phantom.DNSOverHTTPS([redacted])" }
+func (DNSOverHTTPS) GoString() string { return "phantom.DNSOverHTTPS([redacted])" }
+func (DNSOverTLS) String() string     { return "phantom.DNSOverTLS([redacted])" }
+func (DNSOverTLS) GoString() string   { return "phantom.DNSOverTLS([redacted])" }
 
 type wireDNS struct {
 	Kind               string     `json:"kind"`
@@ -106,7 +106,9 @@ func dnsInputSize(input DNSOptions, entries, bytes int) (int, error) {
 		if value == nil {
 			return 0, &Error{Kind: "invalid_dns"}
 		}
-		identity, timeout, maximum, families, roots, addresses = value.Endpoint, value.LookupTimeout, value.MaxConcurrent, value.Families, value.AdditionalRootsDER, len(value.Bootstrap)
+		identity, timeout = value.Endpoint, value.LookupTimeout
+		maximum, families = value.MaxConcurrent, value.Families
+		roots, addresses = value.AdditionalRootsDER, len(value.Bootstrap)
 		if value.Method != DNSPost && value.Method != DNSGet {
 			return 0, &Error{Kind: "invalid_dns_method"}
 		}
@@ -117,7 +119,9 @@ func dnsInputSize(input DNSOptions, entries, bytes int) (int, error) {
 		if value == nil {
 			return 0, &Error{Kind: "invalid_dns"}
 		}
-		identity, timeout, maximum, families, roots, addresses = value.ServerName, value.LookupTimeout, value.MaxConcurrent, value.Families, value.AdditionalRootsDER, len(value.Bootstrap)
+		identity, timeout = value.ServerName, value.LookupTimeout
+		maximum, families = value.MaxConcurrent, value.Families
+		roots, addresses = value.AdditionalRootsDER, len(value.Bootstrap)
 		if maximum > 32767 {
 			return 0, &Error{Kind: "invalid_dns_limits"}
 		}

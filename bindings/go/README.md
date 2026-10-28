@@ -58,6 +58,25 @@ Available contexts are `"navigation"`, `"fetch"`, `"fetchNoStore"`, `"fetchUploa
 Supply required fields such as `Referer` and `Origin` in `Request.Headers`.
 Unavailable contexts return a `request_template` error before sending.
 
+## Use encrypted DNS
+
+Set `Config.Network.DNS` once for the client:
+
+```go
+Network: &phantom.NetworkOptions{DNS: &phantom.DNSOverHTTPS{
+    Endpoint: "https://dns.example/dns-query",
+    Bootstrap: []netip.Addr{netip.MustParseAddr("192.0.2.53")},
+    LookupTimeout: 5 * time.Second, MaxConcurrent: 16,
+}},
+```
+
+Import `net/netip` and supply your resolver's endpoint and bootstrap addresses.
+`DNSOverTLS` takes a `ServerName` and `[]netip.AddrPort` bootstrap instead.
+Both use verified direct connections with separate `AdditionalRootsDER` trust.
+DoH requires HTTP/2; neither resolver follows redirects or falls back to system
+DNS. Application proxies keep their own DNS boundary. Host overrides bypass
+lookups. `DisableDNSCache` disables address caching; otherwise DNS TTLs apply.
+
 ## Read server-sent events
 
 Use the same request options for an event-stream response, including POST bodies:
