@@ -86,10 +86,10 @@ class SynchronousRouteTests(unittest.TestCase):
 
             authority = urlsplit(url).netloc
             self.assertEqual([row[0] for row in default.requests], [authority] * 2)
-            self.assertEqual([row[0] for row in override.requests], [authority] * 2)
+            self.assertEqual([row[0] for row in override.requests], [authority])
             self.assertEqual(
                 [dict(row[2]).get("Proxy-Authorization") for row in override.requests],
-                [None, "Basic dXNlcjpwYXNz"],
+                ["Basic dXNlcjpwYXNz"],
             )
             self.assertTrue(
                 all(
