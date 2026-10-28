@@ -4,6 +4,8 @@
 
 ### Bindings
 
+- Python, Go and Node can override the route for each WebSocket opening while
+  keeping the client's default route.
 - Python, Go and Node add DNS-over-HTTPS and DNS-over-TLS endpoints with explicit
   bootstrap addresses, trust roots and lookup limits.
 - Python adds pull-driven EventSource iterators with bounded reconnection,
