@@ -59,3 +59,16 @@ uint64_t phantom_go_websocket_version(void);
 uint64_t phantom_go_websocket_open(const struct phantom_go_websocket_opening *, struct phantom_go_reply *);
 uint64_t phantom_go_websocket_operation(uint64_t, uint64_t, uint64_t, uint64_t, const uint8_t *, size_t, struct phantom_go_reply *);
 uint64_t phantom_go_websocket_result(uint64_t, struct phantom_go_websocket_message *, uint8_t *, size_t);
+/* Optional reconnecting EventSource ABI 1. Open copies all bounded options
+ * synchronously. next/close/cancel-next use separate scalar verbs 1/2/3.
+ * cancel-next preserves completion until the Rust read lease is restored;
+ * callers wait for it before starting another next. result reuses SSE payload
+ * lengths and carries effective retry/reconnect/closed state. Probe at zero
+ * capacity, copy before ack. No foreign pointer survives any call.
+ */
+struct phantom_go_event_source_opening;
+struct phantom_go_event_source_result;
+uint64_t phantom_go_event_source_version(void);
+uint64_t phantom_go_event_source_open(const struct phantom_go_event_source_opening *, struct phantom_go_reply *);
+uint64_t phantom_go_event_source_operation(uint64_t, uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_event_source_result(uint64_t, struct phantom_go_event_source_result *, uint8_t *, size_t);

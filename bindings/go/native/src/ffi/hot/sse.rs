@@ -13,7 +13,7 @@ use crate::{
 
 #[repr(C)]
 #[derive(Default)]
-struct Event {
+pub(super) struct Event {
     data_length: u64,
     type_length: u64,
     id_length: u64,
@@ -21,6 +21,15 @@ struct Event {
     flags: u64,
     error: Error,
     cause: Error,
+}
+
+impl Event {
+    pub(super) fn from_failure(error: Failure) -> Self {
+        Self {
+            error: error.into(),
+            ..Self::default()
+        }
+    }
 }
 
 // SAFETY: This uniquely named, pointer-free symbol negotiates the separate SSE
@@ -109,42 +118,8 @@ unsafe extern "C" fn phantom_go_sse_result(
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
         let read = operations::event_result(operation)?;
-        let data = read.event.as_ref().map_or("", phantom::SseEvent::data);
-        let kind = read.event.as_ref().map_or("", phantom::SseEvent::event);
-        let id = read.id();
-        let length = data
-            .len()
-            .checked_add(kind.len())
-            .and_then(|length| length.checked_add(id.len()))
-            .filter(|length| *length <= sse::MAX_RESULT)
-            .ok_or_else(|| Failure::new("sse_result_limit"))?;
-        if capacity != 0 && capacity < length {
-            return Err(Failure::new("sse_result_capacity"));
-        }
-        let retry = read
-            .retry
-            .map(|value| u64::try_from(value.as_millis()))
-            .transpose()
-            .map_err(|_| Failure::new("sse_retry_range"))?;
-        let result = Event {
-            data_length: data.len() as u64,
-            type_length: kind.len() as u64,
-            id_length: id.len() as u64,
-            retry_milliseconds: retry.unwrap_or_default(),
-            flags: u64::from(read.event.is_none()) | (u64::from(retry.is_some()) << 1),
-            error: read.error.clone().map_or_else(Error::default, Error::from),
-            cause: read.cause.clone().map_or_else(Error::default, Error::from),
-        };
-        if capacity != 0 {
-            // SAFETY: Total length fits the checked output capacity. These
-            // slices address Rust-owned strings and do not overlap caller output.
-            unsafe {
-                super::super::output(output, data.as_bytes());
-                super::super::output(output.add(data.len()), kind.as_bytes());
-                super::super::output(output.add(data.len() + kind.len()), id.as_bytes());
-            }
-        }
-        Ok::<_, Failure>(result)
+        // SAFETY: The entry point checks capacity and the caller lends output.
+        unsafe { project(&read, output, capacity) }
     }))
     .unwrap_or_else(|_| Err(Failure::new("internal")));
     let result = result.unwrap_or_else(|error| Event {
@@ -156,4 +131,48 @@ unsafe extern "C" fn phantom_go_sse_result(
         ptr::write(event, result);
     }
     1
+}
+
+// SAFETY: output is writable for capacity bytes and disjoint from read.
+pub(super) unsafe fn project(
+    read: &sse::Read,
+    output: *mut u8,
+    capacity: usize,
+) -> Result<Event, Failure> {
+    let data = read.event.as_ref().map_or("", phantom::SseEvent::data);
+    let kind = read.event.as_ref().map_or("", phantom::SseEvent::event);
+    let id = read.id();
+    let length = data
+        .len()
+        .checked_add(kind.len())
+        .and_then(|length| length.checked_add(id.len()))
+        .filter(|length| *length <= sse::MAX_RESULT)
+        .ok_or_else(|| Failure::new("sse_result_limit"))?;
+    if capacity != 0 && capacity < length {
+        return Err(Failure::new("sse_result_capacity"));
+    }
+    let retry = read
+        .retry
+        .map(|value| u64::try_from(value.as_millis()))
+        .transpose()
+        .map_err(|_| Failure::new("sse_retry_range"))?;
+    let result = Event {
+        data_length: data.len() as u64,
+        type_length: kind.len() as u64,
+        id_length: id.len() as u64,
+        retry_milliseconds: retry.unwrap_or_default(),
+        flags: u64::from(read.event.is_none()) | (u64::from(retry.is_some()) << 1),
+        error: read.error.clone().map_or_else(Error::default, Error::from),
+        cause: read.cause.clone().map_or_else(Error::default, Error::from),
+    };
+    if capacity != 0 {
+        // SAFETY: Total length fits the checked output capacity. These
+        // slices address Rust-owned strings and do not overlap caller output.
+        unsafe {
+            super::super::output(output, data.as_bytes());
+            super::super::output(output.add(data.len()), kind.as_bytes());
+            super::super::output(output.add(data.len() + kind.len()), id.as_bytes());
+        }
+    }
+    Ok::<_, Failure>(result)
 }
