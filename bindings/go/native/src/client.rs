@@ -52,6 +52,12 @@ pub(super) struct ProxyCredentials {
     password: String,
 }
 
+impl ProxyCredentials {
+    pub(crate) fn new(username: String, password: String) -> Self {
+        Self { username, password }
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Header {

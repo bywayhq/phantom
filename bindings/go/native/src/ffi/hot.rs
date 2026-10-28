@@ -13,6 +13,7 @@ use std::{
     ptr, slice,
 };
 
+mod event_source;
 mod sse;
 mod websocket;
 

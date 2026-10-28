@@ -132,13 +132,7 @@ pub(super) struct Head {
     pub(super) body: std::sync::Arc<BodyOwner>,
 }
 
-pub(super) fn response_head(
-    response: http::Response<ResponseBody>,
-    client: u64,
-    upload: UploadPermit,
-    stream_upload: Option<std::sync::Arc<Upload>>,
-    events: Option<super::sse::Limits>,
-) -> Result<Head, Failure> {
+pub(super) fn metadata<B>(response: &http::Response<B>) -> Result<super::CompletedHead, Failure> {
     let info = response
         .extensions()
         .get::<phantom::ResponseInfo>()
@@ -183,6 +177,37 @@ pub(super) fn response_head(
         _ => "unknown",
     };
     let status = response.status().as_u16();
+    Ok(super::CompletedHead {
+        body: 0,
+        status,
+        protocol,
+        effective_url,
+        redirects_followed,
+        connection_setup_retries,
+        decoded_content_codings,
+        redirect_history,
+        headers,
+    })
+}
+
+pub(super) fn response_head(
+    response: http::Response<ResponseBody>,
+    client: u64,
+    upload: UploadPermit,
+    stream_upload: Option<std::sync::Arc<Upload>>,
+    events: Option<super::sse::Limits>,
+) -> Result<Head, Failure> {
+    let super::CompletedHead {
+        status,
+        protocol,
+        effective_url,
+        redirects_followed,
+        connection_setup_retries,
+        decoded_content_codings,
+        redirect_history,
+        headers,
+        ..
+    } = metadata(&response)?;
     if response.body().is_end_stream()
         && let Some(upload) = &stream_upload
     {

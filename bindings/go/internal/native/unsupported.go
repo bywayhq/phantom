@@ -47,3 +47,14 @@ func WebSocketOperation(uint64, uint64, uint64, uint64, []byte, *Reply) error {
 func WebSocketCopy(uint64, *WebSocketResult, []byte) error {
 	return &Failure{Kind: "unsupported_platform"}
 }
+
+func LoadEventSource() error { return &Failure{Kind: "unsupported_platform"} }
+func EventSourceOpen(*EventSourceOpening, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func EventSourceOperation(uint64, uint64, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func EventSourceCopy(uint64, *EventSourceResult, []byte) error {
+	return &Failure{Kind: "unsupported_platform"}
+}

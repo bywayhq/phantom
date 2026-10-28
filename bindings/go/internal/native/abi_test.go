@@ -22,6 +22,9 @@ func TestNativeLayoutMatchesThe64BitCABI(t *testing.T) {
 		{"completion field", unsafe.Sizeof(OutputField{}), 40},
 		{"hop", unsafe.Sizeof(Hop{}), 72},
 		{"event", unsafe.Sizeof(Event{}), 336},
+		{"event source opening", unsafe.Sizeof(EventSourceOpening{}), 240},
+		{"event source header", unsafe.Sizeof(EventSourceHeader{}), 48},
+		{"event source result", unsafe.Sizeof(EventSourceResult{}), 448},
 	} {
 		if test.got != test.want {
 			t.Errorf("%s size=%d, want%d", test.name, test.got, test.want)
