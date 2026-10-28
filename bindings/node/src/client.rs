@@ -129,8 +129,7 @@ impl ClientState {
             ));
         }
 
-        // Every request selects its context explicitly, including attached templates.
-        let settings = profile.settings.clone().without_request_template();
+        let settings = profile.for_client(options.default_context.as_deref())?;
         let mut builder = Client::builder(settings).route(route(
             &options.route,
             options.proxy.as_deref(),

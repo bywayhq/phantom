@@ -41,6 +41,7 @@ test('client defaults are immutable, ordered and inherited by fork and restore',
   first.fill(0); headers[0].name = 'changed'; headers.push({name: 'late', value: first});
   config.context = 'navigation'; config.protocol = 'http3';
   assert.equal(clients[0].context, undefined);
+  assert.equal(clients[0].defaultContext, 'raw');
   assert.equal(clients[0].headers, undefined);
   const fork = client.fork();
   const restored = await client.restoreSession(Buffer.alloc(0), Buffer.alloc(32));
@@ -59,8 +60,9 @@ test('client defaults are immutable, ordered and inherited by fork and restore',
 });
 
 test('negotiated protocol and attached templates are defaults without guessing a request context', async () => {
-  const {Client, Profile, requests} = facade();
+  const {Client, Profile, requests, clients} = facade();
   const client = new Client({profile: Profile.fromCatalog('exact', 'navigation'), route: 'direct'});
+  assert.equal(clients[0].defaultContext, 'profile');
   (await client.request('http://example.test/')).close();
   assert.equal(requests[0].protocol, 'negotiated');
   assert.equal(requests[0].context, 'profile');
@@ -68,6 +70,7 @@ test('negotiated protocol and attached templates are defaults without guessing a
   assert.equal(requests[1].protocol, 'http2');
   assert.equal(requests[1].context, 'raw');
   const unselected = new Client({profile: 'exact', route: 'direct'});
+  assert.equal(clients[1].defaultContext, undefined);
   await assert.rejects(unselected.get('http://example.test/'), {code: 'InvalidArgument'});
   (await unselected.get('http://example.test/', {context: 'navigation'})).close();
   assert.equal(requests[2].context, 'navigation');

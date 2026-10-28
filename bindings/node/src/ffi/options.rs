@@ -30,6 +30,8 @@ pub struct WireHeader {
 pub struct ClientOptions {
     /// Exact compiled catalog identifier, unless an owned profile is supplied.
     pub profile: Option<String>,
+    /// Already resolved default request context; absence leaves no template.
+    pub default_context: Option<String>,
     /// Either direct or proxy.
     pub route: String,
     /// Explicit HTTP, HTTPS, SOCKS4(a) or SOCKS5(h) proxy URI.
