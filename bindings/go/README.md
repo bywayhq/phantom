@@ -327,8 +327,9 @@ Use `settings.Describe()` for an editable `map[string]any`, edit it, then
 `json.Number` to preserve large integers. `ExportJSON()` returns complete bytes
 within a separate 16 MiB document limit. Documents can contain literal headers;
 import errors expose redacted `Kind` and `Field`. Imports have no catalog identity.
-`Context: "profile"` selects an attached template;
-`raw` omits it, and named contexts require catalog ownership.
+`Context: "profile"` selects an attached default template; `raw` omits it.
+Version-2 imports also retain named contexts for `Request.Context`.
+Named client defaults still require catalog ownership.
 
 `ImportJA3Profile`, `ImportAkamaiProfile`, `ImportJA4Profile`,
 `ImportClientHelloProfile` and `ImportQUICTransportProfile` require a base

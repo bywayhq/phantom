@@ -33,7 +33,7 @@ with Client(profile=PROFILE, context="navigation") as client:
 
 Async requests accept the same `context` option. Omit it to use the client
 default, or use `"raw"` to omit its template for one request. Named contexts
-must exist in the selected catalog profile. Supported names are `navigation`,
+must exist in the selected profile. Supported names are `navigation`,
 `fetch`, `fetch_no_store`, `fetch_upload`, `script`, `stylesheet`, `image` and
 `font`. Resource templates require `Referer`; fonts also require `Origin`.
 
@@ -393,8 +393,9 @@ JSON bytes. Import validates the schema, ordering and 16 MiB input limit.
 Documents can contain literal headers; treat them as sensitive.
 
 Profiles are immutable. Import creates new settings with `catalog_id=None`.
-Use `context="profile"` for an attached template.
-Named contexts require a catalog-owned profile; imports cannot borrow them.
+Use `context="profile"` for an imported client's attached default template.
+Version-2 imports also retain named contexts for individual requests.
+Named client defaults still require a catalog profile.
 
 Use `Profile.import_ja3(text, base=profile)`, `import_akamai`,
 `import_ja4(text, format="original", base=profile)`, `import_client_hello`

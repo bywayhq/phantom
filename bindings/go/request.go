@@ -15,7 +15,7 @@ type Request struct {
 	Method  string
 	URL     string
 	Headers []Header
-	// Context selects this request's catalog template: navigation, fetch,
+	// Context selects this request's named template: navigation, fetch,
 	// fetchNoStore, fetchUpload, script, stylesheet, image or font.
 	// Empty inherits the client default; raw sends without a template.
 	Context string
