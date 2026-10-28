@@ -1,4 +1,4 @@
-"""Capture one native DNS lookup on a disposable hosted Windows 2025 runner."""
+"""Capture native DNS scenes on a disposable hosted Windows 2025 runner."""
 
 from __future__ import annotations
 
@@ -59,6 +59,26 @@ SCENARIOS = {
         SCENARIO,
         name="native-dns-address-order",
         question="Which address is returned and selected from two healthy owned origins?",
+    ),
+    "ttl": replace(
+        SCENARIO,
+        name="native-dns-ttl",
+        question="Which native lookups and cache updates occur across a TTL5 answer?",
+        script=(
+            "(async () => { const read = async i => {"
+            "const r = await fetch(T + '/close?i=' + i, "
+            "{mode: 'cors', cache: 'no-store'});"
+            "if (!r.ok) throw new Error('target status mismatch');"
+            "const text = await r.text();"
+            "if (text !== 'ok\\n') throw new Error('target body mismatch'); };"
+            "await read(0); const start = performance.now();"
+            "for (const [i, at] of [[1, 2000], [2, 8000], [3, 10000]]) {"
+            "await new Promise(resolve => setTimeout(resolve, "
+            "Math.max(0, at - (performance.now() - start))));"
+            "await read(i); }"
+            f"await {firefox.DONE}; "
+            "})();"
+        ),
     ),
 }
 
@@ -293,6 +313,8 @@ def validate_result(
         recovery = validate_recovery(records, min(ready) * 1_000_000)
     elif scenario == "address-order":
         recovery = validate_address_order(result, records, min(ready) * 1_000_000)
+    elif scenario == "ttl":
+        recovery = {"ttl": validate_ttl(result, records, min(ready) * 1_000_000)}
     else:
         recovery = {}
     answered = [
@@ -315,11 +337,11 @@ def validate_result(
     }
 
 
-def address_answer(wire: bytes, answer: bytes) -> list[str]:
-    """Read the fixed scene's two A records independently of the DNS producer."""
+def address_answer(wire: bytes, answer: bytes, *, count: int = 2) -> list[str]:
+    """Read the scene's TTL5 A records independently of the DNS producer."""
     parsed = question(wire)
     if len(answer) < 12:
-        raise ValueError("two-A response has a short header")
+        raise ValueError("A response has a short header")
     fields = struct.unpack("!6H", answer[:12])
     if (
         fields
@@ -327,21 +349,21 @@ def address_answer(wire: bytes, answer: bytes) -> list[str]:
             int.from_bytes(wire[:2], "big"),
             0x8400 | (int.from_bytes(wire[2:4], "big") & 0x0100),
             1,
-            2,
+            count,
             0,
             int(parsed.edns_size is not None),
         )
         or answer[12 : parsed.end] != wire[12 : parsed.end]
     ):
-        raise ValueError("two-A response header or echoed question differs")
+        raise ValueError("A response header or echoed question differs")
     addresses = []
     offset = parsed.end
-    for _ in range(2):
+    for _ in range(count):
         record = answer[offset : offset + 16]
         if len(record) != 16 or record[:12] != bytes.fromhex(
             "c00c00010001000000050004"
         ):
-            raise ValueError("two-A response requires two IN/A records with TTL5")
+            raise ValueError("A response requires IN/A records with TTL5")
         addresses.append(str(ipaddress.IPv4Address(record[12:])))
         offset += 16
     tail = (
@@ -350,8 +372,125 @@ def address_answer(wire: bytes, answer: bytes) -> list[str]:
         else b""
     )
     if answer[offset:] != tail:
-        raise ValueError("two-A response has unexpected trailing bytes")
+        raise ValueError("A response has unexpected trailing bytes")
     return addresses
+
+
+def validate_ttl(
+    result: firefox.RunResult, records: list[dict], attached_ns: int
+) -> dict:
+    answered = []
+    for entry in records:
+        if entry.get("name") != firefox.TARGET_HOST or entry.get("kind") != 1:
+            continue
+        try:
+            wire = bytes.fromhex(entry["query_hex"])
+            parsed = question(wire)
+            addresses = address_answer(
+                wire, bytes.fromhex(entry["response_hex"]), count=1
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                "TTL scene has an invalid A query or TTL5 answer"
+            ) from error
+        if (
+            parsed.name != firefox.TARGET_HOST
+            or parsed.kind != 1
+            or type(entry.get("kind")) is not int
+            or addresses != ["127.0.0.1"]
+            or entry.get("transport") != "udp"
+            or entry.get("error", "missing") is not None
+            or type(entry.get("unix_ns")) is not int
+            or entry["unix_ns"] < attached_ns
+            or type(entry.get("response_queued_ns")) is not int
+            or entry["response_queued_ns"] < entry["unix_ns"]
+        ):
+            raise RuntimeError("TTL scene requires queued post-hook loopback A answers")
+        answered.append(entry)
+    if not answered:
+        raise RuntimeError("TTL scene has no queued TTL5 A answer")
+
+    requests = []
+    connections = []
+    if sum(len(item.requests) for item in result.origins.connections) != 4:
+        raise RuntimeError("TTL scene requires exactly four measured requests")
+    for index in range(4):
+        matching = [
+            (connection, stamp)
+            for connection in result.origins.connections
+            for stamp, path in connection.requests
+            if path == f"/close?i={index}"
+        ]
+        if len(matching) != 1:
+            raise RuntimeError(
+                "TTL scene requires each of its four requests exactly once"
+            )
+        connection, stamp = matching[0]
+        if (
+            type(stamp) is not int
+            or stamp * 1_000_000 < attached_ns
+            or type(connection.last_response_ms) is not int
+            or connection.last_response_ms < stamp
+            or connection.close_kind != "server"
+            or any(connection is previous for previous in connections)
+        ):
+            raise RuntimeError("TTL scene requires four separate completed connections")
+        requests.append(stamp)
+        connections.append(connection)
+    first_response = connections[0].last_response_ms
+    relative = [stamp - first_response for stamp in requests[1:]]
+    if any(
+        connections[index].last_response_ms >= requests[index + 1] for index in range(3)
+    ):
+        raise RuntimeError("TTL scene response reads overlapped")
+    first_answer = min(entry["response_queued_ns"] for entry in answered)
+    expires = first_answer + 5_000_000_000
+    if not (
+        first_answer <= requests[0] * 1_000_000
+        and requests[1] * 1_000_000 < expires < requests[2] * 1_000_000
+    ):
+        raise RuntimeError("TTL scene requests do not straddle the initial TTL5 answer")
+
+    events = firefox.decode_events(result.reports, attached_ns // 1_000_000)
+    lookups = [
+        event
+        for event in events
+        if event["kind"] == "resolve-hints" and event["host"] == firefox.TARGET_HOST
+    ]
+    cache_lines = [
+        line
+        for line in result.moz_log_text.splitlines()
+        if f"host [{firefox.TARGET_HOST}]" in line
+        or f"TTL for {firefox.TARGET_HOST} " in line
+    ]
+    published = any(
+        f"Caching host [{firefox.TARGET_HOST}] record for 5 seconds " in line
+        for line in cache_lines
+    )
+    later_answers = sum(entry["unix_ns"] > expires for entry in answered)
+    later_lookups = sum(
+        attached_ns + event["t"] * 1_000_000 > expires for event in lookups
+    )
+    return {
+        "observation": "recorded" if published and later_lookups else "limited",
+        "request_ms": requests,
+        "response_sent_ms": [item.last_response_ms for item in connections],
+        "requests_after_first_response_ms": relative,
+        "initial_answer_queued_ns": first_answer,
+        "initial_answer_expiry_ns": expires,
+        "native_ttl5_publication_observed": published,
+        "post_expiry_a_queries": later_answers,
+        "post_expiry_native_lookups": later_lookups,
+        "native_lookups": lookups,
+        "native_ttl_returns": [
+            event
+            for event in events
+            if event["kind"] == "dnsquery-return"
+            and event["host"] == firefox.TARGET_HOST
+            and event["query_type"] == "A"
+        ],
+        "browser_cache_log": cache_lines,
+    }
 
 
 def validate_address_order(
@@ -773,7 +912,12 @@ def main(argv: list[str] | None = None) -> None:
         "platform": platform.platform(),
         "runner": "windows-2025",
         "scenario": arguments.scenario,
-        "scope": "native A resolution and complete HTTP body; not DNS cache/TTL policy",
+        "scope": (
+            "configured native TTL5 publication and lookups across expiry; "
+            "not untouched defaults or network changes"
+            if arguments.scenario == "ttl"
+            else "native A resolution and complete HTTP body; not DNS cache/TTL policy"
+        ),
         "interventions": {
             "exact_name_nrpt": firefox.TARGET_HOST,
             "network.trr.mode": 5,

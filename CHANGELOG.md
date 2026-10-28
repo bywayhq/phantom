@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a hosted Windows native-DNS scene for short-TTL cache observations.
 - Add a hosted Windows native-DNS scene for multi-address selection.
 - Add no-store fetch contexts to Chrome 156 desktop profiles on Windows,
   Linux and macOS.

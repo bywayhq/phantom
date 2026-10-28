@@ -138,6 +138,160 @@ def address_order_result() -> tuple[SimpleNamespace, list[dict]]:
     return observed, [entry]
 
 
+def ttl_result() -> tuple[SimpleNamespace, list[dict]]:
+    observed = result()
+    observed.reports[0].update(rewrite_host=None, rewrite_to=None)
+    observed.origins.connections = [
+        SimpleNamespace(
+            requests=[(stamp, f"/close?i={index}")],
+            last_response_ms=stamp + 1,
+            close_kind="server",
+        )
+        for index, stamp in enumerate((1002, 3003, 9003, 11003))
+    ]
+    observed.reports.extend(
+        {
+            "kind": "resolve-hints",
+            "time_ms": stamp,
+            "function": "getaddrinfo",
+            "host": capture.firefox.TARGET_HOST,
+            "flags": 0,
+            "family": 0,
+            "socktype": 1,
+            "protocol": 6,
+        }
+        for stamp in (1001, 9001)
+    )
+    observed.moz_log_text = (
+        f"Caching host [{capture.firefox.TARGET_HOST}] record for 5 seconds (grace 600).\n"
+        "Caching host [other.test] record for 500 seconds (grace 600).\n"
+    )
+    first = two_server_records()[1]
+    first.pop("server")
+    first.pop("role")
+    second = {**first, "unix_ns": 9_001_000_000, "response_queued_ns": 9_002_000_000}
+    return observed, [first, second]
+
+
+class TtlAcceptanceTests(unittest.TestCase):
+    def test_single_a_decoder_accepts_the_peers_empty_edns_record(self) -> None:
+        _, records = ttl_result()
+        query = bytes.fromhex(records[0]["query_hex"])
+        reply = bytes.fromhex(records[0]["response_hex"])
+        opt = bytes.fromhex("0000291000000000000000")
+        query = query[:10] + b"\x00\x01" + query[12:] + opt
+        reply = reply[:10] + b"\x00\x01" + reply[12:] + opt
+        self.assertEqual(capture.address_answer(query, reply, count=1), ["127.0.0.1"])
+
+    def test_completed_connections_straddle_the_wire_ttl_and_retain_native_events(
+        self,
+    ) -> None:
+        observed, records = ttl_result()
+        summary = capture.validate_result(observed, records, scenario="ttl")["ttl"]
+        self.assertEqual(summary["observation"], "recorded")
+        self.assertEqual(
+            summary["requests_after_first_response_ms"], [2000, 8000, 10000]
+        )
+        self.assertEqual(summary["initial_answer_expiry_ns"], 6_002_000_000)
+        self.assertEqual(summary["post_expiry_a_queries"], 1)
+        self.assertEqual(summary["post_expiry_native_lookups"], 1)
+        self.assertTrue(summary["native_ttl5_publication_observed"])
+        self.assertEqual(len(summary["native_lookups"]), 2)
+        self.assertNotIn("other.test", "".join(summary["browser_cache_log"]))
+
+    def test_absent_refresh_or_publication_is_a_limited_observation(self) -> None:
+        for missing in ("refresh", "publication"):
+            observed, records = ttl_result()
+            if missing == "refresh":
+                records.pop()
+                observed.reports.pop()
+            else:
+                observed.moz_log_text = (
+                    "Caching host [other.test] record for 5 seconds."
+                )
+            with self.subTest(missing=missing):
+                summary = capture.validate_result(observed, records, scenario="ttl")[
+                    "ttl"
+                ]
+                self.assertEqual(summary["observation"], "limited")
+
+    def test_missing_repeated_or_reused_connections_never_complete_the_scene(
+        self,
+    ) -> None:
+        for case in (
+            "missing",
+            "duplicate",
+            "reuse",
+            "unfinished response",
+            "not done",
+            "pre-hook",
+        ):
+            observed, records = ttl_result()
+            connections = observed.origins.connections
+            if case == "missing":
+                connections.pop()
+            elif case == "duplicate":
+                connections[3].requests = [(11003, "/close?i=2")]
+            elif case == "reuse":
+                connections[0].requests.extend(connections[1].requests)
+                connections.pop(1)
+            elif case == "unfinished response":
+                connections[2].last_response_ms = None
+            elif case == "not done":
+                observed.origins.done.clear()
+            else:
+                connections[0].requests = [(999, "/close?i=0")]
+            with self.subTest(case=case), self.assertRaises(RuntimeError):
+                capture.validate_result(observed, records, scenario="ttl")
+
+    def test_jitter_is_recorded_when_reads_still_straddle_expiry(self) -> None:
+        observed, records = ttl_result()
+        for index, stamp in enumerate((1002, 4003, 10003, 14003)):
+            observed.origins.connections[index].requests = [
+                (stamp, f"/close?i={index}")
+            ]
+            observed.origins.connections[index].last_response_ms = stamp + 1
+        summary = capture.validate_result(observed, records, scenario="ttl")["ttl"]
+        self.assertEqual(
+            summary["requests_after_first_response_ms"], [3000, 9000, 13000]
+        )
+
+    def test_unstraddled_or_overlapping_reads_do_not_establish_the_window(
+        self,
+    ) -> None:
+        for case in ("expired before second read", "overlap", "reply after request"):
+            observed, records = ttl_result()
+            if case == "expired before second read":
+                observed.origins.connections[1].requests = [(6003, "/close?i=1")]
+                observed.origins.connections[1].last_response_ms = 6004
+            elif case == "overlap":
+                observed.origins.connections[1].last_response_ms = 9003
+            else:
+                records[0]["response_queued_ns"] = 1_003_000_000
+            with self.subTest(case=case), self.assertRaises(RuntimeError):
+                capture.validate_result(observed, records, scenario="ttl")
+
+    def test_wrong_ttl_address_or_unsent_answer_never_establishes_expiry(self) -> None:
+        for case in ("TTL60", "other address", "not queued", "pre-hook", "truncated"):
+            observed, records = ttl_result()
+            if case == "TTL60":
+                records[0]["response_hex"] = records[0]["response_hex"].replace(
+                    "000000050004", "0000003c0004"
+                )
+            elif case == "other address":
+                records[0]["response_hex"] = (
+                    records[0]["response_hex"][:-8] + "7f000002"
+                )
+            elif case == "not queued":
+                records[0].pop("response_queued_ns")
+            elif case == "pre-hook":
+                records[0]["unix_ns"] = 999_000_000
+            else:
+                records[0]["response_hex"] = records[0]["response_hex"][:-2]
+            with self.subTest(case=case), self.assertRaises(RuntimeError):
+                capture.validate_result(observed, records, scenario="ttl")
+
+
 class AddressOrderAcceptanceTests(unittest.TestCase):
     def test_two_a_decoder_keeps_edns_and_rejects_truncated_or_trailing_records(
         self,
@@ -233,6 +387,7 @@ class AcceptanceTests(unittest.TestCase):
             (["--scenario", "drop-first-udp-a"], "drop-first-udp-a"),
             (["--scenario", "two-server"], "two-server"),
             (["--scenario", "address-order"], "address-order"),
+            (["--scenario", "ttl"], "ttl"),
         ):
 
             def stage(record: dict) -> Path:
@@ -950,10 +1105,14 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 peer.close.assert_awaited_once()
 
     async def test_scene_selects_drop_once_and_preserves_browser_cleanup(self) -> None:
-        for scene in ("initial", "drop-first-udp-a"):
+        for scene in ("initial", "drop-first-udp-a", "ttl"):
             records = (
                 [dropped(), answer()] if scene == "drop-first-udp-a" else [answer()]
             )
+            observed = result()
+            observed.moz_log_text = ""
+            if scene == "ttl":
+                observed, records = ttl_result()
             peer = SimpleNamespace(
                 start=AsyncMock(),
                 close=AsyncMock(),
@@ -962,8 +1121,6 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 failures=[],
                 records=lambda records=records: records,
             )
-            observed = result()
-            observed.moz_log_text = ""
             record = {}
             with (
                 self.subTest(scene=scene),
@@ -997,7 +1154,10 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 )
                 peer.close.assert_awaited_once()
                 self.assertEqual(record["cleanup_errors"], [])
-                self.assertEqual(record["positive"]["post_attach_a_responses"], 1)
+                self.assertEqual(
+                    record["positive"]["post_attach_a_responses"],
+                    2 if scene == "ttl" else 1,
+                )
 
     def two_peers(self) -> list[SimpleNamespace]:
         rows = two_server_records()
