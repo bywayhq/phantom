@@ -399,7 +399,7 @@ impl RequestBuilder {
         }
     }
 
-    /// Selects this request's context from the client's catalog recipe.
+    /// Selects this request's context from the client's profile.
     ///
     /// Replaces the default template for this request, without changing other
     /// requests, connections or session state. Templates are prepared on first
@@ -409,10 +409,9 @@ impl RequestBuilder {
     /// # Errors
     ///
     /// Returns [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// before I/O when the profile has no catalog association, the context is
-    /// unavailable, or its template is invalid. Required caller fields such as
-    /// `Referer` are checked by [`Self::send`]. Imported JSON profiles have no
-    /// catalog association; use [`Self::template`] for their custom contexts.
+    /// before I/O when the context is unavailable or its template is invalid.
+    /// The profile may use a catalog recipe or carry its own context templates.
+    /// Required caller fields such as `Referer` are checked by [`Self::send`].
     ///
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {

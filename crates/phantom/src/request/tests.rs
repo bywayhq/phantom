@@ -150,6 +150,105 @@ fn context_templates_are_lazy_shared_and_request_local() -> Result<(), Box<dyn s
 }
 
 #[test]
+fn owned_contexts_are_lazy_shared_and_respect_request_precedence()
+-> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::{
+        ClientProfile, RequestField, browser::chrome, catalog::RequestTemplateKind,
+    };
+
+    let navigation = chrome::v154_windows_navigation_template();
+    let mut fetch = chrome::v154_windows_fetch_template();
+    fetch
+        .http2_fields
+        .push(RequestField::literal("x-context", "owned-fetch"));
+    let mut invalid = fetch.clone();
+    invalid
+        .http2_fields
+        .push(RequestField::literal("Uppercase", "invalid"));
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_request_template(navigation.clone())
+        .with_request_contexts([
+            (RequestTemplateKind::Navigation, navigation.clone()),
+            (RequestTemplateKind::Fetch, fetch.clone()),
+            (RequestTemplateKind::Script, invalid),
+        ]);
+    let client = crate::Client::builder(profile).build()?;
+    let first = client
+        .get("https://example.test/")?
+        .context(RequestTemplateKind::Fetch)?;
+    let prepared = first
+        .request
+        .template
+        .as_ref()
+        .ok_or("owned fetch missing")?;
+    assert_eq!(
+        prepared.fields_for(HttpProtocol::Http2),
+        Some(fetch.http2_fields.as_slice())
+    );
+    for sibling in [client.clone(), client.fork(crate::SessionSharing::none())] {
+        let request = sibling
+            .get("https://example.test/")?
+            .context(RequestTemplateKind::Fetch)?;
+        let shared = request
+            .request
+            .template
+            .as_ref()
+            .ok_or("shared fetch missing")?;
+        assert!(std::ptr::eq(
+            prepared
+                .fields_for(HttpProtocol::Http2)
+                .ok_or("H2 missing")?,
+            shared
+                .fields_for(HttpProtocol::Http2)
+                .ok_or("shared H2 missing")?,
+        ));
+    }
+
+    let explicit = crate::PreparedRequestTemplate::new(navigation.clone())?;
+    let replaced = first.template(&explicit);
+    assert_eq!(
+        replaced
+            .request
+            .template
+            .as_ref()
+            .and_then(|t| t.fields_for(HttpProtocol::Http2)),
+        Some(navigation.http2_fields.as_slice())
+    );
+    let restored = replaced
+        .without_template()
+        .context(RequestTemplateKind::Fetch)?;
+    assert_eq!(
+        restored
+            .request
+            .template
+            .as_ref()
+            .and_then(|t| t.fields_for(HttpProtocol::Http2)),
+        Some(fetch.http2_fields.as_slice())
+    );
+    assert!(restored.without_template().request.template.is_none());
+    let inherited = client.get("https://example.test/")?;
+    assert_eq!(
+        inherited
+            .request
+            .template
+            .as_ref()
+            .and_then(|t| t.fields_for(HttpProtocol::Http2)),
+        Some(navigation.http2_fields.as_slice())
+    );
+
+    for kind in [RequestTemplateKind::Script, RequestTemplateKind::Font] {
+        let error = client
+            .get("https://example.test/")?
+            .context(kind)
+            .err()
+            .ok_or("invalid or missing context accepted")?;
+        assert_eq!(error.kind(), crate::RequestErrorKind::RequestTemplate);
+    }
+    Ok(())
+}
+
+#[test]
 fn missing_contexts_fail_for_catalog_and_custom_profiles() -> Result<(), Box<dyn std::error::Error>>
 {
     use phantom_profile::{ClientProfile, browser::chrome, catalog::RequestTemplateKind};

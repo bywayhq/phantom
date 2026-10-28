@@ -1,10 +1,24 @@
 //! Protocol settings grouped for client construction.
 
+use std::sync::Arc;
+
 use crate::{
     ClientHintSettings, CookiePlacement, DnsCacheSettings, Http1Settings, Http2Settings,
     Http3RequestSettings, Http3Settings, ProxyConnectTemplate, RequestTemplate, TcpSettings,
-    TlsSettings, UdpSettings, WebSocketSettings, quic::QuicTransportSettings,
+    TlsSettings, UdpSettings, WebSocketSettings, catalog::RequestTemplateKind,
+    quic::QuicTransportSettings,
 };
+
+const REQUEST_CONTEXT_KINDS: [RequestTemplateKind; 8] = [
+    RequestTemplateKind::Navigation,
+    RequestTemplateKind::FetchNoStore,
+    RequestTemplateKind::Fetch,
+    RequestTemplateKind::FetchUpload,
+    RequestTemplateKind::Script,
+    RequestTemplateKind::Stylesheet,
+    RequestTemplateKind::Image,
+    RequestTemplateKind::Font,
+];
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -60,7 +74,8 @@ impl Http3ClientSettings {
 /// Protocol settings selected for one client wire profile.
 ///
 /// Equality compares wire settings, including the default request template.
-/// It does not compare the catalog association used for request contexts.
+/// It does not compare the catalog or owned templates used by explicit request
+/// context selection.
 #[derive(Clone, Debug)]
 pub struct ClientProfile {
     tcp: Option<TcpSettings>,
@@ -75,7 +90,26 @@ pub struct ClientProfile {
     proxy_connect: Option<ProxyConnectTemplate>,
     cookie_placement: CookiePlacement,
     request_template: Option<RequestTemplate>,
-    request_context_profile: Option<crate::catalog::ProfileId>,
+    request_contexts: Option<RequestContexts>,
+}
+
+#[derive(Clone, Debug)]
+enum RequestContexts {
+    Catalog(crate::catalog::ProfileId),
+    Owned(Box<[Option<Arc<RequestTemplate>>; 8]>),
+}
+
+fn context_index(kind: RequestTemplateKind) -> usize {
+    match kind {
+        RequestTemplateKind::Navigation => 0,
+        RequestTemplateKind::FetchNoStore => 1,
+        RequestTemplateKind::Fetch => 2,
+        RequestTemplateKind::FetchUpload => 3,
+        RequestTemplateKind::Script => 4,
+        RequestTemplateKind::Stylesheet => 5,
+        RequestTemplateKind::Image => 6,
+        RequestTemplateKind::Font => 7,
+    }
 }
 
 impl ClientProfile {
@@ -95,7 +129,7 @@ impl ClientProfile {
             proxy_connect: None,
             cookie_placement: CookiePlacement::last(),
             request_template: None,
-            request_context_profile: None,
+            request_contexts: None,
         }
     }
 
@@ -204,21 +238,74 @@ impl ClientProfile {
         self
     }
 
+    /// Replaces the available request contexts with owned templates.
+    ///
+    /// This removes any catalog association. Missing contexts stay unavailable,
+    /// and an empty input removes all context choices. Repeated kinds keep the
+    /// last template. The default request template is unchanged.
+    /// Templates are validated when a client first selects their context.
+    ///
+    /// ```
+    /// use phantom_profile::{ClientProfile, browser::chrome, catalog::RequestTemplateKind};
+    ///
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_request_contexts([
+    ///     (RequestTemplateKind::Fetch, chrome::v154_windows_fetch_template()),
+    /// ]);
+    /// assert_eq!(profile.request_contexts().count(), 1);
+    /// ```
+    #[must_use]
+    pub fn with_request_contexts(
+        mut self,
+        contexts: impl IntoIterator<Item = (RequestTemplateKind, RequestTemplate)>,
+    ) -> Self {
+        let mut templates = Box::new(std::array::from_fn(|_| None));
+        for (kind, template) in contexts {
+            templates[context_index(kind)] = Some(Arc::new(template));
+        }
+        self.request_contexts = Some(RequestContexts::Owned(templates));
+        self
+    }
+
+    /// Returns owned request contexts in request-kind order.
+    ///
+    /// Each item shares its template without copying fields. Catalog-backed
+    /// profiles return no items; use [`Self::request_context_profile`] to find
+    /// their definition. Cloning or changing protocol settings retains contexts.
+    pub fn request_contexts(
+        &self,
+    ) -> impl Iterator<Item = (RequestTemplateKind, Arc<RequestTemplate>)> + '_ {
+        let templates = match &self.request_contexts {
+            Some(RequestContexts::Owned(templates)) => Some(templates.as_ref()),
+            _ => None,
+        };
+        REQUEST_CONTEXT_KINDS
+            .into_iter()
+            .zip(templates.into_iter().flatten())
+            .filter_map(|(kind, template)| {
+                template
+                    .as_ref()
+                    .map(|template| (kind, Arc::clone(template)))
+            })
+    }
+
     /// Returns the catalog recipe used for per-request context selection.
     ///
-    /// This association survives settings overrides and cloning. Custom profiles
-    /// constructed with [`Self::new`] or imported from JSON have no association.
-    /// It is not a claim that customized settings still match that recipe.
+    /// This association survives settings overrides and cloning. Owned request
+    /// contexts replace it. It is not a claim that customized settings still
+    /// match that recipe.
     #[must_use]
     pub const fn request_context_profile(&self) -> Option<crate::catalog::ProfileId> {
-        self.request_context_profile
+        match &self.request_contexts {
+            Some(RequestContexts::Catalog(profile)) => Some(*profile),
+            _ => None,
+        }
     }
 
     pub(crate) fn with_request_context_profile(
         mut self,
         profile: crate::catalog::ProfileId,
     ) -> Self {
-        self.request_context_profile = Some(profile);
+        self.request_contexts = Some(RequestContexts::Catalog(profile));
         self
     }
 
@@ -357,9 +444,58 @@ mod tests {
         assert_eq!(customized.without_request_template(), selected);
 
         let mut without_association = composed.clone();
-        without_association.request_context_profile = None;
+        without_association.request_contexts = None;
         assert_eq!(without_association, composed);
         Ok(())
+    }
+
+    #[test]
+    fn owned_contexts_replace_catalog_choices_and_share_templates() {
+        use std::sync::Arc;
+
+        use crate::catalog::RequestTemplateKind;
+
+        let original = chrome::v154_windows();
+        let navigation = chrome::v154_windows_navigation_template();
+        let fetch = chrome::v154_windows_fetch_template();
+        let profile = original.clone().with_request_contexts([
+            (RequestTemplateKind::Fetch, navigation.clone()),
+            (RequestTemplateKind::Navigation, navigation.clone()),
+            (RequestTemplateKind::Fetch, fetch.clone()),
+        ]);
+        assert_eq!(profile.request_context_profile(), None);
+        assert_eq!(profile, original);
+        let contexts: Vec<_> = profile.request_contexts().collect();
+        assert_eq!(contexts.len(), 2);
+        assert_eq!(contexts[0].0, RequestTemplateKind::Navigation);
+        assert_eq!(contexts[0].1.as_ref(), &navigation);
+        assert_eq!(contexts[1].0, RequestTemplateKind::Fetch);
+        assert_eq!(contexts[1].1.as_ref(), &fetch);
+
+        let customized = profile
+            .clone()
+            .with_http2(chrome::v154_http2())
+            .with_request_template(navigation.clone());
+        for ((kind, template), (cloned_kind, cloned)) in profile
+            .request_contexts()
+            .zip(customized.request_contexts())
+        {
+            assert_eq!(kind, cloned_kind);
+            assert!(Arc::ptr_eq(&template, &cloned));
+        }
+        assert_eq!(customized.request_template(), Some(&navigation));
+        assert_eq!(
+            customized
+                .without_request_template()
+                .request_contexts()
+                .count(),
+            2
+        );
+
+        let empty = profile.with_request_contexts([]);
+        assert_eq!(empty.request_contexts().count(), 0);
+        assert_eq!(empty.request_context_profile(), None);
+        assert_eq!(empty, original);
     }
 
     #[test]

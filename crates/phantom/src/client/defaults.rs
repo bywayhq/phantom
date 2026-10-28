@@ -3,7 +3,8 @@ use std::sync::{Arc, OnceLock};
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
 use phantom_profile::{
-    ClientHintSettings, CookiePlacement, InvalidRequestTemplate, ProxyConnectTemplate,
+    ClientHintSettings, ClientProfile, CookiePlacement, InvalidRequestTemplate,
+    ProxyConnectTemplate, RequestTemplate,
     catalog::{self, CatalogError, ProfileId, RequestTemplateKind},
 };
 
@@ -33,22 +34,38 @@ pub(crate) struct RequestDefaults {
 /// Lazy templates shared by requests and forks of the same configured client.
 #[derive(Debug)]
 pub(super) struct RequestContexts {
-    profile: ProfileId,
+    source: ContextSource,
     templates: [OnceLock<Result<PreparedRequestTemplate, ContextError>>; 8],
+}
+
+#[derive(Debug)]
+enum ContextSource {
+    Catalog(ProfileId),
+    Owned(Box<[(RequestTemplateKind, Arc<RequestTemplate>)]>),
 }
 
 #[derive(Clone, Debug)]
 enum ContextError {
+    Unavailable,
     Catalog(CatalogError),
     Template(InvalidRequestTemplate),
 }
 
 impl RequestContexts {
-    pub(super) fn new(profile: ProfileId) -> Self {
-        Self {
-            profile,
+    pub(super) fn from_profile(profile: &ClientProfile) -> Option<Self> {
+        let source = if let Some(id) = profile.request_context_profile() {
+            ContextSource::Catalog(id)
+        } else {
+            let templates: Vec<_> = profile.request_contexts().collect();
+            if templates.is_empty() {
+                return None;
+            }
+            ContextSource::Owned(templates.into_boxed_slice())
+        };
+        Some(Self {
+            source,
             templates: std::array::from_fn(|_| OnceLock::new()),
-        }
+        })
     }
 
     fn template(
@@ -67,14 +84,23 @@ impl RequestContexts {
             _ => return Err(crate::RequestError::request_context_unavailable()),
         };
         match self.templates[index].get_or_init(|| {
-            let definition =
-                catalog::profile(self.profile.as_str()).map_err(ContextError::Catalog)?;
-            let template = definition
-                .request_template(kind)
-                .map_err(ContextError::Catalog)?;
+            let template = match &self.source {
+                ContextSource::Catalog(profile) => catalog::profile(profile.as_str())
+                    .map_err(ContextError::Catalog)?
+                    .request_template(kind)
+                    .map_err(ContextError::Catalog)?,
+                ContextSource::Owned(templates) => templates
+                    .iter()
+                    .find(|(context, _)| *context == kind)
+                    .map(|(_, template)| template.as_ref().clone())
+                    .ok_or(ContextError::Unavailable)?,
+            };
             PreparedRequestTemplate::new(template).map_err(ContextError::Template)
         }) {
             Ok(template) => Ok(template.clone()),
+            Err(ContextError::Unavailable) => {
+                Err(crate::RequestError::request_context_unavailable())
+            }
             Err(ContextError::Catalog(error)) => Err(crate::RequestError::request_context(*error)),
             Err(ContextError::Template(error)) => {
                 Err(crate::RequestError::request_context(error.clone()))

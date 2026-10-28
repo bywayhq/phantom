@@ -2309,11 +2309,7 @@ impl ClientBuilder {
                 request_hooks: self.request_hooks,
                 client_hints,
                 request_template,
-                request_contexts: self
-                    .profile
-                    .request_context_profile()
-                    .map(RequestContexts::new)
-                    .map(Arc::new),
+                request_contexts: RequestContexts::from_profile(&self.profile).map(Arc::new),
                 cookie_placement: self.profile.cookie_placement().clone(),
                 route: self.route,
                 environment_proxies: self.environment_proxies,

@@ -1,4 +1,4 @@
-//! Per-request catalog contexts on one shared connection.
+//! Per-request catalog and owned contexts on one shared connection.
 
 use std::{
     collections::BTreeMap,
@@ -11,6 +11,7 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestErrorKind, RequestHeader,
     profile::{
+        ClientProfile,
         browser::chrome,
         catalog::{self, RequestTemplateKind},
     },
@@ -24,6 +25,27 @@ use super::{
 
 #[tokio::test]
 async fn concurrent_navigation_fetch_and_raw_requests_share_one_connection() -> TestResult<()> {
+    let profile = catalog::profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
+    mixed_contexts_share_one_connection(profile).await
+}
+
+#[tokio::test]
+async fn owned_navigation_fetch_and_raw_requests_share_one_connection() -> TestResult<()> {
+    let navigation = chrome::v154_windows_navigation_template();
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_request_template(navigation.clone())
+        .with_request_contexts([
+            (RequestTemplateKind::Navigation, navigation),
+            (
+                RequestTemplateKind::Fetch,
+                chrome::v154_windows_fetch_template(),
+            ),
+        ]);
+    mixed_contexts_share_one_connection(profile).await
+}
+
+async fn mixed_contexts_share_one_connection(profile: ClientProfile) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("https://{}", listener.local_addr()?);
@@ -51,7 +73,6 @@ async fn concurrent_navigation_fetch_and_raw_requests_share_one_connection() -> 
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
     });
     let operation: TestResult<Client> = match timeout(TEST_TIMEOUT, async {
-        let profile = catalog::profile_for("chrome-154-windows", RequestTemplateKind::Navigation)?;
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
@@ -139,13 +160,33 @@ async fn concurrent_navigation_fetch_and_raw_requests_share_one_connection() -> 
 #[tokio::test]
 async fn unavailable_contexts_open_no_connection() -> TestResult<()> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-    let client = Client::builder(chrome::v154_windows()).build()?;
-    let error = client
-        .get(&format!("https://{}/", listener.local_addr()?))?
-        .context(RequestTemplateKind::Font)
-        .err()
-        .ok_or("unavailable context accepted")?;
-    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    let mut invalid = chrome::v154_windows_fetch_template();
+    invalid
+        .http2_fields
+        .push(phantom::profile::RequestField::literal(
+            "Uppercase",
+            "invalid",
+        ));
+    let owned = ClientProfile::new(chrome::v154_tcp_tls()).with_request_contexts([
+        (
+            RequestTemplateKind::Fetch,
+            chrome::v154_windows_fetch_template(),
+        ),
+        (RequestTemplateKind::Script, invalid),
+    ]);
+    for (profile, kind) in [
+        (chrome::v154_windows(), RequestTemplateKind::Font),
+        (owned.clone(), RequestTemplateKind::Navigation),
+        (owned, RequestTemplateKind::Script),
+    ] {
+        let client = Client::builder(profile).build()?;
+        let error = client
+            .get(&format!("https://{}/", listener.local_addr()?))?
+            .context(kind)
+            .err()
+            .ok_or("unavailable or invalid context accepted")?;
+        assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    }
     assert!(
         timeout(std::time::Duration::from_millis(100), listener.accept())
             .await
