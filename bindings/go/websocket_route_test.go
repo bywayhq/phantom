@@ -98,8 +98,11 @@ func readWebSocketRoute(ctx context.Context, client *Client, url string, options
 	}
 	defer socket.Abort()
 	message, data, err := socket.Read(ctx)
-	if err != nil || message != TextMessage || string(data) != "route" {
-		return fmt.Errorf("routed socket frame: %d %q: %w", message, data, err)
+	if err != nil {
+		return fmt.Errorf("read routed socket frame: %w", err)
+	}
+	if message != TextMessage || string(data) != "route" {
+		return fmt.Errorf("unexpected routed socket frame: %d %q", message, data)
 	}
 	return nil
 }
