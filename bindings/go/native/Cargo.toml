@@ -16,7 +16,7 @@ futures-util = { version = "=0.3.34", default-features = false, features = ["sin
 http = "1.4.0"
 http-body = "1.1.0"
 http-body-util = "0.1.3"
-phantom = { package = "phantom-http", path = "../../../crates/phantom", features = ["cookies", "fingerprint-import", "session-snapshot", "sse", "websocket-deflate"] }
+phantom = { package = "phantom-http", path = "../../../crates/phantom", features = ["cookies", "fingerprint-import", "https-records", "session-snapshot", "sse", "websocket-deflate"] }
 phantom-profile = { path = "../../../crates/phantom-profile" }
 serde.workspace = true
 serde_json = "1.0.151"
