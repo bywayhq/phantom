@@ -15,6 +15,7 @@ on:
           - address-order
           - ttl
           - native-https-ech
+          - network-change-preflight
 
 permissions:
   contents: read
@@ -24,7 +25,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  network-change-preflight:
+    if: inputs.scenario == 'network-change-preflight'
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - name: Inspect available network test devices and tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'network-change-preflight'
+          New-Item -ItemType Directory -Path $output | Out-Null
+          $driver = Join-Path $env:windir 'INF/netloop.inf'
+          $kitTools = 'C:/Program Files (x86)/Windows Kits/10/Tools'
+          $devcon = @(Get-Command devcon.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)
+          if (Test-Path -LiteralPath $kitTools) {
+            $devcon += @(Get-ChildItem -LiteralPath $kitTools -Filter devcon.exe -File -Recurse |
+              Select-Object -ExpandProperty FullName)
+          }
+          [ordered]@{
+            source = '${{ github.sha }}'
+            os = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
+            elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+              [Security.Principal.WindowsBuiltInRole]::Administrator)
+            adapters = @(Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetAdapter |
+              Select-Object Name, InterfaceDescription, InterfaceIndex, InterfaceGuid, InterfaceType, InterfaceOperationalStatus)
+            interfaces = @(Get-NetIPInterface | Select-Object InterfaceIndex, AddressFamily, Dhcp, ConnectionState)
+            netloop_inf = if (Test-Path -LiteralPath $driver) { Get-FileHash -LiteralPath $driver -Algorithm SHA256 }
+              else { $null }
+            devcon_path_or_kit_tools = @($devcon | Sort-Object -Unique)
+          } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath "$output/inventory.json" -Encoding utf8
+          & pnputil.exe /? | Set-Content -LiteralPath "$output/pnputil-help.txt" -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { throw 'cannot inspect PnPUtil commands' }
+
+      - name: Retain read-only preflight
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: network-change-preflight-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/network-change-preflight/
+          if-no-files-found: error
+          retention-days: 14
+
   capture:
+    if: inputs.scenario != 'network-change-preflight'
     runs-on: windows-2025
     timeout-minutes: ${{ inputs.scenario == 'native-https-ech' && 45 || 15 }}
     steps:
