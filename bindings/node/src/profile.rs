@@ -269,8 +269,15 @@ mod tests {
                 .is_none()
         );
         assert!(catalog.for_client(Some("profile")).is_err());
-        assert!(catalog.for_client(Some("fetchUpload")).is_err());
+        assert_eq!(
+            catalog.for_client(Some("fetchUpload"))?.request_template(),
+            Some(&phantom_profile::browser::chrome::v154_windows_fetch_upload_template())
+        );
+        assert!(catalog.for_client(Some("unknown")).is_err());
         assert_eq!(catalog.export()?, before);
+
+        let macos = ProfileState::catalog("chrome/154.0.8037.95/macos-15.5-arm64/r1", None)?;
+        assert!(macos.for_client(Some("fetchUpload")).is_err());
 
         let attached = ProfileState::catalog(identifier, Some("navigation"))?;
         assert_eq!(
