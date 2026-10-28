@@ -32,7 +32,8 @@ platform substitution occurs. Choose
 HTTP/2 and HTTP/1.1 policy. The CLI does not enable HTTP/3 fallback or retries.
 
 Catalog requests have no request template unless you select `--context`.
-A custom profile file keeps its configured template.
+Profile files and bundle entries keep their configured default template.
+Use `--context` to select another named context they contain.
 Missing templates and unsupported protocol/route combinations return errors.
 
 Use `--method METHOD` to replace GET. Repeat `--header 'Name: value'` to preserve
@@ -100,8 +101,10 @@ phantom request https://example.com/ --bundle <sha256> --bundle-profile custom/c
 
 Install prints the bundle's lowercase SHA-256. Pin requests to that digest and
 an exact profile name. Installing another revision keeps older files; select an
-older digest to roll back. Requests read the selected local file. Each document
-contains its chosen template, so bundle entries reject `--context`.
+older digest to roll back. Requests read the selected local file. Version-2
+profile documents retain named contexts alongside their default template; select
+one with `--context navigation`, `fetch`, or another available context. Version-1
+profiles retain only their default template.
 
 The JSON envelope uses `format: "phantom.profile-bundle"`, `version: 1`, an `id`,
 a positive integer `revision`, and `profiles`. Each profile has `name`, `document`

@@ -46,25 +46,7 @@ fn route(arguments: &ArgMatches) -> Result<Route> {
 async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
     let mut profile = if let Some(id) = arguments.get_one::<String>("profile") {
         let definition = catalog::profile(id).map_err(CliError::operation)?;
-        let mut profile = definition.instantiate(&[]).map_err(CliError::operation)?;
-        if let Some(context) = arguments.get_one::<String>("context") {
-            let kind = match context.as_str() {
-                "navigation" => RequestTemplateKind::Navigation,
-                "fetch" => RequestTemplateKind::Fetch,
-                "fetch-no-store" => RequestTemplateKind::FetchNoStore,
-                "script" => RequestTemplateKind::Script,
-                "stylesheet" => RequestTemplateKind::Stylesheet,
-                "image" => RequestTemplateKind::Image,
-                "font" => RequestTemplateKind::Font,
-                _ => return Err(CliError::invalid("unsupported request context")),
-            };
-            profile = profile.with_request_template(
-                definition
-                    .request_template(kind)
-                    .map_err(CliError::operation)?,
-            );
-        }
-        profile
+        definition.instantiate(&[]).map_err(CliError::operation)?
     } else if arguments.get_one::<String>("bundle").is_some() {
         profiles::bundle::select(arguments).await?
     } else {
@@ -73,11 +55,8 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
             .ok_or_else(|| CliError::invalid("missing profile"))?;
         profiles::read_profile(file).await?
     };
-    // A custom document may already contain its caller-authored template.
-    // Catalog profiles above only select a template through --context.
-    if arguments.get_one::<String>("profile").is_some()
-        && arguments.get_one::<String>("context").is_none()
-    {
+    // Imported documents retain their authored default template.
+    if arguments.get_one::<String>("profile").is_some() {
         profile = profile.without_request_template();
     }
     let mut builder = Client::builder(profile).route(route(arguments)?);
@@ -98,6 +77,26 @@ async fn prepare(arguments: &ArgMatches) -> Result<(Client, RequestBuilder)> {
         _ => return Err(CliError::invalid("unsupported protocol")),
     }
     .map_err(CliError::operation)?;
+    if let Some(context) = arguments.get_one::<String>("context") {
+        let kind = match context.as_str() {
+            "navigation" => RequestTemplateKind::Navigation,
+            "fetch" => RequestTemplateKind::Fetch,
+            "fetch-no-store" => RequestTemplateKind::FetchNoStore,
+            "fetch-upload" => RequestTemplateKind::FetchUpload,
+            "script" => RequestTemplateKind::Script,
+            "stylesheet" => RequestTemplateKind::Stylesheet,
+            "image" => RequestTemplateKind::Image,
+            "font" => RequestTemplateKind::Font,
+            _ => return Err(CliError::invalid("unsupported request context")),
+        };
+        request =
+            request
+                .context(kind)
+                .map_err(|error| match std::error::Error::source(&error) {
+                    Some(cause) => CliError::operation(format!("{error}: {cause}")),
+                    None => CliError::operation(error),
+                })?;
+    }
     if let Some(headers) = arguments.get_many::<String>("header") {
         for header in headers {
             let (name, value) = header

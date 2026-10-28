@@ -61,18 +61,17 @@ pub(super) fn command() -> Command {
                 .arg(
                     Arg::new("context")
                         .long("context")
-                        .requires("profile")
-                        .conflicts_with_all(["profile-file", "bundle"])
                         .value_parser([
                             "navigation",
                             "fetch",
                             "fetch-no-store",
+                            "fetch-upload",
                             "script",
                             "stylesheet",
                             "image",
                             "font",
                         ])
-                        .help("Select this catalog request template; omitted means no template"),
+                        .help("Select a named request context from this profile"),
                 )
                 .arg(
                     Arg::new("method")
