@@ -241,7 +241,7 @@ export interface SessionSharing {
   discovery?: boolean;
   tickets?: boolean;
 }
-/** Ticket validation only; these routes do not change later request routing. */
+/** An explicit direct or proxy route, including proxy credentials. */
 export type SessionRoute = Readonly<{route: 'direct'}> | Readonly<{
   route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string; proxyUserId?: string;
 }>;
@@ -445,6 +445,8 @@ export class Response implements AsyncIterable<Buffer> {
 export interface WebSocketOptions {
   /** Default http1; profile uses the recipe's connection policy. */
   readonly protocol?: 'profile' | 'http1' | 'http2' | 'http3';
+  /** Omission inherits the client route; this changes only the opening. */
+  readonly route?: SessionRoute;
   /** Fills the Rust opening template; also inherits client headers. */
   readonly headers?: readonly Header[];
   /** Covers opening and the entire connection lifetime. */

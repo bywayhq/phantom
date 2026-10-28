@@ -49,6 +49,7 @@ async function websocket(): Promise<void> {
     maximumMessageFragments: 8, handshakeTimeoutMs: null,
     headers: [{name: 'Sec-WebSocket-Protocol', value: Buffer.from('chat')}],
     signal: new AbortController().signal,
+    route: {route: 'proxy', proxy: 'http://127.0.0.1:8080', proxyUsername: 'user', proxyPassword: 'password'},
   });
   await socket.send('text'); await socket.send(Buffer.from([0, 255]));
   await socket.ping(); await socket.pong(Buffer.from('x'));
@@ -62,6 +63,9 @@ async function websocket(): Promise<void> {
   await socket.send({data: 'invalid'});
   // @ts-expect-error Negotiation for WebSockets follows the profile policy.
   await client.websocket('wss://example.com', {protocol: 'negotiated'});
+  await client.websocket('wss://example.com', {route: {route: 'direct'}});
+  // @ts-expect-error A direct route cannot carry a proxy.
+  await client.websocket('wss://example.com', {route: {route: 'direct', proxy: 'http://127.0.0.1:8080'}});
   await client.close();
 }
 function rejectedWebSocket(error: unknown): void {

@@ -5,6 +5,8 @@ const {once} = require('node:events');
 const fs = require('node:fs');
 const http = require('node:http');
 const http2 = require('node:http2');
+const https = require('node:https');
+const net = require('node:net');
 const path = require('node:path');
 const {test: run} = require('node:test');
 const {Worker} = require('node:worker_threads');
@@ -64,6 +66,82 @@ test('WebSocket uses Rust opening fields, selected subprotocol and owned binary 
   assert.deepEqual(await socket.receive(), {type: 'binary', data: Buffer.from([0, 255, 1])});
   await socket.close(1000, 'done'); assert.deepEqual(await socket.receive(), {type: 'close', code: 1000, reason: 'done'});
   assert.equal(await socket.receive(), null);
+});
+
+test('WebSocket opening routes select direct and authenticated proxies without changing client defaults', async (t) => {
+  const openings = [];
+  const server = https.createServer({key: fixture('key.pem'), cert: fixture('certificate.pem')});
+  const websocket = new WebSocketServer({server, perMessageDeflate: false});
+  websocket.on('connection', (socket, request) => {
+    openings.push({path: request.url, authorization: request.headers['proxy-authorization']});
+    socket.on('error', () => {});
+    socket.send(request.url);
+  });
+  const target = await listen(t, server);
+  t.after(() => {for (const socket of websocket.clients) socket.terminate(); websocket.close();});
+
+  const proxy = async () => {
+    const connects = [], ordinary = [], upstreams = new Set();
+    const server = http.createServer((request, response) => {ordinary.push(request.url); response.writeHead(502).end();});
+    server.on('connect', (request, socket, head) => {
+      connects.push({authority: request.url, authorization: request.headers['proxy-authorization']});
+      if (request.url !== `127.0.0.1:${target}`) return socket.destroy();
+      const upstream = net.connect({host: '127.0.0.1', port: target}, () => {
+        socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        if (head.length !== 0) upstream.write(head);
+        socket.pipe(upstream); upstream.pipe(socket);
+      });
+      upstreams.add(upstream);
+      upstream.on('close', () => upstreams.delete(upstream));
+      upstream.on('error', () => socket.destroy());
+      socket.on('error', () => upstream.destroy());
+      socket.on('close', () => upstream.destroy());
+    });
+    const port = await listen(t, server);
+    t.after(() => {for (const upstream of upstreams) upstream.destroy();});
+    return {connects, ordinary, proxy: `http://127.0.0.1:${port}`};
+  };
+  const first = await proxy(), second = await proxy();
+  const credentials = {proxyUsername: 'user', proxyPassword: 'private'};
+  const inherited = new Client({profile, route: 'proxy', proxy: first.proxy, ...credentials, additionalRoots: [fixture('certificate.der')]});
+  const direct = new Client({profile, route: 'direct', additionalRoots: [fixture('certificate.der')]});
+  t.after(async () => {await Promise.all([inherited.destroy(), direct.destroy()]);});
+  const open = async (owner, path, route) => {
+    const socket = await owner.websocket(`wss://127.0.0.1:${target}/${path}`, {route, handshakeTimeoutMs: 5000});
+    try {
+      assert.equal(socket.handshake.protocol, 'http1');
+      assert.deepEqual(await socket.receive(), {type: 'text', data: `/${path}`});
+    } finally {socket.abort();}
+  };
+  await open(inherited, 'inherited');
+  assert.equal(first.connects.length, 1);
+  await open(inherited, 'direct', {route: 'direct'});
+  assert.equal(first.connects.length, 1);
+  await open(inherited, 'override', {route: 'proxy', proxy: second.proxy, ...credentials});
+  assert.equal(second.connects.length, 1);
+  await open(inherited, 'inherited-again');
+  assert.equal(first.connects.length, 2);
+  await open(direct, 'direct-default');
+  await open(direct, 'direct-to-proxy', {route: 'proxy', proxy: second.proxy, ...credentials});
+  assert.equal(second.connects.length, 2);
+  const authorization = `Basic ${Buffer.from('user:private').toString('base64')}`;
+  assert(first.connects.concat(second.connects).every((opening) => opening.authorization === authorization));
+  assert.deepEqual(first.ordinary.concat(second.ordinary), []);
+  assert.deepEqual(openings.map((opening) => opening.path), ['/inherited', '/direct', '/override', '/inherited-again', '/direct-default', '/direct-to-proxy']);
+  assert(openings.every((opening) => opening.authorization === undefined));
+
+  for (const route of [{route: 'proxy', proxy: 'ftp://private.invalid'},
+    {route: 'proxy', proxy: first.proxy, proxyUserId: 'private'},
+    {route: 'proxy', proxy: 'socks4://127.0.0.1:1080', ...credentials}]) {
+    await assert.rejects(direct.websocket(`wss://127.0.0.1:${target}/invalid`, {route}), (error) => {
+      assert.equal(error.code, 'InvalidProxy');
+      assert(!String(error).includes('private'));
+      return true;
+    });
+  }
+  assert.equal(openings.length, 6);
+  assert.equal(first.connects.length, 2);
+  assert.equal(second.connects.length, 2);
 });
 
 test('WebSocket assembles fragments, flushes automatic pong, and sends explicit controls', async (t) => {

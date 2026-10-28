@@ -10,6 +10,7 @@
 /** @typedef {{error: string, response: import('./response.cjs').NativeResponse}} NativeRejection */
 
 const { addAbortListener } = require('node:events');
+const { types } = require('node:util');
 
 const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { PhantomError, translated } = require('./errors.cjs');
@@ -17,6 +18,7 @@ const native = require('./native.cjs');
 const { mergeHeaders } = require('./request-preparation.cjs');
 const { requestFields } = require('./request-options.cjs');
 const { Response } = require('./response.cjs');
+const { receivingRoutes } = require('./session.cjs');
 const { integer } = require('./validation.cjs');
 
 const token = {};
@@ -200,7 +202,7 @@ async function openWebSocket(client, owner, input, options = {}, defaults = []) 
   };
 
   try {
-    if (options === null || typeof options !== 'object') throw new PhantomError('InvalidArgument', 'WebSocket options must be an object');
+    if (options === null || typeof options !== 'object' || types.isProxy(options)) throw new PhantomError('InvalidArgument', 'WebSocket options must be an object');
     if (typeof input !== 'string' && !(input instanceof URL)) throw new PhantomError('InvalidArgument', 'WebSocket URL must be a string or URL');
     const url = typeof input === 'string' ? input : input.href;
     if (Buffer.byteLength(url) > 65536) throw new PhantomError('InputLimit', 'WebSocket URL exceeds 65536 bytes');
@@ -211,6 +213,12 @@ async function openWebSocket(client, owner, input, options = {}, defaults = []) 
 
     /** @type {{-readonly [K in keyof WebSocketOptions]?: WebSocketOptions[K]}} */
     const settings = {};
+    const route = Object.getOwnPropertyDescriptor(options, 'route');
+    if (route !== undefined) {
+      if (!Object.hasOwn(route, 'value')) throw new PhantomError('InvalidArgument', 'WebSocket route must be a data field');
+      if (route.value !== undefined) settings.route = receivingRoutes({receivingRoutes: [route.value]})[0];
+    }
+
     for (const name of /** @type {const} */ (['maximumFrameBytes', 'maximumMessageBytes', 'maximumMessageFragments'])) {
       if (options[name] !== undefined) settings[name] = integer(options[name], name, 1, name === 'maximumMessageBytes' ? 64 * 1024 * 1024 : 0xffffffff);
     }

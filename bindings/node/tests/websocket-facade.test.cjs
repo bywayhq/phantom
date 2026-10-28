@@ -62,6 +62,45 @@ test('WebSocket message projection preserves strings, bytes and control events w
   await client.close();
 });
 
+test('WebSocket route overrides snapshot credentials and leave omission distinct from direct', async () => {
+  const {Client, calls} = facade();
+  const client = new Client({profile: 'exact', route: 'direct'});
+  const route = {route: 'proxy', proxy: 'http://127.0.0.1:8080', proxyUsername: 'user', proxyPassword: 'private'};
+  const pending = client.websocket('ws://example.test/', {route});
+  route.proxyPassword = 'changed';
+  const proxied = await pending;
+  assert.deepEqual({...calls[0].route}, {route: 'proxy', proxy: 'http://127.0.0.1:8080', proxyUsername: 'user', proxyPassword: 'private'});
+  proxied.abort();
+
+  const direct = await client.websocket('ws://example.test/', {route: {route: 'direct'}});
+  assert.deepEqual({...calls[1].route}, {route: 'direct'});
+  direct.abort();
+  const inherited = await client.websocket('ws://example.test/');
+  assert.equal(calls[2].route, undefined);
+  inherited.abort();
+  await client.close();
+});
+
+test('invalid or executable WebSocket routes fail without opening or invoking getters', async () => {
+  const {Client, calls} = facade();
+  const client = new Client({profile: 'exact', route: 'direct'});
+  let reads = 0;
+  const getter = Object.defineProperty({}, 'route', {get() {reads++; return 'direct';}});
+  const options = Object.defineProperty({}, 'route', {get() {reads++; return {route: 'direct'};}});
+  for (const input of [options, {route: null}, {route: 'direct'}, {route: getter},
+    {route: new Proxy({route: 'direct'}, {})}, {route: {route: 'direct', proxy: 'http://private.invalid'}},
+    {route: {route: 'proxy', proxy: 'http://private.invalid', proxyPassword: 'private'}}]) {
+    await assert.rejects(client.websocket('ws://example.test/', input), (error) => {
+      assert.equal(error.code, 'InvalidArgument');
+      assert(!String(error).includes('private'));
+      return true;
+    });
+  }
+  assert.equal(reads, 0);
+  assert.equal(calls.length, 0);
+  await client.close();
+});
+
 test('one pending receive and send progress independently while duplicate operations fail', async () => {
   const {Client, sockets} = facade();
   const client = new Client({profile: 'exact', route: 'direct'});

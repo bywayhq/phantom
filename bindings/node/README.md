@@ -272,6 +272,7 @@ private keys are neither exported nor serialized.
 `client.websocket()` uses the client's Rust profile, route, trust and cookies.
 It opens HTTP/1.1 by default. Choose `protocol: 'profile'` for the recipe's
 connection policy, or an exact `http2` or `http3` transport.
+Pass `route: {route: 'direct'}` or a proxy route to change this opening alone.
 
 ```js
 const socket = await client.websocket('wss://example.com/events', {signal});

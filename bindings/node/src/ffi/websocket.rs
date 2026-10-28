@@ -12,7 +12,11 @@ use phantom::{
     WebSocketRetryPolicy,
 };
 
-use super::{buffer::copy_buffer, options::WireHeader, response::NativeResponse};
+use super::{
+    buffer::copy_buffer,
+    options::{SessionRouteOptions, WireHeader},
+    response::NativeResponse,
+};
 use crate::{
     client::ClientState,
     error::failure,
@@ -28,6 +32,8 @@ pub struct WebSocketOptions {
     pub url: String,
     /// Exact protocol or the profile's connection policy.
     pub protocol: String,
+    /// Absence inherits the client route for this opening.
+    pub route: Option<SessionRouteOptions>,
     /// Ordered caller fields filling the profile's opening template.
     pub headers: Option<Vec<WireHeader>>,
     /// Override in milliseconds; zero disables the handshake timeout.
@@ -293,6 +299,16 @@ pub(super) fn prepare(
         }
     }
     .map_err(error)?;
+    if let Some(route) = options.route.take() {
+        builder = builder.route(crate::client::route(
+            &route.route,
+            route.proxy.as_deref(),
+            route.proxy_username.as_deref(),
+            route.proxy_password.as_deref(),
+            route.proxy_user_id.as_deref(),
+        )?);
+    }
+
     let defaults = WebSocketLimits::default();
     let positive = |value: u32| {
         NonZeroUsize::new(value as usize)
