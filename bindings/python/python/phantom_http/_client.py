@@ -51,6 +51,7 @@ from ._errors import (
     _primary_error,
     _upload_error,
 )
+from ._event_source import _EventSourceConnect, _EventSourceOptions, _SseProtocol
 from ._network import NetworkOptions
 from ._pool import PoolOptions
 from ._profile import Profile
@@ -246,6 +247,16 @@ class AsyncClient:
         client.cookies = Cookies(native.cookies)
         client._uploads = set()
         return client
+
+    def event_source(
+        self,
+        url: str,
+        *,
+        protocol: _SseProtocol,
+        **options: Unpack[_EventSourceOptions],
+    ) -> _EventSourceConnect:
+        """Open a GET event source with finite reconnects on an exact protocol."""
+        return _EventSourceConnect(self._native, url, protocol, **options)
 
     def websocket(
         self,

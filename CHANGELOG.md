@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Python adds pull-driven EventSource iterators with bounded reconnection,
+  managed event IDs and graceful client shutdown.
 - Reduce Python streaming overhead by converting body chunks during async
   completion.
 - Go shutdown waits for requests admitted before their first async poll.

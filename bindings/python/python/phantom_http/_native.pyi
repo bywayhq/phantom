@@ -9,6 +9,20 @@ from ._pool import PoolOptions
 class NativeError(Exception): ...
 class NativeProfileError(Exception): ...
 
+class NativeEventSource:
+    status: int
+    protocol: str
+    url: str
+    headers: list[tuple[str, bytes, bool]]
+    last_event_id: str
+    retry_ms: int
+    reconnects: int
+    is_closed: bool
+    def next_event(self) -> Awaitable[tuple[str, str, str] | None]: ...
+    def close(self) -> None: ...
+    def wait_idle(self) -> Awaitable[None]: ...
+    def wait_closed(self, timeout_ms: int) -> Awaitable[None]: ...
+
 class NativeWebSocket:
     status: int
     protocol: str
@@ -238,6 +252,24 @@ class NativeEventStream:
     def next_event(self) -> Awaitable[tuple[str, str, str] | None]: ...
 
 class NativeClient:
+    def event_source(
+        self,
+        url: str,
+        protocol: str,
+        headers: list[tuple[str, bytes, bool]] | None,
+        last_event_id_slot: int | None,
+        maximum_line_bytes: int,
+        maximum_event_bytes: int,
+        idle_timeout: float | None,
+        initial_retry: float,
+        min_retry: float | None,
+        max_reconnects: int,
+        timeouts: list[tuple[str, float | None]] | None,
+        inherit_proxy: bool,
+        proxy: str | None,
+        proxy_username: str | None,
+        proxy_password: str | None,
+    ) -> Awaitable[NativeEventSource]: ...
     def abort(self) -> None: ...
     def websocket(
         self,

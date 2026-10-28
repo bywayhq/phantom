@@ -423,6 +423,26 @@ Streams expose `last_event_id`, `retry_ms` and `response`; they do not reconnect
 SSE validation and limit failures raise `SseError`; body failures retain their
 request error category. Closing or cancelling a read releases its response.
 
+For bounded reconnection, select an exact protocol:
+
+```python
+async with client.event_source(
+    "https://example.com/events", protocol="h2", max_reconnects=3
+) as source:
+    async for event in source:
+        print(event.data)
+```
+
+Sync clients use `with` and `for`. Sources retain event IDs and server retry
+delays. `idle_timeout`, `initial_retry` and `min_retry` use seconds. Cancel a
+pending read to pause it, or close the source to stop reconnects. Supplied
+`headers` replace the defaults; `LastEventId("last-event-id")` positions the
+managed ID. Head fields describe the initial response. Phase `timeouts` apply
+through each response head; use `idle_timeout` for event reads, rather than
+`timeouts.read_idle`. Client policies apply;
+per-request contexts, budgets, bodies, transfers and diagnostics use the
+one-response `events()` API above.
+
 ## Synchronous calls and errors
 
 `Client` uses one reusable Python event loop. Call it from its creating thread,

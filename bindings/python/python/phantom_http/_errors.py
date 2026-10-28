@@ -148,7 +148,11 @@ def _error(error: _native.NativeError) -> Error:
     if category == "prepared_body":
         return PreparedBodyError(category, kind, protocol, phase)
     if category == "sse":
-        return SseError(category, kind, protocol, phase)
+        failure = SseError(category, kind, protocol, phase)
+        original = cast(object, getattr(error, "original", None))
+        if isinstance(original, _native.NativeError):
+            failure.original = _error(original)
+        return failure
     cls = {
         "timeout": TimeoutError,
         "shutdown_timeout": TimeoutError,
