@@ -70,9 +70,11 @@ fn edited_contexts_are_owned_and_do_not_restore_missing_catalog_contexts() -> Te
     assert_eq!(owned[0].1.as_ref(), &template);
     assert_eq!(imported.request_template(), custom.request_template());
     let client = crate::Client::builder(imported).build()?;
-    client
-        .get("https://example.test/")?
-        .context(RequestTemplateKind::Fetch)?;
+    drop(
+        client
+            .get("https://example.test/")?
+            .context(RequestTemplateKind::Fetch)?,
+    );
     let error = client
         .get("https://example.test/")?
         .context(RequestTemplateKind::Navigation)

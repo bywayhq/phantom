@@ -51,9 +51,11 @@ fn exported_contexts_are_owned_without_importing_catalog_identity() -> TestResul
     assert!(original.request_context_profile().is_some());
     assert!(imported.request_context_profile().is_none());
     let client = crate::Client::builder(imported).build()?;
-    client
-        .get("https://example.test/")?
-        .context(RequestTemplateKind::Navigation)?;
+    drop(
+        client
+            .get("https://example.test/")?
+            .context(RequestTemplateKind::Navigation)?,
+    );
     Ok(())
 }
 
