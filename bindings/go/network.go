@@ -28,6 +28,12 @@ type NetworkOptions struct {
 	// Nil omits the option; an empty path is invalid. It cannot be combined with
 	// host overrides, source bindings or proxies, and checkpoints are unsupported.
 	UnixSocket *string
+	// DNS selects a verified encrypted resolver. Nil retains the profile default.
+	// It resolves only names handled locally, independently of application proxies.
+	DNS DNSOptions
+	// DisableDNSCache resolves each new connection without an address cache.
+	// False retains the profile's caching policy, including encrypted DNS TTLs.
+	DisableDNSCache bool
 }
 
 func (NetworkOptions) String() string   { return "phantom.NetworkOptions([redacted])" }
@@ -42,11 +48,13 @@ type HostOverride struct {
 }
 
 type wireNetworkOptions struct {
-	PublicOnly     bool               `json:"public_only,omitempty"`
-	HostOverrides  []wireHostOverride `json:"host_overrides,omitempty"`
-	LocalAddresses []netip.Addr       `json:"local_addresses,omitempty"`
-	Interface      string             `json:"interface,omitempty"`
-	UnixSocket     *string            `json:"unix_socket,omitempty"`
+	PublicOnly      bool               `json:"public_only,omitempty"`
+	HostOverrides   []wireHostOverride `json:"host_overrides,omitempty"`
+	LocalAddresses  []netip.Addr       `json:"local_addresses,omitempty"`
+	Interface       string             `json:"interface,omitempty"`
+	UnixSocket      *string            `json:"unix_socket,omitempty"`
+	DNS             *wireDNS           `json:"dns,omitempty"`
+	DisableDNSCache bool               `json:"disable_dns_cache,omitempty"`
 }
 
 type wireHostOverride struct {
@@ -113,7 +121,14 @@ func networkInputSize(input *NetworkOptions) (int, error) {
 			return 0, err
 		}
 	}
-	return size, nil
+	if input.DNS != nil && input.UnixSocket != nil {
+		return 0, &Error{Kind: "invalid_network_options"}
+	}
+	dnsSize, err := dnsInputSize(input.DNS, 1024-entries, 64*1024-size)
+	if err != nil {
+		return 0, err
+	}
+	return size + dnsSize, nil
 }
 
 func networkWire(input *NetworkOptions) *wireNetworkOptions {
@@ -122,7 +137,8 @@ func networkWire(input *NetworkOptions) *wireNetworkOptions {
 	}
 	result := &wireNetworkOptions{Interface: input.Interface, PublicOnly: input.PublicOnly,
 		LocalAddresses: slices.Clone(input.LocalAddresses),
-		HostOverrides:  make([]wireHostOverride, len(input.HostOverrides))}
+		HostOverrides:  make([]wireHostOverride, len(input.HostOverrides)),
+		DNS:            dnsWire(input.DNS), DisableDNSCache: input.DisableDNSCache}
 	if input.UnixSocket != nil {
 		path := strings.Clone(*input.UnixSocket)
 		result.UnixSocket = &path

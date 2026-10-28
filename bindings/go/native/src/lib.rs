@@ -2,6 +2,7 @@
 
 mod client;
 mod client_certificate;
+mod dns;
 mod error;
 #[allow(unsafe_code)]
 mod ffi;

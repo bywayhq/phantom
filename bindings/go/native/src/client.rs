@@ -191,11 +191,11 @@ impl NativeClient {
             Some(owner) => owner.selected(config.context.as_deref())?,
             None => crate::profile::named(&config.profile, config.context.as_deref())?,
         };
-        let mut builder = Client::builder(profile)
-            .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
-        if let Some(network) = config.network {
-            builder = (*network).apply(builder)?;
+        let mut builder = match config.network {
+            Some(network) => (*network).apply(profile)?,
+            None => Client::builder(profile),
         }
+        .route(route(config.proxy.as_deref(), config.proxy_credentials)?);
         if let Some(pool) = config.pool {
             builder = (*pool).apply(builder)?;
         }

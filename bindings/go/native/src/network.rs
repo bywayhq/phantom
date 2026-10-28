@@ -2,7 +2,7 @@
 
 use std::net::IpAddr;
 
-use phantom::ClientBuilder;
+use phantom::{Client, ClientBuilder, profile::ClientProfile};
 use serde::Deserialize;
 
 use crate::error::Failure;
@@ -18,6 +18,8 @@ pub(super) struct NetworkOptions {
     interface: Option<String>,
     unix_socket: Option<String>,
     public_only: bool,
+    dns: Option<crate::dns::Dns>,
+    disable_dns_cache: bool,
 }
 
 #[derive(Deserialize)]
@@ -28,7 +30,7 @@ struct HostOverride {
 }
 
 impl NetworkOptions {
-    pub(super) fn apply(self, mut builder: ClientBuilder) -> Result<ClientBuilder, Failure> {
+    pub(super) fn apply(self, profile: ClientProfile) -> Result<ClientBuilder, Failure> {
         // Check every collection before the core builder copies any supplied field.
         let mut entries = self.host_overrides.len();
         if entries > MAX_ENTRIES || self.local_addresses.len() > MAX_ENTRIES - entries {
@@ -56,6 +58,20 @@ impl NetworkOptions {
             bytes = bytes
                 .checked_sub(value.len())
                 .ok_or_else(|| Failure::new("input_limit"))?;
+        }
+        if self.dns.is_some() && self.unix_socket.is_some() {
+            return Err(Failure::new("invalid_network_options"));
+        }
+        if let Some(dns) = &self.dns {
+            dns.validate(&mut entries, &mut bytes)?;
+        }
+        let resolver = self.dns.map(|dns| dns.build(&profile)).transpose()?;
+        let mut builder = Client::builder(profile);
+        if let Some(resolver) = resolver {
+            builder = builder.dns_resolver(resolver);
+        }
+        if self.disable_dns_cache {
+            builder = builder.no_dns_cache();
         }
         if let Some(path) = self.unix_socket {
             if path.is_empty() || path.contains('\0') {
@@ -105,7 +121,7 @@ mod tests {
         let options: NetworkOptions =
             serde_json::from_value(value).map_err(|_| Failure::new("invalid_test_fixture"))?;
         let profile = crate::profile::named("chrome/154.0.8037.97/windows-11-26200/r1", None)?;
-        options.apply(phantom::Client::builder(profile))
+        options.apply(profile)
     }
 
     #[test]
