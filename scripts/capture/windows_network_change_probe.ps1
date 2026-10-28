@@ -166,30 +166,7 @@ try {
 }
 catch { $result.primary_error = $_.ToString() }
 finally {
-    # Exact nonce ID also catches an incompletely installed node of an unknown class.
-    try {
-        if ($launchAttempted -and @(Get-PnpDevice | Where-Object InstanceId -EQ $instanceId).Count -gt 0) {
-            if ($instanceId -in $result.baseline_pnp.InstanceId) { throw 'refusing removal of a baseline device' }
-            $result.discovered_instance_id = $instanceId
-            Save-Result
-            $remove = Start-Process -FilePath $DevGenPath -WindowStyle Hidden -PassThru `
-                -ArgumentList @('/remove', $instanceId) -RedirectStandardOutput (Join-Path $OutputDirectory 'remove.stdout') `
-                -RedirectStandardError (Join-Path $OutputDirectory 'remove.stderr')
-            $null = $remove.Handle
-            $result.remove_pid = $remove.Id
-            Save-Result
-            if (-not $remove.WaitForExit(15000)) {
-                $remove.Kill()
-                $result.remove_exit_observed = $remove.WaitForExit(5000)
-                if ($result.remove_exit_observed) { $result.remove_exit_code = $remove.ExitCode }
-                throw 'exact-device removal process exceeded 15 seconds'
-            }
-            $result.remove_exit_observed = $true
-            $result.remove_exit_code = $remove.ExitCode
-            if ($remove.ExitCode -ne 0) { throw "exact-device removal exited $($remove.ExitCode)" }
-        }
-    }
-    catch { $result.cleanup_errors += $_.ToString() }
+    # /wait owns timed removal. Join it before considering a competing /remove.
     try {
         if ($add) {
             while (-not $add.WaitForExit(1000)) {
@@ -203,6 +180,41 @@ finally {
             $result.add_exit_observed = $true
             $result.add_exit_code = $add.ExitCode
             if ($add.ExitCode -ne 0) { throw "DevGen add/wait exited $($add.ExitCode)" }
+        }
+    }
+    catch { $result.cleanup_errors += $_.ToString() }
+    # Exact nonce ID also catches an incompletely installed node of an unknown class.
+    try {
+        if ($launchAttempted -and -not $result.add_exit_observed) {
+            throw 'refusing competing removal without observing the DevGen owner exit'
+        }
+        if ($launchAttempted) {
+            $deadline = [DateTime]::UtcNow.AddSeconds(5)
+            do {
+                $remaining = @(Get-PnpDevice | Where-Object InstanceId -EQ $instanceId)
+                if ($remaining.Count -eq 0 -or [DateTime]::UtcNow -ge $deadline) { break }
+                Start-Sleep -Milliseconds 500
+            } while ($true)
+            if ($remaining.Count -gt 0) {
+                if ($instanceId -in $result.baseline_pnp.InstanceId) { throw 'refusing removal of a baseline device' }
+                $result.discovered_instance_id = $instanceId
+                Save-Result
+                $remove = Start-Process -FilePath $DevGenPath -WindowStyle Hidden -PassThru `
+                    -ArgumentList @('/remove', $instanceId) -RedirectStandardOutput (Join-Path $OutputDirectory 'remove.stdout') `
+                    -RedirectStandardError (Join-Path $OutputDirectory 'remove.stderr')
+                $null = $remove.Handle
+                $result.remove_pid = $remove.Id
+                Save-Result
+                if (-not $remove.WaitForExit(15000)) {
+                    $remove.Kill()
+                    $result.remove_exit_observed = $remove.WaitForExit(5000)
+                    if ($result.remove_exit_observed) { $result.remove_exit_code = $remove.ExitCode }
+                    throw 'exact-device removal process exceeded 15 seconds'
+                }
+                $result.remove_exit_observed = $true
+                $result.remove_exit_code = $remove.ExitCode
+                if ($remove.ExitCode -ne 0) { throw "exact-device removal exited $($remove.ExitCode)" }
+            }
         }
     }
     catch { $result.cleanup_errors += $_.ToString() }
