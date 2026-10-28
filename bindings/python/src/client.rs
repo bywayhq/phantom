@@ -121,7 +121,7 @@ impl NativeClient {
         pool: Option<&Bound<'_, PyAny>>,
         redirect_credential_headers: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
-        let network = network::parse(network)?;
+        let mut network = network::parse(network)?;
         let pool = pool::parse(pool)?;
         let client_certificates_for = client_certificate::origins(client_certificates_for)?;
         let server_spki_pins =
@@ -133,9 +133,13 @@ impl NativeClient {
             return Err(error::input("invalid_protocol"));
         }
         let profile = profile::select(profile, context)?;
+        let resolver = network.prepare_dns(&profile)?;
         let mut builder = Client::builder(profile)
             .route(configuration::route(proxy, proxy_username, proxy_password)?)
             .request_timeouts(configuration::client_timeouts(timeout_ms, timeouts)?);
+        if let Some(resolver) = resolver {
+            builder = builder.dns_resolver(resolver);
+        }
         if let Some(policy) =
             configuration::redirect_policy(redirect_maximum_hops, redirect_credential_headers)?
         {

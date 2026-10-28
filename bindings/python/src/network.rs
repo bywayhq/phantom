@@ -1,12 +1,14 @@
 //! Bounded synchronous ownership of network settings before client construction.
 
-use crate::error;
+use std::net::IpAddr;
+
 use phantom::ClientBuilder;
 use pyo3::{
     prelude::*,
     types::{PyBool, PyString, PyTuple},
 };
-use std::net::IpAddr;
+
+use crate::{dns, error};
 
 const MAXIMUM_ENTRIES: usize = 1024;
 const MAXIMUM_BYTES: usize = 65536;
@@ -18,6 +20,8 @@ pub(super) struct Network {
     interface: Option<String>,
     unix_socket: Option<String>,
     public_only: bool,
+    dns: Option<dns::Dns>,
+    disable_dns_cache: bool,
 }
 
 #[derive(FromPyObject)]
@@ -27,6 +31,8 @@ struct Settings<'py> {
     interface: Bound<'py, PyAny>,
     unix_socket: Bound<'py, PyAny>,
     public_only: Bound<'py, PyAny>,
+    dns: Bound<'py, PyAny>,
+    dns_cache: Bound<'py, PyAny>,
 }
 
 #[derive(FromPyObject)]
@@ -66,6 +72,8 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         interface,
         unix_socket,
         public_only,
+        dns,
+        dns_cache,
     } = value
         .extract::<Settings<'_>>()
         .map_err(|_| error::input("invalid_network"))?;
@@ -73,6 +81,15 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         .cast_exact::<PyBool>()
         .map_err(|_| error::input("invalid_network"))?
         .is_true();
+    let disable_dns_cache = dns_cache.is_none();
+    if !disable_dns_cache && !dns::is_inherit(&dns_cache, "invalid_dns_cache")? {
+        return Err(error::input("invalid_dns_cache"));
+    }
+    let dns = if dns.is_none() {
+        None
+    } else {
+        Some(dns::parse(&dns)?)
+    };
     let unix_socket = (!unix_socket.is_none()).then_some(unix_socket);
     let mut count = overrides.len().saturating_add(locals.len());
     if count > MAXIMUM_ENTRIES {
@@ -142,6 +159,8 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
     };
     Ok(Network {
         public_only,
+        dns,
+        disable_dns_cache,
         overrides,
         locals,
         interface,
@@ -153,7 +172,17 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
 }
 
 impl Network {
+    pub(super) fn prepare_dns(
+        &mut self,
+        profile: &phantom::profile::ClientProfile,
+    ) -> PyResult<Option<phantom::AddressResolver>> {
+        self.dns.take().map(|dns| dns.build(profile)).transpose()
+    }
+
     pub(super) fn apply(self, mut builder: ClientBuilder) -> PyResult<ClientBuilder> {
+        if self.disable_dns_cache {
+            builder = builder.no_dns_cache();
+        }
         for (host, addresses) in self.overrides {
             builder = builder.resolve(&host, addresses);
         }
@@ -192,7 +221,7 @@ mod tests {
             py.run(
                 c"from types import SimpleNamespace
 def network(host_overrides=(), local_addresses=(), interface=None, unix_socket=None, public_only=False):
-    return SimpleNamespace(host_overrides=host_overrides, local_addresses=local_addresses, interface=interface, unix_socket=unix_socket, public_only=public_only)
+    return SimpleNamespace(host_overrides=host_overrides, local_addresses=local_addresses, interface=interface, unix_socket=unix_socket, public_only=public_only, dns=None, dns_cache=None)
 def host(value, addresses=()):
     return SimpleNamespace(host=value, addresses=addresses)
 class Lying(str):
@@ -294,7 +323,7 @@ class Settings:
     def __getattr__(self, name):
         self.reads[name] = self.reads.get(name, 0) + 1
         if self.reads[name] != 1: raise ValueError('private')
-        return {'host_overrides': (self.record,), 'local_addresses': ('::1',), 'interface': None, 'unix_socket': None, 'public_only': False}[name]
+        return {'host_overrides': (self.record,), 'local_addresses': ('::1',), 'interface': None, 'unix_socket': None, 'public_only': False, 'dns': None, 'dns_cache': None}[name]
 settings = Settings()
 ",
                 Some(&scope),

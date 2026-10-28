@@ -289,6 +289,24 @@ source families never fall back to an unbound socket. Import both types from
 `phantom_http`. Overrides are ordered: the last matching host wins; an empty
 address tuple blocks resolution. Network settings share 1024 entries and 64 KiB.
 
+Use `DnsOverHttps` or `DnsOverTls` for encrypted DNS with explicit bootstrap
+addresses and verified endpoint identity:
+
+```python
+from phantom_http import DnsOverHttps, NetworkOptions
+
+network = NetworkOptions(dns=DnsOverHttps(
+    endpoint="https://dns.example/dns-query", bootstrap=("192.0.2.53",),
+    timeout=2, max_concurrent=8,
+))
+```
+
+Pass `network` to either client. DoH uses HTTP/2; DoT takes `server_name` and
+IP:port bootstrap strings. Both connect directly, independently of application
+proxy/source settings, with no system or cleartext fallback. `roots` adds DNS-only
+DER trust anchors. `dns_cache=None` disables address caching; omission keeps the
+profile policy and record lifetimes. HTTPS-record discovery is not enabled.
+
 On Linux and macOS, `NetworkOptions(unix_socket="/run/service.sock")` opens
 direct H1/H2 connections through that path while retaining the request URL's
 authority and TLS verification. Forks retain it; encrypted checkpoints, proxies,

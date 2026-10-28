@@ -29,6 +29,8 @@ from ._diagnostics import RequestTimeline as RequestTimeline
 from ._diagnostics import RequestTiming as RequestTiming
 from ._diagnostics import TlsConnectionInfo as TlsConnectionInfo
 from ._diagnostics import TlsConnectionState as TlsConnectionState
+from ._dns import DnsOverHttps as DnsOverHttps
+from ._dns import DnsOverTls as DnsOverTls
 from ._errors import AttemptBudgetExhausted as AttemptBudgetExhausted
 from ._errors import BodyLimitExceeded as BodyLimitExceeded
 from ._errors import ClientClosed as ClientClosed

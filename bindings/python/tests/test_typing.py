@@ -30,6 +30,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_client.py",
             "_convenience.py",
             "_errors.py",
+            "_dns.py",
             "_profile.py",
             "_request.py",
             "_response.py",

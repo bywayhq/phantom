@@ -7,6 +7,8 @@ from phantom_http import (
     Client,
     ConnectionRetry,
     ContentDecoding,
+    DnsOverHttps,
+    DnsOverTls,
     Header,
     HostOverride,
     NetworkOptions,
@@ -277,3 +279,27 @@ def invalid_event_source(client: AsyncClient, sync: Client) -> None:
     client.event_source("https://local", protocol="negotiated")  # E: arg-type
     client.event_source("https://local", protocol="h2", budget=None)  # E: call-arg
     sync.event_source("https://local", protocol="h1", context="fetch")  # E: call-arg
+
+
+DnsOverHttps(
+    endpoint="https://dns.invalid",
+    bootstrap=["127.0.0.1"],  # E: arg-type
+    timeout=1,
+    max_concurrent=1,
+)
+DnsOverHttps(
+    endpoint="https://dns.invalid",
+    bootstrap=("127.0.0.1",),
+    timeout=1,
+    max_concurrent=1,
+    wire="auto",  # E: arg-type
+)
+DnsOverTls(
+    server_name="dns.invalid",
+    bootstrap=("127.0.0.1:853",),
+    timeout=1,
+    max_concurrent=1,
+    families="ipv6",  # E: arg-type
+)
+NetworkOptions(dns_cache=True)  # E: arg-type
+NetworkOptions(dns="system")  # E: arg-type

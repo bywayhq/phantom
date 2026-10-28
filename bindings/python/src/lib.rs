@@ -6,6 +6,7 @@ mod client;
 mod client_certificate;
 mod configuration;
 mod diagnostics;
+mod dns;
 mod error;
 mod event_source;
 mod lifecycle;

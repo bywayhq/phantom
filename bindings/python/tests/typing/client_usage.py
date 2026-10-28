@@ -17,6 +17,8 @@ from phantom_http import (
     ContentDecoding,
     Cookies,
     DecodeError,
+    DnsOverHttps,
+    DnsOverTls,
     Error,
     Event,
     EventSource,
@@ -98,6 +100,18 @@ def synchronous(profile: str, url: str, upload: Path) -> bytes:
     _remaining: int = budget.remaining
     socket_network = NetworkOptions(unix_socket="/run/service.sock")
     _socket_path: str | None = socket_network.unix_socket
+    encrypted = NetworkOptions(
+        dns=DnsOverHttps(
+            endpoint="https://dns.example/query",
+            bootstrap=("192.0.2.53",),
+            timeout=2,
+            max_concurrent=8,
+            wire="chromium154",
+            padding_block=None,
+        ),
+        dns_cache=None,
+    )
+    _resolver: DnsOverHttps | DnsOverTls | None = encrypted.dns
     budget.try_admit()
     with Client(
         profile=profile,

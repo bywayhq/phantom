@@ -2,6 +2,9 @@
 
 from dataclasses import dataclass, field
 
+from ._configuration import INHERIT, _Inherit
+from ._dns import DnsOverHttps, DnsOverTls
+
 
 def _text_size(value: str, remaining: int, name: str) -> int:
     if type(value) is not str:
@@ -46,6 +49,9 @@ class NetworkOptions:
     Paths are used verbatim; the library does not create or remove them.
     public_only admits public IPs for new direct connections. It excludes
     special-purpose ranges and cannot enforce proxy egress or revoke live pools.
+    dns selects a separate direct encrypted resolver. Its endpoint settings have
+    their own 1024-entry/64-KiB bound. dns_cache=None disables address caching;
+    INHERIT keeps the profile policy.
     """
 
     host_overrides: tuple[HostOverride, ...] = field(default=(), repr=False)
@@ -53,11 +59,19 @@ class NetworkOptions:
     interface: str | None = field(default=None, repr=False)
     unix_socket: str | None = field(default=None, repr=False)
     public_only: bool = False
+    dns: DnsOverHttps | DnsOverTls | None = field(default=None, repr=False)
+    dns_cache: _Inherit | None = INHERIT
 
     def __post_init__(self) -> None:
         self._validate()
 
     def _validate(self) -> None:
+        if self.dns_cache is not INHERIT and self.dns_cache is not None:
+            raise TypeError("dns_cache must be INHERIT or None")
+        if self.dns is not None:
+            if type(self.dns) not in (DnsOverHttps, DnsOverTls):
+                raise TypeError("dns must be DnsOverHttps or DnsOverTls")
+            self.dns._validate()
         if type(self.public_only) is not bool:
             raise TypeError("public_only must be boolean")
         if type(self.host_overrides) is not tuple:

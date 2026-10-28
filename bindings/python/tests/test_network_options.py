@@ -367,6 +367,8 @@ class NetworkPublicTests(unittest.TestCase):
                 interface=None,
                 unix_socket=None,
                 public_only=False,
+                dns=None,
+                dns_cache=None,
             )
             fields.__dict__.update(invalid)
             with self.assertRaises(_native.NativeError) as caught:
