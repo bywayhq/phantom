@@ -298,23 +298,23 @@ fn profile_files_select_portable_contexts_and_legacy_bundles_keep_the_default() 
     let store = directory.path("store");
     fs::create_dir(&store)?;
     fs::write(store.join(&digest), bytes)?;
-    let listener = listener()?;
-    let url = format!("http://{}/", listener.local_addr()?);
+    let legacy_listener = listener()?;
+    let url = format!("http://{}/", legacy_listener.local_addr()?);
     assert!(
-        observed_request(listener, &mut pinned(&url, &store, &digest))?
+        observed_request(legacy_listener, &mut pinned(&url, &store, &digest))?
             .contains("X-Identity: old\r\nX-Last: end\r\n")
     );
 
-    let listener = listener()?;
-    listener.set_nonblocking(true)?;
-    let url = format!("http://{}/", listener.local_addr()?);
+    let unavailable_listener = listener()?;
+    unavailable_listener.set_nonblocking(true)?;
+    let url = format!("http://{}/", unavailable_listener.local_addr()?);
     let unavailable = pinned(&url, &store, &digest)
         .args(["--context", "navigation"])
         .output()?;
     assert_eq!(unavailable.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&unavailable.stderr).contains("request context"));
     assert!(matches!(
-        listener.accept(),
+        unavailable_listener.accept(),
         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
     ));
     Ok(())
