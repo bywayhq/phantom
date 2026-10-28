@@ -7,6 +7,7 @@ from typing import cast
 from phantom_http import (
     INHERIT,
     AsyncClient,
+    AsyncEventSource,
     AsyncEventStream,
     AsyncResponse,
     AttemptBudget,
@@ -18,11 +19,13 @@ from phantom_http import (
     DecodeError,
     Error,
     Event,
+    EventSource,
     EventStream,
     Header,
     HostOverride,
     HTTPStatusError,
     ImportedProfile,
+    LastEventId,
     NetworkOptions,
     Profile,
     ProfileError,
@@ -43,6 +46,24 @@ from phantom_http import (
     TransferSnapshot,
     Trust,
 )
+
+
+async def reconnecting_events(client: AsyncClient, sync: Client, url: str) -> None:
+    async with client.event_source(
+        url,
+        protocol="h2",
+        headers=[("accept", "text/event-stream"), LastEventId("last-event-id")],
+        max_reconnects=2,
+        timeouts=TimeoutOverrides(connect=1),
+    ) as source:
+        asynchronous: AsyncEventSource = source
+        async for event in asynchronous:
+            value: Event = event
+            print(value.data, asynchronous.retry_ms, asynchronous.reconnects)
+    with sync.event_source(url, protocol="h1", initial_retry=0) as source_sync:
+        synchronous: EventSource = source_sync
+        for event in synchronous:
+            print(event.data, synchronous.status_code)
 
 
 async def events(async_client: AsyncClient, client: Client, url: str) -> None:

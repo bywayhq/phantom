@@ -189,7 +189,7 @@ fn append_body(output: &mut Vec<u8>, bytes: &[u8], maximum: usize) -> PyResult<(
     Ok(())
 }
 
-fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseInfo> {
+pub(super) fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseInfo> {
     extensions.get::<phantom::ResponseInfo>().ok_or_else(|| {
         error::NativeError::new_err((
             "response",
@@ -198,6 +198,35 @@ fn response_info(extensions: &http::Extensions) -> PyResult<&phantom::ResponseIn
             None::<String>,
         ))
     })
+}
+
+pub(super) fn response_protocol(version: http::Version) -> &'static str {
+    match version {
+        http::Version::HTTP_11 => "h1",
+        http::Version::HTTP_2 => "h2",
+        http::Version::HTTP_3 => "h3",
+        _ => "unknown",
+    }
+}
+
+pub(super) fn response_headers(
+    extensions: &http::Extensions,
+) -> PyResult<Vec<(String, Vec<u8>, bool)>> {
+    extensions
+        .get::<phantom::OrderedResponseHeaders>()
+        .map(|fields| {
+            fields
+                .iter()
+                .map(|field| {
+                    (
+                        field.name().to_owned(),
+                        field.value().to_vec(),
+                        field.is_sensitive(),
+                    )
+                })
+                .collect()
+        })
+        .ok_or_else(|| error::input("ordered_headers_unavailable"))
 }
 
 type TrailerFields<'py> = (String, Option<Vec<(String, Bound<'py, PyBytes>, bool)>>);
@@ -242,29 +271,8 @@ impl NativeResponse {
         websocket_url: Option<String>,
     ) -> PyResult<Self> {
         let status = response.status().as_u16();
-        let protocol = match response.version() {
-            http::Version::HTTP_11 => "h1",
-            http::Version::HTTP_2 => "h2",
-            http::Version::HTTP_3 => "h3",
-            _ => "unknown",
-        }
-        .to_owned();
-        let headers = response
-            .extensions()
-            .get::<phantom::OrderedResponseHeaders>()
-            .map(|fields| {
-                fields
-                    .iter()
-                    .map(|field| {
-                        (
-                            field.name().to_owned(),
-                            field.value().to_vec(),
-                            field.is_sensitive(),
-                        )
-                    })
-                    .collect()
-            })
-            .ok_or_else(|| error::input("ordered_headers_unavailable"))?;
+        let protocol = response_protocol(response.version()).to_owned();
+        let headers = response_headers(response.extensions())?;
         // WebSocket openings neither redirect nor apply HTTP response decoding.
         let (url, info) = match websocket_url {
             Some(url) => (url, None),

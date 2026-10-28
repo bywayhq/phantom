@@ -48,6 +48,7 @@ from ._errors import (
     _call,
     _primary_error,
 )
+from ._event_source import EventSource, _EventSourceOptions, _SseProtocol
 from ._network import NetworkOptions
 from ._pool import PoolOptions
 from ._profile import Profile
@@ -254,6 +255,18 @@ class Client:
     @property
     def is_closed(self) -> bool:
         return self._async.is_closed
+
+    def event_source(
+        self,
+        url: str,
+        *,
+        protocol: _SseProtocol,
+        **options: Unpack[_EventSourceOptions],
+    ) -> EventSource:
+        """Open a reconnecting event iterator on this client's loop and thread."""
+        self._check_thread_loop()
+        opening = self._async.event_source(url, protocol=protocol, **options)
+        return EventSource(self, self._run(opening._connect))
 
     def websocket(
         self,

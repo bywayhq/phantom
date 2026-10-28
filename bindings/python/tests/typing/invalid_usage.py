@@ -270,3 +270,10 @@ async def invalid_websocket(client: AsyncClient, sync: Client) -> None:
         await socket.aclose(timeout_ms="slow")  # E: arg-type
     with sync.websocket("ws://local") as blocking:
         blocking.send(1)  # E: arg-type
+
+
+def invalid_event_source(client: AsyncClient, sync: Client) -> None:
+    client.event_source("https://local")  # E: call-arg
+    client.event_source("https://local", protocol="negotiated")  # E: arg-type
+    client.event_source("https://local", protocol="h2", budget=None)  # E: call-arg
+    sync.event_source("https://local", protocol="h1", context="fetch")  # E: call-arg

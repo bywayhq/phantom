@@ -44,6 +44,9 @@ from ._errors import _call as _call
 from ._errors import _error as _error
 from ._errors import _primary_error as _primary_error
 from ._errors import _upload_error as _upload_error
+from ._event_source import AsyncEventSource as AsyncEventSource
+from ._event_source import EventSource as EventSource
+from ._event_source import LastEventId as LastEventId
 from ._network import HostOverride as HostOverride
 from ._network import NetworkOptions as NetworkOptions
 from ._pool import PoolOptions as PoolOptions
@@ -98,6 +101,9 @@ for _public_type in (
     Event,
     EventStream,
     AsyncEventStream,
+    EventSource,
+    AsyncEventSource,
+    LastEventId,
     HTTPStatusError,
     MultipartPart,
     StreamingMultipartBody,

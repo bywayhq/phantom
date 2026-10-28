@@ -7,6 +7,7 @@ mod client_certificate;
 mod configuration;
 mod diagnostics;
 mod error;
+mod event_source;
 mod lifecycle;
 mod network;
 mod pool;
@@ -31,6 +32,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<client::NativeCookies>()?;
     module.add_class::<response::NativeResponse>()?;
     module.add_class::<response::NativeEventStream>()?;
+    module.add_class::<event_source::NativeEventSource>()?;
     module.add_class::<websocket::NativeWebSocket>()?;
     module.add_class::<upload::NativeUpload>()?;
     module.add_class::<streaming_multipart::NativeStreamingMultipart>()?;

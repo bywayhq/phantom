@@ -455,6 +455,49 @@ impl NativeClient {
         )
     }
 
+    #[pyo3(signature = (url, protocol, headers, last_event_id_slot, maximum_line_bytes, maximum_event_bytes, idle_timeout, initial_retry, min_retry, max_reconnects, timeouts, inherit_proxy, proxy, proxy_username, proxy_password))]
+    #[allow(clippy::too_many_arguments)]
+    fn event_source<'py>(
+        &self,
+        py: Python<'py>,
+        url: &str,
+        protocol: &str,
+        headers: Option<&Bound<'_, PyList>>,
+        last_event_id_slot: Option<usize>,
+        maximum_line_bytes: usize,
+        maximum_event_bytes: usize,
+        idle_timeout: Option<&Bound<'_, PyAny>>,
+        initial_retry: &Bound<'_, PyAny>,
+        min_retry: Option<&Bound<'_, PyAny>>,
+        max_reconnects: &Bound<'_, PyAny>,
+        timeouts: Option<configuration::TimeoutFields>,
+        inherit_proxy: bool,
+        proxy: Option<&str>,
+        proxy_username: Option<&str>,
+        proxy_password: Option<&str>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        crate::event_source::connect(
+            py,
+            &self.client,
+            &self.lifecycle,
+            url,
+            protocol,
+            headers,
+            last_event_id_slot,
+            maximum_line_bytes,
+            maximum_event_bytes,
+            idle_timeout,
+            initial_retry,
+            min_retry,
+            max_reconnects,
+            timeouts,
+            inherit_proxy,
+            proxy,
+            proxy_username,
+            proxy_password,
+        )
+    }
+
     fn close_idle_connections<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let client = self.client.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
