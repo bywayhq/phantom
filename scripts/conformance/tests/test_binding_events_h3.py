@@ -3,9 +3,11 @@
 import contextlib
 import io
 import json
+import queue
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -162,6 +164,7 @@ async def run():
         await asyncio.wait_for(command, 0.05)
     except asyncio.TimeoutError:
         print("expired", flush=True)
+print("ready", flush=True)
 asyncio.run(run())
 """
             with self.subTest(fail=fail):
@@ -178,6 +181,7 @@ asyncio.run(run())
 from scripts.conformance.binding_events_h3 import stop_command
 async def run():
     print(repr(await stop_command()), flush=True)
+print("ready", flush=True)
 asyncio.run(run())
 """
         output, error, code = self.child(program, b"stop\n")
@@ -195,7 +199,12 @@ asyncio.run(run())
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        ready = queue.Queue()
+        threading.Thread(
+            target=lambda: ready.put(process.stdout.readline()), daemon=True
+        ).start()
         try:
+            self.assertEqual(ready.get(timeout=15).strip(), b"ready")
             if command is not None:
                 process.stdin.write(command)
                 process.stdin.flush()
