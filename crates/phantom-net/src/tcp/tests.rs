@@ -24,6 +24,67 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 const KEEPALIVE: Duration = Duration::from_secs(45);
 
 #[test]
+fn optional_rejection_does_not_skip_remaining_tcp_tuning() -> TestResult {
+    let socket = socket2::Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+    socket.set_send_buffer_size(8_192)?;
+    let initial_buffer = socket.send_buffer_size()?;
+    let mut settings = TcpSettings {
+        nodelay: true,
+        send_buffer_size: std::num::NonZeroU32::new(32_768),
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
+        ..TcpSettings::default()
+    };
+
+    super::apply_options(&SockRef::from(&socket), settings)?;
+    assert!(socket.send_buffer_size()? > initial_buffer);
+
+    settings.option_policy = phantom_profile::SocketOptionPolicy::Required;
+    let error = super::apply_options(&SockRef::from(&socket), settings)
+        .err()
+        .ok_or("required tuning accepted a rejected option")?;
+    assert!(error.to_string().contains("TCP_NODELAY"));
+    assert!(error.source().is_some());
+    Ok(())
+}
+
+#[test]
+fn optional_tuning_does_not_bypass_invalid_input() -> TestResult {
+    let settings = TcpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
+        send_buffer_size: std::num::NonZeroU32::new(u32::MAX),
+        ..TcpSettings::default()
+    };
+    assert_eq!(
+        super::check_settings(Some(&settings), None)
+            .err()
+            .ok_or("invalid settings were accepted")?
+            .kind(),
+        io::ErrorKind::InvalidInput
+    );
+    Ok(())
+}
+
+#[test]
+fn optional_tcp_tuning_never_falls_back_to_an_unbound_socket() -> TestResult {
+    let source = crate::SourceBinding::new().with_address(std::net::Ipv6Addr::LOCALHOST.into());
+    let settings = TcpSettings {
+        nodelay: true,
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
+        ..TcpSettings::default()
+    };
+    let error =
+        super::socket_connect::prepare("127.0.0.1:80".parse()?, Some(settings), Some(&source))
+            .err()
+            .ok_or("source family restriction was ignored")?;
+    assert_eq!(error.kind(), io::ErrorKind::AddrNotAvailable);
+    Ok(())
+}
+
+#[test]
 fn socket_option_context_keeps_the_original_os_error() -> TestResult {
     let original = io::Error::from_raw_os_error(123_456);
     let kind = original.kind();
@@ -70,6 +131,7 @@ fn socket_option_context_keeps_a_typed_cause() -> TestResult {
 
 fn chromium_like() -> TcpSettings {
     TcpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::Required,
         nodelay: true,
         send_buffer_size: None,
         keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {

@@ -4,6 +4,7 @@
 #[rustfmt::skip]
 pub(crate) fn chromium_154_android_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Unchanged,
@@ -15,6 +16,7 @@ pub(crate) fn chromium_154_android_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn chromium_154_macos_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Fixed(crate::TcpKeepalive { idle: std::time::Duration::new(45, 0), interval: None }),
@@ -26,6 +28,7 @@ pub(crate) fn chromium_154_macos_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn chromium_154_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Fixed(crate::TcpKeepalive { idle: std::time::Duration::new(45, 0), interval: Some(std::time::Duration::new(45, 0)) }),
@@ -37,6 +40,7 @@ pub(crate) fn chromium_154_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_156_android_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Schedule(crate::TcpKeepaliveSchedule { short_lived_idle: std::time::Duration::new(10, 0), long_lived_idle: std::time::Duration::new(600, 0), minimum_interval: std::time::Duration::new(1, 0), short_lived_time: std::time::Duration::new(60, 0), probe_count: 4, set_interval: true, set_probe_count: true }),
@@ -48,6 +52,7 @@ pub(crate) fn firefox_156_android_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_157_linux_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Schedule(crate::TcpKeepaliveSchedule { short_lived_idle: std::time::Duration::new(10, 0), long_lived_idle: std::time::Duration::new(600, 0), minimum_interval: std::time::Duration::new(1, 0), short_lived_time: std::time::Duration::new(60, 0), probe_count: 4, set_interval: true, set_probe_count: true }),
@@ -59,6 +64,7 @@ pub(crate) fn firefox_157_linux_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_157_macos_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: crate::TcpKeepalivePolicy::Schedule(crate::TcpKeepaliveSchedule { short_lived_idle: std::time::Duration::new(10, 0), long_lived_idle: std::time::Duration::new(600, 0), minimum_interval: std::time::Duration::new(1, 0), short_lived_time: std::time::Duration::new(60, 0), probe_count: 8, set_interval: false, set_probe_count: false }),
@@ -70,6 +76,7 @@ pub(crate) fn firefox_157_macos_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_157_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: Some(const { match std::num::NonZeroU32::new(524288) { Some(value) => value, None => panic!("invalid nonzero component literal") } }),
         keepalive: crate::TcpKeepalivePolicy::Schedule(crate::TcpKeepaliveSchedule { short_lived_idle: std::time::Duration::new(10, 0), long_lived_idle: std::time::Duration::new(600, 0), minimum_interval: std::time::Duration::new(1, 0), short_lived_time: std::time::Duration::new(60, 0), probe_count: 10, set_interval: true, set_probe_count: false }),
@@ -81,6 +88,7 @@ pub(crate) fn firefox_157_tcp() -> crate::TcpSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_157_windows_r3_tcp() -> crate::TcpSettings {
     crate::TcpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: Some(const { match std::num::NonZeroU32::new(524288) { Some(value) => value, None => panic!("invalid nonzero component literal") } }),
         keepalive: crate::TcpKeepalivePolicy::Schedule(crate::TcpKeepaliveSchedule { short_lived_idle: std::time::Duration::new(10, 0), long_lived_idle: std::time::Duration::new(600, 0), minimum_interval: std::time::Duration::new(1, 0), short_lived_time: std::time::Duration::new(60, 0), probe_count: 10, set_interval: true, set_probe_count: false }),

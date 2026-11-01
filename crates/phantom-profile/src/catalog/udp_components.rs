@@ -4,6 +4,7 @@
 #[rustfmt::skip]
 pub(crate) fn chromium_154_udp() -> crate::UdpSettings {
     crate::UdpSettings {
+        option_policy: crate::SocketOptionPolicy::BestEffort,
         port_randomization: true,
     }
 }

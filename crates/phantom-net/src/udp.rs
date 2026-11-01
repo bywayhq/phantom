@@ -59,16 +59,14 @@ pub(crate) fn bind_socket(
     Ok(socket.into())
 }
 
-/// Applies every option `settings` sets before the bind, failing on the
-/// first rejection.
-///
-/// Chromium ignores a failure to set `SO_RANDOMIZE_PORT`
-/// (`net/socket/udp_socket_win.cc:564-568` at tag `154.0.8037.58`). Phantom
-/// fails the socket instead, so a connection never proceeds with socket
-/// options the profile did not ask for.
+/// Applies port tuning before bind, following the profile's rejection policy.
 fn apply_options(socket: &Socket, settings: UdpSettings) -> io::Result<()> {
     if settings.port_randomization {
-        randomize_port(socket)?;
+        crate::socket_options::apply(
+            settings.option_policy,
+            "SO_RANDOMIZE_PORT",
+            randomize_port(socket),
+        )?;
     }
     Ok(())
 }

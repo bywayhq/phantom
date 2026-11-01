@@ -24,7 +24,7 @@ use std::{
 use hickory_resolver::net::runtime::{
     DnsUdpSocket, RuntimeProvider, TokioRuntimeProvider, TokioTime,
 };
-use phantom_profile::UdpSettings;
+use phantom_profile::{SocketOptionPolicy, UdpSettings};
 use tokio::sync::Notify;
 
 tokio::task_local! {
@@ -50,6 +50,14 @@ pub(crate) struct QuerySockets {
 
 impl QuerySockets {
     pub(crate) fn new(udp: Option<UdpSettings>) -> Self {
+        // When hickory delegates port selection to Windows, randomization is
+        // required for DNS reply spoofing resistance (RFC 5452 section 9.2).
+        let udp = udp.map(|mut udp| {
+            if udp.port_randomization {
+                udp.option_policy = SocketOptionPolicy::Required;
+            }
+            udp
+        });
         Self {
             tokio: TokioRuntimeProvider::default(),
             udp,
@@ -185,6 +193,18 @@ fn same_scoped_peer(source: SocketAddr, expected: SocketAddr) -> bool {
 mod tests {
     use super::*;
     use std::net::{Ipv6Addr, SocketAddrV6};
+
+    #[test]
+    fn dns_port_randomness_remains_required_with_optional_connection_tuning() {
+        let sockets = QuerySockets::new(Some(UdpSettings {
+            option_policy: SocketOptionPolicy::BestEffort,
+            port_randomization: true,
+        }));
+        assert_eq!(
+            sockets.udp.map(|udp| udp.option_policy),
+            Some(SocketOptionPolicy::Required)
+        );
+    }
 
     #[test]
     fn a_scoped_dns_endpoint_is_restored_without_accepting_another_interface() {

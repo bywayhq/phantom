@@ -4,6 +4,11 @@
 
 - Import profiles from pinned peer source without requiring peer execution
   for every layer; reuse unchanged components and observations across updates.
+- Breaking: add `option_policy` to `TcpSettings` and `UdpSettings`. Built-in
+  recipes tolerate rejected connection tuning; custom settings default to
+  `SocketOptionPolicy::Required`. Source/interface binding and DNS port
+  randomness remain required. Migrate: add `option_policy` to struct literals,
+  or use `..Default::default()`; set `Required` to enforce recipe tuning.
 - Allow upload captures to finish on another connection owned by the run.
 - Add HTTP/1.1 and HTTP/2 fetch and fetch-upload contexts to Chrome 156 Windows.
 - Breaking: select lifecycle capture protocols with `--protocol`.

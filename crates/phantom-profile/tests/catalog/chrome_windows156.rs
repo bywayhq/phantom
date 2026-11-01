@@ -126,6 +126,7 @@ fn windows156_selects_its_captured_layers() -> TestResult {
     assert_eq!(
         selected.tcp(),
         Some(&TcpSettings {
+            option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
             nodelay: true,
             send_buffer_size: None,
             keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {

@@ -3,7 +3,7 @@
 //!
 //! Outgoing TCP sockets are opened with a profile's [`TcpSettings`].
 //! [`check_host_support`] reports, before any I/O, whether this host can apply
-//! those settings exactly as written.
+//! its required tuning. Built-in recipes tolerate rejected tuning.
 
 use std::{
     error::Error,
@@ -17,8 +17,8 @@ use std::{
 use std::net::SocketAddr;
 
 use phantom_profile::{
-    TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
-    TcpSettings,
+    SocketOptionPolicy, TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy,
+    TcpPortRandomization, TcpSettings,
 };
 use socket2::SockRef;
 #[cfg(any(not(windows), test))]
@@ -362,8 +362,16 @@ pub(crate) async fn connect_resolved_keeping_slower(
             let connected = won.connected;
             let slower = family.and_then(|memory| {
                 memory.record_connection(&connected.address, connected.switched_family);
-                won.slower
-                    .map(|slower| SlowerAttempt::new(slower, memory.clone(), schedule))
+                won.slower.map(|slower| {
+                    SlowerAttempt::new(
+                        slower,
+                        memory.clone(),
+                        schedule,
+                        settings.map_or(SocketOptionPolicy::Required, |settings| {
+                            settings.option_policy
+                        }),
+                    )
+                })
             });
             (connected.stream, connected.started, slower)
         }
@@ -374,8 +382,13 @@ pub(crate) async fn connect_resolved_keeping_slower(
             ));
         }
     };
-    let keepalive =
-        schedule.map(|schedule| TcpKeepaliveControl::opened(schedule, attempt_started.elapsed()));
+    let keepalive = schedule.map(|schedule| {
+        TcpKeepaliveControl::opened(schedule, attempt_started.elapsed()).with_option_policy(
+            settings.map_or(SocketOptionPolicy::Required, |settings| {
+                settings.option_policy
+            }),
+        )
+    });
     Ok((ProfileTcpStream { stream, keepalive }, slower))
 }
 
@@ -459,10 +472,13 @@ pub(crate) async fn connect_socks_proxy_sequential(
         }
     };
     let keepalive = match dialer.tcp.map(|s| s.keepalive) {
-        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(TcpKeepaliveControl::opened_idle(
-            schedule,
-            started.elapsed(),
-        )),
+        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(
+            TcpKeepaliveControl::opened_idle(schedule, started.elapsed()).with_option_policy(
+                dialer.tcp.map_or(SocketOptionPolicy::Required, |settings| {
+                    settings.option_policy
+                }),
+            ),
+        ),
         _ => None,
     };
     Ok(ProfileTcpStream { stream, keepalive })
@@ -716,19 +732,12 @@ fn candidate_connect_failure(
     }
 }
 
-/// Applies every option `settings` sets before `connect`, failing on the
-/// first rejection.
-///
-/// Chromium ignores a failure to set these options
-/// (`net/socket/tcp_socket_win.cc:70-71` at tag `154.0.8037.58`), and so does
-/// Firefox (`netwerk/base/nsSocketTransport2.cpp:1449-1465` at tag
-/// `FIREFOX_157_0_RELEASE`). Phantom fails the attempt instead, so a
-/// connection never proceeds with socket options the profile did not ask
-/// for. A keepalive schedule sets nothing here: it starts once the socket
-/// has connected. Port randomization comes last, as in Chromium's call
-/// order, and before a source binding binds the socket, which Windows
-/// requires.
+/// Applies tuning before connect, following the profile's rejection policy.
+/// A scheduled keepalive starts after connect. Port randomization must precede
+/// source binding on Windows.
 fn apply_options(socket: &SockRef<'_>, settings: TcpSettings) -> io::Result<()> {
+    let apply =
+        |option, result| crate::socket_options::apply(settings.option_policy, option, result);
     let fixed_keepalive = match settings.keepalive {
         TcpKeepalivePolicy::Fixed(keepalive) => Some(keepalive),
         TcpKeepalivePolicy::Unchanged | TcpKeepalivePolicy::Schedule(_) => None,
@@ -740,24 +749,33 @@ fn apply_options(socket: &SockRef<'_>, settings: TcpSettings) -> io::Result<()> 
         }
     };
     if settings.nodelay {
-        socket
-            .set_tcp_nodelay(true)
-            .map_err(|error| option_error("TCP_NODELAY", error))?;
+        apply(
+            "TCP_NODELAY",
+            socket
+                .set_tcp_nodelay(true)
+                .map_err(|error| option_error("TCP_NODELAY", error)),
+        )?;
     }
     if let Some(size) = settings.send_buffer_size {
         let size = usize::try_from(size.get())
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
-        socket
-            .set_send_buffer_size(size)
-            .map_err(|error| option_error("SO_SNDBUF", error))?;
+        apply(
+            "SO_SNDBUF",
+            socket
+                .set_send_buffer_size(size)
+                .map_err(|error| option_error("SO_SNDBUF", error)),
+        )?;
     }
     if let Some(keepalive) = fixed_keepalive {
-        socket
-            .set_tcp_keepalive(&keepalive_parameters(keepalive)?)
-            .map_err(|error| option_error("TCP keepalive", error))?;
+        let result = keepalive_parameters(keepalive)
+            .and_then(|parameters| socket.set_tcp_keepalive(&parameters));
+        apply(
+            "TCP keepalive",
+            result.map_err(|error| option_error("TCP keepalive", error)),
+        )?;
     }
     if let Some(randomization) = settings.port_randomization {
-        randomize_port(socket, randomization)?;
+        apply("SO_RANDOMIZE_PORT", randomize_port(socket, randomization))?;
     }
     Ok(())
 }
@@ -994,19 +1012,21 @@ const UNSUPPORTED_PROBE_COUNT: &str = "this platform cannot set a TCP keepalive 
 /// Checks that this host can apply `settings` exactly, without I/O.
 ///
 /// Settings that pass [`TcpSettings::validate`] can still be impossible on a
-/// particular operating system. They are rejected here rather than applied
-/// partially; only a rejection by the operating system itself remains a
-/// connection-time failure.
+/// particular operating system. Required tuning is rejected here rather than
+/// applied partially. Best-effort tuning may proceed without those options.
 ///
 /// # Errors
 ///
-/// Returns [`UnsupportedTcpSettings`] when this platform cannot set a
-/// requested keepalive idle time, interval, or probe count. It also rejects
+/// Returns [`UnsupportedTcpSettings`] when this platform cannot set a required
+/// keepalive idle time, interval, or probe count. It also rejects
 /// an unset interval on Windows, and unknown keepalive, address-selection,
 /// and address-advance policies.
 pub fn check_host_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {
     check_policy_support(settings)?;
-    check_keepalive_support(settings, HOST_KEEPALIVE)
+    match settings.option_policy {
+        SocketOptionPolicy::Required => check_keepalive_support(settings, HOST_KEEPALIVE),
+        SocketOptionPolicy::BestEffort => Ok(()),
+    }
 }
 
 fn check_policy_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {

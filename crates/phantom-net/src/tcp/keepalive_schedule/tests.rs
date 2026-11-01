@@ -8,6 +8,57 @@ use super::{KeepalivePhase, TcpKeepaliveControl, probe_interval, switch_delay};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+#[tokio::test]
+async fn optional_keepalive_failure_stops_tracking_without_failing_io() -> TestResult {
+    let control = TcpKeepaliveControl::opened(quick_schedule(), Duration::ZERO)
+        .with_option_policy(phantom_profile::SocketOptionPolicy::BestEffort);
+    let phase = control.apply_with(Waker::noop(), |_| {
+        Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+    })?;
+    assert_eq!(phase, KeepalivePhase::Disabled);
+    assert!(control.lock().deadline.is_none());
+    assert!(control.lock().waker.is_none());
+
+    control.request_dispatched();
+    control.connection_idle();
+    control.upgraded();
+    assert!(control.lock().switch_at.is_none());
+    let mut retried = false;
+    assert_eq!(
+        control.apply_with(Waker::noop(), |_| {
+            retried = true;
+            Ok(())
+        })?,
+        KeepalivePhase::Disabled
+    );
+    assert!(!retried);
+    let (socket, mut peer) = loopback_pair().await?;
+    let mut stream = super::super::ProfileTcpStream {
+        stream: socket,
+        keepalive: Some(control),
+    };
+    tokio::io::AsyncWriteExt::write_all(&mut stream, b"ping").await?;
+    let mut received = [0; 4];
+    tokio::io::AsyncReadExt::read_exact(&mut peer, &mut received).await?;
+    assert_eq!(&received, b"ping");
+    assert!(stream.keepalive.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn required_keepalive_preserves_rejection_and_unapplied_phase() -> TestResult {
+    let control = TcpKeepaliveControl::opened(quick_schedule(), Duration::ZERO);
+    let error = control
+        .apply_with(Waker::noop(), |_| {
+            Err(std::io::Error::from_raw_os_error(13))
+        })
+        .err()
+        .ok_or("required keepalive accepted a rejected option")?;
+    assert_eq!(error.raw_os_error(), Some(13));
+    assert_eq!(control.lock().applied, KeepalivePhase::Unset);
+    Ok(())
+}
+
 fn firefox_schedule() -> TestResult<TcpKeepaliveSchedule> {
     match firefox::v157_tcp().keepalive {
         phantom_profile::TcpKeepalivePolicy::Schedule(schedule) => Ok(schedule),

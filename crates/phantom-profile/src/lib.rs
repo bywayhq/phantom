@@ -49,6 +49,7 @@ pub use request_template::{ClientHintSlot, client_hint_placement, restart_client
 pub use request_template::{
     InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
 };
+pub use socket::SocketOptionPolicy;
 pub use tcp::{
     InvalidTcpSettings, MAX_TCP_BACKUP_TIMEOUT_SECONDS, MAX_TCP_FALLBACK_DELAY,
     MAX_TCP_KEEPALIVE_PROBES, MAX_TCP_KEEPALIVE_SECONDS, MAX_TCP_SHORT_LIVED_SECONDS,
@@ -87,6 +88,7 @@ mod http3;
 mod proxy_connect;
 mod quic;
 mod request_template;
+mod socket;
 mod tcp;
 mod tls;
 mod udp;

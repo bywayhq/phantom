@@ -72,6 +72,7 @@ COMPONENT_FIELDS = {
         "http2_connections",
     ),
     "TcpSettings": (
+        "option_policy",
         "nodelay",
         "send_buffer_size",
         "keepalive",
@@ -88,7 +89,7 @@ COMPONENT_FIELDS = {
         "stale_grace",
         "negative_ttl",
     ),
-    "UdpSettings": ("port_randomization",),
+    "UdpSettings": ("option_policy", "port_randomization"),
     "QuicTransportSettings": (
         "max_idle_timeout_ms",
         "max_udp_payload_size",
@@ -198,6 +199,7 @@ def validate_component_values(kind, values):
         validate_dns_values(values)
         return
     if kind == "UdpSettings":
+        choice(values["option_policy"], ("Required", "BestEffort"), "option_policy")
         boolean(values["port_randomization"], "port_randomization")
         return
     if kind == "QuicTransportSettings":
@@ -324,6 +326,8 @@ def rust_component_value(field, value, kind="Http3Settings"):
             else rust_duration(value)
         )
     if kind == "UdpSettings":
+        if field == "option_policy":
+            return f"crate::SocketOptionPolicy::{value}"
         return str(value).lower()
     if kind == "QuicTransportSettings":
         return rust_quic_value(field, value)

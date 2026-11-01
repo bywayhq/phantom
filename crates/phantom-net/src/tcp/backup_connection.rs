@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::host_resolver::tcp_addresses::{TcpAddressCursor, TcpAddresses, TcpCandidate};
-use phantom_profile::TcpKeepaliveSchedule;
+use phantom_profile::{SocketOptionPolicy, TcpKeepaliveSchedule};
 use tokio::net::TcpStream;
 
 use super::{
@@ -594,17 +594,21 @@ pub(crate) struct SlowerTcp {
     /// The time from the attempt's start until it connected.
     setup: Duration,
     schedule: Option<TcpKeepaliveSchedule>,
+    option_policy: SocketOptionPolicy,
 }
 
 impl SlowerTcp {
     /// The profile stream, with its keepalive schedule starting as `start`
     /// says.
     pub(crate) fn into_stream(self, start: SlowerKeepalive) -> ProfileTcpStream {
-        let keepalive = self.schedule.map(|schedule| match start {
-            SlowerKeepalive::BeforeTls => TcpKeepaliveControl::opened(schedule, self.setup),
-            SlowerKeepalive::OnFirstRequest => {
-                TcpKeepaliveControl::opened_idle(schedule, self.setup)
-            }
+        let keepalive = self.schedule.map(|schedule| {
+            (match start {
+                SlowerKeepalive::BeforeTls => TcpKeepaliveControl::opened(schedule, self.setup),
+                SlowerKeepalive::OnFirstRequest => {
+                    TcpKeepaliveControl::opened_idle(schedule, self.setup)
+                }
+            })
+            .with_option_policy(self.option_policy)
         });
         ProfileTcpStream {
             stream: self.stream,
@@ -634,6 +638,7 @@ impl SlowerAttempt {
         slower: Slower<Attempt, Dial>,
         memory: AddressFamilyMemory,
         schedule: Option<TcpKeepaliveSchedule>,
+        option_policy: SocketOptionPolicy,
     ) -> Self
     where
         Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt + Send + 'static,
@@ -646,6 +651,7 @@ impl SlowerAttempt {
                 stream: connected.stream,
                 setup: connected.started.elapsed(),
                 schedule,
+                option_policy,
             })
         })
     }
@@ -667,6 +673,7 @@ impl SlowerAttempt {
     ) -> Self {
         Self::from_future(async move {
             Ok(SlowerTcp {
+                option_policy: SocketOptionPolicy::Required,
                 stream: future.await?,
                 setup,
                 schedule,

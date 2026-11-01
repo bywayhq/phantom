@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_profile::TcpKeepaliveSchedule;
+use phantom_profile::{SocketOptionPolicy, TcpKeepaliveSchedule};
 use socket2::SockRef;
 use tokio::{net::TcpStream, sync::oneshot};
 
@@ -35,7 +35,7 @@ pub(crate) enum KeepalivePhase {
     ShortLived,
     /// The long-lived idle time and the probe interval.
     LongLived,
-    /// Keepalive turned off.
+    /// Keepalive turned off, or tracking stopped after optional tuning failed.
     Disabled,
 }
 
@@ -69,6 +69,7 @@ pub(crate) struct TcpKeepaliveControl {
 }
 
 struct State {
+    option_policy: SocketOptionPolicy,
     schedule: TcpKeepaliveSchedule,
     interval: Duration,
     wanted: KeepalivePhase,
@@ -100,6 +101,7 @@ impl TcpKeepaliveControl {
     pub(crate) fn opened(schedule: TcpKeepaliveSchedule, setup: Duration) -> Self {
         let interval = probe_interval(&schedule, setup);
         let mut state = State {
+            option_policy: SocketOptionPolicy::Required,
             schedule,
             interval,
             wanted: KeepalivePhase::ShortLived,
@@ -132,6 +134,7 @@ impl TcpKeepaliveControl {
     pub(crate) fn opened_idle(schedule: TcpKeepaliveSchedule, setup: Duration) -> Self {
         let control = Self {
             shared: Arc::new(Mutex::new(State {
+                option_policy: SocketOptionPolicy::Required,
                 schedule,
                 interval: probe_interval(&schedule, setup),
                 wanted: KeepalivePhase::Unset,
@@ -148,6 +151,11 @@ impl TcpKeepaliveControl {
         #[cfg(test)]
         observed::record(&control);
         control
+    }
+
+    pub(crate) fn with_option_policy(self, policy: SocketOptionPolicy) -> Self {
+        self.lock().option_policy = policy;
+        self
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
@@ -215,6 +223,14 @@ impl TcpKeepaliveControl {
     /// HTTP layers report a change. Returns the phase applied to the socket;
     /// [`KeepalivePhase::Disabled`] needs no further stream tracking.
     pub(crate) fn apply(&self, socket: &TcpStream, waker: &Waker) -> io::Result<KeepalivePhase> {
+        self.apply_with(waker, |state| state.apply_to(&SockRef::from(socket)))
+    }
+
+    fn apply_with(
+        &self,
+        waker: &Waker,
+        apply: impl FnOnce(&State) -> io::Result<()>,
+    ) -> io::Result<KeepalivePhase> {
         let mut state = self.lock();
         if state.applied == KeepalivePhase::Disabled {
             return Ok(KeepalivePhase::Disabled);
@@ -231,30 +247,11 @@ impl TcpKeepaliveControl {
         if state.wanted == state.applied {
             return Ok(state.applied);
         }
-        let socket = SockRef::from(socket);
-        let idle = match state.wanted {
-            KeepalivePhase::ShortLived => Some(state.schedule.short_lived_idle),
-            KeepalivePhase::LongLived => Some(state.schedule.long_lived_idle),
-            KeepalivePhase::Disabled | KeepalivePhase::Unset => None,
-        };
-        match idle {
-            Some(idle) => {
-                let mut parameters = socket2::TcpKeepalive::new().with_time(idle);
-                if state.schedule.set_interval {
-                    parameters = with_interval(parameters, state.interval)?;
-                }
-                if state.schedule.set_probe_count {
-                    parameters = with_probe_count(parameters, state.schedule.probe_count)?;
-                }
-                socket
-                    .set_tcp_keepalive(&parameters)
-                    .map_err(|error| option_error("TCP keepalive", error))?;
-            }
-            // Keepalive was never turned on when nothing was applied yet.
-            None if state.applied == KeepalivePhase::Unset => {}
-            None => socket
-                .set_keepalive(false)
-                .map_err(|error| option_error("SO_KEEPALIVE", error))?,
+        if let Err(error) = apply(&state) {
+            crate::socket_options::apply(state.option_policy, "TCP keepalive", Err(error))?;
+            // Lifecycle reports must not restart a rejected schedule.
+            state.wanted = KeepalivePhase::Disabled;
+            state.switch_at = None;
         }
         state.applied = state.wanted;
         if state.applied == KeepalivePhase::Disabled {
@@ -289,6 +286,34 @@ impl TcpKeepaliveControl {
 }
 
 impl State {
+    fn apply_to(&self, socket: &SockRef<'_>) -> io::Result<()> {
+        let idle = match self.wanted {
+            KeepalivePhase::ShortLived => Some(self.schedule.short_lived_idle),
+            KeepalivePhase::LongLived => Some(self.schedule.long_lived_idle),
+            KeepalivePhase::Disabled | KeepalivePhase::Unset => None,
+        };
+        match idle {
+            Some(idle) => {
+                let mut parameters = socket2::TcpKeepalive::new().with_time(idle);
+                if self.schedule.set_interval {
+                    parameters = with_interval(parameters, self.interval)?;
+                }
+                if self.schedule.set_probe_count {
+                    parameters = with_probe_count(parameters, self.schedule.probe_count)?;
+                }
+                socket
+                    .set_tcp_keepalive(&parameters)
+                    .map_err(|error| option_error("TCP keepalive", error))?;
+            }
+            // Keepalive was never turned on when nothing was applied yet.
+            None if self.applied == KeepalivePhase::Unset => {}
+            None => socket
+                .set_keepalive(false)
+                .map_err(|error| option_error("SO_KEEPALIVE", error))?,
+        }
+        Ok(())
+    }
+
     /// Schedules the switch to long-lived keepalive from now. A deadline
     /// already pending falls due earlier and is set again then.
     fn arm_switch(&mut self) {

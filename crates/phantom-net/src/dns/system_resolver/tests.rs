@@ -3,6 +3,51 @@ use std::{cell::Cell, io};
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
+fn connection_tuning_policy_does_not_duplicate_or_relax_dns_views() -> TestResult {
+    use super::{AddressLookup, Snapshot};
+    use phantom_profile::{SocketOptionPolicy, UdpSettings};
+    use std::sync::Arc;
+
+    let base = Arc::new(AddressLookup::for_test(
+        ["127.0.0.1:53".parse()?],
+        "",
+        false,
+        vec![],
+    )?);
+    let snapshot = Snapshot::BuiltIn([
+        base.clone(),
+        Arc::new(base.with_udp_settings(UdpSettings {
+            port_randomization: false,
+            ..UdpSettings::default()
+        })),
+        Arc::new(base.with_udp_settings(UdpSettings {
+            port_randomization: true,
+            ..UdpSettings::default()
+        })),
+    ]);
+
+    for port_randomization in [false, true] {
+        let required = snapshot.lookup(Some(UdpSettings {
+            port_randomization,
+            option_policy: SocketOptionPolicy::Required,
+        }))?;
+        let optional = snapshot.lookup(Some(UdpSettings {
+            port_randomization,
+            option_policy: SocketOptionPolicy::BestEffort,
+        }))?;
+        assert!(Arc::ptr_eq(&required, &optional));
+        assert_eq!(
+            optional
+                .udp_settings()
+                .ok_or("missing DNS UDP settings")?
+                .option_policy,
+            SocketOptionPolicy::Required
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_known_old_snapshot_never_starts_the_reader() {
     let read = Cell::new(false);
     let result = read_current_snapshot(
@@ -128,9 +173,11 @@ async fn unsupported_linux_configuration_uses_os_addresses_and_rejects_raw_https
     for settings in [
         None,
         Some(phantom_profile::UdpSettings {
+            option_policy: phantom_profile::SocketOptionPolicy::Required,
             port_randomization: false,
         }),
         Some(phantom_profile::UdpSettings {
+            option_policy: phantom_profile::SocketOptionPolicy::Required,
             port_randomization: true,
         }),
     ] {
@@ -329,9 +376,11 @@ async fn unsupported_macos_settings_use_os_addresses_without_raw_dns() -> TestRe
     for setting in [
         None,
         Some(phantom_profile::UdpSettings {
+            option_policy: phantom_profile::SocketOptionPolicy::Required,
             port_randomization: false,
         }),
         Some(phantom_profile::UdpSettings {
+            option_policy: phantom_profile::SocketOptionPolicy::Required,
             port_randomization: true,
         }),
     ] {

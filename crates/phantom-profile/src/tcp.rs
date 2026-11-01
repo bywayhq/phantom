@@ -271,7 +271,7 @@ impl Default for TcpAddressSelection {
 /// connections. Windows rejects the option on a socket that is already
 /// bound, so it is set after the other options and before a source binding
 /// binds the socket; a source-bound connection gets a random port too. A
-/// rejection fails the connection attempt, as for every other option.
+/// rejection follows [`TcpSettings::option_policy`].
 ///
 /// Only Windows has the option. Elsewhere the setting changes nothing.
 /// Built-in profiles leave it disabled because randomized TCP ports can
@@ -301,6 +301,11 @@ pub struct TcpPortRandomization {
 /// operating-system default. [`Self::default`] asks for nothing.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TcpSettings {
+    /// Whether rejected socket tuning fails the connection.
+    ///
+    /// Built-in recipes use [`crate::SocketOptionPolicy::BestEffort`]. Input
+    /// validation, address selection and source binding remain required.
+    pub option_policy: crate::SocketOptionPolicy,
     /// Whether to disable Nagle's algorithm with `TCP_NODELAY`.
     ///
     /// `false` leaves the option untouched, which keeps Nagle's algorithm

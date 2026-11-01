@@ -210,7 +210,8 @@ pub fn export_profile_json(
 ///
 /// Returns owned custom settings.
 /// Arrays preserve their supplied order. Optional layers require explicit
-/// `null`; present layers require all their fields. Import performs no I/O,
+/// `null`; present layers require their fields, except that omitted TCP/UDP
+/// `option_policy` defaults to `Required`. Import performs no I/O,
 /// client construction, catalog selection or random draws. Backend and host
 /// support are checked when the caller builds a client.
 /// Version 2 includes a `request_contexts` object with up to eight named

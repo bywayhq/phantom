@@ -10,13 +10,17 @@
 /// at its operating-system default. [`Self::default`] asks for nothing.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UdpSettings {
+    /// Whether rejected port-randomization tuning fails the operation.
+    /// Source and interface binding remain required under either policy.
+    pub option_policy: crate::SocketOptionPolicy,
     /// Whether to ask Windows for a random local port with
     /// `SO_RANDOMIZE_PORT`, rather than the next free port in sequence.
     ///
     /// A server sees the difference in the source ports of successive
     /// sockets. Windows rejects the option on a socket that is already bound,
     /// so it is set first, before the socket binds, with or without a source
-    /// binding. A rejection fails the connection attempt.
+    /// binding. A rejection follows [`Self::option_policy`]. DNS queries still
+    /// require randomization when the OS selects their source port.
     ///
     /// Only Windows has the option. Elsewhere the setting changes nothing.
     pub port_randomization: bool,

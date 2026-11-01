@@ -2,4 +2,4 @@
 
 use phantom_profile::*;
 
-record!(UdpSettings, port_randomization);
+record!(UdpSettings, option_policy, port_randomization);

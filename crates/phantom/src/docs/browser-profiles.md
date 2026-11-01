@@ -74,6 +74,11 @@ Built-in profiles leave TCP source-port selection to Windows. Chromium's
 randomization option can stall connections under churn. You can explicitly
 enable it through [`TcpSettings::port_randomization`](crate::profile::TcpSettings::port_randomization).
 
+Built-in recipes continue when the OS rejects connection socket tuning.
+Set [`option_policy`](crate::profile::TcpSettings::option_policy) to
+[`Required`](crate::profile::SocketOptionPolicy::Required) when those options
+are a requirement. Source/interface binding and DNS port randomness stay required.
+
 With Alt-Svc enabled, Firefox recipes validate advertised HTTP/3 alternatives
 in the background. Validation opens a connection without sending a request.
 Later requests select the alternative after validation succeeds.

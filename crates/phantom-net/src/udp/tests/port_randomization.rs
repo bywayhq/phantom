@@ -127,3 +127,17 @@ fn source_bound_chromium_sockets_take_scattered_local_ports() -> TestResult {
     assert!(scattered(&sockets)?);
     Ok(())
 }
+#[test]
+fn optional_port_tuning_tolerates_rejection_on_a_bound_socket()
+-> Result<(), Box<dyn std::error::Error>> {
+    use phantom_profile::{SocketOptionPolicy, UdpSettings};
+    let socket: socket2::Socket = phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?.into();
+    let mut settings = UdpSettings {
+        port_randomization: true,
+        option_policy: SocketOptionPolicy::Required,
+    };
+    assert!(super::super::apply_options(&socket, settings).is_err());
+    settings.option_policy = SocketOptionPolicy::BestEffort;
+    super::super::apply_options(&socket, settings)?;
+    Ok(())
+}

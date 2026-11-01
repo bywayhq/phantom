@@ -35,6 +35,7 @@ def tcp_delay(value):
 
 
 def validate_tcp_values(values):
+    choice(values["option_policy"], ("Required", "BestEffort"), "option_policy")
     boolean(values["nodelay"], "nodelay")
     if values["send_buffer_size"] is not None:
         bounded_integer(values["send_buffer_size"], 1, (1 << 31) - 1, "TCP send buffer")
@@ -124,6 +125,8 @@ def validate_tcp_values(values):
 
 
 def rust_tcp_value(field, value):
+    if field == "option_policy":
+        return f"crate::SocketOptionPolicy::{value}"
     if field == "nodelay":
         return str(value).lower()
     if field == "send_buffer_size":

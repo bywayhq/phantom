@@ -64,6 +64,7 @@ fn chrome_original() -> TcpSettings {
     const KEEPALIVE: Duration = Duration::from_secs(45);
 
     TcpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: None,
         keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
@@ -79,6 +80,7 @@ fn chrome_original() -> TcpSettings {
 
 fn firefox_original() -> TcpSettings {
     TcpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
         nodelay: true,
         send_buffer_size: NonZeroU32::new(524_288),
         keepalive: TcpKeepalivePolicy::Schedule(TcpKeepaliveSchedule {

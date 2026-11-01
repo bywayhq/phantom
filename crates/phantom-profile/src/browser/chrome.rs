@@ -89,8 +89,8 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// connections under churn. See [`crate::TcpAddressRacing`] for address selection.
 ///
 /// Use [`v154_macos_tcp`] on macOS and [`v154_android_tcp`] on Android.
-/// Phantom fails the connection if a requested socket option cannot be set;
-/// Chromium ignores those failures.
+/// Rejected socket tuning does not fail the connection, as in Chromium.
+/// Set [`TcpSettings::option_policy`] to require the options instead.
 ///
 /// These options follow `net/socket/tcp_socket_{win,posix}.cc` at Chromium tag
 /// `154.0.8037.58`. Brave 154 uses the same settings.

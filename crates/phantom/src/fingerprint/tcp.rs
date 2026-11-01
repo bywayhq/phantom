@@ -5,13 +5,13 @@ use super::{
     json::{self, Value},
 };
 use phantom_profile::{
-    SocksProxyDnsFeedback, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
-    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
-    TcpPortRandomization, TcpSettings,
+    SocketOptionPolicy, SocksProxyDnsFeedback, TcpAddressAdvance, TcpAddressRacing,
+    TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
+    TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
 };
 
 pub(super) fn parse(v: &Value) -> Result<TcpSettings> {
-    v.record(
+    v.record_with_optional(
         &[
             "nodelay",
             "send_buffer_size",
@@ -19,9 +19,14 @@ pub(super) fn parse(v: &Value) -> Result<TcpSettings> {
             "address_selection",
             "port_randomization",
         ],
+        &["option_policy"],
         "tcp",
     )?;
     let settings = TcpSettings {
+        option_policy: option_policy(
+            v.optional_member("option_policy", "tcp.option_policy")?,
+            "tcp.option_policy",
+        )?,
         nodelay: v.member("nodelay", "tcp.nodelay")?.boolean("tcp.nodelay")?,
         send_buffer_size: v
             .member("send_buffer_size", "tcp.send_buffer_size")?
@@ -36,6 +41,17 @@ pub(super) fn parse(v: &Value) -> Result<TcpSettings> {
         .validate()
         .map_err(|error| FingerprintImportError::native("tcp", error))?;
     Ok(settings)
+}
+
+pub(super) fn option_policy(v: Option<&Value>, field: &str) -> Result<SocketOptionPolicy> {
+    let Some(v) = v else {
+        return Ok(SocketOptionPolicy::Required);
+    };
+    match v.text(field)? {
+        "Required" => Ok(SocketOptionPolicy::Required),
+        "BestEffort" => Ok(SocketOptionPolicy::BestEffort),
+        _ => Err(json::unsupported(field)),
+    }
 }
 
 pub(super) fn ports(v: &Value) -> Result<TcpPortRandomization> {

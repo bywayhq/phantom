@@ -234,12 +234,14 @@ use phantom_profile::{
 
 pub(super) fn tcp(e: &mut Encoder, value: &TcpSettings) -> Result<(), PreparationError> {
     let TcpSettings {
+        option_policy,
         nodelay,
         send_buffer_size,
         keepalive,
         address_selection,
         port_randomization,
     } = value;
+    socket_option_policy(e, *option_policy)?;
     e.bool(*nodelay)?;
     e.option(send_buffer_size.as_ref(), |e, value| e.u32(value.get()))?;
     match keepalive {
@@ -309,7 +311,11 @@ pub(super) fn tcp(e: &mut Encoder, value: &TcpSettings) -> Result<(), Preparatio
 }
 
 pub(super) fn udp(e: &mut Encoder, value: &UdpSettings) -> Result<(), PreparationError> {
-    let UdpSettings { port_randomization } = value;
+    let UdpSettings {
+        option_policy,
+        port_randomization,
+    } = value;
+    socket_option_policy(e, *option_policy)?;
     e.bool(*port_randomization)
 }
 
@@ -599,6 +605,16 @@ fn http3_setting(e: &mut Encoder, value: &Http3Setting) -> Result<(), Preparatio
         Http3Setting::RandomizedGrease => e.u8(7),
         _ => Err(PreparationError::Unsupported("Http3Setting")),
     }
+}
+
+fn socket_option_policy(
+    e: &mut Encoder,
+    policy: phantom_profile::SocketOptionPolicy,
+) -> Result<(), PreparationError> {
+    e.u8(match policy {
+        phantom_profile::SocketOptionPolicy::Required => 0,
+        phantom_profile::SocketOptionPolicy::BestEffort => 1,
+    })
 }
 
 #[cfg(test)]

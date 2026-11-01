@@ -16,6 +16,25 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 const IPV4_LOOPBACK: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 
+#[test]
+fn optional_udp_tuning_never_falls_back_to_an_unbound_socket() -> TestResult {
+    let source = SourceBinding::new().with_address(std::net::Ipv6Addr::LOCALHOST.into());
+    let settings = UdpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
+        ..UdpSettings::default()
+    };
+    let error = bind_socket(
+        "127.0.0.1:80".parse()?,
+        "127.0.0.1:0".parse()?,
+        Some(&source),
+        Some(settings),
+    )
+    .err()
+    .ok_or("source family restriction was ignored")?;
+    assert_eq!(error.kind(), io::ErrorKind::AddrNotAvailable);
+    Ok(())
+}
+
 /// Whether `settings` set `SO_RANDOMIZE_PORT` on this host: on every Windows
 /// when asked, and nowhere else.
 fn sets_random_port(settings: Option<UdpSettings>) -> bool {

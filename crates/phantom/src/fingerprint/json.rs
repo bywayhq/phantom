@@ -200,10 +200,22 @@ impl Value {
     }
 
     pub(super) fn record(&self, keys: &[&str], field: &str) -> Result<()> {
+        self.record_with_optional(keys, &[], field)
+    }
+
+    pub(super) fn record_with_optional(
+        &self,
+        keys: &[&str],
+        optional: &[&str],
+        field: &str,
+    ) -> Result<()> {
         let Self::Object(values) = self else {
             return Err(ImportError::new(Kind::InvalidValue, field));
         };
-        if values.iter().any(|(key, _)| !keys.contains(&key.as_ref())) {
+        if values
+            .iter()
+            .any(|(key, _)| !keys.contains(&key.as_ref()) && !optional.contains(&key.as_ref()))
+        {
             return Err(ImportError::new(Kind::UnsupportedSetting, field));
         }
         if keys
@@ -215,14 +227,18 @@ impl Value {
         Ok(())
     }
     pub(super) fn member(&self, key: &str, field: &str) -> Result<&Self> {
+        self.optional_member(key, field)?
+            .ok_or_else(|| ImportError::new(Kind::MissingField, field))
+    }
+
+    pub(super) fn optional_member(&self, key: &str, field: &str) -> Result<Option<&Self>> {
         let Self::Object(values) = self else {
             return Err(ImportError::new(Kind::InvalidValue, field));
         };
-        values
+        Ok(values
             .iter()
             .find(|(name, _)| name.as_ref() == key)
-            .map(|(_, v)| v)
-            .ok_or_else(|| ImportError::new(Kind::MissingField, field))
+            .map(|(_, v)| v))
     }
     pub(super) fn text(&self, field: &str) -> Result<&str> {
         match self {

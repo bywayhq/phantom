@@ -6,6 +6,7 @@
       "kind": "UdpSettings",
       "base": null,
       "values": {
+        "option_policy": "BestEffort",
         "port_randomization": true
       }
     }

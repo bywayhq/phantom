@@ -4,6 +4,16 @@ use super::{Encode, Encoder, Result};
 use phantom_profile::*;
 use serde_json::Value;
 
+impl Encode for SocketOptionPolicy {
+    fn encode(&self, encoder: &mut Encoder, field: &str) -> Result<Value> {
+        let value = match self {
+            Self::Required => "Required",
+            Self::BestEffort => "BestEffort",
+        };
+        value.encode(encoder, field)
+    }
+}
+
 tokens!(TcpAddressAdvance, AfterAnyFailure, AfterRefusalOrTimeout);
 tokens!(
     SocksProxyDnsFeedback,
@@ -31,6 +41,7 @@ record!(
 record!(TcpPortRandomization, minimum_windows_build);
 record!(
     TcpSettings,
+    option_policy,
     nodelay,
     send_buffer_size,
     keepalive,

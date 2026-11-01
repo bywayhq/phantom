@@ -38,9 +38,11 @@ async fn linux_intake_applies_suffixes_and_server_order_to_each_udp_view() -> Te
     let result = tokio::time::timeout(Duration::from_secs(5), async {
         for lookup in [
             lookup.with_udp_settings(UdpSettings {
+                option_policy: phantom_profile::SocketOptionPolicy::Required,
                 port_randomization: false,
             }),
             lookup.with_udp_settings(UdpSettings {
+                option_policy: phantom_profile::SocketOptionPolicy::Required,
                 port_randomization: true,
             }),
             lookup,

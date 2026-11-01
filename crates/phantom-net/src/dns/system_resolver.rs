@@ -412,9 +412,11 @@ impl Snapshot {
                 Ok(Self::BuiltIn([
                     Arc::clone(&base),
                     Arc::new(base.with_udp_settings(UdpSettings {
+                        option_policy: phantom_profile::SocketOptionPolicy::Required,
                         port_randomization: false,
                     })),
                     Arc::new(base.with_udp_settings(UdpSettings {
+                        option_policy: phantom_profile::SocketOptionPolicy::Required,
                         port_randomization: true,
                     })),
                 ]))
@@ -443,9 +445,11 @@ impl Snapshot {
                     None => 0,
                     Some(UdpSettings {
                         port_randomization: false,
+                        ..
                     }) => 1,
                     Some(UdpSettings {
                         port_randomization: true,
+                        ..
                     }) => 2,
                 }],
             )),

@@ -22,6 +22,7 @@ fn composed_profiles_keep_udp_port_randomization() -> Result<(), Box<dyn std::er
 }
 fn chrome_original() -> UdpSettings {
     UdpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::BestEffort,
         port_randomization: true,
     }
 }

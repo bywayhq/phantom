@@ -188,6 +188,7 @@ fn udp_views_share_generation_but_independent_owners_do_not() -> TestResult {
     let owner = Generational::new(watch::channel(true).1);
     let view = owner.resolver();
     let changed_udp = view.clone().with_udp_settings(UdpSettings {
+        option_policy: phantom_profile::SocketOptionPolicy::Required,
         port_randomization: true,
     });
     assert_eq!(

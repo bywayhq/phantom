@@ -65,6 +65,7 @@ mod shutdown_timer;
 ))]
 #[allow(unsafe_code, reason = "private socket FFI boundary")]
 mod socket_ffi;
+mod socket_options;
 mod source_binding;
 #[cfg(windows)]
 #[allow(unsafe_code, reason = "private Windows system DNS FFI boundary")]

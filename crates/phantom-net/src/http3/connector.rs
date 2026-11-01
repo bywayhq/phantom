@@ -663,7 +663,7 @@ impl Http3Connector {
     ///
     /// QUIC itself runs over UDP, so direct connections are unaffected. The
     /// settings are checked before any DNS or socket I/O; invalid settings, or
-    /// settings this host cannot apply exactly (see
+    /// required tuning this host cannot apply (see
     /// [`crate::tcp::check_host_support`]), fail the association's proxy
     /// connection.
     #[must_use]
@@ -686,8 +686,7 @@ impl Http3Connector {
     ///
     /// A CONNECT-UDP tunnel has no UDP socket of its own; the connector of
     /// its proxy leg applies its own settings. The options are set before the
-    /// socket binds, and an option the operating system rejects fails the
-    /// connection attempt with an endpoint or proxy error.
+    /// socket binds. Rejections follow [`UdpSettings::option_policy`].
     #[must_use]
     pub fn with_udp_settings(mut self, settings: &UdpSettings) -> Self {
         self.udp = Some(*settings);
