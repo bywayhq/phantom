@@ -37,6 +37,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "one request through the public client: fields, bodies, redirects, "
             "retries, and timeouts",
             [
+                "async_request_hooks",
                 "client",
                 "client_certificates",
                 "client_hints",
