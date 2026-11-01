@@ -162,14 +162,17 @@ test('typed Alt-Svc transfer preserves core expiry, precedence and atomic valida
   const expiry = BigInt(Date.now() + 60000) * 1000000n + 123400n;
   const entry = {origin: 'https://example.test', alternativeHost: 'alt.example.test', alternativePort: 443, expiresAtNanoseconds: expiry};
   const second = 1000000000n;
+  const started = process.hrtime.bigint();
   const check = (snapshot, upperExpiry = expiry / second * second) => {
     assert.equal(snapshot.length, 1);
     const {expiresAtNanoseconds, ...fields} = snapshot[0];
     const {expiresAtNanoseconds: _expiry, ...expected} = entry;
     assert.deepEqual(fields, expected);
     assert.equal(expiresAtNanoseconds % second, 0n);
-    // Core translates monotonic deadlines and floors each export, including after restore.
-    assert(expiresAtNanoseconds <= upperExpiry && expiresAtNanoseconds >= upperExpiry - second);
+    // A pause between core clock samples may shorten expiry beyond export flooring.
+    const elapsed = process.hrtime.bigint() - started;
+    assert(expiresAtNanoseconds <= upperExpiry);
+    assert(expiresAtNanoseconds >= upperExpiry - second - elapsed);
   };
   source.importAltSvc([entry]);
   const exported = source.exportAltSvc();
