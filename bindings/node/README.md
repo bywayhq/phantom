@@ -468,6 +468,28 @@ routes; profile, trust and default route must match. Cookies, direct Alt-Svc and
 TLS tickets use core persistence rules; this is not serialized configuration.
 CPU work runs off the event loop and is not abortable.
 
+For caller-owned storage, implement `SessionStore.load(name, {signal})` returning
+encrypted bytes or `null` for absence, and `save(name, snapshot, {signal})`.
+The backend never receives the key. For example:
+
+```js
+await client.saveSession(store, 'job/session', key, {timeoutMs: 5000, signal});
+const restored = await client.loadSession(store, 'job/session', key, {
+  timeoutMs: 5000, signal, receivingRoutes: [{route: 'direct'}],
+});
+```
+
+Names must be nonempty, at most 256 UTF-8 bytes, with no control characters.
+Backends must bound reads to 32 MiB before collection, own bounded admission and
+write durability, and honor the supplied signal. Backend errors have code
+`SessionStorage`, kind `backend`, and retain the original `cause`; absence is
+only `null`. A positive `timeoutMs` (at most 2147483647) covers every stage using
+one deadline. Abort/expiry promptly rejects a pending backend call, observing
+its eventual rejection; an accepted external write may still finish. Encoding
+and restoration cannot be interrupted: cancellation is checked after they
+settle, and a late restored client is destroyed before delivery. Close each
+returned client. No persistence occurs automatically.
+
 ## Next
 
 From the repository root, build and run the loopback tests and type checks with

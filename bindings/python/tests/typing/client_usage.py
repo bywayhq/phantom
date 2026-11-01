@@ -10,6 +10,7 @@ from phantom_http import (
     AsyncEventSource,
     AsyncEventStream,
     AsyncResponse,
+    AsyncSessionStore,
     AttemptBudget,
     BodyLimitExceeded,
     Client,
@@ -38,6 +39,7 @@ from phantom_http import (
     ResponseHeader,
     RetryPolicy,
     SessionSharing,
+    SessionStore,
     SseError,
     SseLimits,
     StatusRetry,
@@ -523,3 +525,24 @@ async def websocket_usage(client: AsyncClient, sync: Client, url: str) -> None:
         blocking.send_close(None)
         for item in blocking:
             data = item
+
+
+async def storage_consumer(
+    asynchronous: AsyncClient,
+    synchronous: Client,
+    async_store: AsyncSessionStore,
+    sync_store: SessionStore,
+    key: bytes,
+) -> None:
+    await asynchronous.save_session(async_store, "job/session", key, timeout=5)
+    restored: AsyncClient | None = await asynchronous.load_session(
+        async_store, "job/session", key, timeout=5, receiving_routes=[None]
+    )
+    synchronous.save_session(sync_store, "job/session", key, timeout=5)
+    blocking: Client | None = synchronous.load_session(
+        sync_store, "job/session", key, timeout=5
+    )
+    if restored is not None:
+        await restored.close()
+    if blocking is not None:
+        blocking.close()

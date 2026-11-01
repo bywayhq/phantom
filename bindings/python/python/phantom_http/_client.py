@@ -16,7 +16,7 @@ from typing import (
 
 from typing_extensions import Unpack
 
-from . import _multipart, _native, _upload
+from . import _multipart, _native, _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._configuration import (
@@ -318,6 +318,57 @@ class AsyncClient:
             _receiving_routes(receiving_routes),
         )
         return AsyncClient._from_native(native)
+
+    async def save_session(
+        self,
+        store: _storage.AsyncSessionStore,
+        name: str,
+        key: bytes,
+        *,
+        timeout: float,
+    ) -> None:
+        """Save encrypted state; timeout spans encoding and the caller's backend."""
+        deadline = _storage._deadline(name, timeout)
+        key = _storage._key(key)
+        snapshot = await _storage._wait(self.export_session(key), deadline)
+        await _storage._wait(
+            _storage._backend(lambda: store.save(name, snapshot)), deadline
+        )
+
+    async def load_session(
+        self,
+        store: _storage.AsyncSessionStore,
+        name: str,
+        key: bytes,
+        *,
+        timeout: float,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> AsyncClient | None:
+        """Restore independent state; None means the name was absent."""
+        deadline = _storage._deadline(name, timeout)
+        key = _storage._key(key)
+        routes = tuple(receiving_routes)
+        snapshot = _storage._loaded(
+            await _storage._wait(_storage._backend(lambda: store.load(name)), deadline)
+        )
+        if snapshot is None:
+            return None
+        try:
+            restored = await asyncio.wait_for(
+                self.restore_session(snapshot, key, receiving_routes=routes),
+                _storage._remaining(deadline),
+            )
+        except asyncio.TimeoutError:
+            raise TimeoutError("session_storage", "deadline") from None
+        try:
+            _storage._check(deadline)
+        except BaseException as error:
+            try:
+                await restored.abort()
+            except BaseException as cleanup:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
+        return restored
 
     async def get(
         self, url: str, **options: Unpack[_AsyncRequestOptions]

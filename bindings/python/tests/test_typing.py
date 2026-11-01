@@ -35,6 +35,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_request.py",
             "_response.py",
             "_session.py",
+            "_storage.py",
             "_sse.py",
             "_event_source.py",
             "_sync.py",
