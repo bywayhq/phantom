@@ -181,28 +181,38 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
             observed.append(context.headers)
 
         def replace(context):
-            context.set(("X-0", "a"))
-            context.remove("X-253")
+            context.set(("x-0", "a"))
+            context.remove("x-253")
 
         def restore(context):
-            context.append(("X-253", "a"))
+            context.append(("x-253", "a"))
+
+        def prune(context):
+            # Transport limits apply after hooks have edited the caller fields.
+            for index in range(32, 254):
+                context.remove(f"x-{index}")
 
         with H2Peer() as peer:
             headers = (
-                ("Origin", peer.url),
-                ("Referer", peer.url + "/page"),
-                *((f"X-{index}", "a") for index in range(254)),
+                ("origin", peer.url),
+                ("referer", peer.url + "/page"),
+                *((f"x-{index}", "a") for index in range(254)),
+            )
+            baseline_headers = (
+                ("origin", peer.url),
+                ("referer", peer.url + "/page"),
+                *((f"x-{index}", "a") for index in range(32)),
             )
             async with AsyncClient(
                 profile=PROFILE, protocol="h2", context="fetch_upload", timeout_ms=5000
             ) as client:
-                for path, hooks in (
-                    ("/baseline", ()),
-                    ("/hooked", (inspect,)),
-                    ("/edited", (inspect, replace, restore)),
+                for path, caller, hooks in (
+                    ("/baseline", baseline_headers, ()),
+                    ("/hooked", headers, (inspect, prune)),
+                    ("/edited", headers, (inspect, replace, restore, prune)),
                 ):
                     response = await client.post(
-                        peer.url + path, headers=headers, body=body, header_hooks=hooks
+                        peer.url + path, headers=caller, body=body, header_hooks=hooks
                     )
                     self.assertEqual(await response.read(max_bytes=5), b"hello")
 
@@ -214,13 +224,14 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
                         body=body,
                         budget=budget,
                         header_hooks=(
-                            lambda context: context.append(("X-Extra", "a")),
+                            lambda context: context.append(("x-extra", "a")),
                         ),
                     )
                 self.assertEqual(budget.remaining, 1)
 
             self.assertEqual(len(observed), 2)
-            self.assertGreater(len(observed[0]), 256)
+            self.assertEqual(len(observed[0]), 258)
+            self.assertEqual(observed[0], observed[1])
             self.assertIn(
                 ("content-type", body.content_type.encode()),
                 [(h.name.lower(), h.value) for h in observed[0]],
