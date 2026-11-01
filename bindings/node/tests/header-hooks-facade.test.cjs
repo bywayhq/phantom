@@ -23,6 +23,13 @@ function facade({nativeHooks = true} = {}) {
     async next() {
       if (this.ended) return null;
       if (this.index === this.count) {
+        if (this.options.redirectPolicy?.mode === 'custom' && !this.redirectIssued) {
+          this.redirectIssued = true;
+          return {index: 0, method: '', uri: '', headers: [], redirect: {
+            fromUrl: this.options.url, toUrl: 'http://destination.test/final?private',
+            status: 302, method: 'POST', nextMethod: 'GET', hop: 1n,
+          }};
+        }
         this.response.resolve(this.head);
         await this.stopped.promise;
         return null;
@@ -39,6 +46,15 @@ function facade({nativeHooks = true} = {}) {
       }
     }
     fail() { this.response.reject(new Error('PHANTOM_REQUEST:HeaderHook:::header hook failed')); }
+    completeRedirect(hop, decision) {
+      assert.equal(hop, 1n);
+      this.decision = decision;
+      if (decision === 'reject') this.response.reject(new Error('PHANTOM_REQUEST:Redirect:::redirect rejected'));
+    }
+    failRedirect(hop) {
+      assert.equal(hop, 1n);
+      this.response.reject(new Error('PHANTOM_REQUEST:Redirect:::redirect callback failed'));
+    }
     closed() { return this.stopped.promise; }
     stop() { this.ended = true; this.stopped.resolve(); }
     settled() { this.acknowledged = true; }
@@ -196,4 +212,105 @@ test('disabled hooks need no new payload capability; invalid hooks fail before n
   await assert.rejects(client.get('http://example.test/', {skipClientHeaderHooks: 'yes'}), {code: 'InvalidArgument'});
   assert.equal(requests.length, 1);
   await client.close();
+});
+
+test('redirect callbacks share the ordered pump and receive immutable redacted metadata', async () => {
+  const {Client, RedirectDecision, owners, clients, requests} = facade();
+  const calls = [];
+  const client = new Client({profile: 'exact', route: 'direct', context: 'raw', headerHooks: [() => calls.push('headers')],
+    redirectPolicy: {mode: 'custom', maximumHops: 3, credentialHeaders: ['x-secret'], callback: async (attempt) => {
+      calls.push('redirect');
+      assert(Object.isFrozen(attempt));
+      assert.equal(attempt.fromUrl, 'http://example.test/private');
+      assert.equal(attempt.toUrl, 'http://destination.test/final?private');
+      assert.equal(attempt.status, 302); assert.equal(attempt.hop, 1n);
+      assert.equal(attempt.method, 'POST'); assert.equal(attempt.nextMethod, 'GET');
+      assert(attempt.signal instanceof AbortSignal); assert.equal(attempt.signal.aborted, false);
+      assert(!inspect(attempt).includes('private'));
+      assert.throws(() => {attempt.toUrl = 'http://changed.test';}, TypeError);
+      await assert.rejects(client.close(), {code: 'InvalidOperation'});
+      await Promise.resolve();
+      return RedirectDecision.Follow;
+    }}});
+  (await client.post('http://example.test/private')).close();
+  assert.deepEqual(calls, ['headers', 'redirect']);
+  assert.equal(owners.length, 1); assert.equal(owners[0].decision, 'follow');
+  for (const policy of [clients[0].redirectPolicy, requests[0].redirectPolicy]) {
+    assert.deepEqual(policy, {mode: 'custom', maximumHops: 3n, credentialHeaders: ['x-secret']});
+    assert.equal(policy.callback, undefined);
+  }
+  assert(Object.isFrozen(RedirectDecision));
+  await client.close();
+});
+
+test('redirect defaults snapshot through fork and restore, with per-request replacement and no-owner opt-out', async () => {
+  const {Client, RedirectDecision, owners, requests} = facade();
+  let calls = 0;
+  const policy = {mode: 'custom', maximumHops: 2, callback: () => {calls++; return RedirectDecision.Stop;}};
+  const client = new Client({profile: 'exact', route: 'direct', context: 'raw', redirectPolicy: policy});
+  policy.callback = () => {throw new Error('mutated default');}; policy.maximumHops = 0;
+  const fork = client.fork(), restored = await client.restoreSession(Buffer.alloc(0), Buffer.alloc(32));
+  for (const owner of [client, fork, restored]) {
+    (await owner.get('http://example.test/')).close();
+    (await owner.get('http://example.test/', {redirectPolicy: {mode: 'none'}})).close();
+    await assert.rejects(owner.eventSource('http://example.test/'), {code: 'InvalidArgument'});
+    await owner.close();
+  }
+  assert.equal(calls, 3); assert.equal(owners.length, 3);
+  assert.deepEqual(owners.map((owner) => [owner.count, owner.decision]), Array(3).fill([0, 'stop']));
+  assert.deepEqual(requests.map((request) => request.redirectPolicy.mode), ['custom', 'none', 'custom', 'none', 'custom', 'none']);
+});
+
+test('redirect callback failures retain every thrown value and invalid decisions fail closed', async () => {
+  for (const original of [new Error('private cause'), undefined, 'host cause']) {
+    const {Client} = facade();
+    const client = new Client({profile: 'exact', route: 'direct', context: 'raw'});
+    let caught = false;
+    try { await client.get('http://example.test/', {redirectPolicy: {mode: 'custom', maximumHops: 1, callback: async () => {throw original;}}}); }
+    catch (error) {caught = true; assert.equal(error, original);}
+    assert(caught); await client.close();
+  }
+  const {Client, owners, requests} = facade();
+  const client = new Client({profile: 'exact', route: 'direct', context: 'raw'});
+  await assert.rejects(client.get('http://example.test/', {redirectPolicy: {mode: 'custom', maximumHops: 1, callback: () => undefined}}), {code: 'InvalidArgument'});
+  await assert.rejects(client.get('http://example.test/', {redirectPolicy: {mode: 'custom', maximumHops: 1, callback: () => 'reject'}}), {code: 'Redirect'});
+  let reads = 0;
+  for (const redirectPolicy of [{mode: 'custom', maximumHops: 1}, {mode: 'custom', maximumHops: 0, callback() {}},
+    {mode: 'limited', maximumHops: 1, callback() {}}, {mode: 'custom', maximumHops: 1, get callback() {reads++; return () => 'follow';}}]) {
+    await assert.rejects(client.get('http://example.test/', {redirectPolicy}), {code: 'InvalidArgument'});
+  }
+  assert.equal(reads, 0); assert.equal(requests.length, 2); assert.equal(owners.length, 2);
+  await client.close();
+});
+
+test('redirect cancellation retains host custody and late failures without replacing the request outcome', async () => {
+  for (const reason of ['Cancelled', 'Timeout']) {
+    const {Client, owners} = facade();
+    const entered = deferred(), release = deferred();
+    const controller = new AbortController();
+    const client = new Client({profile: 'exact', route: 'direct', context: 'raw'});
+    const pending = client.get('http://example.test/', {signal: controller.signal, redirectPolicy: {mode: 'custom', maximumHops: 1,
+      callback: async (attempt) => {entered.resolve(attempt.signal); await release.promise; throw undefined;}}});
+    const signal = await entered.promise;
+    if (reason === 'Cancelled') controller.abort(); else owners[0].interrupt('Timeout');
+    await assert.rejects(pending, {code: reason});
+    assert(signal.aborted); assert.equal(owners[0].acknowledged, undefined);
+    const closed = client.close();
+    let finished = false; closed.then(() => {finished = true;}, () => {finished = true;});
+    await Promise.resolve(); assert.equal(finished, false);
+    release.resolve();
+    await assert.rejects(closed, (error) => Object.hasOwn(error, 'cause') && error.cause === undefined);
+    assert.equal(owners[0].acknowledged, true);
+  }
+});
+
+test('ordinary inherited policies keep the no-callback request path', async () => {
+  const {Client, requests} = facade({nativeHooks: false});
+  for (const redirectPolicy of [undefined, {mode: 'none'}, {mode: 'limited', maximumHops: 2}]) {
+    const owner = new Client({profile: 'exact', route: 'direct', context: 'raw', redirectPolicy});
+    (await owner.get('http://example.test/')).close();
+    await owner.close();
+  }
+  assert.equal(requests.length, 3);
+  assert(requests.every((request) => request.redirectPolicy === undefined));
 });

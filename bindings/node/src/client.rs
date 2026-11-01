@@ -61,6 +61,7 @@ pub(crate) struct ClientState {
     pub(crate) profile: Arc<ProfileState>,
     pub(crate) admission: Arc<Semaphore>,
     pub(crate) timeouts: phantom::RequestTimeouts,
+    pub(crate) custom_redirect: bool,
     maximum: usize,
     shutdown_pending: AtomicBool,
     closed: AtomicBool,
@@ -76,6 +77,7 @@ impl ClientState {
         profile: Arc<ProfileState>,
         maximum: usize,
         timeouts: phantom::RequestTimeouts,
+        custom_redirect: bool,
         environment: &Environment,
     ) -> Result<Arc<Self>> {
         let state = Arc::new(Self {
@@ -83,6 +85,7 @@ impl ClientState {
             profile,
             admission: Arc::new(Semaphore::new(maximum)),
             timeouts,
+            custom_redirect,
             maximum,
             shutdown_pending: AtomicBool::new(false),
             closed: AtomicBool::new(false),
@@ -110,6 +113,7 @@ impl ClientState {
             Arc::clone(&self.profile),
             self.maximum,
             self.timeouts,
+            self.custom_redirect,
             environment,
         )
     }
@@ -156,6 +160,10 @@ impl ClientState {
         if let Some(pool) = options.pool {
             builder = crate::pool::apply(builder, pool)?;
         }
+        let custom_redirect = options
+            .redirect_policy
+            .as_ref()
+            .is_some_and(|policy| policy.mode == "custom");
         if let Some(policy) = options.redirect_policy {
             builder = builder.redirect_policy(policy.policy()?);
         }
@@ -206,7 +214,14 @@ impl ClientState {
             .build()
             .map_err(crate::client_certificate::build_error)?;
 
-        Self::new(core, profile, maximum as usize, timeouts, environment)
+        Self::new(
+            core,
+            profile,
+            maximum as usize,
+            timeouts,
+            custom_redirect,
+            environment,
+        )
     }
 
     pub(crate) fn register(&self, exchange: &Arc<Exchange>) -> Result<()> {

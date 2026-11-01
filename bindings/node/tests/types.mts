@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RequestDiagnostics, type PoolOptions, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PreparedBody, Profile, RedirectDecision, RequestDiagnostics, type PoolOptions, type RequestTimeline, type Response, type ResponseTrailers } from '../index.mjs';
 
 const resources = new Client({profile: 'chrome-156-windows', route: 'direct', context: 'navigation'});
 void resources.eventSource('https://example.com/events', {protocol: 'http2', maximumReconnects: 0});
@@ -275,3 +275,14 @@ async function transferState(client: Client): Promise<void> {
   await configured.importSessionTickets(bytes, key, {receivingRoutes: [{route: 'direct'}]});
 }
 void transferState;
+
+async function customRedirects(client: Client): Promise<void> {
+  const response = await client.get('https://example.com/', {redirectPolicy: {mode: 'custom', maximumHops: 2,
+    callback: async (attempt) => {
+      const hop: bigint = attempt.hop;
+      void hop;
+      return attempt.toUrl.startsWith('https:') ? RedirectDecision.Follow : RedirectDecision.Reject;
+    }}});
+  response.close();
+}
+void customRedirects;

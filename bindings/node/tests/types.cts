@@ -1,4 +1,4 @@
-import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RequestDiagnostics, Response, profiles, type ClientOptions, type EncryptedDns, type NetworkOptions, type PoolOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
+import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError, PreparedBody, Profile, RedirectDecision, RequestDiagnostics, Response, profiles, type ClientOptions, type EncryptedDns, type NetworkOptions, type PoolOptions, type ProfileValue, type RequestTimeline, type ResponseTrailers, type StreamingMultipartOptions, type StreamingMultipartPart } from '../index.cjs';
 import {Readable} from 'node:stream';
 
 async function use(): Promise<void> {
@@ -26,6 +26,23 @@ async function use(): Promise<void> {
   await client.close();
 }
 void use;
+
+async function customRedirectCallbacks(client: Client): Promise<void> {
+  await client.get('https://example.com/', {redirectPolicy: {mode: 'custom', maximumHops: 3n, callback: async (attempt) => {
+    const hop: bigint = attempt.hop;
+    const signal: AbortSignal = attempt.signal;
+    const source: string = attempt.fromUrl;
+    // @ts-expect-error Redirect metadata cannot be rewritten by the callback.
+    attempt.toUrl = 'https://changed.test/';
+    void hop; void signal; void source;
+    return RedirectDecision.Stop;
+  }}});
+  // @ts-expect-error A custom callback must choose a decision.
+  await client.get('https://example.com/', {redirectPolicy: {mode: 'custom', maximumHops: 1, callback: () => {}}});
+  // @ts-expect-error Custom policies need a callback.
+  new Client({profile: 'exact', route: 'direct', redirectPolicy: {mode: 'custom', maximumHops: 1}});
+}
+void customRedirectCallbacks;
 
 function encryptedDns(): void {
   new Client({profile: 'chrome-154-windows', route: 'direct', network: {dns: {

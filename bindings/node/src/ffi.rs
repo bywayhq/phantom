@@ -44,7 +44,9 @@ pub use event_source::{
     EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions, NativeEventSource,
 };
 pub use events::{NativeEventStream, SseEvent};
-pub use header_hook::{HeaderHookEdit, HeaderHookInvocation, NativeHeaderHooks};
+pub use header_hook::{
+    HeaderHookEdit, HeaderHookInvocation, NativeHeaderHooks, RedirectHookInvocation,
+};
 pub use options::{
     ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, HostOverrideOptions,
     NetworkOptions, PoolOptions, RedirectPolicyOptions, RequestOptions, RetryPolicyOptions,

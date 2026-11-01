@@ -205,6 +205,12 @@ pub(super) fn prepare(
     options: EventSourceOptions,
 ) -> Result<SseRequestBuilder> {
     client.check_open()?;
+    if client.custom_redirect {
+        return Err(failure(
+            "InvalidArgument",
+            "dedicated EventSource does not support custom redirect callbacks",
+        ));
+    }
     if options.url.is_empty() || options.url.len() > 65536 {
         return Err(failure(
             "InputLimit",

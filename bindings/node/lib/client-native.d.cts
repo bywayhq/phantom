@@ -11,7 +11,7 @@ type PhaseTimeout = { disabled: boolean; milliseconds: number };
 type PhaseTimeouts = Partial<Record<
   'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total', PhaseTimeout
 >>;
-type RedirectPolicy = {
+export type NativeRedirectPolicy = {
   mode: string; maximumHops?: bigint; credentialHeaders?: readonly string[];
 };
 export type NativeConnectionRetry = {
@@ -32,6 +32,7 @@ export interface NativeRequestDiagnostics { snapshot(): object | null; }
 export interface NativeHeader { name: string; value: Buffer; sensitive?: boolean; }
 export interface NativeHeaderInvocation {
   index: number; method: string; uri: string; headers: NativeHeader[];
+  redirect?: Omit<import('../index.js').RedirectAttempt, 'signal'> | null;
 }
 export type NativeHeaderEdit = {action: 'append' | 'set'; name: string; value: Buffer; sensitive?: boolean}
   | {action: 'remove'; name: string};
@@ -39,6 +40,8 @@ export interface NativeHeaderHooks {
   next(): Promise<NativeHeaderInvocation | null>;
   complete(index: number, edits: NativeHeaderEdit[]): void;
   fail(index: number): void;
+  completeRedirect(hop: bigint, decision: import('../index.js').RedirectDecision): void;
+  failRedirect(hop: bigint): void;
   closed(): Promise<void>;
   stop(): void;
   settled(): void;
@@ -65,7 +68,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   serverSpkiPins?: Buffer[]; proxyServerSpkiPins?: Buffer[];
   clientCertificate?: object;
   clientCertificatesFor?: { origin: string; certificate: object }[];
-  timeouts?: PhaseTimeouts; redirectPolicy?: RedirectPolicy; retryPolicy?: NativeRetryPolicy;
+  timeouts?: PhaseTimeouts; redirectPolicy?: NativeRedirectPolicy; retryPolicy?: NativeRetryPolicy;
   network?: NativeNetworkOptions; pool?: PoolOptions;
 };
 
@@ -74,7 +77,7 @@ export interface NativeRequestOptions {
   headers?: readonly NativeHeader[]; trailers?: readonly NativeHeader[];
   expectContinueMs?: bigint; body?: Buffer; preparedBody?: NativePreparedBody;
   file?: { path: string; maximumBytes: number }; timeoutMs?: number;
-  timeouts?: PhaseTimeouts; redirectPolicy?: RedirectPolicy; retryPolicy?: NativeRetryPolicy;
+  timeouts?: PhaseTimeouts; redirectPolicy?: NativeRedirectPolicy; retryPolicy?: NativeRetryPolicy;
   redirectHistoryLimit?: bigint;
   contentDecoding?: { mode: string; maximumDecodedBytes?: bigint };
 }

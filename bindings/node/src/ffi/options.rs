@@ -284,9 +284,9 @@ impl ContentDecodingOptions {
 #[derive(Debug)]
 #[napi(object)]
 pub struct RedirectPolicyOptions {
-    /// Either none or limited.
+    /// None, limited, or a request-owned custom callback.
     pub mode: String,
-    /// Positive hop bound for limited following.
+    /// Positive hop bound for limited or custom following.
     pub maximum_hops: Option<BigInt>,
     /// Additional names stripped after the first cross-origin hop.
     pub credential_headers: Option<Vec<String>>,
@@ -308,6 +308,13 @@ pub(crate) fn policy_count(value: BigInt) -> Result<usize> {
 
 impl RedirectPolicyOptions {
     pub(crate) fn policy(self) -> Result<phantom::RedirectPolicy> {
+        self.policy_with_owner(None)
+    }
+
+    pub(crate) fn policy_with_owner(
+        self,
+        owner: Option<std::sync::Arc<crate::header_hook::HeaderHooks>>,
+    ) -> Result<phantom::RedirectPolicy> {
         let names = self.credential_headers.unwrap_or_default();
         if names.len() > 256 || names.iter().map(String::len).sum::<usize>() > 65536 {
             return Err(failure(
@@ -328,6 +335,18 @@ impl RedirectPolicyOptions {
             ("limited", Some(maximum)) => {
                 Ok(phantom::RedirectPolicy::limited(positive_count(maximum)?))
             }
+            ("custom", Some(maximum)) => Ok(phantom::RedirectPolicy::custom_async(
+                positive_count(maximum)?,
+                move |attempt| {
+                    let owner = owner.clone();
+                    Box::pin(async move {
+                        match owner {
+                            Some(owner) => owner.redirect(attempt).await,
+                            None => Err(crate::header_hook::redirect_error()),
+                        }
+                    })
+                },
+            )),
             _ => Err(failure("InvalidArgument", "invalid redirect policy")),
         }?;
         Ok(policy.credential_headers(names))

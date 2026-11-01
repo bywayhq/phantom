@@ -1,4 +1,4 @@
-//! Bounded owned header-call metadata and synchronous edit replies.
+//! Bounded owned request-call metadata and synchronous host replies.
 
 use std::{
     fmt,
@@ -7,14 +7,17 @@ use std::{
 
 use napi::{
     Env, Result,
-    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer},
+    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, BigInt, Buffer},
 };
 use napi_derive::napi;
 
-use super::{buffer::copy_buffer, options::WireHeader};
+use super::{
+    buffer::copy_buffer,
+    options::{WireHeader, positive_count},
+};
 use crate::{
     error::failure,
-    header_hook::{Edit, HeaderHooks},
+    header_hook::{CallbackReply, Edit, HeaderHooks, ReplyKey},
     request::MAXIMUM_HEADER_BYTES,
     response::Exchange,
 };
@@ -30,6 +33,33 @@ pub struct HeaderHookInvocation {
     pub uri: String,
     /// Ordered caller fields, including duplicate names.
     pub headers: Vec<WireHeader>,
+    /// Present only for a redirect decision invocation.
+    pub redirect: Option<RedirectHookInvocation>,
+}
+
+/// Immutable owned redirect metadata; URLs are omitted from debug output.
+#[napi(object, object_from_js = false)]
+pub struct RedirectHookInvocation {
+    /// Resolved source URL.
+    pub from_url: String,
+    /// Resolved destination URL.
+    pub to_url: String,
+    /// Redirect response status.
+    pub status: u16,
+    /// Current method.
+    pub method: String,
+    /// Method after redirect rewriting.
+    pub next_method: String,
+    /// One-based hop number.
+    pub hop: BigInt,
+}
+
+impl fmt::Debug for RedirectHookInvocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RedirectHookInvocation")
+            .finish_non_exhaustive()
+    }
 }
 
 impl fmt::Debug for HeaderHookInvocation {
@@ -100,6 +130,14 @@ impl NativeHeaderHooks {
                         sensitive: Some(header.is_sensitive()),
                     })
                     .collect(),
+                redirect: invocation.redirect.map(|redirect| RedirectHookInvocation {
+                    from_url: redirect.from_url,
+                    to_url: redirect.to_url,
+                    status: redirect.status,
+                    method: redirect.method,
+                    next_method: redirect.next_method,
+                    hop: BigInt::from(redirect.hop as u64),
+                }),
             }))
         })
         .build(&env)
@@ -144,13 +182,36 @@ impl NativeHeaderHooks {
                 Edit::Set(header)
             });
         }
-        self.state.reply(index, Ok(owned))
+        self.state
+            .reply(ReplyKey::Header(index), Ok(CallbackReply::Header(owned)))
     }
 
     /// Reports a host exception without copying it through native storage.
     #[napi]
     pub fn fail(&self, index: u32) -> Result<()> {
-        self.state.reply(index, Err(()))
+        self.state.reply(ReplyKey::Header(index), Err(()))
+    }
+
+    /// Completes the current redirect without copying any host exception.
+    #[napi]
+    pub fn complete_redirect(&self, hop: BigInt, decision: String) -> Result<()> {
+        let decision = match decision.as_str() {
+            "follow" => phantom::RedirectDecision::Follow,
+            "stop" => phantom::RedirectDecision::Stop,
+            "reject" => phantom::RedirectDecision::Reject,
+            _ => return Err(failure("InvalidArgument", "choose follow, stop or reject")),
+        };
+        self.state.reply(
+            ReplyKey::Redirect(positive_count(hop)?.get()),
+            Ok(CallbackReply::Redirect(decision)),
+        )
+    }
+
+    /// Reports a redirect callback failure while the facade retains its cause.
+    #[napi]
+    pub fn fail_redirect(&self, hop: BigInt) -> Result<()> {
+        self.state
+            .reply(ReplyKey::Redirect(positive_count(hop)?.get()), Err(()))
     }
 
     /// Resolves when the request no longer accepts callbacks.

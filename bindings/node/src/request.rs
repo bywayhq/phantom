@@ -117,8 +117,21 @@ impl Prepared {
         if let Some(policy) = options.content_decoding {
             builder = builder.content_decoding(policy.policy()?);
         }
+        if client.custom_redirect && options.redirect_policy.is_none() {
+            return Err(failure(
+                "InvalidArgument",
+                "custom redirect defaults require a request callback owner",
+            ));
+        }
         if let Some(policy) = options.redirect_policy {
-            builder = builder.redirect_policy(policy.policy()?);
+            if policy.mode == "custom" && controls.header_hooks.is_none() {
+                return Err(failure(
+                    "InvalidArgument",
+                    "custom redirects require a request callback owner",
+                ));
+            }
+            builder =
+                builder.redirect_policy(policy.policy_with_owner(controls.header_hooks.clone())?);
         }
         if let Some(policy) = options.retry_policy {
             builder = builder.retry_policy(crate::retry::policy(policy)?);

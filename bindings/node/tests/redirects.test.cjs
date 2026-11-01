@@ -9,7 +9,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 const { inspect } = require('node:util');
 const { gzipSync } = require('node:zlib');
-const { Client, AttemptBudget, PhantomError } = require('..');
+const { Client, AttemptBudget, PhantomError, RedirectDecision } = require('..');
 
 const profile = process.platform === 'win32'
   ? 'chrome/154.0.8037.97/windows-11-26200/r1'
@@ -213,4 +213,154 @@ test('strict redirect records and history counts reject input before sending', {
     await assert.rejects(owner.request(url, {...options, redirectHistoryLimit}), code('InvalidArgument'));
   }
   assert.equal(received, 0); assert.equal(getters, 0);
+});
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => {resolve = done;});
+  return {promise, resolve};
+}
+
+const custom = (callback, maximumHops = 2) => ({mode: 'custom', maximumHops, callback});
+
+test('native async redirect decisions preserve wire methods, budgets and permanent credential stripping', {timeout: 30000}, async (t) => {
+  const observed = [], attempts = [], hooks = [];
+  let first;
+  const second = await peer(t, (request, response, body) => {
+    observed.push({method: request.method, body: body.toString(), headers: request.headers});
+    response.writeHead(307, {location: first + '/final'}); response.end();
+  });
+  first = await peer(t, (request, response, body) => {
+    observed.push({method: request.method, body: body.toString(), headers: request.headers});
+    if (request.url === '/start') response.writeHead(302, {location: second + '/middle'});
+    response.end('ok');
+  });
+  const owner = client(t, {headerHooks: [() => hooks.push('headers')], redirectPolicy: {...custom(async (attempt) => {
+    assert(Object.isFrozen(attempt)); assert(attempt.signal instanceof AbortSignal);
+    assert.equal(inspect(attempt).includes(first), false);
+    await Promise.resolve();
+    attempts.push([attempt.fromUrl, attempt.toUrl, attempt.status, attempt.method, attempt.nextMethod, attempt.hop]);
+    return RedirectDecision.Follow;
+  }), credentialHeaders: ['x-secret']}});
+  const budget = new AttemptBudget(3);
+  const response = await owner.request(first + '/start', {...options, method: 'POST', body: Buffer.from('payload'), attemptBudget: budget,
+    headerHooks: [() => hooks.push('request')], headers: [field('authorization', 'Bearer private'), field('cookie', 'private=value'), field('x-secret', 'private')], redirectHistoryLimit: 2});
+  assert.equal(await response.text(2), 'ok'); assert.equal(response.redirects, 2); assert.equal(budget.remaining, 0);
+  assert.deepEqual(hooks, ['headers', 'request']);
+  assert.deepEqual(attempts, [[first + '/start', second + '/middle', 302, 'POST', 'GET', 1n],
+    [second + '/middle', first + '/final', 307, 'GET', 'GET', 2n]]);
+  assert.deepEqual(observed.map(({method, body}) => [method, body]), [['POST', 'payload'], ['GET', ''], ['GET', '']]);
+  assert.equal(observed[0].headers.authorization, 'Bearer private');
+  for (const {headers} of observed.slice(1)) {
+    for (const name of ['authorization', 'cookie', 'x-secret']) assert.equal(headers[name], undefined);
+  }
+});
+
+test('native Stop retains the redirect body, Reject and host failures do not send the next hop', {timeout: 30000}, async (t) => {
+  const sent = [];
+  const url = await peer(t, (request, response) => {
+    sent.push(request.url); response.writeHead(302, {location: '/next'}); response.end('stopped');
+  });
+  const owner = client(t);
+  const stopped = await owner.request(url + '/stop', {...options, redirectPolicy: custom(() => RedirectDecision.Stop)});
+  assert.equal(stopped.status, 302); assert.equal(stopped.redirects, 0); assert.equal(await stopped.text(7), 'stopped');
+  const rejectedBudget = new AttemptBudget(2);
+  await assert.rejects(owner.request(url + '/reject', {...options, attemptBudget: rejectedBudget, redirectPolicy: custom(() => RedirectDecision.Reject)}), code('Redirect'));
+  assert.equal(rejectedBudget.remaining, 1);
+  for (const original of [new Error('private callback cause'), undefined, 'host cause']) {
+    let caught = false;
+    const budget = new AttemptBudget(2);
+    try { await owner.request(url + '/throw', {...options, attemptBudget: budget, redirectPolicy: custom(async () => {throw original;})}); }
+    catch (error) {caught = true; assert.equal(error, original);}
+    assert(caught); assert.equal(budget.remaining, 1);
+  }
+  await assert.rejects(owner.request(url + '/invalid', {...options, redirectPolicy: custom(() => undefined)}), code('InvalidArgument'));
+  assert.deepEqual(sent, ['/stop', '/reject', '/throw', '/throw', '/throw', '/invalid']);
+});
+
+test('native redirect callbacks run only for eligible hops and keep core hop and attempt limits', {timeout: 30000}, async (t) => {
+  const sent = [], attempts = [];
+  const url = await peer(t, (request, response) => {
+    sent.push(request.url);
+    if (request.url === '/missing') response.writeHead(302);
+    else if (request.url === '/invalid') response.writeHead(302, {location: 'http://['});
+    else response.writeHead(302, {location: '/loop'});
+    response.end();
+  });
+  const owner = client(t, {redirectPolicy: custom((attempt) => {attempts.push(attempt.hop); return RedirectDecision.Follow;}, 1)});
+  const missing = await owner.request(url + '/missing', options); assert.equal(missing.status, 302); missing.close();
+  await assert.rejects(owner.request(url + '/invalid', options), code('Redirect'));
+  assert.deepEqual(attempts, []);
+  await assert.rejects(owner.request(url + '/loop', options), code('Redirect'));
+  assert.deepEqual(attempts, [1n]);
+  const budget = new AttemptBudget(1);
+  await assert.rejects(owner.request(url + '/budget', {...options, attemptBudget: budget}), code('AttemptBudgetExhausted'));
+  assert.equal(budget.remaining, 0);
+  assert.deepEqual(sent, ['/missing', '/invalid', '/loop', '/loop', '/budget']);
+});
+
+test('native pending redirect callbacks share the total deadline and retain host shutdown custody', {timeout: 30000}, async (t) => {
+  for (const reason of ['Cancelled', 'Timeout']) await t.test(reason, async (t) => {
+    const sent = [], entered = deferred(), release = deferred();
+    const url = await peer(t, (request, response) => {sent.push(request.url); response.writeHead(302, {location: '/next'}); response.end();});
+    const owner = client(t), abort = new AbortController(), budget = new AttemptBudget(2);
+    const pending = owner.request(url + '/start', {...options, timeoutMs: reason === 'Timeout' ? 500 : 5000,
+      signal: abort.signal, attemptBudget: budget, redirectPolicy: custom(async (attempt) => {
+        entered.resolve(attempt.signal); await release.promise; return RedirectDecision.Follow;
+      })});
+    const rejected = assert.rejects(pending, (error) => code(reason)(error) && (reason !== 'Timeout' || error.timeoutPhase === 'total'));
+    const signal = await entered.promise;
+    if (reason === 'Cancelled') abort.abort();
+    await rejected;
+    assert(signal.aborted); assert.equal(budget.remaining, 1); assert.deepEqual(sent, ['/start']);
+    const closing = owner.close(); let closed = false;
+    closing.then(() => {closed = true;});
+    await Promise.resolve(); assert.equal(closed, false);
+    release.resolve(); await closing;
+    assert.deepEqual(sent, ['/start']);
+  });
+});
+
+test('native redirect defaults survive fork and restore; requests replace them and dedicated EventSource rejects them', {timeout: 30000}, async (t) => {
+  let calls = 0, sent = 0;
+  const url = await peer(t, (_request, response) => {sent++; response.writeHead(302, {location: '/next'}); response.end('stop');});
+  const policy = custom(() => {calls++; return RedirectDecision.Stop;});
+  const owner = client(t, {redirectPolicy: policy});
+  policy.callback = () => {throw new Error('mutated default');};
+  const key = Buffer.alloc(32, 7), checkpoint = await owner.exportSession(key);
+  const fork = owner.fork(), restored = await owner.restoreSession(checkpoint, key);
+  t.after(() => fork.close()); t.after(() => restored.close());
+  for (const candidate of [owner, fork, restored]) {
+    const first = await candidate.request(url, options); assert.equal(await first.text(4), 'stop');
+    const disabled = await candidate.request(url, {...options, redirectPolicy: {mode: 'none'}}); disabled.close();
+    await assert.rejects(candidate.eventSource(url, {protocol: 'http1'}), code('InvalidArgument'));
+  }
+  assert.equal(calls, 3); assert.equal(sent, 6);
+});
+
+test('native async redirect callback leaves the host loop and HTTP2 sibling requests responsive', {timeout: 30000}, async (t) => {
+  const http2 = require('node:http2');
+  const server = http2.createServer();
+  let accepted = 0;
+  const sessions = new Set(); server.on('session', (session) => {accepted++; sessions.add(session); session.on('close', () => sessions.delete(session));});
+  const sent = [];
+  server.on('stream', (stream, headers) => {
+    sent.push(headers[':path']);
+    stream.respond(headers[':path'] === '/start' ? {':status': 302, location: '/next'} : {':status': 200});
+    stream.end('ok');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {for (const session of sessions) session.destroy(); await new Promise((done) => server.close(done));});
+  const url = `http://127.0.0.1:${server.address().port}`, entered = deferred(), release = deferred();
+  const owner = client(t);
+  const pending = owner.request(url + '/start', {...options, protocol: 'http2', redirectPolicy: custom(async (attempt) => {
+    entered.resolve(); await release.promise; assert.equal(attempt.hop, 1n); return RedirectDecision.Follow;
+  })});
+  await entered.promise;
+  await new Promise((done) => setImmediate(done));
+  const sibling = await owner.request(url + '/sibling', {...options, protocol: 'http2'});
+  assert.equal(await sibling.text(2), 'ok'); assert.deepEqual(sent, ['/start', '/sibling']);
+  release.resolve(); assert.equal(await (await pending).text(2), 'ok');
+  assert.deepEqual(sent, ['/start', '/sibling', '/next']);
+  assert.equal(accepted, 1);
 });

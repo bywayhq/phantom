@@ -9,11 +9,12 @@ const { HeaderHookContext } = require('./lib/header-hooks.cjs');
 const native = require('./lib/native.cjs');
 const { PreparedBody } = require('./lib/prepared-body.cjs');
 const { Profile } = require('./lib/profile.cjs');
+const { RedirectDecision } = require('./lib/request-options.cjs');
 const { Response } = require('./lib/response.cjs');
 const { ClientCertificate } = require('./lib/tls.cjs');
 const { WebSocketConnection } = require('./lib/websocket.cjs');
 
 module.exports = {
   AttemptBudget, Client, ClientCertificate, EventSource, EventStream, HeaderHookContext, PhantomError, PreparedBody, Profile,
-  RequestDiagnostics, Response, TransferControl, WebSocketConnection, profiles: () => native.profileIds(),
+  RedirectDecision, RequestDiagnostics, Response, TransferControl, WebSocketConnection, profiles: () => native.profileIds(),
 };

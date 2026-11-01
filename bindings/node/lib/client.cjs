@@ -26,7 +26,7 @@ const { networkOptions, poolOptions } = require('./network.cjs');
 const { preparedBodyHandle } = require('./prepared-body.cjs');
 const { profileHandle } = require('./profile.cjs');
 const { requestDefaults, prepareRequest } = require('./request-preparation.cjs');
-const { phaseTimeouts, redirectPolicy, retryPolicy, expectContinue, contentDecoding } = require('./request-options.cjs');
+const { phaseTimeouts, redirectPolicy, nativeRedirectPolicy, retryPolicy, expectContinue, contentDecoding } = require('./request-options.cjs');
 const { Response } = require('./response.cjs');
 const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes, cookieEntries, altSvcEntries, ticketKey, ticketBytes, ticketRoutes } = require('./session.cjs');
 const {saveSession, loadSession} = require('./session-storage.cjs');
@@ -113,7 +113,7 @@ class Client {
         additionalProxyRoots: config.additionalProxyRoots?.map(bytes),
         serverSpkiPins, proxyServerSpkiPins, ...certificates,
         timeouts: phaseTimeouts(config.timeouts),
-        redirectPolicy: redirectPolicy(config.redirectPolicy),
+        redirectPolicy: nativeRedirectPolicy(this.#defaults.redirectPolicy),
         retryPolicy: retryPolicy(config.retryPolicy),
         network,
         proxyUserId,
@@ -243,6 +243,7 @@ class Client {
       const suppliedHooks = headerHooks(options.headerHooks);
       if (suppliedHooks.length) hooks = hooks.length ? [...hooks, ...suppliedHooks] : suppliedHooks;
       if (hooks.length > 256) throw new PhantomError('InputLimit', 'headerHooks exceed 256 callbacks');
+      const redirects = options.redirectPolicy === undefined ? this.#defaults.redirectPolicy : redirectPolicy(options.redirectPolicy);
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
@@ -292,7 +293,8 @@ class Client {
 
       const policies = {
         timeouts: phaseTimeouts(options.timeouts), contentDecoding: contentDecoding(options.contentDecoding),
-        redirectPolicy: redirectPolicy(options.redirectPolicy), retryPolicy: retryPolicy(options.retryPolicy),
+        redirectPolicy: options.redirectPolicy === undefined && !redirects?.callback ? undefined : nativeRedirectPolicy(redirects),
+        retryPolicy: retryPolicy(options.retryPolicy),
         redirectHistoryLimit: options.redirectHistoryLimit === undefined ? undefined : positiveCount(options.redirectHistoryLimit),
       };
 
@@ -305,7 +307,7 @@ class Client {
         multipartUpload = true;
       }
 
-      if (hooks.length) {
+      if (hooks.length || redirects?.callback) {
         if (typeof native.NativeHeaderHooks !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for header hooks');
         hookOwner = new native.NativeHeaderHooks(hooks.length);
         hookOutcome = {failed: false};
@@ -324,7 +326,7 @@ class Client {
 
       if (hookOwner && hookOutcome) {
         const outcome = hookOutcome;
-        const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome);
+        const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome, redirects?.callback);
         hookPump = pumping;
         this.#headerPumps.add(pumping);
         const finished = () => {
@@ -356,7 +358,7 @@ class Client {
       }
 
       const failure = uploadError(error, producer, true);
-      if (failure.code === 'HeaderHook') {
+      if (failure.code === 'HeaderHook' || failure.code === 'Redirect') {
         if (hookOutcome?.failed) throw hookOutcome.error;
         if (hookOutcome?.bridgeFailure !== undefined) throw hookOutcome.bridgeFailure.error;
       }
@@ -377,7 +379,10 @@ class Client {
   websocket(url, options) { return openWebSocket(this.#native, this, url, options, this.#defaults.headers); }
 
   /** @param {string | URL} url @param {import('../index.js').EventSourceOptions} options */
-  eventSource(url, options) { return openEventSource(this.#native, this, url, options, this.#defaults.headers); }
+  eventSource(url, options) {
+    if (this.#defaults.redirectPolicy?.callback) return Promise.reject(new PhantomError('InvalidArgument', 'dedicated EventSource does not support custom redirect callbacks'));
+    return openEventSource(this.#native, this, url, options, this.#defaults.headers);
+  }
   /** @param {string | URL} url @param {MethodOptions} [options] */
   get(url, options) { return this.#requestMethod('GET', url, options); }
   /** @param {string | URL} url @param {MethodOptions} [options] */
@@ -505,7 +510,7 @@ class Client {
   #checkShutdown(timeoutMs) {
     integer(timeoutMs, 'timeoutMs');
     if (isUploadContext(this)) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own client shutdown');
-    if (isHeaderHookContext(this)) throw new PhantomError('InvalidOperation', 'a header callback cannot await its own client shutdown');
+    if (isHeaderHookContext(this)) throw new PhantomError('InvalidOperation', 'a request callback cannot await its own client shutdown');
   }
 
   /** @param {number} timeoutMs */

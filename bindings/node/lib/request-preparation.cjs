@@ -6,14 +6,14 @@ const { types } = require('node:util');
 const { PhantomError, caused } = require('./errors.cjs');
 const { encodedBody } = require('./prepared-body.cjs');
 const { headerHooks } = require('./header-hooks.cjs');
-const { requestFields } = require('./request-options.cjs');
+const { requestFields, redirectPolicy } = require('./request-options.cjs');
 
 /** @typedef {import('../index.js').Header} Header */
 /** @typedef {import('./client-native.cjs').NativeHeader} NativeHeader */
 /** @typedef {import('../index.js').RequestOptions} RequestOptions */
 /** @typedef {import('../index.js').RequestContext} RequestContext */
 /** @typedef {import('../index.js').RequestProtocol} RequestProtocol */
-/** @typedef {Readonly<{protocol: RequestProtocol, context?: RequestContext, headers: readonly NativeHeader[], headerHooks: readonly import('../index.js').HeaderHook[]}>} RequestDefaults */
+/** @typedef {Readonly<{protocol: RequestProtocol, context?: RequestContext, headers: readonly NativeHeader[], headerHooks: readonly import('../index.js').HeaderHook[], redirectPolicy?: ReturnType<typeof redirectPolicy>}>} RequestDefaults */
 /** @typedef {Omit<RequestOptions, 'body' | 'method' | 'protocol' | 'context' | 'headers' | 'trailers'> & {
  * body?: Exclude<RequestOptions['body'], string>, method: string,
  * protocol: RequestProtocol, context: RequestContext,
@@ -30,7 +30,7 @@ function requestDefaults(options, attachedContext) {
   if (options === null || typeof options !== 'object') {
     throw new PhantomError('InvalidArgument', 'client options are required');
   }
-  for (const name of ['protocol', 'context', 'headers', 'headerHooks']) {
+  for (const name of ['protocol', 'context', 'headers', 'headerHooks', 'redirectPolicy']) {
     const field = Object.getOwnPropertyDescriptor(options, name);
     if (field !== undefined && !Object.hasOwn(field, 'value')) {
       throw new PhantomError('InvalidArgument', `${name} must be a data field`);
@@ -43,7 +43,7 @@ function requestDefaults(options, attachedContext) {
   /** @type {NativeHeader[]} */
   const headers = requestFields(options.headers, undefined).headers ?? [];
   return Object.freeze({
-    protocol, context, headerHooks: headerHooks(options.headerHooks),
+    protocol, context, headerHooks: headerHooks(options.headerHooks), redirectPolicy: redirectPolicy(options.redirectPolicy),
     headers: Object.freeze(headers.map((header) => Object.freeze({
       ...header, value: Buffer.from(header.value),
     }))),

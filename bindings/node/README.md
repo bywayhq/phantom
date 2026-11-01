@@ -447,6 +447,24 @@ credentials are always stripped. Request policies replace client policies;
 selected hops in `response.redirectHistory`, including their URLs. Later hops
 increment `omittedHops`; disabled history is `null`.
 
+For ordinary HTTP requests, use an awaited callback to decide each eligible hop:
+
+```js
+const {RedirectDecision} = require('@byway/phantom');
+const response = await client.get('https://example.com/', {
+  redirectPolicy: {mode: 'custom', maximumHops: 3, callback: async (attempt) => {
+    return new URL(attempt.toUrl).protocol === 'https:'
+      ? RedirectDecision.Follow : RedirectDecision.Stop;
+  }},
+});
+response.close();
+```
+
+`Stop` returns the redirect response and body; `Reject` fails the request.
+Thrown values are preserved. Forked and restored clients inherit the callback.
+See [types](index.d.ts) for immutable hop metadata and cancellation. Dedicated
+`eventSource()` rejects custom defaults; WebSocket openings do not use this policy.
+
 ## Retries
 
 Caller retries default to disabled. Set

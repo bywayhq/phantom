@@ -671,7 +671,7 @@ test('a live response retains its client across forced garbage collection', asyn
   await promisify(execFile)(process.execPath, ['--expose-gc', '-e', source, path.resolve(__dirname, '..'), profile], { timeout: 20000 });
 });
 
-test('direct native state and byte inputs enforce typed bounds and owned backing', async (t) => {
+test('direct native state, byte and redirect inputs enforce typed bounds and ownership', async (t) => {
   const native = require('../phantom.node');
   const environment = new native.NativeEnvironment();
   const invalidKeyBacking = new ArrayBuffer(4), invalidKey = Buffer.from(invalidKeyBacking);
@@ -749,6 +749,15 @@ test('direct native state and byte inputs enforce typed bounds and owned backing
   }
   await assert.rejects(client.importSessionTickets(Buffer.alloc(0), Buffer.alloc(32), [boundedRoute]), /PHANTOM_STATE:SessionTickets:invalid_snapshot:/);
   const options = {url: 'http://127.0.0.1', ...request};
+  const customRedirect = environment.client({profile, route: 'direct', redirectPolicy: {mode: 'custom', maximumHops: 1n}});
+  t.after(() => customRedirect.close(5000));
+  const submitCustom = (redirectPolicy) => customRedirect.request({...options, redirectPolicy}, new native.NativeCancellation());
+  assert.throws(() => submitCustom(undefined), /PHANTOM:InvalidArgument:/);
+  assert.throws(() => submitCustom({mode: 'custom', maximumHops: 1n}), /PHANTOM:InvalidArgument:/);
+  const source = new native.NativeEventSource();
+  t.after(() => source.close());
+  assert.throws(() => customRedirect.eventSource({url: options.url, protocol: 'http1', headers: [], maximumLineBytes: 65536,
+    maximumEventBytes: 1048576, initialRetryMs: 0, maximumReconnects: 0}, source), /PHANTOM:InvalidArgument:/);
   const reentrant = environment.client({profile, route: 'direct'});
   t.after(() => reentrant.close(5000));
   const closingRoute = {get route() { reentrant.destroy(); return 'direct'; }};

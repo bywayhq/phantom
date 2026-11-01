@@ -109,11 +109,12 @@ class HeaderHookContext {
 function isHeaderHookContext(client) { return callbackContext.getStore() === client; }
 
 /** @param {object} client @param {NativeHeaderHooks} owner
- * @param {readonly HeaderHook[]} hooks @param {HookOutcome} outcome */
-async function pumpHeaderHooks(client, owner, hooks, outcome) {
+ * @param {readonly HeaderHook[]} hooks @param {HookOutcome} outcome
+ * @param {import('../index.js').RedirectCallback} [redirect] */
+async function pumpHeaderHooks(client, owner, hooks, outcome, redirect) {
   const controller = new AbortController();
   const stopped = owner.closed().then(() => {
-    controller.abort(new PhantomError('Cancelled', 'header callback was cancelled'));
+    controller.abort(new PhantomError('Cancelled', 'request callback was cancelled'));
   }, (error) => {
     outcome.bridgeFailure ??= {error: translated(error)};
     controller.abort(outcome.bridgeFailure.error);
@@ -122,6 +123,31 @@ async function pumpHeaderHooks(client, owner, hooks, outcome) {
     while (true) {
       const invocation = await owner.next();
       if (invocation === null) break;
+      if (invocation.redirect) {
+        const attempt = Object.freeze(Object.defineProperty({...invocation.redirect, signal: controller.signal}, inspect.custom, {
+          value: () => 'RedirectAttempt { URLs redacted }',
+        }));
+        try {
+          controller.signal.throwIfAborted();
+          if (!redirect) throw new PhantomError('Internal', 'redirect callback is unavailable');
+          const decision = await callbackContext.run(client, () => redirect(attempt));
+          controller.signal.throwIfAborted();
+          if (decision !== 'follow' && decision !== 'stop' && decision !== 'reject') {
+            throw new PhantomError('InvalidArgument', 'redirect callbacks must return Follow, Stop or Reject');
+          }
+          owner.completeRedirect(attempt.hop, decision);
+        } catch (error) {
+          outcome.failed = true;
+          outcome.error = error;
+          if (controller.signal.aborted && error !== controller.signal.reason) outcome.bridgeFailure ??= {error};
+          try { owner.failRedirect(attempt.hop); }
+          catch (failure) {
+            if (!controller.signal.aborted) outcome.bridgeFailure ??= {error: translated(failure)};
+          }
+          break;
+        }
+        continue;
+      }
       const context = new HeaderHookContext(contextToken, invocation, controller.signal);
       try {
         controller.signal.throwIfAborted();

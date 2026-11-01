@@ -288,8 +288,26 @@ export type ContentDecoding = Readonly<{mode: 'none'}>
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
 /** Custom credential names are stripped permanently on cross-origin hops. */
 export type RedirectPolicy = (Readonly<{mode: 'none'}>
-  | Readonly<{mode: 'limited'; maximumHops: number | bigint}>)
+  | Readonly<{mode: 'limited'; maximumHops: number | bigint}>
+  | Readonly<{mode: 'custom'; maximumHops: number | bigint; callback: RedirectCallback}>)
   & Readonly<{credentialHeaders?: readonly string[]}>;
+export const RedirectDecision: Readonly<{Follow: 'follow'; Stop: 'stop'; Reject: 'reject'}>;
+export type RedirectDecision = 'follow' | 'stop' | 'reject';
+/** Owned immutable metadata for an eligible hop in an ordinary HTTP request.
+ * Dedicated EventSource does not support custom redirect defaults. */
+export interface RedirectAttempt {
+  readonly fromUrl: string;
+  readonly toUrl: string;
+  readonly status: number;
+  readonly method: string;
+  readonly nextMethod: string;
+  readonly hop: bigint;
+  /** Aborted when the native request ends. Callbacks must cooperate with I/O
+   * cancellation; client shutdown waits for their actual settlement. */
+  readonly signal: AbortSignal;
+}
+/** Core replay, credential, hop, budget and total-deadline rules still apply. */
+export type RedirectCallback = (attempt: RedirectAttempt) => RedirectDecision | Promise<RedirectDecision>;
 export interface ConnectionRetry {
   readonly maximum: number | bigint;
   readonly delayMs: number;

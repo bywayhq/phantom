@@ -1,4 +1,4 @@
-//! Request-owned, one-at-a-time header calls to the owning JavaScript loop.
+//! Request-owned, one-at-a-time header and redirect calls to the JavaScript loop.
 
 use std::{
     fmt, io,
@@ -9,7 +9,10 @@ use std::{
 };
 
 use napi::Result;
-use phantom::{HeaderHookContext, HeaderHookError, RequestBuilder, RequestHeader};
+use phantom::{
+    HeaderHookContext, HeaderHookError, RedirectAttempt, RedirectCallbackError, RedirectDecision,
+    RequestBuilder, RequestHeader,
+};
 use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{error::failure, request::MAXIMUM_HEADER_BYTES};
@@ -25,12 +28,33 @@ pub(crate) struct Invocation {
     pub(crate) method: String,
     pub(crate) uri: String,
     pub(crate) headers: Vec<RequestHeader>,
+    pub(crate) redirect: Option<RedirectInvocation>,
 }
 
-type Reply = std::result::Result<Vec<Edit>, ()>;
+pub(crate) struct RedirectInvocation {
+    pub(crate) from_url: String,
+    pub(crate) to_url: String,
+    pub(crate) status: u16,
+    pub(crate) method: String,
+    pub(crate) next_method: String,
+    pub(crate) hop: usize,
+}
+
+pub(crate) enum CallbackReply {
+    Header(Vec<Edit>),
+    Redirect(RedirectDecision),
+}
+
+type Reply = std::result::Result<CallbackReply, ()>;
+
+#[derive(PartialEq, Eq)]
+pub(crate) enum ReplyKey {
+    Header(u32),
+    Redirect(usize),
+}
 
 struct PendingReply {
-    index: u32,
+    key: ReplyKey,
     sender: oneshot::Sender<Reply>,
 }
 
@@ -59,11 +83,8 @@ impl fmt::Debug for HeaderHooks {
 
 impl HeaderHooks {
     pub(crate) fn new(count: u32) -> Result<Arc<Self>> {
-        if !(1..=256).contains(&count) {
-            return Err(failure(
-                "InputLimit",
-                "headerHooks require 1..256 callbacks",
-            ));
+        if count > 256 {
+            return Err(failure("InputLimit", "headerHooks exceed 256 callbacks"));
         }
 
         let (sender, receiver) = mpsc::channel(1);
@@ -122,12 +143,13 @@ impl HeaderHooks {
             method: context.method().to_string(),
             uri: context.uri().to_string(),
             headers: context.headers().to_vec(),
+            redirect: None,
         };
         self.sender
             .send(QueuedInvocation {
                 invocation,
                 reply: PendingReply {
-                    index,
+                    key: ReplyKey::Header(index),
                     sender: reply,
                 },
             })
@@ -137,6 +159,9 @@ impl HeaderHooks {
             biased;
             () = self.closed() => return Err(hook_error()),
             reply = received => reply.map_err(|_| hook_error())?.map_err(|()| hook_error())?,
+        };
+        let CallbackReply::Header(edits) = edits else {
+            return Err(hook_error());
         };
 
         // Prepared bodies can add fields after the public request-input bound.
@@ -168,6 +193,64 @@ impl HeaderHooks {
         }
         cancellation.completed = true;
         Ok(())
+    }
+
+    pub(crate) async fn redirect(
+        self: Arc<Self>,
+        attempt: &RedirectAttempt<'_>,
+    ) -> std::result::Result<RedirectDecision, RedirectCallbackError> {
+        let bytes = attempt
+            .from_url()
+            .as_str()
+            .len()
+            .saturating_add(attempt.to_url().as_str().len())
+            .saturating_add(attempt.method().as_str().len())
+            .saturating_add(attempt.next_method().as_str().len());
+        if bytes > 256 * 1024 {
+            return Err(redirect_error());
+        }
+        let mut cancellation = InvocationGuard {
+            owner: Arc::clone(&self),
+            completed: false,
+        };
+        let (reply, received) = oneshot::channel();
+        let invocation = Invocation {
+            index: 0,
+            method: String::new(),
+            uri: String::new(),
+            headers: Vec::new(),
+            redirect: Some(RedirectInvocation {
+                from_url: attempt.from_url().to_string(),
+                to_url: attempt.to_url().to_string(),
+                status: attempt.status().as_u16(),
+                method: attempt.method().to_string(),
+                next_method: attempt.next_method().to_string(),
+                hop: attempt.hop(),
+            }),
+        };
+        self.sender
+            .send(QueuedInvocation {
+                invocation,
+                reply: PendingReply {
+                    key: ReplyKey::Redirect(attempt.hop()),
+                    sender: reply,
+                },
+            })
+            .await
+            .map_err(|_| redirect_error())?;
+        let reply = tokio::select! {
+            biased;
+            () = self.closed() => return Err(redirect_error()),
+            reply = received => reply.map_err(|_| redirect_error())?.map_err(|()| redirect_error())?,
+        };
+        let CallbackReply::Redirect(decision) = reply else {
+            return Err(redirect_error());
+        };
+        if *self.closed.borrow() {
+            return Err(redirect_error());
+        }
+        cancellation.completed = true;
+        Ok(decision)
     }
 
     pub(crate) async fn next(&self) -> Result<Option<Invocation>> {
@@ -204,12 +287,12 @@ impl HeaderHooks {
         Ok(Some(queued.invocation))
     }
 
-    pub(crate) fn reply(&self, index: u32, edits: Reply) -> Result<()> {
+    pub(crate) fn reply(&self, key: ReplyKey, edits: Reply) -> Result<()> {
         let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
         if *self.closed.borrow()
             || !pending
                 .as_ref()
-                .is_some_and(|reply| reply.index == index && !reply.sender.is_closed())
+                .is_some_and(|reply| reply.key == key && !reply.sender.is_closed())
         {
             return Err(failure(
                 "InvalidOperation",
@@ -262,6 +345,10 @@ fn hook_error() -> HeaderHookError {
     HeaderHookError::new(io::Error::other("caller header hook failed"))
 }
 
+pub(crate) fn redirect_error() -> RedirectCallbackError {
+    RedirectCallbackError::new(io::Error::other("caller redirect callback failed"))
+}
+
 pub(crate) struct Lease(Arc<HeaderHooks>);
 
 impl Drop for Lease {
@@ -280,5 +367,49 @@ impl Drop for InvocationGuard {
         if !self.completed {
             self.owner.close();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redirect_replies_require_the_active_kind_and_hop() -> Result<()> {
+        let owner = HeaderHooks::new(0)?;
+        let (sender, mut received) = oneshot::channel();
+        *owner.pending.lock().unwrap_or_else(PoisonError::into_inner) = Some(PendingReply {
+            key: ReplyKey::Redirect(2),
+            sender,
+        });
+        assert!(owner.reply(ReplyKey::Header(2), Err(())).is_err());
+        assert!(owner.reply(ReplyKey::Redirect(1), Err(())).is_err());
+        owner.reply(
+            ReplyKey::Redirect(2),
+            Ok(CallbackReply::Redirect(RedirectDecision::Stop)),
+        )?;
+        assert!(matches!(
+            received.try_recv(),
+            Ok(Ok(CallbackReply::Redirect(RedirectDecision::Stop)))
+        ));
+        assert!(owner.reply(ReplyKey::Redirect(2), Err(())).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn closing_discards_a_pending_redirect_reply() -> Result<()> {
+        let owner = HeaderHooks::new(0)?;
+        let (sender, mut received) = oneshot::channel();
+        *owner.pending.lock().unwrap_or_else(PoisonError::into_inner) = Some(PendingReply {
+            key: ReplyKey::Redirect(1),
+            sender,
+        });
+        owner.close();
+        assert!(owner.reply(ReplyKey::Redirect(1), Err(())).is_err());
+        assert!(matches!(
+            received.try_recv(),
+            Err(oneshot::error::TryRecvError::Closed)
+        ));
+        Ok(())
     }
 }

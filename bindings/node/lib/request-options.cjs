@@ -73,9 +73,11 @@ function contentDecoding(value) {
   throw new PhantomError('InvalidArgument', 'choose none or advertised with an exact unsigned u64 byte cap');
 }
 
+/** @param {unknown} value
+ * @returns {(import('./client-native.cjs').NativeRedirectPolicy & {callback?: import('../index.js').RedirectCallback}) | undefined} */
 function redirectPolicy(value) {
   if (value === undefined) return undefined;
-  const copy = policyFields(value, ['mode', 'maximumHops', 'credentialHeaders']);
+  const copy = policyFields(value, ['mode', 'maximumHops', 'credentialHeaders', 'callback']);
   const names = copy.credentialHeaders === undefined ? undefined
     : orderedDataArray(copy.credentialHeaders, 256, 'redirect credential names');
   let remaining = 65536;
@@ -85,12 +87,27 @@ function redirectPolicy(value) {
     if (remaining < 0) throw new PhantomError('InputLimit', 'redirect credential names exceed 65536 bytes');
   }
   const credentials = names === undefined ? {} : {credentialHeaders: Object.freeze(names)};
-  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumHops')) return {mode: 'none', ...credentials};
-  if (copy.mode === 'limited') return {
+  if (copy.mode === 'custom' && typeof copy.callback === 'function') return Object.freeze({
+    mode: 'custom', maximumHops: positiveCount(copy.maximumHops), ...credentials,
+    callback: copy.callback,
+  });
+  if (Object.hasOwn(copy, 'callback')) throw new PhantomError('InvalidArgument', 'custom redirects require a callback');
+  if (copy.mode === 'none' && !Object.hasOwn(copy, 'maximumHops')) return Object.freeze({mode: 'none', ...credentials});
+  if (copy.mode === 'limited') return Object.freeze({
     mode: 'limited', maximumHops: positiveCount(copy.maximumHops), ...credentials,
-  };
-  throw new PhantomError('InvalidArgument', 'choose none or limited with a positive hop count');
+  });
+  throw new PhantomError('InvalidArgument', 'choose none, limited or custom with a positive hop count');
 }
+
+/** @param {ReturnType<typeof redirectPolicy>} policy
+ * @returns {import('./client-native.cjs').NativeRedirectPolicy | undefined} */
+function nativeRedirectPolicy(policy) {
+  if (policy === undefined) return undefined;
+  const {callback, ...wire} = policy;
+  return wire;
+}
+
+const RedirectDecision = Object.freeze({Follow: 'follow', Stop: 'stop', Reject: 'reject'});
 
 function retryDelay(value) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
@@ -157,4 +174,4 @@ function retryPolicy(value) {
   return result;
 }
 
-module.exports = { phaseTimeouts, redirectPolicy, retryPolicy, requestFields, expectContinue, contentDecoding };
+module.exports = { phaseTimeouts, redirectPolicy, nativeRedirectPolicy, RedirectDecision, retryPolicy, requestFields, expectContinue, contentDecoding };
