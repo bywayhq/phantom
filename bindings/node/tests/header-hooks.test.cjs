@@ -45,7 +45,7 @@ test('awaited hooks run once in order and sensitive fields stay stripped on cros
     observed.push(request.headers); response.writeHead(302, {location: destination}); response.end();
   });
   const calls = [];
-  const owner = client(t, {redirectPolicy: {mode: 'limited', maximumHops: 1}, headerHooks: [async (context) => {
+  const owner = client(t, {redirectPolicy: {mode: 'limited', maximumHops: 1, credentialHeaders: ['x-secret']}, headerHooks: [async (context) => {
     calls.push('client');
     assert.equal(context.url, origin + '/');
     context.append(field('X-Secret', 'private', true));

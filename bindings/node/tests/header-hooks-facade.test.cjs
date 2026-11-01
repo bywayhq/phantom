@@ -154,11 +154,11 @@ test('hook self-shutdown fails promptly instead of waiting for itself', async ()
   await client.close();
 });
 
-test('a host failure after cancellation remains observable during shutdown', async () => {
+test('a host failure after cancellation remains observable during shutdown', async (t) => {
+  for (const original of [new Error('late callback failure'), undefined]) await t.test(String(original), async () => {
   const {Client} = facade();
   const entered = deferred(), release = deferred();
   const controller = new AbortController();
-  const original = new Error('late callback failure');
   const client = new Client({profile: 'exact', route: 'direct', context: 'raw'});
   const send = client.get('http://example.test/', {signal: controller.signal, headerHooks: [async () => {
     entered.resolve(); await release.promise; throw original;
@@ -167,7 +167,8 @@ test('a host failure after cancellation remains observable during shutdown', asy
   controller.abort();
   await assert.rejects(send, {code: 'Cancelled'});
   release.resolve();
-  await assert.rejects(client.close(), (error) => error.cause === original);
+  await assert.rejects(client.close(), (error) => Object.hasOwn(error, 'cause') && error.cause === original);
+  });
 });
 
 test('forks and restored clients inherit hooks and requests can skip them', async () => {
