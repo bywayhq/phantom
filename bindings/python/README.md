@@ -284,6 +284,13 @@ unsupported combinations fail. Redirect following and caller retries are opt-in.
 Use `redirect_policy=RedirectPolicy.limited(5)` on a client or request.
 Add `credential_headers=("x-api-key",)` to strip custom secrets permanently
 when a redirect changes origin. Standard credentials are always stripped.
+Use `RedirectPolicy.custom(5, callback)` to decide each proposed hop. The
+callback receives a `RedirectAttempt` and returns `RedirectDecision.FOLLOW`,
+`STOP` (return the unread redirect response), or `REJECT`. AsyncClient also
+awaits async callbacks on your event loop. Client requires synchronous callbacks.
+Callback failures keep the original exception in `Error.original`. Callbacks
+share the request deadline and cannot restore stripped credentials. Dedicated
+EventSource clients do not yet support custom redirect callbacks.
 Use `network=NetworkOptions(public_only=True)` to admit only public destination
 IPs for new direct connections. Proxies and custom streams are unsupported;
 existing connections remain reusable.

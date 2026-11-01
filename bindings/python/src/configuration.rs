@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize, time::Duration};
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use phantom::{RequestTimeoutOverrides, RequestTimeouts, Route, TimeoutOverride};
 use pyo3::{
@@ -6,7 +6,7 @@ use pyo3::{
     types::{PyBytes, PyString, PyTuple},
 };
 
-use crate::error;
+use crate::{error, header_hook::Owner};
 
 pub(super) type TimeoutFields = Vec<(String, Option<f64>)>;
 
@@ -123,9 +123,10 @@ pub(super) fn retry_policy(settings: RetrySettings) -> PyResult<phantom::RetryPo
 pub(super) fn redirect_policy(
     maximum: Option<usize>,
     names: Option<&Bound<'_, PyAny>>,
+    callback: Option<Arc<Owner>>,
 ) -> PyResult<Option<phantom::RedirectPolicy>> {
     let Some(maximum) = maximum else {
-        if names.is_some() {
+        if names.is_some() || callback.is_some() {
             return Err(error::input("invalid_redirect_policy"));
         }
         return Ok(None);
@@ -167,14 +168,20 @@ pub(super) fn redirect_policy(
             );
         }
     }
-    Ok(Some(
-        NonZeroUsize::new(maximum)
-            .map_or_else(
-                phantom::RedirectPolicy::none,
-                phantom::RedirectPolicy::limited,
-            )
-            .credential_headers(parsed),
-    ))
+    let policy = if let Some(owner) = callback {
+        let maximum =
+            NonZeroUsize::new(maximum).ok_or_else(|| error::input("invalid_redirect_policy"))?;
+        phantom::RedirectPolicy::custom_async(maximum, move |attempt| {
+            let owner = Arc::clone(&owner);
+            Box::pin(async move { owner.redirect(attempt).await })
+        })
+    } else {
+        NonZeroUsize::new(maximum).map_or_else(
+            phantom::RedirectPolicy::none,
+            phantom::RedirectPolicy::limited,
+        )
+    };
+    Ok(Some(policy.credential_headers(parsed)))
 }
 
 pub(super) fn route(
@@ -297,11 +304,11 @@ mod tests {
                 c"(1,)",
             ] {
                 let value = py.eval(source, None, None)?;
-                assert!(super::redirect_policy(Some(1), Some(&value)).is_err());
+                assert!(super::redirect_policy(Some(1), Some(&value), None).is_err());
             }
             let names = py.eval(c"('X-Api-Key',)", None, None)?;
-            assert!(super::redirect_policy(None, Some(&names)).is_err());
-            let policy = super::redirect_policy(Some(1), Some(&names))?;
+            assert!(super::redirect_policy(None, Some(&names), None).is_err());
+            let policy = super::redirect_policy(Some(1), Some(&names), None)?;
             assert_eq!(
                 policy
                     .and_then(|policy| policy.max_hops())

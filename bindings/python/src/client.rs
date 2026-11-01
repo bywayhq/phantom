@@ -141,9 +141,11 @@ impl NativeClient {
         if let Some(resolver) = resolver {
             builder = builder.dns_resolver(resolver);
         }
-        if let Some(policy) =
-            configuration::redirect_policy(redirect_maximum_hops, redirect_credential_headers)?
-        {
+        if let Some(policy) = configuration::redirect_policy(
+            redirect_maximum_hops,
+            redirect_credential_headers,
+            None,
+        )? {
             builder = builder.redirect_policy(policy);
         }
         if let Some(policy) = retry_policy {
@@ -352,6 +354,10 @@ impl NativeClient {
                 .map_err(error::request)?,
         };
         let (headers, trailers) = request_fields::headers(headers, trailers)?;
+        let redirect_owner = header_hooks
+            .as_ref()
+            .filter(|hooks| hooks.redirects)
+            .map(|hooks| Arc::clone(&hooks.owner));
         let hook_guard = if let Some(hooks) = header_hooks {
             let reserved = (
                 trailers.len(),
@@ -405,9 +411,11 @@ impl NativeClient {
         if let Some(maximum) = maximum_decoded_bytes {
             request = request.content_decoding(phantom::ContentDecoding::advertised(maximum));
         }
-        if let Some(policy) =
-            configuration::redirect_policy(redirect_maximum_hops, redirect_credential_headers)?
-        {
+        if let Some(policy) = configuration::redirect_policy(
+            redirect_maximum_hops,
+            redirect_credential_headers,
+            redirect_owner,
+        )? {
             request = request.redirect_policy(policy);
         }
         if let Some(maximum) = redirect_history_limit {

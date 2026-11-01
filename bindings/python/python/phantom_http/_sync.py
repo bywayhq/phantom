@@ -395,7 +395,9 @@ class Client:
         client._thread = threading.get_ident()
         client._loop = asyncio.new_event_loop()
         try:
-            client._async = AsyncClient._from_native(native, self._async._header_hooks)
+            client._async = AsyncClient._from_native(
+                native, self._async._header_hooks, self._async._redirect_policy
+            )
             client.cookies = client._async.cookies
         except BaseException:
             client._loop.close()

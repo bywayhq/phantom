@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypeAlias
 
+from ._redirect import AsyncRedirectCallback
+
 
 class _Inherit(Enum):
     VALUE = "inherit"
@@ -198,8 +200,13 @@ class RedirectPolicy:
 
     maximum_hops: int = 0
     credential_headers: tuple[str, ...] = field(default=(), repr=False)
+    _callback: AsyncRedirectCallback | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
+        if self._callback is not None:
+            if not callable(self._callback):
+                raise TypeError("redirect callback must be callable")
+            _redirect_count(self.maximum_hops, positive=True)
         _redirect_count(self.maximum_hops)
         if type(self.credential_headers) is not tuple:
             raise TypeError("credential_headers must be a tuple")
@@ -222,6 +229,25 @@ class RedirectPolicy:
     @classmethod
     def none(cls) -> RedirectPolicy:
         return cls()
+
+    @classmethod
+    def custom(
+        cls,
+        maximum: int,
+        callback: AsyncRedirectCallback,
+        *,
+        credential_headers: tuple[str, ...] = (),
+    ) -> RedirectPolicy:
+        """Decide each validated hop; Client requires a synchronous callback.
+
+        Callback failures retain the original exception in Error.original.
+        Total deadlines and shared attempt budgets still apply.
+        """
+        if not callable(callback):
+            raise TypeError("redirect callback must be callable")
+        return cls(
+            _redirect_count(maximum, positive=True), credential_headers, callback
+        )
 
     @classmethod
     def limited(

@@ -57,7 +57,10 @@ pub(super) fn request_ref(error: &RequestError) -> PyErr {
     let protocol = error.protocol().map(super::client::protocol_name);
     let phase = error.timeout_phase().map(timeout_phase);
     let failure = NativeError::new_err(("request", kind, protocol, phase));
-    if error.kind() == RequestErrorKind::HeaderHook {
+    if matches!(
+        error.kind(),
+        RequestErrorKind::HeaderHook | RequestErrorKind::Redirect
+    ) {
         let mut source = std::error::Error::source(error);
         while let Some(cause) = source {
             if let Some(original) = cause.downcast_ref::<PyErr>() {

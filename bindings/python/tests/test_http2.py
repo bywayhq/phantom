@@ -36,6 +36,7 @@ class H2Peer:
         socket_path=None,
         websocket=False,
         event_stream=False,
+        redirects=None,
     ):
         self.listener = (
             socket.socket(socket.AF_UNIX)
@@ -58,6 +59,7 @@ class H2Peer:
         self.client_certificate = None
         self.websocket = websocket
         self.event_stream = event_stream
+        self.redirects = {} if redirects is None else redirects
         self.websocket_stream = None
         self.url = (
             f"{'https' if tls else 'http'}://localhost"
@@ -117,6 +119,16 @@ class H2Peer:
                             path = dict(event.headers)[b":path"]
                             self.requests.append((event.stream_id, path))
                             self.headers.append(event.headers)
+                            if path in self.redirects:
+                                connection.send_headers(
+                                    event.stream_id,
+                                    [
+                                        (":status", "302"),
+                                        ("location", self.redirects[path]),
+                                    ],
+                                    end_stream=True,
+                                )
+                                continue
                             fields = [(":status", "200")]
                             if self.event_stream and path in (
                                 b"/stall",

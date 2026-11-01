@@ -15,6 +15,7 @@ from phantom_http import (
     NetworkOptions,
     Profile,
     Proxy,
+    RedirectAttempt,
     RedirectPolicy,
     Response,
     RetryPolicy,
@@ -319,3 +320,11 @@ async def invalid_header_hooks(client: AsyncClient, sync: Client) -> None:
     sync.get("https://local", header_hooks=(asynchronous,))  # E: arg-type
     sync.get("https://local", header_hooks=(42,))  # E: arg-type
     Client(profile="chrome-154-windows", header_hooks=(asynchronous,))  # E: arg-type
+
+
+def invalid_redirect_callbacks() -> None:
+    def invalid(attempt: RedirectAttempt) -> str:
+        return "follow"
+
+    RedirectPolicy.custom(3, invalid)  # E: arg-type
+    RedirectPolicy.custom(3, 42)  # E: arg-type

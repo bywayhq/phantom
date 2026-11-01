@@ -10,6 +10,7 @@ from phantom_http import (
     AsyncEventSource,
     AsyncEventStream,
     AsyncHeaderHook,
+    AsyncRedirectCallback,
     AsyncResponse,
     AsyncSessionStore,
     AttemptBudget,
@@ -36,6 +37,9 @@ from phantom_http import (
     Profile,
     ProfileError,
     Proxy,
+    RedirectAttempt,
+    RedirectCallback,
+    RedirectDecision,
     RedirectHistory,
     RedirectPolicy,
     Response,
@@ -578,3 +582,32 @@ async def header_hook_consumer(url: str) -> None:
     ) as client_async:
         response_async = await client_async.post(url, header_hooks=(asynchronous,))
         await response_async.aclose()
+
+
+def decide_redirect(attempt: RedirectAttempt) -> RedirectDecision:
+    destination: str = attempt.to_url
+    print(attempt.status, attempt.method, attempt.next_method, attempt.hop)
+    return (
+        RedirectDecision.FOLLOW
+        if destination.startswith("https:")
+        else RedirectDecision.STOP
+    )
+
+
+async def decide_redirect_async(attempt: RedirectAttempt) -> RedirectDecision:
+    return decide_redirect(attempt)
+
+
+async def redirect_callback_consumer(
+    client: AsyncClient, sync: Client, url: str
+) -> None:
+    synchronous: RedirectCallback = decide_redirect
+    asynchronous: AsyncRedirectCallback = decide_redirect_async
+    response = await client.get(
+        url, redirect_policy=RedirectPolicy.custom(3, asynchronous)
+    )
+    await response.aclose()
+    with sync.get(
+        url, redirect_policy=RedirectPolicy.custom(3, synchronous)
+    ) as blocking:
+        blocking.read(max_bytes=0)

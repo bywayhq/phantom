@@ -183,6 +183,7 @@ class AsyncClient:
         header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
     ) -> None:
         self._header_hooks = _header_hooks._snapshot(header_hooks)
+        self._redirect_policy = redirect_policy
         self._header_pumps: set[_header_hooks.Hooks] = set()
         if pool is not None and type(pool) is not PoolOptions:
             raise TypeError("pool must be PoolOptions")
@@ -261,12 +262,14 @@ class AsyncClient:
         cls,
         native: _native.NativeClient,
         header_hooks: tuple[_header_hooks.AsyncHeaderHook, ...] = (),
+        redirect_policy: RedirectPolicy | None = None,
     ) -> AsyncClient:
         client = object.__new__(cls)
         client._native = native
         client.cookies = Cookies(native.cookies)
         client._uploads = set()
         client._header_hooks = header_hooks
+        client._redirect_policy = redirect_policy
         client._header_pumps = set()
         return client
 
@@ -278,6 +281,11 @@ class AsyncClient:
         **options: Unpack[_EventSourceOptions],
     ) -> _EventSourceConnect:
         """Open a GET event source with finite reconnects on an exact protocol."""
+        if (
+            self._redirect_policy is not None
+            and self._redirect_policy._callback is not None
+        ):
+            raise ValueError("EventSource does not support redirect callbacks")
         return _EventSourceConnect(self._native, url, protocol, **options)
 
     def websocket(
@@ -317,6 +325,7 @@ class AsyncClient:
                 sharing.tickets,
             ),
             self._header_hooks,
+            self._redirect_policy,
         )
 
     async def export_cookies(self) -> CookieSnapshot | None:
@@ -399,7 +408,9 @@ class AsyncClient:
             _checkpoint_bytes(key),
             _receiving_routes(receiving_routes),
         )
-        return AsyncClient._from_native(native, self._header_hooks)
+        return AsyncClient._from_native(
+            native, self._header_hooks, self._redirect_policy
+        )
 
     async def save_session(
         self,
@@ -631,6 +642,12 @@ class AsyncClient:
                 lambda _: self._uploads.discard(multipart_pump)
             )
         try:
+            if (
+                redirect_policy is None
+                and self._redirect_policy is not None
+                and self._redirect_policy._callback is not None
+            ):
+                redirect_policy = self._redirect_policy
             url, headers, body = _prepare_request(
                 url, headers, body, upload, params, json, form, maximum_body_bytes
             )
@@ -704,8 +721,13 @@ class AsyncClient:
             callbacks = self._header_hooks + _header_hooks._snapshot(header_hooks)
             if len(callbacks) > 256:
                 raise ValueError("header hooks exceed 256 callbacks")
-            if callbacks:
-                hook_pump = _header_hooks.Hooks(callbacks, _synchronous)
+            redirect_callback = (
+                None if redirect_policy is None else redirect_policy._callback
+            )
+            if callbacks or redirect_callback is not None:
+                hook_pump = _header_hooks.Hooks(
+                    callbacks, _synchronous, redirect_callback
+                )
                 hooks = hook_pump
                 self._header_pumps.add(hook_pump)
                 hook_pump.settled.add_done_callback(

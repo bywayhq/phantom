@@ -188,7 +188,7 @@ def _error(error: _native.NativeError) -> Error:
         "response_body_limit": BodyLimitExceeded,
     }.get(kind, Error)
     mapped = cls(category, kind, protocol, phase)
-    if kind == "header_hook":
+    if kind in ("header_hook", "redirect"):
         original = cast(object, getattr(error, "original", None))
         if isinstance(original, BaseException):
             mapped.original = original

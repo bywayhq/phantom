@@ -60,6 +60,10 @@ from ._network import NetworkOptions as NetworkOptions
 from ._pool import PoolOptions as PoolOptions
 from ._profile import ImportedProfile as ImportedProfile
 from ._profile import Profile as Profile
+from ._redirect import AsyncRedirectCallback as AsyncRedirectCallback
+from ._redirect import RedirectAttempt as RedirectAttempt
+from ._redirect import RedirectCallback as RedirectCallback
+from ._redirect import RedirectDecision as RedirectDecision
 from ._request import _request_fields as _request_fields
 from ._response import AsyncResponse as AsyncResponse
 from ._response import RedirectHistory as RedirectHistory
@@ -137,6 +141,9 @@ for _public_type in (
     Cookies,
     RedirectHop,
     RedirectHistory,
+    RedirectAttempt,
+    RedirectDecision,
+    RedirectPolicy,
     ResponseHeader,
     ResponseHeaders,
     ResponseTrailers,

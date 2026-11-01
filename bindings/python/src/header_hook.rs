@@ -1,7 +1,10 @@
 //! Request-owned rendezvous for callbacks on the caller's Python loop.
 
 use crate::error;
-use phantom::{HeaderHookContext, HeaderHookError, RequestHeader};
+use phantom::{
+    HeaderHookContext, HeaderHookError, RedirectAttempt, RedirectCallbackError, RedirectDecision,
+    RequestHeader,
+};
 use pyo3::{
     prelude::*,
     types::{PyBool, PyBytes, PyList, PyString},
@@ -11,9 +14,21 @@ use tokio::sync::{Notify, oneshot};
 
 const MAXIMUM_FIELDS: usize = 256;
 const MAXIMUM_BYTES: usize = 65536;
+const MAXIMUM_REDIRECT_BYTES: usize = 256 * 1024;
+
 type Fields = Vec<(String, Vec<u8>, bool)>;
-type Invocation = (u64, usize, String, String, Fields);
-type Reply = Result<Vec<Edit>, PyErr>;
+
+enum Invocation {
+    Header(u64, usize, String, String, Fields),
+    Redirect(u64, String, String, u16, String, String, usize),
+}
+
+enum CallbackReply {
+    Header(Vec<Edit>),
+    Redirect(RedirectDecision),
+}
+
+type Reply = Result<CallbackReply, PyErr>;
 
 enum Edit {
     Append(RequestHeader),
@@ -72,7 +87,7 @@ impl Owner {
                 .get_or_insert_with(|| field_limits(context.headers(), trailers));
             bounded(context.headers(), trailers, limits)?;
             state.serial = state.serial.checked_add(1).ok_or_else(closed)?;
-            state.pending = Some((
+            state.pending = Some(Invocation::Header(
                 state.serial,
                 index,
                 context.method().to_string(),
@@ -97,6 +112,9 @@ impl Owner {
             .await
             .map_err(|_| closed())?
             .map_err(HeaderHookError::new)?;
+        let CallbackReply::Header(edits) = edits else {
+            return Err(closed());
+        };
         if self.state().closed {
             return Err(closed());
         }
@@ -110,6 +128,57 @@ impl Owner {
         }
         guard.0 = None;
         Ok(())
+    }
+
+    pub(super) async fn redirect(
+        self: &Arc<Self>,
+        attempt: &RedirectAttempt<'_>,
+    ) -> Result<RedirectDecision, RedirectCallbackError> {
+        let mut guard = Guard(Some(Arc::clone(self)));
+        let size = [
+            attempt.from_url().as_str(),
+            attempt.to_url().as_str(),
+            attempt.method().as_str(),
+            attempt.next_method().as_str(),
+        ]
+        .iter()
+        .try_fold(0_usize, |size, value| size.checked_add(value.len()));
+        if size.is_none_or(|size| size > MAXIMUM_REDIRECT_BYTES) {
+            return Err(RedirectCallbackError::new(std::io::Error::other(
+                "redirect callback metadata limit",
+            )));
+        }
+        let (send, receive) = oneshot::channel();
+        {
+            let mut state = self.state();
+            if state.closed || state.reply.is_some() {
+                return Err(redirect_closed());
+            }
+            state.serial = state.serial.checked_add(1).ok_or_else(redirect_closed)?;
+            state.pending = Some(Invocation::Redirect(
+                state.serial,
+                attempt.from_url().as_str().to_owned(),
+                attempt.to_url().as_str().to_owned(),
+                attempt.status().as_u16(),
+                attempt.method().as_str().to_owned(),
+                attempt.next_method().as_str().to_owned(),
+                attempt.hop(),
+            ));
+            state.reply = Some((state.serial, send));
+        }
+        self.changed.notify_waiters();
+        let reply = receive
+            .await
+            .map_err(|_| redirect_closed())?
+            .map_err(RedirectCallbackError::new)?;
+        if self.state().closed {
+            return Err(redirect_closed());
+        }
+        let CallbackReply::Redirect(decision) = reply else {
+            return Err(redirect_closed());
+        };
+        guard.0 = None;
+        Ok(decision)
     }
 
     fn complete(&self, serial: u64, reply: Reply) -> PyResult<()> {
@@ -127,6 +196,10 @@ impl Owner {
 
 fn closed() -> HeaderHookError {
     HeaderHookError::new(std::io::Error::other("header callback closed"))
+}
+
+fn redirect_closed() -> RedirectCallbackError {
+    RedirectCallbackError::new(std::io::Error::other("redirect callback closed"))
 }
 
 fn field_limits(headers: &[RequestHeader], trailers: (usize, usize)) -> (usize, usize) {
@@ -175,18 +248,21 @@ impl Drop for Guard {
 pub(super) struct NativeHeaderHooks {
     pub(super) owner: Arc<Owner>,
     pub(super) count: usize,
+    pub(super) redirects: bool,
 }
 
 #[pymethods]
 impl NativeHeaderHooks {
     #[new]
-    fn new(count: usize) -> PyResult<Self> {
-        if count == 0 || count > MAXIMUM_FIELDS {
+    #[pyo3(signature = (count, redirects=false))]
+    fn new(count: usize, redirects: bool) -> PyResult<Self> {
+        if (count == 0 && !redirects) || count > MAXIMUM_FIELDS {
             return Err(error::input("header_hook_limit"));
         }
         Ok(Self {
             owner: Arc::default(),
             count,
+            redirects,
         })
     }
 
@@ -202,15 +278,29 @@ impl NativeHeaderHooks {
                     if state.closed {
                         return Ok(None);
                     }
-                    if let Some((id, index, method, uri, fields)) = state.pending.take() {
+                    if let Some(invocation) = state.pending.take() {
                         return Python::attach(|py| {
-                            let fields = fields
-                                .into_iter()
-                                .map(|(name, value, sensitive)| {
-                                    (name, PyBytes::new(py, &value).unbind(), sensitive)
-                                })
-                                .collect::<Vec<_>>();
-                            Ok(Some((id, index, method, uri, fields)))
+                            let value = match invocation {
+                                Invocation::Header(id, index, method, uri, fields) => {
+                                    let fields = fields
+                                        .into_iter()
+                                        .map(|(name, value, sensitive)| {
+                                            (name, PyBytes::new(py, &value).unbind(), sensitive)
+                                        })
+                                        .collect::<Vec<_>>();
+                                    (id, index, method, uri, fields)
+                                        .into_pyobject(py)?
+                                        .into_any()
+                                        .unbind()
+                                }
+                                Invocation::Redirect(id, from, to, status, method, next, hop) => {
+                                    (id, "redirect", from, to, status, method, next, hop)
+                                        .into_pyobject(py)?
+                                        .into_any()
+                                        .unbind()
+                                }
+                            };
+                            Ok(Some(value))
                         });
                     }
                 }
@@ -273,7 +363,18 @@ impl NativeHeaderHooks {
                 _ => return Err(error::input("invalid_header_hook_edit")),
             });
         }
-        self.owner.complete(id, Ok(owned))
+        self.owner.complete(id, Ok(CallbackReply::Header(owned)))
+    }
+
+    fn complete_redirect(&self, id: u64, decision: &str) -> PyResult<()> {
+        let decision = match decision {
+            "follow" => RedirectDecision::Follow,
+            "stop" => RedirectDecision::Stop,
+            "reject" => RedirectDecision::Reject,
+            _ => return Err(error::input("invalid_redirect_decision")),
+        };
+        self.owner
+            .complete(id, Ok(CallbackReply::Redirect(decision)))
     }
 
     fn fail(&self, id: u64, exception: Bound<'_, PyAny>) -> PyResult<()> {
@@ -298,16 +399,28 @@ mod tests {
         let owner = Arc::new(Owner::default());
         let (send, mut receive) = oneshot::channel();
         owner.state().reply = Some((7, send));
-        assert!(owner.complete(6, Ok(Vec::new())).is_err());
-        owner.complete(7, Ok(Vec::new()))?;
+        assert!(
+            owner
+                .complete(6, Ok(CallbackReply::Header(Vec::new())))
+                .is_err()
+        );
+        owner.complete(7, Ok(CallbackReply::Header(Vec::new())))?;
         assert!(receive.try_recv().is_ok());
-        assert!(owner.complete(7, Ok(Vec::new())).is_err());
+        assert!(
+            owner
+                .complete(7, Ok(CallbackReply::Header(Vec::new())))
+                .is_err()
+        );
         let (send, mut receive) = oneshot::channel();
         owner.state().reply = Some((8, send));
         drop(Guard(Some(Arc::clone(&owner))));
         assert!(owner.state().closed);
         assert!(receive.try_recv().is_err());
-        assert!(owner.complete(8, Ok(Vec::new())).is_err());
+        assert!(
+            owner
+                .complete(8, Ok(CallbackReply::Header(Vec::new())))
+                .is_err()
+        );
         Ok(())
     }
 
@@ -330,7 +443,7 @@ mod tests {
     fn completion_bounds_edits_and_resulting_fields_include_trailers() -> PyResult<()> {
         Python::initialize();
         Python::attach(|py| {
-            let hooks = NativeHeaderHooks::new(1)?;
+            let hooks = NativeHeaderHooks::new(1, false)?;
             let edit = ("append", "X", PyBytes::new(py, b"a"), false);
             let too_many = PyList::new(py, std::iter::repeat_n(edit, MAXIMUM_FIELDS + 1))?;
             assert!(hooks.complete(1, &too_many).is_err());
@@ -352,5 +465,22 @@ mod tests {
             );
             Ok(())
         })
+    }
+
+    #[test]
+    fn redirect_only_owner_requires_explicit_decisions_and_one_reply() -> PyResult<()> {
+        Python::initialize();
+        assert!(NativeHeaderHooks::new(0, false).is_err());
+        let hooks = NativeHeaderHooks::new(0, true)?;
+        let (send, mut receive) = oneshot::channel();
+        hooks.owner.state().reply = Some((1, send));
+        assert!(hooks.complete_redirect(1, "FOLLOW").is_err());
+        hooks.complete_redirect(1, "stop")?;
+        assert!(matches!(
+            receive.try_recv(),
+            Ok(Ok(CallbackReply::Redirect(RedirectDecision::Stop)))
+        ));
+        assert!(hooks.complete_redirect(1, "follow").is_err());
+        Ok(())
     }
 }

@@ -10,6 +10,7 @@ from typing import TypeAlias, cast
 
 from . import _native
 from ._configuration import Header
+from ._redirect import AsyncRedirectCallback, RedirectAttempt, RedirectDecision
 from ._request import _request_fields
 
 HeaderHook: TypeAlias = Callable[["HeaderHookContext"], None]
@@ -137,10 +138,18 @@ class HeaderHookContext:
 
 class Hooks:
     def __init__(
-        self, callbacks: tuple[AsyncHeaderHook, ...], synchronous: bool
+        self,
+        callbacks: tuple[AsyncHeaderHook, ...],
+        synchronous: bool,
+        redirect: AsyncRedirectCallback | None = None,
     ) -> None:
-        self.native = _native.NativeHeaderHooks(len(callbacks))
+        self.native = (
+            _native.NativeHeaderHooks(len(callbacks), True)
+            if redirect is not None
+            else _native.NativeHeaderHooks(len(callbacks))
+        )
         self.callbacks = callbacks
+        self.redirect = redirect
         self.synchronous = synchronous
         self.error: BaseException | None = None
         self.cleanup_error: BaseException | None = None
@@ -177,33 +186,12 @@ class Hooks:
     async def _pump(self) -> None:
         try:
             while (invocation := await self.native.next()) is not None:
-                serial, index, method, uri, fields = invocation
-                context = HeaderHookContext(method, uri, fields)
-                if self.field_limits is None:
-                    self.field_limits = (
-                        context._maximum_fields,
-                        context._maximum_bytes,
-                    )
-                else:
-                    context._maximum_fields, context._maximum_bytes = self.field_limits
-                self.context = context
+                serial = invocation[0]
                 try:
-                    result = self.callbacks[index](context)
-                    if inspect.isawaitable(result):
-                        if self.synchronous:
-                            if inspect.iscoroutine(result):
-                                result.close()
-                            raise TypeError(
-                                "Client header callbacks must be synchronous"
-                            )
-                        await result
-                        result = None
-                    if result is not None:
-                        raise TypeError("header callbacks must return None")
-                    context._finish()
-                    if self.closing:
-                        return
-                    self.native.complete(serial, context._edits)
+                    if len(invocation) == 8:
+                        await self._redirect(invocation)
+                    else:
+                        await self._headers(invocation)
                 except BaseException as error:
                     if self.closing:
                         if not isinstance(error, asyncio.CancelledError):
@@ -220,7 +208,8 @@ class Hooks:
                             self.cleanup_error = error
                     return
                 finally:
-                    context._finish()
+                    if self.context is not None:
+                        self.context._finish()
                     self.context = None
         except asyncio.CancelledError:
             if not self.closing:
@@ -229,6 +218,47 @@ class Hooks:
         except BaseException as error:
             self.cleanup_error = error
             self.native.abort()
+
+    async def _headers(self, invocation: _native._HeaderInvocation) -> None:
+        serial, index, method, uri, fields = invocation
+        context = HeaderHookContext(method, uri, fields)
+        if self.field_limits is None:
+            self.field_limits = (context._maximum_fields, context._maximum_bytes)
+        else:
+            context._maximum_fields, context._maximum_bytes = self.field_limits
+        self.context = context
+        result = self.callbacks[index](context)
+        if inspect.isawaitable(result):
+            if self.synchronous:
+                if inspect.iscoroutine(result):
+                    result.close()
+                raise TypeError("Client header callbacks must be synchronous")
+            await result
+            result = None
+        if result is not None:
+            raise TypeError("header callbacks must return None")
+        context._finish()
+        if not self.closing:
+            self.native.complete(serial, context._edits)
+
+    async def _redirect(self, invocation: _native._RedirectInvocation) -> None:
+        serial, _, source, destination, status, method, next_method, hop = invocation
+        callback = self.redirect
+        if callback is None:
+            raise RuntimeError("redirect callback is unavailable")
+        result = callback(
+            RedirectAttempt(source, destination, status, method, next_method, hop)
+        )
+        if inspect.isawaitable(result):
+            if self.synchronous:
+                if inspect.iscoroutine(result):
+                    result.close()
+                raise TypeError("Client redirect callbacks must be synchronous")
+            result = await result
+        if not isinstance(result, RedirectDecision):
+            raise TypeError("redirect callbacks must return RedirectDecision")
+        if not self.closing:
+            self.native.complete_redirect(serial, result.value)
 
     async def wait(self, timeout_ms: int = 5000) -> bool:
         self.check_wait()

@@ -34,6 +34,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_dns.py",
             "_profile.py",
             "_request.py",
+            "_redirect.py",
             "_response.py",
             "_session.py",
             "_storage.py",
