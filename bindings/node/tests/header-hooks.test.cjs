@@ -150,12 +150,14 @@ test('a pending hook does not block another stream on the existing HTTP/2 connec
 
 test('ordered hooks preserve the original prepared-field allowance without allowing growth', {timeout: 30000}, async (t) => {
   let sent = 0;
+  const received = [];
   const sessions = new Set();
   const server = http2.createServer({maxHeaderListPairs: 512});
   server.on('session', (session) => {sessions.add(session); session.on('error', () => {});});
-  server.on('stream', (stream, headers) => {
+  server.on('stream', (stream, headers, _flags, rawHeaders) => {
     sent++;
-    assert.equal(headers['content-type'], 'application/x-www-form-urlencoded');
+    received.push(rawHeaders);
+    assert.equal(headers['content-type'], 'application/x-www-form-urlencoded;charset=UTF-8');
     assert.equal(headers['content-length'], '3');
     assert.equal(headers['x-field-0'], 'restored');
     stream.on('data', () => {});
@@ -176,13 +178,23 @@ test('ordered hooks preserve the original prepared-field allowance without allow
     context.remove('x-field-0');
     context.remove('x-field-1');
   }, (context) => {
+    assert.equal(context.headers.length, 256);
     context.append(field('x-field-0', 'restored'));
     context.append(field('x-field-1', 'value'));
+  }, (context) => {
+    assert.equal(context.headers.length, 258);
+    // Keep the protocol's independent 100-field wire limit after testing the hook allowance.
+    for (let index = 32; index < 254; index++) context.remove(`x-field-${index}`);
   }]});
   assert.equal(await response.text(2), 'ok');
+  const baseline = [field('origin', url), field('referer', url),
+    ...Array.from({length: 30}, (_, index) => field(`x-field-${index + 2}`, 'value')),
+    field('x-field-0', 'restored'), field('x-field-1', 'value')];
+  assert.equal(await (await owner.post(url, {body, headers: baseline})).text(2), 'ok');
+  assert.deepEqual(received[0], received[1]);
   const budget = new AttemptBudget(1);
   await assert.rejects(owner.post(url, {body, headers, attemptBudget: budget,
     headerHooks: [(context) => {context.append(field('x-extra', 'no'));}]}), {code: 'HeaderHook'});
   assert.equal(budget.remaining, 1);
-  assert.equal(sent, 1);
+  assert.equal(sent, 2);
 });
