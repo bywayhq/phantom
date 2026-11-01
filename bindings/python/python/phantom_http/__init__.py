@@ -2,6 +2,8 @@
 
 # Public class annotations resolve through their preserved module path.
 from _thread import LockType as LockType
+from collections.abc import Awaitable as Awaitable
+from collections.abc import Callable as Callable
 from typing import Literal as Literal
 
 from . import _native as _native
@@ -65,6 +67,11 @@ from ._redirect import RedirectAttempt as RedirectAttempt
 from ._redirect import RedirectCallback as RedirectCallback
 from ._redirect import RedirectDecision as RedirectDecision
 from ._request import _request_fields as _request_fields
+from ._request_hooks import AsyncRequestHooks as AsyncRequestHooks
+from ._request_hooks import RequestErrorHookContext as RequestErrorHookContext
+from ._request_hooks import RequestHookContext as RequestHookContext
+from ._request_hooks import RequestHooks as RequestHooks
+from ._request_hooks import ResponseHookContext as ResponseHookContext
 from ._response import AsyncResponse as AsyncResponse
 from ._response import RedirectHistory as RedirectHistory
 from ._response import RedirectHop as RedirectHop
@@ -152,6 +159,11 @@ for _public_type in (
     AsyncClient,
     Client,
     HeaderHookContext,
+    RequestHooks,
+    AsyncRequestHooks,
+    RequestHookContext,
+    ResponseHookContext,
+    RequestErrorHookContext,
     WebSocket,
     AsyncWebSocket,
     WebSocketClose,

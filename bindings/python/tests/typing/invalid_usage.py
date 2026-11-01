@@ -343,3 +343,22 @@ def invalid_redirect_callbacks() -> None:
 
     RedirectPolicy.custom(3, invalid)  # E: arg-type
     RedirectPolicy.custom(3, 42)  # E: arg-type
+
+
+async def invalid_logical_hooks(client: AsyncClient, sync: Client) -> None:
+    from phantom_http import AsyncRequestHooks, RequestHookContext, RequestHooks
+
+    async def asynchronous(context: RequestHookContext) -> None:
+        print(context.method)
+
+    def wrong_result(context: RequestHookContext) -> str:
+        return context.method
+
+    Client(
+        profile="chrome-154-windows",
+        request_hooks=AsyncRequestHooks(),  # E: arg-type
+    )
+    sync.get("https://local", request_hooks=AsyncRequestHooks())  # E: arg-type
+    await client.get("https://local", request_hooks=(wrong_result,))  # E: arg-type
+    RequestHooks(on_request=asynchronous)  # E: arg-type
+    AsyncRequestHooks(on_request=wrong_result)  # E: arg-type

@@ -15,18 +15,43 @@ _RedirectInvocation: TypeAlias = tuple[
     int, Literal["redirect"], str, str, int, str, str, int
 ]
 
+_LogicalInvocation: TypeAlias = (
+    tuple[int, Literal["request"], str, str]
+    | tuple[
+        int,
+        Literal["response"],
+        str,
+        str,
+        int,
+        str,
+        list[tuple[str, bytes, bool]],
+        str,
+        int,
+        int,
+        list[str],
+    ]
+    | tuple[int, Literal["error"], str, str, NativeError]
+)
+
 class NativeHeaderHooks:
     def __init__(
-        self, count: int, redirects: bool = False, source: bool = False
+        self,
+        count: int,
+        redirects: bool = False,
+        source: bool = False,
+        logical: int = 0,
     ) -> None: ...
     def next(
         self,
-    ) -> Awaitable[_HeaderInvocation | _RedirectInvocation | None]: ...
+    ) -> Awaitable[
+        _HeaderInvocation | _RedirectInvocation | _LogicalInvocation | None
+    ]: ...
     def terminal(self) -> Awaitable[None]: ...
     def next_cancelled(self, after: int) -> Awaitable[int | None]: ...
     def is_active(self, id: int) -> bool: ...
     def complete(self, id: int, edits: list[tuple[str, str, bytes, bool]]) -> None: ...
     def complete_redirect(self, id: int, decision: str) -> None: ...
+    def complete_logical(self, id: int) -> None: ...
     def fail(self, id: int, exception: BaseException) -> None: ...
     def abort(self) -> None: ...
 

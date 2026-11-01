@@ -15,7 +15,7 @@ from collections.abc import (
 
 from typing_extensions import Unpack
 
-from . import _header_hooks, _storage, _upload
+from . import _header_hooks, _request_hooks, _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._client import AsyncClient
@@ -213,10 +213,16 @@ class Client:
         network: NetworkOptions | None = None,
         pool: PoolOptions | None = None,
         header_hooks: Iterable[_header_hooks.HeaderHook] = (),
+        request_hooks: _request_hooks.RequestHooks | None = None,
     ) -> None:
         # Keep the public constructor seam used by applications and test doubles.
         from . import AsyncClient
 
+        if (
+            request_hooks is not None
+            and type(request_hooks) is not _request_hooks.RequestHooks
+        ):
+            raise TypeError("Client request_hooks must be RequestHooks")
         self._thread = threading.get_ident()
         self._check_thread_loop()
         self._async = AsyncClient(
@@ -236,6 +242,7 @@ class Client:
             network=network,
             pool=pool,
             header_hooks=header_hooks,
+            request_hooks=request_hooks,
         )
         self._loop = asyncio.new_event_loop()
         self.cookies = self._async.cookies
@@ -400,7 +407,10 @@ class Client:
         client._loop = asyncio.new_event_loop()
         try:
             client._async = AsyncClient._from_native(
-                native, self._async._header_hooks, self._async._redirect_policy
+                native,
+                self._async._header_hooks,
+                self._async._redirect_policy,
+                self._async._request_hooks,
             )
             client.cookies = client._async.cookies
         except BaseException:
@@ -525,6 +535,7 @@ class Client:
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         header_hooks: Iterable[_header_hooks.HeaderHook] = (),
+        request_hooks: _request_hooks.RequestHooks | None = None,
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -570,6 +581,7 @@ class Client:
                     maximum_body_bytes=maximum_body_bytes,
                     headers=headers,
                     header_hooks=header_hooks,
+                    request_hooks=request_hooks,
                     trailers=trailers,
                     expect_continue_ms=expect_continue_ms,
                     body=source,

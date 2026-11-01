@@ -12,6 +12,9 @@ use pyo3::{
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::{Notify, oneshot};
 
+mod logical;
+pub(super) use logical::LogicalHooks;
+
 const MAXIMUM_FIELDS: usize = 256;
 const MAXIMUM_BYTES: usize = 65536;
 const MAXIMUM_REDIRECT_BYTES: usize = 256 * 1024;
@@ -20,11 +23,13 @@ type Fields = Vec<(String, Vec<u8>, bool)>;
 
 enum Invocation {
     Header(u64, usize, String, String, Fields),
+    Logical(u64, logical::Invocation),
     Redirect(u64, String, String, u16, String, String, usize),
 }
 
 enum CallbackReply {
     Header(Vec<Edit>),
+    Logical,
     Redirect(RedirectDecision),
 }
 
@@ -51,6 +56,7 @@ enum Lifetime {
     #[default]
     Request,
     Source,
+    Logical,
 }
 
 #[derive(Default)]
@@ -78,6 +84,10 @@ impl Owner {
 
     pub(super) fn is_source(&self) -> bool {
         self.lifetime == Lifetime::Source
+    }
+
+    fn reusable(&self) -> bool {
+        self.lifetime != Lifetime::Request
     }
 
     fn active(&self, serial: u64) -> bool {
@@ -145,10 +155,9 @@ impl Owner {
             limits
         };
         self.changed.notify_waiters();
-        let edits = receive
-            .await
-            .map_err(|_| closed())?
-            .map_err(HeaderHookError::new)?;
+        let reply = receive.await.map_err(|_| closed())?;
+        guard.complete = true;
+        let edits = reply.map_err(HeaderHookError::new)?;
         let CallbackReply::Header(edits) = edits else {
             return Err(closed());
         };
@@ -163,7 +172,6 @@ impl Owner {
             }
             bounded(context.headers(), trailers, limits)?;
         }
-        guard.complete = true;
         Ok(())
     }
 
@@ -171,7 +179,11 @@ impl Owner {
         self: &Arc<Self>,
         attempt: &RedirectAttempt<'_>,
     ) -> Result<RedirectDecision, RedirectCallbackError> {
-        let mut guard = Guard(Some(Arc::clone(self)));
+        let mut guard = InvocationGuard {
+            owner: Arc::clone(self),
+            serial: None,
+            complete: false,
+        };
         let size = [
             attempt.from_url().as_str(),
             attempt.to_url().as_str(),
@@ -202,19 +214,18 @@ impl Owner {
                 attempt.hop(),
             ));
             state.reply = Some((state.serial, send));
+            guard.serial = Some(state.serial);
         }
         self.changed.notify_waiters();
-        let reply = receive
-            .await
-            .map_err(|_| redirect_closed())?
-            .map_err(RedirectCallbackError::new)?;
+        let reply = receive.await.map_err(|_| redirect_closed())?;
+        guard.complete = true;
+        let reply = reply.map_err(RedirectCallbackError::new)?;
         if self.state().closed {
             return Err(redirect_closed());
         }
         let CallbackReply::Redirect(decision) = reply else {
             return Err(redirect_closed());
         };
-        guard.0 = None;
         Ok(decision)
     }
 
@@ -292,7 +303,7 @@ impl Drop for InvocationGuard {
         if self.complete {
             return;
         }
-        if self.owner.is_source() {
+        if self.owner.reusable() {
             if let Some(serial) = self.serial {
                 self.owner.cancel(serial);
             }
@@ -307,20 +318,27 @@ pub(super) struct NativeHeaderHooks {
     pub(super) owner: Arc<Owner>,
     pub(super) count: usize,
     pub(super) redirects: bool,
+    pub(super) logical: u8,
 }
 
 #[pymethods]
 impl NativeHeaderHooks {
     #[new]
-    #[pyo3(signature = (count, redirects=false, source=false))]
-    fn new(count: usize, redirects: bool, source: bool) -> PyResult<Self> {
-        if (count == 0 && !redirects) || count > MAXIMUM_FIELDS || (source && redirects) {
+    #[pyo3(signature = (count, redirects=false, source=false, logical=0))]
+    fn new(count: usize, redirects: bool, source: bool, logical: u8) -> PyResult<Self> {
+        if (count == 0 && !redirects && logical == 0)
+            || logical > 7
+            || count > MAXIMUM_FIELDS
+            || (source && (redirects || logical != 0))
+        {
             return Err(error::input("header_hook_limit"));
         }
         Ok(Self {
             owner: Arc::new(Owner {
                 lifetime: if source {
                     Lifetime::Source
+                } else if logical != 0 {
+                    Lifetime::Logical
                 } else {
                     Lifetime::Request
                 },
@@ -328,6 +346,7 @@ impl NativeHeaderHooks {
             }),
             count,
             redirects,
+            logical,
         })
     }
 
@@ -346,6 +365,9 @@ impl NativeHeaderHooks {
                     if let Some(invocation) = state.pending.take() {
                         return Python::attach(|py| {
                             let value = match invocation {
+                                Invocation::Logical(id, invocation) => {
+                                    invocation.into_python(py, id)?
+                                }
                                 Invocation::Header(id, index, method, uri, fields) => {
                                     let fields = fields
                                         .into_iter()
@@ -467,6 +489,13 @@ impl NativeHeaderHooks {
             .complete(id, Ok(CallbackReply::Redirect(decision)))
     }
 
+    fn complete_logical(&self, id: u64) -> PyResult<()> {
+        if self.logical == 0 {
+            return Err(error::input("invalid_request_hook_reply"));
+        }
+        self.owner.complete(id, Ok(CallbackReply::Logical))
+    }
+
     fn fail(&self, id: u64, exception: Bound<'_, PyAny>) -> PyResult<()> {
         if !exception.is_instance_of::<pyo3::exceptions::PyBaseException>() {
             return Err(error::input("invalid_header_hook_exception"));
@@ -533,7 +562,7 @@ mod tests {
     fn completion_bounds_edits_and_resulting_fields_include_trailers() -> PyResult<()> {
         Python::initialize();
         Python::attach(|py| {
-            let hooks = NativeHeaderHooks::new(1, false, false)?;
+            let hooks = NativeHeaderHooks::new(1, false, false, 0)?;
             let edit = ("append", "X", PyBytes::new(py, b"a"), false);
             let too_many = PyList::new(py, std::iter::repeat_n(edit, MAXIMUM_FIELDS + 1))?;
             assert!(hooks.complete(1, &too_many).is_err());
@@ -560,8 +589,8 @@ mod tests {
     #[test]
     fn redirect_only_owner_requires_explicit_decisions_and_one_reply() -> PyResult<()> {
         Python::initialize();
-        assert!(NativeHeaderHooks::new(0, false, false).is_err());
-        let hooks = NativeHeaderHooks::new(0, true, false)?;
+        assert!(NativeHeaderHooks::new(0, false, false, 0).is_err());
+        let hooks = NativeHeaderHooks::new(0, true, false, 0)?;
         let (send, mut receive) = oneshot::channel();
         hooks.owner.state().reply = Some((1, send));
         assert!(hooks.complete_redirect(1, "FOLLOW").is_err());
@@ -578,7 +607,7 @@ mod tests {
     fn source_cancellation_rejects_stale_replies_without_closing_the_next_invocation()
     -> PyResult<()> {
         Python::initialize();
-        let hooks = NativeHeaderHooks::new(1, false, true)?;
+        let hooks = NativeHeaderHooks::new(1, false, true, 0)?;
         let owner = &hooks.owner;
         let (send, mut first) = oneshot::channel();
         owner.state().reply = Some((1, send));

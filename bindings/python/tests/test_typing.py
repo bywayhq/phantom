@@ -31,6 +31,7 @@ class InstalledTypingTests(unittest.TestCase):
             "_convenience.py",
             "_errors.py",
             "_header_hooks.py",
+            "_request_hooks.py",
             "_dns.py",
             "_profile.py",
             "_request.py",
@@ -116,6 +117,11 @@ class InstalledTypingTests(unittest.TestCase):
 class SignatureTests(unittest.TestCase):
     def test_public_class_field_annotations_resolve_in_the_preserved_module(self):
         for owner in (
+            phantom_http.RequestHooks,
+            phantom_http.AsyncRequestHooks,
+            phantom_http.RequestHookContext,
+            phantom_http.ResponseHookContext,
+            phantom_http.RequestErrorHookContext,
             phantom_http.Profile,
             phantom_http.ResponseTrailers,
             phantom_http.StreamingMultipartBody,
@@ -168,7 +174,7 @@ class SignatureTests(unittest.TestCase):
                 signature.replace(
                     parameters=[
                         parameter.replace(annotation=inspect.Signature.empty)
-                        if parameter.name == "header_hooks"
+                        if parameter.name in ("header_hooks", "request_hooks")
                         else parameter
                         for parameter in signature.parameters.values()
                     ]
@@ -186,7 +192,7 @@ class SignatureTests(unittest.TestCase):
             sync.replace(
                 parameters=[
                     parameter.replace(annotation=inspect.Signature.empty)
-                    if parameter.name in ("body", "header_hooks")
+                    if parameter.name in ("body", "header_hooks", "request_hooks")
                     else parameter
                     for parameter in sync.parameters.values()
                 ],
@@ -195,7 +201,7 @@ class SignatureTests(unittest.TestCase):
             asynchronous.replace(
                 parameters=[
                     parameter.replace(annotation=inspect.Signature.empty)
-                    if parameter.name in ("body", "header_hooks")
+                    if parameter.name in ("body", "header_hooks", "request_hooks")
                     else parameter
                     for parameter in asynchronous.parameters.values()
                 ],
@@ -253,6 +259,7 @@ class SignatureTests(unittest.TestCase):
                     "network": None,
                     "pool": None,
                     "header_hooks": (),
+                    "request_hooks": None,
                 }
                 inputs = {
                     "profile": "exact-profile",
@@ -269,6 +276,7 @@ class SignatureTests(unittest.TestCase):
                     "client_certificate": object(),
                     "client_certificates_for": (("https://origin.invalid", object()),),
                     "header_hooks": (lambda context: None,),
+                    "request_hooks": phantom_http.RequestHooks(),
                     "pool": phantom_http.PoolOptions(
                         max_http2_connections_per_origin=2
                     ),
@@ -282,6 +290,7 @@ class SignatureTests(unittest.TestCase):
                     "context": "fetch",
                     "headers": fields,
                     "header_hooks": (lambda context: None,),
+                    "request_hooks": phantom_http.RequestHooks(),
                     "trailers": (),
                     "expect_continue_ms": None,
                     "body": b"bytes",
@@ -332,6 +341,7 @@ class SignatureTests(unittest.TestCase):
                                 "context": None,
                                 "headers": (),
                                 "header_hooks": (),
+                                "request_hooks": None,
                                 "trailers": (),
                                 "expect_continue_ms": None,
                                 "body": None,

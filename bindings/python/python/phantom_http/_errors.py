@@ -19,7 +19,12 @@ _T = TypeVar("_T")
 
 
 class Error(Exception):
-    """A redacted failure; upload causes require explicit attribute inspection."""
+    """A redacted failure; inspect original for the original Python exception.
+
+    hook_error retains a failed logical error observer without replacing the
+    primary classification. origin is (scheme, canonical host, effective port)
+    when available. Causes and origin are omitted from repr.
+    """
 
     def __init__(
         self,
@@ -35,6 +40,8 @@ class Error(Exception):
         self.timeout_phase = timeout_phase
         self.original: BaseException | None = None
         self.cleanup_error: BaseException | None = None
+        self.hook_error: Error | None = None
+        self.origin: tuple[str, str, int] | None = None
 
 
 class TimeoutError(Error):
@@ -105,7 +112,11 @@ def _primary_error(
             failure.timeout_phase = primary.timeout_phase
             primary = failure
             details = cast(dict[str, object], primary.__dict__)
-        if upload.error is not None and upload.error is not primary:
+        if (
+            upload.error is not None
+            and upload.error is not primary
+            and details.get("original") is None
+        ):
             details["original"] = upload.error
         if upload.cleanup_error is not None:
             details["cleanup_error"] = upload.cleanup_error
@@ -188,10 +199,15 @@ def _error(error: _native.NativeError) -> Error:
         "response_body_limit": BodyLimitExceeded,
     }.get(kind, Error)
     mapped = cls(category, kind, protocol, phase)
-    if kind in ("header_hook", "redirect"):
-        original = cast(object, getattr(error, "original", None))
-        if isinstance(original, BaseException):
-            mapped.original = original
+    original = cast(object, getattr(error, "original", None))
+    if isinstance(original, BaseException):
+        mapped.original = original
+    hook_error = cast(object, getattr(error, "hook_error", None))
+    if isinstance(hook_error, _native.NativeError):
+        mapped.hook_error = _error(hook_error)
+    origin = cast(object, getattr(error, "origin", None))
+    if isinstance(origin, tuple) and len(origin) == 3:
+        mapped.origin = cast(tuple[str, str, int], origin)
     return mapped
 
 

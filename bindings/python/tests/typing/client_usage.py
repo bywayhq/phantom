@@ -624,3 +624,47 @@ async def redirect_callback_consumer(
         url, redirect_policy=RedirectPolicy.custom(3, synchronous)
     ) as blocking:
         blocking.read(max_bytes=0)
+
+
+async def logical_hook_consumer(url: str) -> None:
+    from phantom_http import (
+        AsyncRequestHooks,
+        RequestErrorHookContext,
+        RequestHookContext,
+        RequestHooks,
+        ResponseHookContext,
+    )
+
+    def request(context: RequestHookContext) -> None:
+        method: str = context.method
+        target: str = context.url
+        print(method, target)
+
+    async def response(context: ResponseHookContext) -> None:
+        status: int = context.status
+        redirect_count: int = context.redirects_followed
+        codings: tuple[str, ...] = context.decoded_content_codings
+        print(status, redirect_count, codings, context.headers.get("content-type"))
+
+    def error(context: RequestErrorHookContext) -> None:
+        original: BaseException | None = context.error.original
+        secondary: Error | None = context.error.hook_error
+        origin: tuple[str, str, int] | None = context.error.origin
+        print(original is None, secondary is None, origin)
+
+    with (
+        Client(
+            profile="chrome-154-windows",
+            request_hooks=RequestHooks(on_request=request, on_error=error),
+        ) as sync,
+        sync.get(url, request_hooks=RequestHooks(on_request=request)) as result,
+    ):
+        print(result.status)
+    async with AsyncClient(
+        profile="chrome-154-windows",
+        request_hooks=AsyncRequestHooks(on_response=response),
+    ) as asynchronous:
+        result_async = await asynchronous.get(
+            url, request_hooks=RequestHooks(on_request=request)
+        )
+        await result_async.aclose()

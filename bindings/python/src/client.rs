@@ -362,6 +362,12 @@ impl NativeClient {
             if hooks.owner.is_source() {
                 return Err(error::input("invalid_request_header_hooks"));
             }
+            if hooks.logical != 0 {
+                request = request.async_request_hooks(crate::header_hook::LogicalHooks {
+                    owner: Arc::clone(&hooks.owner),
+                    phases: hooks.logical,
+                });
+            }
             let reserved = (
                 trailers.len(),
                 trailers

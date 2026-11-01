@@ -8,8 +8,9 @@ import inspect
 from collections.abc import Awaitable, Callable, Iterable
 from typing import TypeAlias, cast
 
-from . import _native
+from . import _native, _request_hooks
 from ._configuration import Header
+from ._errors import Error
 from ._redirect import AsyncRedirectCallback, RedirectAttempt, RedirectDecision
 from ._request import _request_fields
 
@@ -145,9 +146,16 @@ class Hooks:
         redirect: AsyncRedirectCallback | None = None,
         *,
         source: bool = False,
+        observers: tuple[_request_hooks.Observers, ...] = (),
     ) -> None:
         self.native = (
-            _native.NativeHeaderHooks(len(callbacks), source=True)
+            _native.NativeHeaderHooks(
+                len(callbacks),
+                redirects=redirect is not None,
+                logical=_request_hooks._phases(observers),
+            )
+            if observers
+            else _native.NativeHeaderHooks(len(callbacks), source=True)
             if source
             else _native.NativeHeaderHooks(len(callbacks), True)
             if redirect is not None
@@ -157,10 +165,14 @@ class Hooks:
         self.redirect = redirect
         self.synchronous = synchronous
         self.source = source
+        self.observers = observers
+        self.reusable = source or bool(observers)
         self.active_serial: int | None = None
         self.active_cancelled = False
         self.error: BaseException | None = None
         self.cleanup_error: BaseException | None = None
+        self.error_hook_failure: BaseException | None = None
+        self.request_finished = False
         self.context: HeaderHookContext | None = None
         self.field_limits: tuple[int, int] | None = None
         self.closing = False
@@ -185,8 +197,38 @@ class Hooks:
             if not self.task.done() and not self.active_cancelled:
                 self.task.cancel()
 
+    def pending_failure(self) -> Error | None:
+        if self.cleanup_error is None:
+            return None
+        failure = Error("request", "request_hook_cleanup")
+        failure.original = self.cleanup_error
+        if self.error_hook_failure is not None:
+            failure.hook_error = Error("request", "request_hook")
+            failure.hook_error.original = self.error_hook_failure
+        return failure
+
+    def reported(self, error: BaseException) -> None:
+        if not self.observers or not isinstance(error, Error):
+            return
+        observed = [error.original]
+        if error.hook_error is not None:
+            observed.append(error.hook_error.original)
+        if isinstance(error.cleanup_error, Error):
+            observed.append(error.cleanup_error.original)
+            if error.cleanup_error.hook_error is not None:
+                observed.append(error.cleanup_error.hook_error.original)
+        else:
+            observed.append(error.cleanup_error)
+        if any(cause is self.cleanup_error for cause in observed):
+            self.cleanup_error = None
+        if any(cause is self.error_hook_failure for cause in observed):
+            self.error_hook_failure = None
+        if self.cleanup_error is None:
+            self.cleanup_error = self.error_hook_failure
+            self.error_hook_failure = None
+
     async def _watch(self) -> None:
-        if self.source:
+        if self.reusable:
             cancelled = 0
             while (serial := await self.native.next_cancelled(cancelled)) is not None:
                 cancelled = serial
@@ -209,18 +251,40 @@ class Hooks:
         try:
             while (invocation := await self.native.next()) is not None:
                 serial = invocation[0]
-                if self.source and not self.native.is_active(serial):
+                if self.reusable and not self.native.is_active(serial):
                     continue
                 self.active_serial = serial
                 self.active_cancelled = False
                 try:
-                    if len(invocation) == 8:
+                    if invocation[1] in ("request", "response", "error"):
+                        await _request_hooks._dispatch(
+                            self.observers,
+                            cast("_native._LogicalInvocation", invocation),
+                            self.synchronous,
+                        )
+                        if not self.closing and self.native.is_active(serial):
+                            self.native.complete_logical(serial)
+                    elif len(invocation) == 8:
                         await self._redirect(invocation)
                     else:
-                        await self._headers(invocation)
+                        await self._headers(
+                            cast("_native._HeaderInvocation", invocation)
+                        )
                 except BaseException as error:
+                    if self.observers and (
+                        not isinstance(error, asyncio.CancelledError)
+                        or (not self.closing and self.native.is_active(serial))
+                    ):
+                        # A callback's own CancelledError is a delivered failure,
+                        # distinct from cancellation of its native invocation.
+                        if self.cleanup_error is None:
+                            self.cleanup_error = error
+                        elif (
+                            invocation[1] == "error" and self.error_hook_failure is None
+                        ):
+                            self.error_hook_failure = error
                     if (
-                        self.source
+                        self.reusable
                         and not self.closing
                         and not self.native.is_active(serial)
                     ):
@@ -239,7 +303,8 @@ class Hooks:
                         ):
                             self.cleanup_error = error
                     else:
-                        self.error = error
+                        if self.error is None:
+                            self.error = error
                         # Delivery can race a core GET deadline. Keep source errors
                         # owned until the public failure or source close observes them.
                         if self.source and self.cleanup_error is None:
@@ -253,7 +318,7 @@ class Hooks:
                             # Native closure can precede the watcher cancelling us.
                             if self.cleanup_error is None:
                                 self.cleanup_error = error
-                        if self.source:
+                        if self.reusable:
                             continue
                     return
                 finally:
@@ -290,13 +355,13 @@ class Hooks:
         if result is not None:
             raise TypeError("header callbacks must return None")
         context._finish()
-        if not self.closing and (not self.source or self.native.is_active(serial)):
+        if not self.closing and (not self.reusable or self.native.is_active(serial)):
             try:
                 self.native.complete(serial, context._edits)
             except _native.NativeError as delivery:
                 arguments = cast(tuple[object, ...], delivery.args)
                 if (
-                    not self.source
+                    not self.reusable
                     or self.native.is_active(serial)
                     or arguments[:2] != ("input", "header_hook_closed")
                 ):

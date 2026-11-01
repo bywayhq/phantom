@@ -111,6 +111,13 @@ callback code cannot be preempted. Hook failures raise a redacted `Error` with
 `kind="header_hook"`; its `original` attribute retains the original exception
 and traceback, including a callback's own `CancelledError`.
 
+Observe a logical request with `request_hooks=RequestHooks(on_request=...,
+on_response=..., on_error=...)` on a client or request. `AsyncRequestHooks`
+also accepts awaited callbacks. Observers borrow immutable metadata, run client
+first and run once across retries and redirects. Errors retain `original`; a
+failed error observer is retained separately as `hook_error`. Dedicated
+`event_source` currently rejects logical observers. WebSockets do not use them.
+
 ## Streaming and lifetime
 
 `AsyncClient` has the same options as `Client`. Use it inside an async event

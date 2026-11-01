@@ -7,7 +7,7 @@ from collections.abc import AsyncIterable, Iterable, Mapping
 from typing import TypeAlias, TypedDict, cast
 from urllib.parse import urlencode
 
-from . import _header_hooks, _native
+from . import _header_hooks, _native, _request_hooks
 from ._bodies import PreparedBody, StreamingMultipartBody, _encoded_maximum
 from ._configuration import (
     ContentDecoding,
@@ -51,11 +51,13 @@ class _RequestOptions(TypedDict, total=False):
 
 
 class _AsyncRequestOptions(_RequestOptions, total=False):
+    request_hooks: _request_hooks.Observers | None
     header_hooks: Iterable[_header_hooks.AsyncHeaderHook]
     body: bytes | PreparedBody | StreamingMultipartBody | AsyncIterable[bytes] | None
 
 
 class _SyncRequestOptions(_RequestOptions, total=False):
+    request_hooks: _request_hooks.RequestHooks | None
     header_hooks: Iterable[_header_hooks.HeaderHook]
     body: bytes | PreparedBody | StreamingMultipartBody | Iterable[bytes] | None
 

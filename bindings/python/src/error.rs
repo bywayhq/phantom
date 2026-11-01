@@ -50,6 +50,7 @@ pub(super) fn request_ref(error: &RequestError) -> PyErr {
         RequestErrorKind::ServerPinPolicy => "server_pin_policy",
         RequestErrorKind::SessionTickets => "session_tickets",
         RequestErrorKind::HeaderHook => "header_hook",
+        RequestErrorKind::RequestHook => "request_hook",
         RequestErrorKind::Transfer => "transfer",
         RequestErrorKind::ContentDecoding => "content_decoding",
         _ => "unknown",
@@ -57,24 +58,32 @@ pub(super) fn request_ref(error: &RequestError) -> PyErr {
     let protocol = error.protocol().map(super::client::protocol_name);
     let phase = error.timeout_phase().map(timeout_phase);
     let failure = NativeError::new_err(("request", kind, protocol, phase));
-    if matches!(
-        error.kind(),
-        RequestErrorKind::HeaderHook | RequestErrorKind::Redirect
-    ) {
-        let mut source = std::error::Error::source(error);
-        while let Some(cause) = source {
-            if let Some(original) = cause.downcast_ref::<PyErr>() {
-                return Python::attach(|py| {
-                    match failure.value(py).setattr("original", original.value(py)) {
-                        Ok(()) => failure,
-                        Err(error) => error,
-                    }
-                });
+    Python::attach(|py| {
+        let value = failure.value(py);
+        let attach = || -> PyResult<()> {
+            if let Some(origin) = error.origin() {
+                value.setattr("origin", (origin.scheme(), origin.host(), origin.port()))?;
             }
-            source = cause.source();
+            let mut source = std::error::Error::source(error);
+            while let Some(cause) = source {
+                if let Some(original) = cause.downcast_ref::<PyErr>() {
+                    value.setattr("original", original.value(py))?;
+                    break;
+                }
+                source = cause.source();
+            }
+            if let Some(hooks) = std::error::Error::source(error)
+                .and_then(|source| source.downcast_ref::<phantom::RequestErrorHookFailure>())
+            {
+                value.setattr("hook_error", request_ref(hooks.hook_error()).value(py))?;
+            }
+            Ok(())
+        };
+        match attach() {
+            Ok(()) => failure,
+            Err(error) => error,
         }
-    }
-    failure
+    })
 }
 
 pub(super) fn timeout_phase(phase: phantom::TimeoutPhase) -> &'static str {

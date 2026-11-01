@@ -16,7 +16,7 @@ from typing import (
 
 from typing_extensions import Unpack
 
-from . import _header_hooks, _multipart, _native, _storage, _upload
+from . import _header_hooks, _multipart, _native, _request_hooks, _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._configuration import (
@@ -181,10 +181,13 @@ class AsyncClient:
         network: NetworkOptions | None = None,
         pool: PoolOptions | None = None,
         header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
+        request_hooks: _request_hooks.Observers | None = None,
     ) -> None:
+        self._request_hooks = _request_hooks._checked(request_hooks)
         self._header_hooks = _header_hooks._snapshot(header_hooks)
         self._redirect_policy = redirect_policy
         self._header_pumps: set[_header_hooks.Hooks] = set()
+        self._logical_cleanup_error: Error | None = None
         if pool is not None and type(pool) is not PoolOptions:
             raise TypeError("pool must be PoolOptions")
         if pool is not None:
@@ -254,8 +257,34 @@ class AsyncClient:
     def _settle_header_hooks(self, hooks: _header_hooks.Hooks) -> None:
         # A callback may fail after a cancelled send's bounded cleanup wait.
         # Retain that failure until the request or a later close observes it.
-        if hooks.cleanup_error is None:
+        if hooks.observers:
             self._header_pumps.discard(hooks)
+            if hooks.request_finished:
+                if self._logical_cleanup_error is None:
+                    self._logical_cleanup_error = hooks.pending_failure()
+                # Transfer only the first unreported failure. A queued settled
+                # callback cannot re-admit it after close has reported it.
+                hooks.cleanup_error = None
+                hooks.error_hook_failure = None
+        elif hooks.cleanup_error is None:
+            self._header_pumps.discard(hooks)
+
+    def _finish_logical_hooks(
+        self, hooks: _header_hooks.Hooks, primary: BaseException
+    ) -> BaseException:
+        hooks.reported(primary)
+        pending = hooks.pending_failure()
+        if (
+            isinstance(primary, Error)
+            and pending is not None
+            and primary.cleanup_error is None
+        ):
+            primary.cleanup_error = pending
+            hooks.reported(primary)
+        hooks.request_finished = True
+        if hooks.settled.done():
+            self._settle_header_hooks(hooks)
+        return primary
 
     @classmethod
     def _from_native(
@@ -263,14 +292,17 @@ class AsyncClient:
         native: _native.NativeClient,
         header_hooks: tuple[_header_hooks.AsyncHeaderHook, ...] = (),
         redirect_policy: RedirectPolicy | None = None,
+        request_hooks: _request_hooks.Observers | None = None,
     ) -> AsyncClient:
         client = object.__new__(cls)
         client._native = native
         client.cookies = Cookies(native.cookies)
         client._uploads = set()
+        client._request_hooks = request_hooks
         client._header_hooks = header_hooks
         client._redirect_policy = redirect_policy
         client._header_pumps = set()
+        client._logical_cleanup_error = None
         return client
 
     def event_source(
@@ -290,6 +322,8 @@ class AsyncClient:
         Callback failure is terminal. SseError.original holds the request error,
         whose original preserves the Python callback exception.
         """
+        if self._request_hooks is not None:
+            raise ValueError("EventSource does not support logical request hooks")
         if (
             self._redirect_policy is not None
             and self._redirect_policy._callback is not None
@@ -335,6 +369,7 @@ class AsyncClient:
             ),
             self._header_hooks,
             self._redirect_policy,
+            self._request_hooks,
         )
 
     async def export_cookies(self) -> CookieSnapshot | None:
@@ -418,7 +453,7 @@ class AsyncClient:
             _receiving_routes(receiving_routes),
         )
         return AsyncClient._from_native(
-            native, self._header_hooks, self._redirect_policy
+            native, self._header_hooks, self._redirect_policy, self._request_hooks
         )
 
     async def save_session(
@@ -552,6 +587,7 @@ class AsyncClient:
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
+        request_hooks: _request_hooks.Observers | None = None,
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -587,6 +623,7 @@ class AsyncClient:
             maximum_body_bytes=maximum_body_bytes,
             headers=headers,
             header_hooks=header_hooks,
+            request_hooks=request_hooks,
             trailers=trailers,
             expect_continue_ms=expect_continue_ms,
             body=body,
@@ -615,6 +652,7 @@ class AsyncClient:
         maximum_body_bytes: int = _DEFAULT_BODY_LIMIT,
         headers: _Headers = (),
         header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
+        request_hooks: _request_hooks.Observers | None = None,
         trailers: _Headers = (),
         expect_continue_ms: int | None = None,
         body: bytes
@@ -733,9 +771,20 @@ class AsyncClient:
             redirect_callback = (
                 None if redirect_policy is None else redirect_policy._callback
             )
-            if callbacks or redirect_callback is not None:
+            request_observers = _request_hooks._checked(request_hooks)
+            observers = tuple(
+                observer
+                for observer in (self._request_hooks, request_observers)
+                if observer is not None
+            )
+            if _synchronous and any(
+                isinstance(observer, _request_hooks.AsyncRequestHooks)
+                for observer in observers
+            ):
+                raise TypeError("Client request_hooks must be RequestHooks")
+            if callbacks or redirect_callback is not None or observers:
                 hook_pump = _header_hooks.Hooks(
-                    callbacks, _synchronous, redirect_callback
+                    callbacks, _synchronous, redirect_callback, observers=observers
                 )
                 hooks = hook_pump
                 self._header_pumps.add(hook_pump)
@@ -787,6 +836,8 @@ class AsyncClient:
                 retry_policy,
                 **native_fields,
             )
+            if hooks is not None:
+                hooks.request_finished = True
             return AsyncResponse(native, pump)
         except BaseException as error:
             if hooks is not None or pump is not None:
@@ -802,7 +853,14 @@ class AsyncClient:
                     if pending:
                         raise TimeoutError("request", "shutdown_timeout")
                 except BaseException as cleanup:
-                    raise _primary_error(error, pump, cleanup) from None
+                    primary = _primary_error(error, pump, cleanup)
+                    if hooks is not None and hooks.observers:
+                        primary = self._finish_logical_hooks(hooks, primary)
+                    raise primary from None
+            if hooks is not None and hooks.observers:
+                raise self._finish_logical_hooks(
+                    hooks, _primary_error(error, pump)
+                ) from None
             hook_cleanup = None if hooks is None else hooks.cleanup_error
             primary = _primary_error(error, pump, hook_cleanup)
             if (
@@ -872,7 +930,9 @@ class AsyncClient:
             if pending:
                 raise TimeoutError("request", "shutdown_timeout")
             for hook in hooks:
-                if hook.cleanup_error is not None:
+                if hook.observers:
+                    self._settle_header_hooks(hook)
+                elif hook.cleanup_error is not None:
                     self._header_pumps.discard(hook)
                     failure = Error("request", "header_hook_cleanup")
                     failure.original = hook.cleanup_error
@@ -880,6 +940,9 @@ class AsyncClient:
             for pump in pumps:
                 if pump.error is not None or pump.cleanup_error is not None:
                     raise _upload_error(pump) from None
+        if self._logical_cleanup_error is not None:
+            failure, self._logical_cleanup_error = self._logical_cleanup_error, None
+            raise failure from None
 
     async def abort(self, *, timeout_ms: int = 5000) -> None:
         """Stop active work and wait for producer cleanup within timeout_ms.
