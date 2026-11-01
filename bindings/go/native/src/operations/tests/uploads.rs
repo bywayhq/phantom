@@ -58,12 +58,13 @@ fn upload_operation_roles_are_exclusive_until_acknowledged() -> Result<(), Failu
 
 #[tokio::test]
 async fn release_closes_only_the_clients_uploads() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let mut state = State::default();
     let first = Upload::new(1, None);
     let second = Upload::new(2, None);
     state.streams.insert(20, std::sync::Arc::clone(&first));
     state.streams.insert(21, std::sync::Arc::clone(&second));
-    state.release_client(1);
+    state.release_client(1, &mut closed_sources);
     first.closed().await;
     assert!(!state.streams.contains_key(&20));
     assert!(state.streams.contains_key(&21));

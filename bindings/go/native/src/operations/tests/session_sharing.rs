@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn fork_registration_preserves_client_capacity_and_released_owner_boundary() -> Result<(), Failure>
 {
+    let mut closed_sources = Vec::new();
     let config = serde_json::from_value(json!({
         "profile": "chrome/154.0.8037.97/windows-11-26200/r1",
         "protocol": "h2", "cookies": true,
@@ -36,7 +37,7 @@ fn fork_registration_preserves_client_capacity_and_released_owner_boundary() -> 
     assert_eq!(state.next, before);
     assert!(state.operations.is_empty());
     assert!(state.bodies.is_empty());
-    state.release_client(id);
+    state.release_client(id, &mut closed_sources);
     assert_eq!(
         state
             .fork_client(id, SessionSharing::default())

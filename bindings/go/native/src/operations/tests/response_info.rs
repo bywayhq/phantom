@@ -51,6 +51,7 @@ fn peer(listener: TcpListener) -> std::io::Result<Vec<String>> {
 
 #[test]
 fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .map_err(|_| Failure::new("peer_io"))?;
@@ -129,7 +130,7 @@ fn actual_redirect_chain_serializes_response_info_and_requires_it() -> Result<()
                     duplicate_values,
                     [json!([111, 110, 101]), json!([116, 119, 111])]
                 );
-                state.cancel(id);
+                state.cancel(id, &mut closed_sources);
                 assert!(state.bodies.is_empty());
             }
             let mut response = global.runtime.block_on(async {

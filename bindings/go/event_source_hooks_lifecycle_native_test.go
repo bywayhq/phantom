@@ -136,6 +136,66 @@ func TestEventSourceGETTimeoutReconnectsAfterActualHookCleanup(t *testing.T) {
 	}
 }
 
+func TestEventSourceCloseAfterCancelledReadReleasesRetainedReconnect(t *testing.T) {
+	entered := make(chan struct{})
+	var callbacks, requests atomic.Int32
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "retry: 0\ndata: initial\n\n")
+	}))
+	defer peer.Close()
+	client := hookClient(t, Config{})
+	source, err := client.EventSource(context.Background(), peer.URL, EventSourceOptions{Protocol: "h1",
+		HeaderHooks: []HeaderHook{func(ctx context.Context, _ *HeaderHookContext) error {
+			if callbacks.Add(1) == 1 {
+				return nil
+			}
+			close(entered)
+			<-ctx.Done()
+			return ctx.Err()
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	if _, err := source.Next(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	readContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	read := make(chan error, 1)
+	go func() { _, err := source.Next(readContext); read <- err }()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("reconnect hook did not start")
+	}
+	cancel()
+	select {
+	case err := <-read:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("cancelled read did not restore the native source")
+	}
+	// The source now retains a core GET containing the native callback waiter.
+	// Its destructor must be able to re-enter the registry during close.
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stop()
+	if err := source.CloseContext(ctx); err != nil {
+		t.Fatalf("retained reconnect close: %v", err)
+	}
+	if err := client.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 1 || callbacks.Load() != 2 {
+		t.Fatalf("requests=%d callbacks=%d", requests.Load(), callbacks.Load())
+	}
+}
+
 func TestEventSourceCloseWaitsForActualHookReturnAndRetainsLateFailure(t *testing.T) {
 	entered, cancelled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	defer func() {

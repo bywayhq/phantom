@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn terminal_event_releases_body_and_keeps_state_until_acknowledged() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let owner = empty_owner();
     let id = {
@@ -37,7 +38,7 @@ fn terminal_event_releases_body_and_keeps_state_until_acknowledged() -> Result<(
     ));
 
     // An abandoned completed read must also release its retained event result.
-    state.cancel(id);
+    state.cancel(id, &mut closed_sources);
     assert!(!state.operations.contains_key(&id));
     assert!(state.ready.is_empty());
     assert!(state.reserve(Target::Request(1)).is_ok());

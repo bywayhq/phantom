@@ -79,10 +79,11 @@ impl SessionLease {
 
 impl Drop for SessionLease {
     fn drop(&mut self) {
+        let mut closed_sources = Vec::new();
         if let Ok(global) = global() {
             let mut state = global.lock();
             if let Some(client) = self.restored.take() {
-                state.release_client(client);
+                state.release_client(client, &mut closed_sources);
             }
             if !self.retained {
                 state.operations.remove(&self.id);
@@ -124,6 +125,7 @@ mod tests {
     #[test]
     fn abandoned_codec_lease_drop_releases_reservation_and_unpublished_owner() -> Result<(), Failure>
     {
+        let mut closed_sources = Vec::new();
         let config = serde_json::from_value(json!({
             "profile": "chrome/154.0.8037.97/windows-11-26200/r1",
             "protocol": "h1",
@@ -146,7 +148,7 @@ mod tests {
             .ok_or_else(|| Failure::new("internal"))?;
         {
             let mut state = global()?.lock();
-            state.release_client(source_id);
+            state.release_client(source_id, &mut closed_sources);
             assert!(state.clients.contains_key(&restored));
             assert!(
                 state
@@ -166,6 +168,7 @@ mod tests {
     #[test]
     fn prepared_ciphertext_uses_ordinary_capacity_and_source_close_reclaims_it()
     -> Result<(), Failure> {
+        let mut closed_sources = Vec::new();
         let mut state = State::default();
         let id = state.reserve(Target::Session(1))?.0;
         let snapshot =
@@ -186,7 +189,7 @@ mod tests {
                 .map(|error| error.kind),
             Some("capacity")
         );
-        state.release_client(1);
+        state.release_client(1, &mut closed_sources);
         assert!(!state.operations.contains_key(&id));
         assert_eq!(state.operations.len(), MAX_HANDLES - 1);
         assert!(state.reserve(Target::Request(2)).is_ok());
@@ -195,12 +198,13 @@ mod tests {
 
     #[test]
     fn source_close_keeps_cpu_reservation_until_native_owner_settles() -> Result<(), Failure> {
+        let mut closed_sources = Vec::new();
         let mut state = State::default();
         let id = state.reserve(Target::Session(1))?.0;
         for _ in 1..MAX_HANDLES {
             state.reserve(Target::Request(2))?;
         }
-        state.release_client(1);
+        state.release_client(1, &mut closed_sources);
         assert!(
             state
                 .operations

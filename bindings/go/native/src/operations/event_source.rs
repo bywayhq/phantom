@@ -52,38 +52,53 @@ impl Owner {
         self.closed.load(Ordering::SeqCst)
     }
 
-    pub(super) fn close(&self) {
+    pub(super) fn close(self: &Arc<Self>) -> Option<ClosedSource> {
+        let source = {
+            let mut slot = self
+                .source
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let source = slot.take();
+            // Publish closing only after an idle source has acquired cleanup
+            // custody. A hook waiter can already be waiting for this close.
+            if source.is_some() {
+                self.busy.store(true, Ordering::SeqCst);
+            }
+            self.closed.store(true, Ordering::SeqCst);
+            source
+        };
         if let Some(hooks) = &self.hooks {
             hooks.close();
         }
-        self.closed.store(true, Ordering::SeqCst);
         self.changed.notify_waiters();
-        // A leased source observes changed; an idle source is dropped here.
-        self.source
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
         if let Ok(global) = global() {
             global.settled.notify_waiters();
         }
+        source.map(|source| ClosedSource {
+            owner: Arc::clone(self),
+            source: Some(source),
+        })
     }
 
     fn take(self: &Arc<Self>) -> Result<Lease, Failure> {
+        let mut slot = self
+            .source
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if self.is_closed() {
+            return Err(Failure::new("sse_closed"));
+        }
         if self.busy.swap(true, Ordering::SeqCst) {
             return Err(Failure::new("concurrent_event_source_read"));
         }
-        let source = self
-            .source
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
-        if self.is_closed() || source.is_none() {
+        let source = slot.take();
+        if source.is_none() {
             self.busy.store(false, Ordering::SeqCst);
             self.changed.notify_waiters();
             return Err(Failure::new("sse_closed"));
         }
         Ok(Lease {
-            owner: self.clone(),
+            owner: Arc::clone(self),
             source,
         })
     }
@@ -94,16 +109,41 @@ struct Lease {
     source: Option<Box<SseEventSource>>,
 }
 
+/// Retain idle-source cleanup until the caller has released the registry lock.
+/// Destruction can drop a reconnect callback which re-enters that registry.
+pub(super) struct ClosedSource {
+    owner: Arc<Owner>,
+    source: Option<Box<SseEventSource>>,
+}
+impl Drop for ClosedSource {
+    fn drop(&mut self) {
+        drop(self.source.take());
+        self.owner.busy.store(false, Ordering::SeqCst);
+        self.owner.changed.notify_waiters();
+        if let Ok(global) = global() {
+            global.settled.notify_waiters();
+        }
+    }
+}
+
 impl Drop for Lease {
     fn drop(&mut self) {
-        let mut slot = self
-            .owner
-            .source
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if !self.owner.is_closed() {
-            *slot = self.source.take();
+        {
+            let mut slot = self
+                .owner
+                .source
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if !self.owner.is_closed() {
+                *slot = self.source.take();
+                self.owner.busy.store(false, Ordering::SeqCst);
+                self.owner.changed.notify_waiters();
+                return;
+            }
         }
+        // A closed source owns its stream and pending reconnect. Drop those
+        // outside both locks before publishing read handback.
+        drop(self.source.take());
         self.owner.busy.store(false, Ordering::SeqCst);
         self.owner.changed.notify_waiters();
     }
@@ -144,7 +184,7 @@ impl Lease {
             }
         };
         if state.closed {
-            self.owner.close();
+            drop(self.owner.close());
         }
         Ok(ResultData {
             read: sse::Read {
@@ -316,7 +356,7 @@ pub(crate) fn open_with_hooks(opening: Opening, count: usize) -> Result<(Executi
                 }
                 drop(hook_guard.0.take());
                 if state.closed {
-                    owner.close();
+                    drop(owner.close());
                 }
                 Ok(Outcome::EventSource(Finished::Open {
                     owner,
@@ -331,7 +371,7 @@ pub(crate) fn open_with_hooks(opening: Opening, count: usize) -> Result<(Executi
 
 pub(crate) fn next(source: u64) -> Result<Execution, Failure> {
     let global = global()?;
-    let mut state = global.lock();
+    let state = global.lock();
     if state.failed {
         return Err(Failure::new("internal"));
     }
@@ -340,7 +380,12 @@ pub(crate) fn next(source: u64) -> Result<Execution, Failure> {
         .get(&source)
         .cloned()
         .ok_or_else(|| Failure::new("sse_closed"))?;
+    drop(state);
     let lease = owner.take()?;
+    let mut state = global.lock();
+    if state.failed {
+        return Err(Failure::new("internal"));
+    }
     let (id, cancel) = state.reserve(Target::EventSourceRead(source))?;
     drop(state);
     global.spawn(id, cancel, async move {
@@ -354,7 +399,8 @@ pub(crate) fn next(source: u64) -> Result<Execution, Failure> {
 }
 
 pub(crate) fn close(source: u64) -> Result<Execution, Failure> {
-    global()?.lock().close_source(source);
+    let mut closed_sources = Vec::new();
+    global()?.lock().close_source(source, &mut closed_sources);
     Ok(Execution::Complete)
 }
 
@@ -390,6 +436,7 @@ pub(super) fn finish(
     id: u64,
     reserved: Option<u64>,
     finished: Finished,
+    closed_sources: &mut Vec<ClosedSource>,
 ) -> Result<Completed, Failure> {
     let (completed, result) = match finished {
         Finished::Open {
@@ -415,7 +462,7 @@ pub(super) fn finish(
                 }) = state.operations.get(&id)
             {
                 let source = *source;
-                state.close_source(source);
+                state.close_source(source, closed_sources);
             }
             (Completed::Complete, result)
         }
@@ -425,3 +472,6 @@ pub(super) fn finish(
     }
     Ok(completed)
 }
+
+#[cfg(test)]
+mod tests;

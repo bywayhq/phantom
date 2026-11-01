@@ -649,12 +649,18 @@ impl State {
             owner.abort();
         }
     }
-    fn close_source(&mut self, source: u64) {
-        if let Some(owner) = self.sources.remove(&source) {
-            owner.close();
+    fn close_source(&mut self, source: u64, closed_sources: &mut Vec<event_source::ClosedSource>) {
+        if let Some(owner) = self.sources.remove(&source)
+            && let Some(source) = owner.close()
+        {
+            closed_sources.push(source);
         }
     }
-    fn release_client(&mut self, client: u64) {
+    fn release_client(
+        &mut self,
+        client: u64,
+        closed_sources: &mut Vec<event_source::ClosedSource>,
+    ) {
         for owner in self
             .source_hooks
             .values()
@@ -668,7 +674,7 @@ impl State {
             .filter_map(|(id, owner)| (owner.client == client).then_some(*id))
             .collect();
         for source in &sources {
-            self.close_source(*source);
+            self.close_source(*source, closed_sources);
         }
         let sockets: Vec<_> = self
             .sockets
@@ -731,10 +737,10 @@ impl State {
             })
             .collect();
         for operation in operations {
-            self.cancel(operation);
+            self.cancel(operation, closed_sources);
         }
     }
-    fn cancel(&mut self, id: u64) {
+    fn cancel(&mut self, id: u64, closed_sources: &mut Vec<event_source::ClosedSource>) {
         let Some(operation) = self.operations.get_mut(&id) else {
             return;
         };
@@ -760,7 +766,7 @@ impl State {
             .as_ref()
             .is_some_and(|call| call.host_owned);
         if let Some(source) = source {
-            self.close_source(source);
+            self.close_source(source, closed_sources);
         }
         if let Some(socket) = socket {
             self.close_socket(socket);
@@ -824,13 +830,29 @@ impl Global {
         }
     }
     fn recover<'a>(
+        &'a self,
+        state: std::sync::MutexGuard<'a, State>,
+    ) -> std::sync::MutexGuard<'a, State> {
+        let mut closed_sources = Vec::new();
+        let state = self.recover_locked(state, &mut closed_sources);
+        if closed_sources.is_empty() {
+            return state;
+        }
+        drop(state);
+        drop(closed_sources);
+        self.lock()
+    }
+    fn recover_locked<'a>(
         &self,
         mut state: std::sync::MutexGuard<'a, State>,
+        closed_sources: &mut Vec<event_source::ClosedSource>,
     ) -> std::sync::MutexGuard<'a, State> {
         if !state.failed {
             state.failed = true;
             for (_, source) in state.sources.drain() {
-                source.close();
+                if let Some(source) = source.close() {
+                    closed_sources.push(source);
+                }
             }
             for (_, socket) in state.sockets.drain() {
                 socket.abort();
@@ -999,6 +1021,7 @@ impl Global {
         });
     }
     fn finish(&self, id: u64, result: Result<Outcome, Failure>) {
+        let mut closed_sources = Vec::new();
         let mut state = self.lock();
         let Some(operation) = state.operations.get_mut(&id) else {
             return;
@@ -1030,9 +1053,13 @@ impl Global {
                 }
                 Ok(Completed::Complete)
             }
-            Ok(Outcome::EventSource(finished)) => {
-                event_source::finish(&mut state, id, reserved_response, finished)
-            }
+            Ok(Outcome::EventSource(finished)) => event_source::finish(
+                &mut state,
+                id,
+                reserved_response,
+                finished,
+                &mut closed_sources,
+            ),
             Ok(Outcome::WebSocket(finished)) => {
                 websocket::finish(&mut state, id, reserved_response, finished)
             }
@@ -1129,7 +1156,7 @@ impl Global {
                     .get(&id)
                     .and_then(|operation| operation.source);
                 if let Some(source) = source {
-                    state.close_source(source);
+                    state.close_source(source, &mut closed_sources);
                 }
                 if let Some(operation) = state.operations.get_mut(&id) {
                     operation.source = None;
@@ -1230,6 +1257,7 @@ pub(crate) fn execute_with_callbacks(
     hooks: usize,
     redirects: bool,
 ) -> Result<Execution, Failure> {
+    let mut closed_sources = Vec::new();
     if hooks > 256 || ((hooks != 0 || redirects) && !matches!(&command, Command::Request { .. })) {
         return Err(Failure::new("invalid_header_hooks"));
     }
@@ -1330,7 +1358,7 @@ pub(crate) fn execute_with_callbacks(
                 state.fork_client(client, sharing).map(Execution::Json)
             }
             Command::ReleaseClient { client } => {
-                state.release_client(client);
+                state.release_client(client, &mut closed_sources);
                 global.settled.notify_waiters();
                 Ok(Execution::Complete)
             }
@@ -1509,7 +1537,7 @@ pub(crate) fn execute_with_callbacks(
                 Ok(Execution::Complete)
             }
             Command::Cancel { operation } => {
-                state.cancel(operation);
+                state.cancel(operation, &mut closed_sources);
                 Ok(Execution::Complete)
             }
             Command::Ack { operation } => {
@@ -1809,6 +1837,7 @@ pub(crate) fn execute_with_callbacks(
 }
 
 pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let mut state = global()?.lock();
     let body = state
         .operations
@@ -1829,7 +1858,7 @@ pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
         .get_mut(&id)
         .and_then(|operation| operation.source.take());
     if let Some(source) = source {
-        state.close_source(source);
+        state.close_source(source, &mut closed_sources);
     }
     Ok(())
 }
@@ -2230,7 +2259,7 @@ mod tests {
         Ok(())
     }
 
-    fn test_global() -> Result<&'static Global, Failure> {
+    pub(super) fn test_global() -> Result<&'static Global, Failure> {
         Ok(Box::leak(Box::new(Global {
             state: Mutex::new(State::default()),
             ready: Condvar::new(),
@@ -2260,6 +2289,7 @@ mod tests {
     #[test]
     fn releasing_client_reclaims_its_bodies_and_reads_without_other_clients() -> Result<(), Failure>
     {
+        let mut closed_sources = Vec::new();
         let mut state = State::default();
         let first = empty_owner();
         let second = std::sync::Arc::new(BodyOwner {
@@ -2275,7 +2305,7 @@ mod tests {
         state.bodies.insert(21, std::sync::Arc::clone(&second));
         let (_first_read, mut first_cancel) = state.reserve(Target::Read(20))?;
         let (_second_read, mut second_cancel) = state.reserve(Target::Read(21))?;
-        state.release_client(1);
+        state.release_client(1, &mut closed_sources);
         assert!(first.closed.load(Ordering::SeqCst));
         assert!(!second.closed.load(Ordering::SeqCst));
         assert!(!state.bodies.contains_key(&20));
@@ -2291,6 +2321,7 @@ mod tests {
     #[test]
     fn maintenance_shares_ordinary_capacity_and_is_cancelled_with_its_client() -> Result<(), Failure>
     {
+        let mut closed_sources = Vec::new();
         let mut state = State::default();
         let (_, mut cancelled) = state.reserve(Target::Maintenance(1))?;
         for _ in 1..MAX_HANDLES {
@@ -2303,7 +2334,7 @@ mod tests {
                 .map(|error| error.kind),
             Some("capacity")
         );
-        state.release_client(1);
+        state.release_client(1, &mut closed_sources);
         assert!(cancelled.try_recv().is_ok());
         // Cancellation keeps the reservation until native work has settled.
         assert_eq!(state.operations.len(), MAX_HANDLES);
@@ -2385,6 +2416,7 @@ mod tests {
 
     #[test]
     fn shutdown_has_reserved_capacity_and_cancelled_work_keeps_its_slot() -> Result<(), Failure> {
+        let mut closed_sources = Vec::new();
         let mut state = State::default();
         let mut receivers = Vec::new();
         for _ in 0..MAX_HANDLES {
@@ -2407,7 +2439,7 @@ mod tests {
             Some("shutdown_in_progress")
         );
         let (cancelled, mut receiver) = receivers.remove(0);
-        state.cancel(cancelled);
+        state.cancel(cancelled, &mut closed_sources);
         assert!(receiver.try_recv().is_ok());
         assert_eq!(state.operations.len(), MAX_HANDLES + 1);
         assert!(
@@ -2419,7 +2451,7 @@ mod tests {
         let mut shutdowns = State::default();
         for client in 0..MAX_HANDLES as u64 {
             let (id, _receiver) = shutdowns.reserve(Target::Shutdown(client))?;
-            shutdowns.cancel(id);
+            shutdowns.cancel(id, &mut closed_sources);
         }
         assert_eq!(
             shutdowns
@@ -2433,6 +2465,7 @@ mod tests {
 
     #[test]
     fn abandoned_delivered_heads_release_body_and_upload_custody() -> Result<(), Failure> {
+        let mut closed_sources = Vec::new();
         let global = test_global()?;
         let first = global.upload(MAX_UPLOAD)?;
         let second = global.upload(MAX_UPLOAD)?;
@@ -2483,7 +2516,7 @@ mod tests {
         {
             let mut state = global.state.lock().map_err(|_| Failure::new("internal"))?;
             assert_eq!(state.bodies.len(), 1);
-            state.cancel(id);
+            state.cancel(id, &mut closed_sources);
             assert!(state.bodies.is_empty());
             assert!(state.operations.is_empty());
         }

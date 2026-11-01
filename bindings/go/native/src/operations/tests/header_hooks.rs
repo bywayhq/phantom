@@ -71,6 +71,7 @@ fn progress_keeps_terminal_failure_delivery_after_registry_poison() -> Result<()
 
 #[test]
 fn registry_failure_before_delivery_does_not_leave_unseen_host_custody() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let (operation, _ticket, _reply) = pending_hook(global, 1)?;
     let _panic = std::panic::catch_unwind(|| {
@@ -91,7 +92,7 @@ fn registry_failure_before_delivery_does_not_leave_unseen_host_custody() -> Resu
         })
     ));
     assert!(global.lock().operations[&operation].callback_call.is_none());
-    global.lock().cancel(operation);
+    global.lock().cancel(operation, &mut closed_sources);
     assert!(!global.lock().operations.contains_key(&operation));
     Ok(())
 }
@@ -158,13 +159,14 @@ fn replies_are_single_use_and_cannot_release_another_request() -> Result<(), Fai
 
 #[test]
 fn abandoned_callback_retains_admission_until_actual_host_handback() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let (operation, ticket, _reply) = pending_hook(global, 1)?;
     global.wait()?;
     for _ in 1..MAX_HANDLES {
         global.lock().reserve(Target::Request(2))?;
     }
-    global.lock().cancel(operation);
+    global.lock().cancel(operation, &mut closed_sources);
     global.finish(operation, Err(Failure::new("cancelled")));
     assert_eq!(
         global

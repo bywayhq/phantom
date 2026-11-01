@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn cancelled_state_work_keeps_shutdown_pending_until_actual_exit() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let config = serde_json::from_value(json!({
         "profile": "chrome-154-windows", "protocol": "h1", "cookies": true,
@@ -11,7 +12,7 @@ fn cancelled_state_work_keeps_shutdown_pending_until_actual_exit() -> Result<(),
     let native = entry.client.clone();
     global.lock().clients.insert(1, entry);
     let (operation, _cancel) = global.lock().reserve(Target::StateTransfer(1))?;
-    global.lock().cancel(operation);
+    global.lock().cancel(operation, &mut closed_sources);
     assert!(global.lock().operations.contains_key(&operation));
     global.runtime.block_on(async {
         let mut shutdown = Box::pin(global.shutdown(1, native.clone()));

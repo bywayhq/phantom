@@ -83,7 +83,7 @@ impl Owner {
                 let changed = source.changed.notified();
                 tokio::pin!(changed);
                 changed.as_mut().enable();
-                if !source.busy.load(std::sync::atomic::Ordering::SeqCst) {
+                if source.is_closed() && !source.busy.load(std::sync::atomic::Ordering::SeqCst) {
                     break;
                 }
                 changed.await;

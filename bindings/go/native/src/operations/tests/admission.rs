@@ -45,6 +45,7 @@ fn shutdown_retains_an_admitted_http_request_before_its_first_poll() -> Result<(
 #[test]
 fn cancelled_shutdown_preserves_admitted_requests_until_their_tasks_settle() -> Result<(), Failure>
 {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let config = serde_json::from_value(json!({
         "profile": "chrome-154-windows", "protocol": "h1", "cookies": false,
@@ -73,7 +74,7 @@ fn cancelled_shutdown_preserves_admitted_requests_until_their_tasks_settle() -> 
                 .is_some_and(|op| !op.abandoned)
         );
 
-        global.lock().cancel(request);
+        global.lock().cancel(request, &mut closed_sources);
         let mut retry = Box::pin(global.shutdown(1, native.clone()));
         assert!(retry.as_mut().poll(&mut context).is_pending());
         global.finish(request, Err(Failure::new("cancelled")));
@@ -96,6 +97,7 @@ fn cancelled_shutdown_preserves_admitted_requests_until_their_tasks_settle() -> 
 
 #[test]
 fn shutdown_retry_waits_for_cancelled_native_waits_to_settle() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let config = serde_json::from_value(json!({
         "profile": "chrome-154-windows", "protocol": "h1", "cookies": false,
@@ -109,7 +111,7 @@ fn shutdown_retry_waits_for_cancelled_native_waits_to_settle() -> Result<(), Fai
     global.lock().clients.insert(2, independent);
 
     let (cancelled, mut receiver) = global.lock().reserve(Target::Shutdown(1))?;
-    global.lock().cancel(cancelled);
+    global.lock().cancel(cancelled, &mut closed_sources);
     assert!(receiver.try_recv().is_ok());
     // The worker has received cancellation, but its monitor has not yet
     // removed the reservation. Retry must wait for that cleanup, not fail.
@@ -123,7 +125,7 @@ fn shutdown_retry_waits_for_cancelled_native_waits_to_settle() -> Result<(), Fai
         Some("shutdown_in_progress")
     );
     let (unrelated, _other_receiver) = global.lock().reserve(Target::Shutdown(2))?;
-    global.lock().cancel(unrelated);
+    global.lock().cancel(unrelated, &mut closed_sources);
 
     global.runtime.block_on(async {
         let mut context = std::task::Context::from_waker(std::task::Waker::noop());
@@ -131,7 +133,7 @@ fn shutdown_retry_waits_for_cancelled_native_waits_to_settle() -> Result<(), Fai
         assert!(waiting.as_mut().poll(&mut context).is_pending());
         assert!(!native.is_closed());
 
-        global.lock().cancel(retry);
+        global.lock().cancel(retry, &mut closed_sources);
         assert!(retry_receiver.try_recv().is_ok());
         drop(waiting);
         let (next, _next_receiver) = global.lock().reserve(Target::Shutdown(1))?;
@@ -179,6 +181,7 @@ fn fill_bodies(state: &mut State, count: usize) -> Result<(), Failure> {
 
 #[test]
 fn response_custody_is_reserved_before_request_admission() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let mut state = State::default();
     fill_bodies(&mut state, MAX_HANDLES - 1)?;
     let (request, _cancel) = state.reserve(Target::Request(1))?;
@@ -192,7 +195,7 @@ fn response_custody_is_reserved_before_request_admission() -> Result<(), Failure
     );
 
     // Cancelling a task does not make its still-running work unaccounted for.
-    state.cancel(request);
+    state.cancel(request, &mut closed_sources);
     assert_eq!(
         state
             .reserve(Target::Request(1))
@@ -232,6 +235,7 @@ fn response_completion_needs_no_new_id_or_body_slot() -> Result<(), Failure> {
 
 #[test]
 fn failed_and_abandoned_requests_release_response_custody() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     for abandoned in [false, true] {
         let global = test_global()?;
         let request = {
@@ -239,7 +243,7 @@ fn failed_and_abandoned_requests_release_response_custody() -> Result<(), Failur
             fill_bodies(&mut state, MAX_HANDLES - 1)?;
             let (request, _) = state.reserve(Target::Request(1))?;
             if abandoned {
-                state.cancel(request);
+                state.cancel(request, &mut closed_sources);
             }
             request
         };

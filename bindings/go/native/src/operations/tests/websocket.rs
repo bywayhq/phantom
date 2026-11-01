@@ -43,6 +43,7 @@ fn shutdown_retains_an_admitted_opening_before_its_first_poll() -> Result<(), Fa
 
 #[test]
 fn cancelled_shutdown_wait_preserves_openings_and_retry_is_client_scoped() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let global = test_global()?;
     let entry = native_client()?;
     let native = entry.client.clone();
@@ -58,7 +59,7 @@ fn cancelled_shutdown_wait_preserves_openings_and_retry_is_client_scoped() -> Re
         assert!(!global.lock().operations[&opening].abandoned);
 
         // A cancelled opening retains admission until its task has settled.
-        global.lock().cancel(opening);
+        global.lock().cancel(opening, &mut closed_sources);
         let mut retry = Box::pin(global.shutdown(1, native.clone()));
         assert!(retry.as_mut().poll(&mut context).is_pending());
         global.finish(opening, Err(Failure::new("cancelled")));
@@ -103,6 +104,7 @@ fn independent_websocket_readers_do_not_spend_request_or_write_admission() -> Re
 
 #[test]
 fn websocket_opening_reserves_rejection_or_socket_custody_before_send() -> Result<(), Failure> {
+    let mut closed_sources = Vec::new();
     let mut state = State::default();
     for _ in 0..MAX_HANDLES - 1 {
         let id = state.id()?;
@@ -123,7 +125,7 @@ fn websocket_opening_reserves_rejection_or_socket_custody_before_send() -> Resul
             .map(|error| error.kind),
         Some("capacity")
     );
-    state.cancel(id);
+    state.cancel(id, &mut closed_sources);
     // Abandoned setup still owns its reservation until its task settles.
     assert_eq!(
         state
