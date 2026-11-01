@@ -324,7 +324,9 @@ class RedirectCallbackTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 cancelled.set()
 
-        with H2Peer(redirects={b"/start": "/never"}) as peer:
+        with H2Peer(
+            redirects={b"/start": "/never"}, release_stall_on=b"/second"
+        ) as peer:
             async with AsyncClient(
                 profile=PROFILE, protocol="h2", context="raw", timeout_ms=5000
             ) as client:
@@ -351,6 +353,8 @@ class RedirectCallbackTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.wait_for(cancelled.wait(), 1)
                 response = await client.get(peer.url + "/second")
                 self.assertEqual(await response.read(max_bytes=16), b"hello")
+                self.assertEqual(await sibling.read(max_bytes=16), b"tail")
+                self.assertIsNone(await sibling.read_chunk())
                 self.assertEqual(
                     [path for _, path in peer.requests],
                     [b"/stall", b"/start", b"/second"],

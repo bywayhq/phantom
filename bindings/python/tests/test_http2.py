@@ -37,6 +37,7 @@ class H2Peer:
         websocket=False,
         event_stream=False,
         redirects=None,
+        release_stall_on=None,
     ):
         self.listener = (
             socket.socket(socket.AF_UNIX)
@@ -60,6 +61,7 @@ class H2Peer:
         self.websocket = websocket
         self.event_stream = event_stream
         self.redirects = {} if redirects is None else redirects
+        self.release_stall_on = release_stall_on
         self.websocket_stream = None
         self.url = (
             f"{'https' if tls else 'http'}://localhost"
@@ -113,6 +115,7 @@ class H2Peer:
                 healthy = None
                 overflow = None
                 upload_events = None
+                stalled = None
                 while data := stream.recv(65536):
                     for event in connection.receive_data(data):
                         if isinstance(event, h2.events.RequestReceived):
@@ -145,6 +148,7 @@ class H2Peer:
                             if dict(event.headers).get(b":protocol") == b"websocket":
                                 self.websocket_stream = event.stream_id
                             elif path == b"/stall":
+                                stalled = event.stream_id
                                 connection.send_data(
                                     event.stream_id,
                                     b"data: first\n\n" if self.event_stream else b"a",
@@ -172,6 +176,14 @@ class H2Peer:
                                     connection.send_headers(
                                         event.stream_id, self.trailers, end_stream=True
                                     )
+                                if (
+                                    path == self.release_stall_on
+                                    and stalled is not None
+                                ):
+                                    connection.send_data(
+                                        stalled, b"tail", end_stream=True
+                                    )
+                                    stalled = None
                         elif isinstance(event, h2.events.DataReceived):
                             connection.acknowledge_received_data(
                                 event.flow_controlled_length, event.stream_id
