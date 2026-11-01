@@ -95,3 +95,18 @@ func EventSourceOperation(uint64, uint64, *Reply) error {
 func EventSourceCopy(uint64, *EventSourceResult, []byte) error {
 	return &Failure{Kind: "unsupported_platform"}
 }
+
+func LoadEventSourceHooks() error { return &Failure{Kind: "unsupported_platform"} }
+func EventSourceHooksOpen(*EventSourceOpening, uint64, *EventSourceHooksReply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func EventSourceHooksOperation(uint64, uint64, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func EventSourceHooksFailure(uint64, *uint64, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+
+func EventSourceHooksActive(uint64, uint64, *Reply) error {
+	return &Failure{Kind: "native_unavailable"}
+}

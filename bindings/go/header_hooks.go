@@ -8,9 +8,11 @@ import (
 	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
 
-// HeaderHook edits caller headers before a logical Do or Events request is sent.
-// Client hooks run first, then request hooks. Redirects and retries reuse the
-// result. Functions run on the calling goroutine and must honor ctx cancellation.
+// HeaderHook edits caller headers before a logical request is sent. Client
+// hooks run first, then request or source hooks. Redirects and retries reuse
+// the result; reconnecting EventSource runs them again for each fresh GET.
+// Do and Events run hooks on the calling goroutine; EventSource owns one hook
+// goroutine per source. Functions must honor ctx cancellation.
 // Hooks on different requests may run concurrently. Cancellation and total
 // deadlines remain primary while errors.Is/As also retains late hook errors.
 type HeaderHook func(ctx context.Context, headers *HeaderHookContext) error
@@ -137,6 +139,7 @@ type requestHooks struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	next        uint64
+	source      bool
 	failure     error
 	failureKind string
 	redirect    RedirectCallback
@@ -248,6 +251,26 @@ func (h *requestHooks) invoke(operation uint64, call *headerCall) error {
 	}()
 	if h.ctx.Err() != nil {
 		return nil
+	}
+	// A fresh source GET restarts the ordered list, including when the prior
+	// GET expired between callbacks. Its operation ID still isolates custody.
+	if h.source {
+		var reply native.Reply
+		if err := native.EventSourceHooksActive(operation, call.ticket, &reply); err != nil {
+			return nativeBoundaryError(err)
+		}
+		if err := nativeRecordError(reply.Error); err != nil {
+			return err
+		}
+		if reply.Operation == 0 {
+			return nil
+		}
+		if reply.Operation != 1 {
+			return &Error{Kind: "native_abi"}
+		}
+	}
+	if h.source && call.index == 0 {
+		h.next = 0
 	}
 	if call.index != h.next || call.index >= uint64(len(h.hooks)) {
 		return &Error{Kind: "native_abi"}

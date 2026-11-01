@@ -81,12 +81,12 @@ Hooks see ordered caller headers and prepared-body fields. Templates and cookie
 storage supply their fields afterward. `Headers()` returns a copy; use `Append`,
 `Set` and `Remove` during the callback to change fields.
 
-Hooks run on the calling goroutine and must honor their context. The total
+`Do` and `Events` run hooks on the calling goroutine. Hooks must honor their
+context. The total
 request timeout includes them. A hook that ignores cancellation holds the
 request and graceful shutdown until it returns. Callback errors remain available
-through `errors.Is` and `errors.As`; messages omit their contents. These hooks
-apply to ordinary `Do` and single-response `Events` requests. Reconnecting
-EventSource and WebSocket openings do not run them.
+through `errors.Is` and `errors.As`; messages omit their contents. WebSocket
+openings do not run header hooks.
 
 ## Use encrypted DNS
 
@@ -134,7 +134,9 @@ nonempty input. `LastEventID` and `RetryMilliseconds` expose committed state.
 For a reconnecting GET, use `client.EventSource(ctx, url,
 EventSourceOptions{Protocol: "h2"})`, then `source.Next(ctx)`. Close the
 source when finished. Each read has its own context; cancelling a read preserves
-the source. `Headers` can position the managed ID with `LastEventID`.
+the source and its pending hook. Client hooks run before `HeaderHooks` on each
+fresh GET; `SkipClientHeaderHooks` skips inherited hooks. Use `CloseContext` to
+wait for hook cleanup. `Headers` can position the managed ID with `LastEventID`.
 `IdleTimeout`, retry controls and `MaxReconnects` govern reconnects. Phase
 `Timeouts` end at each response head; use `IdleTimeout` instead of `ReadIdle`.
 Graceful client shutdown waits for open sources. Use `Client.Events` for an

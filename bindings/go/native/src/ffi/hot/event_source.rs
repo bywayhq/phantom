@@ -22,7 +22,7 @@ struct Header {
     field: Field,
 }
 #[repr(C)]
-struct Opening {
+pub(super) struct Opening {
     client: u64,
     url: Span,
     protocol: u64,
@@ -58,7 +58,7 @@ extern "C" fn phantom_go_event_source_version() -> u64 {
 
 // SAFETY: All pointers lend aligned readable descriptors and bounded spans for
 // this call only. Every nested value is copied before native work is admitted.
-unsafe fn opening(value: &Opening) -> Result<event_source::Opening, Failure> {
+pub(super) unsafe fn opening(value: &Opening) -> Result<event_source::Opening, Failure> {
     if value.flags & !63 != 0
         || value.headers_present > 1
         || value.header_count > 256

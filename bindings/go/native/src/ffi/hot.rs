@@ -14,6 +14,7 @@ use std::{
 };
 
 mod event_source;
+mod event_source_header;
 mod header_hook;
 mod redirect_hook;
 mod sse;

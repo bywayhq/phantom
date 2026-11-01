@@ -15,6 +15,8 @@ use tokio::sync::Notify;
 use super::{Completed, CompletedHead, Execution, Outcome, Target, global, response, sse};
 use crate::{error::Failure, timeouts::Timeouts};
 
+pub(crate) mod header_hooks;
+
 pub(crate) struct Opening {
     pub(crate) client: u64,
     pub(crate) url: String,
@@ -42,6 +44,7 @@ pub(super) struct Owner {
     closed: AtomicBool,
     busy: AtomicBool,
     changed: Notify,
+    hooks: Option<Arc<header_hooks::Owner>>,
 }
 
 impl Owner {
@@ -50,6 +53,9 @@ impl Owner {
     }
 
     pub(super) fn close(&self) {
+        if let Some(hooks) = &self.hooks {
+            hooks.close();
+        }
         self.closed.store(true, Ordering::SeqCst);
         self.changed.notify_waiters();
         // A leased source observes changed; an idle source is dropped here.
@@ -73,6 +79,7 @@ impl Owner {
             .take();
         if self.is_closed() || source.is_none() {
             self.busy.store(false, Ordering::SeqCst);
+            self.changed.notify_waiters();
             return Err(Failure::new("sse_closed"));
         }
         Ok(Lease {
@@ -98,6 +105,7 @@ impl Drop for Lease {
             *slot = self.source.take();
         }
         self.owner.busy.store(false, Ordering::SeqCst);
+        self.owner.changed.notify_waiters();
     }
 }
 
@@ -124,6 +132,10 @@ impl Lease {
         } else {
             source.last_event_id().to_owned()
         };
+        let hook_operation = event
+            .as_ref()
+            .err()
+            .and_then(header_hooks::failure_operation);
         let (event, error, cause) = match event {
             Ok(event) => (event, None, None),
             Err(error) => {
@@ -144,6 +156,7 @@ impl Lease {
                 trailers: None,
             },
             state,
+            hook_operation,
         })
     }
 }
@@ -151,6 +164,7 @@ impl Lease {
 pub(crate) struct ResultData {
     pub(crate) read: sse::Read,
     pub(crate) state: Snapshot,
+    pub(crate) hook_operation: Option<u64>,
 }
 
 pub(super) enum Finished {
@@ -179,6 +193,7 @@ fn request_cause(error: &phantom::SseError) -> Option<Failure> {
 }
 
 fn opening_failure(error: phantom::SseError) -> ResultData {
+    let hook_operation = header_hooks::failure_operation(&error);
     ResultData {
         read: sse::Read {
             event: None,
@@ -192,10 +207,18 @@ fn opening_failure(error: phantom::SseError) -> ResultData {
             closed: true,
             ..Snapshot::default()
         },
+        hook_operation,
     }
 }
 
 pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
+    open_with_hooks(opening, 0).map(|(execution, _)| execution)
+}
+
+pub(crate) fn open_with_hooks(opening: Opening, count: usize) -> Result<(Execution, u64), Failure> {
+    if count > 256 {
+        return Err(Failure::new("invalid_header_hooks"));
+    }
     let global = global()?;
     let mut state = global.lock();
     if state.failed {
@@ -233,11 +256,37 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
     if let Some(value) = opening.route {
         request = request.route(value);
     }
+    if count != 0 && state.source_hooks.len() >= super::MAX_HANDLES {
+        return Err(Failure::new("capacity"));
+    }
+    let hook_handle = if count == 0 { 0 } else { state.id()? };
     let (id, cancel) = state.reserve(Target::EventSourceOpen(opening.client))?;
+    let hooks = if count == 0 {
+        None
+    } else {
+        let owner = header_hooks::Owner::new(opening.client);
+        state.source_hooks.insert(hook_handle, Arc::clone(&owner));
+        request = request.without_header_hooks();
+        for index in 0..count {
+            let owner = Arc::clone(&owner);
+            request = request.async_header_hook(move |context| {
+                let owner = Arc::clone(&owner);
+                Box::pin(async move { owner.invoke(index, context).await })
+            });
+        }
+        Some(owner)
+    };
     drop(state);
+    let hook_guard = header_hooks::CloseGuard(hooks.clone());
     global.spawn(id, cancel, async move {
+        let mut hook_guard = hook_guard;
         match request.connect().await {
-            Err(error) => Ok(Outcome::EventSource(Finished::Read(opening_failure(error)))),
+            Err(error) => {
+                if let Some(hooks) = &hooks {
+                    hooks.close();
+                }
+                Ok(Outcome::EventSource(Finished::Read(opening_failure(error))))
+            }
             Ok(response) => {
                 let head = response::metadata(&response)?;
                 let source = response.into_body();
@@ -252,6 +301,7 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
                         trailers: None,
                     },
                     state,
+                    hook_operation: None,
                 };
                 let owner = Arc::new(Owner {
                     client: opening.client,
@@ -259,7 +309,15 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
                     closed: AtomicBool::new(state.closed),
                     busy: AtomicBool::new(false),
                     changed: Notify::new(),
+                    hooks,
                 });
+                if let Some(hooks) = &owner.hooks {
+                    hooks.bind_source(&owner);
+                }
+                drop(hook_guard.0.take());
+                if state.closed {
+                    owner.close();
+                }
                 Ok(Outcome::EventSource(Finished::Open {
                     owner,
                     head,
@@ -268,7 +326,7 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
             }
         }
     });
-    Ok(Execution::Operation(id))
+    Ok((Execution::Operation(id), hook_handle))
 }
 
 pub(crate) fn next(source: u64) -> Result<Execution, Failure> {

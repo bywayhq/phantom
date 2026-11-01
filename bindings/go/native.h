@@ -78,6 +78,21 @@ uint64_t phantom_go_event_source_version(void);
 uint64_t phantom_go_event_source_open(const struct phantom_go_event_source_opening *, struct phantom_go_reply *);
 uint64_t phantom_go_event_source_operation(uint64_t, uint64_t, struct phantom_go_reply *);
 uint64_t phantom_go_event_source_result(uint64_t, struct phantom_go_event_source_result *, uint8_t *, size_t);
+/* Optional EventSource header-hook ABI 1; requires complete EventSource and
+ * header-hook capabilities before opening. Open borrows the unchanged opening
+ * descriptor and returns separate operation/owner handles plus the Error record.
+ * Owner verbs 1/2/3 wait for one callback/close/release. Wait operations reuse
+ * completion kind 6 and its single-use reply/custody contract; they do not read
+ * or prefetch events. A dropped GET cancels only its invocation. Source close
+ * waits for actual host handback, and failure returns the matching callback
+ * operation until the EventSource result is acknowledged. No pointer is retained.
+ */
+struct phantom_go_event_source_hooks_reply;
+uint64_t phantom_go_event_source_hooks_version(void);
+uint64_t phantom_go_event_source_hooks_open(const struct phantom_go_event_source_opening *, uint64_t, struct phantom_go_event_source_hooks_reply *);
+uint64_t phantom_go_event_source_hooks_operation(uint64_t, uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_event_source_hooks_failure(uint64_t, uint64_t *, struct phantom_go_reply *);
+uint64_t phantom_go_event_source_hooks_active(uint64_t, uint64_t, struct phantom_go_reply *);
 /* Optional header-hook ABI 1, ordinary HTTP requests only. Negotiate all five
  * symbols before admission. request borrows the unchanged request/body layout
  * and registers 1..256 ordered hooks. Completion kind 6 is intermediate: its

@@ -257,6 +257,7 @@ enum Target {
     WebSocketOpen(u64),
     EventSourceOpen(u64),
     EventSourceRead(u64),
+    EventSourceHeader { client: u64, owner: u64 },
     WebSocketRead(u64),
     WebSocketWrite(u64),
     Read(u64),
@@ -399,6 +400,7 @@ struct State {
     streams: HashMap<u64, std::sync::Arc<Upload>>,
     sockets: HashMap<u64, std::sync::Arc<websocket::Socket>>,
     sources: HashMap<u64, std::sync::Arc<event_source::Owner>>,
+    source_hooks: HashMap<u64, std::sync::Arc<event_source::header_hooks::Owner>>,
     operations: HashMap<u64, Operation>,
     ready: VecDeque<Queued>,
 }
@@ -415,6 +417,7 @@ impl Default for State {
             streams: HashMap::new(),
             sockets: HashMap::new(),
             sources: HashMap::new(),
+            source_hooks: HashMap::new(),
             operations: HashMap::new(),
             ready: VecDeque::new(),
         }
@@ -448,6 +451,25 @@ impl State {
     }
     fn reserve(&mut self, target: Target) -> Result<(u64, oneshot::Receiver<()>), Failure> {
         match target {
+            Target::EventSourceHeader { owner, .. } => {
+                let pending = self.operations.values().any(|operation| {
+                    matches!(operation.target, Target::EventSourceHeader { owner: current, .. } if current == owner)
+                });
+                if pending {
+                    return Err(Failure::new("source_header_pending"));
+                }
+                if self
+                    .operations
+                    .values()
+                    .filter(|operation| {
+                        matches!(operation.target, Target::EventSourceHeader { .. })
+                    })
+                    .count()
+                    >= MAX_HANDLES
+                {
+                    return Err(Failure::new("capacity"));
+                }
+            }
             Target::UploadWrite(upload)
             | Target::UploadWait(upload)
             | Target::UploadPart(upload) => {
@@ -551,6 +573,7 @@ impl State {
                         !matches!(
                             op.target,
                             Target::Read(_)
+                                | Target::EventSourceHeader { .. }
                                 | Target::EventSourceRead(_)
                                 | Target::WebSocketRead(_)
                                 | Target::WebSocketWrite(_)
@@ -632,6 +655,13 @@ impl State {
         }
     }
     fn release_client(&mut self, client: u64) {
+        for owner in self
+            .source_hooks
+            .values()
+            .filter(|owner| owner.client == client)
+        {
+            owner.close();
+        }
         let sources: Vec<_> = self
             .sources
             .iter()
@@ -674,6 +704,7 @@ impl State {
                 Target::Request(owner)
                 | Target::WebSocketOpen(owner)
                 | Target::EventSourceOpen(owner)
+                | Target::EventSourceHeader { client: owner, .. }
                 | Target::Shutdown(owner)
                 | Target::Maintenance(owner)
                 | Target::Session(owner)
@@ -934,7 +965,8 @@ impl Global {
                         && match operation.target {
                             Target::Request(owner)
                             | Target::WebSocketOpen(owner)
-                            | Target::EventSourceOpen(owner) => owner == client,
+                            | Target::EventSourceOpen(owner)
+                            | Target::EventSourceHeader { client: owner, .. } => owner == client,
                             Target::StateTransfer(owner) => owner == client,
                             Target::Shutdown(owner) => owner == client && operation.abandoned,
                             _ => false,
@@ -2112,7 +2144,10 @@ impl Global {
             .operations
             .get_mut(&operation)
             .ok_or_else(|| Failure::new("invalid_handle"))?;
-        if !matches!(op.target, Target::Request(_)) {
+        if !matches!(
+            op.target,
+            Target::Request(_) | Target::EventSourceHeader { .. }
+        ) {
             return Err(Failure::new("invalid_handle"));
         }
         if let Some(cancel) = op.cancel.take() {

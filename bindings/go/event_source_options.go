@@ -25,7 +25,13 @@ func LastEventID(name string) SSEHeader { return SSEHeader{kind: 2, field: Heade
 // cookies, trust, templates and retry/redirect policies still apply. For an
 // ordinary Request, including bodies or attempt budgets, use Client.Events.
 type EventSourceOptions struct {
-	Protocol string
+	// HeaderHooks run after client hooks on each fresh GET, including reconnects.
+	// Redirects and retries reuse those edits; managed Last-Event-ID is protected.
+	// Hook contexts retain opening ctx values; each GET owns cancellation.
+	HeaderHooks []HeaderHook
+	// SkipClientHeaderHooks leaves only this source's hooks enabled.
+	SkipClientHeaderHooks bool
+	Protocol              string
 	// Nil keeps the default Accept and Cache-Control fields; non-nil replaces
 	// the whole ordered template. Literal Last-Event-ID fields are invalid.
 	Headers []SSEHeader

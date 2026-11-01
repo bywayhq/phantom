@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -72,6 +73,8 @@ type Client struct {
 	closing        atomic.Bool
 	headerHooks    []HeaderHook
 	redirectPolicy RedirectPolicy
+	sourceMu       sync.Mutex
+	sourceHooks    map[*eventSourceHooks]struct{}
 }
 
 // New creates a client. It performs no request and ignores proxy environment variables.
@@ -220,7 +223,7 @@ func clientFromReply(value json.RawMessage) (*Client, error) {
 // wait leaves admission closed; after closing bodies you can call Shutdown again.
 func (c *Client) Shutdown(ctx context.Context) error {
 	if c.id.Load() == 0 {
-		return nil
+		return c.waitSourceHooks(ctx)
 	}
 	if ctx == nil {
 		return &Error{Kind: "invalid_context"}
@@ -236,6 +239,9 @@ func (c *Client) Shutdown(ctx context.Context) error {
 		if id != 0 {
 			err = control("release_client", "client", id)
 		}
+	}
+	if err == nil {
+		err = c.waitSourceHooks(ctx)
 	}
 	runtime.KeepAlive(c)
 	return err

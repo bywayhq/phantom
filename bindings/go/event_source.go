@@ -2,6 +2,7 @@ package phantom
 
 import (
 	"context"
+	"errors"
 	"io"
 	"runtime"
 	"sync"
@@ -21,6 +22,7 @@ type EventSource struct {
 	RedirectsFollowed, ConnectionSetupRetries uint64
 	DecodedContentCodings                     []string
 	RedirectHistory                           *RedirectHistory
+	hooks                                     *eventSourceHooks
 	client                                    *Client
 	id                                        atomic.Uint64
 	closed                                    atomic.Bool
@@ -46,6 +48,14 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	if c.redirectPolicy.Callback != nil {
 		return nil, &Error{Kind: "event_source_redirect_callback_unsupported"}
 	}
+	inherited := c.headerHooks
+	if options.SkipClientHeaderHooks {
+		inherited = nil
+	}
+	hooks, err := snapshotHeaderHooks(inherited, options.HeaderHooks)
+	if err != nil {
+		return nil, err
+	}
 	opening, err := eventSourceOpeningValue(c.id.Load(), url, options)
 	if err != nil {
 		return nil, err
@@ -56,10 +66,29 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	if err := nativeBoundaryError(native.LoadEventSource()); err != nil {
 		return nil, err
 	}
+	if len(hooks) != 0 {
+		if err := nativeBoundaryError(native.LoadEventSourceHooks()); err != nil {
+			return nil, err
+		}
+	}
+	var hookOwner *eventSourceHooks
 	var source *EventSource
 	err = performSubmitted(ctx, func() (uint64, error) {
 		var reply native.Reply
-		err := nativeBoundaryError(native.EventSourceOpen(&opening.descriptor, &reply))
+		var err error
+		if len(hooks) == 0 {
+			err = nativeBoundaryError(native.EventSourceOpen(&opening.descriptor, &reply))
+		} else {
+			var hooked native.EventSourceHooksReply
+			err = nativeBoundaryError(native.EventSourceHooksOpen(&opening.descriptor, uint64(len(hooks)), &hooked))
+			reply = native.Reply{Operation: hooked.Operation, Error: hooked.Error}
+			if err == nil && nativeRecordError(hooked.Error) == nil {
+				if hooked.Owner == 0 || hooked.Operation == 0 {
+					return 0, &Error{Kind: "native_abi"}
+				}
+				hookOwner = startEventSourceHooks(c, hooked.Owner, hooks, ctx)
+			}
+		}
 		runtime.KeepAlive(opening)
 		runtime.KeepAlive(options)
 		runtime.KeepAlive(url)
@@ -77,13 +106,20 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 			return err
 		}
 		if result.err != nil {
+			if hookOwner != nil {
+				operation, err := eventSourceHookFailure(event.Operation)
+				if err != nil {
+					return err
+				}
+				result.err = hookOwner.attach(result.err, operation)
+			}
 			return result.err
 		}
 		if event.head == nil {
 			return &Error{Kind: "native_abi"}
 		}
 		head := event.head
-		source = &EventSource{Status: head.Status, Protocol: head.Protocol, Headers: head.Headers, EffectiveURL: head.EffectiveURL, RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries, DecodedContentCodings: head.DecodedContentCodings, RedirectHistory: head.RedirectHistory, client: c, lastID: result.event.ID, retry: value.RetryMilliseconds, reconnects: value.Reconnects}
+		source = &EventSource{Status: head.Status, Protocol: head.Protocol, Headers: head.Headers, EffectiveURL: head.EffectiveURL, RedirectsFollowed: head.RedirectsFollowed, ConnectionSetupRetries: head.ConnectionSetupRetries, DecodedContentCodings: head.DecodedContentCodings, RedirectHistory: head.RedirectHistory, client: c, hooks: hookOwner, lastID: result.event.ID, retry: value.RetryMilliseconds, reconnects: value.Reconnects}
 		source.closed.Store(value.Closed != 0)
 		if value.Closed == 0 {
 			source.id.Store(head.Body)
@@ -93,6 +129,7 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	})
 	runtime.KeepAlive(c)
 	if err != nil {
+		hookOwner.stop()
 		if source != nil {
 			_ = source.Close()
 		}
@@ -130,6 +167,7 @@ func (source *EventSource) Next(ctx context.Context) (SSEEvent, error) {
 	}()
 	var received receivedSSE
 	var snapshot native.EventSourceResult
+	var hookOperation uint64
 	admitted := false
 	waitContext := ctx
 	if ctx.Done() != nil {
@@ -155,6 +193,13 @@ func (source *EventSource) Next(ctx context.Context) (SSEEvent, error) {
 			return nativeBoundaryError(err)
 		}
 		received, err = decodeSSEEvent(value.Event, data)
+		if err == nil && received.err != nil && source.hooks != nil {
+			operation, failureErr := eventSourceHookFailure(event.Operation)
+			if failureErr != nil {
+				return failureErr
+			}
+			hookOperation = operation
+		}
 		snapshot = value
 		return err
 	})
@@ -178,7 +223,7 @@ func (source *EventSource) Next(ctx context.Context) (SSEEvent, error) {
 		source.id.Store(0)
 	}
 	if received.err != nil {
-		return SSEEvent{}, received.err
+		return SSEEvent{}, source.hooks.attach(received.err, hookOperation)
 	}
 	if received.eof {
 		return SSEEvent{}, io.EOF
@@ -193,6 +238,7 @@ func (source *EventSource) Close() error {
 		return nil
 	}
 	source.closed.Store(true)
+	source.hooks.stop()
 	id := source.id.Swap(0)
 	if id == 0 {
 		return nil
@@ -200,6 +246,23 @@ func (source *EventSource) Close() error {
 	_, err := eventSourceOperation(2, id)
 	runtime.KeepAlive(source.client)
 	return err
+}
+
+// CloseContext closes this source and waits for hook cleanup within ctx's
+// deadline. Hook-enabled sources also wait for their native read lease. A
+// cancelled wait can be retried.
+func (source *EventSource) CloseContext(ctx context.Context) error {
+	if ctx == nil {
+		return &Error{Kind: "invalid_context"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if source == nil {
+		return nil
+	}
+	err := source.Close()
+	return errors.Join(err, source.hooks.wait(ctx))
 }
 
 func eventSourceOperation(verb, handle uint64) (uint64, error) {
