@@ -95,3 +95,13 @@ test('public-only selection is explicit and requires a boolean', () => {
   }
   assert.equal(calls.length, 1);
 });
+
+
+test('Alt-Svc requires explicit positive capacity and forwards an exact native count', () => {
+  const {Client, calls} = facade();
+  new Client({profile: 'exact', route: 'direct', network: {maxAltSvcOrigins: 123}});
+  assert.equal(calls[0].network.maxAltSvcOrigins, 123n);
+  for (const value of [0, -1, 1.5, NaN, Infinity, 0n, -1n, 1n << 64n]) {
+    assert.throws(() => new Client({profile: 'exact', route: 'direct', network: {maxAltSvcOrigins: value}}));
+  }
+});

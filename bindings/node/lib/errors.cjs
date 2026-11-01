@@ -38,6 +38,12 @@ function translated(error) {
   if (prepared) return new PhantomError('PreparedBody', prepared[2], undefined, undefined, prepared[1]);
   const snapshot = /^PHANTOM_SNAPSHOT:([A-Za-z0-9_]+):([\s\S]*)$/.exec(message);
   if (snapshot) return new PhantomError('SessionSnapshot', snapshot[2], undefined, undefined, snapshot[1]);
+  const state = /^PHANTOM_STATE:(CookieSnapshot|AltSvcSnapshot|SessionTickets|StateSnapshot):([A-Za-z0-9_]+):([0-9]*):([\s\S]*)$/.exec(message);
+  if (state) {
+    const failure = new PhantomError(state[1], state[4], undefined, undefined, state[2]);
+    if (state[3]) Object.defineProperty(failure, 'entryIndex', {value: Number(state[3]), enumerable: true});
+    return failure;
+  }
   const profile = /^PHANTOM_PROFILE:(ProfileImport|ProfileExport):([A-Za-z0-9_]+):([^:]*):([\s\S]*)$/.exec(message);
   if (profile) return new PhantomError(profile[1], profile[4], undefined, undefined, profile[2], profile[3]);
   const request = /^PHANTOM_REQUEST:([A-Za-z0-9_]+):([A-Za-z0-9_]*):([A-Za-z0-9_]*):([\s\S]*)$/.exec(message);

@@ -1,5 +1,5 @@
 import type {
-  ClientOptions, NetworkOptions, PoolOptions, RequestContext,
+  ClientOptions, NetworkOptions, PoolOptions, RequestContext, CookieSnapshotEntry, AltSvcSnapshotEntry,
   RequestProtocol, SessionRoute, SessionSharing, TransferSnapshot,
   WebSocketHandshake,
 } from '../index.js';
@@ -86,6 +86,12 @@ export interface NativeClient {
     diagnostics?: NativeRequestDiagnostics, headerHooks?: NativeHeaderHooks): Promise<NativeResponse>;
   websocket(settings: object, socket: NativeSocket): Promise<WebSocketHandshake | NativeRejection>;
   exportSession(key: Buffer): Promise<Buffer>;
+  exportCookies(): readonly CookieSnapshotEntry[] | undefined;
+  importCookies(entries: readonly CookieSnapshotEntry[]): void;
+  exportAltSvc(): readonly AltSvcSnapshotEntry[] | undefined;
+  importAltSvc(entries: readonly AltSvcSnapshotEntry[]): void;
+  exportSessionTickets(key: Buffer): Promise<Buffer>;
+  importSessionTickets(snapshot: Buffer, key: Buffer, routes: readonly SessionRoute[]): Promise<void>;
   setCookie(url: string, cookie: string): void;
   cookieValue(url: string): string | null;
   clearCookies(): void;

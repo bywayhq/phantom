@@ -28,7 +28,7 @@ const { profileHandle } = require('./profile.cjs');
 const { requestDefaults, prepareRequest } = require('./request-preparation.cjs');
 const { phaseTimeouts, redirectPolicy, retryPolicy, expectContinue, contentDecoding } = require('./request-options.cjs');
 const { Response } = require('./response.cjs');
-const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes } = require('./session.cjs');
+const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes, cookieEntries, altSvcEntries, ticketKey, ticketBytes, ticketRoutes } = require('./session.cjs');
 const {saveSession, loadSession} = require('./session-storage.cjs');
 const { clientPins, clientCertificates } = require('./tls.cjs');
 const { runUpload, pumpMultipart, pumpUpload, multipartOptions, uploadLength, claimMultipart, uploadError, isUploadContext } = require('./upload.cjs');
@@ -140,6 +140,48 @@ class Client {
     } catch (error) {
       throw translated(error);
     }
+  }
+
+  /** @returns {readonly import('../index.js').CookieSnapshotEntry[] | null} */
+  exportCookies() {
+    try {
+      const entries = this.#native.exportCookies();
+      return entries == null ? null : Object.freeze(entries.map((entry) => Object.freeze({...entry,
+        sameSite: entry.sameSite ?? null, partitionKey: entry.partitionKey ?? null, expiresAtNanoseconds: entry.expiresAtNanoseconds ?? null})));
+    } catch (error) { throw translated(error); }
+  }
+
+  /** @param {readonly import('../index.js').CookieSnapshotEntry[]} entries */
+  importCookies(entries) {
+    try { this.#native.importCookies(cookieEntries(entries)); }
+    catch (error) { throw translated(error); }
+  }
+
+  /** @returns {readonly import('../index.js').AltSvcSnapshotEntry[] | null} */
+  exportAltSvc() {
+    try {
+      const entries = this.#native.exportAltSvc();
+      return entries == null ? null : Object.freeze(entries.map((entry) => Object.freeze(entry)));
+    } catch (error) { throw translated(error); }
+  }
+
+  /** @param {readonly import('../index.js').AltSvcSnapshotEntry[]} entries */
+  importAltSvc(entries) {
+    try { this.#native.importAltSvc(altSvcEntries(entries)); }
+    catch (error) { throw translated(error); }
+  }
+
+  /** @param {Uint8Array} key */
+  async exportSessionTickets(key) {
+    try { return await this.#native.exportSessionTickets(ticketKey(key)); }
+    catch (error) { throw translated(error); }
+  }
+
+  /** @param {Uint8Array} snapshot @param {Uint8Array} key
+   * @param {import('../index.js').RestoreSessionOptions} [options] */
+  async importSessionTickets(snapshot, key, options = {}) {
+    try { await this.#native.importSessionTickets(ticketBytes(snapshot), ticketKey(key), ticketRoutes(options)); }
+    catch (error) { throw translated(error); }
   }
 
   /** @param {Uint8Array} snapshot @param {Uint8Array} key

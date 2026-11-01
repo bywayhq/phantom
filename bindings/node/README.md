@@ -467,6 +467,40 @@ not enable disabled features. Profile, routes, trust and timeouts are retained.
 Admission and shutdown stay independent. You can fork a closed source into an
 open client. Shared tickets remain single-use.
 
+## Standalone state transfer
+
+`client.exportCookies()` and `client.exportAltSvc()` return readonly entry arrays:
+`null` means disabled, while `[]` means enabled and empty. Enable cookies with
+`cookies: true` and direct Alt-Svc with `network: {maxAltSvcOrigins: 64}`.
+Import with `client.importCookies(entries)` or `client.importAltSvc(entries)`.
+These typed arrays contain plaintext private state; treat cookie values as
+credentials. Imports validate every entry before mutation, retain existing
+cookies/origins, and preserve core expiry, capacity and ordering rules.
+Alt-Svc transfers direct alternatives only, without granting validation or trust.
+
+For example, `receiver.importCookies(source.exportCookies() ?? [])` transfers
+cookies into an enabled receiver. `expiresAtNanoseconds` is a signed Unix
+nanosecond `bigint` (`null` for session cookies). Core cookie storage and both
+exports round expiry down to whole seconds; Alt-Svc import retains the supplied
+precision. Inputs that overflow or lose host clock precision are rejected.
+Arrays admit at most 16384 cookies or 32768 alternatives and 32 MiB
+of aggregate UTF-8 field text. Rejections use `CookieSnapshot`/`AltSvcSnapshot`
+error codes with `kind` and, for core entry validation, zero-based `entryIndex`.
+
+Use `await receiver.importSessionTickets(await source.exportSessionTickets(key),
+key, {receivingRoutes: [{route: 'direct'}]})` for encrypted ticket-only transfer.
+Use a random 32-byte key kept separately; snapshots admit at most 16 MiB and
+receiving routes at most 256 entries. Export does not consume source tickets.
+The selected client default route and live owners are considered implicitly;
+supply additional request-only routes through `receivingRoutes`.
+Authentication, expiry, profile, route, protocol and certificate-policy checks
+remain in Rust; matching ticket owners are replaced atomically. This transfers
+no cookies, configuration or live connections and promises no cross-version
+format compatibility. Ticket failures have code `SessionTickets` and `kind`.
+CPU work runs off the event loop and cannot be preempted by closing the client;
+an accepted import can finish after cancellation, and shutdown waits for admitted
+work within its deadline.
+
 ## Encrypted session checkpoints
 
 Use `const bytes = await client.exportSession(key)` with a random 32-byte key;

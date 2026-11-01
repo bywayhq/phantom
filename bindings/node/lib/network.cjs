@@ -3,7 +3,7 @@
 const { types } = require('node:util');
 
 const { PhantomError } = require('./errors.cjs');
-const { orderedDataArray, integer } = require('./validation.cjs');
+const { orderedDataArray, integer, positiveCount } = require('./validation.cjs');
 const { dnsOptions } = require('./dns.cjs');
 
 function networkOptions(options) {
@@ -24,7 +24,8 @@ function networkOptions(options) {
     }
     return result;
   };
-  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket', 'publicOnly', 'dns', 'dnsCache']);
+  const input = fields(field.value, ['hostOverrides', 'localAddresses', 'interface', 'unixSocket', 'publicOnly', 'dns', 'dnsCache', 'maxAltSvcOrigins']);
+  const maxAltSvcOrigins = input.maxAltSvcOrigins?.value === undefined ? undefined : positiveCount(input.maxAltSvcOrigins.value);
   const dns = dnsOptions(input.dns?.value);
   const dnsCache = input.dnsCache?.value;
   if (dnsCache !== undefined && dnsCache !== false) throw new PhantomError('InvalidArgument', 'dnsCache must be false or omitted');
@@ -59,7 +60,8 @@ function networkOptions(options) {
   }
   return Object.freeze({...(publicOnly === undefined ? {} : {publicOnly}), hostOverrides: Object.freeze(hostOverrides), localAddresses: Object.freeze(localAddresses),
     interface: interfaceName, ...(unixSocket === undefined ? {} : {unixSocket}),
-    ...(dns === undefined ? {} : {dns}), ...(dnsCache === undefined ? {} : {dnsCache})});
+    ...(dns === undefined ? {} : {dns}), ...(dnsCache === undefined ? {} : {dnsCache}),
+    ...(maxAltSvcOrigins === undefined ? {} : {maxAltSvcOrigins})});
 }
 
 function poolOptions(options) {

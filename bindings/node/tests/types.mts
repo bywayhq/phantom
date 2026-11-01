@@ -254,3 +254,24 @@ async function serverSentEvents(response: Response): Promise<void> {
   void retry; void id;
 }
 void serverSentEvents;
+
+
+async function transferState(client: Client): Promise<void> {
+  const configured = new Client({profile: 'exact', route: 'direct', cookies: true, network: {maxAltSvcOrigins: 8n}});
+  const cookies = client.exportCookies();
+  if (cookies !== null) {
+    configured.importCookies(cookies);
+    const expiry: bigint | null = cookies[0]!.expiresAtNanoseconds;
+    void expiry;
+    // @ts-expect-error Cookie data is readonly.
+    cookies[0]!.value = 'changed';
+    // @ts-expect-error Nanoseconds must be exact bigint.
+    configured.importCookies([{...cookies[0]!, expiresAtNanoseconds: 123}]);
+  }
+  const alternatives = client.exportAltSvc();
+  if (alternatives !== null) configured.importAltSvc(alternatives);
+  const key = Buffer.alloc(32);
+  const bytes: Buffer = await client.exportSessionTickets(key);
+  await configured.importSessionTickets(bytes, key, {receivingRoutes: [{route: 'direct'}]});
+}
+void transferState;

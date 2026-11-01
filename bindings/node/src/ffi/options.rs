@@ -116,6 +116,8 @@ pub struct HostOverrideOptions {
 /// Optional client network configuration, independent of the browser profile.
 #[napi(object)]
 pub struct NetworkOptions {
+    /// Positive capacity opts into direct-route Alt-Svc discovery.
+    pub max_alt_svc_origins: Option<BigInt>,
     /// Verified encrypted address resolver.
     pub dns: Option<DnsOptions>,
     /// false disables the profile cache; absence inherits it.
@@ -138,6 +140,7 @@ impl std::fmt::Debug for NetworkOptions {
             .debug_struct("NetworkOptions")
             .field("encrypted_dns_configured", &self.dns.is_some())
             .field("dns_cache", &self.dns_cache)
+            .field("max_alt_svc_origins", &self.max_alt_svc_origins)
             .field("host_overrides", &self.host_overrides)
             .field("local_addresses", &self.local_addresses)
             .field("interface", &self.interface)

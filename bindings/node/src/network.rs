@@ -11,6 +11,9 @@ const MAXIMUM_BYTES: usize = 65536;
 const MAXIMUM_ENTRIES: usize = 1024;
 
 pub(crate) fn apply(mut builder: ClientBuilder, options: NetworkOptions) -> Result<ClientBuilder> {
+    if let Some(maximum) = options.max_alt_svc_origins {
+        builder = builder.alt_svc(crate::ffi::positive_count(maximum)?);
+    }
     match options.dns_cache {
         None => {}
         Some(false) => builder = builder.no_dns_cache(),
@@ -114,6 +117,7 @@ mod tests {
             public_only: None,
             dns: None,
             dns_cache: None,
+            max_alt_svc_origins: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -129,6 +133,7 @@ mod tests {
             public_only: None,
             dns: None,
             dns_cache: None,
+            max_alt_svc_origins: None,
         };
         let error = apply(builder(), options).err();
         assert!(error.is_some_and(|error| error.reason.starts_with("PHANTOM:InputLimit:")));
@@ -152,6 +157,7 @@ mod tests {
             public_only: None,
             dns: None,
             dns_cache: None,
+            max_alt_svc_origins: None,
         }
     }
 
