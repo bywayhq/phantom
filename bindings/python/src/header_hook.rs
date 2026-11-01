@@ -1,4 +1,4 @@
-//! Request-owned rendezvous for callbacks on the caller's Python loop.
+//! Owner-bound rendezvous for callbacks on the caller's Python loop.
 
 use crate::error;
 use phantom::{
@@ -43,12 +43,21 @@ struct State {
     pending: Option<Invocation>,
     reply: Option<(u64, oneshot::Sender<Reply>)>,
     limits: Option<(usize, usize)>,
+    cancelled: u64,
+}
+
+#[derive(Default, PartialEq, Eq)]
+enum Lifetime {
+    #[default]
+    Request,
+    Source,
 }
 
 #[derive(Default)]
 pub(super) struct Owner {
     state: Mutex<State>,
     changed: Notify,
+    lifetime: Lifetime,
 }
 
 impl Owner {
@@ -67,13 +76,37 @@ impl Owner {
         self.changed.notify_waiters();
     }
 
+    pub(super) fn is_source(&self) -> bool {
+        self.lifetime == Lifetime::Source
+    }
+
+    fn active(&self, serial: u64) -> bool {
+        let state = self.state();
+        !state.closed && state.reply.as_ref().is_some_and(|(id, _)| *id == serial)
+    }
+
+    fn cancel(&self, serial: u64) {
+        let mut state = self.state();
+        if state.reply.as_ref().is_some_and(|(id, _)| *id == serial) {
+            state.reply = None;
+            state.pending = None;
+            state.cancelled = serial;
+            drop(state);
+            self.changed.notify_waiters();
+        }
+    }
+
     pub(super) async fn run(
         self: &Arc<Self>,
         index: usize,
         context: &mut HeaderHookContext<'_>,
         trailers: (usize, usize),
     ) -> Result<(), HeaderHookError> {
-        let mut guard = Guard(Some(Arc::clone(self)));
+        let mut guard = InvocationGuard {
+            owner: Arc::clone(self),
+            serial: None,
+            complete: false,
+        };
         let (send, receive) = oneshot::channel();
         let limits = {
             let mut state = self.state();
@@ -82,6 +115,9 @@ impl Owner {
             }
             // Prepared-body metadata can exceed the caller-input allowance.
             // Keep its initial ceiling across callbacks instead of granting growth.
+            if self.is_source() && index == 0 {
+                state.limits = None;
+            }
             let limits = *state
                 .limits
                 .get_or_insert_with(|| field_limits(context.headers(), trailers));
@@ -105,6 +141,7 @@ impl Owner {
                     .collect(),
             ));
             state.reply = Some((state.serial, send));
+            guard.serial = Some(state.serial);
             limits
         };
         self.changed.notify_waiters();
@@ -126,7 +163,7 @@ impl Owner {
             }
             bounded(context.headers(), trailers, limits)?;
         }
-        guard.0 = None;
+        guard.complete = true;
         Ok(())
     }
 
@@ -244,6 +281,27 @@ impl Drop for Guard {
     }
 }
 
+struct InvocationGuard {
+    owner: Arc<Owner>,
+    serial: Option<u64>,
+    complete: bool,
+}
+
+impl Drop for InvocationGuard {
+    fn drop(&mut self) {
+        if self.complete {
+            return;
+        }
+        if self.owner.is_source() {
+            if let Some(serial) = self.serial {
+                self.owner.cancel(serial);
+            }
+        } else {
+            self.owner.close();
+        }
+    }
+}
+
 #[pyclass]
 pub(super) struct NativeHeaderHooks {
     pub(super) owner: Arc<Owner>,
@@ -254,13 +312,20 @@ pub(super) struct NativeHeaderHooks {
 #[pymethods]
 impl NativeHeaderHooks {
     #[new]
-    #[pyo3(signature = (count, redirects=false))]
-    fn new(count: usize, redirects: bool) -> PyResult<Self> {
-        if (count == 0 && !redirects) || count > MAXIMUM_FIELDS {
+    #[pyo3(signature = (count, redirects=false, source=false))]
+    fn new(count: usize, redirects: bool, source: bool) -> PyResult<Self> {
+        if (count == 0 && !redirects) || count > MAXIMUM_FIELDS || (source && redirects) {
             return Err(error::input("header_hook_limit"));
         }
         Ok(Self {
-            owner: Arc::default(),
+            owner: Arc::new(Owner {
+                lifetime: if source {
+                    Lifetime::Source
+                } else {
+                    Lifetime::Request
+                },
+                ..Owner::default()
+            }),
             count,
             redirects,
         })
@@ -322,6 +387,31 @@ impl NativeHeaderHooks {
                 changed.await;
             }
         })
+    }
+
+    fn next_cancelled<'py>(&self, py: Python<'py>, after: u64) -> PyResult<Bound<'py, PyAny>> {
+        let owner = Arc::clone(&self.owner);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            loop {
+                let changed = owner.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                {
+                    let state = owner.state();
+                    if state.closed {
+                        return Ok(None);
+                    }
+                    if state.cancelled > after {
+                        return Ok(Some(state.cancelled));
+                    }
+                }
+                changed.await;
+            }
+        })
+    }
+
+    fn is_active(&self, id: u64) -> bool {
+        self.owner.active(id)
     }
 
     fn complete(&self, id: u64, edits: &Bound<'_, PyList>) -> PyResult<()> {
@@ -443,7 +533,7 @@ mod tests {
     fn completion_bounds_edits_and_resulting_fields_include_trailers() -> PyResult<()> {
         Python::initialize();
         Python::attach(|py| {
-            let hooks = NativeHeaderHooks::new(1, false)?;
+            let hooks = NativeHeaderHooks::new(1, false, false)?;
             let edit = ("append", "X", PyBytes::new(py, b"a"), false);
             let too_many = PyList::new(py, std::iter::repeat_n(edit, MAXIMUM_FIELDS + 1))?;
             assert!(hooks.complete(1, &too_many).is_err());
@@ -470,8 +560,8 @@ mod tests {
     #[test]
     fn redirect_only_owner_requires_explicit_decisions_and_one_reply() -> PyResult<()> {
         Python::initialize();
-        assert!(NativeHeaderHooks::new(0, false).is_err());
-        let hooks = NativeHeaderHooks::new(0, true)?;
+        assert!(NativeHeaderHooks::new(0, false, false).is_err());
+        let hooks = NativeHeaderHooks::new(0, true, false)?;
         let (send, mut receive) = oneshot::channel();
         hooks.owner.state().reply = Some((1, send));
         assert!(hooks.complete_redirect(1, "FOLLOW").is_err());
@@ -481,6 +571,39 @@ mod tests {
             Ok(Ok(CallbackReply::Redirect(RedirectDecision::Stop)))
         ));
         assert!(hooks.complete_redirect(1, "follow").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn source_cancellation_rejects_stale_replies_without_closing_the_next_invocation()
+    -> PyResult<()> {
+        Python::initialize();
+        let hooks = NativeHeaderHooks::new(1, false, true)?;
+        let owner = &hooks.owner;
+        let (send, mut first) = oneshot::channel();
+        owner.state().reply = Some((1, send));
+        drop(InvocationGuard {
+            owner: Arc::clone(owner),
+            serial: Some(1),
+            complete: false,
+        });
+        assert!(!owner.state().closed);
+        assert_eq!(owner.state().cancelled, 1);
+        assert!(first.try_recv().is_err());
+
+        let (send, mut second) = oneshot::channel();
+        owner.state().reply = Some((2, send));
+        owner.cancel(1);
+        assert!(
+            owner
+                .complete(1, Ok(CallbackReply::Header(Vec::new())))
+                .is_err()
+        );
+        assert!(owner.active(2));
+        owner.complete(2, Ok(CallbackReply::Header(Vec::new())))?;
+        assert!(second.try_recv().is_ok());
+        owner.close();
+        assert!(owner.state().closed);
         Ok(())
     }
 }

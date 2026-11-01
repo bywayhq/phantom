@@ -359,6 +359,9 @@ impl NativeClient {
             .filter(|hooks| hooks.redirects)
             .map(|hooks| Arc::clone(&hooks.owner));
         let hook_guard = if let Some(hooks) = header_hooks {
+            if hooks.owner.is_source() {
+                return Err(error::input("invalid_request_header_hooks"));
+            }
             let reserved = (
                 trailers.len(),
                 trailers
@@ -531,7 +534,7 @@ impl NativeClient {
         )
     }
 
-    #[pyo3(signature = (url, protocol, headers, last_event_id_slot, maximum_line_bytes, maximum_event_bytes, idle_timeout, initial_retry, min_retry, max_reconnects, timeouts, inherit_proxy, proxy, proxy_username, proxy_password))]
+    #[pyo3(signature = (url, protocol, headers, last_event_id_slot, maximum_line_bytes, maximum_event_bytes, idle_timeout, initial_retry, min_retry, max_reconnects, timeouts, inherit_proxy, proxy, proxy_username, proxy_password, header_hooks=None))]
     #[allow(clippy::too_many_arguments)]
     fn event_source<'py>(
         &self,
@@ -551,6 +554,7 @@ impl NativeClient {
         proxy: Option<&str>,
         proxy_username: Option<&str>,
         proxy_password: Option<&str>,
+        header_hooks: Option<PyRef<'_, NativeHeaderHooks>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         crate::event_source::connect(
             py,
@@ -571,6 +575,7 @@ impl NativeClient {
             proxy,
             proxy_username,
             proxy_password,
+            header_hooks,
         )
     }
 

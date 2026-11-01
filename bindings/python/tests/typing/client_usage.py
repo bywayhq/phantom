@@ -582,6 +582,19 @@ async def header_hook_consumer(url: str) -> None:
     ) as client_async:
         response_async = await client_async.post(url, header_hooks=(asynchronous,))
         await response_async.aclose()
+        async with client_async.event_source(
+            url, protocol="h2", header_hooks=(asynchronous,), without_client_hooks=True
+        ) as source:
+            async for event in source:
+                print(event.data)
+    with (
+        Client(profile="chrome-154-windows") as client,
+        client.event_source(
+            url, protocol="h1", header_hooks=(synchronous,)
+        ) as source_sync,
+    ):
+        for event_sync in source_sync:
+            print(event_sync.data)
 
 
 def decide_redirect(attempt: RedirectAttempt) -> RedirectDecision:

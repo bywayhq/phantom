@@ -67,9 +67,9 @@ If you override that compiler, recheck the build and runtime licenses.
 
 ## Ordered header hooks
 
-Pass `header_hooks=(callback, ...)` to a client or an ordinary HTTP request
-(`request`, `get`, `post` and the other method helpers). Client callbacks run
-first, followed by request callbacks. Each sees the preceding callback's changes:
+Pass `header_hooks=(callback, ...)` to a client, an HTTP request or `event_source`.
+Client callbacks run first, followed by request or source callbacks. Each sees
+the preceding callback's changes:
 
 ```python
 from phantom_http import Header, HeaderHookContext
@@ -101,8 +101,7 @@ templates and network I/O. They run once per send, including retries and
 redirects. Cross-origin redirects still strip credential headers according to
 `RedirectPolicy`; a sensitive mark alone does not identify a credential.
 Client defaults survive forks and restored sessions; callbacks are not serialized
-into encrypted snapshots. EventSource and WebSocket openings do not use these
-Python hooks yet.
+into encrypted snapshots. WebSocket openings do not use these Python hooks.
 
 Pending hooks share the request's total timeout. Cancellation and abort cancel
 the callback task and invalidate its context; later edits cannot reach a send.
@@ -556,7 +555,9 @@ pending read to pause it, or close the source to stop reconnects. Supplied
 `headers` replace the defaults; `LastEventId("last-event-id")` positions the
 managed ID. Head fields describe the initial response. Phase `timeouts` apply
 through each response head; use `idle_timeout` for event reads, rather than
-`timeouts.read_idle`. Client policies apply;
+`timeouts.read_idle`. Header hooks run once per fresh GET, including reconnects;
+`without_client_hooks=True` skips inherited hooks. The managed ID cannot be
+edited. Client policies apply;
 per-request contexts, budgets, bodies, transfers and diagnostics use the
 one-response `events()` API above.
 

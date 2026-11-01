@@ -48,7 +48,7 @@ from ._errors import (
     _call,
     _primary_error,
 )
-from ._event_source import EventSource, _EventSourceOptions, _SseProtocol
+from ._event_source import EventSource, _SseProtocol, _SyncEventSourceOptions
 from ._network import NetworkOptions
 from ._pool import PoolOptions
 from ._profile import Profile
@@ -272,12 +272,16 @@ class Client:
         url: str,
         *,
         protocol: _SseProtocol,
-        **options: Unpack[_EventSourceOptions],
+        **options: Unpack[_SyncEventSourceOptions],
     ) -> EventSource:
-        """Open a reconnecting event iterator on this client's loop and thread."""
+        """Open a reconnecting iterator; header hooks run on this client's loop.
+
+        Client hooks precede source hooks on every GET. Callbacks must be
+        synchronous. without_client_hooks skips inherited callbacks.
+        """
         self._check_thread_loop()
         opening = self._async.event_source(url, protocol=protocol, **options)
-        return EventSource(self, self._run(opening._connect))
+        return EventSource(self, self._run(lambda: opening._connect(synchronous=True)))
 
     def websocket(
         self,

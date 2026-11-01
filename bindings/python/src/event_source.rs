@@ -13,7 +13,7 @@ use pyo3::{
 use tokio::sync::Notify;
 
 use crate::{
-    configuration, error,
+    configuration, error, header_hook,
     lifecycle::{Admission, Lifecycle, Registration},
     request_fields, response,
 };
@@ -39,6 +39,7 @@ struct State {
 pub(super) struct Owner {
     state: Mutex<State>,
     changed: Notify,
+    hooks: Option<Arc<header_hook::Owner>>,
 }
 
 impl Owner {
@@ -69,6 +70,9 @@ impl Owner {
         drop(source);
         drop(registration);
         drop(admission);
+        if let Some(hooks) = &self.hooks {
+            hooks.close();
+        }
         self.changed.notify_waiters();
     }
 
@@ -173,7 +177,7 @@ impl Lease {
 
 impl Drop for Lease {
     fn drop(&mut self) {
-        let (source, admission, registration) = {
+        let (source, admission, registration, terminal) = {
             let mut state = self
                 .owner
                 .state
@@ -193,15 +197,19 @@ impl Drop for Lease {
                     self.source.take(),
                     state.admission.take(),
                     state.registration.take(),
+                    true,
                 )
             } else {
                 state.source = self.source.take();
-                (None, None, None)
+                (None, None, None, false)
             }
         };
         drop(source);
         drop(registration);
         drop(admission);
+        if terminal && let Some(hooks) = &self.owner.hooks {
+            hooks.close();
+        }
         self.owner.changed.notify_waiters();
     }
 }
@@ -350,6 +358,7 @@ pub(super) fn connect<'py>(
     proxy: Option<&str>,
     proxy_username: Option<&str>,
     proxy_password: Option<&str>,
+    header_hooks: Option<PyRef<'_, header_hook::NativeHeaderHooks>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let protocol = match protocol {
         "h1" => HttpProtocol::Http1,
@@ -416,9 +425,24 @@ pub(super) fn connect<'py>(
     } else if proxy.is_some() || proxy_username.is_some() || proxy_password.is_some() {
         return Err(error::input("invalid_sse_proxy"));
     }
+    let mut hook_guard = header_hook::Guard(None);
+    if let Some(hooks) = header_hooks {
+        if !hooks.owner.is_source() || hooks.redirects {
+            return Err(error::input("invalid_sse_header_hooks"));
+        }
+        for index in 0..hooks.count {
+            let owner = Arc::clone(&hooks.owner);
+            request = request.async_header_hook(move |context| {
+                let owner = Arc::clone(&owner);
+                Box::pin(async move { owner.run(index, context, (0, 0)).await })
+            });
+        }
+        hook_guard.0 = Some(Arc::clone(&hooks.owner));
+    }
     let admission = lifecycle.admit("request")?;
     let lifecycle = Arc::clone(lifecycle);
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        let mut hook_guard = hook_guard;
         let response = tokio::select! {
             biased;
             () = admission.aborted() => return Err(error::NativeError::new_err(("request", "client_closed", None::<String>, None::<String>))),
@@ -448,7 +472,11 @@ pub(super) fn connect<'py>(
                 },
             }),
             changed: Notify::new(),
+            hooks: hook_guard.0.take(),
         });
+        if closed && let Some(hooks) = &owner.hooks {
+            hooks.close();
+        }
         let registration = lifecycle.event_source(Arc::downgrade(&owner));
         {
             let mut state = owner.state.lock().unwrap_or_else(PoisonError::into_inner);

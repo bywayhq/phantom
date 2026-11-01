@@ -9,13 +9,14 @@ from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
-from . import _native
+from . import _header_hooks, _native
 from ._configuration import INHERIT, Header, Proxy, TimeoutOverrides, _Inherit
-from ._errors import _call, _error, _primary_error
+from ._errors import Error, TimeoutError, _call, _error, _primary_error
 from ._request import _request_fields
 from ._sse import _DEFAULT_SSE_LIMITS, Event, SseLimits
 
 if TYPE_CHECKING:
+    from ._client import AsyncClient
     from ._response import ResponseHeaders
     from ._sync import Client
 
@@ -32,7 +33,7 @@ class LastEventId:
 _SourceHeaders = Iterable[Header | tuple[str, str | bytes] | LastEventId]
 
 
-class _EventSourceOptions(TypedDict, total=False):
+class _EventSourceBaseOptions(TypedDict, total=False):
     headers: _SourceHeaders | None
     limits: SseLimits
     idle_timeout: float | None
@@ -41,6 +42,15 @@ class _EventSourceOptions(TypedDict, total=False):
     max_reconnects: int
     timeouts: TimeoutOverrides | None
     proxy: str | Proxy | None | _Inherit
+    without_client_hooks: bool
+
+
+class _EventSourceOptions(_EventSourceBaseOptions, total=False):
+    header_hooks: Iterable[_header_hooks.AsyncHeaderHook]
+
+
+class _SyncEventSourceOptions(_EventSourceBaseOptions, total=False):
+    header_hooks: Iterable[_header_hooks.HeaderHook]
 
 
 class _NativeOptions(TypedDict):
@@ -71,14 +81,34 @@ def _duration(value: float, name: str) -> float:
     return result
 
 
+def _observe_hook_error(failure: Error, hooks: _header_hooks.Hooks | None) -> None:
+    if hooks is None:
+        return
+    request = failure if failure.kind == "header_hook" else failure.original
+    if (
+        isinstance(request, Error)
+        and request.kind == "header_hook"
+        and request.original is not None
+        and hooks.cleanup_error is request.original
+    ):
+        hooks.cleanup_error = None
+
+
 class AsyncEventSource:
     """Read events with bounded reconnects; close when you stop iterating."""
 
-    def __init__(self, native: _native.NativeEventSource) -> None:
+    def __init__(
+        self,
+        native: _native.NativeEventSource,
+        hooks: _header_hooks.Hooks | None = None,
+        client: AsyncClient | None = None,
+    ) -> None:
         from ._response import ResponseHeader, ResponseHeaders
 
         self._native = native
         self._finished = False
+        self._hooks = hooks
+        self._client = client if hooks is not None else None
         self.status = native.status
         self.protocol = native.protocol
         self.url = native.url
@@ -125,30 +155,76 @@ class AsyncEventSource:
             raise
         except _native.NativeError as error:
             failure = _error(error)
+            _observe_hook_error(failure, self._hooks)
             if failure.kind != "concurrent_event_read":
                 self._finished = True
+                if failure.kind not in ("closed", "client_closed"):
+                    try:
+                        await self._wait_hooks(5000)
+                    except BaseException as cleanup:
+                        raise _primary_error(failure, cleanup=cleanup) from None
             raise failure from None
         # Cancelled reads preserve the native source and any pending reconnect.
         if fields is None:
             self._finished = True
+            await self._wait_hooks(5000)
             raise StopAsyncIteration
         return Event(*fields)
 
     def close(self) -> None:
         """Stop reads and reconnects; this operation is idempotent."""
+        if (
+            self._hooks is not None
+            and asyncio.get_running_loop() is not self._hooks.loop
+        ):
+            raise RuntimeError("header callbacks belong to their creating event loop")
         _call(self._native.close)
+        if self._hooks is not None:
+            self._hooks.close()
         self._finished = True
 
     async def aclose(self, *, timeout_ms: int = 5000) -> None:
-        """Stop and wait for an in-flight read to release its native ownership."""
+        """Stop and wait for native reads and actual callback cleanup.
+
+        A timeout leaves cleanup owned; call aclose again after it can finish.
+        Calling this from the source's own header callback is an error.
+        Late callback failures raise Error with the cause in original.
+        """
         from ._client import _shutdown_timeout
 
         _shutdown_timeout(timeout_ms)
+        if self._hooks is not None:
+            self._hooks.check_wait()
+        started = asyncio.get_running_loop().time()
         self.close()
         try:
             await self._native.wait_closed(timeout_ms)
         except _native.NativeError as error:
             raise _error(error) from None
+        remaining = max(
+            0,
+            timeout_ms
+            - math.ceil((asyncio.get_running_loop().time() - started) * 1000),
+        )
+        await self._wait_hooks(remaining)
+
+    async def _wait_hooks(self, timeout_ms: int) -> None:
+        hooks = self._hooks
+        if hooks is None:
+            return
+        if not await hooks.wait(timeout_ms):
+            raise TimeoutError("request", "shutdown_timeout")
+        if self._client is not None:
+            self._client._settle_header_hooks(hooks)
+        if (
+            hooks.cleanup_error is not None
+            and self._client is not None
+            and hooks in self._client._header_pumps
+        ):
+            self._client._header_pumps.discard(hooks)
+            failure = Error("request", "header_hook_cleanup")
+            failure.original = hooks.cleanup_error
+            raise failure from None
 
     async def __aenter__(self) -> AsyncEventSource:
         return self
@@ -240,7 +316,7 @@ class EventSource:
 class _EventSourceConnect:
     def __init__(
         self,
-        native: _native.NativeClient,
+        client: AsyncClient,
         url: str,
         protocol: _SseProtocol,
         *,
@@ -252,9 +328,19 @@ class _EventSourceConnect:
         max_reconnects: int = 3,
         timeouts: TimeoutOverrides | None = None,
         proxy: str | Proxy | None | _Inherit = INHERIT,
+        header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
+        without_client_hooks: bool = False,
     ) -> None:
         if not isinstance(url, str):
             raise TypeError("EventSource url must be str")
+        if type(without_client_hooks) is not bool:
+            raise TypeError("without_client_hooks must be bool")
+        callbacks = _header_hooks._snapshot(header_hooks)
+        inherited = () if without_client_hooks else client._header_hooks
+        if len(inherited) + len(callbacks) > 256:
+            raise ValueError("header hooks exceed 256 callbacks")
+        self._callbacks = inherited + callbacks
+        self._client = client
         if len(url) > 65536 or len(url.encode()) > 65536:
             raise ValueError("EventSource url exceeds 65536 bytes")
         if protocol not in ("h1", "h2", "h3"):
@@ -321,24 +407,61 @@ class _EventSourceConnect:
             if isinstance(selected_proxy, Proxy)
             else None,
         }
-        self._native = native
+        self._native = client._native
         self._url = url
         self._protocol = protocol
         self._used = False
         self._source: AsyncEventSource | None = None
 
-    async def _connect(self) -> AsyncEventSource:
+    async def _connect(self, *, synchronous: bool = False) -> AsyncEventSource:
         if self._used:
             raise RuntimeError("an EventSource opening can only be awaited once")
         self._used = True
+        hooks = (
+            _header_hooks.Hooks(self._callbacks, synchronous, source=True)
+            if self._callbacks
+            else None
+        )
+        if hooks is not None:
+            self._client._header_pumps.add(hooks)
+            hooks.settled.add_done_callback(
+                lambda _: self._client._settle_header_hooks(hooks)
+            )
         try:
-            self._source = AsyncEventSource(
-                await self._native.event_source(
+            # Keep the no-hook path free of callback tasks and extra native state.
+            if hooks is None:
+                native = await self._native.event_source(
                     self._url, self._protocol, **self._options
                 )
-            )
-        except _native.NativeError as error:
-            raise _error(error) from None
+            else:
+                native = await self._native.event_source(
+                    self._url,
+                    self._protocol,
+                    **self._options,
+                    header_hooks=hooks.native,
+                )
+            self._source = AsyncEventSource(native, hooks, self._client)
+            if self._source.closed:
+                await self._source._wait_hooks(5000)
+        except BaseException as error:
+            primary = _primary_error(error)
+            if isinstance(primary, Error):
+                _observe_hook_error(primary, hooks)
+            if hooks is not None:
+                hooks.close()
+                try:
+                    if not await hooks.wait():
+                        raise TimeoutError("request", "shutdown_timeout")
+                except BaseException as cleanup:
+                    raise _primary_error(primary, cleanup=cleanup) from None
+                self._client._settle_header_hooks(hooks)
+                hook_cleanup = hooks.cleanup_error
+                if hook_cleanup is not None:
+                    self._client._header_pumps.discard(hooks)
+                raise _primary_error(primary, cleanup=hook_cleanup) from None
+            if isinstance(error, _native.NativeError):
+                raise _error(error) from None
+            raise
         return self._source
 
     def __await__(self) -> Generator[object, None, AsyncEventSource]:

@@ -31,10 +31,11 @@ def _snapshot(hooks: Iterable[AsyncHeaderHook]) -> tuple[AsyncHeaderHook, ...]:
 
 
 class HeaderHookContext:
-    """Ordinary HTTP request and caller fields, including earlier hook edits.
+    """HTTP request and caller fields, including earlier hook edits.
 
     Generated cookies and template fields are added later. Inspect url before
     adding credentials; sensitive marks control encoding, not redirect policy.
+    Dedicated EventSource hooks cannot edit managed Last-Event-ID.
     A retained context cannot mutate headers after its callback completes.
     """
 
@@ -142,15 +143,22 @@ class Hooks:
         callbacks: tuple[AsyncHeaderHook, ...],
         synchronous: bool,
         redirect: AsyncRedirectCallback | None = None,
+        *,
+        source: bool = False,
     ) -> None:
         self.native = (
-            _native.NativeHeaderHooks(len(callbacks), True)
+            _native.NativeHeaderHooks(len(callbacks), source=True)
+            if source
+            else _native.NativeHeaderHooks(len(callbacks), True)
             if redirect is not None
             else _native.NativeHeaderHooks(len(callbacks))
         )
         self.callbacks = callbacks
         self.redirect = redirect
         self.synchronous = synchronous
+        self.source = source
+        self.active_serial: int | None = None
+        self.active_cancelled = False
         self.error: BaseException | None = None
         self.cleanup_error: BaseException | None = None
         self.context: HeaderHookContext | None = None
@@ -174,11 +182,25 @@ class Hooks:
             self.context._finish()
         if not self.closing:
             self.closing = True
-            if not self.task.done():
+            if not self.task.done() and not self.active_cancelled:
                 self.task.cancel()
 
     async def _watch(self) -> None:
-        await self.native.terminal()
+        if self.source:
+            cancelled = 0
+            while (serial := await self.native.next_cancelled(cancelled)) is not None:
+                cancelled = serial
+                if (
+                    self.active_serial is not None
+                    and self.active_serial <= serial
+                    and not self.active_cancelled
+                ):
+                    self.active_cancelled = True
+                    if self.context is not None:
+                        self.context._finish()
+                    self.task.cancel()
+        else:
+            await self.native.terminal()
         self.close()
         with contextlib.suppress(asyncio.CancelledError):
             await self.task
@@ -187,17 +209,41 @@ class Hooks:
         try:
             while (invocation := await self.native.next()) is not None:
                 serial = invocation[0]
+                if self.source and not self.native.is_active(serial):
+                    continue
+                self.active_serial = serial
+                self.active_cancelled = False
                 try:
                     if len(invocation) == 8:
                         await self._redirect(invocation)
                     else:
                         await self._headers(invocation)
                 except BaseException as error:
+                    if (
+                        self.source
+                        and not self.closing
+                        and not self.native.is_active(serial)
+                    ):
+                        # A timed-out GET may reconnect only after this callback's
+                        # actual cleanup finishes. Its late reply belongs to no GET.
+                        if (
+                            not isinstance(error, asyncio.CancelledError)
+                            and self.cleanup_error is None
+                        ):
+                            self.cleanup_error = error
+                        continue
                     if self.closing:
-                        if not isinstance(error, asyncio.CancelledError):
+                        if (
+                            not isinstance(error, asyncio.CancelledError)
+                            and self.cleanup_error is None
+                        ):
                             self.cleanup_error = error
                     else:
                         self.error = error
+                        # Delivery can race a core GET deadline. Keep source errors
+                        # owned until the public failure or source close observes them.
+                        if self.source and self.cleanup_error is None:
+                            self.cleanup_error = error
                         try:
                             self.native.fail(serial, error)
                         except _native.NativeError as delivery:
@@ -205,24 +251,30 @@ class Hooks:
                             if arguments[:2] != ("input", "header_hook_closed"):
                                 raise
                             # Native closure can precede the watcher cancelling us.
-                            self.cleanup_error = error
+                            if self.cleanup_error is None:
+                                self.cleanup_error = error
+                        if self.source:
+                            continue
                     return
                 finally:
                     if self.context is not None:
                         self.context._finish()
                     self.context = None
+                    self.active_serial = None
+                    self.active_cancelled = False
         except asyncio.CancelledError:
             if not self.closing:
                 self.native.abort()
             raise
         except BaseException as error:
-            self.cleanup_error = error
+            if self.cleanup_error is None:
+                self.cleanup_error = error
             self.native.abort()
 
     async def _headers(self, invocation: _native._HeaderInvocation) -> None:
         serial, index, method, uri, fields = invocation
         context = HeaderHookContext(method, uri, fields)
-        if self.field_limits is None:
+        if self.field_limits is None or (self.source and index == 0):
             self.field_limits = (context._maximum_fields, context._maximum_bytes)
         else:
             context._maximum_fields, context._maximum_bytes = self.field_limits
@@ -238,8 +290,17 @@ class Hooks:
         if result is not None:
             raise TypeError("header callbacks must return None")
         context._finish()
-        if not self.closing:
-            self.native.complete(serial, context._edits)
+        if not self.closing and (not self.source or self.native.is_active(serial)):
+            try:
+                self.native.complete(serial, context._edits)
+            except _native.NativeError as delivery:
+                arguments = cast(tuple[object, ...], delivery.args)
+                if (
+                    not self.source
+                    or self.native.is_active(serial)
+                    or arguments[:2] != ("input", "header_hook_closed")
+                ):
+                    raise
 
     async def _redirect(self, invocation: _native._RedirectInvocation) -> None:
         serial, _, source, destination, status, method, next_method, hop = invocation

@@ -280,13 +280,22 @@ class AsyncClient:
         protocol: _SseProtocol,
         **options: Unpack[_EventSourceOptions],
     ) -> _EventSourceConnect:
-        """Open a GET event source with finite reconnects on an exact protocol."""
+        """Open a GET event source with finite reconnects on an exact protocol.
+
+        Client hooks run before source header_hooks on each fresh GET, including
+        reconnects. without_client_hooks skips inherited hooks. Hooks run once
+        across redirects and retries and cannot edit managed Last-Event-ID.
+        Cancelled reads retain the source and its callback. Close it when done.
+        Callbacks retain the opening task's loop and context.
+        Callback failure is terminal. SseError.original holds the request error,
+        whose original preserves the Python callback exception.
+        """
         if (
             self._redirect_policy is not None
             and self._redirect_policy._callback is not None
         ):
             raise ValueError("EventSource does not support redirect callbacks")
-        return _EventSourceConnect(self._native, url, protocol, **options)
+        return _EventSourceConnect(self, url, protocol, **options)
 
     def websocket(
         self,

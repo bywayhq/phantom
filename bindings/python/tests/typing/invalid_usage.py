@@ -320,6 +320,21 @@ async def invalid_header_hooks(client: AsyncClient, sync: Client) -> None:
     sync.get("https://local", header_hooks=(asynchronous,))  # E: arg-type
     sync.get("https://local", header_hooks=(42,))  # E: arg-type
     Client(profile="chrome-154-windows", header_hooks=(asynchronous,))  # E: arg-type
+    sync.event_source(
+        "https://local",
+        protocol="h1",
+        header_hooks=(asynchronous,),  # E: arg-type
+    )
+    await client.event_source(
+        "https://local",
+        protocol="h1",
+        header_hooks=(wrong_result,),  # E: arg-type
+    )
+    client.event_source(
+        "https://local",
+        protocol="h1",
+        without_client_hooks="yes",  # E: arg-type
+    )
 
 
 def invalid_redirect_callbacks() -> None:
