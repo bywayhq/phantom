@@ -43,6 +43,11 @@ class HeaderHookContext:
         self._method = method
         self._url = url
         self._headers = tuple(Header(*field) for field in fields)
+        self._maximum_fields = max(256, len(self._headers))
+        self._maximum_bytes = max(
+            65536,
+            sum(len(h.name.encode("utf-8")) + len(h.value) for h in self._headers),
+        )
         self._edits: list[_Edit] = []
         self._remaining = 65536
         self._active = True
@@ -70,7 +75,12 @@ class HeaderHookContext:
         size = len(edit[1].encode("utf-8")) + len(edit[2])
         if len(self._edits) >= 256 or size > self._remaining:
             raise ValueError("header hook edits exceed their bounded capacity")
-        _request_fields(headers, ())
+        if (
+            len(headers) > self._maximum_fields
+            or sum(len(h.name.encode("utf-8")) + len(h.value) for h in headers)
+            > self._maximum_bytes
+        ):
+            raise ValueError("header hook fields exceed their bounded capacity")
         self._edits.append(edit)
         self._remaining -= size
         self._headers = headers
@@ -135,6 +145,7 @@ class Hooks:
         self.error: BaseException | None = None
         self.cleanup_error: BaseException | None = None
         self.context: HeaderHookContext | None = None
+        self.field_limits: tuple[int, int] | None = None
         self.closing = False
         self.loop = asyncio.get_running_loop()
         self.task = asyncio.create_task(self._pump())
@@ -168,6 +179,13 @@ class Hooks:
             while (invocation := await self.native.next()) is not None:
                 serial, index, method, uri, fields = invocation
                 context = HeaderHookContext(method, uri, fields)
+                if self.field_limits is None:
+                    self.field_limits = (
+                        context._maximum_fields,
+                        context._maximum_bytes,
+                    )
+                else:
+                    context._maximum_fields, context._maximum_bytes = self.field_limits
                 self.context = context
                 try:
                     result = self.callbacks[index](context)
