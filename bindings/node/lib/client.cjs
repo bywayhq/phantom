@@ -52,7 +52,7 @@ class Client {
   #uploadCleanupError;
   /** @type {Set<Promise<void>>} */
   #headerPumps = new Set();
-  /** @type {unknown} */
+  /** @type {{error: unknown} | undefined} */
   #headerCleanupError;
 
   /** @param {unknown} iterator
@@ -287,9 +287,9 @@ class Client {
         this.#headerPumps.add(pumping);
         const finished = () => {
           this.#headerPumps.delete(pumping);
-          this.#headerCleanupError ??= outcome.bridgeError;
+          this.#headerCleanupError ??= outcome.bridgeFailure;
         };
-        pumping.then(finished, (error) => { outcome.bridgeError = error; finished(); });
+        pumping.then(finished, (error) => { outcome.bridgeFailure ??= {error}; finished(); });
       }
 
       if (upload) {
@@ -316,7 +316,7 @@ class Client {
       const failure = uploadError(error, producer, true);
       if (failure.code === 'HeaderHook') {
         if (hookOutcome?.failed) throw hookOutcome.error;
-        if (hookOutcome?.bridgeError !== undefined) throw hookOutcome.bridgeError;
+        if (hookOutcome?.bridgeFailure !== undefined) throw hookOutcome.bridgeFailure.error;
       }
       throw failure;
     } finally {
@@ -483,7 +483,7 @@ class Client {
         }
       }
       if (this.#uploadCleanupError) throw this.#uploadCleanupError;
-      if (this.#headerCleanupError !== undefined) throw this.#headerCleanupError;
+      if (this.#headerCleanupError !== undefined) throw this.#headerCleanupError.error;
     } catch (error) {
       throw translated(error);
     }

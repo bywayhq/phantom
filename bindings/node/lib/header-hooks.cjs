@@ -13,7 +13,7 @@ const {orderedDataArray} = require('./validation.cjs');
 /** @typedef {import('./client-native.cjs').NativeHeaderHooks} NativeHeaderHooks */
 /** @typedef {import('./client-native.cjs').NativeHeader} NativeHeader */
 /** @typedef {import('./client-native.cjs').NativeHeaderEdit} NativeHeaderEdit */
-/** @typedef {{failed: boolean, error?: unknown, bridgeError?: unknown}} HookOutcome */
+/** @typedef {{failed: boolean, error?: unknown, bridgeFailure?: {error: unknown}}} HookOutcome */
 
 /** @type {AsyncLocalStorage<object>} */
 const callbackContext = new AsyncLocalStorage();
@@ -115,8 +115,8 @@ async function pumpHeaderHooks(client, owner, hooks, outcome) {
   const stopped = owner.closed().then(() => {
     controller.abort(new PhantomError('Cancelled', 'header callback was cancelled'));
   }, (error) => {
-    outcome.bridgeError = translated(error);
-    controller.abort(outcome.bridgeError);
+    outcome.bridgeFailure ??= {error: translated(error)};
+    controller.abort(outcome.bridgeFailure.error);
   });
   try {
     while (true) {
@@ -135,17 +135,17 @@ async function pumpHeaderHooks(client, owner, hooks, outcome) {
         outcome.failed = true;
         outcome.error = error;
         if (controller.signal.aborted && error !== controller.signal.reason) {
-          outcome.bridgeError = error;
+          outcome.bridgeFailure ??= {error};
         }
         try { owner.fail(invocation.index); }
         catch (failure) {
-          if (!controller.signal.aborted) outcome.bridgeError = translated(failure);
+          if (!controller.signal.aborted) outcome.bridgeFailure ??= {error: translated(failure)};
         }
         break;
       }
     }
   } catch (error) {
-    outcome.bridgeError = translated(error);
+    outcome.bridgeFailure ??= {error: translated(error)};
   } finally {
     owner.stop();
     await stopped;
