@@ -15,16 +15,18 @@ class CompletionTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(lambda: run.completion.cancel() if run.completion else None)
         return run
 
-    async def test_revalidation_can_complete_on_another_owned_main_connection(
+    async def test_header_captures_can_complete_on_another_owned_main_connection(
         self,
     ) -> None:
-        run = self.run_with_done()
+        for scenario in ("revalidate", "upload-h1", "upload-h2"):
+            with self.subTest(scenario=scenario):
+                run = self.run_with_done(scenario)
 
-        run.finish("/done?run=token&result=ok", 1, request=run.requests[0])
+                run.finish("/done?run=token&result=ok", 1, request=run.requests[0])
 
-        self.assertEqual(run.page_result, "ok")
-        self.assertIsNotNone(run.completion)
-        self.assertEqual(run.page_connection, 0)
+                self.assertEqual(run.page_result, "ok")
+                self.assertIsNotNone(run.completion)
+                self.assertEqual(run.page_connection, 0)
 
     async def test_selected_connection_keeps_existing_completion_behavior(self) -> None:
         for scenario in ("revalidate", "idle-ping", "ping-unanswered"):
@@ -49,7 +51,7 @@ class CompletionTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNone(run.completion)
                 self.assertEqual(run.page_connection, 0)
 
-    async def test_revalidation_requires_owned_main_connection_and_completed_get(
+    async def test_header_completion_requires_owned_main_connection_and_completed_get(
         self,
     ) -> None:
         done = RequestRecord(1, 1, 0, "GET", "/done", [], {}, status=200)
@@ -76,36 +78,39 @@ class CompletionTests(unittest.IsolatedAsyncioTestCase):
             ("unsuccessful response", {"requests": [replace(done, status=500)]}),
             ("stopping", {"stopping": True}),
         )
-        for name, changes in cases:
-            with self.subTest(case=name):
-                run = self.run_with_done()
-                for field, value in changes.items():
-                    setattr(run, field, value)
+        for scenario in ("revalidate", "upload-h1", "upload-h2"):
+            for name, changes in cases:
+                with self.subTest(scenario=scenario, case=name):
+                    run = self.run_with_done(scenario)
+                    for field, value in changes.items():
+                        setattr(run, field, value)
 
-                request = run.requests[0] if run.requests else None
-                run.finish("/done?run=token&result=ok", 1, request=request)
+                    request = run.requests[0] if run.requests else None
+                    run.finish("/done?run=token&result=ok", 1, request=request)
 
-                self.assertIsNone(run.page_result)
-                self.assertIsNone(run.completion)
+                    self.assertIsNone(run.page_result)
+                    self.assertIsNone(run.completion)
 
     async def test_cross_connection_completion_still_requires_the_exact_token(
         self,
     ) -> None:
-        for target in (
+        targets = (
             "/done?run=other",
             "/done?run=token&run=token",
             "/done?run=token&run=",
             "/done?run=to\nken",
             "/done?run=token#fragment",
             "//local/done?run=token",
-        ):
-            with self.subTest(target=target):
-                run = self.run_with_done()
+        )
+        for scenario in ("revalidate", "upload-h1", "upload-h2"):
+            for target in targets:
+                with self.subTest(scenario=scenario, target=target):
+                    run = self.run_with_done(scenario)
 
-                run.finish(target, 1, request=run.requests[0])
+                    run.finish(target, 1, request=run.requests[0])
 
-                self.assertIsNone(run.page_result)
-                self.assertIsNone(run.completion)
+                    self.assertIsNone(run.page_result)
+                    self.assertIsNone(run.completion)
 
     async def test_later_completion_cannot_replace_the_first_result_or_timer(
         self,

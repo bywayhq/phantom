@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -108,12 +109,14 @@ class ExternalHttpsTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(not item.is_serving() for item in owner.origins.listeners))
         self.assertIsNone(owner.native)
 
-    async def test_cancellation_collects_the_custom_browser_before_the_controller(
+    async def test_cancellation_waits_for_the_custom_browser_to_exit(
         self,
     ) -> None:
         scenario = hooks.SCENARIOS["http1-idle"]
         owner = hooks._FirefoxRun(scenario)
         started = asyncio.Event()
+        exiting = asyncio.Event()
+        release_exit = threading.Event()
         loop = asyncio.get_running_loop()
         exits = []
         creations = []
@@ -124,7 +127,10 @@ class ExternalHttpsTests(unittest.IsolatedAsyncioTestCase):
                 return self
 
             def __exit__(self, *_args: object) -> None:
-                exits.append(all(item.is_serving() for item in owner.origins.listeners))
+                loop.call_soon_threadsafe(exiting.set)
+                if not release_exit.wait(2):
+                    raise TimeoutError("test did not release the browser exit")
+                exits.append(self)
 
         browser = Browser()
 
@@ -145,11 +151,17 @@ class ExternalHttpsTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.wait_for(started.wait(), 2)
             finally:
                 task.cancel()
-                with self.assertRaises(asyncio.CancelledError):
-                    await task
+                try:
+                    await asyncio.wait_for(exiting.wait(), 2)
+                    self.assertFalse(task.done())
+                    self.assertFalse(owner.native.future.done())
+                finally:
+                    release_exit.set()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await task
 
         self.assertEqual(len(creations), 1)
-        self.assertEqual(exits, [True])
+        self.assertEqual(exits, [browser])
         self.assertIs(owner.native.browser, browser)
         self.assertTrue(owner.native.future.done())
         self.assertEqual(len(owner.origins.listeners), 1)

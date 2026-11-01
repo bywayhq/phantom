@@ -1087,6 +1087,8 @@ without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 ordered headers in `request_N_headers_json`, plus its initial HTTP/2 priority
 in `request_N_priority` (`null` when absent). These captures accept only their
 owned page requests and nonsecret headers. Upload bodies are counted, not kept.
+The page may finish on another connection owned by the run. Idle and PING
+scenarios still require completion on the selected page connection.
 
 Use `--protocol h1` or `--protocol h2` to restrict `revalidate` to one protocol.
 Without it, the listener advertises HTTP/2 and HTTP/1.1 as before.

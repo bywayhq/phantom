@@ -672,8 +672,8 @@ class Run:
     def finish(
         self, target: str, connection: int, *, request: RequestRecord | None = None
     ) -> None:
-        revalidation_connection = (
-            self.scenario == "revalidate"
+        header_connection = (
+            self.scenario in HEADER_SCENARIOS
             and self.page_connection is not None
             and any(
                 record.index == connection and record.listener == "main"
@@ -695,7 +695,7 @@ class Run:
             or (
                 connection != self.page_connection
                 and not resource_connection
-                and not revalidation_connection
+                and not header_connection
             )
             or self.completion is not None
         ):
