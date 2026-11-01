@@ -351,6 +351,7 @@ impl RequestBuilder {
         self
     }
 
+    #[cfg(feature = "sse")]
     pub(crate) fn shared_request_hooks(
         mut self,
         hooks: Option<&crate::request_hook::SharedRequestHooks>,
