@@ -25,6 +25,7 @@ class BrowserLaunchAcknowledgementAsyncTests(unittest.IsolatedAsyncioTestCase):
         errors = []
         tool_pids = []
         launch_futures = []
+        profile_sweeps = []
         actual_executor = loop.run_in_executor
         browser = browser_launch.LaunchedBrowser(
             browser_launch.LaunchPlan(
@@ -40,6 +41,24 @@ class BrowserLaunchAcknowledgementAsyncTests(unittest.IsolatedAsyncioTestCase):
             listener.bind(("127.0.0.1", 0))
             listener.listen(1)
             listener.settimeout(WAIT_SECONDS)
+
+            def sweep_owned_profile(profile: Path) -> None:
+                self.assertEqual(profile, browser.profile)
+                self.assertIsInstance(
+                    browser.process, process_container.ProcessContainer
+                )
+                self.assertTrue(browser.process._cleanup_complete)
+                profile_sweeps.append((profile, profile.exists()))
+
+            # This Python tool never receives the profile path. Profile census
+            # behavior is covered separately, including a real Windows sweep.
+            cleanup.enter_context(
+                mock.patch.object(
+                    browser_launch,
+                    "terminate_profile_processes",
+                    side_effect=sweep_owned_profile,
+                )
+            )
 
             def hold_acknowledgement() -> None:
                 try:
@@ -165,6 +184,10 @@ class BrowserLaunchAcknowledgementAsyncTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.to_thread(thread.join, WAIT_SECONDS)
                 self.assertFalse(thread.is_alive())
                 self.assertEqual(errors, [])
+            self.assertEqual(
+                profile_sweeps,
+                [(profile, True), (profile, False)] if cancel else [(profile, True)],
+            )
 
     async def test_delayed_acknowledgement_keeps_loopback_server_responsive(
         self,
