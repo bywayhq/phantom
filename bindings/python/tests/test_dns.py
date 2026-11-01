@@ -88,11 +88,11 @@ class DnsPeer:
 
     async def __aexit__(self, *_):
         self.server.close()
-        await self.server.wait_closed()
         for writer in tuple(self.writers):
             writer.close()
-        if self.tasks:
-            await asyncio.wait_for(asyncio.gather(*self.tasks), 5)
+        await asyncio.wait_for(
+            asyncio.gather(self.server.wait_closed(), *self.tasks), 5
+        )
         if self.failures:
             raise AssertionError(self.failures)
 
@@ -202,6 +202,44 @@ class DnsPeer:
                     return
             writer.write(connection.data_to_send())
             await writer.drain()
+
+
+class DnsPeerCleanupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_exit_closes_a_held_tls_connection_and_collects_its_handler(self):
+        resolver = await DnsPeer("tls").__aenter__()
+        context = ssl.create_default_context(cafile=FIXTURES / "certificate.pem")
+        context.set_alpn_protocols(["dot"])
+        writer = None
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(
+                    "127.0.0.1", resolver.port, ssl=context, server_hostname="localhost"
+                ),
+                2,
+            )
+            query = (
+                struct.pack("!6H", 42, 0x0100, 1, 0, 0, 0)
+                + b"\x04held\x07invalid\x00"
+                + struct.pack("!2H", 1, 1)
+            )
+            writer.write(struct.pack("!H", len(query)) + query)
+            await writer.drain()
+            await asyncio.wait_for(resolver.held.wait(), 2)
+            self.assertEqual(len(resolver.tasks), 1)
+            self.assertEqual(len(resolver.writers), 1)
+            await asyncio.wait_for(resolver.__aexit__(None, None, None), 2)
+            self.assertEqual(await asyncio.wait_for(reader.read(1), 2), b"")
+            self.assertEqual(resolver.tasks, set())
+            self.assertEqual(resolver.writers, set())
+            self.assertEqual(resolver.failures, [])
+        finally:
+            if writer is not None:
+                writer.close()
+            resolver.server.close()
+            cleanup = [resolver.server.wait_closed(), *resolver.tasks]
+            if writer is not None:
+                cleanup.append(writer.wait_closed())
+            await asyncio.wait_for(asyncio.gather(*cleanup), 5)
 
 
 class EncryptedDnsTests(unittest.IsolatedAsyncioTestCase):
