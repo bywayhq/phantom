@@ -96,3 +96,29 @@ func TestPureHeaderHooksBoundEditsWithoutChangingState(t *testing.T) {
 		t.Fatal("edit limit changed the context")
 	}
 }
+
+func TestPureHeaderHooksMatchOnlyASCIINames(t *testing.T) {
+	h := &HeaderHookContext{active: true, headers: []Header{
+		{Name: "K", Value: []byte("first")},
+		{Name: "k", Value: []byte("duplicate")},
+		{Name: "X-Last", Value: []byte("last")},
+	}}
+	if err := h.Remove("\u212a"); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.Headers(); len(got) != 3 || got[0].Name != "K" || got[1].Name != "k" {
+		t.Fatal("non-ASCII removal changed an ASCII header")
+	}
+	if err := h.Set(Header{Name: "k", Value: []byte("replacement"), Sensitive: true}); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.Headers(); len(got) != 2 || got[0].Name != "k" || string(got[0].Value) != "replacement" || !got[0].Sensitive || got[1].Name != "X-Last" {
+		t.Fatal("ASCII set did not retain the first position and remove duplicates")
+	}
+	if err := h.Remove("K"); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.Headers(); len(got) != 1 || got[0].Name != "X-Last" {
+		t.Fatal("ASCII removal did not match case-insensitively")
+	}
+}
