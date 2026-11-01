@@ -163,16 +163,16 @@ test('typed Alt-Svc transfer preserves core expiry, precedence and atomic valida
   const entry = {origin: 'https://example.test', alternativeHost: 'alt.example.test', alternativePort: 443, expiresAtNanoseconds: expiry};
   const second = 1000000000n;
   const started = process.hrtime.bigint();
-  const check = (snapshot, upperExpiry = expiry / second * second) => {
+  const check = (snapshot, exports = 1n) => {
     assert.equal(snapshot.length, 1);
     const {expiresAtNanoseconds, ...fields} = snapshot[0];
     const {expiresAtNanoseconds: _expiry, ...expected} = entry;
     assert.deepEqual(fields, expected);
     assert.equal(expiresAtNanoseconds % second, 0n);
-    // A pause between core clock samples may shorten expiry beyond export flooring.
+    // Each serialization floors expiry; pauses between clock samples can shorten it further.
     const elapsed = process.hrtime.bigint() - started;
-    assert(expiresAtNanoseconds <= upperExpiry);
-    assert(expiresAtNanoseconds >= upperExpiry - second - elapsed);
+    assert(expiresAtNanoseconds <= expiry);
+    assert(expiresAtNanoseconds >= expiry - exports * second - elapsed);
   };
   source.importAltSvc([entry]);
   const exported = source.exportAltSvc();
@@ -187,7 +187,7 @@ test('typed Alt-Svc transfer preserves core expiry, precedence and atomic valida
   const shared = keep(t, source.fork({discovery: true}));
   check(shared.exportAltSvc());
   const restored = keep(t, await source.restoreSession(await source.exportSession(key), key));
-  check(restored.exportAltSvc(), exported[0].expiresAtNanoseconds);
+  check(restored.exportAltSvc(), 2n);
 });
 
 test('ticket-only encrypted import authenticates before mutation and preserves source state', {timeout: 30000}, async (t) => {
