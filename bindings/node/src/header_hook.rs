@@ -3,7 +3,7 @@
 use std::{
     fmt, io,
     sync::{
-        Arc, Mutex, PoisonError,
+        Arc, Mutex, OnceLock, PoisonError,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -46,6 +46,7 @@ pub(crate) struct HeaderHooks {
     sender: mpsc::Sender<QueuedInvocation>,
     receiver: tokio::sync::Mutex<mpsc::Receiver<QueuedInvocation>>,
     pending: Mutex<Option<PendingReply>>,
+    limits: OnceLock<(usize, usize)>,
 }
 
 impl fmt::Debug for HeaderHooks {
@@ -73,6 +74,7 @@ impl HeaderHooks {
             sender,
             receiver: tokio::sync::Mutex::new(receiver),
             pending: Mutex::new(None),
+            limits: OnceLock::new(),
         }))
     }
 
@@ -139,12 +141,16 @@ impl HeaderHooks {
 
         // Prepared bodies can add fields after the public request-input bound.
         // Preserve those fields while bounding any growth caused by callbacks.
-        let count_limit = context
-            .headers()
-            .len()
-            .max(256_usize.saturating_sub(trailer_count));
-        let bytes_limit =
-            header_bytes(context.headers()).max(MAXIMUM_HEADER_BYTES.saturating_sub(trailer_bytes));
+        let &(count_limit, bytes_limit) = self.limits.get_or_init(|| {
+            (
+                context
+                    .headers()
+                    .len()
+                    .max(256_usize.saturating_sub(trailer_count)),
+                header_bytes(context.headers())
+                    .max(MAXIMUM_HEADER_BYTES.saturating_sub(trailer_bytes)),
+            )
+        });
         for edit in edits {
             match edit {
                 Edit::Append(header) => context.append(header)?,

@@ -6,7 +6,7 @@ const http = require('node:http');
 const http2 = require('node:http2');
 const {test} = require('node:test');
 
-const {AttemptBudget, Client, PreparedBody} = require('..');
+const {AttemptBudget, Client, PreparedBody, Profile} = require('..');
 
 const profile = process.platform === 'win32' ? 'chrome-156-windows'
   : process.platform === 'darwin' ? 'chrome-156-macos' : 'chrome-156-linux';
@@ -146,4 +146,43 @@ test('a pending hook does not block another stream on the existing HTTP/2 connec
   release.resolve();
   assert.equal(await (await pending).text(2), 'ok');
   assert.equal(sessions.size, 1);
+});
+
+test('ordered hooks preserve the original prepared-field allowance without allowing growth', {timeout: 30000}, async (t) => {
+  let sent = 0;
+  const sessions = new Set();
+  const server = http2.createServer({maxHeaderListPairs: 512});
+  server.on('session', (session) => {sessions.add(session); session.on('error', () => {});});
+  server.on('stream', (stream, headers) => {
+    sent++;
+    assert.equal(headers['content-type'], 'application/x-www-form-urlencoded');
+    assert.equal(headers['content-length'], '3');
+    assert.equal(headers['x-field-0'], 'restored');
+    stream.on('data', () => {});
+    stream.on('end', () => {stream.respond({':status': 200}); stream.end('ok');});
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => {
+    for (const session of sessions) session.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const owner = client(t, {profile: Profile.fromCatalog('chrome-156-windows'), context: 'fetchUpload', protocol: 'http2'});
+  const body = await PreparedBody.form([['a', 'b']], {maximumBytes: 64});
+  const headers = [field('origin', url), field('referer', url),
+    ...Array.from({length: 254}, (_, index) => field(`x-field-${index}`, 'value'))];
+  const response = await owner.post(url, {body, headers, headerHooks: [(context) => {
+    assert.equal(context.headers.length, 258);
+    context.remove('x-field-0');
+    context.remove('x-field-1');
+  }, (context) => {
+    context.append(field('x-field-0', 'restored'));
+    context.append(field('x-field-1', 'value'));
+  }]});
+  assert.equal(await response.text(2), 'ok');
+  const budget = new AttemptBudget(1);
+  await assert.rejects(owner.post(url, {body, headers, attemptBudget: budget,
+    headerHooks: [(context) => {context.append(field('x-extra', 'no'));}]}), {code: 'HeaderHook'});
+  assert.equal(budget.remaining, 1);
+  assert.equal(sent, 1);
 });
