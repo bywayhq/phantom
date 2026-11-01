@@ -3,7 +3,6 @@ package phantom
 import (
 	"context"
 	"runtime"
-	"strings"
 
 	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
@@ -45,7 +44,7 @@ func (h HeaderHookContext) GoString() string   { return h.String() }
 // The hook may record at most 256 edits and 64 KiB of names and values.
 func (h *HeaderHookContext) Append(header Header) error { return h.edit(1, header) }
 
-// Set replaces the first matching field and removes later duplicates, ignoring case.
+// Set replaces the first matching field and removes later duplicates, ignoring ASCII case.
 // A new name is appended. Template expansion still owns final spelling and position.
 func (h *HeaderHookContext) Set(header Header) error { return h.edit(2, header) }
 
@@ -59,6 +58,25 @@ func copyHookHeaders(headers []Header) []Header {
 		result[i] = Header{Name: header.Name, Value: append([]byte(nil), header.Value...), Sensitive: header.Sensitive}
 	}
 	return result
+}
+
+func sameHookHeaderName(left, right string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range len(left) {
+		a, b := left[i], right[i]
+		if a >= 'A' && a <= 'Z' {
+			a += 'a' - 'A'
+		}
+		if b >= 'A' && b <= 'Z' {
+			b += 'a' - 'A'
+		}
+		if a != b {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *HeaderHookContext) edit(kind uint64, header Header) error {
@@ -90,7 +108,7 @@ func (h *HeaderHookContext) edit(kind uint64, header Header) error {
 		found := false
 		output := h.headers[:0]
 		for _, old := range h.headers {
-			if strings.EqualFold(old.Name, header.Name) {
+			if sameHookHeaderName(old.Name, header.Name) {
 				if !found && kind == 2 {
 					output = append(output, header)
 				}
