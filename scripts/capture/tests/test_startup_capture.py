@@ -727,3 +727,29 @@ class StartupOwnershipTests(unittest.TestCase):
                 self.assertFalse(output.exists())
                 launch.assert_not_called()
                 allocate.assert_not_called()
+
+
+class DirectoryCleanupTests(unittest.TestCase):
+    def test_missing_owned_directory_accepts_string_and_path_filenames(self) -> None:
+        directory = Path("owned-profile")
+        for filename in (str(directory), directory):
+            error = FileNotFoundError(errno.ENOENT, "missing directory", filename)
+            with (
+                self.subTest(filename=filename),
+                mock.patch.object(startup_capture.shutil, "rmtree", side_effect=error),
+            ):
+                startup_capture._remove_directory(directory)
+
+    def test_missing_child_or_unknown_filename_preserves_the_original_error(
+        self,
+    ) -> None:
+        directory = Path("owned-profile")
+        for filename in (str(directory / "child"), directory / "child", None):
+            error = FileNotFoundError(errno.ENOENT, "missing child", filename)
+            with (
+                self.subTest(filename=filename),
+                mock.patch.object(startup_capture.shutil, "rmtree", side_effect=error),
+                self.assertRaises(FileNotFoundError) as caught,
+            ):
+                startup_capture._remove_directory(directory)
+            self.assertIs(caught.exception, error)

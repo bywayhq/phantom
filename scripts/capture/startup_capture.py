@@ -440,7 +440,7 @@ def _remove_directory(directory: Path) -> None:
     try:
         shutil.rmtree(directory)
     except FileNotFoundError as error:
-        if error.filename != os.fspath(directory):
+        if error.filename is None or os.fspath(error.filename) != os.fspath(directory):
             raise
 
 
