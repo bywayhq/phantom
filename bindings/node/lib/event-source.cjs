@@ -5,6 +5,7 @@ const { addAbortListener } = require('node:events');
 
 const { PhantomError, translated, caused } = require('./errors.cjs');
 const { headerHooks, isHeaderHookContext, pumpHeaderHooks } = require('./header-hooks.cjs');
+const { requestHookBundles, logicalMask, requestFailure, consumeCallbackFailure } = require('./request-hooks.cjs');
 const { eventLimits } = require('./events.cjs');
 const native = require('./native.cjs');
 const { mergeHeaders, requestUrl } = require('./request-preparation.cjs');
@@ -29,6 +30,9 @@ const { integer, orderedDataArray, policyFields } = require('./validation.cjs');
 function sourceFailure(error, hooks) {
   const failure = translated(error);
   const request = failure.cause;
+  if (hooks?.outcome.logical && request instanceof PhantomError) {
+    caused(failure, requestFailure(request, hooks.outcome));
+  }
   if (hooks?.outcome.failed && request instanceof PhantomError && request.code === 'HeaderHook') {
     caused(request, hooks.outcome.error);
     const retained = hooks.outcome.bridgeFailure;
@@ -39,6 +43,11 @@ function sourceFailure(error, hooks) {
 
 /** @param {SourceHooks | undefined} hooks */
 function observeCleanup(hooks) {
+  if (hooks?.outcome.logical) {
+    const failure = consumeCallbackFailure(hooks.outcome);
+    if (failure) throw failure.error;
+    return;
+  }
   const failure = hooks?.outcome.bridgeFailure;
   if (failure && !failure.observed) {
     failure.observed = true;
@@ -218,14 +227,17 @@ function sourceHeaders(input, defaults, protocol) {
 
 /** @param {{eventSource(settings: object, source: NativeSource, hooks?: import('./client-native.cjs').NativeHeaderHooks): Promise<NativeHead>}} client
  * @param {CallbackClient} owner @param {string | URL} input @param {EventSourceOptions} options
- * @param {readonly Header[]} defaults @param {readonly import('../index.js').HeaderHook[]} inherited */
-async function openEventSource(client, owner, input, options, defaults, inherited) {
+ * @param {readonly Header[]} defaults @param {readonly import('../index.js').HeaderHook[]} inherited
+ * @param {Readonly<import('../index.js').RequestHooks>} [inheritedLogical] */
+async function openEventSource(client, owner, input, options, defaults, inherited, inheritedLogical) {
   const fields = /** @type {EventSourceOptions} */ (policyFields(options, [
     'protocol', 'headers', 'limits', 'idleTimeoutMs', 'initialRetryMs', 'minimumRetryMs',
-    'maximumReconnects', 'timeouts', 'route', 'signal', 'headerHooks', 'skipClientHeaderHooks',
+    'maximumReconnects', 'timeouts', 'route', 'signal', 'headerHooks', 'skipClientHeaderHooks', 'requestHooks',
   ]));
   if (fields.skipClientHeaderHooks !== undefined && typeof fields.skipClientHeaderHooks !== 'boolean') throw new PhantomError('InvalidArgument', 'skipClientHeaderHooks must be boolean');
   const callbacks = [...(fields.skipClientHeaderHooks ? [] : inherited), ...headerHooks(fields.headerHooks)];
+  const logicalBundles = requestHookBundles(inheritedLogical, fields.requestHooks);
+  const phases = logicalMask(logicalBundles);
   if (callbacks.length > 256) throw new PhantomError('InputLimit', 'headerHooks exceed 256 callbacks');
   const protocol = fields.protocol;
   if (!['http1', 'http2', 'http3'].includes(protocol)) throw new PhantomError('InvalidProtocol', 'event source requires http1, http2 or http3');
@@ -266,15 +278,16 @@ async function openEventSource(client, owner, input, options, defaults, inherite
     if (fields.signal) listener = addAbortListener(fields.signal, () => source.close());
     if (fields.signal?.aborted) throw new PhantomError('Cancelled', 'event source was aborted');
     let pending;
-    if (callbacks.length) {
+    if (callbacks.length || phases) {
       if (typeof native.NativeHeaderHooks !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for header hooks');
-      const created = /** @type {import('./client-native.cjs').NativeHeaderHooks} */ (new native.NativeHeaderHooks(callbacks.length, true));
+      const created = /** @type {import('./client-native.cjs').NativeHeaderHooks} */ (phases ? new native.NativeHeaderHooks(callbacks.length, true, phases) : new native.NativeHeaderHooks(callbacks.length, true));
       mailbox = created;
       if (typeof created.nextCancelled !== 'function' || typeof created.isActive !== 'function' || typeof source.waitClosed !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for EventSource hooks');
+      if (phases && typeof created.completeLogical !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for logical hooks');
       /** @type {import('./header-hooks.cjs').HookOutcome} */
-      const outcome = {failed: false};
+      const outcome = phases ? {failed: false, logical: {}} : {failed: false};
       pending = client.eventSource(settings, source, created);
-      const pumping = pumpHeaderHooks(owner, created, callbacks, outcome, undefined, true);
+      const pumping = pumpHeaderHooks(owner, created, callbacks, outcome, undefined, true, logicalBundles);
       hooks = {native: created, pumping, outcome};
       owner._trackHeaderPump(pumping, outcome);
     } else pending = client.eventSource(settings, source);

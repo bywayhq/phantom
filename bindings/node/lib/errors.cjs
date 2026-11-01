@@ -19,6 +19,23 @@ function translated(error) {
   if (error instanceof PhantomError) return error;
   const properties = error !== null && typeof error === 'object' ? Object.getOwnPropertyDescriptors(error) : {};
   const message = typeof properties.message?.value === 'string' ? properties.message.value : '';
+  const requestOrigin = /^PHANTOM_ORIGIN:(https?):([0-9]+):([^\n]*)\n([\s\S]*)$/.exec(message);
+  if (requestOrigin) {
+    const failure = translated(new Error(requestOrigin[4]));
+    Object.defineProperty(failure, 'origin', {value: Object.freeze({scheme: requestOrigin[1], port: Number(requestOrigin[2]), host: requestOrigin[3]})});
+    return failure;
+  }
+  const logical = /^PHANTOM_LOGICAL:([0-9]+):([0-9]+):([^\n]*)\n([^\n]*)\n([\s\S]*)$/.exec(message);
+  if (logical) {
+    const failure = translated(new Error(logical[5]));
+    Object.defineProperties(failure, {
+      callbackSerial: {value: BigInt(logical[1])}, hookSerial: {value: BigInt(logical[2])},
+    });
+    if (logical[3]) Object.defineProperty(failure, 'hookError', {value: translated(new Error(logical[3]))});
+    const origin = /^(https?):([0-9]+):(.*)$/.exec(logical[4]);
+    if (origin) Object.defineProperty(failure, 'origin', {value: Object.freeze({scheme: origin[1], port: Number(origin[2]), host: origin[3]})});
+    return failure;
+  }
   const source = /^PHANTOM_EVENT_SOURCE:([A-Za-z0-9_]+):([^\n]*)(?:\n([\s\S]*))?$/.exec(message);
   if (source) {
     const failure = new PhantomError('Sse', source[2], undefined, undefined, source[1]);

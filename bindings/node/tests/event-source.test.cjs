@@ -413,3 +413,46 @@ test('EventSource hooks run once across an HTTP2 redirect and leave the connecti
   for (const headers of records.slice(0, 2)) { assert.equal(headers['x-client'], 'first'); assert.equal(headers['x-source'], 'second'); }
   assert.equal(sessions.size, 1);
 });
+
+test('source logical callbacks observe client-first request and final head on every GET', {timeout: 30000}, async t => {
+  const calls = [], ids = []; let requests = 0;
+  const server = http.createServer((request, response) => {
+    ids.push(request.headers['last-event-id']);
+    if (++requests === 2) {response.writeHead(204); response.end(); return;}
+    response.writeHead(200, {'content-type': 'text/event-stream'}); response.end('retry: 0\nid: checkpoint\ndata: first\n\n');
+  });
+  const url = await listen(t, server);
+  const owner = new Client({profile, route: 'direct', requestHooks: {
+    onRequest() {calls.push('client request');}, onResponse() {calls.push('client head');},
+  }}); t.after(() => owner.close());
+  const source = await owner.eventSource(url, {protocol: 'http1', requestHooks: {
+    async onRequest(context) {await Promise.resolve(); assert.equal(context.method, 'GET'); calls.push('source request');},
+    onResponse(context) {calls.push(`source head ${context.status}`); assert(!('body' in context));},
+  }});
+  assert.equal((await source.read()).data, 'first'); assert.equal(await source.read(), null);
+  await source.closeAsync();
+  assert.deepEqual(ids, [undefined, 'checkpoint']);
+  assert.deepEqual(calls, ['client request', 'source request', 'client head', 'source head 200', 'client request', 'source request', 'client head', 'source head 204']);
+  const original = new Error('source request rejection');
+  await assert.rejects(owner.eventSource(url, {protocol: 'http1', requestHooks: {onRequest() {throw original;}}}), error =>
+    error.code === 'Sse' && error.cause.code === 'RequestHook' && error.cause.cause === original);
+  assert.equal(requests, 2);
+});
+
+test('read cancellation retains a reconnect GET awaiting a logical source callback', {timeout: 30000}, async t => {
+  let requests = 0, callbacks = 0, context; const entered = hookGate(), release = hookGate();
+  t.after(() => release.resolve());
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, {'content-type': 'text/event-stream'}); response.end(`retry: 0\ndata: event${++requests}\n\n`);
+  });
+  const url = await listen(t, server); const owner = new Client({profile, route: 'direct'}); t.after(() => owner.close());
+  const source = await owner.eventSource(url, {protocol: 'http1', requestHooks: {async onRequest(value) {
+    if (++callbacks === 2) {context = value; entered.resolve(); await release.promise;}
+  }}}); t.after(() => source.close());
+  assert.equal((await source.read()).data, 'event1');
+  const controller = new AbortController(); const pending = source.read({signal: controller.signal}); await entered.promise;
+  controller.abort(); await assert.rejects(pending, {code: 'Cancelled'});
+  assert.equal(context.signal.aborted, false); assert.equal(requests, 1);
+  release.resolve(); assert.equal((await source.read()).data, 'event2');
+  assert.equal(callbacks, 2); assert.equal(requests, 2); await source.closeAsync();
+});

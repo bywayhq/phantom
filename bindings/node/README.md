@@ -106,9 +106,19 @@ once before the first HTTP attempt. An async hook can obtain a token and call
 `context.set({name: 'Authorization', value: Buffer.from(token), sensitive: true})`.
 Use `skipClientHeaderHooks: true` to replace client hooks on one request.
 
+`requestHooks: {onRequest, onResponse, onError}` observes one logical HTTP send.
+Client callbacks run before request callbacks, once across retries and redirects.
+Callbacks may await work using `context.signal`; all phases share the request
+deadline. Response callbacks receive the final head without its body. Request
+callback failures enter `onError`; response and error callback failures do not
+start another phase. A host failure is retained in `error.cause`; an error
+observer failure is `error.hookError`, with its own cause. Cancellation or an
+expired deadline may prevent a terminal callback.
+
 Dedicated EventSource also inherits client hooks before its `headerHooks` on
 every fresh GET, including reconnects. `skipClientHeaderHooks` skips inheritance;
-managed Last-Event-ID cannot be edited. WebSocket openings do not use hooks.
+managed Last-Event-ID cannot be edited. Its `requestHooks` run client-first for
+each GET. WebSocket openings do not use hooks.
 A pending hook receives cancellation through `context.signal` and must cooperate.
 `closeAsync({timeoutMs})`, async disposal and client shutdown wait for actual
 callback cleanup. A timeout leaves cleanup owned; close again after it settles.

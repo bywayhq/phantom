@@ -12,6 +12,41 @@ pub(crate) fn request(error: phantom::RequestError) -> Error {
 }
 
 pub(crate) fn request_ref(error: &phantom::RequestError) -> Error {
+    let plain = plain_request_ref(error);
+    let secondary = std::error::Error::source(error)
+        .and_then(|source| source.downcast_ref::<phantom::RequestErrorHookFailure>());
+    let primary = secondary.map_or(error, phantom::RequestErrorHookFailure::original_error);
+    let primary_serial = crate::request_hook::failed_serial(primary).unwrap_or(0);
+    let secondary_serial = secondary
+        .and_then(|failure| crate::request_hook::failed_serial(failure.hook_error()))
+        .unwrap_or(0);
+    let origin = error
+        .origin()
+        .map(|origin| format!("{}:{}:{}", origin.scheme(), origin.port(), origin.host()))
+        .unwrap_or_default();
+    if primary_serial == 0 && secondary.is_none() {
+        return if origin.is_empty() {
+            plain
+        } else {
+            Error::new(
+                Status::GenericFailure,
+                format!("PHANTOM_ORIGIN:{origin}\n{}", plain.reason),
+            )
+        };
+    }
+    Error::new(
+        Status::GenericFailure,
+        format!(
+            "PHANTOM_LOGICAL:{primary_serial}:{secondary_serial}:{}\n{origin}\n{}",
+            secondary
+                .map(|failure| plain_request_ref(failure.hook_error()).reason)
+                .unwrap_or_default(),
+            plain.reason
+        ),
+    )
+}
+
+fn plain_request_ref(error: &phantom::RequestError) -> Error {
     if let Some(error) = crate::multipart::request_error(error) {
         return error;
     }

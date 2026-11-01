@@ -37,6 +37,41 @@ pub struct HeaderHookInvocation {
     pub headers: Vec<WireHeader>,
     /// Present only for a redirect decision invocation.
     pub redirect: Option<RedirectHookInvocation>,
+    /// Present only for a logical request phase.
+    pub logical: Option<LogicalHookInvocation>,
+}
+
+/// Owned response-head/error metadata; no body or host reference crosses.
+#[napi(object, object_from_js = false)]
+pub struct LogicalHookInvocation {
+    /// Request, response or error phase, encoded as 0, 1 or 2.
+    pub phase: u32,
+    /// Initial method.
+    pub method: String,
+    /// Initial resolved URL.
+    pub url: String,
+    /// Response status, when present.
+    pub status: Option<u32>,
+    /// Exact selected response protocol.
+    pub protocol: Option<String>,
+    /// Response HeaderMap fields; duplicates preserved, no wire order claim.
+    pub headers: Vec<WireHeader>,
+    /// Final URL, when ResponseInfo is present.
+    pub effective_url: Option<String>,
+    /// Core redirect count.
+    pub redirects: Option<u32>,
+    /// Core connection setup retry count.
+    pub retries: Option<u32>,
+    /// Decoded content codings in core order.
+    pub decoded_content_codings: Vec<String>,
+    /// Redacted typed native request error.
+    pub error: Option<String>,
+    /// Canonical error origin scheme.
+    pub origin_scheme: Option<String>,
+    /// Canonical error origin host, excluding credentials/path/query.
+    pub origin_host: Option<String>,
+    /// Effective error origin port.
+    pub origin_port: Option<u32>,
 }
 
 /// Immutable owned redirect metadata; URLs are omitted from debug output.
@@ -108,13 +143,16 @@ pub struct NativeHeaderHooks {
 impl NativeHeaderHooks {
     /// Creates one bounded request-owned callback handoff.
     #[napi(constructor)]
-    pub fn new(count: u32, source: Option<bool>) -> Result<Self> {
+    pub fn new(count: u32, source: Option<bool>, logical_mask: Option<f64>) -> Result<Self> {
+        let mask = logical_mask.unwrap_or(0.0);
+        if !mask.is_finite() || mask.fract() != 0.0 || !(0.0..=7.0).contains(&mask) {
+            return Err(failure(
+                "InvalidArgument",
+                "invalid logical hook phase mask",
+            ));
+        }
         Ok(Self {
-            state: if source.unwrap_or(false) {
-                HeaderHooks::with_lifetime(count, true)?
-            } else {
-                HeaderHooks::new(count)?
-            },
+            state: HeaderHooks::with_callbacks(count, source.unwrap_or(false), mask as u32)?,
             owner: Mutex::new(None),
             source_owner: Mutex::new(None),
         })
@@ -146,6 +184,37 @@ impl NativeHeaderHooks {
                     method: redirect.method,
                     next_method: redirect.next_method,
                     hop: BigInt::from(redirect.hop as u64),
+                }),
+                logical: invocation.logical.map(|logical| {
+                    let (scheme, host, port) = logical
+                        .origin
+                        .map_or((None, None, None), |(scheme, host, port)| {
+                            (Some(scheme), Some(host), Some(port))
+                        });
+                    LogicalHookInvocation {
+                        phase: logical.phase,
+                        method: logical.method,
+                        url: logical.uri,
+                        status: logical.status,
+                        protocol: logical.protocol,
+                        effective_url: logical.url,
+                        redirects: logical.redirects,
+                        retries: logical.retries,
+                        decoded_content_codings: logical.codings,
+                        error: logical.error,
+                        origin_scheme: scheme,
+                        origin_host: host,
+                        origin_port: port,
+                        headers: logical
+                            .headers
+                            .into_iter()
+                            .map(|header| WireHeader {
+                                name: header.name().to_owned(),
+                                value: header.value().to_vec().into(),
+                                sensitive: Some(header.is_sensitive()),
+                            })
+                            .collect(),
+                    }
                 }),
             }))
         })
@@ -226,7 +295,12 @@ impl NativeHeaderHooks {
 
     /// Completes the current redirect without copying any host exception.
     #[napi]
-    pub fn complete_redirect(&self, hop: BigInt, decision: String) -> Result<()> {
+    pub fn complete_redirect(
+        &self,
+        hop: BigInt,
+        decision: String,
+        serial: Option<BigInt>,
+    ) -> Result<()> {
         let decision = match decision.as_str() {
             "follow" => phantom::RedirectDecision::Follow,
             "stop" => phantom::RedirectDecision::Stop,
@@ -234,16 +308,28 @@ impl NativeHeaderHooks {
             _ => return Err(failure("InvalidArgument", "choose follow, stop or reject")),
         };
         self.state.reply(
-            ReplyKey::Redirect(positive_count(hop)?.get()),
+            redirect_key(hop, serial)?,
             Ok(CallbackReply::Redirect(decision)),
         )
     }
 
     /// Reports a redirect callback failure while the facade retains its cause.
     #[napi]
-    pub fn fail_redirect(&self, hop: BigInt) -> Result<()> {
-        self.state
-            .reply(ReplyKey::Redirect(positive_count(hop)?.get()), Err(()))
+    pub fn fail_redirect(&self, hop: BigInt, serial: Option<BigInt>) -> Result<()> {
+        self.state.reply(redirect_key(hop, serial)?, Err(()))
+    }
+
+    /// Acknowledges one logical phase, retaining its host cause only in JS.
+    #[napi]
+    pub fn complete_logical(&self, serial: BigInt, failed: bool) -> Result<()> {
+        self.state.reply(
+            ReplyKey::Source(serial_value(serial)?),
+            if failed {
+                Err(())
+            } else {
+                Ok(CallbackReply::Logical)
+            },
+        )
     }
 
     /// Resolves when the request no longer accepts callbacks.
@@ -297,6 +383,13 @@ fn reply_key(index: u32, serial: Option<BigInt>) -> Result<ReplyKey> {
     serial.map_or(Ok(ReplyKey::Header(index)), |serial| {
         Ok(ReplyKey::Source(serial_value(serial)?))
     })
+}
+
+fn redirect_key(hop: BigInt, serial: Option<BigInt>) -> Result<ReplyKey> {
+    match serial {
+        Some(serial) => Ok(ReplyKey::Source(serial_value(serial)?)),
+        None => Ok(ReplyKey::Redirect(positive_count(hop)?.get())),
+    }
 }
 
 impl Drop for NativeHeaderHooks {

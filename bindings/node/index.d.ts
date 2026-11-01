@@ -14,6 +14,9 @@ export class PhantomError extends Error {
   readonly entryIndex?: number;
   /** Underlying host/native failure, available through explicit inspection. */
   readonly cause?: unknown;
+  /** Failure while observing the primary error; its cause retains the host thrown value. */
+  readonly hookError?: PhantomError;
+  readonly origin?: Readonly<{scheme: string; host: string; port: number}>;
   /** HTTP status when a WebSocket opening response rejects the upgrade. */
   readonly status?: number;
   /** Rejected WebSocket opening; read or close its body to release the request slot. */
@@ -91,6 +94,40 @@ export class TransferControl {
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
 /** Runs once before the first HTTP attempt, after request fields are prepared. */
 export type HeaderHook = (context: HeaderHookContext) => void | Promise<void>;
+
+/** One logical send: redirects/retries do not repeat phases. Dropping or cancelling
+ * a send creates no terminal callback. An exhausted deadline may prevent terminal
+ * host dispatch. Callback awaits share the total deadline.
+ * Response callbacks observe the final head; later body failures have no callback.
+ * A failed request callback enters onError once. Response/error callback failures
+ * never recurse. Errors retain host causes, with hookError for a secondary failure. */
+export interface RequestHooks {
+  readonly onRequest?: (context: RequestHookContext) => void | Promise<void>;
+  readonly onResponse?: (context: ResponseHookContext) => void | Promise<void>;
+  readonly onError?: (context: RequestErrorHookContext) => void | Promise<void>;
+}
+export interface RequestHookContext {
+  readonly method: string;
+  readonly url: string;
+  readonly signal: AbortSignal;
+}
+export interface ResponseHookContext {
+  readonly request: RequestHookContext;
+  readonly signal: AbortSignal;
+  readonly status: number;
+  readonly protocol?: 'http1' | 'http2' | 'http3';
+  /** Owned HeaderMap copies, preserving duplicates without a wire-order claim. */
+  readonly headers: readonly ResponseHeader[];
+  readonly url?: string;
+  readonly redirects?: number;
+  readonly connectionRetries?: number;
+  readonly decodedContentCodings: readonly string[];
+}
+export interface RequestErrorHookContext {
+  readonly request: RequestHookContext;
+  readonly signal: AbortSignal;
+  readonly error: PhantomError;
+}
 /** Ordered caller fields for one callback. Mutations expire when the callback returns. */
 export class HeaderHookContext {
   private constructor();
@@ -148,6 +185,8 @@ export class ClientCertificate {
   static fromDer(certificateChain: readonly Uint8Array[], privateKey: Uint8Array): Promise<ClientCertificate>;
 }
 export interface ClientOptions {
+  /** Copied callback bundle; inherited by fork and restore, before request callbacks. */
+  readonly requestHooks?: RequestHooks;
   /** Ordered caller-header hooks for request/get/post and the other HTTP methods. */
   readonly headerHooks?: readonly HeaderHook[];
   profile: string | Profile;
@@ -338,6 +377,8 @@ export interface RedirectHistory {
   readonly omittedHops: number;
 }
 export interface RequestOptions {
+  /** Client callbacks run first, once per logical phase across retries/redirects. */
+  readonly requestHooks?: RequestHooks;
   /** Runs after client hooks, once across retries and redirects. */
   readonly headerHooks?: readonly HeaderHook[];
   readonly skipClientHeaderHooks?: boolean;
@@ -411,6 +452,8 @@ export interface SseEvent {
 }
 export type EventSourceHeader = Header | Readonly<{lastEventId: string}>;
 export interface EventSourceOptions {
+  /** Client-first logical callbacks for each GET; redirects/retries stay inside it. */
+  readonly requestHooks?: RequestHooks;
   /** Client hooks precede these hooks on every fresh GET, once across redirects/retries. Managed Last-Event-ID cannot be edited. */
   readonly headerHooks?: readonly HeaderHook[];
   readonly skipClientHeaderHooks?: boolean;

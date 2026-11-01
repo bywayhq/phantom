@@ -8,12 +8,15 @@ const {inspect} = require('node:util');
 const {PhantomError, translated} = require('./errors.cjs');
 const {requestFields} = require('./request-options.cjs');
 const {orderedDataArray} = require('./validation.cjs');
+const {logicalMask, invokeLogical} = require('./request-hooks.cjs');
 
 /** @typedef {import('../index.js').HeaderHook} HeaderHook */
 /** @typedef {import('./client-native.cjs').NativeHeaderHooks} NativeHeaderHooks */
 /** @typedef {import('./client-native.cjs').NativeHeader} NativeHeader */
 /** @typedef {import('./client-native.cjs').NativeHeaderEdit} NativeHeaderEdit */
-/** @typedef {{failed: boolean, error?: unknown, failureSerial?: bigint, bridgeFailure?: {error: unknown, serial?: bigint, observed?: boolean}}} HookOutcome */
+/** @typedef {{error: unknown, serial?: bigint, observed?: boolean}} HookFailure */
+/** @typedef {{failed: boolean, error?: unknown, failureSerial?: bigint, bridgeFailure?: HookFailure,
+ * logical?: {primary?: HookFailure, secondary?: HookFailure, origin?: Readonly<{scheme: string, host: string, port: number}>}}} HookOutcome */
 
 /** @type {AsyncLocalStorage<{client: object, source?: NativeHeaderHooks}>} */
 const callbackContext = new AsyncLocalStorage();
@@ -113,16 +116,18 @@ function isHeaderHookContext(client, source) {
 
 /** @param {object} client @param {NativeHeaderHooks} owner
  * @param {readonly HeaderHook[]} hooks @param {HookOutcome} outcome
- * @param {import('../index.js').RedirectCallback} [redirect] @param {boolean} [source] */
-async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source = false) {
+ * @param {import('../index.js').RedirectCallback} [redirect] @param {boolean} [source]
+ * @param {readonly (Readonly<import('../index.js').RequestHooks> | undefined)[]} [logicalBundles] */
+async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source = false, logicalBundles = []) {
+  const serialLifetime = source || logicalMask(logicalBundles) !== 0;
   let controller = new AbortController();
-  /** @type {{serial: bigint, context: HeaderHookContext, controller: AbortController} | undefined} */
+  /** @type {{serial: bigint, context: {_finish(): unknown}, controller: AbortController} | undefined} */
   let active;
   const abort = () => {
     active?.context._finish();
     controller.abort(new PhantomError('Cancelled', 'request callback was cancelled'));
   };
-  const stopped = (source ? (async () => {
+  const stopped = (serialLifetime ? (async () => {
     let cancelled = 0n;
     while (true) {
       const serial = await owner.nextCancelled(cancelled);
@@ -141,6 +146,38 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
     while (true) {
       const invocation = await owner.next();
       if (invocation === null) break;
+      const serial = invocation.serial ?? undefined;
+      if (serialLifetime) {
+        if (typeof serial !== 'bigint') throw new PhantomError('Internal', 'callback serial is unavailable');
+        if (!owner.isActive(serial)) continue;
+        controller = new AbortController();
+        active = {serial, context: {_finish() {}}, controller};
+      }
+      if (invocation.logical) {
+        const logical = invocation.logical;
+        if (!Number.isInteger(logical.phase) || logical.phase < 0 || logical.phase > 2 || serial === undefined) throw new PhantomError('Internal', 'logical callback phase is unavailable');
+        let failed = false;
+        try {
+          controller.signal.throwIfAborted();
+          for (const bundle of logicalBundles) {
+            await callbackContext.run({client, source: source ? owner : undefined}, () => invokeLogical(bundle, logical, controller.signal, outcome));
+            controller.signal.throwIfAborted();
+          }
+        } catch (error) {
+          failed = true;
+          if (!controller.signal.aborted || error !== controller.signal.reason) {
+            const retained = {error, serial};
+            outcome.logical ??= {};
+            outcome.logical[logical.phase === 2 ? 'secondary' : 'primary'] = retained;
+            outcome.bridgeFailure ??= retained;
+          }
+        } finally { active = undefined; }
+        if (owner.isActive(serial)) {
+          try { owner.completeLogical(serial, failed); }
+          catch (error) { if (owner.isActive(serial) || translated(error).code !== 'InvalidOperation') throw error; }
+        }
+        continue;
+      }
       if (invocation.redirect) {
         const attempt = Object.freeze(Object.defineProperty({...invocation.redirect, signal: controller.signal}, inspect.custom, {
           value: () => 'RedirectAttempt { URLs redacted }',
@@ -153,24 +190,23 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
           if (decision !== 'follow' && decision !== 'stop' && decision !== 'reject') {
             throw new PhantomError('InvalidArgument', 'redirect callbacks must return Follow, Stop or Reject');
           }
-          owner.completeRedirect(attempt.hop, decision);
+          owner.completeRedirect(attempt.hop, decision, serial);
         } catch (error) {
           outcome.failed = true;
           outcome.error = error;
-          if (controller.signal.aborted && error !== controller.signal.reason) outcome.bridgeFailure ??= {error};
-          try { owner.failRedirect(attempt.hop); }
+          outcome.failureSerial = serial;
+          if (serialLifetime || (controller.signal.aborted && error !== controller.signal.reason)) outcome.bridgeFailure ??= {error, serial};
+          try { owner.failRedirect(attempt.hop, serial); }
           catch (failure) {
             if (!controller.signal.aborted) outcome.bridgeFailure ??= {error: translated(failure)};
           }
-          break;
+          if (!serialLifetime) break;
+        } finally {
+          active = undefined;
         }
         continue;
       }
-      const serial = invocation.serial ?? undefined;
       if (source) {
-        if (typeof serial !== 'bigint') throw new PhantomError('Internal', 'source callback serial is unavailable');
-        if (!owner.isActive(serial)) continue;
-        controller = new AbortController();
         // Only the current invocation can explain a returned core HeaderHook error.
         // An earlier error discarded by a GET deadline remains in bridgeFailure.
         outcome.failed = false;
@@ -178,7 +214,7 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
         outcome.failureSerial = undefined;
       }
       const context = new HeaderHookContext(contextToken, invocation, controller.signal);
-      if (source && serial !== undefined) active = {serial, context, controller};
+      if (serialLifetime && serial !== undefined) active = {serial, context, controller};
       try {
         controller.signal.throwIfAborted();
         const hook = hooks[invocation.index];
@@ -186,29 +222,29 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
         await callbackContext.run({client, source: source ? owner : undefined}, () => hook(context));
         controller.signal.throwIfAborted();
         const edits = context._finish();
-        if (!source || owner.isActive(/** @type {bigint} */ (serial))) {
+        if (!serialLifetime || owner.isActive(/** @type {bigint} */ (serial))) {
           try { owner.complete(invocation.index, edits, serial); }
           catch (delivery) {
-            if (!source || owner.isActive(/** @type {bigint} */ (serial)) || translated(delivery).code !== 'InvalidOperation') throw delivery;
+            if (!serialLifetime || owner.isActive(/** @type {bigint} */ (serial)) || translated(delivery).code !== 'InvalidOperation') throw delivery;
           }
         }
       } catch (error) {
         context._finish();
-        if (source && !owner.isActive(/** @type {bigint} */ (serial))) {
+        if (serialLifetime && !owner.isActive(/** @type {bigint} */ (serial))) {
           if (!controller.signal.aborted || error !== controller.signal.reason) outcome.bridgeFailure ??= {error, serial};
           continue;
         }
         outcome.failed = true;
         outcome.error = error;
         outcome.failureSerial = serial;
-        if (source || (controller.signal.aborted && error !== controller.signal.reason)) {
+        if (serialLifetime || (controller.signal.aborted && error !== controller.signal.reason)) {
           outcome.bridgeFailure ??= {error, serial};
         }
         try { owner.fail(invocation.index, serial); }
         catch (failure) {
           if (!controller.signal.aborted) outcome.bridgeFailure ??= {error: translated(failure)};
         }
-        if (!source) break;
+        if (!serialLifetime) break;
       } finally {
         active = undefined;
       }

@@ -2,6 +2,18 @@ import { AttemptBudget, TransferControl, Client, ClientCertificate, PhantomError
 import {Readable} from 'node:stream';
 
 async function use(): Promise<void> {
+  const observed = new Client({profile: profiles()[0]!, route: 'direct', context: 'raw', requestHooks: {
+    async onRequest(context) {const method: string = context.method; context.signal.throwIfAborted(); void method;},
+    onResponse(context) {const value: Buffer | undefined = context.headers[0]?.value; void value;},
+    onError(context) {const failure: unknown = context.error.cause; const secondary: PhantomError | undefined = context.error.hookError; void failure; void secondary;},
+  }});
+  await observed.get('https://example.com', {requestHooks: {onResponse(context) {const count: number | undefined = context.redirects; void count;}}});
+  await observed.eventSource('https://example.com/events', {protocol: 'http2', requestHooks: {onRequest(context) {context.signal.throwIfAborted();}}});
+  // @ts-expect-error Logical hooks cannot consume a response body.
+  await observed.get('https://example.com', {requestHooks: {onResponse(context) {context.body;}}});
+  // @ts-expect-error Hook callbacks return void or a Promise of void.
+  await observed.get('https://example.com', {requestHooks: {onRequest() {return 42;}}});
+  await observed.close();
   const client = new Client({profile: profiles()[0]!, route: 'direct', cookies: true,
     baseUrl: 'https://example.com/api/', additionalProxyRoots: [Buffer.from('DER')],
     timeouts: {connectMs: 1000, totalMs: null}});

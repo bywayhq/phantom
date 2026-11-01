@@ -21,6 +21,7 @@ const { attemptBudgetHandle, transferControlHandle, requestDiagnosticsHandle } =
 const { PhantomError, translated } = require('./errors.cjs');
 const { openEventSource } = require('./event-source.cjs');
 const { headerHooks, isHeaderHookContext, pumpHeaderHooks } = require('./header-hooks.cjs');
+const { requestHookBundles, logicalMask, requestFailure, pendingCallbackFailure, consumeCallbackFailure } = require('./request-hooks.cjs');
 const native = require('./native.cjs');
 const { networkOptions, poolOptions } = require('./network.cjs');
 const { preparedBodyHandle } = require('./prepared-body.cjs');
@@ -52,7 +53,7 @@ class Client {
   #uploadCleanupError;
   /** @type {Set<Promise<void>>} */
   #headerPumps = new Set();
-  /** @type {{error: unknown, observed?: boolean} | undefined} */
+  /** @type {import('./header-hooks.cjs').HookOutcome | undefined} */
   #headerCleanupError;
 
   /** @param {unknown} iterator
@@ -105,7 +106,7 @@ class Client {
       this.#defaults = requestDefaults(config, profile?.contexts.includes('profile') ? 'profile' : undefined);
 
       /** @type {Omit<ClientOptions, 'clientCertificate' | 'clientCertificatesFor'>} */
-      const { protocol, context, headers, headerHooks: configuredHooks, ...nativeOptions } = config;
+      const { protocol, context, headers, headerHooks: configuredHooks, requestHooks: configuredRequestHooks, ...nativeOptions } = config;
       this.#native = environment.client({
         ...nativeOptions, profile: typeof config.profile === 'string' ? config.profile : undefined,
         defaultContext: this.#defaults.context,
@@ -244,6 +245,8 @@ class Client {
       if (suppliedHooks.length) hooks = hooks.length ? [...hooks, ...suppliedHooks] : suppliedHooks;
       if (hooks.length > 256) throw new PhantomError('InputLimit', 'headerHooks exceed 256 callbacks');
       const redirects = options.redirectPolicy === undefined ? this.#defaults.redirectPolicy : redirectPolicy(options.redirectPolicy);
+      const logicalBundles = requestHookBundles(this.#defaults.requestHooks, options.requestHooks);
+      const phases = logicalMask(logicalBundles);
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
@@ -307,10 +310,11 @@ class Client {
         multipartUpload = true;
       }
 
-      if (hooks.length || redirects?.callback) {
+      if (hooks.length || redirects?.callback || phases) {
         if (typeof native.NativeHeaderHooks !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for header hooks');
-        hookOwner = new native.NativeHeaderHooks(hooks.length);
-        hookOutcome = {failed: false};
+        hookOwner = phases ? new native.NativeHeaderHooks(hooks.length, false, phases) : new native.NativeHeaderHooks(hooks.length);
+        if (phases && (!hookOwner || typeof hookOwner.completeLogical !== 'function' || typeof hookOwner.nextCancelled !== 'function' || typeof hookOwner.isActive !== 'function')) throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for logical hooks');
+        hookOutcome = phases ? {failed: false, logical: {}} : {failed: false};
       }
       const request = {
         url: preparedUrl, method: options.method, protocol: options.protocol, context: options.context,
@@ -326,7 +330,7 @@ class Client {
 
       if (hookOwner && hookOutcome) {
         const outcome = hookOutcome;
-        const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome, redirects?.callback);
+        const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome, redirects?.callback, false, logicalBundles);
         hookPump = pumping;
         this._trackHeaderPump(pumping, outcome);
       }
@@ -353,6 +357,7 @@ class Client {
       }
 
       const failure = uploadError(error, producer, true);
+      if (hookOutcome?.logical) throw requestFailure(failure, hookOutcome);
       if (failure.code === 'HeaderHook' || failure.code === 'Redirect') {
         if (hookOutcome?.failed) throw hookOutcome.error;
         if (hookOutcome?.bridgeFailure !== undefined) throw hookOutcome.bridgeFailure.error;
@@ -378,8 +383,8 @@ class Client {
     this.#headerPumps.add(pumping);
     const finished = () => {
       this.#headerPumps.delete(pumping);
-      if (this.#headerCleanupError?.observed) this.#headerCleanupError = undefined;
-      this.#headerCleanupError ??= outcome.bridgeFailure;
+      if (!pendingCallbackFailure(this.#headerCleanupError)) this.#headerCleanupError = undefined;
+      if (pendingCallbackFailure(outcome)) this.#headerCleanupError ??= outcome;
     };
     pumping.then(finished, (error) => { outcome.bridgeFailure ??= {error}; finished(); });
   }
@@ -387,7 +392,7 @@ class Client {
   /** @param {string | URL} url @param {import('../index.js').EventSourceOptions} options */
   eventSource(url, options) {
     if (this.#defaults.redirectPolicy?.callback) return Promise.reject(new PhantomError('InvalidArgument', 'dedicated EventSource does not support custom redirect callbacks'));
-    return openEventSource(this.#native, this, url, options, this.#defaults.headers, this.#defaults.headerHooks);
+    return openEventSource(this.#native, this, url, options, this.#defaults.headers, this.#defaults.headerHooks, this.#defaults.requestHooks);
   }
   /** @param {string | URL} url @param {MethodOptions} [options] */
   get(url, options) { return this.#requestMethod('GET', url, options); }
@@ -536,10 +541,9 @@ class Client {
         }
       }
       if (this.#uploadCleanupError) throw this.#uploadCleanupError;
-      if (this.#headerCleanupError !== undefined && !this.#headerCleanupError.observed) {
-        this.#headerCleanupError.observed = true;
-        throw this.#headerCleanupError.error;
-      }
+      const callbackFailure = consumeCallbackFailure(this.#headerCleanupError);
+      this.#headerCleanupError = undefined;
+      if (callbackFailure) throw callbackFailure.error;
     } catch (error) {
       throw translated(error);
     }

@@ -673,6 +673,12 @@ test('a live response retains its client across forced garbage collection', asyn
 
 test('direct native state, byte and redirect inputs enforce typed bounds and ownership', async (t) => {
   const native = require('../phantom.node');
+  for (const mask of [-1, 1.5, NaN, Infinity, 8, 2 ** 32 + 1]) {
+    assert.throws(() => new native.NativeHeaderHooks(0, false, mask), /PHANTOM:InvalidArgument:/);
+  }
+  for (let mask = 0; mask <= 7; mask++) {
+    const hooks = new native.NativeHeaderHooks(0, false, mask); hooks.stop(); hooks.settled();
+  }
   const environment = new native.NativeEnvironment();
   const invalidKeyBacking = new ArrayBuffer(4), invalidKey = Buffer.from(invalidKeyBacking);
   structuredClone(invalidKeyBacking, {transfer: [invalidKeyBacking]});

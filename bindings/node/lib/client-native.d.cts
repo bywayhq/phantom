@@ -33,6 +33,14 @@ export interface NativeHeader { name: string; value: Buffer; sensitive?: boolean
 export interface NativeHeaderInvocation {
   index: number; method: string; uri: string; headers: NativeHeader[]; serial?: bigint | null;
   redirect?: Omit<import('../index.js').RedirectAttempt, 'signal'> | null;
+  logical?: NativeLogicalInvocation | null;
+}
+export interface NativeLogicalInvocation {
+  phase: number; method: string; url: string; status?: number | null;
+  protocol?: 'http1' | 'http2' | 'http3' | null; headers: NativeHeader[];
+  effectiveUrl?: string | null; redirects?: number | null; retries?: number | null;
+  decodedContentCodings: string[]; error?: string | null;
+  originScheme?: string | null; originHost?: string | null; originPort?: number | null;
 }
 export type NativeHeaderEdit = {action: 'append' | 'set'; name: string; value: Buffer; sensitive?: boolean}
   | {action: 'remove'; name: string};
@@ -42,8 +50,9 @@ export interface NativeHeaderHooks {
   fail(index: number, serial?: bigint): void;
   nextCancelled(after: bigint): Promise<bigint | null>;
   isActive(serial: bigint): boolean;
-  completeRedirect(hop: bigint, decision: import('../index.js').RedirectDecision): void;
-  failRedirect(hop: bigint): void;
+  completeRedirect(hop: bigint, decision: import('../index.js').RedirectDecision, serial?: bigint): void;
+  failRedirect(hop: bigint, serial?: bigint): void;
+  completeLogical(serial: bigint, failed: boolean): void;
   closed(): Promise<void>;
   stop(): void;
   settled(): void;
@@ -64,7 +73,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   'profile' | 'protocol' | 'context' | 'headers' | 'additionalRoots' |
   'additionalProxyRoots' | 'serverSpkiPins' | 'proxyServerSpkiPins' |
   'clientCertificate' | 'clientCertificatesFor' | 'timeouts' |
-  'redirectPolicy' | 'retryPolicy' | 'network' | 'pool' | 'headerHooks'
+  'redirectPolicy' | 'retryPolicy' | 'network' | 'pool' | 'headerHooks' | 'requestHooks'
 > & {
   profile?: string; defaultContext?: RequestContext; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
   serverSpkiPins?: Buffer[]; proxyServerSpkiPins?: Buffer[];

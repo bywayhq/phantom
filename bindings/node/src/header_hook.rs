@@ -30,6 +30,7 @@ pub(crate) struct Invocation {
     pub(crate) uri: String,
     pub(crate) headers: Vec<RequestHeader>,
     pub(crate) redirect: Option<RedirectInvocation>,
+    pub(crate) logical: Option<crate::request_hook::Invocation>,
 }
 
 pub(crate) struct RedirectInvocation {
@@ -44,6 +45,7 @@ pub(crate) struct RedirectInvocation {
 pub(crate) enum CallbackReply {
     Header(Vec<Edit>),
     Redirect(RedirectDecision),
+    Logical,
 }
 
 type Reply = std::result::Result<CallbackReply, ()>;
@@ -76,6 +78,7 @@ pub(crate) struct HeaderHooks {
     source: bool,
     serial: AtomicU64,
     cancelled: watch::Sender<u64>,
+    logical_mask: u32,
 }
 
 impl fmt::Debug for HeaderHooks {
@@ -87,11 +90,23 @@ impl fmt::Debug for HeaderHooks {
 }
 
 impl HeaderHooks {
+    #[cfg(test)]
     pub(crate) fn new(count: u32) -> Result<Arc<Self>> {
         Self::with_lifetime(count, false)
     }
 
+    #[cfg(test)]
     pub(crate) fn with_lifetime(count: u32, source: bool) -> Result<Arc<Self>> {
+        Self::with_callbacks(count, source, 0)
+    }
+
+    pub(crate) fn with_callbacks(count: u32, source: bool, logical_mask: u32) -> Result<Arc<Self>> {
+        if logical_mask & !7 != 0 {
+            return Err(failure(
+                "InvalidArgument",
+                "invalid logical hook phase mask",
+            ));
+        }
         if count > 256 {
             return Err(failure("InputLimit", "headerHooks exceed 256 callbacks"));
         }
@@ -108,6 +123,7 @@ impl HeaderHooks {
             source,
             serial: AtomicU64::new(0),
             cancelled: watch::channel(0).0,
+            logical_mask,
         }))
     }
 
@@ -135,6 +151,12 @@ impl HeaderHooks {
                 })
             });
         }
+        if self.logical_mask != 0 {
+            builder = builder.async_request_hooks(crate::request_hook::Hooks {
+                owner: Arc::clone(self),
+                mask: self.logical_mask,
+            });
+        }
         Ok((builder, Lease(Arc::clone(self))))
     }
 
@@ -155,6 +177,12 @@ impl HeaderHooks {
                 Box::pin(async move { owner.invoke(index, context, 0, 0).await })
             });
         }
+        if self.logical_mask != 0 {
+            builder = builder.async_request_hooks(crate::request_hook::Hooks {
+                owner: Arc::clone(self),
+                mask: self.logical_mask,
+            });
+        }
         Ok((builder, Lease(Arc::clone(self))))
     }
 
@@ -165,15 +193,8 @@ impl HeaderHooks {
         trailer_count: usize,
         trailer_bytes: usize,
     ) -> std::result::Result<(), HeaderHookError> {
-        let serial = if self.source {
-            Some(
-                self.serial
-                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {
-                        value.checked_add(1)
-                    })
-                    .map_err(|_| hook_error())?
-                    + 1,
-            )
+        let serial = if self.source || self.logical_mask != 0 {
+            Some(self.next_serial().map_err(|_| hook_error())?)
         } else {
             None
         };
@@ -206,6 +227,7 @@ impl HeaderHooks {
             uri: context.uri().to_string(),
             headers: context.headers().to_vec(),
             redirect: None,
+            logical: None,
         };
         self.sender
             .send(QueuedInvocation {
@@ -264,12 +286,16 @@ impl HeaderHooks {
         }
         let mut cancellation = InvocationGuard {
             owner: Arc::clone(&self),
-            serial: None,
+            serial: if self.logical_mask != 0 {
+                Some(self.next_serial().map_err(|_| redirect_error())?)
+            } else {
+                None
+            },
             completed: false,
         };
         let (reply, received) = oneshot::channel();
         let invocation = Invocation {
-            serial: None,
+            serial: cancellation.serial,
             index: 0,
             method: String::new(),
             uri: String::new(),
@@ -282,12 +308,15 @@ impl HeaderHooks {
                 next_method: attempt.next_method().to_string(),
                 hop: attempt.hop(),
             }),
+            logical: None,
         };
         self.sender
             .send(QueuedInvocation {
                 invocation,
                 reply: PendingReply {
-                    key: ReplyKey::Redirect(attempt.hop()),
+                    key: cancellation
+                        .serial
+                        .map_or(ReplyKey::Redirect(attempt.hop()), ReplyKey::Source),
                     sender: reply,
                 },
             })
@@ -306,6 +335,72 @@ impl HeaderHooks {
         }
         cancellation.completed = true;
         Ok(decision)
+    }
+
+    fn next_serial(&self) -> Result<u64> {
+        let mut current = self.serial.load(Ordering::Acquire);
+        loop {
+            let next = current
+                .checked_add(1)
+                .ok_or_else(|| failure("Capacity", "callback serial exhausted"))?;
+            match self.serial.compare_exchange_weak(
+                current,
+                next,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(next),
+                Err(observed) => current = observed,
+            }
+        }
+    }
+
+    pub(crate) async fn logical(
+        self: &Arc<Self>,
+        logical: crate::request_hook::Invocation,
+    ) -> std::result::Result<(), phantom::RequestHookError> {
+        let serial = self
+            .next_serial()
+            .map_err(|_| crate::request_hook::failure())?;
+        let mut cancellation = InvocationGuard {
+            owner: Arc::clone(self),
+            serial: Some(serial),
+            completed: false,
+        };
+        let (sender, received) = oneshot::channel();
+        self.sender
+            .send(QueuedInvocation {
+                invocation: Invocation {
+                    serial: Some(serial),
+                    index: 0,
+                    method: String::new(),
+                    uri: String::new(),
+                    headers: Vec::new(),
+                    redirect: None,
+                    logical: Some(logical),
+                },
+                reply: PendingReply {
+                    key: ReplyKey::Source(serial),
+                    sender,
+                },
+            })
+            .await
+            .map_err(|_| crate::request_hook::failure())?;
+        let reply = tokio::select! {
+            biased;
+            () = self.closed() => return Err(crate::request_hook::failure()),
+            reply = received => reply.map_err(|_| crate::request_hook::failure())?,
+        };
+        // A delivered failure is a completed invocation. Only dropping an
+        // unfinished future signals cancellation of this serial.
+        cancellation.completed = true;
+        match reply {
+            Ok(CallbackReply::Logical) => Ok(()),
+            Err(()) => Err(phantom::RequestHookError::new(
+                crate::request_hook::HostFailure(serial),
+            )),
+            _ => Err(crate::request_hook::failure()),
+        }
     }
 
     pub(crate) async fn next(&self) -> Result<Option<Invocation>> {
@@ -565,5 +660,62 @@ mod tests {
         owner.reply(ReplyKey::Source(2), Ok(CallbackReply::Header(Vec::new())))?;
         assert!(second.try_recv().is_ok());
         Ok(())
+    }
+    #[test]
+    fn callback_serial_exhaustion_does_not_wrap_or_change_the_counter() -> Result<()> {
+        let owner = HeaderHooks::with_callbacks(0, false, 1)?;
+        owner.serial.store(u64::MAX - 1, Ordering::Release);
+        assert_eq!(owner.next_serial()?, u64::MAX);
+        assert!(owner.next_serial().is_err());
+        assert_eq!(owner.serial.load(Ordering::Acquire), u64::MAX);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn failed_logical_invocation_keeps_the_error_phase_owner_open() -> Result<()> {
+        let owner = HeaderHooks::with_callbacks(0, false, 5)?;
+        let invocation = |phase| crate::request_hook::Invocation {
+            phase,
+            method: "GET".into(),
+            uri: "https://local/".into(),
+            status: None,
+            protocol: None,
+            headers: Vec::new(),
+            url: None,
+            redirects: None,
+            retries: None,
+            codings: Vec::new(),
+            error: None,
+            origin: None,
+        };
+        let (failed, serial) = tokio::join!(owner.logical(invocation(0)), async {
+            let call = owner
+                .next()
+                .await?
+                .ok_or_else(|| failure("Test", "missing logical callback"))?;
+            let serial = call
+                .serial
+                .ok_or_else(|| failure("Test", "missing serial"))?;
+            owner.reply(ReplyKey::Source(serial), Err(()))?;
+            Ok::<_, napi::Error>(serial)
+        });
+        assert!(failed.is_err());
+        let serial = serial?;
+        assert!(!*owner.closed.borrow());
+        assert_eq!(*owner.cancelled.borrow(), 0);
+        let (finished, reply) = tokio::join!(owner.logical(invocation(2)), async {
+            let call = owner
+                .next()
+                .await?
+                .ok_or_else(|| failure("Test", "missing error callback"))?;
+            let current = call
+                .serial
+                .ok_or_else(|| failure("Test", "missing serial"))?;
+            assert_ne!(serial, current);
+            assert!(owner.reply(ReplyKey::Source(serial), Err(())).is_err());
+            owner.reply(ReplyKey::Source(current), Ok(CallbackReply::Logical))
+        });
+        assert!(finished.is_ok());
+        reply
     }
 }
