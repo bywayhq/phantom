@@ -67,6 +67,9 @@ from ._sse import AsyncEventStream as AsyncEventStream
 from ._sse import Event as Event
 from ._sse import EventStream as EventStream
 from ._sse import SseLimits as SseLimits
+from ._storage import AsyncSessionStore as AsyncSessionStore
+from ._storage import SessionStorageError as SessionStorageError
+from ._storage import SessionStore as SessionStore
 from ._sync import Client as Client
 from ._sync import HTTPStatusError as HTTPStatusError
 from ._sync import Response as Response

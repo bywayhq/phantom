@@ -308,6 +308,25 @@ retains the typed core kind and wraps `*Error`; unsupported state is rejected.
 These CPU-only calls cannot be preempted once running; context cancellation
 discards any unpublished result. Configuration and file I/O are not serialized.
 
+Implement `SessionStore.Load(ctx, name) ([]byte, error)` and
+`Save(ctx, name, snapshot) error` to store these encrypted bytes. A nil slice
+means absence; other read failures must return errors. The backend never receives
+the key. Use the same bounded context through encoding, storage and restore:
+
+```go
+err := client.SaveSession(ctx, store, "job/session", key)
+restored, err := client.LoadSession(ctx, store, "job/session", key, []phantom.SessionRoute{{}})
+```
+
+Names must be nonempty, at most 256 UTF-8 bytes, with no control characters.
+Backends must cap reads at 32 MiB before collection, bound admission, honor `ctx`
+and define their own write ordering/durability. `SessionStorageError.Unwrap`
+retains backend errors; checkpoint and context errors keep their existing types.
+Already-running CPU work and blocking backends cannot be preempted; late
+completion checks `ctx` and releases unpublished restored owners. Cancellation
+cannot undo a write already accepted externally. Close each returned client;
+there is no automatic persistence or fallback.
+
 ## Budgets, deadlines and retries
 
 Create `NewAttemptBudget(maximum)` and attach it as `Request.Budget` across

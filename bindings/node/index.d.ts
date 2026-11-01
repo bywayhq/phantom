@@ -246,6 +246,18 @@ export type SessionRoute = Readonly<{route: 'direct'}> | Readonly<{
   route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string; proxyUserId?: string;
 }>;
 export interface RestoreSessionOptions { readonly receivingRoutes?: readonly SessionRoute[]; }
+/** Caller-owned backend. Bound reads to 32 MiB before collecting bytes; null only means absence.
+ * Honor signal and own admission, ordering and durability. Accepted writes cannot be rolled back. */
+export interface SessionStore {
+  load(name: string, options: {readonly signal: AbortSignal}): Promise<Uint8Array | null>;
+  save(name: string, snapshot: Uint8Array, options: {readonly signal: AbortSignal}): Promise<void>;
+}
+export interface SessionStorageOptions {
+  /** One total finite bound, in milliseconds; positive and at most 2147483647. */
+  readonly timeoutMs: number;
+  readonly signal?: AbortSignal;
+}
+export interface LoadSessionOptions extends SessionStorageOptions, RestoreSessionOptions {}
 export type ContentDecoding = Readonly<{mode: 'none'}>
   | Readonly<{mode: 'advertised'; maximumDecodedBytes: number | bigint}>;
 export type ContentCoding = 'gzip' | 'deflate' | 'br' | 'zstd';
@@ -498,6 +510,10 @@ export class Client {
   exportSession(key: Uint8Array): Promise<Buffer>;
   /** Restores independent pools using this client's configuration; leaves this client unchanged. */
   restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;
+  /** Saves encrypted state. Backend errors retain cause; CPU encoding cannot be interrupted. */
+  saveSession(store: SessionStore, name: string, key: Uint8Array, options: SessionStorageOptions): Promise<void>;
+  /** null only means absence; late cancelled restored clients are destroyed before delivery. */
+  loadSession(store: SessionStore, name: string, key: Uint8Array, options: LoadSessionOptions): Promise<Client | null>;
   request(url: string | URL, options?: RequestOptions): Promise<Response>;
   websocket(url: string | URL, options?: WebSocketOptions): Promise<WebSocketConnection>;
   get(url: string | URL, options?: MethodOptions): Promise<Response>;

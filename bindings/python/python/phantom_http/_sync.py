@@ -15,7 +15,7 @@ from collections.abc import (
 
 from typing_extensions import Unpack
 
-from . import _upload
+from . import _storage, _upload
 from ._bodies import PreparedBody, StreamingMultipartBody
 from ._certificates import ClientCertificate
 from ._client import AsyncClient
@@ -343,6 +343,57 @@ class Client:
             client._loop.close()
             raise
         return client
+
+    def save_session(
+        self, store: _storage.SessionStore, name: str, key: bytes, *, timeout: float
+    ) -> None:
+        """Save encrypted state; blocking CPU/backend calls cannot be preempted."""
+        self._check_thread_loop()
+        deadline = _storage._deadline(name, timeout)
+        key = _storage._key(key)
+        snapshot = self.export_session(key)
+        _storage._check(deadline)
+        try:
+            store.save(name, snapshot)
+        except Exception as error:
+            _storage._check(deadline)
+            raise _storage.SessionStorageError("backend", error) from None
+        _storage._check(deadline)
+
+    def load_session(
+        self,
+        store: _storage.SessionStore,
+        name: str,
+        key: bytes,
+        *,
+        timeout: float,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> Client | None:
+        """Restore independent state; a backend failure never means absence."""
+        self._check_thread_loop()
+        deadline = _storage._deadline(name, timeout)
+        key = _storage._key(key)
+        routes = tuple(receiving_routes)
+        _storage._check(deadline)
+        try:
+            snapshot = store.load(name)
+        except Exception as error:
+            _storage._check(deadline)
+            raise _storage.SessionStorageError("backend", error) from None
+        _storage._check(deadline)
+        snapshot = _storage._loaded(snapshot)
+        if snapshot is None:
+            return None
+        restored = self.restore_session(snapshot, key, receiving_routes=routes)
+        try:
+            _storage._check(deadline)
+        except BaseException as error:
+            try:
+                restored.abort()
+            except BaseException as cleanup:
+                raise _primary_error(error, cleanup=cleanup) from None
+            raise
+        return restored
 
     def get(self, url: str, **options: Unpack[_SyncRequestOptions]) -> Response:
         """Send GET and return the response head."""

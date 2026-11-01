@@ -22,6 +22,23 @@ function client(t, overrides = {}) {
   return keep(t, new Client({profile: identifier, route: 'direct', cookies: true, ...overrides}));
 }
 
+test('caller storage roundtrip uses native encrypted state without changing the receiver', {timeout: 30000}, async (t) => {
+  const source = client(t), values = new Map();
+  const store = {
+    async save(name, snapshot, {signal}) { signal.throwIfAborted(); values.set(name, snapshot); },
+    async load(name, {signal}) { signal.throwIfAborted(); return values.get(name) ?? null; },
+  };
+  source.setCookie('https://example.test', 'state=original; Secure; Path=/');
+  await source.saveSession(store, 'job/session', key, {timeoutMs: 5000});
+  assert(!values.get('job/session').includes(Buffer.from('state=original')));
+  source.setCookie('https://example.test', 'state=changed; Secure; Path=/');
+  assert.equal(await source.loadSession(store, 'absent', key, {timeoutMs: 5000}), null);
+  const restored = keep(t, await source.loadSession(store, 'job/session', key, {timeoutMs: 5000, receivingRoutes: [{route: 'direct'}]}));
+  assert.equal(restored.cookieValue('https://example.test'), 'state=original');
+  await assert.rejects(source.loadSession(store, 'job/session', Buffer.alloc(32), {timeoutMs: 5000}), kind('authentication'));
+  assert.equal(source.cookieValue('https://example.test'), 'state=changed');
+});
+
 test('encrypted checkpoints retain private cookies, profile templates and independent pools', {timeout: 30000}, async (t) => {
   const observed = [];
   const sockets = new Set();

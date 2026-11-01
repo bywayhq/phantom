@@ -519,3 +519,23 @@ async function reconnectingEvents(client: Client): Promise<void> {
   void delay;
 }
 void reconnectingEvents;
+
+async function storageConsumer(client: Client): Promise<void> {
+  const entries = new Map<string, Uint8Array>();
+  const store = {
+    async load(name: string, {signal}: {signal: AbortSignal}): Promise<Uint8Array | null> {
+      signal.throwIfAborted(); return entries.get(name) ?? null;
+    },
+    async save(name: string, bytes: Uint8Array, {signal}: {signal: AbortSignal}): Promise<void> {
+      signal.throwIfAborted(); entries.set(name, bytes);
+    },
+  };
+  await client.saveSession(store, 'job/session', Buffer.alloc(32), {timeoutMs: 5000});
+  const restored: Client | null = await client.loadSession(store, 'job/session', Buffer.alloc(32), {
+    timeoutMs: 5000, signal: new AbortController().signal, receivingRoutes: [{route: 'direct'}],
+  });
+  if (restored) await restored.close();
+  // @ts-expect-error A finite total timeout is required.
+  await client.saveSession(store, 'job/session', Buffer.alloc(32), {});
+}
+void storageConsumer;

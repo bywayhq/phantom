@@ -7,6 +7,8 @@
 
 ### Bindings
 
+- Save and load encrypted session checkpoints through caller-owned Python,
+  Go and Node storage backends with bounded reads and operation deadlines.
 - Python, Go and Node can override the route for each WebSocket opening while
   keeping the client's default route.
 - Python, Go and Node add DNS-over-HTTPS and DNS-over-TLS endpoints with explicit

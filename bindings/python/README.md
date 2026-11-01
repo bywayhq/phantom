@@ -376,6 +376,26 @@ checks apply; unsupported state/configuration raises `SessionSnapshotError`.
 No configuration or file I/O is serialized. Already-started CPU work continues
 if the awaiting task is cancelled; an unpublished restored client is discarded.
 
+For caller-owned storage, implement `SessionStore.save(name, snapshot)` and
+`load(name) -> bytes | None`; `AsyncSessionStore` has the same async methods.
+Backends receive encrypted bytes, never keys. For example, on a sync client:
+
+```python
+client.save_session(store, "job/session", key, timeout=5)
+restored = client.load_session(store, "job/session", key, timeout=5,
+                               receiving_routes=(None,))
+```
+
+Await these methods on `AsyncClient`. `None` means absence; backend failures
+raise `SessionStorageError` with the original exception in `original`.
+Names must be nonempty, at most 256 UTF-8 bytes, with no control characters.
+Backends must bound reads to 32 MiB before collection and own bounded admission,
+write ordering and durability. Async backends must yield promptly and release
+resources on cancellation. One positive `timeout` in seconds covers encoding,
+storage and restore; expiry raises `TimeoutError`. Blocking sync backends and
+already-running CPU work cannot be preempted. A late restored client is discarded;
+timeouts cannot undo an accepted external write. Close each returned client.
+
 ## Transfer limits and counters
 
 Use one `TransferControl(limits=TransferLimits(download_bytes=1_000_000))`

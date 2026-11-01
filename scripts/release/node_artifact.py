@@ -37,6 +37,7 @@ SOURCES = (
     "lib/request-preparation.cjs",
     "lib/response.cjs",
     "lib/session.cjs",
+    "lib/session-storage.cjs",
     "lib/tls.cjs",
     "lib/upload.cjs",
     "lib/validation.cjs",
@@ -354,6 +355,13 @@ def copied_tests(destination, native_package=None):
                 1,
             ),
         ),
+        "session-storage-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "upload-pump.test.cjs": (
             (
                 "path.resolve(__dirname, '../index.cjs')",
@@ -532,6 +540,7 @@ def public_checks(
                 "tests/prepared-bodies-facade.test.cjs",
                 "tests/request-controls-facade.test.cjs",
                 "tests/session-snapshot-facade.test.cjs",
+                "tests/session-storage-facade.test.cjs",
                 "tests/upload-pump.test.cjs",
                 "tests/content-decoding.test.cjs",
                 "tests/redirects.test.cjs",

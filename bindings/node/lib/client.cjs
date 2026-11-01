@@ -28,6 +28,7 @@ const { requestDefaults, prepareRequest } = require('./request-preparation.cjs')
 const { phaseTimeouts, redirectPolicy, retryPolicy, expectContinue, contentDecoding } = require('./request-options.cjs');
 const { Response } = require('./response.cjs');
 const { socks4UserId, sessionSharing, checkpointKey, receivingRoutes } = require('./session.cjs');
+const {saveSession, loadSession} = require('./session-storage.cjs');
 const { clientPins, clientCertificates } = require('./tls.cjs');
 const { runUpload, pumpMultipart, pumpUpload, multipartOptions, uploadLength, claimMultipart, uploadError, isUploadContext } = require('./upload.cjs');
 const { integer, positiveCount } = require('./validation.cjs');
@@ -148,6 +149,18 @@ class Client {
     } catch (error) {
       throw translated(error);
     }
+  }
+
+  /** @param {import('../index.js').SessionStore} store @param {string} name @param {Uint8Array} key
+   * @param {import('../index.js').SessionStorageOptions} options */
+  async saveSession(store, name, key, options) {
+    await saveSession(this, store, name, key, options);
+  }
+
+  /** @param {import('../index.js').SessionStore} store @param {string} name @param {Uint8Array} key
+   * @param {import('../index.js').LoadSessionOptions} options */
+  async loadSession(store, name, key, options) {
+    return await loadSession(this, store, name, key, options);
   }
 
   /** @param {string | URL} url @param {RequestOptions} [inputOptions] */
