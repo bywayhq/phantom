@@ -27,6 +27,7 @@ struct State {
     serial: u64,
     pending: Option<Invocation>,
     reply: Option<(u64, oneshot::Sender<Reply>)>,
+    limits: Option<(usize, usize)>,
 }
 
 #[derive(Default)]
@@ -58,13 +59,18 @@ impl Owner {
         trailers: (usize, usize),
     ) -> Result<(), HeaderHookError> {
         let mut guard = Guard(Some(Arc::clone(self)));
-        bounded(context.headers(), trailers)?;
         let (send, receive) = oneshot::channel();
-        {
+        let limits = {
             let mut state = self.state();
             if state.closed || state.reply.is_some() {
                 return Err(closed());
             }
+            // Prepared-body metadata can exceed the caller-input allowance.
+            // Keep its initial ceiling across callbacks instead of granting growth.
+            let limits = *state
+                .limits
+                .get_or_insert_with(|| field_limits(context.headers(), trailers));
+            bounded(context.headers(), trailers, limits)?;
             state.serial = state.serial.checked_add(1).ok_or_else(closed)?;
             state.pending = Some((
                 state.serial,
@@ -84,7 +90,8 @@ impl Owner {
                     .collect(),
             ));
             state.reply = Some((state.serial, send));
-        }
+            limits
+        };
         self.changed.notify_waiters();
         let edits = receive
             .await
@@ -99,7 +106,7 @@ impl Owner {
                 Edit::Set(header) => context.set(header)?,
                 Edit::Remove(name) => context.remove(&name)?,
             }
-            bounded(context.headers(), trailers)?;
+            bounded(context.headers(), trailers, limits)?;
         }
         guard.0 = None;
         Ok(())
@@ -122,13 +129,30 @@ fn closed() -> HeaderHookError {
     HeaderHookError::new(std::io::Error::other("header callback closed"))
 }
 
-fn bounded(headers: &[RequestHeader], trailers: (usize, usize)) -> Result<(), HeaderHookError> {
+fn field_limits(headers: &[RequestHeader], trailers: (usize, usize)) -> (usize, usize) {
+    (
+        headers.len().saturating_add(trailers.0).max(MAXIMUM_FIELDS),
+        headers
+            .iter()
+            .fold(trailers.1, |size, header| {
+                size.saturating_add(header.name().len())
+                    .saturating_add(header.value().len())
+            })
+            .max(MAXIMUM_BYTES),
+    )
+}
+
+fn bounded(
+    headers: &[RequestHeader],
+    trailers: (usize, usize),
+    limits: (usize, usize),
+) -> Result<(), HeaderHookError> {
     let bytes = headers.iter().try_fold(trailers.1, |size, header| {
         size.checked_add(header.name().len())?
             .checked_add(header.value().len())
     });
-    if headers.len().saturating_add(trailers.0) > MAXIMUM_FIELDS
-        || bytes.is_none_or(|size| size > MAXIMUM_BYTES)
+    if headers.len().saturating_add(trailers.0) > limits.0
+        || bytes.is_none_or(|size| size > limits.1)
     {
         return Err(HeaderHookError::new(std::io::Error::other(
             "header callback field limit",
@@ -288,6 +312,21 @@ mod tests {
     }
 
     #[test]
+    fn prepared_metadata_preserves_initial_capacity_without_granting_growth() {
+        let mut headers = vec![RequestHeader::new("X", "a"); MAXIMUM_FIELDS];
+        headers.push(RequestHeader::new("content-type", "text/plain"));
+        let trailers = (1, MAXIMUM_BYTES);
+        let limits = field_limits(&headers, trailers);
+        assert!(bounded(&headers, trailers, limits).is_ok());
+
+        headers.push(RequestHeader::new("X-Extra", "b"));
+        assert!(bounded(&headers, trailers, limits).is_err());
+        headers.truncate(MAXIMUM_FIELDS + 1);
+        headers[0] = RequestHeader::new("X", "longer");
+        assert!(bounded(&headers, trailers, limits).is_err());
+    }
+
+    #[test]
     fn completion_bounds_edits_and_resulting_fields_include_trailers() -> PyResult<()> {
         Python::initialize();
         Python::attach(|py| {
@@ -301,9 +340,16 @@ mod tests {
             )?;
             assert!(hooks.complete(1, &oversized).is_err());
             let headers = vec![RequestHeader::new("X", "a"); MAXIMUM_FIELDS];
-            assert!(bounded(&headers, (0, 0)).is_ok());
-            assert!(bounded(&headers, (1, 0)).is_err());
-            assert!(bounded(&[RequestHeader::new("X", "a")], (0, MAXIMUM_BYTES - 1)).is_err());
+            assert!(bounded(&headers, (0, 0), (MAXIMUM_FIELDS, MAXIMUM_BYTES)).is_ok());
+            assert!(bounded(&headers, (1, 0), (MAXIMUM_FIELDS, MAXIMUM_BYTES)).is_err());
+            assert!(
+                bounded(
+                    &[RequestHeader::new("X", "a")],
+                    (0, MAXIMUM_BYTES - 1),
+                    (MAXIMUM_FIELDS, MAXIMUM_BYTES)
+                )
+                .is_err()
+            );
             Ok(())
         })
     }

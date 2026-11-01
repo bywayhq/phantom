@@ -118,6 +118,26 @@ class ContextTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "closed"):
                 mutation()
 
+    def test_prepared_field_capacity_allows_replacement_without_further_growth(self):
+        for fields in (
+            [(f"X-{index}", b"a", False) for index in range(257)],
+            [("X", b"a" * 32768, False), ("Y", b"a" * 32768, False)],
+        ):
+            with self.subTest(count=len(fields)):
+                context = FACADE.HeaderHookContext("POST", "https://local/", fields)
+                before = context.headers
+                with self.assertRaises(ValueError):
+                    context.append(("X-Extra", "a"))
+                self.assertEqual(context.headers, before)
+                context.set((fields[0][0], b"b" * len(fields[0][1])))
+                if len(fields) > 256:
+                    context.remove("X-1")
+                    context.append(("X-1", "a"))
+                    self.assertEqual(len(context.headers), len(before))
+                else:
+                    self.assertEqual(len(context.headers), len(before))
+                    self.assertEqual(context.headers[0].value, b"b" * 32768)
+
     def test_callback_inventory_is_bounded_without_consuming_unlimited_input(self):
         consumed = []
 
@@ -138,6 +158,28 @@ class HookPumpTests(unittest.IsolatedAsyncioTestCase):
         )
         self.native.start()
         self.addCleanup(self.native.stop)
+
+    async def test_prepared_capacity_survives_removal_by_an_earlier_callback(self):
+        original = [(f"X-{index}", b"a", False) for index in range(257)]
+        hooks = hooks_module.Hooks(
+            (
+                lambda context: context.remove("X-256"),
+                lambda context: context.append(("X-256", "b")),
+            ),
+            False,
+        )
+        try:
+            self.assertEqual(
+                await hooks.native.invoke(0, original),
+                [("remove", "X-256", b"", False)],
+            )
+            self.assertEqual(
+                await hooks.native.invoke(1, original[:-1]),
+                [("append", "X-256", b"b", False)],
+            )
+        finally:
+            hooks.close()
+            self.assertTrue(await hooks.wait())
 
     async def test_distinct_request_owners_inherit_context_and_release_the_loop(self):
         entered, release = asyncio.Event(), asyncio.Event()

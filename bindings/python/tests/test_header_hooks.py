@@ -130,7 +130,9 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
                 )
             self.assertEqual(peer.errors, [])
 
-    async def test_prepared_metadata_is_visible_and_still_validated_before_send(self):
+    async def test_explicit_prepared_content_type_is_visible_and_validated_before_send(
+        self,
+    ):
         body = PreparedBody.form((("name", "value"),), maximum_bytes=100)
         contexts = []
 
@@ -145,7 +147,12 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
             async with AsyncClient(
                 profile=PROFILE, protocol="h1", context="raw", timeout_ms=5000
             ) as client:
-                response = await client.post(url, body=body, header_hooks=(inspect,))
+                response = await client.post(
+                    url,
+                    body=body,
+                    headers=(("Content-Type", body.content_type),),
+                    header_hooks=(inspect,),
+                )
                 await response.read(max_bytes=0)
                 self.assertEqual(peer.records[0][2], body.to_bytes())
                 budget = AttemptBudget(1)
@@ -153,6 +160,7 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
                     await client.post(
                         url,
                         body=body,
+                        headers=(("Content-Type", body.content_type),),
                         budget=budget,
                         header_hooks=(
                             lambda context: context.set(("Content-Type", "text/plain")),
@@ -162,6 +170,72 @@ class HeaderHookTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(len(peer.records), 1)
                 with self.assertRaisesRegex(RuntimeError, "closed"):
                     contexts[0].append(("X-Late", "no"))
+
+    async def test_prepared_template_metadata_preserves_full_caller_field_allowance(
+        self,
+    ):
+        body = PreparedBody.form((("name", "value"),), maximum_bytes=100)
+        observed = []
+
+        def inspect(context):
+            observed.append(context.headers)
+
+        def replace(context):
+            context.set(("X-0", "a"))
+            context.remove("X-253")
+
+        def restore(context):
+            context.append(("X-253", "a"))
+
+        with H2Peer() as peer:
+            headers = (
+                ("Origin", peer.url),
+                ("Referer", peer.url + "/page"),
+                *((f"X-{index}", "a") for index in range(254)),
+            )
+            async with AsyncClient(
+                profile=PROFILE, protocol="h2", context="fetch_upload", timeout_ms=5000
+            ) as client:
+                for path, hooks in (
+                    ("/baseline", ()),
+                    ("/hooked", (inspect,)),
+                    ("/edited", (inspect, replace, restore)),
+                ):
+                    response = await client.post(
+                        peer.url + path, headers=headers, body=body, header_hooks=hooks
+                    )
+                    self.assertEqual(await response.read(max_bytes=5), b"hello")
+
+                budget = AttemptBudget(1)
+                with self.assertRaises(Error):
+                    await client.post(
+                        peer.url + "/overflow",
+                        headers=headers,
+                        body=body,
+                        budget=budget,
+                        header_hooks=(
+                            lambda context: context.append(("X-Extra", "a")),
+                        ),
+                    )
+                self.assertEqual(budget.remaining, 1)
+
+            self.assertEqual(len(observed), 2)
+            self.assertGreater(len(observed[0]), 256)
+            self.assertIn(
+                ("content-type", body.content_type.encode()),
+                [(h.name.lower(), h.value) for h in observed[0]],
+            )
+            caller_fields = [
+                [(n, v) for n, v in fields if not n.startswith(b":")]
+                for fields in peer.headers
+            ]
+            self.assertEqual(caller_fields[0], caller_fields[1])
+            self.assertEqual(caller_fields[0], caller_fields[2])
+            self.assertEqual(
+                [path for _, path in peer.requests],
+                [b"/baseline", b"/hooked", b"/edited"],
+            )
+            self.assertFalse(peer.premature_close)
 
     async def test_original_exception_traceback_and_callback_cancel_have_no_send(self):
         with server(Handler) as (peer, url):
