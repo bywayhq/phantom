@@ -74,8 +74,9 @@ HeaderHooks: []phantom.HeaderHook{func(ctx context.Context, h *phantom.HeaderHoo
 ```
 
 Here `credentials` is your token provider. Check `h.URL()` before adding secrets.
-Client hooks run first, then request hooks, once per `Do`. Retries and redirects
-reuse their result; cross-origin redirects still strip registered credentials.
+Client hooks run first, then request hooks, once per `Do` or `Events`. Retries
+and redirects reuse their result. Cross-origin redirects still strip registered
+credentials.
 Hooks see ordered caller headers and prepared-body fields. Templates and cookie
 storage supply their fields afterward. `Headers()` returns a copy; use `Append`,
 `Set` and `Remove` during the callback to change fields.
@@ -84,8 +85,8 @@ Hooks run on the calling goroutine and must honor their context. The total
 request timeout includes them. A hook that ignores cancellation holds the
 request and graceful shutdown until it returns. Callback errors remain available
 through `errors.Is` and `errors.As`; messages omit their contents. These hooks
-apply to ordinary `Do` requests. EventSource, SSE and WebSocket openings do not
-run them.
+apply to ordinary `Do` and single-response `Events` requests. Reconnecting
+EventSource and WebSocket openings do not run them.
 
 ## Use encrypted DNS
 

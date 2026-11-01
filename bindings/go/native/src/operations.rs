@@ -1178,7 +1178,7 @@ pub(crate) fn execute_with_header_hooks(
     bytes: &[u8],
     hooks: usize,
 ) -> Result<Execution, Failure> {
-    if hooks > 256 || (hooks != 0 && !matches!(&command, Command::Request { events: None, .. })) {
+    if hooks > 256 || (hooks != 0 && !matches!(&command, Command::Request { .. })) {
         return Err(Failure::new("invalid_header_hooks"));
     }
     (|| {

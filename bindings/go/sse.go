@@ -34,6 +34,7 @@ type EventResponse struct {
 
 // Events sends an ordinary request and decodes its text/event-stream response
 // using Rust. All Request options apply, including POST bodies and budgets.
+// Client header hooks run before request hooks, once across retries and redirects.
 // It never reconnects. Nil limits use 64 KiB lines and 1 MiB event blocks.
 // The context controls setup and all later reads. Content-Encoding must be
 // identity, including when generic response decoding was requested.

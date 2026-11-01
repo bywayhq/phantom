@@ -12,7 +12,7 @@ import (
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
 type Request struct {
-	// HeaderHooks run after client hooks for this logical Do send.
+	// HeaderHooks run after client hooks for this logical Do or Events send.
 	// They run once across redirects and retries; the list is snapshotted by Do.
 	HeaderHooks []HeaderHook
 	Method      string
@@ -119,23 +119,18 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
 	}
-	var hookOwner *headerHooks
-	if events == nil {
-		hookOwner, err = newHeaderHooks(ctx, c.headerHooks, request.HeaderHooks)
-		if err != nil {
+	hookOwner, err := newHeaderHooks(ctx, c.headerHooks, request.HeaderHooks)
+	if err != nil {
+		return nil, err
+	}
+	if hookOwner != nil {
+		defer hookOwner.cancel()
+		if err := ensureNativeIdentity(); err != nil {
 			return nil, err
 		}
-		if hookOwner != nil {
-			defer hookOwner.cancel()
-			if err := ensureNativeIdentity(); err != nil {
-				return nil, err
-			}
-			if err := native.LoadHeaderHooks(); err != nil {
-				return nil, nativeBoundaryError(err)
-			}
+		if err := native.LoadHeaderHooks(); err != nil {
+			return nil, nativeBoundaryError(err)
 		}
-	} else if len(request.HeaderHooks) != 0 {
-		return nil, &Error{Kind: "header_hooks_unsupported"}
 	}
 	if events != nil {
 		if err := validateSSELimits(*events); err != nil {
@@ -143,6 +138,11 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		}
 		if err := loadSSE(); err != nil {
 			return nil, err
+		}
+		if hookOwner != nil {
+			if err := native.LoadSSEHeaderHooks(); err != nil {
+				return nil, nativeBoundaryError(err)
+			}
 		}
 	}
 	contextFlags, err := requestContextFlags(request.Context)
@@ -294,7 +294,11 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		var result native.Reply
 		var err error
 		if hookOwner != nil {
-			err = native.HeaderHookRequest(&descriptor, request.Body, uint64(len(hookOwner.hooks)), &result)
+			if events == nil {
+				err = native.HeaderHookRequest(&descriptor, request.Body, uint64(len(hookOwner.hooks)), &result)
+			} else {
+				err = native.SSEHeaderHookRequest(&descriptor, request.Body, uint64(events.MaxLineBytes), uint64(events.MaxEventBytes), uint64(len(hookOwner.hooks)), &result)
+			}
 			err = nativeBoundaryError(err)
 		} else if events == nil {
 			err = nativeSubmit(&descriptor, request.Body, &result)

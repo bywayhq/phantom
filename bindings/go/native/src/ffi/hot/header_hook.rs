@@ -74,6 +74,48 @@ unsafe extern "C" fn phantom_go_header_hook_request(
     1
 }
 
+// SAFETY: The caller lends the existing request, bounded body and writable reply
+// during this call. Nested input spans are copied before asynchronous admission.
+#[unsafe(no_mangle)]
+unsafe extern "C" fn phantom_go_header_hook_sse_request(
+    value: *const Request,
+    body: *const u8,
+    length: usize,
+    line: u64,
+    event: u64,
+    count: u64,
+    reply: *mut Reply,
+) -> u64 {
+    if value.is_null() || reply.is_null() {
+        return 0;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let count = usize::try_from(count).map_err(|_| Failure::new("invalid_header_hooks"))?;
+        if count == 0 || count > 256 {
+            return Err(Failure::new("invalid_header_hooks"));
+        }
+        // SAFETY: The caller lends one aligned request and its readable spans.
+        let command = unsafe { super::sse::request_with_limits(&*value, line, event)? };
+        // SAFETY: bytes bounds the body borrowed for this synchronous call.
+        let body = unsafe {
+            super::bytes(
+                Span {
+                    pointer: body,
+                    length,
+                },
+                operations::MAX_UPLOAD,
+            )?
+        };
+        operations::execute_with_header_hooks(command, body, count)
+    }))
+    .unwrap_or_else(|_| Err(Failure::new("internal")));
+    // SAFETY: The caller lends one aligned writable reply.
+    unsafe {
+        ptr::write(reply, submitted(result));
+    }
+    1
+}
+
 // SAFETY: Output descriptors and arena are aligned, writable, disjoint and live
 // for this entire call. Only offsets into that caller-owned arena are returned.
 #[unsafe(no_mangle)]

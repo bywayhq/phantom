@@ -54,17 +54,8 @@ unsafe extern "C" fn phantom_go_sse_request(
         return 0;
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
-        let limits = sse::Limits {
-            line: usize::try_from(line).map_err(|_| Failure::new("invalid_sse_limits"))?,
-            event: usize::try_from(event).map_err(|_| Failure::new("invalid_sse_limits"))?,
-        };
-        limits.core()?;
-        // SAFETY: The caller lends one aligned request; nested spans are checked
-        // and copied by the same decoder used by ordinary requests.
-        let mut command = unsafe { request(&*value)? };
-        if let Command::Request { events, .. } = &mut command {
-            *events = Some(limits);
-        }
+        // SAFETY: The caller lends one aligned request and its readable spans.
+        let command = unsafe { request_with_limits(&*value, line, event)? };
         // SAFETY: bytes checks null/length under the caller's readable contract.
         let body = unsafe {
             bytes(
@@ -83,6 +74,28 @@ unsafe extern "C" fn phantom_go_sse_request(
         ptr::write(reply, submitted(result));
     }
     1
+}
+
+/// Copies the request and validates SSE limits before runtime admission.
+///
+/// # Safety
+/// The caller lends readable storage for every span in `value` during this call.
+pub(super) unsafe fn request_with_limits(
+    value: &Request,
+    line: u64,
+    event: u64,
+) -> Result<Command, Failure> {
+    let limits = sse::Limits {
+        line: usize::try_from(line).map_err(|_| Failure::new("invalid_sse_limits"))?,
+        event: usize::try_from(event).map_err(|_| Failure::new("invalid_sse_limits"))?,
+    };
+    limits.core()?;
+    // SAFETY: The caller lends all nested input spans; request bounds and copies them.
+    let mut command = unsafe { request(value)? };
+    if let Command::Request { events, .. } = &mut command {
+        *events = Some(limits);
+    }
+    Ok(command)
 }
 
 // SAFETY: Reply lends one aligned writable descriptor for this entire call. The

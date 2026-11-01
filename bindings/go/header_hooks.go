@@ -7,9 +7,9 @@ import (
 	"github.com/bywayhq/phantom/bindings/go/internal/native"
 )
 
-// HeaderHook edits caller headers once before a logical Do request is sent.
+// HeaderHook edits caller headers before a logical Do or Events request is sent.
 // Client hooks run first, then request hooks. Redirects and retries reuse the
-// result. Functions run on the Do goroutine and must honor ctx cancellation.
+// result. Functions run on the calling goroutine and must honor ctx cancellation.
 // Hooks on different requests may run concurrently.
 type HeaderHook func(ctx context.Context, headers *HeaderHookContext) error
 

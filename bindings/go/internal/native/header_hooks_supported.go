@@ -18,6 +18,12 @@ var headerHookLibrary struct {
 	err error
 }
 
+var sseHeaderHookLibrary struct {
+	once    sync.Once
+	request uintptr
+	err     error
+}
+
 func bindHeaderHookSymbols(resolve func(string) (uintptr, error), version func(uintptr) (uint64, error)) (headerHookBindings, error) {
 	var result headerHookBindings
 	var entry uintptr
@@ -58,6 +64,43 @@ func LoadHeaderHooks() error {
 		)
 	})
 	return headerHookLibrary.err
+}
+
+func bindSSEHeaderHookSymbol(resolve func(string) (uintptr, error)) (uintptr, error) {
+	address, err := resolve("phantom_go_header_hook_sse_request")
+	if err != nil || address == 0 {
+		return 0, &Failure{Kind: "native_sse_header_hooks_unavailable", Cause: err}
+	}
+	return address, nil
+}
+
+func LoadSSEHeaderHooks() error {
+	if err := LoadHeaderHooks(); err != nil {
+		return err
+	}
+	if err := LoadSSE(); err != nil {
+		return err
+	}
+	sseHeaderHookLibrary.once.Do(func() {
+		sseHeaderHookLibrary.request, sseHeaderHookLibrary.err = bindSSEHeaderHookSymbol(
+			func(name string) (uintptr, error) { return nativeSymbol(library.handle, name) },
+		)
+	})
+	return sseHeaderHookLibrary.err
+}
+
+func SSEHeaderHookRequest(request *Request, body []byte, line, event, count uint64, reply *Reply) error {
+	if err := LoadSSEHeaderHooks(); err != nil {
+		return err
+	}
+	valid, _, _ := purego.SyscallN(sseHeaderHookLibrary.request, uintptr(unsafe.Pointer(request)), uintptr(unsafe.Pointer(unsafe.SliceData(body))), uintptr(len(body)), uintptr(line), uintptr(event), uintptr(count), uintptr(unsafe.Pointer(reply)))
+	runtime.KeepAlive(request)
+	runtime.KeepAlive(body)
+	runtime.KeepAlive(reply)
+	if valid != 1 {
+		return &Failure{Kind: "native_abi"}
+	}
+	return nil
 }
 
 func HeaderHookRequest(request *Request, body []byte, count uint64, reply *Reply) error {

@@ -29,3 +29,29 @@ func TestHeaderHooksCapabilityRequiresAllSymbolsBeforeAdmission(t *testing.T) {
 		t.Fatal("header hook descriptor layout changed")
 	}
 }
+
+func TestSSEHeaderHookCapabilityRejectsMissingCombinedEntry(t *testing.T) {
+	cause := errors.New("combined entry unavailable")
+	for _, resolve := range []func(string) (uintptr, error){
+		func(string) (uintptr, error) { return 0, cause },
+		func(string) (uintptr, error) { return 0, nil },
+	} {
+		address, err := bindSSEHeaderHookSymbol(resolve)
+		if address != 0 || failureKind(err) != "native_sse_header_hooks_unavailable" {
+			t.Fatalf("incomplete capability: %d, %v", address, err)
+		}
+	}
+	_, err := bindSSEHeaderHookSymbol(func(string) (uintptr, error) { return 0, cause })
+	if !errors.Is(err, cause) {
+		t.Fatal("missing native entry lost its loader cause")
+	}
+	address, err := bindSSEHeaderHookSymbol(func(name string) (uintptr, error) {
+		if name != "phantom_go_header_hook_sse_request" {
+			t.Fatalf("unexpected entry: %s", name)
+		}
+		return 42, nil
+	})
+	if address != 42 || err != nil {
+		t.Fatalf("complete capability: %d, %v", address, err)
+	}
+}

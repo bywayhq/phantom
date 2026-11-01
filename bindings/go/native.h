@@ -92,6 +92,11 @@ struct phantom_go_header_hook_invocation;
 struct phantom_go_header_hook_edit;
 uint64_t phantom_go_header_hook_version(void);
 uint64_t phantom_go_header_hook_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, struct phantom_go_reply *);
+/* Combined header-hook ABI 1 and SSE ABI 1 submission; negotiate both and this
+ * symbol before admission. Extra values are line/event byte limits and hook count.
+ * Request layout, callback custody and SSE result/next contracts are unchanged.
+ */
+uint64_t phantom_go_header_hook_sse_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, uint64_t, uint64_t, struct phantom_go_reply *);
 uint64_t phantom_go_header_hook_copy(uint64_t, uint64_t, struct phantom_go_header_hook_invocation *, struct phantom_go_field *, size_t, uint8_t *, size_t);
 uint64_t phantom_go_header_hook_reply(uint64_t, uint64_t, uint64_t, const struct phantom_go_header_hook_edit *, size_t, struct phantom_go_reply *);
 uint64_t phantom_go_header_hook_cancel(uint64_t, struct phantom_go_reply *);

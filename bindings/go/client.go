@@ -12,7 +12,7 @@ import (
 // Config selects one named or caller-owned profile and an explicit protocol.
 // Context is raw/empty, profile, or an available named catalog context.
 type Config struct {
-	// HeaderHooks edit ordered caller fields on ordinary Do requests only.
+	// HeaderHooks edit ordered caller fields on Do and single-response Events.
 	// New snapshots this list. Hooks must honor cancellation and may run concurrently.
 	HeaderHooks []HeaderHook
 	Profile     string

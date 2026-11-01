@@ -8,6 +8,10 @@ func StateTransferCopy(uint64, *StateResult, []StateCookie, []StateAlternative, 
 	return &Failure{Kind: "unsupported_platform"}
 }
 
+func LoadSSEHeaderHooks() error { return &Failure{Kind: "unsupported_platform"} }
+func SSEHeaderHookRequest(*Request, []byte, uint64, uint64, uint64, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
 func LoadHeaderHooks() error { return &Failure{Kind: "unsupported_platform"} }
 func HeaderHookRequest(*Request, []byte, uint64, *Reply) error {
 	return &Failure{Kind: "unsupported_platform"}
