@@ -9,6 +9,8 @@
 
 ### Bindings
 
+- Python adds synchronous and asynchronous redirect callbacks with named hop
+  metadata, inherited client policies and the existing request deadline.
 - Python, Go and Node import and export cookie snapshots, direct-route Alt-Svc
   snapshots and encrypted TLS tickets. Network options can enable Alt-Svc storage.
 - Node adds awaited, ordered HTTP header hooks with request cancellation and
