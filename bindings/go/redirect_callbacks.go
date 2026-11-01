@@ -117,19 +117,12 @@ func (h *requestHooks) invokeRedirect(operation uint64, call *redirectCall) erro
 		return nil
 	}
 	h.redirectHop = call.attempt.Hop
-	decision, err := h.redirect(h.ctx, call.attempt)
-	if err != nil {
-		h.rememberFailure(err, "redirect")
-	}
+	decision, err := h.redirectDecision(call.attempt)
 	if h.ctx.Err() != nil {
 		return nil
 	}
-	if err == nil && (decision < RedirectFollow || decision > RedirectReject) {
-		err = &Error{Kind: "invalid_redirect_decision"}
-	}
 	outcome := uint64(0)
 	if err != nil {
-		h.rememberFailure(err, "redirect")
 		outcome, decision = 1, 0
 	}
 	err = replyRedirectCall(operation, call.ticket, outcome, decision)
@@ -140,4 +133,16 @@ func (h *requestHooks) invokeRedirect(operation uint64, call *redirectCall) erro
 		return err
 	}
 	return nil
+}
+
+func (h *requestHooks) redirectDecision(attempt RedirectAttempt) (RedirectDecision, error) {
+	decision, err := h.redirect(h.ctx, attempt)
+	if err != nil {
+		h.rememberFailure(err, "redirect")
+	}
+	if h.ctx.Err() == nil && err == nil && (decision < RedirectFollow || decision > RedirectReject) {
+		err = &Error{Kind: "invalid_redirect_decision"}
+		h.rememberFailure(err, "redirect")
+	}
+	return decision, err
 }

@@ -119,3 +119,60 @@ func TestPureSourceLogicalCauseAssociationRejectsStaleGET(t *testing.T) {
 		t.Fatal("reported source failure retained for close")
 	}
 }
+
+func TestPureSourceLogicalLateErrorKeepsOriginalOperation(t *testing.T) {
+	first, second := errors.New("first"), errors.New("second")
+	owner := &eventSourceHooks{}
+	owner.rememberInvocation(10, &requestHooks{failure: first, failureKind: "request_hook"})
+	owner.rememberInvocation(12, &requestHooks{failure: first, secondary: second, priorOperation: 10, failureKind: "request_hook"})
+	primary := &Error{Kind: "timeout", TimeoutPhase: "total"}
+	attached := owner.attach(primary, 10)
+	if !errors.Is(attached, first) || !errors.Is(attached, second) || !errors.Is(attached, primary) {
+		t.Fatal("late error lost original operation association")
+	}
+	if owner.cleanup != nil {
+		t.Fatal("reported error remained queued for close")
+	}
+}
+
+func TestPureSourceLogicalLateErrorDoesNotRepeatObservedCause(t *testing.T) {
+	first, second := errors.New("first"), errors.New("second")
+	owner := &eventSourceHooks{}
+	owner.rememberInvocation(10, &requestHooks{failure: first, failureKind: "request_hook"})
+	prior := owner.failureFor(10)
+	if err := owner.attach(&Error{Kind: "request_hook"}, 10); !errors.Is(err, first) {
+		t.Fatal("primary cause lost")
+	}
+	owner.rememberInvocation(12, &requestHooks{failure: first, secondary: second, priorOperation: 10, sourcePrior: prior, failureKind: "request_hook"})
+	if owner.cleanup == nil || errors.Is(owner.cleanup.cause, first) || !errors.Is(owner.cleanup.cause, second) {
+		t.Fatal("late cleanup lost second cause or repeated reported first cause")
+	}
+}
+
+func TestPureRedirectFailureLeavesRoomForLogicalErrorFailure(t *testing.T) {
+	first, second := errors.New("redirect"), errors.New("error callback")
+	owner, err := newRequestHooks(context.Background(), nil, nil, func(context.Context, RedirectAttempt) (RedirectDecision, error) { return 0, first }, RequestHooks{OnError: func(_ context.Context, c RequestErrorHookContext) error {
+		if !errors.Is(c.Error(), first) {
+			t.Fatal("redirect cause lost")
+		}
+		return second
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.cancel()
+	if _, err := owner.redirectDecision(RedirectAttempt{Hop: 1}); err != first {
+		t.Fatal("redirect error changed")
+	}
+	if owner.secondary != nil {
+		t.Fatal("redirect error consumed both cause slots")
+	}
+	if err := owner.observeLogical(&logicalCall{phase: 4, err: &Error{Kind: "redirect"}}); err != second {
+		t.Fatal("error callback failure changed")
+	}
+	owner.rememberFailure(second, "request_hook")
+	result := owner.wrap(&Error{Kind: "redirect"})
+	if !errors.Is(result, first) || !errors.Is(result, second) {
+		t.Fatal("dual redirect/error causes missing")
+	}
+}

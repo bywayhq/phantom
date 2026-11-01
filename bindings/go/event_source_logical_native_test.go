@@ -198,3 +198,94 @@ func TestEventSourceCancelledReadRetainsLogicalCallbackUntilSourceClose(t *testi
 		t.Fatalf("repeated cleanup error=%v", err)
 	}
 }
+
+func TestEventSourceLateErrorCallbackReportsOnlyUnobservedCauseAtClose(t *testing.T) {
+	var sends atomic.Int32
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/warm" {
+			w.WriteHeader(204)
+			return
+		}
+		sends.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "retry: 0\ndata: event\n\n")
+	}))
+	defer peer.Close()
+	client := hookClient(t, Config{})
+	warm, err := client.Do(context.Background(), Request{Method: "GET", URL: peer.URL + "/warm"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := warm.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	first, second := &callbackFailure{marker: 84}, &callbackFailure{marker: 85}
+	entered, cleaning, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+	var requests atomic.Int32
+	source, err := client.EventSource(context.Background(), peer.URL+"/events", EventSourceOptions{
+		Protocol: "h1", Timeouts: Timeouts{Total: LimitTimeout(200 * time.Millisecond)},
+		RequestHooks: RequestHooks{
+			OnRequest: func(context.Context, RequestHookContext) error {
+				if requests.Add(1) == 2 {
+					return first
+				}
+				return nil
+			},
+			OnError: func(ctx context.Context, e RequestErrorHookContext) error {
+				if !errors.Is(e.Error(), first) {
+					t.Error("error callback lost original cause")
+				}
+				close(entered)
+				<-ctx.Done()
+				close(cleaning)
+				<-release
+				return second
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer source.Close()
+	if _, err := source.Next(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { _, err := source.Next(context.Background()); result <- err }()
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("error callback not entered")
+	}
+	select {
+	case <-cleaning:
+	case <-time.After(10 * time.Second):
+		t.Fatal("total deadline did not cancel error callback")
+	}
+	select {
+	case err := <-result:
+		if !errors.Is(err, first) || errors.Is(err, second) {
+			t.Fatalf("terminal result before cleanup=%v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("terminal result waited for error callback cleanup")
+	}
+	closeCtx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	err = source.CloseContext(closeCtx)
+	cancel()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("close released active error callback=%v", err)
+	}
+	releaseOnce.Do(func() { close(release) })
+	if err := source.CloseContext(context.Background()); !errors.Is(err, second) || errors.Is(err, first) {
+		t.Fatalf("late error callback cause=%v", err)
+	}
+	if err := source.CloseContext(context.Background()); err != nil {
+		t.Fatalf("late error repeated=%v", err)
+	}
+	if sends.Load() != 1 || requests.Load() != 2 {
+		t.Fatalf("sends=%d requests=%d", sends.Load(), requests.Load())
+	}
+}

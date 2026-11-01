@@ -14,6 +14,7 @@ import (
 // Metadata excludes bodies. Response failure does not trigger OnError; caller
 // cancellation and dropped operations do not invoke OnError. Callback work shares
 // the request's total deadline. Late failures remain available through errors.Is.
+// Observation metadata is limited to 256 KiB, including URL and header bytes.
 type RequestHooks struct {
 	OnRequest  func(context.Context, RequestHookContext) error
 	OnResponse func(context.Context, ResponseHookContext) error
@@ -254,9 +255,10 @@ func (h *requestHooks) invokeLogical(operation uint64, call *logicalCall) error 
 		}
 	}
 	if h.sourceOwner != nil && call.phase == 4 && call.causeOperation != 0 {
-		if prior := h.sourceOwner.causeFor(call.causeOperation); prior != nil {
-			h.failure, h.failureKind = prior, "request_hook"
+		if prior := h.sourceOwner.failureFor(call.causeOperation); prior != nil {
+			h.failure, h.failureKind = prior.cause, "request_hook"
 			h.priorOperation = call.causeOperation
+			h.sourcePrior = prior
 		}
 	}
 	err := h.observeLogical(call)

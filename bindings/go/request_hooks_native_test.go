@@ -131,6 +131,43 @@ func TestLogicalResponseFailureDoesNotSelectErrorPhaseAndPreservesPool(t *testin
 	}
 }
 
+func TestRedirectAndLogicalErrorFailuresPreserveBothCauses(t *testing.T) {
+	var sends atomic.Int32
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		sends.Add(1)
+		w.Header().Set("Location", "/next")
+		w.WriteHeader(302)
+	}))
+	defer peer.Close()
+	first, second := &callbackFailure{marker: 75}, &callbackFailure{marker: 76}
+	client := hookClient(t, Config{})
+	budget, err := NewAttemptBudget(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer budget.Close()
+	var observed atomic.Int32
+	_, err = client.Do(context.Background(), Request{Method: "GET", URL: peer.URL, Budget: budget,
+		RedirectPolicy: &RedirectPolicy{MaximumHops: 1, Callback: func(context.Context, RedirectAttempt) (RedirectDecision, error) {
+			return 0, first
+		}},
+		RequestHooks: RequestHooks{OnError: func(_ context.Context, e RequestErrorHookContext) error {
+			observed.Add(1)
+			if kind(e.Error()) != "redirect" || !errors.Is(e.Error(), first) {
+				t.Error("error callback lost redirect failure")
+			}
+			return second
+		}},
+	})
+	if kind(err) != "redirect" || !errors.Is(err, first) || !errors.Is(err, second) {
+		t.Fatalf("redirect/error causes=%v", err)
+	}
+	remaining, readErr := budget.Remaining()
+	if readErr != nil || remaining != 1 || sends.Load() != 1 || observed.Load() != 1 {
+		t.Fatalf("remaining=%d sends=%d errors=%d err=%v", remaining, sends.Load(), observed.Load(), readErr)
+	}
+}
+
 func TestLogicalHooksCancellationAndDeadlineKeepCustodyAndAllowance(t *testing.T) {
 	for _, total := range []bool{false, true} {
 		t.Run(map[bool]string{false: "caller", true: "total"}[total], func(t *testing.T) {

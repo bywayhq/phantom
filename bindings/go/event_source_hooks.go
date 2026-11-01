@@ -10,9 +10,12 @@ import (
 )
 
 type sourceHookFailure struct {
-	operation uint64
-	cause     error
-	kind      string
+	operation      uint64
+	cause          error
+	kind           string
+	priorOperation uint64
+	prior          *sourceHookFailure
+	reported       bool
 }
 type eventSourceHooks struct {
 	client        *Client
@@ -50,27 +53,41 @@ func (owner *eventSourceHooks) remember(operation uint64, err error) {
 	}
 	owner.mu.Unlock()
 }
-func (owner *eventSourceHooks) causeFor(operation uint64) error {
+func (failure *sourceHookFailure) matches(operation uint64) bool {
+	return failure != nil && (failure.operation == operation || (operation != 0 && failure.priorOperation == operation))
+}
+func (owner *eventSourceHooks) failureFor(operation uint64) *sourceHookFailure {
 	owner.mu.Lock()
 	defer owner.mu.Unlock()
-	if owner.last != nil && owner.last.operation == operation {
-		return owner.last.cause
+	if owner.last.matches(operation) {
+		return owner.last
 	}
-	if owner.cleanup != nil && owner.cleanup.operation == operation {
-		return owner.cleanup.cause
+	if owner.cleanup.matches(operation) {
+		return owner.cleanup
 	}
 	return nil
 }
-func (owner *eventSourceHooks) rememberInvocation(operation uint64, hooks *requestHooks) {
-	cause := hooks.failure
-	if hooks.secondary != nil {
-		cause = errors.Join(cause, hooks.secondary)
+func (owner *eventSourceHooks) causeFor(operation uint64) error {
+	if failure := owner.failureFor(operation); failure != nil {
+		return failure.cause
 	}
+	return nil
+}
+
+func (owner *eventSourceHooks) rememberInvocation(operation uint64, hooks *requestHooks) {
 	owner.mu.Lock()
 	defer owner.mu.Unlock()
-	failure := &sourceHookFailure{operation: operation, cause: cause, kind: hooks.failureKind}
+	cause := hooks.failure
+	if hooks.sourcePrior != nil && hooks.sourcePrior.reported {
+		// The public timeout already exposed the primary cause while this
+		// error callback was still cleaning up. Retain only its late failure.
+		cause = hooks.secondary
+	} else if hooks.secondary != nil {
+		cause = errors.Join(cause, hooks.secondary)
+	}
+	failure := &sourceHookFailure{operation: operation, cause: cause, kind: hooks.failureKind, priorOperation: hooks.priorOperation, prior: hooks.sourcePrior}
 	owner.last = failure
-	if owner.cleanup == nil || (hooks.priorOperation != 0 && owner.cleanup.operation == hooks.priorOperation) {
+	if owner.cleanup == nil || owner.cleanup.matches(hooks.priorOperation) {
 		owner.cleanup = failure
 	}
 }
@@ -145,6 +162,12 @@ func (owner *eventSourceHooks) wait(ctx context.Context) error {
 	}
 	owner.mu.Lock()
 	failure := owner.cleanup
+	if failure != nil {
+		failure.reported = true
+		if failure.prior != nil {
+			failure.prior.reported = true
+		}
+	}
 	owner.cleanup = nil
 	owner.mu.Unlock()
 	owner.client.removeSourceHooks(owner)
@@ -159,11 +182,15 @@ func (owner *eventSourceHooks) attach(err error, operation uint64) error {
 	}
 	owner.mu.Lock()
 	failure := owner.last
-	if failure == nil || failure.operation != operation {
+	if !failure.matches(operation) {
 		owner.mu.Unlock()
 		return err
 	}
-	if owner.cleanup != nil && owner.cleanup.operation == operation {
+	failure.reported = true
+	if failure.prior != nil {
+		failure.prior.reported = true
+	}
+	if owner.cleanup.matches(operation) {
 		owner.cleanup = nil
 	}
 	owner.mu.Unlock()

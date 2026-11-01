@@ -67,7 +67,7 @@ impl Owner {
             source: Mutex::new(Weak::new()),
         })
     }
-    pub(crate) fn bind_source(&self, source: &Arc<super::Owner>) {
+    pub(super) fn bind_source(&self, source: &Arc<super::Owner>) {
         *self
             .source
             .lock()

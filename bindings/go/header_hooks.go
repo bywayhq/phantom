@@ -147,6 +147,7 @@ type requestHooks struct {
 	phases         uint64
 	sourceOwner    *eventSourceHooks
 	priorOperation uint64
+	sourcePrior    *sourceHookFailure
 	redirect       RedirectCallback
 	redirectHop    uint64
 }

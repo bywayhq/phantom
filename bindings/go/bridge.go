@@ -97,18 +97,20 @@ func completionPump() {
 	for {
 		var native native.Event
 		err := nativeWaitEvent(&native, fields, hops, arena, data)
-		headerDelivered := err == nil && (native.Kind == 6 || native.Kind == 7)
+		callbackDelivered := err == nil && (native.Kind == 6 || native.Kind == 7 || native.Kind == 8)
 		var event completion
 		if err == nil {
 			event, err = eventCompletion(native, fields, hops, arena, data)
 		}
 		if err != nil {
-			if headerDelivered {
+			if callbackDelivered {
 				// Projection failed before this invocation reached its calling goroutine.
 				if native.Kind == 6 {
 					_ = replyHeaderCall(native.Operation, native.Part, 2, nil)
-				} else {
+				} else if native.Kind == 7 {
 					_ = replyRedirectCall(native.Operation, native.Part, 2, 0)
+				} else {
+					_ = replyLogicalCall(native.Operation, native.Part, 2)
 				}
 			}
 			pump.mu.Lock()
