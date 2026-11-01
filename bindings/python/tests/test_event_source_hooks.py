@@ -8,6 +8,7 @@ from phantom_http import (
     Client,
     Error,
     LastEventId,
+    RedirectPolicy,
     SseError,
     TimeoutError,
     TimeoutOverrides,
@@ -134,7 +135,10 @@ class AsyncSourceHookTests(unittest.IsolatedAsyncioTestCase):
 
         with H2Peer(event_stream=True, redirects={b"/redirect": "/events"}) as peer:
             async with AsyncClient(
-                profile=PROFILE, protocol="h2", context="raw"
+                profile=PROFILE,
+                protocol="h2",
+                context="raw",
+                redirect_policy=RedirectPolicy.limited(1),
             ) as client:
                 async with client.event_source(
                     peer.url + "/redirect",
@@ -266,7 +270,7 @@ class AsyncSourceHookTests(unittest.IsolatedAsyncioTestCase):
                     peer.url + "/stall", timeouts=TimeoutOverrides(total=None)
                 )
                 try:
-                    self.assertEqual(await sibling.__anext__(), b"data: first\n\n")
+                    self.assertEqual(await sibling.read_chunk(), b"data: first\n\n")
                     async with client.event_source(
                         peer.url + "/events",
                         protocol="h2",
