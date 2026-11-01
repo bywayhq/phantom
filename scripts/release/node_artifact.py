@@ -267,6 +267,37 @@ def copied_tests(destination, native_package=None):
                 1,
             ),
         ),
+        "events.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "events-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "websocket.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+            ("path.resolve(__dirname, '..')", "require.resolve('@byway/phantom')", 1),
+            ("require('ws')", "require('../compiler/node_modules/ws')", 1),
+        ),
+        "websocket-http3.test.cjs": (
+            ("require('..')", "require('@byway/phantom')", 1),
+        ),
+        "websocket-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
+        "header-hooks.test.cjs": (("require('..')", "require('@byway/phantom')", 1),),
+        "header-hooks-facade.test.cjs": (
+            (
+                "path.resolve(__dirname, '../index.cjs')",
+                "require.resolve('@byway/phantom')",
+                1,
+            ),
+        ),
         "request-contexts.test.cjs": (
             ("require('..')", "require('@byway/phantom')", 1),
         ),
@@ -492,6 +523,25 @@ def public_checks(
     if Path(observed["entry"]).resolve() != (package / "index.cjs").resolve():
         raise ValueError("Node resolved a package outside the clean consumer")
     environment = h3_peer_environment(ROOT, consumer, environment)
+    # Keep the locked compiler and WebSocket peer outside the installed package.
+    compiler = consumer / "compiler"
+    compiler.mkdir()
+    for name in ("package.json", "package-lock.json"):
+        shutil.copyfile(ROOT / "bindings/node" / name, compiler / name)
+    commands.run(
+        [
+            *base,
+            "ci",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--cache",
+            str(cache),
+        ],
+        cwd=compiler,
+        env=environment,
+        timeout=180,
+    )
     copied_tests(consumer / "tests", native_package)
     checked = tap_summary(
         commands.run(
@@ -524,6 +574,13 @@ def public_checks(
                 "tests/event-source.test.cjs",
                 "tests/event-source-http3.test.cjs",
                 "tests/event-source-facade.test.cjs",
+                "tests/events.test.cjs",
+                "tests/events-facade.test.cjs",
+                "tests/websocket.test.cjs",
+                "tests/websocket-http3.test.cjs",
+                "tests/websocket-facade.test.cjs",
+                "tests/header-hooks.test.cjs",
+                "tests/header-hooks-facade.test.cjs",
                 "tests/request-contexts.test.cjs",
                 "tests/unix-socket.test.cjs",
                 "tests/network-facade.test.cjs",
@@ -554,25 +611,6 @@ def public_checks(
             env=environment,
             timeout=300,
         )
-    )
-    # Install only the already locked development compiler in a separate project.
-    compiler = consumer / "compiler"
-    compiler.mkdir()
-    for name in ("package.json", "package-lock.json"):
-        shutil.copyfile(ROOT / "bindings/node" / name, compiler / name)
-    commands.run(
-        [
-            *base,
-            "ci",
-            "--ignore-scripts",
-            "--no-audit",
-            "--no-fund",
-            "--cache",
-            str(cache),
-        ],
-        cwd=compiler,
-        env=environment,
-        timeout=180,
     )
     commands.run(
         [
