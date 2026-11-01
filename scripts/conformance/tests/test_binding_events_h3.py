@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from aioquic.h3.events import HeadersReceived
-from aioquic.quic.events import ConnectionTerminated, StopSendingReceived
+from aioquic.quic.events import ConnectionTerminated, StopSendingReceived, StreamReset
 
 from scripts.conformance.binding_events_h3 import EventsProtocol
 
@@ -50,6 +50,7 @@ class EventsOracleTests(unittest.TestCase):
         protocol.healthy = None
         protocol.released = False
         protocol.rejected = None
+        protocol.terminal = None
         protocol.cancellations = []
         protocol.transmit = lambda: None
         return protocol
@@ -121,9 +122,66 @@ class EventsOracleTests(unittest.TestCase):
                     self.request(protocol, 4, b"/events", b"7")
                 self.assertEqual(protocol.http.headers[-1][1][0], (b":status", b"403"))
                 self.assertEqual(protocol.http.data[-1][1], b"private")
+                for value in (
+                    StopSendingReceived(error_code=0x100, stream_id=protocol.rejected),
+                    StreamReset(error_code=0x100, stream_id=protocol.rejected),
+                ):
+                    with self.subTest(value=value), self.assertRaises(ValueError):
+                        protocol.receive(value)
+                protocol.receive(
+                    StopSendingReceived(error_code=0x10C, stream_id=protocol.rejected)
+                )
+                protocol.receive(
+                    StreamReset(error_code=0x10C, stream_id=protocol.rejected)
+                )
+                self.assertEqual(
+                    protocol.cancellations, ["StopSendingReceived", "StreamReset"]
+                )
                 self.request(protocol, 8, b"/reuse")
                 self.assertTrue(protocol.owner.complete)
                 self.assertFalse(protocol.released)
+
+    def test_terminal_cleanup_still_rejects_sibling_active_and_unknown_cancellation(
+        self,
+    ) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            protocol = self.protocol(directory)
+            self.request(protocol, 0, b"/events")
+            self.request(protocol, 4, b"/healthy")
+            self.assertFalse(protocol.released)
+            for value in (
+                StopSendingReceived(error_code=0x10C, stream_id=4),
+                StreamReset(error_code=0x10C, stream_id=4),
+            ):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    protocol.receive(value)
+            self.request(protocol, 8, b"/events", b"7")
+            self.request(protocol, 12, b"/events", b"9")
+            self.assertTrue(protocol.released)
+
+            for stream, code in (
+                (0, 0x10C),
+                (4, 0x10C),
+                (8, 0x10C),
+                (16, 0x10C),
+                (12, 0x100),
+            ):
+                for value in (
+                    StopSendingReceived(error_code=code, stream_id=stream),
+                    StreamReset(error_code=code, stream_id=stream),
+                ):
+                    with self.subTest(value=value), self.assertRaises(ValueError):
+                        protocol.receive(value)
+            self.assertEqual(protocol.cancellations, [])
+
+            protocol.receive(StopSendingReceived(error_code=0x10C, stream_id=12))
+            protocol.receive(StreamReset(error_code=0x10C, stream_id=12))
+            self.assertEqual(
+                protocol.cancellations, ["StopSendingReceived", "StreamReset"]
+            )
 
     def test_wrong_id_duplicate_stream_and_out_of_order_request_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

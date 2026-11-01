@@ -90,6 +90,7 @@ class EventsProtocol(QuicConnectionProtocol):
         self.healthy = None
         self.released = False
         self.rejected = None
+        self.terminal = None
         self.cancellations = []
         owner.protocols.append(self)
 
@@ -110,8 +111,14 @@ class EventsProtocol(QuicConnectionProtocol):
         ):
             raise ValueError("connection terminated before scenario completion")
         if isinstance(value, (StreamReset, StopSendingReceived)):
-            if value.stream_id != self.rejected or value.error_code != CANCELLED:
-                raise ValueError("unexpected cancellation of an unrelated stream")
+            if (
+                value.stream_id not in (self.rejected, self.terminal)
+                or value.error_code != CANCELLED
+            ):
+                raise ValueError(
+                    f"unexpected cancellation of stream {value.stream_id} "
+                    f"with code {value.error_code:#x}"
+                )
             self.cancellations.append(type(value).__name__)
         if self.http is None:
             return
@@ -162,6 +169,8 @@ class EventsProtocol(QuicConnectionProtocol):
                 status = b"403"
             elif self.event_requests == 3:
                 status = b"204"
+                # The source can drop this response before consuming its FIN.
+                self.terminal = message.stream_id
             self.http.send_headers(
                 message.stream_id,
                 [(b":status", status), (b"content-type", b"text/event-stream")],
