@@ -726,6 +726,10 @@ fn request_futures_stay_within_the_stack_budget() {
     assert_within_budget(&[
         ("RequestBuilder::send", future_size(&RequestBuilder::send)),
         (
+            "RequestBuilder::send_with_async_hooks",
+            future_size(&RequestBuilder::send_with_async_hooks),
+        ),
+        (
             "RequestBuilder::send_inner",
             future_size(&RequestBuilder::send_inner),
         ),

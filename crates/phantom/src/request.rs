@@ -1163,18 +1163,15 @@ impl RequestBuilder {
         }
         // Keep the public future small when callers join many requests.
         let diagnostics = self.diagnostics.clone();
-        let operation = crate::session::box_send_unscoped(
-            async {
-                match hooks.as_ref() {
-                    Some(hooks) if hooks.has_async() => {
-                        self.send_with_async_hooks(&span, hooks, origin.clone())
-                            .await
-                    }
-                    _ => self.send_inner(&span, None, None).await,
-                }
-            }
-            .instrument(span.clone()),
-        );
+        let operation = match hooks.as_ref() {
+            Some(hooks) if hooks.has_async() => crate::session::box_send_unscoped(
+                self.send_with_async_hooks(&span, hooks, origin.clone())
+                    .instrument(span.clone()),
+            ),
+            _ => crate::session::box_send_unscoped(
+                self.send_inner(&span, None, None).instrument(span.clone()),
+            ),
+        };
         let result = match diagnostics {
             Some(diagnostics) => diagnostics.observe(operation).await,
             None => phantom_net::request_diagnostics::Observation::scope(None, operation).await,
