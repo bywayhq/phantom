@@ -45,6 +45,7 @@ fn is_reconnectable(error: &RequestError) -> bool {
         | RequestErrorKind::InvalidAuthority
         | RequestErrorKind::InvalidHeader
         | RequestErrorKind::HeaderHook
+        | RequestErrorKind::RequestHook
         | RequestErrorKind::SessionTickets
         | RequestErrorKind::RequestTemplate
         | RequestErrorKind::ProtocolUnavailable
@@ -508,6 +509,15 @@ impl Drop for NextEvent<'_> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn logical_callback_failure_ends_reconnects() {
+        let error = crate::RequestError::request_hook(
+            None,
+            crate::RequestHookError::new(std::io::Error::other("callback")),
+        );
+        assert!(!super::is_reconnectable(&error));
+    }
+
     #[test]
     fn ticket_install_failure_ends_reconnects_without_a_replay_signal() {
         let error = crate::RequestError::session_tickets(std::io::Error::other("ticket-custody"));

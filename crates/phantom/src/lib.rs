@@ -77,7 +77,8 @@ pub use request_body::{
     PreparedRequestBody, StreamingMultipartBody, StreamingMultipartPart,
 };
 pub use request_hook::{
-    RequestErrorHookContext, RequestHookContext, RequestHooks, ResponseHookContext,
+    AsyncRequestHooks, RequestErrorHookContext, RequestErrorHookFailure, RequestHookContext,
+    RequestHookError, RequestHooks, ResponseHookContext,
 };
 pub use request_slots::{RequestSlotError, RequestSlotErrorKind, RequestSlots};
 #[cfg(feature = "json")]

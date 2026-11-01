@@ -154,6 +154,7 @@ impl WebSocketError {
             RequestErrorKind::InvalidAuthority => WebSocketErrorKind::InvalidAuthority,
             RequestErrorKind::InvalidHeader
             | RequestErrorKind::HeaderHook
+            | RequestErrorKind::RequestHook
             | RequestErrorKind::RequestTemplate
             | RequestErrorKind::InvalidTimeout
             | RequestErrorKind::RequestBody

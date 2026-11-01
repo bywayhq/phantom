@@ -285,6 +285,10 @@ Implement [`RequestHooks`](crate::RequestHooks) and pass it to
 [`RequestBuilder::request_hooks`](crate::RequestBuilder::request_hooks).
 Client callbacks run first, then request callbacks.
 
+For awaited work, implement [`AsyncRequestHooks`](crate::AsyncRequestHooks) and
+use `async_request_hooks` instead. Callbacks share the total request deadline.
+Their failures retain the original cause.
+
 ```
 use phantom::{RequestHooks, ResponseHookContext};
 

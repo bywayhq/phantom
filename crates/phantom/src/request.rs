@@ -334,10 +334,20 @@ impl RequestBuilder {
 
     /// Sets callbacks for this logical request, after the client's callbacks.
     ///
-    /// Replaces previously configured request hooks on this builder. See
+    /// Replaces synchronous or asynchronous request hooks on this builder. See
     /// [`crate::RequestHooks`] for ordering, cancellation and body semantics.
     pub fn request_hooks(mut self, hooks: impl crate::RequestHooks + 'static) -> Self {
         self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new(hooks));
+        self
+    }
+
+    /// Sets awaited callbacks after this client's logical request callbacks.
+    ///
+    /// Replaces synchronous or asynchronous request hooks on this builder.
+    /// All awaited work shares the total request deadline. See
+    /// [`crate::AsyncRequestHooks`] for failures and cancellation.
+    pub fn async_request_hooks(mut self, hooks: impl crate::AsyncRequestHooks + 'static) -> Self {
+        self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new_async(hooks));
         self
     }
 
@@ -1107,12 +1117,15 @@ impl RequestBuilder {
     /// # }
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
-        let hooks = crate::request_hook::ActiveRequestHooks::start(
+        let hooks = crate::request_hook::ActiveRequestHooks::new(
             &self.method,
             &self.request.uri,
             self.client.inner.defaults.request_hooks.as_ref(),
             self.request_hooks.as_ref(),
         );
+        if let Some(hooks) = hooks.as_ref().filter(|hooks| !hooks.has_async()) {
+            hooks.start_sync();
+        }
         let origin = self.request.origin();
         let route = self.selected_route();
         let span = debug_span!(
@@ -1142,20 +1155,30 @@ impl RequestBuilder {
         }
         // Keep the public future small when callers join many requests.
         let diagnostics = self.diagnostics.clone();
-        let operation =
-            crate::session::box_send_unscoped(self.send_inner(&span).instrument(span.clone()));
+        let operation = crate::session::box_send_unscoped(
+            async {
+                match hooks.as_ref() {
+                    Some(hooks) if hooks.has_async() => {
+                        self.send_with_async_hooks(&span, hooks, origin.clone())
+                            .await
+                    }
+                    _ => self.send_inner(&span, None, None).await,
+                }
+            }
+            .instrument(span.clone()),
+        );
         let result = match diagnostics {
             Some(diagnostics) => diagnostics.observe(operation).await,
             None => phantom_net::request_diagnostics::Observation::scope(None, operation).await,
         }
         .map_err(|error| error.with_origin(origin));
+        if let Some(hooks) = hooks.as_ref().filter(|hooks| !hooks.has_async()) {
+            hooks.finish_sync(&result);
+        }
         if let Err(error) = &result
             && let Some(phase) = error.timeout_phase()
         {
             span.record("timeout_phase", phase.trace_name());
-        }
-        if let Some(hooks) = hooks {
-            hooks.finish(&result);
         }
         outcome.finish(match &result {
             Ok(_) => "ok",
@@ -1165,11 +1188,53 @@ impl RequestBuilder {
         result
     }
 
+    async fn send_with_async_hooks(
+        self,
+        span: &Span,
+        hooks: &crate::request_hook::ActiveRequestHooks,
+        origin: crate::authority::RequestOrigin,
+    ) -> Result<Response<ResponseBody>, RequestError> {
+        let budget = crate::timeout::TimeoutBudget::new(
+            self.timeouts
+                .unwrap_or_default()
+                .resolve(self.client.state.request_timeouts),
+        )?;
+        let activity = self.client.state.lifecycle.enter()?;
+        let result = match hooks.start_async(budget).await {
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    crate::RequestErrorKind::RuntimeUnavailable
+                        | crate::RequestErrorKind::InvalidTimeout
+                ) =>
+            {
+                return Err(error);
+            }
+            Err(error) => Err(error),
+            Ok(()) => self.send_inner(span, Some(budget), Some(&activity)).await,
+        }
+        .map_err(|error| error.with_origin(origin.clone()));
+        let mut result = hooks
+            .finish_async(result, budget)
+            .await
+            .map_err(|error| error.with_origin(origin));
+        if let Ok(response) = &mut result {
+            response.body_mut().retain_activity(activity);
+        }
+        result
+    }
+
     async fn send_inner(
         mut self,
         request_span: &Span,
+        mut timeout_budget: Option<crate::timeout::TimeoutBudget>,
+        admitted: Option<&crate::session::lifecycle::Activity>,
     ) -> Result<Response<ResponseBody>, RequestError> {
-        let activity = self.client.state.lifecycle.enter()?;
+        let activity = if admitted.is_some() {
+            None
+        } else {
+            Some(self.client.state.lifecycle.enter()?)
+        };
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         let http2_fallback = retry_policy.http2_fallback() && retry_policy.max_retries() != Some(0);
         let initial_fallback = http2_fallback && self.alternative.is_none();
@@ -1226,7 +1291,6 @@ impl RequestBuilder {
             }
         }
 
-        let mut timeout_budget = None;
         {
             let mut context = crate::HeaderHookContext {
                 method: &self.method,
@@ -1502,7 +1566,9 @@ impl RequestBuilder {
                 decoded_content_codings,
             ));
             response.body_mut().finish_diagnostics_if_empty();
-            response.body_mut().retain_activity(activity);
+            if let Some(activity) = activity {
+                response.body_mut().retain_activity(activity);
+            }
             if let Some(history) = history {
                 response.extensions_mut().insert(history);
             }
@@ -1642,7 +1708,9 @@ impl RequestBuilder {
                         decoded_content_codings,
                     ));
                     response.body_mut().finish_diagnostics_if_empty();
-                    response.body_mut().retain_activity(activity);
+                    if let Some(activity) = activity {
+                        response.body_mut().retain_activity(activity);
+                    }
                     if let Some(mut history) = history {
                         history.finish(redirect.followed());
                         response.extensions_mut().insert(history);

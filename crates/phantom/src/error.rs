@@ -353,6 +353,8 @@ pub enum RequestErrorKind {
     SessionTickets,
     /// A request header hook failed before network I/O.
     HeaderHook,
+    /// A logical request or response callback failed.
+    RequestHook,
     /// The request URI cannot be parsed.
     InvalidUri,
     /// The URI scheme is neither `http` nor `https`, or is `http` for a
@@ -559,6 +561,34 @@ impl RequestError {
             "request header hook failed",
             source,
         )
+    }
+
+    pub(crate) fn request_hook(
+        protocol: Option<HttpProtocol>,
+        source: crate::RequestHookError,
+    ) -> Self {
+        Self::with_source(
+            RequestErrorKind::RequestHook,
+            protocol,
+            "request callback failed",
+            source,
+        )
+    }
+
+    pub(crate) fn with_hook_failure(self, mut failure: Self) -> Self {
+        if failure.origin.is_none() {
+            failure.origin = self.origin.clone();
+        }
+        Self {
+            kind: self.kind,
+            protocol: self.protocol,
+            timeout_phase: self.timeout_phase,
+            origin: self.origin.clone(),
+            retryability: self.retryability,
+            http3_setup_failed: self.http3_setup_failed,
+            message: self.message,
+            source: Some(Box::new(crate::RequestErrorHookFailure::new(self, failure))),
+        }
     }
 
     pub(crate) fn redirect_callback(source: crate::RedirectCallbackError) -> Self {

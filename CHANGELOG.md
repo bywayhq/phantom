@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add awaited logical request, response and error hooks that share the request
+  deadline and preserve both causes when an error callback fails.
 - Add asynchronous redirect decisions that share the request deadline and
   preserve callback errors, attempt limits and unread redirect bodies.
 - Add asynchronous ordered header hooks on clients and requests. Pending hooks

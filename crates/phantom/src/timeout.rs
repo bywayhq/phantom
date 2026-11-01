@@ -118,9 +118,10 @@ impl RequestTimeouts {
     /// Limits the complete operation across redirects, replays, and body reads.
     ///
     /// The deadline still applies while the response body is read. Without
-    /// asynchronous header hooks, initial header preparation and synchronous
-    /// hooks run before the clock starts. Otherwise it starts immediately before
-    /// the first asynchronous header hook and also covers remaining hooks.
+    /// asynchronous hooks, initial header preparation and synchronous hooks run
+    /// before the clock starts. With asynchronous request hooks it starts before
+    /// request callbacks. Otherwise it starts before the first asynchronous
+    /// header hook. Awaited callbacks share this deadline with the response body.
     /// Default: no limit.
     #[must_use]
     pub const fn total(mut self, timeout: Duration) -> Self {

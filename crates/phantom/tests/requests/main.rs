@@ -9,6 +9,7 @@
 #[path = "../support.rs"]
 mod support;
 
+mod async_request_hooks;
 mod client;
 mod client_certificates;
 mod client_hints;

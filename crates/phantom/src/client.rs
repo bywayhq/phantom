@@ -712,11 +712,22 @@ impl ClientBuilder {
 
     /// Sets callbacks for logical HTTP requests and their final heads or errors.
     ///
-    /// Replaces previously configured request hooks. Clones share the callback
+    /// Replaces synchronous or asynchronous request hooks. Clones share the callback
     /// object. Client callbacks run before per-request callbacks. See
     /// [`crate::RequestHooks`] for ordering, cancellation and body semantics.
     pub fn request_hooks(mut self, hooks: impl crate::RequestHooks + 'static) -> Self {
         self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new(hooks));
+        self
+    }
+
+    /// Sets awaited callbacks for logical HTTP requests and final heads or errors.
+    ///
+    /// Replaces synchronous or asynchronous request hooks set on this builder.
+    /// Client callbacks run before per-request callbacks. All awaited work shares
+    /// the total request deadline. See [`crate::AsyncRequestHooks`] for failures
+    /// and cancellation.
+    pub fn async_request_hooks(mut self, hooks: impl crate::AsyncRequestHooks + 'static) -> Self {
+        self.request_hooks = Some(crate::request_hook::SharedRequestHooks::new_async(hooks));
         self
     }
 
