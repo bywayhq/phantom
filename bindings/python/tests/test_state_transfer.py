@@ -16,8 +16,10 @@ from phantom_http import (
     NetworkOptions,
     SessionSharing,
     SessionTicketError,
+    Trust,
 )
 from test_client import OPTIONS
+from test_settings_transport import ROOT, peer
 
 
 def cookie(name="id", **changes):
@@ -143,6 +145,37 @@ class StateTransferTests(unittest.TestCase):
                 receiver.import_session_tickets(snapshot, bytes([1]) * 32)
             self.assertEqual(caught.exception.kind, "authentication")
             self.assertNotIn(str(snapshot), repr(caught.exception))
+
+    def test_imported_tickets_resume_tls_without_consuming_source_or_cookies(self):
+        trust = Trust(roots=(ROOT,))
+        key = bytes([42]) * 32
+        with (
+            peer(tls=True) as server,
+            Client(**OPTIONS, trust=trust) as source,
+            Client(**OPTIONS, trust=trust) as receiver,
+        ):
+            source.cookies.set("https://example.com/", "id=source; Secure; Path=/")
+            receiver.cookies.set("https://example.com/", "id=receiver; Secure; Path=/")
+            with source.request("GET", server.url) as response:
+                self.assertEqual(response.read(max_bytes=5), b"hello")
+            source.refresh_connections()
+
+            snapshot = source.export_session_tickets(key)
+            receiver.import_session_tickets(snapshot, key)
+            with self.assertRaises(SessionTicketError) as caught:
+                receiver.import_session_tickets(snapshot, bytes(32))
+            self.assertEqual(caught.exception.kind, "authentication")
+
+            for client in (receiver, source):
+                with client.request("GET", server.url) as response:
+                    self.assertEqual(response.read(max_bytes=5), b"hello")
+            self.assertEqual([row[3] for row in server.requests], [False, True, True])
+            self.assertEqual(
+                source.cookies.for_url("https://example.com/"), "id=source"
+            )
+            self.assertEqual(
+                receiver.cookies.for_url("https://example.com/"), "id=receiver"
+            )
 
 
 class AsyncStateTransferTests(unittest.IsolatedAsyncioTestCase):
