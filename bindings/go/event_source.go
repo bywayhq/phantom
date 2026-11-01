@@ -56,6 +56,7 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	if err != nil {
 		return nil, err
 	}
+	logical, phases := snapshotRequestHooks(c.requestHooks, options.RequestHooks)
 	opening, err := eventSourceOpeningValue(c.id.Load(), url, options)
 	if err != nil {
 		return nil, err
@@ -66,8 +67,13 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	if err := nativeBoundaryError(native.LoadEventSource()); err != nil {
 		return nil, err
 	}
-	if len(hooks) != 0 {
+	if len(hooks) != 0 || phases != 0 {
 		if err := nativeBoundaryError(native.LoadEventSourceHooks()); err != nil {
+			return nil, err
+		}
+	}
+	if phases != 0 {
+		if err := nativeBoundaryError(native.LoadLogicalHooks()); err != nil {
 			return nil, err
 		}
 	}
@@ -76,17 +82,21 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	err = performSubmitted(ctx, func() (uint64, error) {
 		var reply native.Reply
 		var err error
-		if len(hooks) == 0 {
+		if len(hooks) == 0 && phases == 0 {
 			err = nativeBoundaryError(native.EventSourceOpen(&opening.descriptor, &reply))
 		} else {
 			var hooked native.EventSourceHooksReply
-			err = nativeBoundaryError(native.EventSourceHooksOpen(&opening.descriptor, uint64(len(hooks)), &hooked))
+			if phases != 0 {
+				err = nativeBoundaryError(native.LogicalHookSourceOpen(&opening.descriptor, uint64(len(hooks)), phases, &hooked))
+			} else {
+				err = nativeBoundaryError(native.EventSourceHooksOpen(&opening.descriptor, uint64(len(hooks)), &hooked))
+			}
 			reply = native.Reply{Operation: hooked.Operation, Error: hooked.Error}
 			if err == nil && nativeRecordError(hooked.Error) == nil {
 				if hooked.Owner == 0 || hooked.Operation == 0 {
 					return 0, &Error{Kind: "native_abi"}
 				}
-				hookOwner = startEventSourceHooks(c, hooked.Owner, hooks, ctx)
+				hookOwner = startEventSourceHooks(c, hooked.Owner, hooks, logical, phases, ctx)
 			}
 		}
 		runtime.KeepAlive(opening)

@@ -135,15 +135,20 @@ type headerCall struct {
 }
 
 type requestHooks struct {
-	hooks       []HeaderHook
-	ctx         context.Context
-	cancel      context.CancelFunc
-	next        uint64
-	source      bool
-	failure     error
-	failureKind string
-	redirect    RedirectCallback
-	redirectHop uint64
+	hooks          []HeaderHook
+	ctx            context.Context
+	cancel         context.CancelFunc
+	next           uint64
+	source         bool
+	failure        error
+	failureKind    string
+	secondary      error
+	logical        []RequestHooks
+	phases         uint64
+	sourceOwner    *eventSourceHooks
+	priorOperation uint64
+	redirect       RedirectCallback
+	redirectHop    uint64
 }
 
 func snapshotHeaderHooks(client, request []HeaderHook) ([]HeaderHook, error) {
@@ -162,13 +167,14 @@ func snapshotHeaderHooks(client, request []HeaderHook) ([]HeaderHook, error) {
 	return hooks, nil
 }
 
-func newRequestHooks(ctx context.Context, client, request []HeaderHook, redirect RedirectCallback) (*requestHooks, error) {
+func newRequestHooks(ctx context.Context, client, request []HeaderHook, redirect RedirectCallback, logical ...RequestHooks) (*requestHooks, error) {
 	hooks, err := snapshotHeaderHooks(client, request)
-	if err != nil || (len(hooks) == 0 && redirect == nil) {
+	observers, phases := snapshotRequestHooks(logical...)
+	if err != nil || (len(hooks) == 0 && redirect == nil && phases == 0) {
 		return nil, err
 	}
 	derived, cancel := context.WithCancel(ctx)
-	return &requestHooks{hooks: hooks, ctx: derived, cancel: cancel, redirect: redirect}, nil
+	return &requestHooks{hooks: hooks, ctx: derived, cancel: cancel, redirect: redirect, logical: observers, phases: phases}, nil
 }
 
 func readHeaderCall(event native.Event, fields []native.OutputField, arena []byte) (completion, error) {
@@ -278,7 +284,7 @@ func (h *requestHooks) invoke(operation uint64, call *headerCall) error {
 	h.next++
 	err := h.hooks[call.index](h.ctx, &call.context)
 	if err != nil {
-		h.failure, h.failureKind = err, "header_hook"
+		h.rememberFailure(err, "header_hook")
 	}
 	if h.ctx.Err() != nil {
 		return nil
@@ -308,7 +314,7 @@ func (h *requestHooks) wrap(err error) error {
 	var primary *Error
 	if errors.As(err, &primary) {
 		copy := *primary
-		copy.cause = errors.Join(err, h.failure)
+		copy.cause = errors.Join(err, h.failure, h.secondary)
 		return &copy
 	}
 	kind := h.failureKind
@@ -317,5 +323,5 @@ func (h *requestHooks) wrap(err error) error {
 	} else if errors.Is(err, context.DeadlineExceeded) {
 		kind = "timeout"
 	}
-	return &Error{Kind: kind, cause: errors.Join(err, h.failure)}
+	return &Error{Kind: kind, cause: errors.Join(err, h.failure, h.secondary)}
 }

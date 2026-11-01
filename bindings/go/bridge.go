@@ -29,6 +29,7 @@ type completion struct {
 	part      uint64
 	header    *headerCall
 	redirect  *redirectCall
+	logical   *logicalCall
 }
 
 var scratch = sync.Pool{New: func() any { return make([]byte, maxMetadata) }}
@@ -129,7 +130,7 @@ func completionPump() {
 		pump.mu.Lock()
 		channel := pump.pending[event.Operation]
 		var cancel context.CancelFunc
-		if event.kind != 6 && event.kind != 7 {
+		if event.kind != 6 && event.kind != 7 && event.kind != 8 {
 			delete(pump.pending, event.Operation)
 			cancel = pump.headerCancels[event.Operation]
 			delete(pump.headerCancels, event.Operation)
@@ -148,6 +149,9 @@ func completionPump() {
 			if event.header != nil {
 				// No caller can take custody of an unregistered invocation.
 				_ = replyHeaderCall(event.Operation, event.header.ticket, 2, nil)
+			}
+			if event.logical != nil {
+				_ = replyLogicalCall(event.Operation, event.logical.ticket, 2)
 			}
 			if event.redirect != nil {
 				_ = replyRedirectCall(event.Operation, event.redirect.ticket, 2, 0)
@@ -263,7 +267,7 @@ func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error
 			}
 			done = nil
 		case event := <-channel:
-			if event.kind == 6 || event.kind == 7 {
+			if event.kind == 6 || event.kind == 7 || event.kind == 8 {
 				if hooks == nil {
 					cancel()
 					return &Error{Kind: "native_abi"}
@@ -271,8 +275,10 @@ func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error
 				var err error
 				if event.kind == 6 {
 					err = hooks.invoke(operation, event.header)
-				} else {
+				} else if event.kind == 7 {
 					err = hooks.invokeRedirect(operation, event.redirect)
+				} else {
+					err = hooks.invokeLogical(operation, event.logical)
 				}
 				if err != nil {
 					hookFailure = err

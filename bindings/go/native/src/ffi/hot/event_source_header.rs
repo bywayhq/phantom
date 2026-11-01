@@ -13,7 +13,7 @@ use crate::{
 
 #[repr(C)]
 #[derive(Default)]
-struct OpenReply {
+pub(super) struct OpenReply {
     operation: u64,
     owner: u64,
     error: Error,
@@ -45,21 +45,7 @@ unsafe extern "C" fn phantom_go_event_source_hooks_open(
         operations::event_source::open_with_hooks(opening, count as usize)
     }))
     .unwrap_or_else(|_| Err(Failure::new("internal")));
-    let value = match result {
-        Ok((Execution::Operation(operation), owner)) => OpenReply {
-            operation,
-            owner,
-            error: Error::default(),
-        },
-        Ok(_) => OpenReply {
-            error: Failure::new("internal").into(),
-            ..OpenReply::default()
-        },
-        Err(error) => OpenReply {
-            error: error.into(),
-            ..OpenReply::default()
-        },
-    };
+    let value = open_reply(result);
     // SAFETY: The caller lends one aligned writable result.
     unsafe {
         ptr::write(reply, value);
@@ -149,4 +135,22 @@ unsafe extern "C" fn phantom_go_event_source_hooks_active(
         ptr::write(reply, value);
     }
     1
+}
+
+pub(super) fn open_reply(result: Result<(Execution, u64), Failure>) -> OpenReply {
+    match result {
+        Ok((Execution::Operation(operation), owner)) => OpenReply {
+            operation,
+            owner,
+            error: Error::default(),
+        },
+        Ok(_) => OpenReply {
+            error: Failure::new("internal").into(),
+            ..OpenReply::default()
+        },
+        Err(error) => OpenReply {
+            error: error.into(),
+            ..OpenReply::default()
+        },
+    }
 }

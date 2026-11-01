@@ -70,6 +70,7 @@ impl From<&RequestError> for Failure {
             RequestErrorKind::ServerPinPolicy => "server_pin_policy",
             RequestErrorKind::SessionTickets => "session_tickets",
             RequestErrorKind::HeaderHook => "header_hook",
+            RequestErrorKind::RequestHook => "request_hook",
             RequestErrorKind::Transfer => "transfer",
             RequestErrorKind::ContentDecoding => "content_decoding",
             _ => "unknown",

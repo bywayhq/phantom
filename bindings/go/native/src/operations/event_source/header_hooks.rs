@@ -9,6 +9,7 @@ use std::{
 use phantom::{HeaderHookContext, HeaderHookError};
 use tokio::sync::{mpsc, oneshot, watch};
 
+use super::super::logical_hooks::HookFuture;
 use super::super::{Execution, Outcome, Target, global};
 use crate::error::Failure;
 
@@ -43,7 +44,7 @@ impl Drop for Handback {
 #[derive(Debug)]
 struct SourceFailure {
     operation: u64,
-    error: HeaderHookError,
+    error: Box<dyn Error + Send + Sync>,
 }
 impl fmt::Display for SourceFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -52,7 +53,7 @@ impl fmt::Display for SourceFailure {
 }
 impl Error for SourceFailure {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.error)
+        Some(self.error.as_ref())
     }
 }
 impl Owner {
@@ -131,7 +132,88 @@ impl Owner {
             // The Go invocation may already have been cancelled by source close.
             let _ = slot.done.send(status);
         }
-        result.map_err(|error| HeaderHookError::new(SourceFailure { operation, error }))
+        result.map_err(|error| {
+            HeaderHookError::new(SourceFailure {
+                operation,
+                error: Box::new(error),
+            })
+        })
+    }
+}
+
+pub(crate) struct LogicalHooks {
+    pub(crate) owner: Arc<Owner>,
+    pub(crate) phases: u8,
+}
+impl Owner {
+    async fn observe(
+        self: &Arc<Self>,
+        invocation: super::super::logical_hooks::Invocation,
+    ) -> Result<(), phantom::RequestHookError> {
+        let failure = || {
+            phantom::RequestHookError::new(std::io::Error::other(
+                "EventSource callback unavailable",
+            ))
+        };
+        let mut receiver = self.receiver.lock().await;
+        let slot = tokio::select! {
+            biased;
+            () = self.closed() => return Err(failure()),
+            slot = receiver.recv() => slot.ok_or_else(failure)?,
+        };
+        drop(receiver);
+        let operation = slot.operation;
+        let mut handback = Handback(Some(slot));
+        let result = global()
+            .map_err(|_| failure())?
+            .logical_hook(operation, invocation)
+            .await;
+        let status = if result.is_ok() {
+            Ok(())
+        } else {
+            Err(Failure::new("request_hook"))
+        };
+        if let Some(slot) = handback.0.take() {
+            let _ = slot.done.send(status);
+        }
+        result.map_err(|error| {
+            phantom::RequestHookError::new(SourceFailure {
+                operation,
+                error: Box::new(error),
+            })
+        })
+    }
+}
+impl phantom::AsyncRequestHooks for LogicalHooks {
+    fn on_request<'a>(&'a self, context: &'a phantom::RequestHookContext<'_>) -> HookFuture<'a> {
+        Box::pin(async move {
+            if self.phases & 1 == 0 {
+                return Ok(());
+            }
+            self.owner
+                .observe(super::super::logical_hooks::request(context)?)
+                .await
+        })
+    }
+    fn on_response<'a>(&'a self, context: &'a phantom::ResponseHookContext<'_>) -> HookFuture<'a> {
+        Box::pin(async move {
+            if self.phases & 2 == 0 {
+                return Ok(());
+            }
+            self.owner
+                .observe(super::super::logical_hooks::response(context)?)
+                .await
+        })
+    }
+    fn on_error<'a>(&'a self, context: &'a phantom::RequestErrorHookContext<'_>) -> HookFuture<'a> {
+        Box::pin(async move {
+            if self.phases & 4 == 0 {
+                return Ok(());
+            }
+            let mut invocation = super::super::logical_hooks::error(context)?;
+            invocation.cause_operation = error_operation(context.error()).unwrap_or(0);
+            self.owner.observe(invocation).await
+        })
     }
 }
 
@@ -203,13 +285,22 @@ pub(crate) fn release(handle: u64) -> Result<Execution, Failure> {
 }
 
 pub(crate) fn failure_operation(error: &phantom::SseError) -> Option<u64> {
-    let mut source: Option<&(dyn Error + 'static)> = Some(error);
-    for _ in 0..16 {
-        let error = source?;
+    error_operation(error)
+}
+
+pub(super) fn error_operation(error: &(dyn Error + 'static)) -> Option<u64> {
+    fn find(error: &(dyn Error + 'static), remaining: usize) -> Option<u64> {
+        if remaining == 0 {
+            return None;
+        }
         if let Some(error) = error.downcast_ref::<SourceFailure>() {
             return Some(error.operation);
         }
-        source = if let Some(error) = error.downcast_ref::<std::io::Error>() {
+        if let Some(error) = error.downcast_ref::<phantom::RequestErrorHookFailure>() {
+            return find(error.hook_error(), remaining - 1)
+                .or_else(|| find(error.original_error(), remaining - 1));
+        }
+        let source = if let Some(error) = error.downcast_ref::<std::io::Error>() {
             error
                 .get_ref()
                 .map(|error| error as &(dyn Error + 'static))
@@ -217,8 +308,9 @@ pub(crate) fn failure_operation(error: &phantom::SseError) -> Option<u64> {
         } else {
             error.source()
         };
+        find(source?, remaining - 1)
     }
-    None
+    find(error, 16)
 }
 
 pub(crate) fn active(operation: u64, ticket: u64) -> Result<bool, Failure> {

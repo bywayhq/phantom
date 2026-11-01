@@ -16,6 +16,7 @@ use std::{
 mod event_source;
 mod event_source_header;
 mod header_hook;
+mod logical_hook;
 mod redirect_hook;
 mod sse;
 mod state_transfer;
@@ -539,6 +540,10 @@ unsafe extern "C" fn phantom_go_wait_event(
                 }
                 Ok(Completed::RedirectHook(ticket)) => {
                     result.kind = 7;
+                    result.part = ticket;
+                }
+                Ok(Completed::LogicalHook(ticket)) => {
+                    result.kind = 8;
                     result.part = ticket;
                 }
                 Ok(Completed::Head(head)) => {

@@ -13,7 +13,9 @@ import (
 // Config selects one named or caller-owned profile and an explicit protocol.
 // Context is raw/empty, profile, or an available named catalog context.
 type Config struct {
-	// HeaderHooks edit ordered caller fields on Do and single-response Events.
+	// RequestHooks observes each logical Do, Events send and EventSource GET.
+	RequestHooks RequestHooks
+	// HeaderHooks edit caller fields on Do, Events and each EventSource GET.
 	// New snapshots this list. Hooks must honor cancellation and may run concurrently.
 	HeaderHooks []HeaderHook
 	Profile     string
@@ -72,6 +74,7 @@ type Client struct {
 	id             atomic.Uint64
 	closing        atomic.Bool
 	headerHooks    []HeaderHook
+	requestHooks   RequestHooks
 	redirectPolicy RedirectPolicy
 	sourceMu       sync.Mutex
 	sourceHooks    map[*eventSourceHooks]struct{}
@@ -194,6 +197,7 @@ func New(config Config) (*Client, error) {
 	client, err := clientFromReply(value)
 	if err == nil {
 		client.headerHooks = hooks
+		client.requestHooks = config.RequestHooks
 		client.redirectPolicy = redirects
 	}
 	return client, err

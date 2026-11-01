@@ -119,7 +119,7 @@ func (h *requestHooks) invokeRedirect(operation uint64, call *redirectCall) erro
 	h.redirectHop = call.attempt.Hop
 	decision, err := h.redirect(h.ctx, call.attempt)
 	if err != nil {
-		h.failure, h.failureKind = err, "redirect"
+		h.rememberFailure(err, "redirect")
 	}
 	if h.ctx.Err() != nil {
 		return nil
@@ -129,7 +129,7 @@ func (h *requestHooks) invokeRedirect(operation uint64, call *redirectCall) erro
 	}
 	outcome := uint64(0)
 	if err != nil {
-		h.failure, h.failureKind = err, "redirect"
+		h.rememberFailure(err, "redirect")
 		outcome, decision = 1, 0
 	}
 	err = replyRedirectCall(operation, call.ticket, outcome, decision)

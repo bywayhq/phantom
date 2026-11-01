@@ -77,6 +77,14 @@ Here `credentials` is your token provider. Check `h.URL()` before adding secrets
 Client hooks run first, then request hooks, once per `Do` or `Events`. Retries
 and redirects reuse their result. Cross-origin redirects still strip registered
 credentials.
+
+Use `RequestHooks{OnRequest: ..., OnResponse: ..., OnError: ...}` on `Config`
+or `Request` to observe a logical send without reading its body. Client
+observers run first. Retries and redirects share one invocation per phase;
+EventSource invokes observers for each fresh GET. Callbacks receive immutable
+metadata and share the total deadline. Original callback errors remain available
+through `errors.Is` and `errors.As`.
+
 Hooks see ordered caller headers and prepared-body fields. Templates and cookie
 storage supply their fields afterward. `Headers()` returns a copy; use `Append`,
 `Set` and `Remove` during the callback to change fields.

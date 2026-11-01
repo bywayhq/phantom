@@ -110,3 +110,15 @@ func EventSourceHooksFailure(uint64, *uint64, *Reply) error {
 func EventSourceHooksActive(uint64, uint64, *Reply) error {
 	return &Failure{Kind: "native_unavailable"}
 }
+
+func LoadLogicalHooks() error { return &Failure{Kind: "unsupported_platform"} }
+func LogicalHookRequest(*Request, []byte, *LogicalHookOptions, *Reply) error {
+	return LoadLogicalHooks()
+}
+func LogicalHookCopy(uint64, uint64, *LogicalInvocation, []OutputField, []byte) error {
+	return LoadLogicalHooks()
+}
+func LogicalHookReply(uint64, uint64, uint64, *Reply) error { return LoadLogicalHooks() }
+func LogicalHookSourceOpen(*EventSourceOpening, uint64, uint64, *EventSourceHooksReply) error {
+	return LoadLogicalHooks()
+}

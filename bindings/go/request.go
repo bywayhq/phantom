@@ -12,6 +12,8 @@ import (
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
 type Request struct {
+	// RequestHooks runs after client observers for this logical send.
+	RequestHooks RequestHooks
 	// HeaderHooks run after client hooks for this logical Do or Events send.
 	// They run once across redirects and retries; the list is snapshotted by Do.
 	HeaderHooks []HeaderHook
@@ -134,7 +136,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 	if redirects != nil {
 		redirect = redirects.Callback
 	}
-	hookOwner, err := newRequestHooks(ctx, c.headerHooks, request.HeaderHooks, redirect)
+	hookOwner, err := newRequestHooks(ctx, c.headerHooks, request.HeaderHooks, redirect, c.requestHooks, request.RequestHooks)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +148,12 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err := native.LoadHeaderHooks(); err != nil {
 			return nil, nativeBoundaryError(err)
 		}
-		if redirect != nil {
+		if hookOwner.phases != 0 {
+			if err := native.LoadLogicalHooks(); err != nil {
+				return nil, nativeBoundaryError(err)
+			}
+		}
+		if redirect != nil && hookOwner.phases == 0 {
 			if err := native.LoadRedirectHooks(); err != nil {
 				return nil, nativeBoundaryError(err)
 			}
@@ -159,7 +166,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err := loadSSE(); err != nil {
 			return nil, err
 		}
-		if hookOwner != nil && redirect == nil {
+		if hookOwner != nil && redirect == nil && hookOwner.phases == 0 {
 			if err := native.LoadSSEHeaderHooks(); err != nil {
 				return nil, nativeBoundaryError(err)
 			}
@@ -306,7 +313,13 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		var result native.Reply
 		var err error
 		if hookOwner != nil {
-			if redirect != nil {
+			if hookOwner.phases != 0 {
+				options := native.LogicalHookOptions{Headers: uint64(len(hookOwner.hooks)), Redirect: boolean(redirect != nil), Phases: hookOwner.phases}
+				if events != nil {
+					options.Limits = &native.CallbackSSELimits{Line: uint64(events.MaxLineBytes), Event: uint64(events.MaxEventBytes)}
+				}
+				err = native.LogicalHookRequest(&descriptor, request.Body, &options, &result)
+			} else if redirect != nil {
 				var limits *native.CallbackSSELimits
 				if events != nil {
 					limits = &native.CallbackSSELimits{Line: uint64(events.MaxLineBytes), Event: uint64(events.MaxEventBytes)}

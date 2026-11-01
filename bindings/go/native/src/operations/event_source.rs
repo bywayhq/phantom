@@ -256,7 +256,15 @@ pub(crate) fn open(opening: Opening) -> Result<Execution, Failure> {
 }
 
 pub(crate) fn open_with_hooks(opening: Opening, count: usize) -> Result<(Execution, u64), Failure> {
-    if count > 256 {
+    open_with_logical_hooks(opening, count, 0)
+}
+
+pub(crate) fn open_with_logical_hooks(
+    opening: Opening,
+    count: usize,
+    phases: u8,
+) -> Result<(Execution, u64), Failure> {
+    if count > 256 || phases > 7 {
         return Err(Failure::new("invalid_header_hooks"));
     }
     let global = global()?;
@@ -296,17 +304,27 @@ pub(crate) fn open_with_hooks(opening: Opening, count: usize) -> Result<(Executi
     if let Some(value) = opening.route {
         request = request.route(value);
     }
-    if count != 0 && state.source_hooks.len() >= super::MAX_HANDLES {
+    if (count != 0 || phases != 0) && state.source_hooks.len() >= super::MAX_HANDLES {
         return Err(Failure::new("capacity"));
     }
-    let hook_handle = if count == 0 { 0 } else { state.id()? };
+    let hook_handle = if count == 0 && phases == 0 {
+        0
+    } else {
+        state.id()?
+    };
     let (id, cancel) = state.reserve(Target::EventSourceOpen(opening.client))?;
-    let hooks = if count == 0 {
+    let hooks = if count == 0 && phases == 0 {
         None
     } else {
         let owner = header_hooks::Owner::new(opening.client);
         state.source_hooks.insert(hook_handle, Arc::clone(&owner));
         request = request.without_header_hooks();
+        if phases != 0 {
+            request = request.async_request_hooks(header_hooks::LogicalHooks {
+                owner: Arc::clone(&owner),
+                phases,
+            });
+        }
         for index in 0..count {
             let owner = Arc::clone(&owner);
             request = request.async_header_hook(move |context| {

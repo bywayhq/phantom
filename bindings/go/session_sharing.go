@@ -29,6 +29,7 @@ func (c *Client) Fork(sharing SessionSharing) (*Client, error) {
 	client, err := clientFromReply(value)
 	if err == nil {
 		client.headerHooks = c.headerHooks
+		client.requestHooks = c.requestHooks
 		client.redirectPolicy = c.redirectPolicy
 	}
 	return client, err

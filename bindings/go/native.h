@@ -145,3 +145,17 @@ struct phantom_go_state_alternative;
 uint64_t phantom_go_state_transfer_version(void);
 uint64_t phantom_go_state_transfer_submit(const struct phantom_go_state_transfer *, struct phantom_go_reply *);
 uint64_t phantom_go_state_transfer_result(uint64_t, struct phantom_go_state_result *, struct phantom_go_state_cookie *, size_t, struct phantom_go_state_alternative *, size_t, uint8_t *, size_t);
+
+/* Optional logical-hook ABI 1 shares callback custody with header/redirect hooks.
+ * Completion kind 8 is intermediate; request/response/error phase bits are 1/2/4.
+ * Copy uses bounded fields and a 256 KiB byte arena, without body access.
+ * Reply outcomes 0/1/2 mean success/failure/discard. Source open uses the same
+ * source owner and per-GET rendezvous, preserving cancelled reads and cleanup.
+ */
+struct phantom_go_logical_hook_options;
+struct phantom_go_logical_hook_invocation;
+uint64_t phantom_go_logical_hook_version(void);
+uint64_t phantom_go_logical_hook_request(const struct phantom_go_request *, const uint8_t *, size_t, const struct phantom_go_logical_hook_options *, struct phantom_go_reply *);
+uint64_t phantom_go_logical_hook_copy(uint64_t, uint64_t, struct phantom_go_logical_hook_invocation *, struct phantom_go_field *, size_t, uint8_t *, size_t);
+uint64_t phantom_go_logical_hook_reply(uint64_t, uint64_t, uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_logical_hook_source_open(const struct phantom_go_event_source_opening *, uint64_t, uint64_t, struct phantom_go_event_source_hooks_reply *);

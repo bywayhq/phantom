@@ -25,6 +25,7 @@ use response::{BodyOwner, Head, ReadLease, ReadResult, response_head};
 
 mod diagnostics;
 pub(crate) mod event_source;
+pub(crate) mod logical_hooks;
 mod response;
 pub(super) mod session;
 pub(crate) mod sse;
@@ -295,10 +296,12 @@ struct CallbackCall {
 enum CallbackInvocation {
     Header(std::sync::Arc<header_hook::Invocation>),
     Redirect(std::sync::Arc<crate::redirect_hook::Invocation>),
+    Logical(std::sync::Arc<logical_hooks::Invocation>),
 }
 enum CallbackReply {
     Header(Vec<header_hook::Edit>),
     Redirect(phantom::RedirectDecision),
+    Logical,
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -314,6 +317,7 @@ pub(crate) enum Completed {
     Part(usize),
     HeaderHook(u64),
     RedirectHook(u64),
+    LogicalHook(u64),
 }
 
 #[derive(Serialize)]
@@ -348,6 +352,7 @@ impl Completion {
             Ok(Completed::Part(part)) => (Some(json!({"part":part})), None),
             Ok(Completed::HeaderHook(ticket)) => (Some(json!({"header_hook":ticket})), None),
             Ok(Completed::RedirectHook(ticket)) => (Some(json!({"redirect_hook":ticket})), None),
+            Ok(Completed::LogicalHook(ticket)) => (Some(json!({"logical_hook":ticket})), None),
             Err(error) => (None, Some(error)),
         };
         serde_json::to_vec(&json!({"operation":self.operation,"value":value,"error":error,"data_length":self.data.len()}))
@@ -1257,8 +1262,22 @@ pub(crate) fn execute_with_callbacks(
     hooks: usize,
     redirects: bool,
 ) -> Result<Execution, Failure> {
+    execute_with_logical_hooks(command, bytes, hooks, redirects, 0)
+}
+
+pub(crate) fn execute_with_logical_hooks(
+    command: Command,
+    bytes: &[u8],
+    hooks: usize,
+    redirects: bool,
+    phases: u8,
+) -> Result<Execution, Failure> {
     let mut closed_sources = Vec::new();
-    if hooks > 256 || ((hooks != 0 || redirects) && !matches!(&command, Command::Request { .. })) {
+    if phases > 7
+        || hooks > 256
+        || ((hooks != 0 || redirects || phases != 0)
+            && !matches!(&command, Command::Request { .. }))
+    {
         return Err(Failure::new("invalid_header_hooks"));
     }
     (|| {
@@ -1665,6 +1684,12 @@ pub(crate) fn execute_with_callbacks(
                 }
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
+                if phases != 0 {
+                    request = request.async_request_hooks(logical_hooks::Hooks {
+                        operation: id,
+                        phases,
+                    });
+                }
                 for index in 0..hooks {
                     request = request.async_header_hook(move |context| {
                         Box::pin(global.header_hook(id, index, context))
@@ -1984,7 +2009,7 @@ pub(crate) fn header_invocation(
         .filter(|call| call.ticket == ticket)
         .and_then(|call| match &call.invocation {
             CallbackInvocation::Header(invocation) => Some(std::sync::Arc::clone(invocation)),
-            CallbackInvocation::Redirect(_) => None,
+            CallbackInvocation::Redirect(_) | CallbackInvocation::Logical(_) => None,
         })
         .ok_or_else(|| Failure::new("header_hook_closed"))
 }
@@ -2104,6 +2129,7 @@ impl Global {
             (&call.invocation, &reply),
             (CallbackInvocation::Header(_), CallbackReply::Header(_))
                 | (CallbackInvocation::Redirect(_), CallbackReply::Redirect(_))
+                | (CallbackInvocation::Logical(_), CallbackReply::Logical)
         ) {
             return Err(Failure::new("header_hook_closed"));
         }
@@ -2143,7 +2169,7 @@ pub(crate) fn redirect_invocation(
         .filter(|call| call.ticket == ticket)
         .and_then(|call| match &call.invocation {
             CallbackInvocation::Redirect(invocation) => Some(std::sync::Arc::clone(invocation)),
-            CallbackInvocation::Header(_) => None,
+            CallbackInvocation::Header(_) | CallbackInvocation::Logical(_) => None,
         })
         .ok_or_else(|| Failure::new("header_hook_closed"))
 }
@@ -2197,8 +2223,11 @@ impl Global {
         loop {
             if let Some(queued) = state.ready.pop_front() {
                 if let Some(operation) = state.operations.get_mut(&queued.operation) {
-                    if let Ok(Completed::HeaderHook(ticket) | Completed::RedirectHook(ticket)) =
-                        &queued.completion.result
+                    if let Ok(
+                        Completed::HeaderHook(ticket)
+                        | Completed::RedirectHook(ticket)
+                        | Completed::LogicalHook(ticket),
+                    ) = &queued.completion.result
                     {
                         if operation.finished || operation.abandoned {
                             continue;
@@ -2216,7 +2245,9 @@ impl Global {
                     }
                 } else if matches!(
                     queued.completion.result,
-                    Ok(Completed::HeaderHook(_) | Completed::RedirectHook(_))
+                    Ok(Completed::HeaderHook(_)
+                        | Completed::RedirectHook(_)
+                        | Completed::LogicalHook(_))
                 ) {
                     continue;
                 }
@@ -2239,6 +2270,7 @@ mod tests {
     mod admission;
     mod event_source;
     mod header_hooks;
+    mod logical_hooks;
     mod redirect_hooks;
     mod response_info;
     mod session_sharing;

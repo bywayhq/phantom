@@ -12,29 +12,23 @@ import (
 type sourceHookFailure struct {
 	operation uint64
 	cause     error
+	kind      string
 }
 type eventSourceHooks struct {
 	client        *Client
 	context       context.Context
 	handle        uint64
 	hooks         []HeaderHook
+	logical       []RequestHooks
+	phases        uint64
 	done          chan struct{}
 	operation     atomic.Uint64
 	mu            sync.Mutex
 	last, cleanup *sourceHookFailure
 }
 
-func startEventSourceHooks(client *Client, handle uint64, hooks []HeaderHook, ctx context.Context) *eventSourceHooks {
-	owner := &eventSourceHooks{client: client, context: context.WithoutCancel(ctx), handle: handle, done: make(chan struct{}), hooks: make([]HeaderHook, len(hooks))}
-	for index, hook := range hooks {
-		owner.hooks[index] = func(ctx context.Context, fields *HeaderHookContext) error {
-			err := hook(ctx, fields)
-			if err != ctx.Err() {
-				owner.remember(owner.operation.Load(), err)
-			}
-			return err
-		}
-	}
+func startEventSourceHooks(client *Client, handle uint64, hooks []HeaderHook, logical []RequestHooks, phases uint64, ctx context.Context) *eventSourceHooks {
+	owner := &eventSourceHooks{client: client, context: context.WithoutCancel(ctx), handle: handle, done: make(chan struct{}), hooks: hooks, logical: logical, phases: phases}
 	client.sourceMu.Lock()
 	if client.sourceHooks == nil {
 		client.sourceHooks = make(map[*eventSourceHooks]struct{})
@@ -49,13 +43,38 @@ func (owner *eventSourceHooks) remember(operation uint64, err error) {
 		return
 	}
 	owner.mu.Lock()
-	failure := &sourceHookFailure{operation, err}
+	failure := &sourceHookFailure{operation: operation, cause: err, kind: "header_hook"}
 	owner.last = failure
 	if owner.cleanup == nil {
 		owner.cleanup = failure
 	}
 	owner.mu.Unlock()
 }
+func (owner *eventSourceHooks) causeFor(operation uint64) error {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	if owner.last != nil && owner.last.operation == operation {
+		return owner.last.cause
+	}
+	if owner.cleanup != nil && owner.cleanup.operation == operation {
+		return owner.cleanup.cause
+	}
+	return nil
+}
+func (owner *eventSourceHooks) rememberInvocation(operation uint64, hooks *requestHooks) {
+	cause := hooks.failure
+	if hooks.secondary != nil {
+		cause = errors.Join(cause, hooks.secondary)
+	}
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	failure := &sourceHookFailure{operation: operation, cause: cause, kind: hooks.failureKind}
+	owner.last = failure
+	if owner.cleanup == nil || (hooks.priorOperation != 0 && owner.cleanup.operation == hooks.priorOperation) {
+		owner.cleanup = failure
+	}
+}
+
 func (owner *eventSourceHooks) run() {
 	defer close(owner.done)
 	defer func() {
@@ -73,20 +92,23 @@ func (owner *eventSourceHooks) run() {
 	next := uint64(0)
 	for {
 		ctx, cancel := context.WithCancel(owner.context)
-		hooks := &requestHooks{hooks: owner.hooks, ctx: ctx, cancel: cancel, next: next, source: true}
+		hooks := &requestHooks{hooks: owner.hooks, ctx: ctx, cancel: cancel, next: next, source: true, logical: owner.logical, phases: owner.phases, sourceOwner: owner}
 		err := performSubmittedWithHooks(context.Background(), func() (uint64, error) {
 			operation, err := eventSourceHooksOperation(1, owner.handle)
 			owner.operation.Store(operation)
 			return operation, err
 		}, nil, func(completion) error { return nil }, hooks)
 		cancel()
-		next = hooks.next % uint64(len(owner.hooks))
+		next = 0
+		if len(owner.hooks) != 0 {
+			next = hooks.next % uint64(len(owner.hooks))
+		}
 		if err != nil {
 			next = 0
 			if kind(err) == "sse_closed" {
 				return
 			}
-			if kind(err) != "header_hook" && kind(err) != "source_header_cancelled" {
+			if kind(err) != "header_hook" && kind(err) != "request_hook" && kind(err) != "source_header_cancelled" {
 				owner.remember(owner.operation.Load(), err)
 				owner.stop()
 				return
@@ -129,7 +151,7 @@ func (owner *eventSourceHooks) wait(ctx context.Context) error {
 	if failure == nil {
 		return nil
 	}
-	return &Error{Kind: "header_hook", cause: failure.cause}
+	return &Error{Kind: failure.kind, cause: failure.cause}
 }
 func (owner *eventSourceHooks) attach(err error, operation uint64) error {
 	if owner == nil || err == nil || operation == 0 {
@@ -151,7 +173,7 @@ func (owner *eventSourceHooks) attach(err error, operation uint64) error {
 		copy.cause = errors.Join(err, failure.cause)
 		return &copy
 	}
-	return &Error{Kind: "header_hook", cause: errors.Join(err, failure.cause)}
+	return &Error{Kind: failure.kind, cause: errors.Join(err, failure.cause)}
 }
 func (client *Client) removeSourceHooks(owner *eventSourceHooks) {
 	client.sourceMu.Lock()

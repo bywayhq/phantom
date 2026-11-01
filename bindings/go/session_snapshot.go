@@ -188,6 +188,7 @@ func (c *Client) RestoreSession(ctx context.Context, snapshot []byte, key [32]by
 	restored, err := acceptSession(ctx, value)
 	if err == nil {
 		restored.headerHooks = c.headerHooks
+		restored.requestHooks = c.requestHooks
 		restored.redirectPolicy = c.redirectPolicy
 	}
 	return restored, err
