@@ -301,23 +301,39 @@ test('native redirect callbacks run only for eligible hops and keep core hop and
 
 test('native pending redirect callbacks share the total deadline and retain host shutdown custody', {timeout: 30000}, async (t) => {
   for (const reason of ['Cancelled', 'Timeout']) await t.test(reason, async (t) => {
-    const sent = [], entered = deferred(), release = deferred();
+    const sent = [], entered = deferred(), release = deferred(), finallyEntered = deferred(), finish = deferred();
     const url = await peer(t, (request, response) => {sent.push(request.url); response.writeHead(302, {location: '/next'}); response.end();});
     const owner = client(t), abort = new AbortController(), budget = new AttemptBudget(2);
+    let callbackExited = false;
     const pending = owner.request(url + '/start', {...options, timeoutMs: reason === 'Timeout' ? 500 : 5000,
       signal: abort.signal, attemptBudget: budget, redirectPolicy: custom(async (attempt) => {
-        entered.resolve(attempt.signal); await release.promise; return RedirectDecision.Follow;
+        try {
+          entered.resolve(attempt.signal); await release.promise; return RedirectDecision.Follow;
+        } finally {
+          finallyEntered.resolve(); await finish.promise; callbackExited = true;
+        }
       })});
     const rejected = assert.rejects(pending, (error) => code(reason)(error) && (reason !== 'Timeout' || error.timeoutPhase === 'total'));
     const signal = await entered.promise;
-    if (reason === 'Cancelled') abort.abort();
-    await rejected;
-    assert(signal.aborted); assert.equal(budget.remaining, 1); assert.deepEqual(sent, ['/start']);
-    const closing = owner.close(); let closed = false;
-    closing.then(() => {closed = true;});
-    await Promise.resolve(); assert.equal(closed, false);
-    release.resolve(); await closing;
-    assert.deepEqual(sent, ['/start']);
+    const aborted = signal.aborted ? Promise.resolve() : once(signal, 'abort');
+    let closing, closed = false, closeSawCallbackExit = false;
+    try {
+      if (reason === 'Cancelled') abort.abort();
+      await rejected;
+      // Request rejection and the callback signal use separate native completions.
+      await aborted;
+      assert(signal.aborted); assert.equal(budget.remaining, 1); assert.deepEqual(sent, ['/start']);
+      closing = owner.close().then(() => {closed = true; closeSawCallbackExit = callbackExited;});
+      await Promise.resolve(); assert.equal(closed, false);
+      release.resolve(); await finallyEntered.promise;
+      assert.equal(callbackExited, false); assert.equal(closed, false);
+      finish.resolve(); await closing;
+      assert.equal(closeSawCallbackExit, true); assert.deepEqual(sent, ['/start']);
+    } finally {
+      release.resolve(); finish.resolve();
+      await rejected;
+      if (closing) await closing;
+    }
   });
 });
 
