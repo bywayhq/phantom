@@ -185,7 +185,11 @@ func (c *Client) RestoreSession(ctx context.Context, snapshot []byte, key [32]by
 		}
 		return nil, err
 	}
-	return acceptSession(ctx, value)
+	restored, err := acceptSession(ctx, value)
+	if err == nil {
+		restored.headerHooks = c.headerHooks
+	}
+	return restored, err
 }
 
 // A restored native owner is not public until this context check succeeds.

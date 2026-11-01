@@ -34,7 +34,13 @@ func TestCompletionPumpFailurePreservesCauseForEveryWaiter(t *testing.T) {
 
 	waiters := []chan completion{make(chan completion, 1), make(chan completion, 1)}
 	pump.pending = map[uint64]chan completion{1: waiters[0], 2: waiters[1]}
+	hookContext, stopHook := context.WithCancel(context.Background())
+	defer stopHook()
+	pump.headerCancels = map[uint64]context.CancelFunc{1: stopHook}
 	completionPump()
+	if hookContext.Err() != context.Canceled || len(pump.headerCancels) != 0 {
+		t.Fatal("pump failure did not cancel and release the host callback")
+	}
 
 	var original *Error
 	if !errors.As(pump.failure, &original) || original.Kind != "native_library_unavailable" || errors.Unwrap(original) == nil {

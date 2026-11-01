@@ -12,9 +12,12 @@ import (
 
 // Request holds one logical request. Body is replayable and limited to 8 MiB.
 type Request struct {
-	Method  string
-	URL     string
-	Headers []Header
+	// HeaderHooks run after client hooks for this logical Do send.
+	// They run once across redirects and retries; the list is snapshotted by Do.
+	HeaderHooks []HeaderHook
+	Method      string
+	URL         string
+	Headers     []Header
 	// Context selects this request's named template: navigation, fetch,
 	// fetchNoStore, fetchUpload, script, stylesheet, image or font.
 	// Empty inherits the client default; raw sends without a template.
@@ -115,6 +118,24 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 	}
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
+	}
+	var hookOwner *headerHooks
+	if events == nil {
+		hookOwner, err = newHeaderHooks(ctx, c.headerHooks, request.HeaderHooks)
+		if err != nil {
+			return nil, err
+		}
+		if hookOwner != nil {
+			defer hookOwner.cancel()
+			if err := ensureNativeIdentity(); err != nil {
+				return nil, err
+			}
+			if err := native.LoadHeaderHooks(); err != nil {
+				return nil, nativeBoundaryError(err)
+			}
+		}
+	} else if len(request.HeaderHooks) != 0 {
+		return nil, &Error{Kind: "header_hooks_unsupported"}
 	}
 	if events != nil {
 		if err := validateSSELimits(*events); err != nil {
@@ -269,10 +290,13 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		}
 		descriptor.Upload = upload.id
 	}
-	err = performSubmitted(ctx, func() (uint64, error) {
+	err = performSubmittedWithHooks(ctx, func() (uint64, error) {
 		var result native.Reply
 		var err error
-		if events == nil {
+		if hookOwner != nil {
+			err = native.HeaderHookRequest(&descriptor, request.Body, uint64(len(hookOwner.hooks)), &result)
+			err = nativeBoundaryError(err)
+		} else if events == nil {
 			err = nativeSubmit(&descriptor, request.Body, &result)
 		} else {
 			err = nativeSSESubmit(&descriptor, request.Body, *events, &result)
@@ -300,7 +324,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 			DecodedContentCodings: head.DecodedContentCodings, RedirectHistory: head.RedirectHistory,
 		}
 		return nil
-	})
+	}, hookOwner)
 	runtime.KeepAlive(request.Budget)
 	runtime.KeepAlive(request.TransferControl)
 	runtime.KeepAlive(request.Diagnostics)
@@ -311,7 +335,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 			_ = response.Body.Close()
 		}
 		upload.close()
-		return nil, upload.wrap(err)
+		return nil, upload.wrap(hookOwner.wrap(err))
 	}
 	transferred = true
 	return response, nil

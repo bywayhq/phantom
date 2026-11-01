@@ -6,6 +6,7 @@ mod dns;
 mod error;
 #[allow(unsafe_code)]
 mod ffi;
+mod header_hook;
 mod multipart;
 mod network;
 mod operations;

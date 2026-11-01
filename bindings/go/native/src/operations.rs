@@ -2,6 +2,7 @@ use crate::{
     client::{Config, Header, NativeClient, SessionSharing},
     client_certificate,
     error::Failure,
+    header_hook,
     policy::{ContentDecoding, RedirectPolicy, RequestPolicy},
     prepared_body,
     timeouts::Timeouts,
@@ -279,6 +280,12 @@ struct Operation {
     socket: Option<u64>,
     source: Option<u64>,
     source_result: Option<std::sync::Arc<event_source::ResultData>>,
+    header_call: Option<HeaderCall>,
+}
+struct HeaderCall {
+    invocation: std::sync::Arc<header_hook::Invocation>,
+    reply: Option<oneshot::Sender<Result<Vec<header_hook::Edit>, header_hook::HostFailure>>>,
+    host_owned: bool,
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -292,6 +299,7 @@ pub(crate) enum Completed {
     End(trailers::Snapshot),
     Complete,
     Part(usize),
+    HeaderHook(u64),
 }
 
 #[derive(Serialize)]
@@ -324,6 +332,7 @@ impl Completion {
             Ok(Completed::End(trailers)) => (Some(json!({"eof":true,"trailers":trailers})), None),
             Ok(Completed::Complete) => (Some(json!({})), None),
             Ok(Completed::Part(part)) => (Some(json!({"part":part})), None),
+            Ok(Completed::HeaderHook(ticket)) => (Some(json!({"header_hook":ticket})), None),
             Err(error) => (None, Some(error)),
         };
         serde_json::to_vec(&json!({"operation":self.operation,"value":value,"error":error,"data_length":self.data.len()}))
@@ -587,6 +596,7 @@ impl State {
                 socket: None,
                 source: None,
                 source_result: None,
+                header_call: None,
             },
         );
         Ok((id, receiver))
@@ -698,6 +708,10 @@ impl State {
             _ => None,
         });
         let finished = operation.finished;
+        let host_owned = operation
+            .header_call
+            .as_ref()
+            .is_some_and(|call| call.host_owned);
         if let Some(source) = source {
             self.close_source(source);
         }
@@ -707,7 +721,7 @@ impl State {
         if let Some(body) = body {
             self.close_body(body);
         }
-        if finished {
+        if finished && !host_owned {
             self.operations.remove(&id);
             self.ready.retain(|entry| entry.operation != id);
         }
@@ -793,9 +807,22 @@ impl Global {
                 operation.socket = None;
                 operation.source = None;
                 operation.source_result = None;
+                if operation
+                    .header_call
+                    .as_ref()
+                    .is_some_and(|call| !call.host_owned)
+                {
+                    operation.header_call = None;
+                } else if let Some(call) = &mut operation.header_call {
+                    // Delivered host code still owes handback after registry failure.
+                    call.reply.take();
+                }
                 operation.finished = true;
                 if operation.abandoned {
-                    return false;
+                    return operation
+                        .header_call
+                        .as_ref()
+                        .is_some_and(|call| call.host_owned);
                 }
                 if !operation.delivered {
                     terminal.push(*id);
@@ -881,7 +908,11 @@ impl Global {
                     return Err(Failure::new("client_closed"));
                 }
                 state.operations.values().any(|operation| {
-                    !operation.finished
+                    (!operation.finished
+                        || operation
+                            .header_call
+                            .as_ref()
+                            .is_some_and(|call| call.host_owned))
                         && match operation.target {
                             Target::Request(owner)
                             | Target::WebSocketOpen(owner)
@@ -922,7 +953,17 @@ impl Global {
             return;
         };
         if operation.abandoned {
-            state.operations.remove(&id);
+            if operation
+                .header_call
+                .as_ref()
+                .is_some_and(|call| call.host_owned)
+            {
+                operation.finished = true;
+                operation.cancel = None;
+            } else {
+                state.operations.remove(&id);
+                state.ready.retain(|entry| entry.operation != id);
+            }
             self.settled.notify_waiters();
             return;
         }
@@ -1115,6 +1156,17 @@ pub(crate) fn event_result(id: u64) -> Result<std::sync::Arc<sse::Read>, Failure
 }
 
 pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failure> {
+    execute_with_header_hooks(command, bytes, 0)
+}
+
+pub(crate) fn execute_with_header_hooks(
+    command: Command,
+    bytes: &[u8],
+    hooks: usize,
+) -> Result<Execution, Failure> {
+    if hooks > 256 || (hooks != 0 && !matches!(&command, Command::Request { events: None, .. })) {
+        return Err(Failure::new("invalid_header_hooks"));
+    }
     (|| {
         if matches!(command, Command::Identity) {
             return Ok(Execution::Json(native_identity()));
@@ -1399,7 +1451,7 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                     .operations
                     .get(&operation)
                     .ok_or_else(|| Failure::new("invalid_handle"))?;
-                if !op.finished {
+                if !op.finished || op.header_call.as_ref().is_some_and(|call| call.host_owned) {
                     return Err(Failure::new("operation_pending"));
                 }
                 state.operations.remove(&operation);
@@ -1502,6 +1554,11 @@ pub(crate) fn execute(command: Command, bytes: &[u8]) -> Result<Execution, Failu
                 }
                 let permit = global.upload(bytes.len())?;
                 let (id, cancel) = state.reserve(Target::Request(client))?;
+                for index in 0..hooks {
+                    request = request.async_header_hook(move |context| {
+                        Box::pin(global.header_hook(id, index, context))
+                    });
+                }
                 let mut stream_upload = None;
                 if let Some(upload) = upload {
                     enum Streaming {
@@ -1686,20 +1743,234 @@ pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
     Ok(())
 }
 
-pub(super) fn wait() -> Result<Completion, Failure> {
-    let global = global()?;
-    let mut state = global.lock();
-    loop {
-        if let Some(queued) = state.ready.pop_front() {
-            if let Some(operation) = state.operations.get_mut(&queued.operation) {
-                operation.delivered = true;
-            }
-            return Ok(queued.completion);
+struct HeaderWait {
+    global: &'static Global,
+    operation: u64,
+    ticket: u64,
+}
+
+impl Drop for HeaderWait {
+    fn drop(&mut self) {
+        if let Some(call) = self
+            .global
+            .lock()
+            .operations
+            .get_mut(&self.operation)
+            .and_then(|operation| operation.header_call.as_mut())
+            .filter(|call| call.invocation.ticket == self.ticket)
+        {
+            call.reply.take();
         }
-        state = match global.ready.wait(state) {
-            Ok(state) => state,
-            Err(poisoned) => global.recover(poisoned.into_inner()),
+    }
+}
+
+impl Global {
+    async fn header_hook(
+        &'static self,
+        operation: u64,
+        index: usize,
+        context: &mut phantom::HeaderHookContext<'_>,
+    ) -> Result<(), phantom::HeaderHookError> {
+        let failure = || phantom::HeaderHookError::new(header_hook::HostFailure);
+        let method = context.method().to_string();
+        let uri = context.uri().to_string();
+        let headers: Vec<_> = context
+            .headers()
+            .iter()
+            .map(|header| Header {
+                name: header.name().to_owned(),
+                value: header.value().to_vec(),
+                sensitive: header.is_sensitive(),
+            })
+            .collect();
+        let size = headers
+            .iter()
+            .fold(method.len().saturating_add(uri.len()), |size, header| {
+                size.saturating_add(40)
+                    .saturating_add(header.name.len())
+                    .saturating_add(header.value.len())
+            });
+        if size > MAX_METADATA || headers.len() > MAX_METADATA / 40 {
+            return Err(failure());
+        }
+        let (sender, receiver) = oneshot::channel();
+        let ticket = {
+            let mut state = self.lock();
+            if state.failed
+                || !state
+                    .operations
+                    .get(&operation)
+                    .is_some_and(|op| !op.abandoned && !op.finished)
+            {
+                return Err(failure());
+            }
+            let ticket = state.id().map_err(|_| failure())?;
+            let invocation = std::sync::Arc::new(header_hook::Invocation {
+                ticket,
+                index,
+                method,
+                uri,
+                headers,
+            });
+            state
+                .operations
+                .get_mut(&operation)
+                .ok_or_else(failure)?
+                .header_call = Some(HeaderCall {
+                invocation,
+                reply: Some(sender),
+                host_owned: false,
+            });
+            state.ready.push_back(Queued {
+                operation,
+                completion: Completion {
+                    operation,
+                    result: Ok(Completed::HeaderHook(ticket)),
+                    data: Bytes::new(),
+                },
+            });
+            ticket
         };
+        self.ready.notify_one();
+        let wait = HeaderWait {
+            global: self,
+            operation,
+            ticket,
+        };
+        let edits = receiver
+            .await
+            .map_err(|_| failure())?
+            .map_err(phantom::HeaderHookError::new)?;
+        drop(wait);
+        for edit in edits {
+            edit.apply(context)?;
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn header_invocation(
+    operation: u64,
+    ticket: u64,
+) -> Result<std::sync::Arc<header_hook::Invocation>, Failure> {
+    global()?
+        .lock()
+        .operations
+        .get(&operation)
+        .and_then(|operation| operation.header_call.as_ref())
+        .filter(|call| call.invocation.ticket == ticket)
+        .map(|call| std::sync::Arc::clone(&call.invocation))
+        .ok_or_else(|| Failure::new("header_hook_closed"))
+}
+
+pub(crate) fn reply_header_hook(
+    operation: u64,
+    ticket: u64,
+    outcome: u64,
+    edits: Vec<header_hook::Edit>,
+) -> Result<(), Failure> {
+    global()?.reply_header_hook(operation, ticket, outcome, edits)
+}
+
+impl Global {
+    fn reply_header_hook(
+        &self,
+        operation: u64,
+        ticket: u64,
+        outcome: u64,
+        edits: Vec<header_hook::Edit>,
+    ) -> Result<(), Failure> {
+        let mut state = self.lock();
+        let op = state
+            .operations
+            .get_mut(&operation)
+            .ok_or_else(|| Failure::new("header_hook_closed"))?;
+        let call = op
+            .header_call
+            .as_mut()
+            .filter(|call| call.invocation.ticket == ticket && call.host_owned)
+            .ok_or_else(|| Failure::new("header_hook_closed"))?;
+        call.host_owned = false;
+        let sender = call.reply.take();
+        let closed = sender.is_none() || op.finished || op.abandoned;
+        if let Some(sender) = sender {
+            // The request can expire between taking this sender and delivering edits.
+            let _ = sender.send(if outcome == 0 {
+                Ok(edits)
+            } else {
+                Err(header_hook::HostFailure)
+            });
+        }
+        if op.abandoned && op.finished {
+            state.operations.remove(&operation);
+            state.ready.retain(|entry| entry.operation != operation);
+        }
+        self.settled.notify_waiters();
+        if closed && outcome != 2 {
+            Err(Failure::new("header_hook_closed"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+pub(crate) fn cancel_header_request(operation: u64) -> Result<(), Failure> {
+    global()?.cancel_header_request(operation)
+}
+
+impl Global {
+    fn cancel_header_request(&self, operation: u64) -> Result<(), Failure> {
+        let mut state = self.lock();
+        let op = state
+            .operations
+            .get_mut(&operation)
+            .ok_or_else(|| Failure::new("invalid_handle"))?;
+        if !matches!(op.target, Target::Request(_)) {
+            return Err(Failure::new("invalid_handle"));
+        }
+        if let Some(cancel) = op.cancel.take() {
+            // Cancellation keeps the registered completion until host handback.
+            let _ = cancel.send(());
+        }
+        Ok(())
+    }
+}
+
+pub(super) fn wait() -> Result<Completion, Failure> {
+    global()?.wait()
+}
+
+impl Global {
+    fn wait(&self) -> Result<Completion, Failure> {
+        let mut state = self.lock();
+        loop {
+            if let Some(queued) = state.ready.pop_front() {
+                if let Some(operation) = state.operations.get_mut(&queued.operation) {
+                    if let Ok(Completed::HeaderHook(ticket)) = &queued.completion.result {
+                        if operation.finished || operation.abandoned {
+                            continue;
+                        }
+                        let Some(call) = operation
+                            .header_call
+                            .as_mut()
+                            .filter(|call| call.invocation.ticket == *ticket)
+                        else {
+                            continue;
+                        };
+                        call.host_owned = true;
+                    } else {
+                        operation.delivered = true;
+                    }
+                } else if matches!(queued.completion.result, Ok(Completed::HeaderHook(_))) {
+                    continue;
+                }
+                return Ok(queued.completion);
+            }
+            state = match self.ready.wait(state) {
+                Ok(state) => state,
+                Err(poisoned) => self.recover(poisoned.into_inner()),
+            };
+        }
     }
 }
 
@@ -1711,6 +1982,7 @@ mod tests {
 
     mod admission;
     mod event_source;
+    mod header_hooks;
     mod response_info;
     mod session_sharing;
     mod sse;
