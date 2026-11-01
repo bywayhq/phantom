@@ -25,8 +25,8 @@ fn credential_configuration_replaces_names_without_enabling_redirects() {
     );
 }
 
-#[test]
-fn custom_credentials_leave_headers_and_trailers_permanently() -> TestResult {
+#[tokio::test]
+async fn custom_credentials_leave_headers_and_trailers_permanently() -> TestResult {
     for destination in [
         "https://other.test/final",
         "https://example.test:8443/final",
@@ -48,7 +48,11 @@ fn custom_credentials_leave_headers_and_trailers_permanently() -> TestResult {
             .push(RequestHeader::new("X-Api-Key", "trailer-secret"));
 
         assert_eq!(
-            state.follow(&redirect(StatusCode::TEMPORARY_REDIRECT, destination)?)?,
+            follow(
+                &mut state,
+                &redirect(StatusCode::TEMPORARY_REDIRECT, destination)?
+            )
+            .await?,
             RedirectAction::Follow { same_origin: false }
         );
         assert_eq!(
@@ -69,10 +73,11 @@ fn custom_credentials_leave_headers_and_trailers_permanently() -> TestResult {
         );
         assert_eq!(state.body(), Some(&Bytes::from_static(b"body")));
 
-        state.follow(&redirect(
-            StatusCode::TEMPORARY_REDIRECT,
-            "https://example.test/back",
-        )?)?;
+        follow(
+            &mut state,
+            &redirect(StatusCode::TEMPORARY_REDIRECT, "https://example.test/back")?,
+        )
+        .await?;
         assert!(
             !state
                 .headers()
@@ -84,8 +89,8 @@ fn custom_credentials_leave_headers_and_trailers_permanently() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn same_origin_keeps_registered_credentials_and_trailers() -> TestResult {
+#[tokio::test]
+async fn same_origin_keeps_registered_credentials_and_trailers() -> TestResult {
     let mut state = state(Method::POST)?;
     state.policy = state
         .policy
@@ -99,7 +104,11 @@ fn same_origin_keeps_registered_credentials_and_trailers() -> TestResult {
         .push(RequestHeader::new("x-api-key", "trailer-secret"));
 
     assert_eq!(
-        state.follow(&redirect(StatusCode::TEMPORARY_REDIRECT, "/next")?)?,
+        follow(
+            &mut state,
+            &redirect(StatusCode::TEMPORARY_REDIRECT, "/next")?
+        )
+        .await?,
         RedirectAction::Follow { same_origin: true }
     );
     assert_eq!(

@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZeroUsize, sync::Arc};
+use std::{error::Error, fmt, future::Future, num::NonZeroUsize, pin::Pin, sync::Arc};
 
 use http::{Method, StatusCode, header::HeaderName};
 use phantom_net::request::RequestHeader;
@@ -61,11 +61,55 @@ pub use history::{RedirectHistory, RedirectHop};
 #[derive(Clone, Default)]
 pub struct RedirectPolicy {
     maximum: Option<NonZeroUsize>,
-    callback: Option<Arc<RedirectCallback>>,
+    callback: Option<RedirectCallback>,
     credential_headers: Vec<HeaderName>,
 }
 
-type RedirectCallback = dyn Fn(&RedirectAttempt<'_>) -> RedirectDecision + Send + Sync;
+type SyncCallback = dyn Fn(&RedirectAttempt<'_>) -> RedirectDecision + Send + Sync;
+type AsyncCallback = dyn for<'a, 'context> Fn(
+        &'a RedirectAttempt<'context>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<RedirectDecision, RedirectCallbackError>> + Send + 'a>,
+    > + Send
+    + Sync;
+
+#[derive(Clone)]
+enum RedirectCallback {
+    Sync(Arc<SyncCallback>),
+    Async(Arc<AsyncCallback>),
+}
+
+/// A redirect callback failure whose formatting omits the underlying cause.
+///
+/// Inspect [`Error::source`] for the original error. This stops the request
+/// without sending the proposed hop.
+pub struct RedirectCallbackError(Box<dyn Error + Send + Sync>);
+
+impl RedirectCallbackError {
+    /// Wraps an error returned by your redirect callback.
+    #[must_use]
+    pub fn new(source: impl Error + Send + Sync + 'static) -> Self {
+        Self(Box::new(source))
+    }
+}
+
+impl fmt::Debug for RedirectCallbackError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("RedirectCallbackError { .. }")
+    }
+}
+
+impl fmt::Display for RedirectCallbackError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("redirect callback failed")
+    }
+}
+
+impl Error for RedirectCallbackError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.0.as_ref())
+    }
+}
 
 impl fmt::Debug for RedirectPolicy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -207,9 +251,57 @@ impl RedirectPolicy {
     ) -> Self {
         Self {
             maximum: Some(maximum),
-            callback: Some(Arc::new(callback)),
+            callback: Some(RedirectCallback::Sync(Arc::new(callback))),
             credential_headers: Vec::new(),
         }
+    }
+
+    /// Awaits a decision before each hop, following at most `maximum` hops.
+    ///
+    /// The callback shares the request's total deadline and can run concurrently
+    /// for independent requests. Cancellation or timeout drops its future.
+    /// Returning an error stops the request with
+    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect), keeping
+    /// that error as its source. Other redirect rules match [`Self::custom`].
+    ///
+    /// ```
+    /// use std::num::NonZeroUsize;
+    /// use phantom::{RedirectDecision, RedirectPolicy};
+    ///
+    /// let policy = RedirectPolicy::custom_async(NonZeroUsize::MIN, |attempt| {
+    ///     Box::pin(async move {
+    ///         Ok(if attempt.from_url().origin() == attempt.to_url().origin() {
+    ///             RedirectDecision::Follow
+    ///         } else {
+    ///             RedirectDecision::Stop
+    ///         })
+    ///     })
+    /// });
+    /// ```
+    #[must_use]
+    pub fn custom_async<F>(maximum: NonZeroUsize, callback: F) -> Self
+    where
+        F: for<'a, 'context> Fn(
+                &'a RedirectAttempt<'context>,
+            ) -> Pin<
+                Box<
+                    dyn Future<Output = Result<RedirectDecision, RedirectCallbackError>>
+                        + Send
+                        + 'a,
+                >,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        Self {
+            maximum: Some(maximum),
+            callback: Some(RedirectCallback::Async(Arc::new(callback))),
+            credential_headers: Vec::new(),
+        }
+    }
+
+    pub(crate) fn has_async_callback(&self) -> bool {
+        matches!(self.callback, Some(RedirectCallback::Async(_)))
     }
 
     /// Replaces the additional credential names removed on cross-origin hops.
@@ -257,6 +349,11 @@ impl RedirectPolicy {
 pub(crate) enum RedirectAction {
     Stop,
     Follow { same_origin: bool },
+}
+
+pub(crate) struct RedirectTarget {
+    url: Url,
+    status: StatusCode,
 }
 
 pub(crate) struct RedirectState {
@@ -332,21 +429,21 @@ impl RedirectState {
         });
     }
 
-    pub(crate) fn follow<B>(
-        &mut self,
+    pub(crate) fn prepare<B>(
+        &self,
         response: &http::Response<B>,
-    ) -> Result<RedirectAction, RequestError> {
+    ) -> Result<Option<RedirectTarget>, RequestError> {
         if !is_redirect(response.status()) {
-            return Ok(RedirectAction::Stop);
+            return Ok(None);
         }
 
         let Some(maximum) = self.policy.maximum else {
-            return Ok(RedirectAction::Stop);
+            return Ok(None);
         };
 
         let mut locations = response.headers().get_all(http::header::LOCATION).iter();
         let Some(location) = locations.next() else {
-            return Ok(RedirectAction::Stop);
+            return Ok(None);
         };
 
         if locations.next().is_some() {
@@ -368,20 +465,45 @@ impl RedirectState {
             return Err(RequestError::redirect_scheme());
         }
 
+        Ok(Some(RedirectTarget {
+            url: next_url,
+            status: response.status(),
+        }))
+    }
+
+    pub(crate) async fn follow(
+        &mut self,
+        target: Option<RedirectTarget>,
+    ) -> Result<RedirectAction, RequestError> {
+        let Some(RedirectTarget {
+            url: next_url,
+            status,
+        }) = target
+        else {
+            return Ok(RedirectAction::Stop);
+        };
+
         if let Some(callback) = &self.policy.callback {
-            let next_method = if changes_to_get(response.status(), &self.method) {
+            let next_method = if changes_to_get(status, &self.method) {
                 &Method::GET
             } else {
                 &self.method
             };
-            match callback(&RedirectAttempt {
+            let attempt = RedirectAttempt {
                 from: &self.current_url,
                 to: &next_url,
-                status: response.status(),
+                status,
                 method: &self.method,
                 next_method,
                 hop: self.followed + 1,
-            }) {
+            };
+            let decision = match callback {
+                RedirectCallback::Sync(callback) => callback(&attempt),
+                RedirectCallback::Async(callback) => callback(&attempt)
+                    .await
+                    .map_err(RequestError::redirect_callback)?,
+            };
+            match decision {
                 RedirectDecision::Follow => {}
                 RedirectDecision::Stop => return Ok(RedirectAction::Stop),
                 RedirectDecision::Reject => {
@@ -392,7 +514,7 @@ impl RedirectState {
             }
         }
 
-        if changes_to_get(response.status(), &self.method) {
+        if changes_to_get(status, &self.method) {
             self.method = Method::GET;
             self.body.clear();
             self.trailers.clear();

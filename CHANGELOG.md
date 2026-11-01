@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add asynchronous redirect decisions that share the request deadline and
+  preserve callback errors, attempt limits and unread redirect bodies.
 - Add asynchronous ordered header hooks on clients and requests. Pending hooks
   share the request's total deadline and are cancelled with the send future.
 

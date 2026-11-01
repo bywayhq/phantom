@@ -68,7 +68,8 @@ pub use header_hook::{HeaderHookContext, HeaderHookError};
 pub use link::{Link, LinkParameter, LinkParseError, LinkParseErrorKind, parse_link_headers};
 pub use raw_request::{RawRequestError, RawRequestErrorKind};
 pub use redirect::{
-    RedirectAttempt, RedirectDecision, RedirectHistory, RedirectHop, RedirectPolicy,
+    RedirectAttempt, RedirectCallbackError, RedirectDecision, RedirectHistory, RedirectHop,
+    RedirectPolicy,
 };
 pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use request_body::{

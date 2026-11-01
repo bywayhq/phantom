@@ -34,6 +34,7 @@ use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use hop_server::HopServer;
 use tls_support::{H2_ALPN, TestIdentity, client_builder};
 
+mod async_policy;
 mod custom_policy;
 mod history;
 mod hop_server;

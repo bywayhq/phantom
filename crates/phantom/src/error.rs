@@ -561,6 +561,15 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn redirect_callback(source: crate::RedirectCallbackError) -> Self {
+        Self::with_source(
+            RequestErrorKind::Redirect,
+            None,
+            "redirect callback failed",
+            source,
+        )
+    }
+
     pub(crate) fn request_template_filled_slot() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,

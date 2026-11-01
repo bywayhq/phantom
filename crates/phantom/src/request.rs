@@ -1600,10 +1600,22 @@ impl RequestBuilder {
                 .filter(|history| !history.is_full())
                 .map(|_| (resolved.uri.clone(), redirect.method().clone()));
             let redirect_status = response.status();
-            match redirect
-                .follow(&response)
-                .map_err(|error| error.with_origin(resolved.origin()))?
-            {
+            let target = redirect
+                .prepare(&response)
+                .map_err(|error| error.with_origin(resolved.origin()))?;
+            let action = if redirect.policy().has_async_callback() {
+                timeout_budget
+                    .run(
+                        crate::TimeoutPhase::Total,
+                        Some(outcome.protocol),
+                        redirect.follow(target),
+                    )
+                    .await
+            } else {
+                redirect.follow(target).await
+            }
+            .map_err(|error| error.with_origin(resolved.origin()))?;
+            match action {
                 RedirectAction::Stop => {
                     if response_body_timeouts {
                         response
