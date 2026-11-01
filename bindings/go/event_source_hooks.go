@@ -122,14 +122,18 @@ func (owner *eventSourceHooks) run() {
 		}
 		if err != nil {
 			next = 0
-			if kind(err) == "sse_closed" {
-				return
+			var failure *Error
+			if errors.As(err, &failure) {
+				switch failure.Kind {
+				case "sse_closed":
+					return
+				case "header_hook", "request_hook", "source_header_cancelled":
+					continue
+				}
 			}
-			if kind(err) != "header_hook" && kind(err) != "request_hook" && kind(err) != "source_header_cancelled" {
-				owner.remember(owner.operation.Load(), err)
-				owner.stop()
-				return
-			}
+			owner.remember(owner.operation.Load(), err)
+			owner.stop()
+			return
 		}
 		// A GET may time out after its host failure was delivered. The source
 		// decides whether to reconnect; keep serving it until terminal close.
