@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Share capture source hashing and browser ownership across proxy scenarios.
+  Proxy launches use the same Windows process cleanup as other captures.
 - Import profiles from pinned peer source without requiring peer execution
   for every layer; reuse unchanged components and observations across updates.
 - Breaking: add `option_policy` to `TcpSettings` and `UdpSettings`. Built-in

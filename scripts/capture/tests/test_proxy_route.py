@@ -11,9 +11,9 @@ from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import DataReceived, ResponseReceived
 
+from scripts.capture.browser_launch import browser_arguments
 from scripts.capture.proxy_route import (
     CHROMIUM_REMOTE_FLAG,
-    DIRECT_FLAG,
     FIREFOX_REMOTE_ARGUMENTS,
     FORMAT,
     PROXY_CREDENTIAL,
@@ -28,10 +28,8 @@ from scripts.capture.proxy_route import (
     capture_scenario,
     fixture,
     generate_certificate,
-    launch_arguments,
     launch_plan,
     main,
-    recorded_arguments,
 )
 
 METADATA = CaptureMetadata(
@@ -1019,14 +1017,20 @@ class LaunchTests(unittest.TestCase):
             self.server,
             CERTIFICATE,
         )
-        return launch_arguments(plan, Path("<temporary-profile>"), "http://x/")
+        return browser_arguments(
+            plan.browser,
+            Path("<temporary-profile>"),
+            "http://x/",
+            headless=plan.headless,
+            extra=plan.extra_arguments,
+        )
 
     def test_chromium_proxy_launch_drops_the_direct_flag(self) -> None:
         direct = self.chromium("direct-loopback")
-        self.assertIn(DIRECT_FLAG, direct)
+        self.assertIn("--no-proxy-server", direct)
         self.assertFalse(any(a.startswith("--proxy-server=") for a in direct))
         http = self.chromium("http-proxy-loopback")
-        self.assertNotIn(DIRECT_FLAG, http)
+        self.assertNotIn("--no-proxy-server", http)
         self.assertIn("--proxy-server=http://127.0.0.1:1002", http)
         self.assertIn("--proxy-bypass-list=<-loopback>", http)
         self.assertIn("--disable-field-trial-config", http)
@@ -1103,14 +1107,18 @@ class LaunchTests(unittest.TestCase):
             self.server,
             CERTIFICATE,
         )
-        arguments = launch_arguments(
-            chrome, Path("<temporary-profile>"), REMOTE_START_URL
+        arguments = browser_arguments(
+            chrome.browser,
+            Path("<temporary-profile>"),
+            REMOTE_START_URL,
+            headless=chrome.headless,
+            extra=chrome.extra_arguments,
         )
         self.assertIn(CHROMIUM_REMOTE_FLAG, arguments)
         self.assertEqual(arguments[-1], "about:blank")
-        self.assertNotIn(DIRECT_FLAG, arguments)
+        self.assertNotIn("--no-proxy-server", arguments)
         self.assertTrue(
-            recorded_arguments(chrome, REMOTE_START_URL).endswith(
+            chrome.recorded_arguments(REMOTE_START_URL).endswith(
                 "--remote-debugging-port=0 about:blank"
             )
         )

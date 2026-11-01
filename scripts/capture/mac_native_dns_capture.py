@@ -20,6 +20,7 @@ from pathlib import Path
 from .browser_failures import raise_browser_failures
 from .browser_launch import FIREFOX_PREFERENCES, BrowserDriver, LaunchPlan
 from .capture_report import file_digest as digest
+from .capture_report import file_digests
 from .mac_native_dns_guard import OWNER_SECONDS, resolver_name
 from .native_dns import NativeDnsServer
 
@@ -35,6 +36,7 @@ SOURCE_PATHS = (
     "scripts/capture/native_dns.py",
     "scripts/capture/browser_launch.py",
     "scripts/capture/browser_failures.py",
+    "scripts/capture/capture_report.py",
     "scripts/capture/process_container.py",
     "scripts/requirements.txt",
 )
@@ -550,13 +552,13 @@ def main() -> None:
             "network.proxy.type": 0,
             "scoped_resolver": True,
         },
-        "source_before": {path: digest(ROOT / path) for path in SOURCE_PATHS},
+        "source_before": file_digests(SOURCE_PATHS, root=ROOT),
     }
     try:
         record["browser_before"] = browser_identity(executable)
         asyncio.run(capture(executable, record, drop_first_udp_a=args.drop_first_udp_a))
         record["browser_after"] = browser_identity(executable)
-        record["source_after"] = {path: digest(ROOT / path) for path in SOURCE_PATHS}
+        record["source_after"] = file_digests(SOURCE_PATHS, root=ROOT)
         if (
             record["browser_before"] != record["browser_after"]
             or record["source_before"] != record["source_after"]

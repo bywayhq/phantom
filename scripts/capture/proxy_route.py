@@ -10,8 +10,6 @@ import ipaddress
 import math
 import platform
 import secrets
-import shlex
-import subprocess
 import sys
 import time
 from collections.abc import Callable, Sequence
@@ -28,7 +26,6 @@ from .browser_launch import (
     LaunchedBrowser,
     LaunchPlan,
     add_android_entry_option,
-    browser_arguments,
     check_android_entry,
     enter_browser,
     exit_browser,
@@ -79,7 +76,6 @@ WEBSOCKET_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 WEBSOCKET_MESSAGE = b"\x81\x07phantom"
 # ws:// openings an auth scenario page makes one after another.
 AUTH_WEBSOCKETS = 2
-DIRECT_FLAG = "--no-proxy-server"
 # CONNECT ports of the `secure` page: an https:// fetch and a wss:// opening.
 # The proxy answers 200 and closes, so no origin TLS completes; the ports
 # only tell the two tunnels apart.
@@ -1574,41 +1570,7 @@ def launch_plan(
     return LaunchPlan(browser="manual", executable=None, headless=False)
 
 
-def launch_arguments(plan: LaunchPlan, profile: Path, url: str) -> list[str]:
-    """Browser arguments; a Chromium proxy launch drops the direct-route flag."""
-    arguments = browser_arguments(
-        plan.browser, profile, url, headless=plan.headless, extra=plan.extra_arguments
-    )
-    proxied = any(item.startswith("--proxy-server=") for item in arguments)
-    if plan.browser in CHROMIUM_BROWSERS and proxied:
-        # `--no-proxy-server` takes precedence over `--proxy-server`.
-        arguments.remove(DIRECT_FLAG)
-    return arguments
-
-
-def recorded_arguments(plan: LaunchPlan, url: str) -> str:
-    if plan.browser == "manual":
-        return "manual"
-    return shlex.join(launch_arguments(plan, Path("<temporary-profile>"), url))
-
-
-class ProxyLaunchedBrowser(LaunchedBrowser):
-    def _start(self, profile: Path) -> subprocess.Popen[bytes]:
-        if self.plan.browser not in CHROMIUM_BROWSERS:
-            return super()._start(profile)
-        return subprocess.Popen(
-            [
-                str(self.plan.executable),
-                *launch_arguments(self.plan, profile, self.url),
-            ],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            **({} if sys.platform == "win32" else {"start_new_session": True}),
-        )
-
-
-class ProxyBrowserFailures(Exception):
+class ProxyBrowserFailures(CleanupFailures):
     """Retain a context operation and its ordered cleanup failures."""
 
     def __init__(
@@ -1616,11 +1578,7 @@ class ProxyBrowserFailures(Exception):
         primary: BaseException | None,
         cleanup: tuple[BaseException, ...],
     ) -> None:
-        self.primary = primary
-        self.cleanup = cleanup
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        super().__init__("proxy browser context failed")
+        super().__init__(primary, cleanup, "proxy browser context failed")
 
 
 def _raise_proxy_browser_failures(
@@ -1665,7 +1623,7 @@ class ProxyBrowserDriver:
         self.url = url
         self.auth = auth
         self.note = note or (lambda _: None)
-        self.browser: ProxyLaunchedBrowser | None = None
+        self.browser: LaunchedBrowser | None = None
         self.remote: ChromiumAuthDriver | FirefoxAuthDriver | None = None
 
     async def __aenter__(self) -> ProxyBrowserDriver:
@@ -1675,13 +1633,11 @@ class ProxyBrowserDriver:
 
         try:
             if not self.auth:
-                self.browser = await enter_browser(
-                    ProxyLaunchedBrowser(self.plan, self.url)
-                )
+                self.browser = await enter_browser(LaunchedBrowser(self.plan, self.url))
                 return self
 
             self.browser = await enter_browser(
-                ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
+                LaunchedBrowser(self.plan, REMOTE_START_URL)
             )
             credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
             if self.plan.browser in CHROMIUM_BROWSERS:
@@ -1843,7 +1799,7 @@ async def run(args: argparse.Namespace) -> None:
                 operating_system=args.operating_system,
                 listen_addresses=listen,
                 launch_mode=plan.launch_mode,
-                launch_arguments=recorded_arguments(plan, start),
+                launch_arguments=plan.recorded_arguments(start),
                 firefox_preferences=render_preferences(plan.firefox_preferences)
                 or "none",
                 profile_files=",".join(item for item, _ in plan.profile_files)

@@ -46,7 +46,7 @@ from .http2_websocket import (
 from .http2_websocket import (
     SCENARIOS as ORIGIN_SCENARIOS,
 )
-from .proxy_route import ProxyBrowserDriver, recorded_arguments
+from .proxy_route import ProxyBrowserDriver
 from .websocket_tunnel import (
     MODES,
     PROXY_HOST,
@@ -366,7 +366,7 @@ async def run(args) -> None:
                 authority(*origin.tls_address),
                 authority(*origin.plain_address),
                 plan.launch_mode,
-                recorded_arguments(plan, page_url),
+                plan.recorded_arguments(page_url),
                 render_preferences(plan.firefox_preferences) or "none",
                 ",".join(name for name, _ in plan.profile_files) or "none",
             )

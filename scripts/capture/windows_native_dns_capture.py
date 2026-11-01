@@ -19,7 +19,7 @@ from pathlib import Path
 from scripts.capture import firefox_socket_hooks as firefox
 from scripts.capture import windows_native_https
 from scripts.capture.browser_failures import raise_browser_failures
-from scripts.capture.capture_report import file_digest
+from scripts.capture.capture_report import file_digest, file_digests
 from scripts.capture.native_dns import NativeDnsServer, question, response
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -113,6 +113,7 @@ SOURCE_PATHS = (
     "scripts/capture/socket_hooks.js",
     "scripts/capture/socket_hooks.py",
     "scripts/capture/browser_launch.py",
+    "scripts/capture/capture_report.py",
     "scripts/capture/process_container.py",
     "scripts/requirements.txt",
     "scripts/capture/hooks-requirements.txt",
@@ -1006,7 +1007,7 @@ def main(argv: list[str] | None = None) -> None:
             if arguments.scenario == "two-server"
             else ["127.0.0.53"],
         },
-        "source_before": {path: file_digest(ROOT / path) for path in SOURCE_PATHS},
+        "source_before": file_digests(SOURCE_PATHS, root=ROOT),
     }
     executable = None
     try:
@@ -1021,9 +1022,7 @@ def main(argv: list[str] | None = None) -> None:
             raise RuntimeError("staged Firefox processes remain after capture cleanup")
         if record["browser_after"] != record["browser_before"]:
             raise RuntimeError("Firefox identity changed during capture")
-        record["source_after"] = {
-            path: file_digest(ROOT / path) for path in SOURCE_PATHS
-        }
+        record["source_after"] = file_digests(SOURCE_PATHS, root=ROOT)
         if record["source_before"] != record["source_after"]:
             raise RuntimeError("capture source changed during run")
         record["status"] = "complete"

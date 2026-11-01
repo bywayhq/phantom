@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 from .capture_report import file_digest as file_hash
+from .capture_report import file_digests
 from .fixture_file import write_text_fixture
 from .sse_reconnect import (
     SCENARIOS,
@@ -521,26 +522,26 @@ async def provenance(protocol="h1") -> dict:
         raise RuntimeError("Safari capture requires a clean source checkout")
     if os.environ.get("GITHUB_SHA", result["source_head"]) != result["source_head"]:
         raise RuntimeError("capture checkout does not match the workflow SHA")
-    result["source_files"] = {
-        name: file_hash(Path(name))
-        for name in (
-            "scripts/capture/safari_webdriver.py",
-            "scripts/capture/sse_reconnect.py",
-            "scripts/capture/browser_launch.py",
-            "scripts/capture/fixture_file.py",
-            "scripts/requirements.txt",
-            ".github/workflows/safari-capture.yml",
-        )
-    }
+    source_files = [
+        "scripts/capture/safari_webdriver.py",
+        "scripts/capture/sse_reconnect.py",
+        "scripts/capture/browser_launch.py",
+        "scripts/capture/capture_report.py",
+        "scripts/capture/fixture_file.py",
+        "scripts/requirements.txt",
+        ".github/workflows/safari-capture.yml",
+    ]
     if protocol == "h2":
         from importlib.metadata import version
 
         result["transport_libraries"] = {
             name: version(name) for name in ("h2", "hpack", "cryptography")
         }
-        for name in ("sse_multiplexed.py", "http2_session.py", "http2_analysis.py"):
-            source = Path("scripts/capture") / name
-            result["source_files"][str(source)] = file_hash(source)
+        source_files.extend(
+            str(Path("scripts/capture") / name)
+            for name in ("sse_multiplexed.py", "http2_session.py", "http2_analysis.py")
+        )
+    result["source_files"] = file_digests(source_files)
     return result
 
 

@@ -119,7 +119,11 @@ def chromium_arguments(
 ) -> list[str]:
     arguments = ["--headless=new"] if headless else []
     arguments.append(f"--user-data-dir={profile}")
-    arguments.extend(CHROMIUM_FLAGS)
+    # Chromium's direct-route switch takes precedence over an explicit proxy.
+    proxied = any(argument.startswith("--proxy-server=") for argument in extra)
+    arguments.extend(
+        flag for flag in CHROMIUM_FLAGS if not (proxied and flag == "--no-proxy-server")
+    )
     arguments.extend(host_chromium_flags())
     arguments.extend(extra)
     arguments.append(url)

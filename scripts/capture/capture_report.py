@@ -2,6 +2,7 @@
 
 import hashlib
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -11,6 +12,11 @@ def file_digest(path: Path) -> str:
         while chunk := stream.read(1024 * 1024):
             value.update(chunk)
     return value.hexdigest()
+
+
+def file_digests(paths: Iterable[str], *, root: Path = Path(".")) -> dict[str, str]:
+    """Hash the caller's source inventory, retaining its names and order."""
+    return {name: file_digest(root / name) for name in paths}
 
 
 def command_output(record: dict, *args: str, timeout: float = 10) -> str:

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from scripts.capture import run_matrix
 from scripts.capture.browser_failures import raise_browser_failures
-from scripts.capture.capture_report import command_output, file_digest
+from scripts.capture.capture_report import command_output, file_digest, file_digests
 
 PROFILE_VERSION = "156.0.8078.48"
 CHROME_DMG = "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg"
@@ -246,7 +246,7 @@ def source_hashes(record):
     names.extend(
         [".github/workflows/macos-headful-capture.yml", "scripts/requirements.txt"]
     )
-    return {name: file_digest(Path(name)) for name in sorted(names)}
+    return file_digests(sorted(names))
 
 
 def capture_sse(output: Path, chrome: Path, version: str, record: dict) -> None:

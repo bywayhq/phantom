@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.capture import browser_launch, browser_remote, proxy_route
+from scripts.capture.process_container import ProcessContainer
 from scripts.capture.tests import test_browser_remote as remote_fixtures
 from scripts.capture.tests import test_browser_remote_lifecycle as lifecycle
 
@@ -107,7 +108,7 @@ class BrowserContext:
         child_port = self.server.sockets[0].getsockname()[1]
         context = self
 
-        class ChildBrowser(proxy_route.ProxyLaunchedBrowser):
+        class ChildBrowser(browser_launch.LaunchedBrowser):
             def _start(self, profile: Path) -> subprocess.Popen:
                 context.profiles.append(profile)
                 (profile / browser_remote.CHROMIUM_PORT_FILE).write_text(
@@ -176,7 +177,7 @@ class BrowserContext:
                     raise context.remote_failure
 
         for replacement in (
-            patch.object(proxy_route, "ProxyLaunchedBrowser", ChildBrowser),
+            patch.object(proxy_route, "LaunchedBrowser", ChildBrowser),
             patch.object(proxy_route, "ChromiumAuthDriver", ObservedDriver),
         ):
             replacement.start()
@@ -549,3 +550,27 @@ class ProxyBrowserDriverTests(unittest.IsolatedAsyncioTestCase):
 
         self.assert_destroyed(snapshot)
         self.assert_causes(error, primary, (remote, browser))
+
+
+@unittest.skipUnless(sys.platform == "win32", "Windows process ownership")
+class ProxyLaunchOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_proxy_browser_owns_its_process_until_context_cleanup(self) -> None:
+        plan = browser_launch.LaunchPlan(
+            "chrome",
+            Path(sys.executable),
+            True,
+            extra_arguments=("--proxy-server=http://127.0.0.1:1",),
+        )
+        driver = proxy_route.ProxyBrowserDriver(plan, URL)
+        with patch.object(
+            browser_launch, "browser_arguments", return_value=["-c", "pass"]
+        ):
+            await driver.__aenter__()
+        browser = driver.browser
+        try:
+            self.assertIsInstance(browser.process, ProcessContainer)
+            self.assertTrue(browser.profile.is_dir())
+        finally:
+            await driver.__aexit__(None, None, None)
+
+        self.assertFalse(browser.profile.exists())
