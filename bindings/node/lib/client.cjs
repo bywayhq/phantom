@@ -20,6 +20,7 @@ const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { attemptBudgetHandle, transferControlHandle, requestDiagnosticsHandle } = require('./controls.cjs');
 const { PhantomError, translated } = require('./errors.cjs');
 const { openEventSource } = require('./event-source.cjs');
+const { headerHooks, isHeaderHookContext, pumpHeaderHooks } = require('./header-hooks.cjs');
 const native = require('./native.cjs');
 const { networkOptions, poolOptions } = require('./network.cjs');
 const { preparedBodyHandle } = require('./prepared-body.cjs');
@@ -49,6 +50,10 @@ class Client {
   #closing;
   /** @type {UploadFailure | undefined} */
   #uploadCleanupError;
+  /** @type {Set<Promise<void>>} */
+  #headerPumps = new Set();
+  /** @type {unknown} */
+  #headerCleanupError;
 
   /** @param {unknown} iterator
    * @param {NativeUpload} upload @param {UploadProgress} outcome
@@ -100,7 +105,7 @@ class Client {
       this.#defaults = requestDefaults(config, profile?.contexts.includes('profile') ? 'profile' : undefined);
 
       /** @type {Omit<ClientOptions, 'clientCertificate' | 'clientCertificatesFor'>} */
-      const { protocol, context, headers, ...nativeOptions } = config;
+      const { protocol, context, headers, headerHooks: configuredHooks, ...nativeOptions } = config;
       this.#native = environment.client({
         ...nativeOptions, profile: typeof config.profile === 'string' ? config.profile : undefined,
         defaultContext: this.#defaults.context,
@@ -176,6 +181,12 @@ class Client {
     /** @type {UploadIterator | (MultipartSource | undefined)[] | undefined} */
     let iterator;
     let multipartUpload = false;
+    /** @type {import('./client-native.cjs').NativeHeaderHooks | undefined} */
+    let hookOwner;
+    /** @type {import('./header-hooks.cjs').HookOutcome | undefined} */
+    let hookOutcome;
+    /** @type {Promise<void> | undefined} */
+    let hookPump;
     const abort = () => cancellation.cancel();
     const cleanup = () => {
       upload?.stop();
@@ -185,6 +196,11 @@ class Client {
 
     try {
       const { url: preparedUrl, options } = prepareRequest(this.#defaults, url, inputOptions);
+      if (options.skipClientHeaderHooks !== undefined && typeof options.skipClientHeaderHooks !== 'boolean') throw new PhantomError('InvalidArgument', 'skipClientHeaderHooks must be boolean');
+      let hooks = options.skipClientHeaderHooks ? headerHooks(undefined) : this.#defaults.headerHooks;
+      const suppliedHooks = headerHooks(options.headerHooks);
+      if (suppliedHooks.length) hooks = hooks.length ? [...hooks, ...suppliedHooks] : suppliedHooks;
+      if (hooks.length > 256) throw new PhantomError('InputLimit', 'headerHooks exceed 256 callbacks');
       if (options.signal !== undefined && !(options.signal instanceof AbortSignal)) throw new PhantomError('InvalidArgument', 'signal must be an AbortSignal');
       signal = options.signal;
       if (options.timeoutMs !== undefined) integer(options.timeoutMs, 'timeoutMs');
@@ -247,14 +263,34 @@ class Client {
         multipartUpload = true;
       }
 
-      const extra = diagnostics === undefined ? [] : [diagnostics];
-      const pending = this.#native.request({
+      if (hooks.length) {
+        if (typeof native.NativeHeaderHooks !== 'function') throw new PhantomError('NativeHeaderHooksUnavailable', 'install the matching native payload for header hooks');
+        hookOwner = new native.NativeHeaderHooks(hooks.length);
+        hookOutcome = {failed: false};
+      }
+      const request = {
         url: preparedUrl, method: options.method, protocol: options.protocol, context: options.context,
         ...fields, expectContinueMs: continueWait,
         body: byteBody,
         preparedBody: prepared,
         file: options.file, timeoutMs: options.timeoutMs, ...policies,
-      }, cancellation, budget, upload, transfer, ...extra);
+      };
+      const pending = hookOwner
+        ? this.#native.request(request, cancellation, budget, upload, transfer, diagnostics, hookOwner)
+        : diagnostics ? this.#native.request(request, cancellation, budget, upload, transfer, diagnostics)
+        : this.#native.request(request, cancellation, budget, upload, transfer);
+
+      if (hookOwner && hookOutcome) {
+        const outcome = hookOutcome;
+        const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome);
+        hookPump = pumping;
+        this.#headerPumps.add(pumping);
+        const finished = () => {
+          this.#headerPumps.delete(pumping);
+          this.#headerCleanupError ??= outcome.bridgeError;
+        };
+        pumping.then(finished, (error) => { outcome.bridgeError = error; finished(); });
+      }
 
       if (upload) {
         producer = { error: undefined, multipart: multipartUpload };
@@ -277,7 +313,15 @@ class Client {
         this.#trackUpload(iterator, upload, producer);
       }
 
-      throw uploadError(error, producer, true);
+      const failure = uploadError(error, producer, true);
+      if (failure.code === 'HeaderHook') {
+        if (hookOutcome?.failed) throw hookOutcome.error;
+        if (hookOutcome?.bridgeError !== undefined) throw hookOutcome.bridgeError;
+      }
+      throw failure;
+    } finally {
+      hookOwner?.stop();
+      if (!hookPump) hookOwner?.settled();
     }
   }
 
@@ -419,6 +463,7 @@ class Client {
   #checkShutdown(timeoutMs) {
     integer(timeoutMs, 'timeoutMs');
     if (isUploadContext(this)) throw new PhantomError('InvalidOperation', 'an upload producer cannot await its own client shutdown');
+    if (isHeaderHookContext(this)) throw new PhantomError('InvalidOperation', 'a header callback cannot await its own client shutdown');
   }
 
   /** @param {number} timeoutMs */
@@ -427,17 +472,18 @@ class Client {
     try {
       await this.#native.close(timeoutMs);
 
-      if (this.#uploads.size) {
+      if (this.#uploads.size || this.#headerPumps.size) {
         let timer;
         try {
-          await Promise.race([Promise.all([...this.#uploads]), new Promise((_, reject) => {
-            timer = setTimeout(() => reject(new PhantomError('Timeout', 'upload cleanup deadline expired')), Math.max(0, timeoutMs - (performance.now() - started)));
+          await Promise.race([Promise.all([...this.#uploads, ...this.#headerPumps]), new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new PhantomError('Timeout', 'request callback cleanup deadline expired')), Math.max(0, timeoutMs - (performance.now() - started)));
           })]);
         } finally {
           clearTimeout(timer);
         }
       }
       if (this.#uploadCleanupError) throw this.#uploadCleanupError;
+      if (this.#headerCleanupError !== undefined) throw this.#headerCleanupError;
     } catch (error) {
       throw translated(error);
     }

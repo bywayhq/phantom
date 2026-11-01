@@ -5,6 +5,7 @@ const { AttemptBudget, RequestDiagnostics, TransferControl } = require('./lib/co
 const { PhantomError } = require('./lib/errors.cjs');
 const { EventSource } = require('./lib/event-source.cjs');
 const { EventStream } = require('./lib/events.cjs');
+const { HeaderHookContext } = require('./lib/header-hooks.cjs');
 const native = require('./lib/native.cjs');
 const { PreparedBody } = require('./lib/prepared-body.cjs');
 const { Profile } = require('./lib/profile.cjs');
@@ -13,6 +14,6 @@ const { ClientCertificate } = require('./lib/tls.cjs');
 const { WebSocketConnection } = require('./lib/websocket.cjs');
 
 module.exports = {
-  AttemptBudget, Client, ClientCertificate, EventSource, EventStream, PhantomError, PreparedBody, Profile,
+  AttemptBudget, Client, ClientCertificate, EventSource, EventStream, HeaderHookContext, PhantomError, PreparedBody, Profile,
   RequestDiagnostics, Response, TransferControl, WebSocketConnection, profiles: () => native.profileIds(),
 };

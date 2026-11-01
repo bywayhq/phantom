@@ -15,6 +15,7 @@ mod dns;
 mod environment;
 mod event_source;
 mod events;
+mod header_hook;
 mod options;
 mod prepared_body;
 mod profile;
@@ -42,6 +43,7 @@ pub use event_source::{
     EventSourceEvent, EventSourceHead, EventSourceHeader, EventSourceOptions, NativeEventSource,
 };
 pub use events::{NativeEventStream, SseEvent};
+pub use header_hook::{HeaderHookEdit, HeaderHookInvocation, NativeHeaderHooks};
 pub use options::{
     ClientOptions, ConnectionRetryOptions, ContentDecodingOptions, FileUpload, HostOverrideOptions,
     NetworkOptions, PoolOptions, RedirectPolicyOptions, RequestOptions, RetryPolicyOptions,

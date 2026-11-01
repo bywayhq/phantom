@@ -68,6 +68,7 @@ pub(crate) struct Exchange {
     reading: AtomicBool,
     setting_up: AtomicBool,
     uploading: AtomicBool,
+    header_hooks: AtomicBool,
     upload: Mutex<Option<Arc<crate::upload::Upload>>>,
     cancelled: watch::Sender<bool>,
     finished: watch::Sender<bool>,
@@ -86,6 +87,7 @@ impl Exchange {
             reading: AtomicBool::new(false),
             setting_up: AtomicBool::new(false),
             uploading: AtomicBool::new(false),
+            header_hooks: AtomicBool::new(false),
             upload: Mutex::new(None),
             cancelled: watch::channel(false).0,
             finished: watch::channel(false).0,
@@ -237,7 +239,7 @@ impl Exchange {
     }
 
     fn release(&self) {
-        if self.uploading.load(Ordering::Acquire) {
+        if self.uploading.load(Ordering::Acquire) || self.header_hooks.load(Ordering::Acquire) {
             return;
         }
         self.permit
@@ -254,6 +256,20 @@ impl Exchange {
 
     pub(crate) fn upload_settled(&self) {
         self.uploading.store(false, Ordering::Release);
+        if !self.is_active()
+            && !self.setting_up.load(Ordering::Acquire)
+            && !self.reading.load(Ordering::Acquire)
+        {
+            self.release();
+        }
+    }
+
+    pub(crate) fn header_hooks_started(&self) {
+        self.header_hooks.store(true, Ordering::Release);
+    }
+
+    pub(crate) fn header_hooks_settled(&self) {
+        self.header_hooks.store(false, Ordering::Release);
         if !self.is_active()
             && !self.setting_up.load(Ordering::Acquire)
             && !self.reading.load(Ordering::Acquire)
@@ -531,6 +547,30 @@ mod tests {
         drop(pending);
         assert_eq!(admission.available_permits(), 0);
         upload.settled();
+        assert_eq!(admission.available_permits(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn cancelled_header_hook_retains_admission_until_the_host_returns() -> Result<()> {
+        let admission = Arc::new(Semaphore::new(1));
+        let exchange = Exchange::new();
+        let permit = Arc::clone(&admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("TestAdmission", "initial admission failed"))?;
+        exchange.claim(permit, None)?;
+        let pending = Pending {
+            exchange: Arc::clone(&exchange),
+            _owner: None,
+        };
+        exchange.header_hooks_started();
+
+        exchange.cancel();
+        drop(pending);
+        assert_eq!(admission.available_permits(), 0);
+        exchange.header_hooks_settled();
+        assert_eq!(admission.available_permits(), 1);
+        exchange.header_hooks_settled();
         assert_eq!(admission.available_permits(), 1);
         Ok(())
     }

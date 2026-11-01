@@ -16,6 +16,7 @@ use super::{
     controls::{NativeAttemptBudget, NativeCancellation, NativeTransferControl},
     diagnostics::NativeRequestDiagnostics,
     event_source::{EventSourceHead, EventSourceOptions, NativeEventSource},
+    header_hook::NativeHeaderHooks,
     options::{RequestOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
@@ -232,6 +233,7 @@ impl NativeClient {
         upload: Option<&NativeUpload>,
         transfer: Option<&NativeTransferControl>,
         diagnostics: Option<&NativeRequestDiagnostics>,
+        header_hooks: Option<&NativeHeaderHooks>,
     ) -> Result<AsyncBlock<NativeResponse>> {
         let started = Instant::now();
         let fields = options.headers.take().unwrap_or_default();
@@ -295,10 +297,16 @@ impl NativeClient {
                 transfer_control: transfer.map(|transfer| transfer.control.clone()),
                 diagnostics: diagnostics.map(|diagnostics| Arc::clone(&diagnostics.state)),
                 trailers,
+                header_hooks: header_hooks.map(|hooks| Arc::clone(&hooks.state)),
             },
         )?;
         if let Some(upload) = upload {
             *upload.owner.lock().unwrap_or_else(PoisonError::into_inner) =
+                Some(Arc::clone(&cancellation.exchange));
+        }
+        if let Some(hooks) = header_hooks {
+            cancellation.exchange.header_hooks_started();
+            *hooks.owner.lock().unwrap_or_else(PoisonError::into_inner) =
                 Some(Arc::clone(&cancellation.exchange));
         }
         let owner = Arc::clone(&self.state);

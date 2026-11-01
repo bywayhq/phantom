@@ -101,6 +101,15 @@ Client defaults are copied at construction. Request fields replace defaults
 with the same name, ignoring case. Other defaults come first, then request
 fields in their supplied order. Forks and restored clients inherit defaults.
 
+Client and request `headerHooks` run in order after body metadata is prepared,
+once before the first HTTP attempt. An async hook can obtain a token and call
+`context.set({name: 'Authorization', value: Buffer.from(token), sensitive: true})`.
+Use `skipClientHeaderHooks: true` to replace client hooks on one request.
+
+Hooks apply to ordinary HTTP methods. EventSource and WebSocket openings do
+not use them yet. A pending hook receives cancellation through `context.signal`;
+it must cooperate. Client shutdown waits for the callback to return.
+
 ## Read a response
 
 `read(maximumBytes)` pulls up to 65,536 bytes; `null` means EOF. Only one reader

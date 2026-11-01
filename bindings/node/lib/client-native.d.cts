@@ -30,6 +30,19 @@ export interface NativeAttemptBudget { readonly remaining: number | bigint; tryA
 export interface NativeTransferControl { snapshot(): TransferSnapshot; }
 export interface NativeRequestDiagnostics { snapshot(): object | null; }
 export interface NativeHeader { name: string; value: Buffer; sensitive?: boolean; }
+export interface NativeHeaderInvocation {
+  index: number; method: string; uri: string; headers: NativeHeader[];
+}
+export type NativeHeaderEdit = {action: 'append' | 'set'; name: string; value: Buffer; sensitive?: boolean}
+  | {action: 'remove'; name: string};
+export interface NativeHeaderHooks {
+  next(): Promise<NativeHeaderInvocation | null>;
+  complete(index: number, edits: NativeHeaderEdit[]): void;
+  fail(index: number): void;
+  closed(): Promise<void>;
+  stop(): void;
+  settled(): void;
+}
 interface MultipartField {
   name: string; text?: string; bytes?: Buffer; stream?: boolean;
   file?: { path: string; maximumBytes: number }; filename?: string; contentType?: string;
@@ -46,7 +59,7 @@ export type NativeClientOptions = Omit<ClientOptions,
   'profile' | 'protocol' | 'context' | 'headers' | 'additionalRoots' |
   'additionalProxyRoots' | 'serverSpkiPins' | 'proxyServerSpkiPins' |
   'clientCertificate' | 'clientCertificatesFor' | 'timeouts' |
-  'redirectPolicy' | 'retryPolicy' | 'network' | 'pool'
+  'redirectPolicy' | 'retryPolicy' | 'network' | 'pool' | 'headerHooks'
 > & {
   profile?: string; defaultContext?: RequestContext; additionalRoots?: Buffer[]; additionalProxyRoots?: Buffer[];
   serverSpkiPins?: Buffer[]; proxyServerSpkiPins?: Buffer[];
@@ -70,7 +83,7 @@ export interface NativeClient {
   eventSource(options: object, source: import('./event-source.cjs').NativeSource): Promise<import('./event-source.cjs').NativeHead>;
   request(options: NativeRequestOptions, cancellation: NativeCancellation,
     budget?: NativeAttemptBudget, upload?: NativeUpload, transfer?: NativeTransferControl,
-    diagnostics?: NativeRequestDiagnostics): Promise<NativeResponse>;
+    diagnostics?: NativeRequestDiagnostics, headerHooks?: NativeHeaderHooks): Promise<NativeResponse>;
   websocket(settings: object, socket: NativeSocket): Promise<WebSocketHandshake | NativeRejection>;
   exportSession(key: Buffer): Promise<Buffer>;
   setCookie(url: string, cookie: string): void;
