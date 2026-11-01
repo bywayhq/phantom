@@ -14,6 +14,8 @@
 
 ### Bindings
 
+- Go retains cancelled callback ownership until the callback returns, including
+  when a total deadline starts the error phase.
 - Python, Go and Node add request, response and error callbacks for ordinary
   requests and each EventSource GET, preserving native causes and cancellation.
 - Python EventSource shutdown waits for callback cleanup without cancelling it twice.
