@@ -296,10 +296,14 @@ addresses and verified endpoint identity:
 ```python
 from phantom_http import DnsOverHttps, NetworkOptions
 
-network = NetworkOptions(dns=DnsOverHttps(
-    endpoint="https://dns.example/dns-query", bootstrap=("192.0.2.53",),
-    timeout=2, max_concurrent=8,
-))
+network = NetworkOptions(
+    dns=DnsOverHttps(
+        endpoint="https://dns.example/dns-query",
+        bootstrap=("192.0.2.53",),
+        timeout=2,
+        max_concurrent=8,
+    )
+)
 ```
 
 Pass `network` to either client. DoH uses HTTP/2; DoT takes `server_name` and

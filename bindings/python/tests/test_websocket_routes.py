@@ -15,13 +15,16 @@ from test_websocket import PROFILE, peer, stalled_handshake
 
 class ConnectHandler(SettingsHandler):
     def do_CONNECT(self):
-        self.server.requests.append(
-            (self.path, self.client_address, list(self.headers.raw_items()), None)
-        )
-        if (
-            self.server.basic_auth
+        status = (
+            407
+            if self.server.basic_auth
             and self.headers.get("Proxy-Authorization") != "Basic dXNlcjpwYXNz"
-        ):
+            else 200
+        )
+        self.server.requests.append(
+            (self.path, self.client_address, list(self.headers.raw_items()), status)
+        )
+        if status == 407:
             self.send_response(407)
             self.send_header("Proxy-Authenticate", 'Basic realm="loopback"')
             self.send_header("Content-Length", "0")
@@ -86,10 +89,11 @@ class SynchronousRouteTests(unittest.TestCase):
 
             authority = urlsplit(url).netloc
             self.assertEqual([row[0] for row in default.requests], [authority] * 2)
-            self.assertEqual([row[0] for row in override.requests], [authority])
+            self.assertEqual([row[0] for row in override.requests], [authority] * 2)
+            self.assertEqual([row[3] for row in override.requests], [407, 200])
             self.assertEqual(
                 [dict(row[2]).get("Proxy-Authorization") for row in override.requests],
-                ["Basic dXNlcjpwYXNz"],
+                [None, "Basic dXNlcjpwYXNz"],
             )
             self.assertTrue(
                 all(
