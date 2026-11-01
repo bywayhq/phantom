@@ -82,7 +82,7 @@ pub(super) async fn bind(
     let (udp, reservation) = bind_pair(
         address,
         candidate_ports(seed),
-        |candidate| TcpListener::bind(candidate),
+        TcpListener::bind,
         phantom_testkit::udp::bind,
     )
     .await?;
