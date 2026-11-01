@@ -146,7 +146,7 @@ async fn cancelling_a_redirect_decision_keeps_an_active_http2_sibling_and_connec
             }
             Ok(())
         }));
-        let client = client_builder(&identity, false).build()?;
+        let client = client_builder(&identity, true).build()?;
         let healthy = client.get_with_protocol(HttpProtocol::Http2, &format!("http://{address}/healthy"))?.send().await?;
         let entered = Arc::new(Notify::new());
         let observed = Arc::clone(&entered);
