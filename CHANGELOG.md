@@ -11,6 +11,8 @@
 
 ### Bindings
 
+- Node and Go add awaited redirect callbacks with typed hop metadata, request
+  overrides and the existing deadline, credential and attempt-budget rules.
 - Python adds synchronous and asynchronous redirect callbacks with named hop
   metadata, inherited client policies and the existing request deadline.
 - Python, Go and Node import and export cookie snapshots, direct-route Alt-Svc
