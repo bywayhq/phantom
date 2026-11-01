@@ -64,7 +64,10 @@ async function saveSession(client, store, name, key, options) {
   try {
     scope.check();
     secret = Buffer.from(checkpointKey(key));
-    const snapshot = await client.exportSession(secret);
+    const snapshot = await client.exportSession(secret).catch((error) => {
+      scope.check();
+      throw error;
+    });
     scope.check();
     await scope.backend(() => store.save(name, snapshot, {signal: scope.signal}));
   } finally { secret?.fill(0); scope.dispose(); }
@@ -83,7 +86,10 @@ async function loadSession(client, store, name, key, options) {
     if (snapshot === null) return null;
     const input = bytes(snapshot);
     if (apply(lengthOf, input, []) > 32 * 1024 * 1024) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'too_large');
-    const restored = await client.restoreSession(input, secret, {receivingRoutes: scope.routes});
+    const restored = await client.restoreSession(input, secret, {receivingRoutes: scope.routes}).catch((error) => {
+      scope.check();
+      throw error;
+    });
     try { scope.check(); }
     catch (error) {
       try { await restored.destroy(); }
