@@ -671,7 +671,7 @@ test('a live response retains its client across forced garbage collection', asyn
   await promisify(execFile)(process.execPath, ['--expose-gc', '-e', source, path.resolve(__dirname, '..'), profile], { timeout: 20000 });
 });
 
-test('direct native byte inputs reject actual shared or detached backing', async (t) => {
+test('direct native state and byte inputs enforce typed bounds and owned backing', async (t) => {
   const native = require('../phantom.node');
   const environment = new native.NativeEnvironment();
   const invalidKeyBacking = new ArrayBuffer(4), invalidKey = Buffer.from(invalidKeyBacking);
@@ -707,8 +707,29 @@ test('direct native byte inputs reject actual shared or detached backing', async
   const shared = Buffer.from(new SharedArrayBuffer(4));
   Object.defineProperty(shared, 'buffer', {value: new ArrayBuffer(4)});
   assert.throws(() => environment.client({profile, route: 'direct', additionalRoots: [shared]}), /PHANTOM:InvalidArgument:/);
-  const client = environment.client({profile, route: 'direct'});
+  const client = environment.client({profile, route: 'direct', cookies: true, network: {maxAltSvcOrigins: 8n}});
   t.after(() => client.close(5000));
+  const entry = {sourceScheme: 'https', name: 'state', value: 'private', domain: 'example.test', path: '/',
+    hostOnly: true, secure: true, httpOnly: false, sameSite: null, partitionKey: null, expiresAtNanoseconds: null};
+  assert.throws(() => client.importCookies(Array(16385).fill(entry)), /PHANTOM_STATE:CookieSnapshot:too_large:/);
+  assert.throws(() => client.importCookies([{...entry, value: 'x'.repeat(32 * 1024 * 1024 + 1)}]), /PHANTOM_STATE:StateSnapshot:too_large:/);
+  for (const expiry of [1n << 128n, -(1n << 128n), (1n << 127n) - 1n]) {
+    assert.throws(() => client.importCookies([{...entry, expiresAtNanoseconds: expiry}]), /PHANTOM_STATE:StateSnapshot:invalid_expiry:/);
+  }
+  assert.throws(() => client.importCookies([{...entry, expiresAtNanoseconds: 1.5}]), /type mismatch/);
+  client.importCookies([{...entry, expiresAtNanoseconds: -100n}]);
+  assert.deepEqual(client.exportCookies(), []);
+  if (process.platform === 'win32') {
+    assert.throws(() => client.importCookies([{...entry, expiresAtNanoseconds: 1n}]), /PHANTOM_STATE:StateSnapshot:invalid_expiry:/);
+  } else client.importCookies([{...entry, expiresAtNanoseconds: 1n}]);
+  for (const port of [1.5, 4294967297]) {
+    assert.throws(() => client.importAltSvc([{origin: 'https://example.test', alternativeHost: 'alt.example.test',
+      alternativePort: port, expiresAtNanoseconds: 100n}]), /PHANTOM_STATE:AltSvcSnapshot:invalid_alternative:/);
+  }
+  for (const input of [Buffer.from(new SharedArrayBuffer(32)), invalidKey]) {
+    assert.throws(() => client.exportSessionTickets(input), /PHANTOM:InvalidArgument:/);
+  }
+  assert.throws(() => client.importSessionTickets(Buffer.alloc(16 * 1024 * 1024 + 1), Buffer.alloc(32), []), /PHANTOM_STATE:SessionTickets:too_large:/);
   const options = {url: 'http://127.0.0.1', ...request};
   const submit = (overrides) => client.request({...options, ...overrides}, new native.NativeCancellation());
   assert.throws(() => submit({body: shared}), /PHANTOM:InvalidArgument:/);

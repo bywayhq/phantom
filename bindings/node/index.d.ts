@@ -6,10 +6,12 @@ export class PhantomError extends Error {
   readonly code: string;
   readonly protocol?: 'http1' | 'http2' | 'http3';
   readonly timeoutPhase?: 'poolAdmission' | 'connect' | 'responseHead' | 'readIdle' | 'total' | 'webSocketHandshake';
-  /** Core profile-document, SSE, client-certificate, prepared-body or checkpoint category. */
+  /** Core profile-document, SSE, client-certificate, prepared-body or state transfer category. */
   readonly kind?: string;
   /** Canonical document field path; supplied values are omitted. */
   readonly field?: string;
+  /** Zero-based rejected cookie or Alt-Svc entry; no supplied values are exposed. */
+  readonly entryIndex?: number;
   /** Underlying host/native failure, available through explicit inspection. */
   readonly cause?: unknown;
   /** HTTP status when a WebSocket opening response rejects the upgrade. */
@@ -217,6 +219,8 @@ export interface HostOverride {
 }
 /** At most 1024 combined records/addresses and 65536 UTF-8 bytes. */
 export interface NetworkOptions {
+  /** Positive capacity opts into Alt-Svc discovery; omission keeps it disabled. */
+  readonly maxAltSvcOrigins?: number | bigint;
   /** Separate direct, verified encrypted address resolver. */
   readonly dns?: EncryptedDns;
   /** Disable address caching; omission retains the profile policy. */
@@ -521,6 +525,29 @@ export class WebSocketConnection implements AsyncIterable<WebSocketMessage> {
   /** Breaking iteration aborts this connection. */
   [Symbol.asyncIterator](): AsyncIterator<WebSocketMessage>;
 }
+/** Plain credential-bearing cookie data, in creation order. */
+export interface CookieSnapshotEntry {
+  readonly sourceScheme: 'http' | 'https';
+  readonly name: string;
+  readonly value: string;
+  readonly domain: string;
+  readonly path: string;
+  readonly hostOnly: boolean;
+  readonly secure: boolean;
+  readonly httpOnly: boolean;
+  readonly sameSite: 'strict' | 'lax' | 'none' | null;
+  readonly partitionKey: string | null;
+  /** Signed Unix nanoseconds; null denotes a session cookie. Core cookies use whole seconds. */
+  readonly expiresAtNanoseconds: bigint | null;
+}
+/** Direct-route alternatives, least recently used first; alternatives retain field order. */
+export interface AltSvcSnapshotEntry {
+  readonly origin: string;
+  readonly alternativeHost: string;
+  readonly alternativePort: number;
+  /** Signed Unix nanoseconds. Core export rounds down to whole seconds. */
+  readonly expiresAtNanoseconds: bigint;
+}
 export class Client {
   /** Opens a pull-driven reconnecting GET source using the client's profile, defaults and state. */
   eventSource(url: string | URL, options: EventSourceOptions): Promise<EventSource>;
@@ -529,6 +556,18 @@ export class Client {
   fork(sharing?: SessionSharing): Client;
   /** Encrypted supported state, at most 32 MiB; key must contain exactly 32 bytes. CPU work is not abortable. */
   exportSession(key: Uint8Array): Promise<Buffer>;
+  /** null means disabled; [] means enabled and empty. Cookie data is unencrypted. */
+  exportCookies(): readonly CookieSnapshotEntry[] | null;
+  /** Atomic validation; existing cookies win. At most 16384 entries and 32 MiB UTF-8 text. */
+  importCookies(entries: readonly CookieSnapshotEntry[]): void;
+  /** null means disabled. Excludes proxy-owned alternatives and validation state. */
+  exportAltSvc(): readonly AltSvcSnapshotEntry[] | null;
+  /** Atomic validation; existing origins win. At most 32768 entries and 32 MiB UTF-8 text. */
+  importAltSvc(entries: readonly AltSvcSnapshotEntry[]): void;
+  /** Encrypted ticket-only state, at most 16 MiB, using a 32-byte key. Non-consuming; CPU work is not abortable. */
+  exportSessionTickets(key: Uint8Array): Promise<Buffer>;
+  /** Authenticates before mutation. Receiving routes select compatible owners, not routing; CPU work is not abortable. */
+  importSessionTickets(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<void>;
   /** Restores independent pools using this client's configuration; leaves this client unchanged. */
   restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;
   /** Saves encrypted state. Backend errors retain cause; CPU encoding cannot be interrupted. */

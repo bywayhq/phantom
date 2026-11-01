@@ -16,6 +16,7 @@ mod request_diagnostics;
 mod response;
 mod retry;
 mod session;
+mod state_transfer;
 mod tls;
 mod transfer;
 mod upload;
@@ -26,18 +27,19 @@ mod websocket;
 mod ffi;
 
 pub use ffi::{
-    ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions, ContentDecodingOptions,
-    DiagnosticConnectionInfo, DiagnosticEventInfo, DiagnosticTimelineInfo, DiagnosticTlsInfo,
-    DiagnosticTlsState, DnsOptions, EventSourceEvent, EventSourceHead, EventSourceHeader,
-    EventSourceOptions, FileUpload, FormField, HeaderHookEdit, HeaderHookInvocation,
-    HostOverrideOptions, MultipartField, NativeAttemptBudget, NativeCancellation, NativeClient,
-    NativeClientCertificate, NativeEnvironment, NativeEventSource, NativeEventStream,
-    NativeHeaderHooks, NativeImportedProfile, NativePreparedBody, NativeProfile,
-    NativeRequestDiagnostics, NativeResponse, NativeTransferControl, NativeUpload, NativeWebSocket,
-    NetworkOptions, PoolOptions, RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions,
-    RequestOptions, ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, SseEvent,
-    StatusRetryOptions, StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo,
-    WebSocketEvent, WebSocketHandshake, WebSocketOptions, WebSocketRejection, WireHeader,
-    client_certificate_der, client_certificate_pem, prepared_encoded, prepared_form,
-    prepared_multipart, profile_catalog, profile_ids, profile_import_json,
+    AltSvcEntry, ClientCertificateOrigin, ClientOptions, ConnectionRetryOptions,
+    ContentDecodingOptions, CookieEntry, DiagnosticConnectionInfo, DiagnosticEventInfo,
+    DiagnosticTimelineInfo, DiagnosticTlsInfo, DiagnosticTlsState, DnsOptions, EventSourceEvent,
+    EventSourceHead, EventSourceHeader, EventSourceOptions, FileUpload, FormField, HeaderHookEdit,
+    HeaderHookInvocation, HostOverrideOptions, MultipartField, NativeAttemptBudget,
+    NativeCancellation, NativeClient, NativeClientCertificate, NativeEnvironment,
+    NativeEventSource, NativeEventStream, NativeHeaderHooks, NativeImportedProfile,
+    NativePreparedBody, NativeProfile, NativeRequestDiagnostics, NativeResponse,
+    NativeTransferControl, NativeUpload, NativeWebSocket, NetworkOptions, PoolOptions,
+    RedirectHistoryInfo, RedirectHopInfo, RedirectPolicyOptions, RequestOptions,
+    ResponseTrailersInfo, RetryPolicyOptions, SessionRouteOptions, SseEvent, StatusRetryOptions,
+    StreamingMultipartField, TransferLimitsOptions, TransferSnapshotInfo, WebSocketEvent,
+    WebSocketHandshake, WebSocketOptions, WebSocketRejection, WireHeader, client_certificate_der,
+    client_certificate_pem, prepared_encoded, prepared_form, prepared_multipart, profile_catalog,
+    profile_ids, profile_import_json,
 };

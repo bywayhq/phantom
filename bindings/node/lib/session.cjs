@@ -4,7 +4,7 @@ const { types } = require('node:util');
 
 const { bytes, apply, lengthOf } = require('./bytes.cjs');
 const { PhantomError } = require('./errors.cjs');
-const { policyFields } = require('./validation.cjs');
+const { policyFields, orderedDataArray, integer } = require('./validation.cjs');
 
 function sessionSharing(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)
@@ -61,4 +61,75 @@ function socks4UserId(value) {
   return value;
 }
 
-module.exports = { socks4UserId, sessionSharing, checkpointKey, receivingRoutes };
+function stateFailure(category, kind) {
+  return new PhantomError(category, 'state transfer failed', undefined, undefined, kind);
+}
+
+function ticketKey(value) {
+  const key = bytes(value);
+  if (apply(lengthOf, key, []) !== 32) throw stateFailure('SessionTickets', 'invalid_key_length');
+  return key;
+}
+
+function ticketBytes(value) {
+  const input = bytes(value);
+  if (apply(lengthOf, input, []) > 16 * 1024 * 1024) throw stateFailure('SessionTickets', 'too_large');
+  return input;
+}
+
+function ticketRoutes(options) {
+  try { return receivingRoutes(options); }
+  catch (error) {
+    if (error instanceof PhantomError && error.code === 'SessionSnapshot') throw stateFailure('SessionTickets', error.kind);
+    throw error;
+  }
+}
+
+function snapshotEntries(input, cookies) {
+  const category = cookies ? 'CookieSnapshot' : 'AltSvcSnapshot';
+  const maximum = cookies ? 16384 : 32768;
+  if (!types.isProxy(input) && Array.isArray(input) && input.length > maximum) throw stateFailure(category, 'too_large');
+  const entries = orderedDataArray(input, maximum, 'snapshot entries');
+  let remaining = 32 * 1024 * 1024;
+  const text = (value) => {
+    if (typeof value !== 'string' || !value.isWellFormed()) throw stateFailure(category, 'invalid_entry');
+    if (value.length > remaining) throw stateFailure(category, 'too_large');
+    remaining -= Buffer.byteLength(value);
+    if (remaining < 0) throw stateFailure(category, 'too_large');
+    return value;
+  };
+  const expiry = (value) => {
+    // Duration has u64 seconds; SystemTime additionally checks its host range.
+    if (typeof value !== 'bigint' || value > 18446744073709551615999999999n
+      || value < -18446744073709551615999999999n) throw stateFailure(category, 'invalid_expiry');
+    return value;
+  };
+  return entries.map((entry) => {
+    const fields = policyFields(entry, cookies
+      ? ['sourceScheme', 'name', 'value', 'domain', 'path', 'hostOnly', 'secure', 'httpOnly', 'sameSite', 'partitionKey', 'expiresAtNanoseconds']
+      : ['origin', 'alternativeHost', 'alternativePort', 'expiresAtNanoseconds']);
+    if (!cookies) return Object.freeze({origin: text(fields.origin), alternativeHost: text(fields.alternativeHost),
+      alternativePort: integer(fields.alternativePort, 'alternativePort', 1, 65535), expiresAtNanoseconds: expiry(fields.expiresAtNanoseconds)});
+    if (!['http', 'https'].includes(fields.sourceScheme) || ![null, 'strict', 'lax', 'none'].includes(fields.sameSite)
+      || typeof fields.hostOnly !== 'boolean' || typeof fields.secure !== 'boolean' || typeof fields.httpOnly !== 'boolean') {
+      throw stateFailure(category, 'invalid_entry');
+    }
+    return Object.freeze({sourceScheme: text(fields.sourceScheme), name: text(fields.name), value: text(fields.value),
+      domain: text(fields.domain), path: text(fields.path), hostOnly: fields.hostOnly, secure: fields.secure, httpOnly: fields.httpOnly,
+      sameSite: fields.sameSite === null ? null : text(fields.sameSite), partitionKey: fields.partitionKey === null ? null : text(fields.partitionKey),
+      expiresAtNanoseconds: fields.expiresAtNanoseconds === null ? null : expiry(fields.expiresAtNanoseconds)});
+  });
+}
+
+/** @returns {readonly import('../index.js').CookieSnapshotEntry[]} */
+function cookieEntries(input) {
+  return /** @type {import('../index.js').CookieSnapshotEntry[]} */ (snapshotEntries(input, true));
+}
+
+/** @returns {readonly import('../index.js').AltSvcSnapshotEntry[]} */
+function altSvcEntries(input) {
+  return /** @type {import('../index.js').AltSvcSnapshotEntry[]} */ (snapshotEntries(input, false));
+}
+
+module.exports = { socks4UserId, sessionSharing, checkpointKey, receivingRoutes, ticketKey, ticketBytes, ticketRoutes,
+  cookieEntries, altSvcEntries };

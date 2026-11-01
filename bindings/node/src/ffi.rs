@@ -20,6 +20,7 @@ mod options;
 mod prepared_body;
 mod profile;
 mod response;
+mod state_transfer;
 mod upload;
 mod websocket;
 
@@ -58,6 +59,7 @@ pub use profile::{
     NativeImportedProfile, NativeProfile, profile_catalog, profile_ids, profile_import_json,
 };
 pub use response::{NativeResponse, RedirectHistoryInfo, RedirectHopInfo, ResponseTrailersInfo};
+pub use state_transfer::{AltSvcEntry, CookieEntry};
 pub use upload::{NativeUpload, StreamingMultipartField};
 pub use websocket::{
     NativeWebSocket, WebSocketEvent, WebSocketHandshake, WebSocketOptions, WebSocketRejection,

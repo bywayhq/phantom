@@ -7,7 +7,7 @@ use std::{
 
 use napi::{
     Env, Result,
-    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer, Either},
+    bindgen_prelude::{Array, AsyncBlock, AsyncBlockBuilder, Buffer, Either},
 };
 use napi_derive::napi;
 
@@ -17,7 +17,7 @@ use super::{
     diagnostics::NativeRequestDiagnostics,
     event_source::{EventSourceHead, EventSourceOptions, NativeEventSource},
     header_hook::NativeHeaderHooks,
-    options::{RequestOptions, WireHeader},
+    options::{RequestOptions, SessionRouteOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
     websocket::{NativeWebSocket, WebSocketHandshake, WebSocketOptions, WebSocketRejection},
@@ -38,6 +38,134 @@ pub struct NativeClient {
 
 #[napi]
 impl NativeClient {
+    /// Exports cookies in creation order; absence means the jar is disabled.
+    #[napi]
+    pub fn export_cookies(&self) -> Result<Option<Vec<super::state_transfer::CookieEntry>>> {
+        self.state.check_open()?;
+        self.state
+            .core
+            .export_cookies()
+            .map(super::state_transfer::export_cookies)
+            .transpose()
+    }
+
+    /// Validates every entry before modifying the receiving jar.
+    #[napi]
+    pub fn import_cookies(&self, entries: Array<'_>) -> Result<()> {
+        self.state.check_open()?;
+        let snapshot = super::state_transfer::cookies(entries)?;
+        self.state
+            .core
+            .import_cookies(&snapshot)
+            .map_err(crate::state_transfer::cookie_error)
+    }
+
+    /// Exports direct-route alternatives in least-recently-used order.
+    #[napi]
+    pub fn export_alt_svc(&self) -> Result<Option<Vec<super::state_transfer::AltSvcEntry>>> {
+        self.state.check_open()?;
+        self.state
+            .core
+            .export_alt_svc()
+            .map(super::state_transfer::export_alternatives)
+            .transpose()
+    }
+
+    /// Imports alternatives without granting validation or certificate trust.
+    #[napi]
+    pub fn import_alt_svc(&self, entries: Array<'_>) -> Result<()> {
+        self.state.check_open()?;
+        let snapshot = super::state_transfer::alternatives(entries)?;
+        self.state
+            .core
+            .import_alt_svc(&snapshot)
+            .map_err(crate::state_transfer::alt_svc_error)
+    }
+
+    /// Encrypts ticket state without consuming it; CPU work is not preemptible.
+    #[napi]
+    pub fn export_session_tickets(&self, env: Env, secret: Buffer) -> Result<AsyncBlock<Buffer>> {
+        self.state.check_open()?;
+        let key = super::state_transfer::ticket_key(&env, secret)?;
+        let permit = Arc::clone(&self.state.admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("Capacity", "client has no free request slots"))?;
+        let owner = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                let snapshot = owner
+                    .core
+                    .export_session_tickets(&key)
+                    .map_err(crate::state_transfer::ticket_error)?;
+                let mut bytes = Vec::new();
+                bytes
+                    .try_reserve_exact(snapshot.as_bytes().len())
+                    .map_err(|_| {
+                        crate::state_transfer::failure("SessionTickets", "allocation", None)
+                    })?;
+                bytes.extend_from_slice(snapshot.as_bytes());
+                Ok(bytes)
+            })
+            .await
+            .map_err(|_| crate::state_transfer::failure("SessionTickets", "backend", None))?
+            .map(Buffer::from)
+        })
+        .build(&env)
+    }
+
+    /// Authenticates all owners before updating compatible ticket caches.
+    #[napi]
+    pub fn import_session_tickets(
+        &self,
+        env: Env,
+        snapshot: Buffer,
+        secret: Buffer,
+        routes: Vec<SessionRouteOptions>,
+    ) -> Result<AsyncBlock<()>> {
+        self.state.check_open()?;
+        let key = super::state_transfer::ticket_key(&env, secret)?;
+        let bytes = super::state_transfer::ticket_bytes(&env, snapshot)?;
+        if routes.len() > session::MAXIMUM_ROUTES {
+            return Err(crate::state_transfer::failure(
+                "SessionTickets",
+                "too_large",
+                None,
+            ));
+        }
+        let routes = routes
+            .into_iter()
+            .map(|route| {
+                crate::client::route(
+                    &route.route,
+                    route.proxy.as_deref(),
+                    route.proxy_username.as_deref(),
+                    route.proxy_password.as_deref(),
+                    route.proxy_user_id.as_deref(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let permit = Arc::clone(&self.state.admission)
+            .try_acquire_owned()
+            .map_err(|_| failure("Capacity", "client has no free request slots"))?;
+        let owner = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(async move {
+            tokio::task::spawn_blocking(move || {
+                // The blocking worker retains admission even if JS drops its promise.
+                let _permit = permit;
+                let snapshot = phantom::SessionTicketSnapshot::from_bytes(&bytes)
+                    .map_err(crate::state_transfer::ticket_error)?;
+                owner
+                    .core
+                    .import_session_tickets(&snapshot, &key, &routes)
+                    .map_err(crate::state_transfer::ticket_error)
+            })
+            .await
+            .map_err(|_| crate::state_transfer::failure("SessionTickets", "backend", None))?
+        })
+        .build(&env)
+    }
+
     /// Opens an exact-protocol, reconnecting source with native ownership.
     #[napi]
     pub fn event_source(
