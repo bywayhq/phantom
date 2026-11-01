@@ -411,6 +411,9 @@ export interface SseEvent {
 }
 export type EventSourceHeader = Header | Readonly<{lastEventId: string}>;
 export interface EventSourceOptions {
+  /** Client hooks precede these hooks on every fresh GET, once across redirects/retries. Managed Last-Event-ID cannot be edited. */
+  readonly headerHooks?: readonly HeaderHook[];
+  readonly skipClientHeaderHooks?: boolean;
   /** Exact protocol; negotiated selection is not supported by the core source. */
   readonly protocol: 'http1' | 'http2' | 'http3';
   /** Ordered fields plus an optional managed ID position. Omission adds SSE Accept/cache fields. Client headers are inherited unless replaced by name. */
@@ -442,10 +445,12 @@ export class EventSource implements AsyncIterableIterator<EventSourceEvent> {
   readonly retryMs: bigint;
   readonly reconnects: number;
   readonly closed: boolean;
-  /** One pending read; a terminal error is returned once, followed by EOF. */
-  read(): Promise<EventSourceEvent | null>;
+  /** One pending read; terminal errors occur once, then EOF. Per-read cancellation retains the source, GET and callback pump. */
+  read(options?: {readonly signal?: AbortSignal}): Promise<EventSourceEvent | null>;
   /** Interrupts setup, a pending read or backoff and releases this source. */
   close(): void;
+  /** Closes and awaits actual native/host cleanup within one deadline; retry after timeout. Cannot await from its own callback. Late errors retain the thrown value in cause. */
+  closeAsync(options?: {readonly timeoutMs?: number}): Promise<void>;
   next(): Promise<IteratorResult<EventSourceEvent>>;
   return(): Promise<IteratorResult<EventSourceEvent>>;
   throw(error: unknown): Promise<never>;

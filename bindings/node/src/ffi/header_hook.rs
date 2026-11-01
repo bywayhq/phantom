@@ -25,6 +25,8 @@ use crate::{
 /// Private snapshot for one awaited callback; no live Rust borrow escapes.
 #[napi(object, object_from_js = false)]
 pub struct HeaderHookInvocation {
+    /// Source-owned invocation identity; absent for ordinary requests.
+    pub serial: Option<BigInt>,
     /// Position in the request's callback list.
     pub index: u32,
     /// Prepared HTTP method.
@@ -99,16 +101,22 @@ impl fmt::Debug for HeaderHookEdit {
 pub struct NativeHeaderHooks {
     pub(super) state: Arc<HeaderHooks>,
     pub(super) owner: Mutex<Option<Arc<Exchange>>>,
+    pub(super) source_owner: Mutex<Option<Arc<crate::event_source::Source>>>,
 }
 
 #[napi]
 impl NativeHeaderHooks {
     /// Creates one bounded request-owned callback handoff.
     #[napi(constructor)]
-    pub fn new(count: u32) -> Result<Self> {
+    pub fn new(count: u32, source: Option<bool>) -> Result<Self> {
         Ok(Self {
-            state: HeaderHooks::new(count)?,
+            state: if source.unwrap_or(false) {
+                HeaderHooks::with_lifetime(count, true)?
+            } else {
+                HeaderHooks::new(count)?
+            },
             owner: Mutex::new(None),
+            source_owner: Mutex::new(None),
         })
     }
 
@@ -118,6 +126,7 @@ impl NativeHeaderHooks {
         let state = Arc::clone(&self.state);
         AsyncBlockBuilder::new(async move {
             Ok(state.next().await?.map(|invocation| HeaderHookInvocation {
+                serial: invocation.serial.map(BigInt::from),
                 index: invocation.index,
                 method: invocation.method,
                 uri: invocation.uri,
@@ -145,7 +154,13 @@ impl NativeHeaderHooks {
 
     /// Copies and validates the current callback's ordered edits.
     #[napi]
-    pub fn complete(&self, env: Env, index: u32, edits: Vec<HeaderHookEdit>) -> Result<()> {
+    pub fn complete(
+        &self,
+        env: Env,
+        index: u32,
+        edits: Vec<HeaderHookEdit>,
+        serial: Option<BigInt>,
+    ) -> Result<()> {
         if edits.len() > 256 {
             return Err(failure("InputLimit", "a header hook exceeds 256 edits"));
         }
@@ -183,13 +198,30 @@ impl NativeHeaderHooks {
             });
         }
         self.state
-            .reply(ReplyKey::Header(index), Ok(CallbackReply::Header(owned)))
+            .reply(reply_key(index, serial)?, Ok(CallbackReply::Header(owned)))
     }
 
     /// Reports a host exception without copying it through native storage.
     #[napi]
-    pub fn fail(&self, index: u32) -> Result<()> {
-        self.state.reply(ReplyKey::Header(index), Err(()))
+    pub fn fail(&self, index: u32, serial: Option<BigInt>) -> Result<()> {
+        self.state.reply(reply_key(index, serial)?, Err(()))
+    }
+
+    /// Reports the next cancelled GET without terminating its source.
+    #[napi]
+    pub fn next_cancelled(&self, env: Env, after: BigInt) -> Result<AsyncBlock<Option<BigInt>>> {
+        let after = serial_value(after)?;
+        let state = Arc::clone(&self.state);
+        AsyncBlockBuilder::new(
+            async move { Ok(state.next_cancelled(after).await.map(BigInt::from)) },
+        )
+        .build(&env)
+    }
+
+    /// Rejects stale callbacks before they can send edits to another GET.
+    #[napi]
+    pub fn is_active(&self, serial: BigInt) -> Result<bool> {
+        Ok(self.state.active(serial_value(serial)?))
     }
 
     /// Completes the current redirect without copying any host exception.
@@ -242,7 +274,29 @@ impl NativeHeaderHooks {
         {
             owner.header_hooks_settled();
         }
+        if let Some(owner) = self
+            .source_owner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        {
+            owner.header_hooks_settled();
+        }
     }
+}
+
+fn serial_value(serial: BigInt) -> Result<u64> {
+    let (negative, value, lossless) = serial.get_u64();
+    if negative || !lossless {
+        return Err(failure("InvalidArgument", "invalid callback serial"));
+    }
+    Ok(value)
+}
+
+fn reply_key(index: u32, serial: Option<BigInt>) -> Result<ReplyKey> {
+    serial.map_or(Ok(ReplyKey::Header(index)), |serial| {
+        Ok(ReplyKey::Source(serial_value(serial)?))
+    })
 }
 
 impl Drop for NativeHeaderHooks {

@@ -52,7 +52,7 @@ class Client {
   #uploadCleanupError;
   /** @type {Set<Promise<void>>} */
   #headerPumps = new Set();
-  /** @type {{error: unknown} | undefined} */
+  /** @type {{error: unknown, observed?: boolean} | undefined} */
   #headerCleanupError;
 
   /** @param {unknown} iterator
@@ -328,12 +328,7 @@ class Client {
         const outcome = hookOutcome;
         const pumping = pumpHeaderHooks(this, hookOwner, hooks, outcome, redirects?.callback);
         hookPump = pumping;
-        this.#headerPumps.add(pumping);
-        const finished = () => {
-          this.#headerPumps.delete(pumping);
-          this.#headerCleanupError ??= outcome.bridgeFailure;
-        };
-        pumping.then(finished, (error) => { outcome.bridgeFailure ??= {error}; finished(); });
+        this._trackHeaderPump(pumping, outcome);
       }
 
       if (upload) {
@@ -378,10 +373,21 @@ class Client {
   /** @param {string | URL} url @param {import('../index.js').WebSocketOptions} [options] */
   websocket(url, options) { return openWebSocket(this.#native, this, url, options, this.#defaults.headers); }
 
+  /** @param {Promise<void>} pumping @param {import('./header-hooks.cjs').HookOutcome} outcome */
+  _trackHeaderPump(pumping, outcome) {
+    this.#headerPumps.add(pumping);
+    const finished = () => {
+      this.#headerPumps.delete(pumping);
+      if (this.#headerCleanupError?.observed) this.#headerCleanupError = undefined;
+      this.#headerCleanupError ??= outcome.bridgeFailure;
+    };
+    pumping.then(finished, (error) => { outcome.bridgeFailure ??= {error}; finished(); });
+  }
+
   /** @param {string | URL} url @param {import('../index.js').EventSourceOptions} options */
   eventSource(url, options) {
     if (this.#defaults.redirectPolicy?.callback) return Promise.reject(new PhantomError('InvalidArgument', 'dedicated EventSource does not support custom redirect callbacks'));
-    return openEventSource(this.#native, this, url, options, this.#defaults.headers);
+    return openEventSource(this.#native, this, url, options, this.#defaults.headers, this.#defaults.headerHooks);
   }
   /** @param {string | URL} url @param {MethodOptions} [options] */
   get(url, options) { return this.#requestMethod('GET', url, options); }
@@ -530,7 +536,10 @@ class Client {
         }
       }
       if (this.#uploadCleanupError) throw this.#uploadCleanupError;
-      if (this.#headerCleanupError !== undefined) throw this.#headerCleanupError.error;
+      if (this.#headerCleanupError !== undefined && !this.#headerCleanupError.observed) {
+        this.#headerCleanupError.observed = true;
+        throw this.#headerCleanupError.error;
+      }
     } catch (error) {
       throw translated(error);
     }

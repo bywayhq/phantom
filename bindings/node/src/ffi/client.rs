@@ -160,13 +160,29 @@ impl NativeClient {
         env: Env,
         options: EventSourceOptions,
         source: &NativeEventSource,
+        header_hooks: Option<&NativeHeaderHooks>,
     ) -> Result<AsyncBlock<EventSourceHead>> {
         let builder = super::event_source::prepare(&env, &self.state, options)?;
+        let (builder, hook_lease) = if let Some(hooks) = header_hooks {
+            let (builder, lease) = hooks.state.claim_source(builder)?;
+            (builder, Some(lease))
+        } else {
+            (builder, None)
+        };
         let permit = Arc::clone(&self.state.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;
         let source = Arc::clone(&source.source);
         let permit = source.claim(permit, Arc::clone(&self.state))?;
+        if let Some(lease) = hook_lease {
+            source.header_hooks(lease);
+            if let Some(hooks) = header_hooks {
+                *hooks
+                    .source_owner
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = Some(Arc::clone(&source));
+            }
+        }
         if let Err(error) = self.state.register_event_source(&source) {
             source.close();
             return Err(error);

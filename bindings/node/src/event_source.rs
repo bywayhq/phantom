@@ -3,13 +3,16 @@
 use std::{
     error::Error as StdError,
     fmt,
-    sync::{Arc, Mutex, PoisonError},
+    sync::{
+        Arc, Mutex, PoisonError,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
 use napi::Result;
 use phantom::{SseEvent, SseEventSource};
-use tokio::sync::{OwnedSemaphorePermit, watch};
+use tokio::sync::{Notify, OwnedSemaphorePermit, watch};
 
 use crate::{client::ClientState, error::failure};
 
@@ -36,6 +39,11 @@ pub(crate) struct Source {
     snapshot: Mutex<Snapshot>,
     permit: Mutex<Option<Arc<OwnedSemaphorePermit>>>,
     owner: Mutex<Option<Arc<ClientState>>>,
+    hooks: Mutex<Option<crate::header_hook::Lease>>,
+    callbacks: AtomicBool,
+    opening: AtomicBool,
+    reading: AtomicBool,
+    changed: Notify,
 }
 
 impl fmt::Debug for Source {
@@ -55,14 +63,19 @@ impl Source {
             snapshot: Mutex::new(Snapshot::default()),
             permit: Mutex::new(None),
             owner: Mutex::new(None),
+            hooks: Mutex::new(None),
+            callbacks: AtomicBool::new(false),
+            opening: AtomicBool::new(false),
+            reading: AtomicBool::new(false),
+            changed: Notify::new(),
         })
     }
 
     pub(crate) fn claim(
-        &self,
+        self: &Arc<Self>,
         permit: OwnedSemaphorePermit,
         owner: Arc<ClientState>,
-    ) -> Result<Arc<OwnedSemaphorePermit>> {
+    ) -> Result<Opening> {
         let mut retained = self.permit.lock().unwrap_or_else(PoisonError::into_inner);
         if !self.is_active() || retained.is_some() {
             return Err(failure(
@@ -73,7 +86,21 @@ impl Source {
         let permit = Arc::new(permit);
         *retained = Some(Arc::clone(&permit));
         *self.owner.lock().unwrap_or_else(PoisonError::into_inner) = Some(owner);
-        Ok(permit)
+        self.opening.store(true, Ordering::Release);
+        Ok(Opening {
+            owner: Arc::clone(self),
+            permit: Some(permit),
+        })
+    }
+
+    pub(crate) fn header_hooks(&self, hooks: crate::header_hook::Lease) {
+        self.callbacks.store(true, Ordering::Release);
+        *self.hooks.lock().unwrap_or_else(PoisonError::into_inner) = Some(hooks);
+    }
+
+    pub(crate) fn header_hooks_settled(&self) {
+        self.callbacks.store(false, Ordering::Release);
+        self.release();
     }
 
     pub(crate) fn attach(&self, source: SseEventSource) -> Result<()> {
@@ -144,6 +171,21 @@ impl Source {
             self.update(source);
         }
         drop(source);
+        self.hooks
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        self.release();
+    }
+
+    fn release(&self) {
+        if self.is_active()
+            || self.callbacks.load(Ordering::Acquire)
+            || self.opening.load(Ordering::Acquire)
+            || self.reading.load(Ordering::Acquire)
+        {
+            return;
+        }
         self.permit
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -155,6 +197,26 @@ impl Source {
             .take();
         // The last client can re-enter registered-source cleanup on drop.
         drop(owner);
+        self.changed.notify_waiters();
+    }
+
+    pub(crate) async fn drained(&self) {
+        loop {
+            let changed = self.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if self
+                .permit
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_none()
+                && !self.opening.load(Ordering::Acquire)
+                && !self.reading.load(Ordering::Acquire)
+            {
+                return;
+            }
+            changed.await;
+        }
     }
 
     pub(crate) async fn read(self: &Arc<Self>) -> Result<Option<SseEvent>> {
@@ -182,7 +244,20 @@ impl Source {
 struct Read {
     source: Option<SseEventSource>,
     owner: Arc<Source>,
-    _permit: Arc<OwnedSemaphorePermit>,
+    permit: Option<Arc<OwnedSemaphorePermit>>,
+}
+
+pub(crate) struct Opening {
+    owner: Arc<Source>,
+    permit: Option<Arc<OwnedSemaphorePermit>>,
+}
+
+impl Drop for Opening {
+    fn drop(&mut self) {
+        self.permit.take();
+        self.owner.opening.store(false, Ordering::Release);
+        self.owner.release();
+    }
 }
 
 impl Read {
@@ -195,14 +270,14 @@ impl Read {
             .as_ref()
             .cloned()
             .ok_or_else(|| failure("Cancelled", "event source was closed"))?;
+        let source = source
+            .take()
+            .ok_or_else(|| failure("ConcurrentRead", "only one event read may be pending"))?;
+        owner.reading.store(true, Ordering::Release);
         Ok(Self {
-            source: Some(
-                source.take().ok_or_else(|| {
-                    failure("ConcurrentRead", "only one event read may be pending")
-                })?,
-            ),
+            source: Some(source),
             owner: Arc::clone(owner),
-            _permit: permit,
+            permit: Some(permit),
         })
     }
 }
@@ -217,6 +292,12 @@ impl Drop for Read {
         if self.owner.is_active() {
             *source = self.source.take();
         }
+        drop(source);
+        // Dispose the core GET before releasing its native admission.
+        self.source.take();
+        self.permit.take();
+        self.owner.reading.store(false, Ordering::Release);
+        self.owner.release();
     }
 }
 

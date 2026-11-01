@@ -31,15 +31,17 @@ export interface NativeTransferControl { snapshot(): TransferSnapshot; }
 export interface NativeRequestDiagnostics { snapshot(): object | null; }
 export interface NativeHeader { name: string; value: Buffer; sensitive?: boolean; }
 export interface NativeHeaderInvocation {
-  index: number; method: string; uri: string; headers: NativeHeader[];
+  index: number; method: string; uri: string; headers: NativeHeader[]; serial?: bigint | null;
   redirect?: Omit<import('../index.js').RedirectAttempt, 'signal'> | null;
 }
 export type NativeHeaderEdit = {action: 'append' | 'set'; name: string; value: Buffer; sensitive?: boolean}
   | {action: 'remove'; name: string};
 export interface NativeHeaderHooks {
   next(): Promise<NativeHeaderInvocation | null>;
-  complete(index: number, edits: NativeHeaderEdit[]): void;
-  fail(index: number): void;
+  complete(index: number, edits: NativeHeaderEdit[], serial?: bigint): void;
+  fail(index: number, serial?: bigint): void;
+  nextCancelled(after: bigint): Promise<bigint | null>;
+  isActive(serial: bigint): boolean;
   completeRedirect(hop: bigint, decision: import('../index.js').RedirectDecision): void;
   failRedirect(hop: bigint): void;
   closed(): Promise<void>;
@@ -83,7 +85,7 @@ export interface NativeRequestOptions {
 }
 
 export interface NativeClient {
-  eventSource(options: object, source: import('./event-source.cjs').NativeSource): Promise<import('./event-source.cjs').NativeHead>;
+  eventSource(options: object, source: import('./event-source.cjs').NativeSource, hooks?: NativeHeaderHooks): Promise<import('./event-source.cjs').NativeHead>;
   request(options: NativeRequestOptions, cancellation: NativeCancellation,
     budget?: NativeAttemptBudget, upload?: NativeUpload, transfer?: NativeTransferControl,
     diagnostics?: NativeRequestDiagnostics, headerHooks?: NativeHeaderHooks): Promise<NativeResponse>;

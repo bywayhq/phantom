@@ -106,9 +106,15 @@ once before the first HTTP attempt. An async hook can obtain a token and call
 `context.set({name: 'Authorization', value: Buffer.from(token), sensitive: true})`.
 Use `skipClientHeaderHooks: true` to replace client hooks on one request.
 
-Hooks apply to ordinary HTTP methods. EventSource and WebSocket openings do
-not use them yet. A pending hook receives cancellation through `context.signal`;
-it must cooperate. Client shutdown waits for the callback to return.
+Dedicated EventSource also inherits client hooks before its `headerHooks` on
+every fresh GET, including reconnects. `skipClientHeaderHooks` skips inheritance;
+managed Last-Event-ID cannot be edited. WebSocket openings do not use hooks.
+A pending hook receives cancellation through `context.signal` and must cooperate.
+`closeAsync({timeoutMs})`, async disposal and client shutdown wait for actual
+callback cleanup. A timeout leaves cleanup owned; close again after it settles.
+`read({signal})` pauses a read without closing its GET or callback pump; the
+source-wide signal closes the source. Source callback failures retain the original
+thrown value in the request error cause, under the SSE error cause.
 
 ## Read a response
 

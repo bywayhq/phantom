@@ -577,3 +577,18 @@ async function transferState(client: Client): Promise<void> {
   await configured.importSessionTickets(bytes, key, {receivingRoutes: [{route: 'direct'}]});
 }
 void transferState;
+
+async function sourceHeaderHookConsumer(client: Client): Promise<void> {
+  const source = await client.eventSource('https://example.com/events', {protocol: 'http2',
+    headerHooks: [async context => { context.append({name: 'x-token', value: Buffer.from('ready')}); }],
+    skipClientHeaderHooks: true});
+  await source.read({signal: new AbortController().signal});
+  await source.closeAsync({timeoutMs: 1000});
+  // @ts-expect-error source callbacks must be functions
+  await client.eventSource('https://example.com/events', {protocol: 'http2', headerHooks: [42]});
+  // @ts-expect-error per-read cancellation requires an AbortSignal
+  await source.read({signal: true});
+  // @ts-expect-error close deadlines are milliseconds
+  await source.closeAsync({timeoutMs: 'soon'});
+}
+void sourceHeaderHookConsumer;

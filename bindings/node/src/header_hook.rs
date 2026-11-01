@@ -3,15 +3,15 @@
 use std::{
     fmt, io,
     sync::{
-        Arc, Mutex, OnceLock, PoisonError,
-        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, PoisonError,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 
 use napi::Result;
 use phantom::{
     HeaderHookContext, HeaderHookError, RedirectAttempt, RedirectCallbackError, RedirectDecision,
-    RequestBuilder, RequestHeader,
+    RequestBuilder, RequestHeader, SseRequestBuilder,
 };
 use tokio::sync::{mpsc, oneshot, watch};
 
@@ -24,6 +24,7 @@ pub(crate) enum Edit {
 }
 
 pub(crate) struct Invocation {
+    pub(crate) serial: Option<u64>,
     pub(crate) index: u32,
     pub(crate) method: String,
     pub(crate) uri: String,
@@ -50,6 +51,7 @@ type Reply = std::result::Result<CallbackReply, ()>;
 #[derive(PartialEq, Eq)]
 pub(crate) enum ReplyKey {
     Header(u32),
+    Source(u64),
     Redirect(usize),
 }
 
@@ -70,7 +72,10 @@ pub(crate) struct HeaderHooks {
     sender: mpsc::Sender<QueuedInvocation>,
     receiver: tokio::sync::Mutex<mpsc::Receiver<QueuedInvocation>>,
     pending: Mutex<Option<PendingReply>>,
-    limits: OnceLock<(usize, usize)>,
+    limits: Mutex<Option<(usize, usize)>>,
+    source: bool,
+    serial: AtomicU64,
+    cancelled: watch::Sender<u64>,
 }
 
 impl fmt::Debug for HeaderHooks {
@@ -83,6 +88,10 @@ impl fmt::Debug for HeaderHooks {
 
 impl HeaderHooks {
     pub(crate) fn new(count: u32) -> Result<Arc<Self>> {
+        Self::with_lifetime(count, false)
+    }
+
+    pub(crate) fn with_lifetime(count: u32, source: bool) -> Result<Arc<Self>> {
         if count > 256 {
             return Err(failure("InputLimit", "headerHooks exceed 256 callbacks"));
         }
@@ -95,7 +104,10 @@ impl HeaderHooks {
             sender,
             receiver: tokio::sync::Mutex::new(receiver),
             pending: Mutex::new(None),
-            limits: OnceLock::new(),
+            limits: Mutex::new(None),
+            source,
+            serial: AtomicU64::new(0),
+            cancelled: watch::channel(0).0,
         }))
     }
 
@@ -105,7 +117,7 @@ impl HeaderHooks {
         trailer_count: usize,
         trailer_bytes: usize,
     ) -> Result<(RequestBuilder, Lease)> {
-        if *self.closed.borrow() || self.claimed.swap(true, Ordering::AcqRel) {
+        if self.source || *self.closed.borrow() || self.claimed.swap(true, Ordering::AcqRel) {
             return Err(failure(
                 "InvalidOperation",
                 "header hooks belong to one request",
@@ -126,6 +138,26 @@ impl HeaderHooks {
         Ok((builder, Lease(Arc::clone(self))))
     }
 
+    pub(crate) fn claim_source(
+        self: &Arc<Self>,
+        mut builder: SseRequestBuilder,
+    ) -> Result<(SseRequestBuilder, Lease)> {
+        if !self.source || *self.closed.borrow() || self.claimed.swap(true, Ordering::AcqRel) {
+            return Err(failure(
+                "InvalidOperation",
+                "header hooks belong to one event source",
+            ));
+        }
+        for index in 0..self.count {
+            let owner = Arc::clone(self);
+            builder = builder.async_header_hook(move |context| {
+                let owner = Arc::clone(&owner);
+                Box::pin(async move { owner.invoke(index, context, 0, 0).await })
+            });
+        }
+        Ok((builder, Lease(Arc::clone(self))))
+    }
+
     async fn invoke(
         self: Arc<Self>,
         index: u32,
@@ -133,12 +165,42 @@ impl HeaderHooks {
         trailer_count: usize,
         trailer_bytes: usize,
     ) -> std::result::Result<(), HeaderHookError> {
+        let serial = if self.source {
+            Some(
+                self.serial
+                    .fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {
+                        value.checked_add(1)
+                    })
+                    .map_err(|_| hook_error())?
+                    + 1,
+            )
+        } else {
+            None
+        };
         let mut cancellation = InvocationGuard {
             owner: Arc::clone(&self),
+            serial,
             completed: false,
+        };
+        let limits = {
+            let mut limits = self.limits.lock().unwrap_or_else(PoisonError::into_inner);
+            if self.source && index == 0 {
+                *limits = None;
+            }
+            *limits.get_or_insert_with(|| {
+                (
+                    context
+                        .headers()
+                        .len()
+                        .max(256_usize.saturating_sub(trailer_count)),
+                    header_bytes(context.headers())
+                        .max(MAXIMUM_HEADER_BYTES.saturating_sub(trailer_bytes)),
+                )
+            })
         };
         let (reply, received) = oneshot::channel();
         let invocation = Invocation {
+            serial,
             index,
             method: context.method().to_string(),
             uri: context.uri().to_string(),
@@ -149,7 +211,7 @@ impl HeaderHooks {
             .send(QueuedInvocation {
                 invocation,
                 reply: PendingReply {
-                    key: ReplyKey::Header(index),
+                    key: serial.map_or(ReplyKey::Header(index), ReplyKey::Source),
                     sender: reply,
                 },
             })
@@ -166,16 +228,7 @@ impl HeaderHooks {
 
         // Prepared bodies can add fields after the public request-input bound.
         // Preserve those fields while bounding any growth caused by callbacks.
-        let &(count_limit, bytes_limit) = self.limits.get_or_init(|| {
-            (
-                context
-                    .headers()
-                    .len()
-                    .max(256_usize.saturating_sub(trailer_count)),
-                header_bytes(context.headers())
-                    .max(MAXIMUM_HEADER_BYTES.saturating_sub(trailer_bytes)),
-            )
-        });
+        let (count_limit, bytes_limit) = limits;
         for edit in edits {
             match edit {
                 Edit::Append(header) => context.append(header)?,
@@ -211,10 +264,12 @@ impl HeaderHooks {
         }
         let mut cancellation = InvocationGuard {
             owner: Arc::clone(&self),
+            serial: None,
             completed: false,
         };
         let (reply, received) = oneshot::channel();
         let invocation = Invocation {
+            serial: None,
             index: 0,
             method: String::new(),
             uri: String::new(),
@@ -260,31 +315,44 @@ impl HeaderHooks {
                 "only one header hook read may be pending",
             )
         })?;
-        if self
-            .pending
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .is_some()
         {
-            return Err(failure(
-                "InvalidOperation",
-                "complete the current header hook first",
-            ));
+            let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
+            if pending
+                .as_ref()
+                .is_some_and(|reply| reply.sender.is_closed())
+            {
+                pending.take();
+            }
+            if pending.is_some() {
+                return Err(failure(
+                    "InvalidOperation",
+                    "complete the current header hook first",
+                ));
+            }
         }
-        let invocation = tokio::select! {
-            biased;
-            () = self.closed() => return Ok(None),
-            invocation = receiver.recv() => invocation,
-        };
-        let Some(queued) = invocation else {
-            return Ok(None);
-        };
-        let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
-        if *self.closed.borrow() {
-            return Ok(None);
+        loop {
+            let invocation = tokio::select! {
+                biased;
+                () = self.closed() => return Ok(None),
+                invocation = receiver.recv() => invocation,
+            };
+            let Some(queued) = invocation else {
+                return Ok(None);
+            };
+            // A timed-out GET can leave an undelivered item in the bounded channel.
+            if queued.reply.sender.is_closed() {
+                continue;
+            }
+            let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
+            if *self.closed.borrow() {
+                return Ok(None);
+            }
+            if queued.reply.sender.is_closed() {
+                continue;
+            }
+            *pending = Some(queued.reply);
+            return Ok(Some(queued.invocation));
         }
-        *pending = Some(queued.reply);
-        Ok(Some(queued.invocation))
     }
 
     pub(crate) fn reply(&self, key: ReplyKey, edits: Reply) -> Result<()> {
@@ -324,6 +392,54 @@ impl HeaderHooks {
         );
     }
 
+    pub(crate) fn active(&self, serial: u64) -> bool {
+        !*self.closed.borrow()
+            && self
+                .pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_ref()
+                .is_some_and(|reply| {
+                    reply.key == ReplyKey::Source(serial) && !reply.sender.is_closed()
+                })
+    }
+
+    fn cancel(&self, serial: u64) {
+        let mut pending = self.pending.lock().unwrap_or_else(PoisonError::into_inner);
+        if pending
+            .as_ref()
+            .is_some_and(|reply| reply.key == ReplyKey::Source(serial))
+        {
+            pending.take();
+        }
+        drop(pending);
+        self.cancelled.send_if_modified(|current| {
+            if serial > *current {
+                *current = serial;
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub(crate) async fn next_cancelled(&self, after: u64) -> Option<u64> {
+        let mut cancelled = self.cancelled.subscribe();
+        loop {
+            let serial = *cancelled.borrow_and_update();
+            if *self.closed.borrow() {
+                return None;
+            }
+            if serial > after {
+                return Some(serial);
+            }
+            tokio::select! {
+                () = self.closed() => return None,
+                changed = cancelled.changed() => { if changed.is_err() { return None; } }
+            }
+        }
+    }
+
     pub(crate) async fn closed(&self) {
         let mut closed = self.closed.subscribe();
         if !*closed.borrow_and_update() {
@@ -359,13 +475,18 @@ impl Drop for Lease {
 
 struct InvocationGuard {
     owner: Arc<HeaderHooks>,
+    serial: Option<u64>,
     completed: bool,
 }
 
 impl Drop for InvocationGuard {
     fn drop(&mut self) {
         if !self.completed {
-            self.owner.close();
+            if let Some(serial) = self.serial {
+                self.owner.cancel(serial);
+            } else {
+                self.owner.close();
+            }
         }
     }
 }
@@ -410,6 +531,39 @@ mod tests {
             received.try_recv(),
             Err(oneshot::error::TryRecvError::Closed)
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn cancelling_one_source_get_rejects_stale_replies_without_closing_the_next() -> Result<()> {
+        let owner = HeaderHooks::with_lifetime(1, true)?;
+        let (sender, mut first) = oneshot::channel();
+        *owner.pending.lock().unwrap_or_else(PoisonError::into_inner) = Some(PendingReply {
+            key: ReplyKey::Source(1),
+            sender,
+        });
+        drop(InvocationGuard {
+            owner: Arc::clone(&owner),
+            serial: Some(1),
+            completed: false,
+        });
+        assert!(!*owner.closed.borrow());
+        assert_eq!(*owner.cancelled.borrow(), 1);
+        assert!(matches!(
+            first.try_recv(),
+            Err(oneshot::error::TryRecvError::Closed)
+        ));
+        let (sender, mut second) = oneshot::channel();
+        *owner.pending.lock().unwrap_or_else(PoisonError::into_inner) = Some(PendingReply {
+            key: ReplyKey::Source(2),
+            sender,
+        });
+        owner.cancel(1);
+        assert!(owner.reply(ReplyKey::Source(1), Err(())).is_err());
+        assert!(owner.reply(ReplyKey::Header(0), Err(())).is_err());
+        assert!(owner.active(2));
+        owner.reply(ReplyKey::Source(2), Ok(CallbackReply::Header(Vec::new())))?;
+        assert!(second.try_recv().is_ok());
         Ok(())
     }
 }

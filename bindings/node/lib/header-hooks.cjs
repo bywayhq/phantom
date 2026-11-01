@@ -13,9 +13,9 @@ const {orderedDataArray} = require('./validation.cjs');
 /** @typedef {import('./client-native.cjs').NativeHeaderHooks} NativeHeaderHooks */
 /** @typedef {import('./client-native.cjs').NativeHeader} NativeHeader */
 /** @typedef {import('./client-native.cjs').NativeHeaderEdit} NativeHeaderEdit */
-/** @typedef {{failed: boolean, error?: unknown, bridgeFailure?: {error: unknown}}} HookOutcome */
+/** @typedef {{failed: boolean, error?: unknown, failureSerial?: bigint, bridgeFailure?: {error: unknown, serial?: bigint, observed?: boolean}}} HookOutcome */
 
-/** @type {AsyncLocalStorage<object>} */
+/** @type {AsyncLocalStorage<{client: object, source?: NativeHeaderHooks}>} */
 const callbackContext = new AsyncLocalStorage();
 const contextToken = {};
 /** @type {readonly HeaderHook[]} */
@@ -105,19 +105,37 @@ class HeaderHookContext {
   [inspect.custom]() { return 'HeaderHookContext { headers and URL redacted }'; }
 }
 
-/** @param {object} client */
-function isHeaderHookContext(client) { return callbackContext.getStore() === client; }
+/** @param {object} client @param {NativeHeaderHooks} [source] */
+function isHeaderHookContext(client, source) {
+  const scope = callbackContext.getStore();
+  return scope?.client === client && (source === undefined || scope.source === source);
+}
 
 /** @param {object} client @param {NativeHeaderHooks} owner
  * @param {readonly HeaderHook[]} hooks @param {HookOutcome} outcome
- * @param {import('../index.js').RedirectCallback} [redirect] */
-async function pumpHeaderHooks(client, owner, hooks, outcome, redirect) {
-  const controller = new AbortController();
-  const stopped = owner.closed().then(() => {
+ * @param {import('../index.js').RedirectCallback} [redirect] @param {boolean} [source] */
+async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source = false) {
+  let controller = new AbortController();
+  /** @type {{serial: bigint, context: HeaderHookContext, controller: AbortController} | undefined} */
+  let active;
+  const abort = () => {
+    active?.context._finish();
     controller.abort(new PhantomError('Cancelled', 'request callback was cancelled'));
-  }, (error) => {
+  };
+  const stopped = (source ? (async () => {
+    let cancelled = 0n;
+    while (true) {
+      const serial = await owner.nextCancelled(cancelled);
+      if (serial === null) break;
+      cancelled = serial;
+      if (active && active.serial <= serial) {
+        active.context._finish();
+        active.controller.abort(new PhantomError('Cancelled', 'event source GET callback was cancelled'));
+      }
+    }
+  })() : owner.closed()).then(abort, (error) => {
     outcome.bridgeFailure ??= {error: translated(error)};
-    controller.abort(outcome.bridgeFailure.error);
+    abort();
   });
   try {
     while (true) {
@@ -130,7 +148,7 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect) {
         try {
           controller.signal.throwIfAborted();
           if (!redirect) throw new PhantomError('Internal', 'redirect callback is unavailable');
-          const decision = await callbackContext.run(client, () => redirect(attempt));
+          const decision = await callbackContext.run({client}, () => redirect(attempt));
           controller.signal.throwIfAborted();
           if (decision !== 'follow' && decision !== 'stop' && decision !== 'reject') {
             throw new PhantomError('InvalidArgument', 'redirect callbacks must return Follow, Stop or Reject');
@@ -148,26 +166,51 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect) {
         }
         continue;
       }
+      const serial = invocation.serial ?? undefined;
+      if (source) {
+        if (typeof serial !== 'bigint') throw new PhantomError('Internal', 'source callback serial is unavailable');
+        if (!owner.isActive(serial)) continue;
+        controller = new AbortController();
+        // Only the current invocation can explain a returned core HeaderHook error.
+        // An earlier error discarded by a GET deadline remains in bridgeFailure.
+        outcome.failed = false;
+        outcome.error = undefined;
+        outcome.failureSerial = undefined;
+      }
       const context = new HeaderHookContext(contextToken, invocation, controller.signal);
+      if (source && serial !== undefined) active = {serial, context, controller};
       try {
         controller.signal.throwIfAborted();
         const hook = hooks[invocation.index];
         if (hook === undefined) throw new PhantomError('Internal', 'header callback index is unavailable');
-        await callbackContext.run(client, () => hook(context));
+        await callbackContext.run({client, source: source ? owner : undefined}, () => hook(context));
         controller.signal.throwIfAborted();
-        owner.complete(invocation.index, context._finish());
+        const edits = context._finish();
+        if (!source || owner.isActive(/** @type {bigint} */ (serial))) {
+          try { owner.complete(invocation.index, edits, serial); }
+          catch (delivery) {
+            if (!source || owner.isActive(/** @type {bigint} */ (serial)) || translated(delivery).code !== 'InvalidOperation') throw delivery;
+          }
+        }
       } catch (error) {
         context._finish();
+        if (source && !owner.isActive(/** @type {bigint} */ (serial))) {
+          if (!controller.signal.aborted || error !== controller.signal.reason) outcome.bridgeFailure ??= {error, serial};
+          continue;
+        }
         outcome.failed = true;
         outcome.error = error;
-        if (controller.signal.aborted && error !== controller.signal.reason) {
-          outcome.bridgeFailure ??= {error};
+        outcome.failureSerial = serial;
+        if (source || (controller.signal.aborted && error !== controller.signal.reason)) {
+          outcome.bridgeFailure ??= {error, serial};
         }
-        try { owner.fail(invocation.index); }
+        try { owner.fail(invocation.index, serial); }
         catch (failure) {
           if (!controller.signal.aborted) outcome.bridgeFailure ??= {error: translated(failure)};
         }
-        break;
+        if (!source) break;
+      } finally {
+        active = undefined;
       }
     }
   } catch (error) {

@@ -22,6 +22,7 @@ function facade() {
     constructor() { sources.push(this); }
     read() { this.reads++; return this.next(); }
     close() { this.closed = true; this.cancel?.(); }
+    async waitClosed() {}
   }
   const owner = {
     async close() {},

@@ -11,6 +11,7 @@ use phantom::{HttpProtocol, RequestHeader, SseHeader, SseLimits, SseRequestBuild
 
 use super::{
     buffer::copy_buffer,
+    controls::NativeCancellation,
     options::{PhaseTimeouts, SessionRouteOptions, WireHeader},
 };
 use crate::{client::ClientState, error::failure, event_source::Source};
@@ -168,10 +169,23 @@ impl NativeEventSource {
 
     /// Pulls one event; no background event queue is created.
     #[napi]
-    pub fn read(&self, env: Env) -> Result<AsyncBlock<Option<EventSourceEvent>>> {
+    pub fn read(
+        &self,
+        env: Env,
+        cancellation: Option<&NativeCancellation>,
+    ) -> Result<AsyncBlock<Option<EventSourceEvent>>> {
         let source = Arc::clone(&self.source);
+        let cancellation = cancellation.map(|cancel| Arc::clone(&cancel.exchange));
         AsyncBlockBuilder::new(async move {
-            let event = source.read().await?;
+            let event = if let Some(cancellation) = cancellation {
+                tokio::select! {
+                    biased;
+                    error = cancellation.interrupted() => return Err(error),
+                    event = source.read() => event?,
+                }
+            } else {
+                source.read().await?
+            };
             Ok(event.map(|event| {
                 let (data, event, id) = event.into_parts();
                 EventSourceEvent { data, event, id }
@@ -184,6 +198,19 @@ impl NativeEventSource {
     #[napi]
     pub fn close(&self) {
         self.source.close();
+    }
+
+    /// Waits for native setup, reads and actual host callback settlement.
+    #[napi]
+    pub fn wait_closed(&self, env: Env, timeout_ms: u32) -> Result<AsyncBlock<()>> {
+        let deadline = std::time::Instant::now() + Duration::from_millis(u64::from(timeout_ms));
+        let source = Arc::clone(&self.source);
+        AsyncBlockBuilder::new(async move {
+            tokio::time::timeout_at(deadline.into(), source.drained())
+                .await
+                .map_err(|_| failure("Timeout", "event source cleanup deadline expired"))
+        })
+        .build(&env)
     }
 }
 
