@@ -74,6 +74,14 @@ pub struct LogicalHookInvocation {
     pub origin_port: Option<u32>,
 }
 
+impl fmt::Debug for LogicalHookInvocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("LogicalHookInvocation")
+            .finish_non_exhaustive()
+    }
+}
+
 /// Immutable owned redirect metadata; URLs are omitted from debug output.
 #[napi(object, object_from_js = false)]
 pub struct RedirectHookInvocation {
