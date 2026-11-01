@@ -124,7 +124,8 @@ async fn rejected_source_observer_never_opens_or_reconnects() -> TestResult<()> 
         .max_reconnects(3)
         .connect()
         .await
-        .expect_err("observer must reject");
+        .err()
+        .ok_or("observer unexpectedly accepted the source")?;
     assert_eq!(request_error(&error)?.kind(), RequestErrorKind::RequestHook);
     assert_eq!(connections.load(Ordering::SeqCst), 0);
     assert!(peers.try_recv().is_err());
