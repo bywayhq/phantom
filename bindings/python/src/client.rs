@@ -3,6 +3,7 @@ use crate::{
     configuration,
     diagnostics::NativeRequestDiagnostics,
     error,
+    header_hook::{Guard as HeaderHookGuard, NativeHeaderHooks},
     lifecycle::Lifecycle,
     network, pool,
     prepared_body::NativePreparedBody,
@@ -237,7 +238,7 @@ impl NativeClient {
         })
     }
 
-    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None, redirect_credential_headers=None, context=None))]
+    #[pyo3(signature = (method, url, headers, body=None, upload=None, budget=None, timeout_ms=None, timeouts=None, maximum_decoded_bytes=None, redirect_maximum_hops=None, redirect_history_limit=None, retry_policy=None, producer=None, transfer_control=None, trailers=None, expect_continue_ms=None, prepared_body=None, body_length=None, diagnostics=None, multipart=None, redirect_credential_headers=None, context=None, header_hooks=None))]
     #[allow(clippy::too_many_arguments)]
     fn request<'py>(
         &self,
@@ -264,6 +265,7 @@ impl NativeClient {
         multipart: Option<PyRef<'_, NativeStreamingMultipart>>,
         redirect_credential_headers: Option<&Bound<'_, PyAny>>,
         context: Option<&str>,
+        header_hooks: Option<PyRef<'_, NativeHeaderHooks>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let admission = self.lifecycle.admit("request")?;
         let started = tokio::time::Instant::now();
@@ -316,6 +318,25 @@ impl NativeClient {
                 .map_err(error::request)?,
         };
         let (headers, trailers) = request_fields::headers(headers, trailers)?;
+        let hook_guard = if let Some(hooks) = header_hooks {
+            let reserved = (
+                trailers.len(),
+                trailers
+                    .iter()
+                    .map(|header| header.name().len() + header.value().len())
+                    .sum(),
+            );
+            for index in 0..hooks.count {
+                let owner = Arc::clone(&hooks.owner);
+                request = request.async_header_hook(move |context| {
+                    let owner = Arc::clone(&owner);
+                    Box::pin(async move { owner.run(index, context, reserved).await })
+                });
+            }
+            Some(HeaderHookGuard(Some(Arc::clone(&hooks.owner))))
+        } else {
+            None
+        };
         request = request.headers(headers).trailers(trailers);
         if let Some(wait) = request_fields::expect_wait(expect_continue_ms)? {
             request = request.expect_continue(wait);
@@ -386,6 +407,7 @@ impl NativeClient {
         }
         let protocol = self.protocol.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let _hook_guard = hook_guard;
             let lifecycle = Arc::clone(admission.lifecycle());
             let send = async move {
                 if let Some(path) = upload {

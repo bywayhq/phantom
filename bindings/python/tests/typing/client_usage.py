@@ -9,6 +9,7 @@ from phantom_http import (
     AsyncClient,
     AsyncEventSource,
     AsyncEventStream,
+    AsyncHeaderHook,
     AsyncResponse,
     AsyncSessionStore,
     AttemptBudget,
@@ -25,6 +26,8 @@ from phantom_http import (
     EventSource,
     EventStream,
     Header,
+    HeaderHook,
+    HeaderHookContext,
     HostOverride,
     HTTPStatusError,
     ImportedProfile,
@@ -546,3 +549,32 @@ async def storage_consumer(
         await restored.close()
     if blocking is not None:
         blocking.close()
+
+
+def sync_header_hook(context: HeaderHookContext) -> None:
+    method: str = context.method
+    uri: str = context.url
+    headers: tuple[Header, ...] = context.headers
+    context.set(Header("X-Token", b"secret", sensitive=True))
+    context.append(("X-Repeat", b"raw"))
+    context.remove("X-Old")
+    print(method, uri, len(headers))
+
+
+async def async_header_hook(context: HeaderHookContext) -> None:
+    sync_header_hook(context)
+
+
+async def header_hook_consumer(url: str) -> None:
+    synchronous: HeaderHook = sync_header_hook
+    asynchronous: AsyncHeaderHook = async_header_hook
+    with (
+        Client(profile="chrome-154-windows", header_hooks=(synchronous,)) as client,
+        client.get(url, header_hooks=(synchronous,)) as response,
+    ):
+        response.read(max_bytes=0)
+    async with AsyncClient(
+        profile="chrome-154-windows", header_hooks=(synchronous, asynchronous)
+    ) as client_async:
+        response_async = await client_async.post(url, header_hooks=(asynchronous,))
+        await response_async.aclose()

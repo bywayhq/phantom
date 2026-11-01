@@ -1,4 +1,5 @@
 use phantom::{RequestError, RequestErrorKind};
+use pyo3::prelude::*;
 use pyo3::{PyErr, create_exception, exceptions::PyException};
 
 create_exception!(_native, NativeError, PyException);
@@ -55,7 +56,22 @@ pub(super) fn request_ref(error: &RequestError) -> PyErr {
     };
     let protocol = error.protocol().map(super::client::protocol_name);
     let phase = error.timeout_phase().map(timeout_phase);
-    NativeError::new_err(("request", kind, protocol, phase))
+    let failure = NativeError::new_err(("request", kind, protocol, phase));
+    if error.kind() == RequestErrorKind::HeaderHook {
+        let mut source = std::error::Error::source(error);
+        while let Some(cause) = source {
+            if let Some(original) = cause.downcast_ref::<PyErr>() {
+                return Python::attach(|py| {
+                    match failure.value(py).setattr("original", original.value(py)) {
+                        Ok(()) => failure,
+                        Err(error) => error,
+                    }
+                });
+            }
+            source = cause.source();
+        }
+    }
+    failure
 }
 
 pub(super) fn timeout_phase(phase: phantom::TimeoutPhase) -> &'static str {

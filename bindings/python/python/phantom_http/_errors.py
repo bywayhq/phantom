@@ -160,7 +160,12 @@ def _error(error: _native.NativeError) -> Error:
         "client_closed": ClientClosed,
         "response_body_limit": BodyLimitExceeded,
     }.get(kind, Error)
-    return cls(category, kind, protocol, phase)
+    mapped = cls(category, kind, protocol, phase)
+    if kind == "header_hook":
+        original = cast(object, getattr(error, "original", None))
+        if isinstance(original, BaseException):
+            mapped.original = original
+    return mapped
 
 
 def _call(function: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:

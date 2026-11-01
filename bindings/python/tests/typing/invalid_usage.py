@@ -10,6 +10,7 @@ from phantom_http import (
     DnsOverHttps,
     DnsOverTls,
     Header,
+    HeaderHookContext,
     HostOverride,
     NetworkOptions,
     Profile,
@@ -305,3 +306,16 @@ DnsOverTls(
 )
 NetworkOptions(dns_cache=True)  # E: arg-type
 NetworkOptions(dns="system")  # E: arg-type
+
+
+async def invalid_header_hooks(client: AsyncClient, sync: Client) -> None:
+    async def asynchronous(context: HeaderHookContext) -> None:
+        context.append(("X", "value"))
+
+    def wrong_result(context: HeaderHookContext) -> str:
+        return "not None"
+
+    await client.get("https://local", header_hooks=(wrong_result,))  # E: arg-type
+    sync.get("https://local", header_hooks=(asynchronous,))  # E: arg-type
+    sync.get("https://local", header_hooks=(42,))  # E: arg-type
+    Client(profile="chrome-154-windows", header_hooks=(asynchronous,))  # E: arg-type
