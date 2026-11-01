@@ -38,6 +38,7 @@ SOURCES = (
     "lib/response.cjs",
     "lib/session.cjs",
     "lib/session-storage.cjs",
+    "lib/header-hooks.cjs",
     "lib/tls.cjs",
     "lib/upload.cjs",
     "lib/validation.cjs",

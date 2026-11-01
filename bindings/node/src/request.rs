@@ -42,6 +42,7 @@ pub(crate) struct Prepared {
     file: Option<(String, u64)>,
     exchange: Arc<Exchange>,
     _pending: Pending,
+    _header_hooks: Option<crate::header_hook::Lease>,
 }
 
 pub(crate) enum BodyInput {
@@ -55,6 +56,7 @@ pub(crate) struct RequestControls {
     pub(crate) transfer_control: Option<TransferControl>,
     pub(crate) diagnostics: Option<Arc<crate::request_diagnostics::Diagnostics>>,
     pub(crate) trailers: Vec<RequestHeader>,
+    pub(crate) header_hooks: Option<Arc<crate::header_hook::HeaderHooks>>,
 }
 
 impl Prepared {
@@ -78,6 +80,12 @@ impl Prepared {
             ));
         }
 
+        let trailer_count = controls.trailers.len();
+        let trailer_bytes = controls.trailers.iter().fold(0_usize, |total, field| {
+            total
+                .saturating_add(field.name().len())
+                .saturating_add(field.value().len())
+        });
         let protocol = match options.protocol.as_str() {
             "http1" => Some(HttpProtocol::Http1),
             "http2" => Some(HttpProtocol::Http2),
@@ -203,11 +211,20 @@ impl Prepared {
             diagnostics.attach(&mut builder)?;
         }
 
+        let hook_lease = if let Some(hooks) = controls.header_hooks {
+            let (hooked, lease) = hooks.claim(builder, trailer_count, trailer_bytes)?;
+            builder = hooked;
+            Some(lease)
+        } else {
+            None
+        };
+
         Ok(Self {
             builder,
             file,
             exchange,
             _pending: pending,
+            _header_hooks: hook_lease,
         })
     }
 
@@ -217,6 +234,7 @@ impl Prepared {
             file,
             exchange,
             _pending,
+            _header_hooks,
         } = self;
 
         if exchange.upload_state().is_some() {

@@ -4,6 +4,16 @@ const resources = new Client({profile: 'chrome-156-windows', route: 'direct', co
 void resources.eventSource('https://example.com/events', {protocol: 'http2', maximumReconnects: 0});
 void resources.get('https://example.com/image.png', {context: 'image'});
 void Profile.fromCatalog('chrome-156-windows', 'font');
+void resources.get('https://example.com/', {headerHooks: [async (context) => {
+  context.url.toUpperCase();
+  context.signal.throwIfAborted();
+  context.set({name: 'x-token', value: Buffer.from('token'), sensitive: true});
+  context.remove('x-old');
+  // @ts-expect-error Hook metadata is read-only.
+  context.method = 'DELETE';
+}], skipClientHeaderHooks: true});
+// @ts-expect-error Hooks return void or a promise of void, not policy flags.
+void resources.get('https://example.com/', {headerHooks: [() => false]});
 
 const pinned = new Client({profile: 'exact', route: 'direct',
   network: {publicOnly: true}, redirectPolicy: {mode: 'none', credentialHeaders: ['x-api-key']},

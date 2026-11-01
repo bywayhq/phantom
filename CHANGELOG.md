@@ -7,6 +7,8 @@
 
 ### Bindings
 
+- Node adds awaited, ordered HTTP header hooks with request cancellation and
+  original JavaScript errors.
 - Save and load encrypted session checkpoints through caller-owned Python,
   Go and Node storage backends with bounded reads and operation deadlines.
 - Python, Go and Node can override the route for each WebSocket opening while

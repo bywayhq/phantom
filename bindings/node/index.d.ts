@@ -87,6 +87,22 @@ export class TransferControl {
   snapshot(): Readonly<TransferSnapshot>;
 }
 export interface Header { name: string; value: Uint8Array; sensitive?: boolean; }
+/** Runs once before the first HTTP attempt, after request fields are prepared. */
+export type HeaderHook = (context: HeaderHookContext) => void | Promise<void>;
+/** Ordered caller fields for one callback. Mutations expire when the callback returns. */
+export class HeaderHookContext {
+  private constructor();
+  readonly method: string;
+  readonly url: string;
+  /** Aborted when the request is cancelled or its total deadline expires. */
+  readonly signal: AbortSignal;
+  /** Fresh copies in wire preparation order, including duplicate names. */
+  readonly headers: readonly Readonly<Header>[];
+  append(header: Header): void;
+  /** Replaces matching fields at their first position, ignoring name case. */
+  set(header: Header): void;
+  remove(name: string): void;
+}
 export interface PreparedBodyOptions { readonly maximumBytes: number | bigint; }
 export interface MultipartBodyOptions extends PreparedBodyOptions { readonly boundary: string; }
 export type MultipartPart = Readonly<{name: string; filename?: string; contentType?: string} & (
@@ -130,6 +146,8 @@ export class ClientCertificate {
   static fromDer(certificateChain: readonly Uint8Array[], privateKey: Uint8Array): Promise<ClientCertificate>;
 }
 export interface ClientOptions {
+  /** Ordered caller-header hooks for request/get/post and the other HTTP methods. */
+  readonly headerHooks?: readonly HeaderHook[];
   profile: string | Profile;
   /** Default negotiated protocol; an explicit request choice overrides it. */
   protocol?: RequestProtocol;
@@ -295,6 +313,9 @@ export interface RedirectHistory {
   readonly omittedHops: number;
 }
 export interface RequestOptions {
+  /** Runs after client hooks, once across retries and redirects. */
+  readonly headerHooks?: readonly HeaderHook[];
+  readonly skipClientHeaderHooks?: boolean;
   /** Single-use live observer; keep it to inspect failed/cancelled sends. */
   diagnostics?: RequestDiagnostics;
   /** Defaults to GET. Method helpers set their own method. */
