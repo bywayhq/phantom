@@ -231,9 +231,10 @@ uploads and later reads without cancelling another multiplexed response.
 Errors from context cancellation are Go's context errors.
 
 `Shutdown(ctx)` closes admission and waits for active work. Close unused bodies
-first. Cancelling the wait leaves admission closed; retrying can briefly return
-`shutdown_in_progress`. `Close` waits up to five seconds. Use explicit shutdown;
-finalizers provide eventual handle cleanup.
+first. Cancelling the wait leaves admission closed. Retry `Shutdown` to resume
+waiting; another active shutdown wait returns `shutdown_in_progress`. `Close`
+waits up to five seconds. Use explicit shutdown; finalizers provide eventual
+handle cleanup.
 
 `CloseIdleConnections(ctx)` retires idle connections. `RefreshConnections(ctx)`
 retires pools while active work finishes. Both retain learned state; cancellation

@@ -8,6 +8,7 @@
   managed event IDs and graceful client shutdown.
 - Go and Node add reconnecting EventSource readers with managed event IDs,
   cancellable reads and graceful shutdown.
+- Allow Go shutdown to resume after the caller cancels its wait.
 - Node retains its default request context for EventSource openings and rejects
   unavailable default contexts when creating the client.
 - Reduce Python streaming overhead by converting body chunks during async
