@@ -7,6 +7,8 @@
 
 ### Bindings
 
+- Python, Go and Node import and export cookie snapshots, direct-route Alt-Svc
+  snapshots and encrypted TLS tickets. Network options can enable Alt-Svc storage.
 - Node adds awaited, ordered HTTP header hooks with request cancellation and
   original JavaScript errors.
 - Python awaits ordered client and per-request header hooks during ordinary HTTP
