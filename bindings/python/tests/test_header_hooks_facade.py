@@ -41,6 +41,8 @@ class Mailbox:
         self.reply.set_result(edits)
 
     def fail(self, serial, original):
+        if self.closed.is_set() or self.reply.done() or serial != self.serial:
+            raise FACADE._native.NativeError("input", "header_hook_closed", None, None)
         failure = FACADE._native.NativeError("request", "header_hook", "h1", None)
         failure.original = original
         self.reply.set_exception(failure)
@@ -340,6 +342,74 @@ class HookPumpTests(unittest.IsolatedAsyncioTestCase):
         request.cancel()
         with self.assertRaises(asyncio.CancelledError):
             await request
+
+    async def test_closed_reply_retains_callback_failure_after_timeout_or_cancellation(
+        self,
+    ):
+        async def exercise(cancellation):
+            with self.subTest(cancellation=cancellation):
+                entered = asyncio.Event()
+                release = asyncio.Event()
+                delivered = asyncio.Event()
+                original = ValueError("private-racing-callback")
+
+                class ClosingMailbox(Mailbox):
+                    async def terminal(self):
+                        await self.closed.wait()
+                        await delivered.wait()
+
+                    def fail(self, serial, error):
+                        try:
+                            super().fail(serial, error)
+                        finally:
+                            delivered.set()
+
+                async def callback(context):
+                    entered.set()
+                    await release.wait()
+                    raise original
+
+                class ClosingNative(Native):
+                    async def request(self, *args, header_hooks=None, **kwargs):
+                        invocation = asyncio.create_task(header_hooks.invoke(0))
+                        try:
+                            await entered.wait()
+                            header_hooks.abort()
+                            release.set()
+                            await delivered.wait()
+                            if cancellation:
+                                await asyncio.Future()
+                            raise FACADE._native.NativeError(
+                                "request", "timeout", "h1", "total"
+                            )
+                        finally:
+                            invocation.cancel()
+                            with contextlib.suppress(asyncio.CancelledError):
+                                await invocation
+
+                with patch.object(FACADE._native, "NativeHeaderHooks", ClosingMailbox):
+                    client = FACADE.AsyncClient._from_native(ClosingNative())
+                    request = asyncio.create_task(
+                        client.get("https://local/", header_hooks=(callback,))
+                    )
+                    await asyncio.wait_for(delivered.wait(), 5)
+                    if cancellation:
+                        request.cancel()
+                        with self.assertRaises(asyncio.CancelledError):
+                            await request
+                        with self.assertRaises(FACADE.Error) as caught:
+                            await client.close()
+                        self.assertEqual(caught.exception.kind, "header_hook_cleanup")
+                        self.assertIs(caught.exception.original, original)
+                    else:
+                        with self.assertRaises(FACADE.TimeoutError) as caught:
+                            await request
+                        self.assertEqual(caught.exception.timeout_phase, "total")
+                        self.assertIs(caught.exception.cleanup_error, original)
+                    await client.close()
+
+        for cancellation in (False, True):
+            await exercise(cancellation)
 
 
 class SyncHookTests(unittest.TestCase):

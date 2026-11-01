@@ -192,7 +192,14 @@ class Hooks:
                             self.cleanup_error = error
                     else:
                         self.error = error
-                        self.native.fail(serial, error)
+                        try:
+                            self.native.fail(serial, error)
+                        except _native.NativeError as delivery:
+                            arguments = cast(tuple[object, ...], delivery.args)
+                            if arguments[:2] != ("input", "header_hook_closed"):
+                                raise
+                            # Native closure can precede the watcher cancelling us.
+                            self.cleanup_error = error
                     return
                 finally:
                     context._finish()
