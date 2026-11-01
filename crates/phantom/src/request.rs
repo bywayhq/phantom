@@ -389,6 +389,12 @@ impl RequestBuilder {
         self
     }
 
+    #[cfg(feature = "sse")]
+    pub(crate) fn extend_header_hooks(mut self, hooks: &[crate::header_hook::HeaderHook]) -> Self {
+        self.header_hooks.extend_from_slice(hooks);
+        self
+    }
+
     /// The template conditions of a request that can reach the wire.
     #[cfg(feature = "sse")]
     pub(crate) fn supported_template_conditions(&self) -> Option<(bool, bool)> {

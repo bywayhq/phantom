@@ -26,6 +26,7 @@ use peer_completion::SsePeer;
 use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
 
+mod header_hooks;
 mod idle;
 mod ownership;
 mod peer_completion;

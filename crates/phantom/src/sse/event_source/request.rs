@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{fmt, future::Future, pin::Pin, time::Duration};
 
 use http::{HeaderName, Response, StatusCode};
 use phantom_net::request::RequestHeader;
@@ -8,7 +8,7 @@ use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{
     Client, HttpProtocol, RequestBuilder, RequestError, RequestTimeoutOverrides, ResponseBody,
-    Route,
+    Route, header_hook::HeaderHook,
 };
 
 use super::{ReconnectFuture, SseEventSource};
@@ -124,6 +124,8 @@ impl fmt::Debug for SseRequestBuilder {
             .debug_struct("SseRequestBuilder")
             .field("protocol", &self.request.protocol)
             .field("header_count", &self.request.headers.len())
+            .field("header_hook_count", &self.request.header_hooks.len())
+            .field("client_header_hooks", &self.request.client_header_hooks)
             .field("route_override", &self.request.route.is_some())
             .field("timeout_override", &self.request.timeouts.is_some())
             .field("limits", &self.limits)
@@ -148,6 +150,8 @@ impl SseRequestBuilder {
                 protocol,
                 uri: uri.into(),
                 headers: default_headers(protocol),
+                header_hooks: Vec::new(),
+                client_header_hooks: true,
                 route: None,
                 timeouts: None,
             },
@@ -184,6 +188,74 @@ impl SseRequestBuilder {
     /// that hop. Automatic client hints never replace this managed field.
     pub fn headers(mut self, headers: Vec<SseHeader>) -> Self {
         self.request.headers = headers;
+        self
+    }
+
+    /// Adds a header hook to the initial GET and every reconnect GET.
+    ///
+    /// Client hooks run first, followed by this source's hooks in registration
+    /// order. Hooks run once per GET across its redirects and retries. Each
+    /// reconnect starts with fresh headers and the current managed event ID.
+    /// Hooks cannot append, replace, or remove `Last-Event-ID`.
+    ///
+    /// A hook failure ends the source without another reconnect. Its
+    /// [`SseError`] retains the request error with kind
+    /// [`crate::RequestErrorKind::HeaderHook`]. See [`Self::async_header_hook`]
+    /// for asynchronous work.
+    pub fn header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: Fn(&mut crate::HeaderHookContext<'_>) -> Result<(), crate::HeaderHookError>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.request.header_hooks.push(HeaderHook::new(hook));
+        self
+    }
+
+    /// Adds an awaited header hook to each GET, after earlier source hooks.
+    ///
+    /// Ordering and managed headers follow [`Self::header_hook`]. The total
+    /// deadline for each GET starts before its first asynchronous hook and
+    /// ends at its response head. Dropping a pending initial connect drops its
+    /// hook future. Cancelling a read preserves an in-flight reconnect and its
+    /// hook; dropping the source cancels both.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// let response = client
+    ///     .event_source(phantom::HttpProtocol::Http1, "https://example.com/events")?
+    ///     .async_header_hook(|headers| Box::pin(async move {
+    ///         tokio::task::yield_now().await;
+    ///         headers.set(phantom::RequestHeader::new("X-Session", "current"))
+    ///     }))
+    ///     .connect()
+    ///     .await?;
+    /// # drop(response);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn async_header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: for<'a, 'context> Fn(
+                &'a mut crate::HeaderHookContext<'context>,
+            ) -> Pin<
+                Box<dyn Future<Output = Result<(), crate::HeaderHookError>> + Send + 'a>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.request.header_hooks.push(HeaderHook::new_async(hook));
+        self
+    }
+
+    /// Skips client header hooks and clears this source's header hooks.
+    ///
+    /// Hooks added after this call still run on each GET. Other client defaults
+    /// and shared session state are retained.
+    pub fn without_header_hooks(mut self) -> Self {
+        self.request.client_header_hooks = false;
+        self.request.header_hooks.clear();
         self
     }
 
@@ -422,6 +494,8 @@ pub(super) struct SseRequest {
     pub(super) protocol: HttpProtocol,
     uri: Box<str>,
     headers: Vec<SseHeader>,
+    header_hooks: Vec<HeaderHook>,
+    client_header_hooks: bool,
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
 }
@@ -490,6 +564,10 @@ impl SseRequest {
             .headers(headers)
             .protect_event_source_headers()
             .without_response_body_timeouts();
+        if !self.client_header_hooks {
+            request = request.without_header_hooks();
+        }
+        request = request.extend_header_hooks(&self.header_hooks);
         if let Some(timeouts) = self.timeouts {
             request = request.timeouts(timeouts);
         }
