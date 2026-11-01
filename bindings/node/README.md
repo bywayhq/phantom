@@ -490,7 +490,8 @@ error codes with `kind` and, for core entry validation, zero-based `entryIndex`.
 Use `await receiver.importSessionTickets(await source.exportSessionTickets(key),
 key, {receivingRoutes: [{route: 'direct'}]})` for encrypted ticket-only transfer.
 Use a random 32-byte key kept separately; snapshots admit at most 16 MiB and
-receiving routes at most 256 entries. Export does not consume source tickets.
+receiving routes at most 256 entries and 64 KiB of aggregate UTF-8 proxy URI,
+credential and SOCKS4 user-ID text. Export does not consume source tickets.
 The selected client default route and live owners are considered implicitly;
 supply additional request-only routes through `receivingRoutes`.
 Authentication, expiry, profile, route, protocol and certificate-policy checks
@@ -507,7 +508,8 @@ Use `const bytes = await client.exportSession(key)` with a random 32-byte key;
 keep the key separately. `await client.restoreSession(bytes, key)` returns
 independent state and pools without changing the receiving client. Checkpoints
 are limited to 32 MiB. Optional `receivingRoutes` validate request-only ticket
-routes; profile, trust and default route must match. Cookies, direct Alt-Svc and
+routes, with the same 256-entry/64-KiB text bound; profile, trust and default
+route must match. Cookies, direct Alt-Svc and
 TLS tickets use core persistence rules; this is not serialized configuration.
 CPU work runs off the event loop and is not abortable.
 

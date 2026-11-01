@@ -178,7 +178,7 @@ async function openEventSource(client, owner, input, options, defaults) {
     minimumRetryMs: fields.minimumRetryMs === undefined ? undefined : delay(fields.minimumRetryMs, 'minimumRetryMs'),
     maximumReconnects: integer(fields.maximumReconnects === undefined ? 3 : fields.maximumReconnects, 'maximumReconnects'),
     timeouts: phaseTimeouts(timeoutFields),
-    route: fields.route === undefined ? undefined : receivingRoutes({receivingRoutes: [fields.route]})[0],
+    route: fields.route === undefined ? undefined : receivingRoutes({receivingRoutes: [fields.route]}, 'InputLimit')[0],
   };
   /** @type {NativeSource} */
   const source = new native.NativeEventSource();

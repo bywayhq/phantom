@@ -154,3 +154,38 @@ test('ticket-only facade uses installed owner and exact receiving routes with bo
   await assert.rejects(client.importSessionTickets(ciphertext, key, {receivingRoutes: [{route: 'direct', proxy: 'http://private'}]}));
   assert.equal(calls, 2);
 });
+
+
+test('receiving-route UTF-8 limits reject giant and aggregate aliased fields before either native import', async () => {
+  const {Client, calls, owner} = facade(), client = new Client({profile: 'exact', route: 'direct'});
+  owner.importSessionTickets = async () => calls.push(['tickets']);
+  const route = {route: 'proxy', proxy: 'http://proxy.test', proxyUsername: 'user', proxyPassword: 'password'};
+  const shared = 'x'.repeat(33000);
+  const inputs = [
+    [{...route, proxy: 'x'.repeat(65537)}],
+    [{...route, proxyUsername: 'x'.repeat(65537)}],
+    [{...route, proxyPassword: 'x'.repeat(65537)}],
+    [{route: 'proxy', proxy: 'socks4://proxy.test', proxyUserId: 'x'.repeat(65537)}],
+    [{...route, proxyUsername: shared, proxyPassword: shared}],
+    [{...route, proxyPassword: shared}, {...route, proxyPassword: shared}],
+    [{...route, proxyPassword: '\u00e9'.repeat(32768)}],
+  ];
+  for (const receivingRoutes of inputs) {
+    await assert.rejects(client.restoreSession(Buffer.alloc(0), key, {receivingRoutes}),
+      (error) => error.code === 'SessionSnapshot' && error.kind === 'too_large');
+    await assert.rejects(client.importSessionTickets(Buffer.alloc(0), key, {receivingRoutes}),
+      (error) => error.code === 'SessionTickets' && error.kind === 'too_large');
+  }
+  assert.equal(calls.length, 1);
+});
+
+test('receiving-route text budget admits the exact shared limit and preserves SOCKS4 IDs', async () => {
+  const {Client, calls, owner} = facade(), client = new Client({profile: 'exact', route: 'direct'});
+  const proxy = 'http://proxy.test', proxyUsername = 'user';
+  const route = {route: 'proxy', proxy, proxyUsername, proxyPassword: 'x'.repeat(65536 - Buffer.byteLength(proxy) - Buffer.byteLength(proxyUsername))};
+  await client.restoreSession(Buffer.alloc(0), key, {receivingRoutes: [route]});
+  assert.equal(Buffer.byteLength(calls.at(-1)[4][0].proxyPassword) + Buffer.byteLength(proxy) + Buffer.byteLength(proxyUsername), 65536);
+  owner.importSessionTickets = async (_, __, routes) => calls.push(['tickets', routes]);
+  await client.importSessionTickets(Buffer.alloc(0), key, {receivingRoutes: [{route: 'direct'}, {route: 'proxy', proxy: 'socks4://proxy.test', proxyUserId: 'caller-id'}]});
+  assert.deepEqual(calls.at(-1)[1].map((entry) => ({...entry})), [{route: 'direct'}, {route: 'proxy', proxy: 'socks4://proxy.test', proxyUserId: 'caller-id'}]);
+});

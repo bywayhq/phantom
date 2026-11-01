@@ -267,7 +267,10 @@ export interface SessionSharing {
 export type SessionRoute = Readonly<{route: 'direct'}> | Readonly<{
   route: 'proxy'; proxy: string; proxyUsername?: string; proxyPassword?: string; proxyUserId?: string;
 }>;
-export interface RestoreSessionOptions { readonly receivingRoutes?: readonly SessionRoute[]; }
+export interface RestoreSessionOptions {
+  /** Request-only routes; at most 256 entries and 64 KiB aggregate UTF-8 proxy/credential/user-ID text. */
+  readonly receivingRoutes?: readonly SessionRoute[];
+}
 /** Caller-owned backend. Bound reads to 32 MiB before collecting bytes; null only means absence.
  * Honor signal and own admission, ordering and durability. Accepted writes cannot be rolled back. */
 export interface SessionStore {
@@ -566,7 +569,7 @@ export class Client {
   importAltSvc(entries: readonly AltSvcSnapshotEntry[]): void;
   /** Encrypted ticket-only state, at most 16 MiB, using a 32-byte key. Non-consuming; CPU work is not abortable. */
   exportSessionTickets(key: Uint8Array): Promise<Buffer>;
-  /** Authenticates before mutation. Receiving routes select compatible owners, not routing; CPU work is not abortable. */
+  /** Authenticates before mutation. Receiving routes select compatible owners, not routing; at most 256 routes/64 KiB UTF-8 text. CPU work is not abortable. */
   importSessionTickets(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<void>;
   /** Restores independent pools using this client's configuration; leaves this client unchanged. */
   restoreSession(snapshot: Uint8Array, key: Uint8Array, options?: RestoreSessionOptions): Promise<Client>;

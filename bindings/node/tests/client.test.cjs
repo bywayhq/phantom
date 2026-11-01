@@ -730,6 +730,22 @@ test('direct native state and byte inputs enforce typed bounds and owned backing
     assert.throws(() => client.exportSessionTickets(input), /PHANTOM:InvalidArgument:/);
   }
   assert.throws(() => client.importSessionTickets(Buffer.alloc(16 * 1024 * 1024 + 1), Buffer.alloc(32), []), /PHANTOM_STATE:SessionTickets:too_large:/);
+  const oversizedRoute = {route: 'proxy', proxy: 'http://127.0.0.1:80', proxyUsername: 'user', proxyPassword: 'x'.repeat(65537)};
+  const alias = 'x'.repeat(33000);
+  const oversizedRoutes = [
+    Array(257).fill({route: 'direct'}),
+    [oversizedRoute],
+    [{...oversizedRoute, proxy: 'x'.repeat(65537), proxyPassword: ''}],
+    [{...oversizedRoute, proxyUsername: 'x'.repeat(65537), proxyPassword: ''}],
+    [{route: 'proxy', proxy: 'socks4://127.0.0.1:80', proxyUserId: 'x'.repeat(65537)}],
+    [{...oversizedRoute, proxyUsername: alias, proxyPassword: alias}],
+    [{...oversizedRoute, proxyPassword: alias}, {...oversizedRoute, proxyPassword: alias}],
+    [{...oversizedRoute, proxyPassword: '\u00e9'.repeat(32768)}],
+  ];
+  for (const routes of oversizedRoutes) {
+    assert.throws(() => client.importSessionTickets(Buffer.alloc(0), Buffer.alloc(32), routes), /PHANTOM_STATE:SessionTickets:too_large:/);
+    assert.throws(() => environment.restoreSession(client, Buffer.alloc(0), Buffer.alloc(32), routes), /PHANTOM_SNAPSHOT:too_large:/);
+  }
   const options = {url: 'http://127.0.0.1', ...request};
   const submit = (overrides) => client.request({...options, ...overrides}, new native.NativeCancellation());
   assert.throws(() => submit({body: shared}), /PHANTOM:InvalidArgument:/);
