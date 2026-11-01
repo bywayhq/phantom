@@ -62,6 +62,11 @@ func TestStateTransferNativeRealTicketsResumeReceiverWithoutConsumingSource(t *t
 	if err := receiver.ImportSessionTickets(ctx, ciphertext, key, nil); err != nil {
 		t.Fatal(err)
 	}
+	wrong := [32]byte{43}
+	var failure *StateTransferError
+	if err := receiver.ImportSessionTickets(ctx, ciphertext, wrong, nil); !errors.As(err, &failure) || failure.Kind != "session_ticket_authentication" {
+		t.Fatalf("live cache authentication: %v", err)
+	}
 	request(receiver, "true")
 	request(source, "true")
 }
