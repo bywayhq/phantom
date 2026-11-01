@@ -27,6 +27,7 @@ type completion struct {
 	eof       bool
 	trailers  ResponseTrailers
 	part      uint64
+	header    *headerCall
 }
 
 var scratch = sync.Pool{New: func() any { return make([]byte, maxMetadata) }}
@@ -79,10 +80,11 @@ func control(kind string, idName string, id uint64) error {
 }
 
 var pump struct {
-	once    sync.Once
-	mu      sync.Mutex
-	pending map[uint64]chan completion
-	failure error
+	once          sync.Once
+	mu            sync.Mutex
+	pending       map[uint64]chan completion
+	headerCancels map[uint64]context.CancelFunc
+	failure       error
 }
 
 func completionPump() {
@@ -93,17 +95,27 @@ func completionPump() {
 	for {
 		var native native.Event
 		err := nativeWaitEvent(&native, fields, hops, arena, data)
+		headerDelivered := err == nil && native.Kind == 6
 		var event completion
 		if err == nil {
 			event, err = eventCompletion(native, fields, hops, arena, data)
 		}
 		if err != nil {
+			if headerDelivered {
+				// Projection failed before this invocation reached its calling goroutine.
+				_ = replyHeaderCall(native.Operation, native.Part, 2, nil)
+			}
 			pump.mu.Lock()
 			pump.failure = err
 			pending := pump.pending
 			pump.pending = make(map[uint64]chan completion)
+			cancels := pump.headerCancels
+			pump.headerCancels = nil
 			pump.mu.Unlock()
 			for id, channel := range pending {
+				if cancel := cancels[id]; cancel != nil {
+					cancel()
+				}
 				_ = control("cancel", "operation", id)
 				channel <- completion{Error: &Error{Kind: "native_abi", cause: err}}
 			}
@@ -111,8 +123,16 @@ func completionPump() {
 		}
 		pump.mu.Lock()
 		channel := pump.pending[event.Operation]
-		delete(pump.pending, event.Operation)
+		var cancel context.CancelFunc
+		if event.kind != 6 {
+			delete(pump.pending, event.Operation)
+			cancel = pump.headerCancels[event.Operation]
+			delete(pump.headerCancels, event.Operation)
+		}
 		pump.mu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
 		if channel != nil {
 			channel <- event
 			if event.kind == 1 || event.kind == 4 {
@@ -120,6 +140,10 @@ func completionPump() {
 				runtime.Gosched()
 			}
 		} else {
+			if event.header != nil {
+				// No caller can take custody of an unregistered invocation.
+				_ = replyHeaderCall(event.Operation, event.header.ticket, 2, nil)
+			}
 			_ = control("cancel", "operation", event.Operation)
 		}
 	}
@@ -147,6 +171,10 @@ func performStarted(ctx context.Context, command any, data []byte, started func(
 }
 
 func performSubmitted(ctx context.Context, submit func() (uint64, error), started func(), accept func(completion) error) error {
+	return performSubmittedWithHooks(ctx, submit, started, accept, nil)
+}
+
+func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error), started func(), accept func(completion) error, hooks *headerHooks) error {
 	if ctx == nil {
 		return &Error{Kind: "invalid_context"}
 	}
@@ -177,10 +205,25 @@ func performSubmitted(ctx context.Context, submit func() (uint64, error), starte
 		pump.mu.Unlock()
 		return &Error{Kind: "native_abi"}
 	}
-	channel := make(chan completion, 1)
+	capacity := 1
+	if hooks != nil {
+		capacity = 2
+	}
+	channel := make(chan completion, capacity)
 	pump.pending[operation] = channel
+	if hooks != nil {
+		if pump.headerCancels == nil {
+			pump.headerCancels = make(map[uint64]context.CancelFunc)
+		}
+		pump.headerCancels[operation] = hooks.cancel
+	}
 	pump.mu.Unlock()
 	cancel := func() {
+		if hooks != nil {
+			hooks.cancel()
+			cancelHeaderRequest(operation)
+			return
+		}
 		pump.mu.Lock()
 		delete(pump.pending, operation)
 		pump.mu.Unlock()
@@ -188,31 +231,67 @@ func performSubmitted(ctx context.Context, submit func() (uint64, error), starte
 	}
 	stop := context.AfterFunc(ctx, cancel)
 	defer stop()
+	if hooks != nil {
+		defer func() {
+			pump.mu.Lock()
+			delete(pump.pending, operation)
+			delete(pump.headerCancels, operation)
+			pump.mu.Unlock()
+			// Also reclaim custody if user code panics before terminal acknowledgement.
+			_ = control("cancel", "operation", operation)
+		}()
+	}
 	if started != nil {
 		started()
 	}
-	select {
-	case <-ctx.Done():
-		cancel()
-		return ctx.Err()
-	case event := <-channel:
-		stop()
-		if err := ctx.Err(); err != nil {
+	done := ctx.Done()
+	var hookFailure error
+	for {
+		select {
+		case <-done:
 			cancel()
-			return err
+			if hooks == nil {
+				return ctx.Err()
+			}
+			done = nil
+		case event := <-channel:
+			if event.kind == 6 {
+				if hooks == nil {
+					cancel()
+					return &Error{Kind: "native_abi"}
+				}
+				if err := hooks.invoke(operation, event.header); err != nil {
+					hookFailure = err
+					cancelHeaderRequest(operation)
+				}
+				continue
+			}
+			stop()
+			if err := ctx.Err(); err != nil {
+				if hooks != nil {
+					_ = control("ack", "operation", operation)
+				} else {
+					cancel()
+				}
+				return err
+			}
+			if hookFailure != nil {
+				_ = control("ack", "operation", operation)
+				return hookFailure
+			}
+			if event.Error != nil {
+				_ = control("ack", "operation", operation)
+				return event.Error
+			}
+			if err := accept(event); err != nil {
+				cancel()
+				return err
+			}
+			if err := ctx.Err(); err != nil {
+				cancel()
+				return err
+			}
+			return control("ack", "operation", operation)
 		}
-		if event.Error != nil {
-			_ = control("ack", "operation", operation)
-			return event.Error
-		}
-		if err := accept(event); err != nil {
-			cancel()
-			return err
-		}
-		if err := ctx.Err(); err != nil {
-			cancel()
-			return err
-		}
-		return control("ack", "operation", operation)
 	}
 }

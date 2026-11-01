@@ -26,5 +26,9 @@ func (c *Client) Fork(sharing SessionSharing) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return clientFromReply(value)
+	client, err := clientFromReply(value)
+	if err == nil {
+		client.headerHooks = c.headerHooks
+	}
+	return client, err
 }

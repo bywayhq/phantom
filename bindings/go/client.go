@@ -12,7 +12,10 @@ import (
 // Config selects one named or caller-owned profile and an explicit protocol.
 // Context is raw/empty, profile, or an available named catalog context.
 type Config struct {
-	Profile string
+	// HeaderHooks edit ordered caller fields on ordinary Do requests only.
+	// New snapshots this list. Hooks must honor cancellation and may run concurrently.
+	HeaderHooks []HeaderHook
+	Profile     string
 	// ProfileSettings selects immutable settings instead of Profile. Supply exactly one.
 	ProfileSettings *Profile
 	Protocol        string
@@ -65,12 +68,17 @@ func (ProxyCredentials) GoString() string { return "[redacted]" }
 
 // Client reuses native connection pools and cookies. It is safe for concurrent use.
 type Client struct {
-	id      atomic.Uint64
-	closing atomic.Bool
+	id          atomic.Uint64
+	closing     atomic.Bool
+	headerHooks []HeaderHook
 }
 
 // New creates a client. It performs no request and ignores proxy environment variables.
 func New(config Config) (*Client, error) {
+	hooks, err := snapshotHeaderHooks(config.HeaderHooks, nil)
+	if err != nil {
+		return nil, err
+	}
 	pool, err := poolWire(config.Pool)
 	if err != nil {
 		return nil, err
@@ -179,7 +187,11 @@ func New(config Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return clientFromReply(value)
+	client, err := clientFromReply(value)
+	if err == nil && hooks != nil {
+		client.headerHooks = hooks
+	}
+	return client, err
 }
 
 func clientFromReply(value json.RawMessage) (*Client, error) {

@@ -78,3 +78,20 @@ uint64_t phantom_go_event_source_version(void);
 uint64_t phantom_go_event_source_open(const struct phantom_go_event_source_opening *, struct phantom_go_reply *);
 uint64_t phantom_go_event_source_operation(uint64_t, uint64_t, struct phantom_go_reply *);
 uint64_t phantom_go_event_source_result(uint64_t, struct phantom_go_event_source_result *, uint8_t *, size_t);
+/* Optional header-hook ABI 1, ordinary HTTP requests only. Negotiate all five
+ * symbols before admission. request borrows the unchanged request/body layout
+ * and registers 1..256 ordered hooks. Completion kind 6 is intermediate: its
+ * part is a single-use ticket, not terminal delivery. copy uses the ordinary
+ * field/arena capacities and returns owned offsets. reply borrows <=256 edits
+ * (kind 1 append, 2 set, 3 remove), <=64 KiB total name/value bytes. Outcome
+ * 0 applies edits; 1 fails; 2 discards. cancel signals without abandoning the
+ * terminal completion. Host custody lasts until reply, even after cancellation;
+ * ack and shutdown cannot release it early. No Go pointer survives a call.
+ */
+struct phantom_go_header_hook_invocation;
+struct phantom_go_header_hook_edit;
+uint64_t phantom_go_header_hook_version(void);
+uint64_t phantom_go_header_hook_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, struct phantom_go_reply *);
+uint64_t phantom_go_header_hook_copy(uint64_t, uint64_t, struct phantom_go_header_hook_invocation *, struct phantom_go_field *, size_t, uint8_t *, size_t);
+uint64_t phantom_go_header_hook_reply(uint64_t, uint64_t, uint64_t, const struct phantom_go_header_hook_edit *, size_t, struct phantom_go_reply *);
+uint64_t phantom_go_header_hook_cancel(uint64_t, struct phantom_go_reply *);

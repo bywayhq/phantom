@@ -11,6 +11,8 @@
   original JavaScript errors.
 - Python awaits ordered client and per-request header hooks during ordinary HTTP
   preparation, preserving callback exceptions and cancellation ownership.
+- Go adds ordered client and request header hooks for ordinary HTTP requests,
+  with cancellation, total deadlines and original callback errors.
 - Save and load encrypted session checkpoints through caller-owned Python,
   Go and Node storage backends with bounded reads and operation deadlines.
 - Python, Go and Node can override the route for each WebSocket opening while
