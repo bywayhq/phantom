@@ -16,5 +16,6 @@ mod prepared_body;
 mod profile;
 mod retry;
 mod session;
+mod state_transfer;
 mod timeouts;
 mod upload;

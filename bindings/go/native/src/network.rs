@@ -20,6 +20,7 @@ pub(super) struct NetworkOptions {
     public_only: bool,
     dns: Option<crate::dns::Dns>,
     disable_dns_cache: bool,
+    max_alt_svc_origins: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -67,6 +68,11 @@ impl NetworkOptions {
         }
         let resolver = self.dns.map(|dns| dns.build(&profile)).transpose()?;
         let mut builder = Client::builder(profile);
+        if let Some(maximum) = self.max_alt_svc_origins {
+            let maximum = std::num::NonZeroUsize::new(maximum)
+                .ok_or_else(|| Failure::new("invalid_alt_svc_capacity"))?;
+            builder = builder.alt_svc(maximum);
+        }
         if let Some(resolver) = resolver {
             builder = builder.dns_resolver(resolver);
         }

@@ -34,6 +34,9 @@ type NetworkOptions struct {
 	// DisableDNSCache resolves each new connection without an address cache.
 	// False retains the profile's caching policy, including encrypted DNS TTLs.
 	DisableDNSCache bool
+	// MaxAltSvcOrigins enables learned HTTP/3 alternatives with this positive
+	// origin capacity. Zero leaves discovery disabled.
+	MaxAltSvcOrigins int
 }
 
 func (NetworkOptions) String() string   { return "phantom.NetworkOptions([redacted])" }
@@ -48,13 +51,14 @@ type HostOverride struct {
 }
 
 type wireNetworkOptions struct {
-	PublicOnly      bool               `json:"public_only,omitempty"`
-	HostOverrides   []wireHostOverride `json:"host_overrides,omitempty"`
-	LocalAddresses  []netip.Addr       `json:"local_addresses,omitempty"`
-	Interface       string             `json:"interface,omitempty"`
-	UnixSocket      *string            `json:"unix_socket,omitempty"`
-	DNS             *wireDNS           `json:"dns,omitempty"`
-	DisableDNSCache bool               `json:"disable_dns_cache,omitempty"`
+	PublicOnly       bool               `json:"public_only,omitempty"`
+	HostOverrides    []wireHostOverride `json:"host_overrides,omitempty"`
+	LocalAddresses   []netip.Addr       `json:"local_addresses,omitempty"`
+	Interface        string             `json:"interface,omitempty"`
+	UnixSocket       *string            `json:"unix_socket,omitempty"`
+	DNS              *wireDNS           `json:"dns,omitempty"`
+	DisableDNSCache  bool               `json:"disable_dns_cache,omitempty"`
+	MaxAltSvcOrigins int                `json:"max_alt_svc_origins,omitempty"`
 }
 
 type wireHostOverride struct {
@@ -66,6 +70,9 @@ type wireHostOverride struct {
 func networkInputSize(input *NetworkOptions) (int, error) {
 	if input == nil {
 		return 0, nil
+	}
+	if input.MaxAltSvcOrigins < 0 {
+		return 0, &Error{Kind: "invalid_alt_svc_capacity"}
 	}
 	entries := len(input.HostOverrides)
 	if entries > 1024 || len(input.LocalAddresses) > 1024-entries {
@@ -138,7 +145,8 @@ func networkWire(input *NetworkOptions) *wireNetworkOptions {
 	result := &wireNetworkOptions{Interface: input.Interface, PublicOnly: input.PublicOnly,
 		LocalAddresses: slices.Clone(input.LocalAddresses),
 		HostOverrides:  make([]wireHostOverride, len(input.HostOverrides)),
-		DNS:            dnsWire(input.DNS), DisableDNSCache: input.DisableDNSCache}
+		DNS:            dnsWire(input.DNS), DisableDNSCache: input.DisableDNSCache,
+		MaxAltSvcOrigins: input.MaxAltSvcOrigins}
 	if input.UnixSocket != nil {
 		path := strings.Clone(*input.UnixSocket)
 		result.UnixSocket = &path

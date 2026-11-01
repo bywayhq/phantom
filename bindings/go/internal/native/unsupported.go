@@ -2,6 +2,12 @@
 
 package native
 
+func LoadStateTransfer() error                         { return &Failure{Kind: "unsupported_platform"} }
+func SubmitStateTransfer(*StateTransfer, *Reply) error { return &Failure{Kind: "unsupported_platform"} }
+func StateTransferCopy(uint64, *StateResult, []StateCookie, []StateAlternative, []byte) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+
 func LoadHeaderHooks() error { return &Failure{Kind: "unsupported_platform"} }
 func HeaderHookRequest(*Request, []byte, uint64, *Reply) error {
 	return &Failure{Kind: "unsupported_platform"}

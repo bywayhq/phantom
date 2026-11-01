@@ -95,3 +95,18 @@ uint64_t phantom_go_header_hook_request(const struct phantom_go_request *, const
 uint64_t phantom_go_header_hook_copy(uint64_t, uint64_t, struct phantom_go_header_hook_invocation *, struct phantom_go_field *, size_t, uint8_t *, size_t);
 uint64_t phantom_go_header_hook_reply(uint64_t, uint64_t, uint64_t, const struct phantom_go_header_hook_edit *, size_t, struct phantom_go_reply *);
 uint64_t phantom_go_header_hook_cancel(uint64_t, struct phantom_go_reply *);
+/* Optional state-transfer ABI 1. Negotiate all three symbols before admission.
+ * Cookie/Alt-Svc rows use UTF-8 offsets into a separate <=32 MiB arena, with
+ * <=16384 cookies or <=32768 alternatives. Expiry is signed Unix seconds plus
+ * nanoseconds. Tickets are opaque <=16 MiB and require an exact 32-byte key.
+ * Import accepts <=256 receiving routes, sharing 64 KiB of route text.
+ * Input pointers are borrowed only during submit. Result probes/copies precede
+ * ack; cancellation drops late results after the blocking work actually exits.
+ */
+struct phantom_go_state_transfer;
+struct phantom_go_state_result;
+struct phantom_go_state_cookie;
+struct phantom_go_state_alternative;
+uint64_t phantom_go_state_transfer_version(void);
+uint64_t phantom_go_state_transfer_submit(const struct phantom_go_state_transfer *, struct phantom_go_reply *);
+uint64_t phantom_go_state_transfer_result(uint64_t, struct phantom_go_state_result *, struct phantom_go_state_cookie *, size_t, struct phantom_go_state_alternative *, size_t, uint8_t *, size_t);
