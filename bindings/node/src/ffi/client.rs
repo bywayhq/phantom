@@ -130,6 +130,8 @@ impl NativeClient {
             routes,
             super::state_transfer::RouteTransfer::Tickets,
         )?;
+        // Native data-property reads can reenter JS and close this client.
+        self.state.check_open()?;
         let permit = Arc::clone(&self.state.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;

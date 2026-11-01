@@ -747,6 +747,10 @@ test('direct native state and byte inputs enforce typed bounds and owned backing
     assert.throws(() => environment.restoreSession(client, Buffer.alloc(0), Buffer.alloc(32), routes), /PHANTOM_SNAPSHOT:too_large:/);
   }
   const options = {url: 'http://127.0.0.1', ...request};
+  const reentrant = environment.client({profile, route: 'direct'});
+  t.after(() => reentrant.close(5000));
+  const closingRoute = {get route() { reentrant.destroy(); return 'direct'; }};
+  assert.throws(() => reentrant.importSessionTickets(Buffer.alloc(0), Buffer.alloc(32), [closingRoute]), /PHANTOM:ClientClosed:/);
   const submit = (overrides) => client.request({...options, ...overrides}, new native.NativeCancellation());
   assert.throws(() => submit({body: shared}), /PHANTOM:InvalidArgument:/);
   assert.throws(() => submit({headers: [{name: 'x-shared', value: shared}]}), /PHANTOM:InvalidArgument:/);
