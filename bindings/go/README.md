@@ -326,6 +326,24 @@ Cookies are enabled unless `DisableCookies` is set. Use `SetCookie`,
 `CookiesForURL` and `ClearCookies`. Matching uses top-level navigation semantics,
 independently of the header template.
 
+Use `ExportCookies(ctx)` / `ImportCookies(ctx, snapshot)` for typed cookie
+entries, or `ExportAltSvc(ctx)` / `ImportAltSvc(ctx, snapshot)` for direct-route
+HTTP/3 alternatives. Snapshots distinguish disabled stores from enabled empty
+ones. Enable alternatives with `NetworkOptions.MaxAltSvcOrigins`.
+Imports validate every entry before merging; existing state takes precedence.
+Cookie order and attributes survive. Exports round expiry down to whole seconds.
+`StateTransferError` identifies the category and rejected entry when available.
+Keep cookie snapshots private: they contain credentials.
+
+`ExportSessionTickets(ctx, key)` and
+`ImportSessionTickets(ctx, bytes, key, receivingRoutes)` transfer encrypted TLS
+state alone. The random `[32]byte` key stays separate from the ciphertext.
+The receiving client checks profile, trust, route and expiry before import.
+These calls use native blocking workers. Cancellation discards late results;
+it cannot roll back an import that already committed. Shutdown waits for actual
+work completion. Transfers allow 16,384 cookies, 32,768 alternatives and 32 MiB
+of text; encrypted tickets allow 16 MiB.
+
 `ExportSession(ctx, key)` returns encrypted checkpoint bytes; `key` is a secret
 random `[32]byte`. `RestoreSession(ctx, bytes, key, receivingRoutes)` returns
 independent pools using the receiver's compatible settings, never changing it.

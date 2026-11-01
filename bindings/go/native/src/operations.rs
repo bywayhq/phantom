@@ -28,6 +28,7 @@ pub(crate) mod event_source;
 mod response;
 pub(super) mod session;
 pub(crate) mod sse;
+pub(crate) mod state_transfer;
 pub(crate) mod trailers;
 mod transfer;
 pub(crate) mod websocket;
@@ -265,6 +266,7 @@ enum Target {
     UploadWait(u64),
     UploadPart(u64),
     Session(u64),
+    StateTransfer(u64),
 }
 struct Operation {
     target: Target,
@@ -275,6 +277,7 @@ struct Operation {
     reserved_response: Option<u64>,
     response: Option<u64>,
     snapshot: Option<phantom::SessionSnapshot>,
+    state_transfer: Option<std::sync::Arc<crate::state_transfer::ResultData>>,
     event: Option<std::sync::Arc<sse::Read>>,
     websocket: Option<std::sync::Arc<websocket::ResultData>>,
     socket: Option<u64>,
@@ -591,6 +594,7 @@ impl State {
                 reserved_response,
                 response: None,
                 snapshot: None,
+                state_transfer: None,
                 event: None,
                 websocket: None,
                 socket: None,
@@ -662,6 +666,7 @@ impl State {
                 | Target::Shutdown(owner)
                 | Target::Maintenance(owner)
                 | Target::Session(owner)
+                | Target::StateTransfer(owner)
                     if owner == client =>
                 {
                     Some(*id)
@@ -766,6 +771,7 @@ enum Outcome {
     Event(sse::Read),
     WebSocket(websocket::Finished),
     EventSource(event_source::Finished),
+    StateTransfer(crate::state_transfer::ResultData),
 }
 
 impl Global {
@@ -802,6 +808,7 @@ impl Global {
                 operation.response = None;
                 operation.reserved_response = None;
                 operation.snapshot = None;
+                operation.state_transfer = None;
                 operation.event = None;
                 operation.websocket = None;
                 operation.socket = None;
@@ -917,6 +924,7 @@ impl Global {
                             Target::Request(owner)
                             | Target::WebSocketOpen(owner)
                             | Target::EventSourceOpen(owner) => owner == client,
+                            Target::StateTransfer(owner) => owner == client,
                             Target::Shutdown(owner) => owner == client && operation.abandoned,
                             _ => false,
                         }
@@ -973,6 +981,12 @@ impl Global {
         let reserved_response = operation.reserved_response.take();
         let mut data = Bytes::new();
         let result = match result {
+            Ok(Outcome::StateTransfer(result)) => {
+                if let Some(operation) = state.operations.get_mut(&id) {
+                    operation.state_transfer = Some(std::sync::Arc::new(result));
+                }
+                Ok(Completed::Complete)
+            }
             Ok(Outcome::EventSource(finished)) => {
                 event_source::finish(&mut state, id, reserved_response, finished)
             }
@@ -1986,6 +2000,7 @@ mod tests {
     mod response_info;
     mod session_sharing;
     mod sse;
+    mod state_transfer;
     mod uploads;
     mod websocket;
 

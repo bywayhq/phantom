@@ -16,6 +16,7 @@ use std::{
 mod event_source;
 mod header_hook;
 mod sse;
+mod state_transfer;
 mod websocket;
 
 #[repr(C)]
