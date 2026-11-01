@@ -176,10 +176,9 @@ fn error_phase_cannot_replace_a_cancelled_callback_before_host_handback() -> Res
         drop(request);
         let mut error =
             Box::pin(global.logical_hook(operation, invocation(4, Some(Failure::new("timeout")))));
-        assert!(matches!(
-            error.as_mut().poll(&mut context),
-            std::task::Poll::Ready(Err(_))
-        ));
+        assert!(error.as_mut().poll(&mut context).is_pending());
+        // The core deadline drops this pending error phase without inventing a
+        // callback failure for host code that never ran.
         drop(error);
         {
             let state = global.lock();
@@ -209,6 +208,48 @@ fn error_phase_cannot_replace_a_cancelled_callback_before_host_handback() -> Res
         tokio::time::timeout(std::time::Duration::from_secs(5), shutdown)
             .await
             .map_err(|_| Failure::new("test_shutdown_stalled"))??;
+        Ok(())
+    })
+}
+
+#[test]
+fn logical_error_phase_resumes_after_actual_host_handback() -> Result<(), Failure> {
+    let global = test_global()?;
+    let operation = global.lock().reserve(Target::Request(1))?.0;
+
+    global.runtime.block_on(async {
+        let invocation = |phase, error| super::super::logical_hooks::Invocation {
+            phase,
+            cause_operation: 0,
+            method: "GET".into(),
+            uri: "http://127.0.0.1/".into(),
+            response: None,
+            error,
+        };
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        let mut request = Box::pin(global.logical_hook(operation, invocation(1, None)));
+        assert!(request.as_mut().poll(&mut context).is_pending());
+        let ticket = match global.wait()?.result? {
+            Completed::LogicalHook(ticket) => ticket,
+            _ => return Err(Failure::new("test_missing_callback")),
+        };
+        drop(request);
+
+        let mut error =
+            Box::pin(global.logical_hook(operation, invocation(4, Some(Failure::new("timeout")))));
+        assert!(error.as_mut().poll(&mut context).is_pending());
+        global.reply_callback(operation, ticket, 2, CallbackReply::Logical)?;
+        assert!(error.as_mut().poll(&mut context).is_pending());
+        let next = match global.wait()?.result? {
+            Completed::LogicalHook(ticket) => ticket,
+            _ => return Err(Failure::new("test_missing_error_callback")),
+        };
+        assert_ne!(next, ticket);
+        global.reply_callback(operation, next, 0, CallbackReply::Logical)?;
+        assert!(matches!(
+            error.as_mut().poll(&mut context),
+            std::task::Poll::Ready(Ok(()))
+        ));
         Ok(())
     })
 }

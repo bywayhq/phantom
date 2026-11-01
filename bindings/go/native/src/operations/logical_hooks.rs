@@ -191,42 +191,46 @@ impl Global {
         invocation: Invocation,
     ) -> Result<(), RequestHookError> {
         let (sender, receiver) = tokio::sync::oneshot::channel();
-        let ticket = {
-            let mut state = self.lock();
-            if state.failed
-                || !state.operations.get(&operation).is_some_and(|op| {
-                    !op.abandoned
-                        && !op.finished
-                        && !op
-                            .callback_call
-                            .as_ref()
-                            .is_some_and(|call| call.host_owned)
-                })
+        let ticket = loop {
+            let settled = self.settled.notified();
+            tokio::pin!(settled);
+            settled.as_mut().enable();
             {
-                // A timed-out phase can leave host code running while the core
-                // starts its error phase. Only actual host handback frees its slot.
-                return Err(failure());
+                let mut state = self.lock();
+                let op = state.operations.get(&operation).ok_or_else(failure)?;
+                if state.failed || op.abandoned || op.finished {
+                    return Err(failure());
+                }
+                if !op
+                    .callback_call
+                    .as_ref()
+                    .is_some_and(|call| call.host_owned)
+                {
+                    let ticket = state.id().map_err(|_| failure())?;
+                    state
+                        .operations
+                        .get_mut(&operation)
+                        .ok_or_else(failure)?
+                        .callback_call = Some(CallbackCall {
+                        ticket,
+                        invocation: CallbackInvocation::Logical(Arc::new(invocation)),
+                        reply: Some(sender),
+                        host_owned: false,
+                    });
+                    state.ready.push_back(Queued {
+                        operation,
+                        completion: Completion {
+                            operation,
+                            result: Ok(Completed::LogicalHook(ticket)),
+                            data: phantom::Bytes::new(),
+                        },
+                    });
+                    break ticket;
+                }
             }
-            let ticket = state.id().map_err(|_| failure())?;
-            state
-                .operations
-                .get_mut(&operation)
-                .ok_or_else(failure)?
-                .callback_call = Some(CallbackCall {
-                ticket,
-                invocation: CallbackInvocation::Logical(Arc::new(invocation)),
-                reply: Some(sender),
-                host_owned: false,
-            });
-            state.ready.push_back(Queued {
-                operation,
-                completion: Completion {
-                    operation,
-                    result: Ok(Completed::LogicalHook(ticket)),
-                    data: phantom::Bytes::new(),
-                },
-            });
-            ticket
+            // A native timeout can start its error phase before host handback.
+            // Keep that phase pending within the core's existing deadline.
+            settled.await;
         };
         self.ready.notify_one();
         let wait = CallbackWait {
