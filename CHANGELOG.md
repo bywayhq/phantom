@@ -6,6 +6,8 @@
   preserve callback errors, attempt limits and unread redirect bodies.
 - Add asynchronous ordered header hooks on clients and requests. Pending hooks
   share the request's total deadline and are cancelled with the send future.
+- Add ordered header hooks to each EventSource GET, with managed event IDs and
+  hooks that share its connection deadline.
 
 ### Bindings
 
