@@ -36,7 +36,7 @@ function client(t, options = {}) {
   return owner;
 }
 
-test('awaited hooks run once in order and sensitive fields stay stripped on cross-origin redirects', {timeout: 30000}, async (t) => {
+test('awaited hooks run once in order and registered credentials stay stripped on cross-origin redirects', {timeout: 30000}, async (t) => {
   const observed = [];
   const destination = await peer(t, (request, response) => {
     observed.push(request.headers); response.end('ok');
@@ -91,7 +91,7 @@ test('total deadlines cancel a pending callback before admitting an HTTP attempt
     context.signal.addEventListener('abort', () => aborted.resolve(), {once: true});
     entered.resolve();
     await aborted.promise;
-    throw new Error('late host failure');
+    context.signal.throwIfAborted();
   }]});
   await entered.promise;
   await assert.rejects(send, {code: 'Timeout', timeoutPhase: 'total'});
