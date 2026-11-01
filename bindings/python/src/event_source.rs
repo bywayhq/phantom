@@ -437,6 +437,12 @@ pub(super) fn connect<'py>(
                 Box::pin(async move { owner.run(index, context, (0, 0)).await })
             });
         }
+        if hooks.logical != 0 {
+            request = request.async_request_hooks(header_hook::LogicalHooks {
+                owner: Arc::clone(&hooks.owner),
+                phases: hooks.logical,
+            });
+        }
         hook_guard.0 = Some(Arc::clone(&hooks.owner));
     }
     let admission = lifecycle.admit("request")?;

@@ -9,7 +9,7 @@ from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
-from . import _header_hooks, _native
+from . import _header_hooks, _native, _request_hooks
 from ._configuration import INHERIT, Header, Proxy, TimeoutOverrides, _Inherit
 from ._errors import Error, TimeoutError, _call, _error, _primary_error
 from ._request import _request_fields
@@ -47,10 +47,12 @@ class _EventSourceBaseOptions(TypedDict, total=False):
 
 class _EventSourceOptions(_EventSourceBaseOptions, total=False):
     header_hooks: Iterable[_header_hooks.AsyncHeaderHook]
+    request_hooks: _request_hooks.RequestHooks | _request_hooks.AsyncRequestHooks | None
 
 
 class _SyncEventSourceOptions(_EventSourceBaseOptions, total=False):
     header_hooks: Iterable[_header_hooks.HeaderHook]
+    request_hooks: _request_hooks.RequestHooks | None
 
 
 class _NativeOptions(TypedDict):
@@ -84,7 +86,9 @@ def _duration(value: float, name: str) -> float:
 def _observe_hook_error(failure: Error, hooks: _header_hooks.Hooks | None) -> None:
     if hooks is None:
         return
-    request = failure if failure.kind == "header_hook" else failure.original
+    request = failure if failure.category == "request" else failure.original
+    if hooks.observers and isinstance(request, Error):
+        hooks.reported(request)
     if (
         isinstance(request, Error)
         and request.kind == "header_hook"
@@ -187,7 +191,7 @@ class AsyncEventSource:
         """Stop and wait for native reads and actual callback cleanup.
 
         A timeout leaves cleanup owned; call aclose again after it can finish.
-        Calling this from the source's own header callback is an error.
+        Calling this from the source's own callback is an error.
         Late callback failures raise Error with the cause in original.
         """
         from ._client import _shutdown_timeout
@@ -216,14 +220,14 @@ class AsyncEventSource:
             raise TimeoutError("request", "shutdown_timeout")
         if self._client is not None:
             self._client._settle_header_hooks(hooks)
-        if (
-            hooks.cleanup_error is not None
-            and self._client is not None
-            and hooks in self._client._header_pumps
-        ):
+        if hooks.cleanup_error is not None and self._client is not None:
             self._client._header_pumps.discard(hooks)
-            failure = Error("request", "header_hook_cleanup")
-            failure.original = hooks.cleanup_error
+            failure = hooks.pending_failure() if hooks.observers else None
+            if failure is None:
+                failure = Error("request", "header_hook_cleanup")
+                failure.original = hooks.cleanup_error
+            hooks.cleanup_error = None
+            hooks.error_hook_failure = None
             raise failure from None
 
     async def __aenter__(self) -> AsyncEventSource:
@@ -330,6 +334,7 @@ class _EventSourceConnect:
         proxy: str | Proxy | None | _Inherit = INHERIT,
         header_hooks: Iterable[_header_hooks.AsyncHeaderHook] = (),
         without_client_hooks: bool = False,
+        request_hooks: _request_hooks.Observers | None = None,
     ) -> None:
         if not isinstance(url, str):
             raise TypeError("EventSource url must be str")
@@ -340,6 +345,12 @@ class _EventSourceConnect:
         if len(inherited) + len(callbacks) > 256:
             raise ValueError("header hooks exceed 256 callbacks")
         self._callbacks = inherited + callbacks
+        selected = _request_hooks._checked(request_hooks)
+        self._observers = tuple(
+            observer
+            for observer in (client._request_hooks, selected)
+            if observer is not None
+        )
         self._client = client
         if len(url) > 65536 or len(url.encode()) > 65536:
             raise ValueError("EventSource url exceeds 65536 bytes")
@@ -417,9 +428,16 @@ class _EventSourceConnect:
         if self._used:
             raise RuntimeError("an EventSource opening can only be awaited once")
         self._used = True
+        if synchronous and any(
+            isinstance(observer, _request_hooks.AsyncRequestHooks)
+            for observer in self._observers
+        ):
+            raise TypeError("Client request_hooks must be RequestHooks")
         hooks = (
-            _header_hooks.Hooks(self._callbacks, synchronous, source=True)
-            if self._callbacks
+            _header_hooks.Hooks(
+                self._callbacks, synchronous, source=True, observers=self._observers
+            )
+            if self._callbacks or self._observers
             else None
         )
         if hooks is not None:
@@ -455,9 +473,13 @@ class _EventSourceConnect:
                 except BaseException as cleanup:
                     raise _primary_error(primary, cleanup=cleanup) from None
                 self._client._settle_header_hooks(hooks)
-                hook_cleanup = hooks.cleanup_error
+                hook_cleanup = (
+                    hooks.pending_failure() if hooks.observers else hooks.cleanup_error
+                )
                 if hook_cleanup is not None:
                     self._client._header_pumps.discard(hooks)
+                    hooks.cleanup_error = None
+                    hooks.error_hook_failure = None
                 raise _primary_error(primary, cleanup=hook_cleanup) from None
             if isinstance(error, _native.NativeError):
                 raise _error(error) from None

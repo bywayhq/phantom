@@ -312,7 +312,7 @@ class LogicalRequestHookTests(unittest.IsolatedAsyncioTestCase):
                     [b"/stall", b"/healthy", b"/second"],
                 )
 
-    async def test_fork_restore_inherit_observers_and_eventsource_is_explicitly_rejected(
+    async def test_fork_restore_inherit_observers(
         self,
     ):
         seen = []
@@ -332,10 +332,6 @@ class LogicalRequestHookTests(unittest.IsolatedAsyncioTestCase):
                 for child in (fork, restored):
                     async with child:
                         await (await child.get(url + "/kept")).aclose()
-                        with self.assertRaisesRegex(
-                            ValueError, "logical request hooks"
-                        ):
-                            child.event_source(url, protocol="h1")
                 self.assertEqual(seen, [url + "/kept", url + "/kept"])
 
     async def test_response_deadline_drops_body_without_entering_error_phase(self):

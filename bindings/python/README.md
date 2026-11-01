@@ -116,7 +116,8 @@ on_response=..., on_error=...)` on a client or request. `AsyncRequestHooks`
 also accepts awaited callbacks. Observers borrow immutable metadata, run client
 first and run once across retries and redirects. Errors retain `original`; a
 failed error observer is retained separately as `hook_error`. Dedicated
-`event_source` currently rejects logical observers. WebSockets do not use them.
+EventSource observers run on every fresh GET, including reconnects. WebSockets
+do not use them. `without_client_hooks` skips inherited header hooks only.
 
 ## Streaming and lifetime
 

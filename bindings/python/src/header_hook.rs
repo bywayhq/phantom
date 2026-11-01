@@ -329,7 +329,7 @@ impl NativeHeaderHooks {
         if (count == 0 && !redirects && logical == 0)
             || logical > 7
             || count > MAXIMUM_FIELDS
-            || (source && (redirects || logical != 0))
+            || (source && redirects)
         {
             return Err(error::input("header_hook_limit"));
         }

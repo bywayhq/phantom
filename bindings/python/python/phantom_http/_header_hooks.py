@@ -152,6 +152,7 @@ class Hooks:
             _native.NativeHeaderHooks(
                 len(callbacks),
                 redirects=redirect is not None,
+                source=source,
                 logical=_request_hooks._phases(observers),
             )
             if observers

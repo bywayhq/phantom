@@ -257,7 +257,7 @@ class AsyncClient:
     def _settle_header_hooks(self, hooks: _header_hooks.Hooks) -> None:
         # A callback may fail after a cancelled send's bounded cleanup wait.
         # Retain that failure until the request or a later close observes it.
-        if hooks.observers:
+        if hooks.observers and not hooks.source:
             self._header_pumps.discard(hooks)
             if hooks.request_finished:
                 if self._logical_cleanup_error is None:
@@ -314,16 +314,17 @@ class AsyncClient:
     ) -> _EventSourceConnect:
         """Open a GET event source with finite reconnects on an exact protocol.
 
-        Client hooks run before source header_hooks on each fresh GET, including
-        reconnects. without_client_hooks skips inherited hooks. Hooks run once
-        across redirects and retries and cannot edit managed Last-Event-ID.
+        Client hooks run before source hooks on each fresh GET, including
+        reconnects. request_hooks observes that GET across redirects and retries.
+        without_client_hooks skips inherited header hooks only. Header hooks
+        cannot edit managed Last-Event-ID.
         Cancelled reads retain the source and its callback. Close it when done.
         Callbacks retain the opening task's loop and context.
-        Callback failure is terminal. SseError.original holds the request error,
+        Header, request and response callback failures end reconnects. An error
+        observer does not change the original failure's reconnect policy.
+        SseError.original holds the request error,
         whose original preserves the Python callback exception.
         """
-        if self._request_hooks is not None:
-            raise ValueError("EventSource does not support logical request hooks")
         if (
             self._redirect_policy is not None
             and self._redirect_policy._callback is not None
@@ -930,12 +931,16 @@ class AsyncClient:
             if pending:
                 raise TimeoutError("request", "shutdown_timeout")
             for hook in hooks:
-                if hook.observers:
+                if hook.observers and not hook.source:
                     self._settle_header_hooks(hook)
                 elif hook.cleanup_error is not None:
                     self._header_pumps.discard(hook)
-                    failure = Error("request", "header_hook_cleanup")
-                    failure.original = hook.cleanup_error
+                    failure = hook.pending_failure() if hook.observers else None
+                    if failure is None:
+                        failure = Error("request", "header_hook_cleanup")
+                        failure.original = hook.cleanup_error
+                    hook.cleanup_error = None
+                    hook.error_hook_failure = None
                     raise failure from None
             for pump in pumps:
                 if pump.error is not None or pump.cleanup_error is not None:

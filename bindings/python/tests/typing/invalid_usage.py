@@ -362,3 +362,13 @@ async def invalid_logical_hooks(client: AsyncClient, sync: Client) -> None:
     await client.get("https://local", request_hooks=(wrong_result,))  # E: arg-type
     RequestHooks(on_request=asynchronous)  # E: arg-type
     AsyncRequestHooks(on_request=wrong_result)  # E: arg-type
+    sync.event_source(
+        "https://local",
+        protocol="h1",
+        request_hooks=AsyncRequestHooks(),  # E: arg-type
+    )
+    client.event_source(
+        "https://local",
+        protocol="h1",
+        request_hooks=(wrong_result,),  # E: arg-type
+    )

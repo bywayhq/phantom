@@ -281,10 +281,10 @@ class Client:
         protocol: _SseProtocol,
         **options: Unpack[_SyncEventSourceOptions],
     ) -> EventSource:
-        """Open a reconnecting iterator; header hooks run on this client's loop.
+        """Open a reconnecting iterator; callbacks run on this client's loop.
 
         Client hooks precede source hooks on every GET. Callbacks must be
-        synchronous. without_client_hooks skips inherited callbacks.
+        synchronous. without_client_hooks skips inherited header callbacks only.
         """
         self._check_thread_loop()
         opening = self._async.event_source(url, protocol=protocol, **options)

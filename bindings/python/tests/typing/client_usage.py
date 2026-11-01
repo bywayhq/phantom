@@ -660,6 +660,10 @@ async def logical_hook_consumer(url: str) -> None:
         sync.get(url, request_hooks=RequestHooks(on_request=request)) as result,
     ):
         print(result.status)
+        with sync.event_source(
+            url, protocol="h2", request_hooks=RequestHooks(on_request=request)
+        ) as sync_source:
+            print(next(sync_source).data)
     async with AsyncClient(
         profile="chrome-154-windows",
         request_hooks=AsyncRequestHooks(on_response=response),
@@ -668,3 +672,7 @@ async def logical_hook_consumer(url: str) -> None:
             url, request_hooks=RequestHooks(on_request=request)
         )
         await result_async.aclose()
+        async with asynchronous.event_source(
+            url, protocol="h2", request_hooks=AsyncRequestHooks(on_response=response)
+        ) as async_source:
+            print((await anext(async_source)).data)
