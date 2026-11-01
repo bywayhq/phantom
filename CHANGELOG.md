@@ -14,8 +14,9 @@
 
 ### Bindings
 
-- Python and Node add awaited request, response and error callbacks for ordinary
+- Python, Go and Node add request, response and error callbacks for ordinary
   requests and each EventSource GET, preserving native causes and cancellation.
+- Python EventSource shutdown waits for callback cleanup without cancelling it twice.
 - Python, Go and Node EventSource inherit client and per-source header hooks on each GET,
   with managed event IDs and callback cleanup during reconnect and shutdown.
 - Go adds EventSource `CloseContext`; Node adds `closeAsync` and cancellable reads.
