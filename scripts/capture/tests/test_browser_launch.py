@@ -419,16 +419,34 @@ class BrowserLaunchTests(unittest.TestCase):
         self.assertIsNone(browser.profile)
 
     def test_failed_launch_removes_the_temporary_profile(self) -> None:
-        before = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))
         missing = Path(tempfile.gettempdir()) / "phantom-missing-browser.exe"
         browser = LaunchedBrowser(LaunchPlan("firefox", missing, headless=True), URL)
+        profiles = []
+        failures = []
+        start = browser._start
 
-        with self.assertRaises(OSError), browser:
+        def observe_start(
+            profile: Path,
+        ) -> subprocess.Popen[bytes] | browser_launch.ProcessContainer:
+            profiles.append(profile)
+            try:
+                return start(profile)
+            except OSError as error:
+                failures.append(error)
+                raise
+
+        with (
+            mock.patch.object(browser, "_start", side_effect=observe_start),
+            self.assertRaises(OSError) as raised,
+            browser,
+        ):
             pass
 
+        self.assertEqual(len(profiles), 1)
+        self.assertEqual(len(failures), 1)
+        self.assertIs(raised.exception, failures[0])
+        self.assertFalse(profiles[0].exists())
         self.assertIsNone(browser.profile)
-        after = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))
-        self.assertEqual(after, before)
 
 
 class LaunchPeerFailures(Exception):
@@ -539,19 +557,27 @@ class FirefoxStartTests(unittest.TestCase):
             (profile / "sessionCheckpoints.json").write_text(
                 '{"final-ui-startup":true,"sessionstore-windows-restored":true}'
             )
-            begin = time.monotonic()
-
-            browser_launch.wait_for_firefox_start(profile, FakeProcess(None))
-
-            self.assertLess(time.monotonic() - begin, 1)
+            with (
+                mock.patch.object(browser_launch.time, "monotonic", return_value=0),
+                mock.patch.object(
+                    browser_launch.time,
+                    "sleep",
+                    side_effect=AssertionError("ready Firefox startup polled again"),
+                ),
+            ):
+                browser_launch.wait_for_firefox_start(profile, FakeProcess(None))
 
     def test_the_wait_ends_when_firefox_exits(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            begin = time.monotonic()
-
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch.object(browser_launch.time, "monotonic", return_value=0),
+            mock.patch.object(
+                browser_launch.time,
+                "sleep",
+                side_effect=AssertionError("exited Firefox startup polled again"),
+            ),
+        ):
             browser_launch.wait_for_firefox_start(Path(directory), FakeProcess(0))
-
-            self.assertLess(time.monotonic() - begin, 1)
 
 
 class ExitedFirefox(LaunchedBrowser):
@@ -807,21 +833,34 @@ class EnterBrowserTests(unittest.TestCase):
         ExitedFirefox.exited.clear()
 
         async def scenario() -> None:
-            task = asyncio.create_task(
-                browser_launch.enter_browser(ExitedFirefox(self.plan, "about:blank"))
-            )
-            try:
-                await asyncio.sleep(0.2)
-                task.cancel()
-                with self.assertRaises(asyncio.CancelledError):
-                    await task
-            finally:
-                self.release.set()
-                if not task.done():
+            loop = asyncio.get_running_loop()
+            waiting = asyncio.Event()
+            lock_file = browser_launch.lock_file
+
+            def observe_lock(descriptor: int) -> None:
+                loop.call_soon_threadsafe(waiting.set)
+                lock_file(descriptor)
+
+            with mock.patch.object(browser_launch, "lock_file", observe_lock):
+                task = asyncio.create_task(
+                    browser_launch.enter_browser(
+                        ExitedFirefox(self.plan, "about:blank")
+                    )
+                )
+                try:
+                    await asyncio.wait_for(waiting.wait(), 10)
+                    self.assertFalse(task.done())
+                    self.assertFalse(ExitedFirefox.exited.is_set())
                     task.cancel()
-                    # This test requested the abandoned launch cancellation.
-                    with contextlib.suppress(asyncio.CancelledError):
+                    with self.assertRaises(asyncio.CancelledError):
                         await task
+                finally:
+                    self.release.set()
+                    if not task.done():
+                        task.cancel()
+                        # This test requested the abandoned launch cancellation.
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await task
 
         asyncio.run(scenario())
 

@@ -8,6 +8,7 @@ from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
+from aioquic.tls import SessionTicket
 
 from scripts.capture import quic_resumption
 from scripts.capture.http2_session import HOSTNAME, generate_certificate
@@ -281,6 +282,12 @@ async def exercise(scenario_name: str) -> RunResult:
     """Drive one fresh and one resumed aioquic connection through the server."""
     scenario = SCENARIOS[scenario_name]
     tickets = []
+    ticket_received = asyncio.Event()
+
+    def receive_ticket(ticket: SessionTicket) -> None:
+        tickets.append(ticket)
+        ticket_received.set()
+
     async with serving(scenario, "127.0.0.1", generate_certificate()) as (run, port):
         configuration = QuicConfiguration(
             is_client=True,
@@ -292,11 +299,12 @@ async def exercise(scenario_name: str) -> RunResult:
             port,
             configuration,
             create_protocol=Client,
-            session_ticket_handler=tickets.append,
+            session_ticket_handler=receive_ticket,
         ) as client:
             await asyncio.wait_for(client.request("GET", "/"), 5)
+            await asyncio.wait_for(ticket_received.wait(), 5)
             await asyncio.wait_for(client.request("GET", "/retire"), 5)
-            await asyncio.sleep(0.2)
+            await asyncio.wait_for(client.wait_closed(), 5)
         resumed = QuicConfiguration(
             is_client=True,
             alpn_protocols=H3_ALPN,
