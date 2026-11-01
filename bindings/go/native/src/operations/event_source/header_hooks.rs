@@ -229,8 +229,14 @@ pub(crate) fn active(operation: u64, ticket: u64) -> Result<bool, Failure> {
 
 fn invocation_active(state: &super::super::State, operation: u64, ticket: u64) -> bool {
     state.operations.get(&operation).is_some_and(|operation| {
-        matches!(operation.target, Target::EventSourceHeader { .. })
-            && !operation.finished
+        let Target::EventSourceHeader { owner, .. } = operation.target else {
+            return false;
+        };
+        let open = state
+            .source_hooks
+            .get(&owner)
+            .is_some_and(|owner| !*owner.closed.borrow());
+        open && !operation.finished
             && !operation.abandoned
             && operation.callback_call.as_ref().is_some_and(|call| {
                 call.ticket == ticket && call.host_owned && call.reply.is_some()
@@ -247,6 +253,7 @@ mod tests {
     #[test]
     fn expired_source_invocations_are_not_dispatched_or_reassigned() -> Result<(), Failure> {
         let mut state = State::default();
+        state.source_hooks.insert(2, Owner::new(1));
         let (old, _cancel) = state.reserve(Target::EventSourceHeader {
             client: 1,
             owner: 2,
@@ -293,6 +300,47 @@ mod tests {
             owner: 5,
         })?;
         assert!(!invocation_active(&state, other, 3));
+        Ok(())
+    }
+
+    #[test]
+    fn closing_source_rejects_queued_metadata_before_terminal_delivery() -> Result<(), Failure> {
+        let mut state = State::default();
+        let owner = Owner::new(1);
+        state.source_hooks.insert(2, Arc::clone(&owner));
+        let (operation, _cancel) = state.reserve(Target::EventSourceHeader {
+            client: 1,
+            owner: 2,
+        })?;
+        let (reply, _received) = oneshot::channel();
+        state
+            .operations
+            .get_mut(&operation)
+            .ok_or_else(|| Failure::new("test_operation"))?
+            .callback_call = Some(CallbackCall {
+            ticket: 3,
+            invocation: CallbackInvocation::Header(Arc::new(Invocation {
+                index: 0,
+                method: "GET".into(),
+                uri: "http://127.0.0.1/".into(),
+                headers: Vec::new(),
+            })),
+            reply: Some(reply),
+            host_owned: true,
+        });
+        assert!(invocation_active(&state, operation, 3));
+
+        owner.close();
+        assert!(!invocation_active(&state, operation, 3));
+        // The wait task has not run: this is still a live, delivered slot whose
+        // host custody must be discarded rather than reassigned or forgotten.
+        assert!(!state.operations[&operation].finished);
+        assert!(
+            state.operations[&operation]
+                .callback_call
+                .as_ref()
+                .is_some_and(|call| call.host_owned && call.reply.is_some())
+        );
         Ok(())
     }
 
