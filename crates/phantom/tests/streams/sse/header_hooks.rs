@@ -26,6 +26,7 @@ use crate::support::{h2, tls::tls_settings};
 use super::TestResult;
 
 mod reconnect;
+mod request_hooks;
 
 const URL: &str = "http://hooks.invalid/events";
 const LIMIT: Duration = Duration::from_secs(10);

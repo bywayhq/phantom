@@ -351,6 +351,14 @@ impl RequestBuilder {
         self
     }
 
+    pub(crate) fn shared_request_hooks(
+        mut self,
+        hooks: Option<&crate::request_hook::SharedRequestHooks>,
+    ) -> Self {
+        self.request_hooks = hooks.cloned();
+        self
+    }
+
     /// Adds a header hook after this client's hooks and earlier request hooks.
     ///
     /// See [`crate::HeaderHookContext`] for timing, ordering, and redirect rules.

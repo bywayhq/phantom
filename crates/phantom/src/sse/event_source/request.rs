@@ -8,7 +8,7 @@ use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{
     Client, HttpProtocol, RequestBuilder, RequestError, RequestTimeoutOverrides, ResponseBody,
-    Route, header_hook::HeaderHook,
+    Route, header_hook::HeaderHook, request_hook::SharedRequestHooks,
 };
 
 use super::{ReconnectFuture, SseEventSource};
@@ -126,6 +126,7 @@ impl fmt::Debug for SseRequestBuilder {
             .field("header_count", &self.request.headers.len())
             .field("header_hook_count", &self.request.header_hooks.len())
             .field("client_header_hooks", &self.request.client_header_hooks)
+            .field("request_hooks", &self.request.request_hooks.is_some())
             .field("route_override", &self.request.route.is_some())
             .field("timeout_override", &self.request.timeouts.is_some())
             .field("limits", &self.limits)
@@ -152,6 +153,7 @@ impl SseRequestBuilder {
                 headers: default_headers(protocol),
                 header_hooks: Vec::new(),
                 client_header_hooks: true,
+                request_hooks: None,
                 route: None,
                 timeouts: None,
             },
@@ -188,6 +190,27 @@ impl SseRequestBuilder {
     /// that hop. Automatic client hints never replace this managed field.
     pub fn headers(mut self, headers: Vec<SseHeader>) -> Self {
         self.request.headers = headers;
+        self
+    }
+
+    /// Observes the initial GET and every reconnect GET after client callbacks.
+    ///
+    /// Each GET is one logical request across its retries and redirects. These
+    /// hooks replace earlier synchronous or asynchronous hooks on this source.
+    /// See [`crate::RequestHooks`] for cancellation and body semantics.
+    pub fn request_hooks(mut self, hooks: impl crate::RequestHooks + 'static) -> Self {
+        self.request.request_hooks = Some(SharedRequestHooks::new(hooks));
+        self
+    }
+
+    /// Awaits callbacks for each GET after client callbacks.
+    ///
+    /// Replaces earlier synchronous or asynchronous hooks on this source. Each
+    /// GET shares its total deadline with these callbacks. Request or response
+    /// hook errors are terminal. An error hook failure preserves the original
+    /// error's reconnect classification. See [`crate::AsyncRequestHooks`].
+    pub fn async_request_hooks(mut self, hooks: impl crate::AsyncRequestHooks + 'static) -> Self {
+        self.request.request_hooks = Some(SharedRequestHooks::new_async(hooks));
         self
     }
 
@@ -496,6 +519,7 @@ pub(super) struct SseRequest {
     headers: Vec<SseHeader>,
     header_hooks: Vec<HeaderHook>,
     client_header_hooks: bool,
+    request_hooks: Option<SharedRequestHooks>,
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
 }
@@ -562,6 +586,7 @@ impl SseRequest {
             .client
             .get_with_protocol(self.protocol, &self.uri)?
             .headers(headers)
+            .shared_request_hooks(self.request_hooks.as_ref())
             .protect_event_source_headers()
             .without_response_body_timeouts();
         if !self.client_header_hooks {
