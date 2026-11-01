@@ -24,7 +24,15 @@ func TestRedirectCallbackDeadlineAndCancellationKeepSharedAllowance(t *testing.T
 	client := hookClient(t, Config{})
 	for _, cancelCaller := range []bool{false, true} {
 		t.Run(map[bool]string{false: "total", true: "caller"}[cancelCaller], func(t *testing.T) {
+			warm, err := client.Do(context.Background(), Request{Method: "GET", URL: peer.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := warm.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
 			before := sends.Load()
+			entered := false
 			cause := &callbackFailure{marker: 43}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -34,6 +42,7 @@ func TestRedirectCallbackDeadlineAndCancellationKeepSharedAllowance(t *testing.T
 			}
 			defer budget.Close()
 			request := Request{Method: "GET", URL: peer.URL, Budget: budget, RedirectPolicy: &RedirectPolicy{MaximumHops: 2, Callback: func(ctx context.Context, _ RedirectAttempt) (RedirectDecision, error) {
+				entered = true
 				if cancelCaller {
 					cancel()
 				}
@@ -44,6 +53,9 @@ func TestRedirectCallbackDeadlineAndCancellationKeepSharedAllowance(t *testing.T
 				request.Timeout = 200 * time.Millisecond
 			}
 			_, err = client.Do(ctx, request)
+			if !entered {
+				t.Fatalf("redirect callback was not entered: %v", err)
+			}
 			if !errors.Is(err, cause) {
 				t.Fatal("late redirect error was lost")
 			}
