@@ -16,7 +16,7 @@ use phantom::{
     profile::{ClientProfile, Http2PseudoHeader, browser::chrome},
 };
 use tokio::{
-    io::{AsyncWriteExt, DuplexStream},
+    io::DuplexStream,
     sync::{mpsc, oneshot},
     time::{Instant, sleep, timeout},
 };
