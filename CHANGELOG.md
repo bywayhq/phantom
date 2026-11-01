@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add asynchronous ordered header hooks on clients and requests. Pending hooks
+  share the request's total deadline and are cancelled with the send future.
+
 ### Bindings
 
 - Python, Go and Node can override the route for each WebSocket opening while

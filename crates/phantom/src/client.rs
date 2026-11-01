@@ -1,4 +1,4 @@
-use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
+use std::{fmt, future::Future, net::IpAddr, num::NonZeroUsize, pin::Pin, sync::Arc};
 
 use http::Method;
 use phantom_net::{
@@ -669,6 +669,44 @@ impl ClientBuilder {
     {
         self.header_hooks
             .push(crate::header_hook::HeaderHook::new(hook));
+        self
+    }
+
+    /// Adds an asynchronous hook for ordered caller headers.
+    ///
+    /// Runs in registration order with synchronous hooks, before per-request
+    /// header hooks and network I/O. The first asynchronous hook starts the total
+    /// deadline, which then covers remaining hooks, attempts and body reads.
+    /// Cancelling the request drops the pending hook future. Callbacks may run
+    /// concurrently for different requests; do not block inside them.
+    /// See [`crate::HeaderHookContext`] for field and replay rules.
+    ///
+    /// ```no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use phantom::{Client, RequestHeader, profile::browser::chrome};
+    ///
+    /// let client = Client::builder(chrome::v154_windows())
+    ///     .async_header_hook(|headers| Box::pin(async move {
+    ///         tokio::task::yield_now().await;
+    ///         headers.append(RequestHeader::new("X-Job", "example"))
+    ///     }))
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn async_header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: for<'a, 'context> Fn(
+                &'a mut crate::HeaderHookContext<'context>,
+            ) -> Pin<
+                Box<dyn Future<Output = Result<(), crate::HeaderHookError>> + Send + 'a>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.header_hooks
+            .push(crate::header_hook::HeaderHook::new_async(hook));
         self
     }
 

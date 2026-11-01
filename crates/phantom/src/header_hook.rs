@@ -1,6 +1,6 @@
 //! Customize ordered caller headers before request validation.
 
-use std::{error::Error, fmt, sync::Arc};
+use std::{error::Error, fmt, future::Future, pin::Pin, sync::Arc};
 
 use http::{
     Method, Uri,
@@ -11,8 +11,8 @@ use crate::RequestHeader;
 
 /// The initial request and its ordered caller headers, before template expansion.
 ///
-/// Client hooks run in registration order, then request hooks. They run once
-/// when sending begins, after prepared-body headers and before network I/O.
+/// Client header hooks run in registration order, then per-request header hooks.
+/// They run once when sending begins, after prepared-body headers and before I/O.
 /// Retries reuse the result. Hooks do not rerun on redirects. Cross-origin
 /// redirects remove `Authorization`, `Cookie`, `Cookie2`, and
 /// `Proxy-Authorization`, plus names registered with
@@ -22,7 +22,10 @@ use crate::RequestHeader;
 /// Generated headers, cookies, hints, and template literals are added afterward.
 /// Hooks receive caller headers only, without the body.
 ///
-/// Hooks are synchronous: avoid blocking or doing network I/O in them.
+/// Synchronous hooks must not block. Use
+/// [`ClientBuilder::async_header_hook`](crate::ClientBuilder::async_header_hook)
+/// or [`RequestBuilder::async_header_hook`](crate::RequestBuilder::async_header_hook)
+/// to await asynchronous work. Both kinds share the same registration order.
 pub struct HeaderHookContext<'a> {
     pub(crate) method: &'a Method,
     pub(crate) uri: &'a Uri,
@@ -169,20 +172,38 @@ fn validate(header: &RequestHeader) -> Result<(), HeaderHookError> {
 }
 
 type Callback = dyn Fn(&mut HeaderHookContext<'_>) -> Result<(), HeaderHookError> + Send + Sync;
+type AsyncCallback = dyn for<'a, 'context> Fn(
+        &'a mut HeaderHookContext<'context>,
+    )
+        -> Pin<Box<dyn Future<Output = Result<(), HeaderHookError>> + Send + 'a>>
+    + Send
+    + Sync;
 
 #[derive(Clone)]
-pub(crate) struct HeaderHook(Arc<Callback>);
+pub(crate) enum HeaderHook {
+    Sync(Arc<Callback>),
+    Async(Arc<AsyncCallback>),
+}
 
 impl HeaderHook {
     pub(crate) fn new<F>(hook: F) -> Self
     where
         F: Fn(&mut HeaderHookContext<'_>) -> Result<(), HeaderHookError> + Send + Sync + 'static,
     {
-        Self(Arc::new(hook))
+        Self::Sync(Arc::new(hook))
     }
 
-    pub(crate) fn run(&self, context: &mut HeaderHookContext<'_>) -> Result<(), HeaderHookError> {
-        (self.0)(context)
+    pub(crate) fn new_async<F>(hook: F) -> Self
+    where
+        F: for<'a, 'context> Fn(
+                &'a mut HeaderHookContext<'context>,
+            ) -> Pin<
+                Box<dyn Future<Output = Result<(), HeaderHookError>> + Send + 'a>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        Self::Async(Arc::new(hook))
     }
 }
 
