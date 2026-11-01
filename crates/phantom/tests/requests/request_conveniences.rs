@@ -18,6 +18,7 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use crate::support::tls::{TestResult, read_head, tls_settings};
 
+mod async_hooks;
 mod peer_contract;
 
 #[tokio::test]

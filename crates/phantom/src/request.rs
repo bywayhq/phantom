@@ -1,4 +1,4 @@
-use std::{error::Error as StdError, fmt};
+use std::{error::Error as StdError, fmt, future::Future, pin::Pin};
 
 use bytes::Bytes;
 use http::{Method, Response, Uri};
@@ -354,6 +354,29 @@ impl RequestBuilder {
     {
         self.header_hooks
             .push(crate::header_hook::HeaderHook::new(hook));
+        self
+    }
+
+    /// Adds an asynchronous hook after this request's earlier header hooks.
+    ///
+    /// Client hooks run first. Both synchronous and asynchronous hooks keep
+    /// their registration order and run once across redirects and retries.
+    /// The total deadline starts before the first asynchronous hook. Cancelling
+    /// this send drops its pending hook future before opening a connection.
+    /// Failures retain their source as [`crate::RequestErrorKind::HeaderHook`].
+    /// See [`crate::ClientBuilder::async_header_hook`] for an example.
+    pub fn async_header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: for<'a, 'context> Fn(
+                &'a mut crate::HeaderHookContext<'context>,
+            ) -> Pin<
+                Box<dyn Future<Output = Result<(), crate::HeaderHookError>> + Send + 'a>,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        self.header_hooks
+            .push(crate::header_hook::HeaderHook::new_async(hook));
         self
     }
 
@@ -1197,6 +1220,7 @@ impl RequestBuilder {
             }
         }
 
+        let mut timeout_budget = None;
         {
             let mut context = crate::HeaderHookContext {
                 method: &self.method,
@@ -1204,14 +1228,40 @@ impl RequestBuilder {
                 headers: &mut self.headers,
                 protected: self.protected_hook_headers,
             };
-            if self.client_header_hooks {
-                for hook in &self.client.inner.defaults.header_hooks {
-                    hook.run(&mut context).map_err(RequestError::header_hook)?;
+            let client_hooks = self
+                .client
+                .inner
+                .defaults
+                .header_hooks
+                .iter()
+                .filter(|_| self.client_header_hooks);
+            for hook in client_hooks.chain(&self.header_hooks) {
+                match hook {
+                    crate::header_hook::HeaderHook::Sync(callback) => {
+                        callback(&mut context).map_err(RequestError::header_hook)?;
+                    }
+                    crate::header_hook::HeaderHook::Async(callback) => {
+                        let budget = match timeout_budget {
+                            Some(budget) => budget,
+                            None => {
+                                let budget = crate::timeout::TimeoutBudget::new(
+                                    self.timeouts
+                                        .unwrap_or_default()
+                                        .resolve(self.client.state.request_timeouts),
+                                )?;
+                                timeout_budget = Some(budget);
+                                budget
+                            }
+                        };
+                        budget
+                            .run(crate::TimeoutPhase::Total, None, async {
+                                callback(&mut context)
+                                    .await
+                                    .map_err(RequestError::header_hook)
+                            })
+                            .await?;
+                    }
                 }
-            }
-
-            for hook in &self.header_hooks {
-                hook.run(&mut context).map_err(RequestError::header_hook)?;
             }
         }
 
@@ -1239,11 +1289,14 @@ impl RequestBuilder {
             &filled_slots,
         )?;
 
-        let timeout_budget = crate::timeout::TimeoutBudget::new(
-            self.timeouts
-                .unwrap_or_default()
-                .resolve(self.client.state.request_timeouts),
-        )?;
+        let timeout_budget = match timeout_budget {
+            Some(budget) => budget,
+            None => crate::timeout::TimeoutBudget::new(
+                self.timeouts
+                    .unwrap_or_default()
+                    .resolve(self.client.state.request_timeouts),
+            )?,
+        };
 
         if let Err(message) = retry_policy.validate() {
             return Err(RequestError::invalid_retry_policy(message));
