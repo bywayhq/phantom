@@ -11,6 +11,10 @@ commands. Read the relevant sections before capturing.
 
 ## Rules
 
+- Capture changed or uncertain behavior. Reuse unchanged components and
+  observations with their original builds and paths. Straightforward ports
+  from pinned peer source need independent Phantom wire checks, not peer
+  execution; use targeted comparisons for unclear runtime transformations.
 - Launching a local browser needs the human's approval for the session.
 - Capture only against the loopback listeners the tools start; they refuse
   non-loopback addresses. Live services may supplement local evidence but

@@ -84,6 +84,28 @@ class CatalogDeclarationTests(unittest.TestCase):
         )
         self.assertEqual(generator.OUTPUT.read_text(encoding="utf-8"), expected)
 
+    def test_new_build_can_reuse_components_and_older_observations(self) -> None:
+        original = next(
+            entry
+            for entry in self.document["profiles"]
+            if entry["target"] == "ChromeWindows154"
+        )
+        updated = copy.deepcopy(original)
+        updated["id"] = "chrome/200.0.1.0/windows-11-26200/r1"
+        updated["selector"] = "chrome-200-windows"
+        updated["target"] = "ChromeWindows200"
+        updated["metadata"]["identity"]["build"] = "200.0.1.0"
+        self.document["profiles"].append(updated)
+
+        profiles = generator.validate(self.document)
+        result = next(
+            entry for entry in profiles if entry["target"] == "ChromeWindows200"
+        )
+        self.assertEqual(result["composition"], original["composition"])
+        self.assertEqual(result["templates"], original["templates"])
+        self.assertEqual(result["layers"], original["layers"])
+        self.assertEqual(result["metadata"]["identity"]["build"], "200.0.1.0")
+
     def test_unknown_fields_targets_layers_and_enums_are_rejected(self):
         for key, value in (("target", "std::process::exit"), ("unexpected", True)):
             with self.subTest(key=key):

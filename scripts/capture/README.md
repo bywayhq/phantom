@@ -1,9 +1,11 @@
 # Capture tools
 
 Record what a real browser sends to a loopback server and keep it as a
-fixture under [`fixtures/`](../../fixtures/). For a new browser version,
-start with a [quick fingerprint snapshot](#quick-fingerprint-snapshot), then
-see [Which tool to run](#which-tool-to-run).
+fixture under [`fixtures/`](../../fixtures/). For a browser update, capture
+changed or uncertain behavior and reuse unchanged components and observations.
+A [quick fingerprint snapshot](#quick-fingerprint-snapshot) can help identify
+changes. See [Which tool to run](#which-tool-to-run) and the
+[profile authoring guide](../../crates/phantom-profile/catalog/README.md).
 
 Keep the browser build, platform, launch settings and reproduction commands
 with each fixture.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Import profiles from pinned peer source without requiring peer execution
+  for every layer; reuse unchanged components and observations across updates.
 - Allow upload captures to finish on another connection owned by the run.
 - Add HTTP/1.1 and HTTP/2 fetch and fetch-upload contexts to Chrome 156 Windows.
 - Breaking: select lifecycle capture protocols with `--protocol`.

@@ -32,8 +32,12 @@ file. A component can select a same-kind `base` and override specific values.
 Prefer one shared base over a chain of version-by-version overrides.
 Associate request kinds with entries in `request-templates.json`.
 
-Give each selected layer source locations and builds, including older builds
-whose settings you reuse. Keep comparison details in the tests.
+For a version update, review what changed in the source and settings. Keep
+existing components, templates and observations where the behavior is unchanged.
+Keep each observation's original path and build. Use `Reused` for a shared
+recipe or an older observation. Add components for changed settings and checks
+for changed or uncertain behavior. A new version does not need every layer
+recaptured.
 
 For an external preset, use `identity.kind: "Peer"` with its project, exact
 source commit, preset name and advertised browser release. Set its browser and
@@ -41,9 +45,14 @@ target platform in metadata. Name it by browser and platform: for
 example, ID `safari/26.0.1/macos/r1`, selector `safari-26-macos`, target
 `SafariMacos26`. Source project and preset names belong in identity metadata.
 Peer definitions use the same components and generated registration, without
-a browser factory. `ExternalSource` references pin the commit in an HTTPS URL;
-`PeerCapture` references name retained peer fixtures with matching execution
-metadata.
+a browser factory. Each configured layer needs an `ExternalSource` reference
+that pins the commit in an HTTPS URL. Check Phantom's emitted bytes against
+independent expectations from that source. Straightforward ports do not need
+peer execution. Use a targeted peer comparison when runtime transformations
+are unclear, such as TLS extension ordering or HPACK encoding. When retained,
+`PeerCapture` references name the recording and its matching execution metadata.
+Use `Reused` for recordings from an older preset revision whose behavior still
+applies, keeping the original recording's identity.
 
 Omit empty `references` and `limitations` arrays. Unavailable layers need no
 row, but their composition must be `null`.

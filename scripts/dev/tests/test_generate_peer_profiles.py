@@ -144,9 +144,57 @@ class PeerCatalogTests(unittest.TestCase):
         path = cli.REPO / self.peer["layers"][0]["references"][1]["location"]
         with self.assertRaisesRegex(cli.DeclarationError, "source_revision disagrees"):
             registry.validate_peer_capture(path, identity)
-        self.peer["layers"][0]["references"] = [self.peer["layers"][0]["references"][0]]
-        with self.assertRaisesRegex(cli.DeclarationError, "capture evidence"):
+
+    def test_pinned_peer_layers_do_not_require_peer_execution(self) -> None:
+        for profile in self.document["profiles"]:
+            if profile["metadata"]["identity"]["kind"] != "Peer":
+                continue
+            for layer in profile["layers"]:
+                layer["references"] = [
+                    reference
+                    for reference in layer.get("references", [])
+                    if reference["kind"] != "PeerCapture"
+                ]
+
+        profiles = cli.validate(self.document)
+        generated = registry.generate(profiles)
+        self.assertIn("EvidenceKind::ExternalSource", generated)
+        self.assertNotIn("EvidenceKind::PeerCapture", generated)
+
+    def test_peer_capture_does_not_replace_pinned_source(self) -> None:
+        self.peer["layers"][0]["references"] = [
+            reference
+            for reference in self.peer["layers"][0]["references"]
+            if reference["kind"] != "ExternalSource"
+        ]
+        with self.assertRaisesRegex(cli.DeclarationError, "pinned external source"):
             cli.validate(self.document)
+
+    def test_older_peer_observations_can_be_reused_without_relabeling(self) -> None:
+        identity = self.peer["metadata"]["identity"]
+        previous_revision = identity["source_revision"]
+        identity["source_revision"] = "1" * 40
+        for layer in self.peer["layers"]:
+            for reference in layer["references"]:
+                if reference["kind"] == "ExternalSource":
+                    reference["location"] = reference["location"].replace(
+                        previous_revision, identity["source_revision"]
+                    )
+                elif reference["kind"] == "PeerCapture":
+                    reference["kind"] = "Reused"
+
+        profiles = cli.validate(self.document)
+        peer = next(profile for profile in profiles if profile["id"] == self.peer["id"])
+        reused = next(
+            reference
+            for reference in peer["layers"][0]["references"]
+            if reference["kind"] == "Reused"
+        )
+        self.assertEqual(reused["build"], "2.2.3")
+        path = cli.REPO / reused["location"]
+        self.assertEqual(registry.capture_build(path), "2.2.3")
+        with self.assertRaisesRegex(cli.DeclarationError, "source_revision disagrees"):
+            registry.validate_peer_capture(path, identity)
 
     def test_retained_raw_observations_and_source_notices_match_recorded_hashes(self):
         directory = (

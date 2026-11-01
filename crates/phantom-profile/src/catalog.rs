@@ -264,7 +264,7 @@ pub enum EvidenceKind {
     Capture,
     /// Browser source defines the behavior.
     Source,
-    /// Another recipe supplies settings compared against this browser.
+    /// Settings or observations reused from an earlier recipe, keeping their build.
     Reused,
     /// The implementation and its citations.
     Recipe,
