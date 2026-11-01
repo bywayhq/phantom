@@ -108,6 +108,39 @@ test('cancelled CPU phases settle; encoding skips backend and late restores are 
   assert.equal(second.calls.filter((call) => Array.isArray(call) && call[0] === 'restore').length, 1);
 });
 
+test('CPU failures check cancellation after settling and otherwise retain the original cause', async (t) => {
+  for (const phase of ['encode', 'restore']) {
+    for (const interruption of ['abort', 'deadline', 'none']) {
+      await t.test(`${phase}: ${interruption}`, async (caseTest) => {
+        let clock = 0;
+        caseTest.mock.method(performance, 'now', () => clock);
+        const pending = deferred(), started = deferred(), abort = new AbortController();
+        const original = new Error('native CPU failure'), reason = new Error('caller cancellation');
+        const work = async () => { started.resolve(); return await pending.promise; };
+        const {client, calls} = facade({[phase]: work});
+        const store = memory();
+        store.values.set('session', Buffer.from('encrypted'));
+        let settled = false;
+        const result = phase === 'encode'
+          ? client.saveSession(store, 'session', key, {timeoutMs: 5000, signal: abort.signal})
+          : client.loadSession(store, 'session', key, {timeoutMs: 5000, signal: abort.signal});
+        result.then(() => { settled = true; }, () => { settled = true; });
+        await started.promise;
+        if (interruption === 'abort') abort.abort(reason);
+        if (interruption === 'deadline') clock = 5001;
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(settled, false, 'CPU work remains owned until it settles');
+        const rejected = assert.rejects(result, (error) => interruption === 'abort'
+          ? error === reason
+          : interruption === 'deadline' ? error.kind === 'deadline' : error.cause === original);
+        pending.reject(original);
+        await rejected;
+        assert(!calls.includes('destroy'));
+      });
+    }
+  }
+});
+
 test('one deadline spans encoding and backend and cooperative cancellation releases backend work', async (t) => {
   let clock = 0;
   t.mock.method(performance, 'now', () => clock);
