@@ -605,12 +605,14 @@ fn macos_chrome_changes_only_keepalive_idle_and_nodelay() -> TestResult {
 
 #[cfg(windows)]
 #[tokio::test(flavor = "current_thread")]
-async fn macos_firefox_schedule_is_rejected_before_connect_on_windows() -> TestResult {
+async fn required_macos_firefox_schedule_is_rejected_before_connect_on_windows() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let mut settings = phantom_profile::browser::firefox::v157_macos_tcp();
+    settings.option_policy = phantom_profile::SocketOptionPolicy::Required;
     let result = connect(
         "127.0.0.1",
         listener.local_addr()?.port(),
-        Some(phantom_profile::browser::firefox::v157_macos_tcp()),
+        Some(settings),
         None,
         None,
     )
@@ -626,5 +628,32 @@ async fn macos_firefox_schedule_is_rejected_before_connect_on_windows() -> TestR
             .is_err(),
         "unsupported schedule opened a connection"
     );
+    Ok(())
+}
+
+#[cfg(windows)]
+#[tokio::test(flavor = "current_thread")]
+async fn optional_macos_firefox_schedule_preserves_connection_io_on_windows() -> TestResult {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let mut stream = connect(
+        "127.0.0.1",
+        listener.local_addr()?.port(),
+        Some(phantom_profile::browser::firefox::v157_macos_tcp()),
+        None,
+        None,
+    )
+    .await?;
+    let (mut peer, _) = listener.accept().await?;
+
+    stream.write_all(b"ping").await?;
+    let mut bytes = [0; 4];
+    peer.read_exact(&mut bytes).await?;
+    assert_eq!(&bytes, b"ping");
+
+    peer.write_all(b"pong").await?;
+    stream.read_exact(&mut bytes).await?;
+    assert_eq!(&bytes, b"pong");
     Ok(())
 }

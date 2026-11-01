@@ -396,8 +396,10 @@ fn an_http2_idle_limit_outside_firefox_range_is_an_invalid_profile() -> Result<(
 
 #[cfg(windows)]
 #[test]
-fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str> {
+fn required_keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str>
+{
     let mut tcp = chrome::v154_tcp();
+    tcp.option_policy = crate::profile::SocketOptionPolicy::Required;
     tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
         idle: Duration::from_secs(45),
         interval: None,
@@ -412,10 +414,24 @@ fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &
     Ok(())
 }
 
+#[cfg(windows)]
+#[test]
+fn optional_keepalive_without_interval_builds_on_windows() -> Result<(), super::BuildError> {
+    let mut tcp = chrome::v154_tcp();
+    tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
+        idle: Duration::from_secs(45),
+        interval: None,
+    });
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(tcp);
+
+    Client::builder(profile).build().map(drop)
+}
+
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn idle_only_keepalive_builds_where_the_host_supports_it() -> Result<(), BuildError> {
     let mut tcp = chrome::v154_tcp();
+    tcp.option_policy = crate::profile::SocketOptionPolicy::Required;
     tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
         idle: Duration::from_secs(45),
         interval: None,
