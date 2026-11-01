@@ -197,14 +197,15 @@ pub mod profile {
         QuicTransportGrease, QuicTransportParameter, QuicTransportParameterKind,
         QuicTransportParameterOrder, QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
         QuicVersionInformation, RequestField, RequestTemplate, SessionTicketOrder, SessionTickets,
-        SignatureScheme, SocksProxyDnsFeedback, SystemDnsTtlPolicy, TcpAddressAdvance,
-        TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
-        TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
-        TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders,
-        UdpSettings, UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketCleartextState,
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
-        WebSocketRefusedStreamRetry, WebSocketSettings, WebSocketTlsBackup,
+        SignatureScheme, SocketOptionPolicy, SocksProxyDnsFeedback, SystemDnsTtlPolicy,
+        TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection,
+        TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
+        TlsSettings, TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder,
+        TrustAnchorOrders, UdpSettings, UnknownCipherSuite, UrlTrust, ValidationErrorKind,
+        WebSocketCleartextState, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+        WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+        WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+        WebSocketTlsBackup,
     };
 
     /// Exact catalog selection, metadata and supported layers.
