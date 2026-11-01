@@ -7,6 +7,8 @@ use crate::{CaptureResult, Captured, DnsAnswers, HOSTNAME, Scenario, dns_respons
 mod native;
 #[path = "tests/native_bootstrap.rs"]
 mod native_bootstrap;
+#[path = "tests/ports.rs"]
+mod ports;
 
 fn state() -> CaptureResult<AlternativeHost> {
     Ok(AlternativeHost::new(

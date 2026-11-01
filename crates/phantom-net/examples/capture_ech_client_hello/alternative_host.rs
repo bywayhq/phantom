@@ -2,12 +2,15 @@
 
 use std::{
     error::Error,
-    fmt, io,
+    fmt,
+    future::Future,
+    io,
     net::{IpAddr, SocketAddr},
     sync::{
         Mutex, PoisonError,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use bytes::Bytes;
@@ -28,6 +31,10 @@ use super::{
 pub(super) const HOST_B: &str = "alternative.phantom.test";
 const MAX_REQUESTS: usize = 32;
 const PROBE_BODY: &[u8] = b"alternative-probe";
+const FIRST_PORT: u32 = 20_000;
+const PORT_SPAN: u32 = 12_768;
+const PORT_STRIDE: u32 = 7_919;
+const PORT_ATTEMPTS: usize = 256;
 
 #[derive(Debug)]
 struct SocketSetupError {
@@ -66,37 +73,82 @@ pub(super) async fn bind(
     config: quinn::ServerConfig,
     address: IpAddr,
 ) -> CaptureResult<(quinn::Endpoint, TcpListener)> {
+    static NEXT: AtomicU32 = AtomicU32::new(0);
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.subsec_nanos())
+        ^ std::process::id()
+        ^ NEXT.fetch_add(PORT_STRIDE, Ordering::Relaxed);
+    let (udp, reservation) = bind_pair(
+        address,
+        candidate_ports(seed),
+        |candidate| TcpListener::bind(candidate),
+        phantom_testkit::udp::bind,
+    )
+    .await?;
+    let candidate = reservation.local_addr().map_err(|error| {
+        SocketSetupError::new(
+            "inspect alternative TCP address",
+            SocketAddr::new(address, 0),
+            error,
+        )
+    })?;
+    udp.set_nonblocking(true).map_err(|error| {
+        SocketSetupError::new("set alternative UDP nonblocking", candidate, error)
+    })?;
+    let endpoint = quinn::Endpoint::new(
+        quinn::EndpointConfig::default(),
+        Some(config),
+        udp,
+        std::sync::Arc::new(quinn::TokioRuntime),
+    )
+    .map_err(|error| SocketSetupError::new("create alternative QUIC endpoint", candidate, error))?;
+    Ok((endpoint, reservation))
+}
+
+fn candidate_ports(seed: u32) -> impl Iterator<Item = u16> {
+    // Stay below the default ephemeral ranges and disperse candidates: TCP and
+    // UDP exclusions differ, so adjacent ephemeral TCP ports can all fail UDP.
+    (0..PORT_ATTEMPTS).filter_map(move |step| {
+        let offset = (seed % PORT_SPAN + u32::try_from(step).ok()? * PORT_STRIDE) % PORT_SPAN;
+        u16::try_from(FIRST_PORT + offset).ok()
+    })
+}
+
+async fn bind_pair<T, U, F, Fut>(
+    address: IpAddr,
+    ports: impl IntoIterator<Item = u16>,
+    mut bind_tcp: F,
+    mut bind_udp: impl FnMut(SocketAddr) -> io::Result<U>,
+) -> Result<(U, T), SocketSetupError>
+where
+    F: FnMut(SocketAddr) -> Fut,
+    Fut: Future<Output = io::Result<T>>,
+{
     let mut last = None;
-    for _ in 0..32 {
-        // TCP selects an ephemeral port outside its excluded blocks. Windows
-        // allocates UDP ephemeral ports sequentially, including TCP exclusions.
-        let requested = SocketAddr::new(address, 0);
-        let reservation = TcpListener::bind(requested)
-            .await
-            .map_err(|error| SocketSetupError::new("bind alternative TCP", requested, error))?;
-        let candidate = reservation.local_addr().map_err(|error| {
-            SocketSetupError::new("inspect alternative TCP address", requested, error)
-        })?;
-        match phantom_testkit::udp::bind(candidate) {
-            Ok(udp) => {
-                udp.set_nonblocking(true).map_err(|error| {
-                    SocketSetupError::new("set alternative UDP nonblocking", candidate, error)
-                })?;
-                let endpoint = quinn::Endpoint::new(
-                    quinn::EndpointConfig::default(),
-                    Some(config),
-                    udp,
-                    std::sync::Arc::new(quinn::TokioRuntime),
-                )
-                .map_err(|error| {
-                    SocketSetupError::new("create alternative QUIC endpoint", candidate, error)
-                })?;
-                return Ok((endpoint, reservation));
+    for port in ports.into_iter().take(PORT_ATTEMPTS) {
+        let candidate = SocketAddr::new(address, port);
+        let reservation = match bind_tcp(candidate).await {
+            Ok(reservation) => reservation,
+            Err(error) if port_unavailable(&error) => {
+                last = Some(SocketSetupError::new(
+                    "exhaust alternative TCP candidates",
+                    candidate,
+                    error,
+                ));
+                continue;
             }
-            Err(error)
-                if error.kind() == io::ErrorKind::AddrInUse
-                    || (cfg!(windows) && error.raw_os_error() == Some(10013)) =>
-            {
+            Err(error) => {
+                return Err(SocketSetupError::new(
+                    "bind alternative TCP",
+                    candidate,
+                    error,
+                ));
+            }
+        };
+        match bind_udp(candidate) {
+            Ok(udp) => return Ok((udp, reservation)),
+            Err(error) if port_unavailable(&error) => {
                 last = Some(SocketSetupError::new(
                     "exhaust alternative UDP candidates",
                     candidate,
@@ -104,11 +156,29 @@ pub(super) async fn bind(
                 ))
             }
             Err(error) => {
-                return Err(SocketSetupError::new("bind alternative UDP", candidate, error).into());
+                return Err(SocketSetupError::new(
+                    "bind alternative UDP",
+                    candidate,
+                    error,
+                ));
             }
         }
     }
-    Err(last.map_or_else(|| "no paired alternative port".into(), Into::into))
+    Err(last.unwrap_or_else(|| {
+        SocketSetupError::new(
+            "select alternative port",
+            SocketAddr::new(address, 0),
+            io::Error::new(
+                io::ErrorKind::AddrNotAvailable,
+                "no paired alternative port candidates",
+            ),
+        )
+    }))
+}
+
+fn port_unavailable(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::AddrInUse
+        || (cfg!(windows) && error.raw_os_error() == Some(10013))
 }
 
 struct DnsObservation {

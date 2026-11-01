@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Avoid Windows reserved-port blocks when pairing TCP and UDP capture listeners.
+
 - Refresh public-suffix and CA data, Tokio, Brotli and native binding dependencies.
 - Update QUIC tooling to aioquic 1.7 and Ruff to 0.17.3. Capture and protocol
   tests now use Python 3.12. Migrate: use Python 3.11 or newer for capture
