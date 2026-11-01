@@ -90,8 +90,8 @@ with Client(profile=PROFILE, header_hooks=(authorize,)) as client:
 snapshot describe the initial request. `append`, `set` and `remove` preserve
 ordered duplicates; `set` replaces the first match and removes later matches.
 Names match ignoring ASCII case. Header values accept bytes, including existing
-`Header` sensitivity marks. Resulting fields and each callback's edits are bounded
-to 256 entries and 65536 bytes, including request trailers in the field limit.
+`Header` sensitivity marks. Edit limits include trailers and retain any larger
+prepared-body allowance.
 
 `AsyncClient` callbacks can return `None` or await asynchronous work on the
 sending task's loop and context. `Client` callbacks must be synchronous and run
@@ -310,7 +310,8 @@ policies replace client policies; empty policies disable them. Attempts share
 the total deadline and budget, with the core's body-replay and credential rules.
 
 Pass `context="navigation"` or `"fetch"` for that catalog profile's headers.
-The default, `None`, and `"raw"` use caller fields only. Headers are ordered
+Omit the request context or use `None` to inherit the client default; `"raw"`
+omits its template. Headers are ordered
 pairs, including duplicates: `headers=[("x-example", b"value")]`. Values accept
 bytes or Latin-1 text. H2/H3 caller names must be lowercase. Use
 `Header("x-secret", b"value", sensitive=True)` for never-index encoding.
@@ -564,8 +565,8 @@ pending read to pause it, or close the source to stop reconnects. Supplied
 managed ID. Head fields describe the initial response. Phase `timeouts` apply
 through each response head; use `idle_timeout` for event reads, rather than
 `timeouts.read_idle`. Header hooks run once per fresh GET, including reconnects;
-`without_client_hooks=True` skips inherited hooks. The managed ID cannot be
-edited. Client policies apply;
+`without_client_hooks=True` skips inherited header hooks. The managed ID cannot
+be edited. Client policies apply;
 per-request contexts, budgets, bodies, transfers and diagnostics use the
 one-response `events()` API above.
 

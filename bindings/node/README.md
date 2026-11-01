@@ -115,16 +115,7 @@ start another phase. A host failure is retained in `error.cause`; an error
 observer failure is `error.hookError`, with its own cause. Cancellation or an
 expired deadline may prevent a terminal callback.
 
-Dedicated EventSource also inherits client hooks before its `headerHooks` on
-every fresh GET, including reconnects. `skipClientHeaderHooks` skips inheritance;
-managed Last-Event-ID cannot be edited. Its `requestHooks` run client-first for
-each GET. WebSocket openings do not use hooks.
-A pending hook receives cancellation through `context.signal` and must cooperate.
-`closeAsync({timeoutMs})`, async disposal and client shutdown wait for actual
-callback cleanup. A timeout leaves cleanup owned; close again after it settles.
-`read({signal})` pauses a read without closing its GET or callback pump; the
-source-wide signal closes the source. Source callback failures retain the original
-thrown value in the request error cause, under the SSE error cause.
+WebSocket openings do not use hooks.
 
 ## Read a response
 
@@ -183,6 +174,16 @@ The source inherits client headers, template, cookies and route. Ordered
 to add SSE Accept/cache fields. `retryMs` reports the effective delay as a
 `bigint`; `initialRetryMs` defaults to 3000 and `minimumRetryMs` sets its floor.
 `limits` uses the same byte limits as `events()`. A 204 response stops the source.
+
+Client header hooks precede source `headerHooks` on each fresh GET.
+`skipClientHeaderHooks` skips inherited header hooks; managed Last-Event-ID
+cannot be edited. Source `requestHooks` run client-first for each GET.
+Pending hooks receive cancellation through `context.signal` and must cooperate.
+`closeAsync({timeoutMs})`, async disposal and client shutdown wait for actual
+callback cleanup. A timeout leaves cleanup owned; close again after it settles.
+`read({signal})` pauses a read without closing its GET or callback pump; the
+source-wide signal closes the source. Source callback failures retain the original
+thrown value in the request error cause, under the SSE error cause.
 
 Reads drive reconnects without prefetching. `signal` or `close()` interrupts
 setup, reads and backoff. Graceful client close waits for the source; close it

@@ -143,8 +143,8 @@ For a reconnecting GET, use `client.EventSource(ctx, url,
 EventSourceOptions{Protocol: "h2"})`, then `source.Next(ctx)`. Close the
 source when finished. Each read has its own context; cancelling a read preserves
 the source and its pending hook. Client hooks run before `HeaderHooks` on each
-fresh GET; `SkipClientHeaderHooks` skips inherited hooks. Use `CloseContext` to
-wait for hook cleanup. `Headers` can position the managed ID with `LastEventID`.
+fresh GET; `SkipClientHeaderHooks` skips inherited header hooks. `CloseContext`
+waits for hook cleanup. `Headers` can position the managed ID with `LastEventID`.
 `IdleTimeout`, retry controls and `MaxReconnects` govern reconnects. Phase
 `Timeouts` end at each response head; use `IdleTimeout` instead of `ReadIdle`.
 Graceful client shutdown waits for open sources. Use `Client.Events` for an
