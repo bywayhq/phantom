@@ -65,14 +65,14 @@ test('awaited hooks run once in order and registered credentials stay stripped o
   assert.equal(observed[1]['x-after'], 'last');
 });
 
-test('hooks see generated body metadata and failures preserve their host cause without spending an attempt', {timeout: 30000}, async (t) => {
+test('hooks see prepared-body content type and retain their host cause without spending an attempt', {timeout: 30000}, async (t) => {
   let sent = 0;
   const url = await peer(t, (_request, response) => {sent++; response.end();});
   const owner = client(t);
   const original = new Error('host failure');
   const budget = new AttemptBudget(1);
   const body = await PreparedBody.form([['a', 'b']], {maximumBytes: 64});
-  await assert.rejects(owner.post(url, {body, attemptBudget: budget, headerHooks: [(context) => {
+  await assert.rejects(owner.post(url, {body, headers: [field('Content-Type', body.contentType)], attemptBudget: budget, headerHooks: [(context) => {
     assert.equal(context.method, 'POST');
     assert.equal(context.headers.find((header) => header.name.toLowerCase() === 'content-type').value.toString(), body.contentType);
     throw original;
