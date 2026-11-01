@@ -12,6 +12,78 @@ use phantom::{
 
 use crate::state_transfer::{self as state, failure};
 
+#[derive(Clone, Copy)]
+pub(super) enum RouteTransfer {
+    Checkpoint,
+    Tickets,
+}
+
+impl RouteTransfer {
+    fn failure(self, kind: &str) -> napi::Error {
+        match self {
+            Self::Checkpoint => crate::session::failure(kind),
+            Self::Tickets => failure("SessionTickets", kind, None),
+        }
+    }
+}
+
+pub(super) fn receiving_routes(
+    input: Array<'_>,
+    transfer: RouteTransfer,
+) -> Result<Vec<phantom::Route>> {
+    if input.len() as usize > crate::session::MAXIMUM_ROUTES {
+        return Err(transfer.failure("too_large"));
+    }
+    let mut remaining: usize = 65536;
+    let mut routes = Vec::new();
+    routes
+        .try_reserve_exact(input.len() as usize)
+        .map_err(|_| transfer.failure("allocation"))?;
+    for index in 0..input.len() {
+        let object: Object<'_> = input
+            .get(index)?
+            .ok_or_else(|| crate::error::failure("InvalidProxy", "invalid receiving route"))?;
+        let kind: JsString<'_> = object.get_named_property("route")?;
+        if kind.utf8_len()? > 6 {
+            return Err(crate::error::failure(
+                "InvalidProxy",
+                "invalid receiving route",
+            ));
+        }
+        let kind = kind.into_utf8()?;
+        let kind = kind.as_str()?;
+        if !matches!(kind, "direct" | "proxy") {
+            return Err(crate::error::failure(
+                "InvalidProxy",
+                "invalid receiving route",
+            ));
+        }
+        let mut text = |name: &str| -> Result<Option<String>> {
+            let value: Option<JsString<'_>> = object.get_named_property(name)?;
+            value
+                .map(|value| {
+                    remaining = remaining
+                        .checked_sub(value.utf8_len()?)
+                        .ok_or_else(|| transfer.failure("too_large"))?;
+                    Ok(value.into_utf8()?.as_str()?.to_owned())
+                })
+                .transpose()
+        };
+        let proxy = text("proxy")?;
+        let username = text("proxyUsername")?;
+        let password = text("proxyPassword")?;
+        let user_id = text("proxyUserId")?;
+        routes.push(crate::client::route(
+            kind,
+            proxy.as_deref(),
+            username.as_deref(),
+            password.as_deref(),
+            user_id.as_deref(),
+        )?);
+    }
+    Ok(routes)
+}
+
 pub(super) fn ticket_bytes(
     env: &napi::Env,
     input: napi::bindgen_prelude::Buffer,

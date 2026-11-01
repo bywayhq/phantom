@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use napi::{
     Env, Result,
-    bindgen_prelude::{AsyncBlock, AsyncBlockBuilder, Buffer},
+    bindgen_prelude::{Array, AsyncBlock, AsyncBlockBuilder, Buffer},
 };
 use napi_derive::napi;
 
@@ -12,7 +12,7 @@ use super::{
     buffer::{checkpoint_bytes, checkpoint_key, copy_buffer},
     certificates::client_certificates,
     client::NativeClient,
-    options::{ClientOptions, SessionRouteOptions, SessionSharingOptions},
+    options::{ClientOptions, SessionSharingOptions},
     profile::NativeProfile,
 };
 use crate::{
@@ -135,25 +135,14 @@ impl NativeEnvironment {
         source: &NativeClient,
         snapshot: Buffer,
         secret: Buffer,
-        routes: Vec<SessionRouteOptions>,
+        routes: Array<'_>,
     ) -> Result<AsyncBlock<NativeClient>> {
         let key = checkpoint_key(&env, secret)?;
         let bytes = checkpoint_bytes(&env, snapshot, session::MAXIMUM_BYTES)?;
-        if routes.len() > session::MAXIMUM_ROUTES {
-            return Err(session::failure("too_large"));
-        }
-        let routes = routes
-            .into_iter()
-            .map(|route| {
-                crate::client::route(
-                    &route.route,
-                    route.proxy.as_deref(),
-                    route.proxy_username.as_deref(),
-                    route.proxy_password.as_deref(),
-                    route.proxy_user_id.as_deref(),
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let routes = super::state_transfer::receiving_routes(
+            routes,
+            super::state_transfer::RouteTransfer::Checkpoint,
+        )?;
         let owner = Arc::clone(&source.state);
         let environment = Arc::clone(&self.state);
         AsyncBlockBuilder::new(async move {

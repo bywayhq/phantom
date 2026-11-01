@@ -197,7 +197,7 @@ test('ticket-only encrypted import authenticates before mutation and preserves s
 });
 
 
-test('ticket-only transfer resumes real TLS without consuming the source or replacing cookies', {timeout: 30000}, async (t) => {
+test('request-only direct ticket transfer resumes real TLS without consuming source state', {timeout: 30000}, async (t) => {
   const fixture = (name) => fs.readFileSync(path.join(__dirname, 'fixtures', name));
   const resumed = [], sockets = new Set();
   const peer = https.createServer({key: fixture('key.pem'), cert: fixture('certificate.pem'),
@@ -208,17 +208,26 @@ test('ticket-only transfer resumes real TLS without consuming the source or repl
   peer.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   peer.listen(0, '127.0.0.1'); await once(peer, 'listening');
   t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => peer.close(resolve)); });
-  const source = client(t, {additionalRoots: [fixture('certificate.der')]}), receiver = client(t, {additionalRoots: [fixture('certificate.der')]});
+  let proxyRequests = 0;
+  const proxy = http.createServer((_, response) => { proxyRequests++; response.writeHead(502); response.end(); });
+  proxy.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
+  proxy.listen(0, '127.0.0.1'); await once(proxy, 'listening');
+  t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => proxy.close(resolve)); });
+  const configuration = {route: 'proxy', proxy: `http://127.0.0.1:${proxy.address().port}`, additionalRoots: [fixture('certificate.der')]};
+  const source = client(t, configuration), receiver = client(t, configuration);
   source.setCookie('https://example.test', 'state=source; Secure; Path=/');
   receiver.setCookie('https://example.test', 'state=receiver; Secure; Path=/');
   const url = `https://127.0.0.1:${peer.address().port}`;
-  const send = async (owner) => { const response = await owner.request(url, {...options, context: 'raw'}); assert.equal((await response.bytes(2)).toString(), 'ok'); };
+  const send = async (owner) => { const response = await owner.request(url, {...options, context: 'raw', route: {route: 'direct'}}); assert.equal((await response.bytes(2)).toString(), 'ok'); };
   await send(source);
   const snapshot = await source.exportSessionTickets(key);
-  await receiver.importSessionTickets(snapshot, key);
-  await assert.rejects(receiver.importSessionTickets(snapshot, Buffer.alloc(32)), (error) => error.code === 'SessionTickets' && error.kind === 'authentication');
+  await assert.rejects(receiver.importSessionTickets(snapshot, key), (error) => error.code === 'SessionTickets' && error.kind === 'policy');
+  const receivingRoutes = [{route: 'direct'}];
+  await receiver.importSessionTickets(snapshot, key, {receivingRoutes});
+  await assert.rejects(receiver.importSessionTickets(snapshot, Buffer.alloc(32), {receivingRoutes}), (error) => error.code === 'SessionTickets' && error.kind === 'authentication');
   await send(receiver); await send(source);
   assert.deepEqual(resumed, [false, true, true]);
+  assert.equal(proxyRequests, 0);
   assert.equal(source.cookieValue('https://example.test'), 'state=source');
   assert.equal(receiver.cookieValue('https://example.test'), 'state=receiver');
 });

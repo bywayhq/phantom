@@ -17,7 +17,7 @@ use super::{
     diagnostics::NativeRequestDiagnostics,
     event_source::{EventSourceHead, EventSourceOptions, NativeEventSource},
     header_hook::NativeHeaderHooks,
-    options::{RequestOptions, SessionRouteOptions, WireHeader},
+    options::{RequestOptions, WireHeader},
     response::NativeResponse,
     upload::NativeUpload,
     websocket::{NativeWebSocket, WebSocketHandshake, WebSocketOptions, WebSocketRejection},
@@ -121,30 +121,15 @@ impl NativeClient {
         env: Env,
         snapshot: Buffer,
         secret: Buffer,
-        routes: Vec<SessionRouteOptions>,
+        routes: Array<'_>,
     ) -> Result<AsyncBlock<()>> {
         self.state.check_open()?;
         let key = super::state_transfer::ticket_key(&env, secret)?;
         let bytes = super::state_transfer::ticket_bytes(&env, snapshot)?;
-        if routes.len() > session::MAXIMUM_ROUTES {
-            return Err(crate::state_transfer::failure(
-                "SessionTickets",
-                "too_large",
-                None,
-            ));
-        }
-        let routes = routes
-            .into_iter()
-            .map(|route| {
-                crate::client::route(
-                    &route.route,
-                    route.proxy.as_deref(),
-                    route.proxy_username.as_deref(),
-                    route.proxy_password.as_deref(),
-                    route.proxy_user_id.as_deref(),
-                )
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let routes = super::state_transfer::receiving_routes(
+            routes,
+            super::state_transfer::RouteTransfer::Tickets,
+        )?;
         let permit = Arc::clone(&self.state.admission)
             .try_acquire_owned()
             .map_err(|_| failure("Capacity", "client has no free request slots"))?;

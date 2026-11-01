@@ -28,18 +28,22 @@ function checkpointKey(value) {
   return key;
 }
 
-function receivingRoutes(options) {
+function receivingRoutes(options, limitCode = 'SessionSnapshot') {
+  const limit = () => limitCode === 'InputLimit'
+    ? new PhantomError('InputLimit', 'route input exceeds its limit')
+    : stateFailure('SessionSnapshot', 'too_large');
   const fields = policyFields(options, ['receivingRoutes']);
   const routes = fields.receivingRoutes === undefined ? [] : fields.receivingRoutes;
   if (!Array.isArray(routes) || types.isProxy(routes)) throw new PhantomError('InvalidArgument', 'receivingRoutes must be a data array');
-  if (routes.length > 256) throw new PhantomError('SessionSnapshot', 'session checkpoint failed', undefined, undefined, 'too_large');
+  if (routes.length > 256) throw limit();
   if (Reflect.ownKeys(routes).length !== routes.length + 1) throw new PhantomError('InvalidArgument', 'receivingRoutes must contain only route entries');
   const result = [];
+  let remaining = 65536;
   for (let index = 0; index < routes.length; index++) {
     const field = Object.getOwnPropertyDescriptor(routes, String(index));
     if (!field || !Object.hasOwn(field, 'value')) throw new PhantomError('InvalidArgument', 'receivingRoutes must contain data entries');
     const route = policyFields(field.value, ['route', 'proxy', 'proxyUsername', 'proxyPassword', 'proxyUserId']);
-    if (route.proxyUserId !== undefined) route.proxyUserId = socks4UserId(route.proxyUserId);
+    if (route.proxyUserId !== undefined && typeof route.proxyUserId !== 'string') socks4UserId(route.proxyUserId);
     if (route.route === 'direct') {
       if (route.proxy !== undefined || route.proxyUsername !== undefined || route.proxyPassword !== undefined || route.proxyUserId !== undefined) throw new PhantomError('InvalidArgument', 'a direct receiving route cannot include a proxy');
     } else if (route.route !== 'proxy' || typeof route.proxy !== 'string'
@@ -48,6 +52,14 @@ function receivingRoutes(options) {
       || (route.proxyUsername === undefined) !== (route.proxyPassword === undefined)) {
       throw new PhantomError('InvalidArgument', 'receiving proxy routes require a URI and paired string credentials');
     }
+    for (const text of [route.proxy, route.proxyUsername, route.proxyPassword, route.proxyUserId]) {
+      if (text === undefined) continue;
+      if (typeof text !== 'string' || !text.isWellFormed()) throw new PhantomError('InvalidArgument', 'receiving route fields must be UTF-8 strings');
+      if (text.length > remaining) throw limit();
+      remaining -= Buffer.byteLength(text);
+      if (remaining < 0) throw limit();
+    }
+    if (route.proxyUserId !== undefined) route.proxyUserId = socks4UserId(route.proxyUserId);
     result.push(route);
   }
   return result;
