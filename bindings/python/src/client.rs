@@ -224,6 +224,40 @@ impl NativeClient {
         session::export(py, &self.client, key)
     }
 
+    fn export_cookies(&self, py: Python<'_>) -> PyResult<Option<Vec<session::cookies::Fields>>> {
+        session::cookies::export(py, &self.client)
+    }
+
+    fn import_cookies(&self, py: Python<'_>, entries: &Bound<'_, PyList>) -> PyResult<()> {
+        session::cookies::import(py, &self.client, entries)
+    }
+
+    fn export_alt_svc(&self, py: Python<'_>) -> PyResult<Option<Vec<session::alt_svc::Fields>>> {
+        session::alt_svc::export(py, &self.client)
+    }
+
+    fn import_alt_svc(&self, py: Python<'_>, entries: &Bound<'_, PyList>) -> PyResult<()> {
+        session::alt_svc::import(py, &self.client, entries)
+    }
+
+    fn export_session_tickets(
+        &self,
+        py: Python<'_>,
+        key: &Bound<'_, PyBytes>,
+    ) -> PyResult<Vec<u8>> {
+        session::tickets::export(py, &self.client, key)
+    }
+
+    fn import_session_tickets(
+        &self,
+        py: Python<'_>,
+        snapshot: &Bound<'_, PyBytes>,
+        key: &Bound<'_, PyBytes>,
+        receiving_routes: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        session::tickets::import(py, &self.client, snapshot, key, receiving_routes)
+    }
+
     fn restore_session(
         &self,
         py: Python<'_>,

@@ -1,11 +1,11 @@
 //! Bounded synchronous ownership of network settings before client construction.
 
-use std::net::IpAddr;
+use std::{net::IpAddr, num::NonZeroUsize};
 
 use phantom::ClientBuilder;
 use pyo3::{
     prelude::*,
-    types::{PyBool, PyString, PyTuple},
+    types::{PyBool, PyInt, PyString, PyTuple},
 };
 
 use crate::{dns, error};
@@ -22,6 +22,7 @@ pub(super) struct Network {
     public_only: bool,
     dns: Option<dns::Dns>,
     disable_dns_cache: bool,
+    max_alt_svc_origins: Option<NonZeroUsize>,
 }
 
 #[derive(FromPyObject)]
@@ -33,6 +34,7 @@ struct Settings<'py> {
     public_only: Bound<'py, PyAny>,
     dns: Bound<'py, PyAny>,
     dns_cache: Bound<'py, PyAny>,
+    max_alt_svc_origins: Bound<'py, PyAny>,
 }
 
 #[derive(FromPyObject)]
@@ -74,6 +76,7 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         public_only,
         dns,
         dns_cache,
+        max_alt_svc_origins,
     } = value
         .extract::<Settings<'_>>()
         .map_err(|_| error::input("invalid_network"))?;
@@ -81,6 +84,20 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         .cast_exact::<PyBool>()
         .map_err(|_| error::input("invalid_network"))?
         .is_true();
+    let max_alt_svc_origins = if max_alt_svc_origins.is_none() {
+        None
+    } else {
+        Some(
+            max_alt_svc_origins
+                .cast_exact::<PyInt>()
+                .map_err(|_| error::input("invalid_alt_svc_capacity"))?
+                .extract::<usize>()
+                .ok()
+                .and_then(NonZeroUsize::new)
+                .filter(|value| value.get() <= usize::MAX / 2)
+                .ok_or_else(|| error::input("invalid_alt_svc_capacity"))?,
+        )
+    };
     let disable_dns_cache = dns_cache.is_none();
     if !disable_dns_cache && !dns::is_inherit(&dns_cache, "invalid_dns_cache")? {
         return Err(error::input("invalid_dns_cache"));
@@ -161,6 +178,7 @@ pub(super) fn parse(value: Option<&Bound<'_, PyAny>>) -> PyResult<Network> {
         public_only,
         dns,
         disable_dns_cache,
+        max_alt_svc_origins,
         overrides,
         locals,
         interface,
@@ -182,6 +200,9 @@ impl Network {
     pub(super) fn apply(self, mut builder: ClientBuilder) -> PyResult<ClientBuilder> {
         if self.disable_dns_cache {
             builder = builder.no_dns_cache();
+        }
+        if let Some(capacity) = self.max_alt_svc_origins {
+            builder = builder.alt_svc(capacity);
         }
         for (host, addresses) in self.overrides {
             builder = builder.resolve(&host, addresses);
@@ -220,8 +241,8 @@ mod tests {
             let scope = pyo3::types::PyDict::new(py);
             py.run(
                 c"from types import SimpleNamespace
-def network(host_overrides=(), local_addresses=(), interface=None, unix_socket=None, public_only=False):
-    return SimpleNamespace(host_overrides=host_overrides, local_addresses=local_addresses, interface=interface, unix_socket=unix_socket, public_only=public_only, dns=None, dns_cache=None)
+def network(host_overrides=(), local_addresses=(), interface=None, unix_socket=None, public_only=False, max_alt_svc_origins=None):
+    return SimpleNamespace(host_overrides=host_overrides, local_addresses=local_addresses, interface=interface, unix_socket=unix_socket, public_only=public_only, dns=None, dns_cache=None, max_alt_svc_origins=max_alt_svc_origins)
 def host(value, addresses=()):
     return SimpleNamespace(host=value, addresses=addresses)
 class Lying(str):
@@ -241,6 +262,10 @@ class Raising:
                 c"network(host_overrides=[])",
                 c"network(public_only=1)",
                 c"network(public_only=None)",
+                c"network(max_alt_svc_origins=0)",
+                c"network(max_alt_svc_origins=True)",
+                c"network(max_alt_svc_origins=-1)",
+                c"network(max_alt_svc_origins=2**128)",
                 c"network(host_overrides=(('host', ()),))",
                 c"network(unix_socket='')",
                 c"network(unix_socket='private\\x00path')",
@@ -275,6 +300,16 @@ class Raising:
             let owned = parse(Some(&public))?;
             assert!(owned.public_only);
             assert!(owned.unix_socket.is_none());
+            assert!(owned.max_alt_svc_origins.is_none());
+            let enabled = py.eval(c"network(max_alt_svc_origins=8)", Some(&scope), None)?;
+            let enabled = parse(Some(&enabled))?;
+            let client = enabled
+                .apply(phantom::Client::builder(
+                    phantom::profile::browser::chrome::v154_windows(),
+                ))?
+                .build()
+                .map_err(crate::client_certificate::build_error)?;
+            assert!(client.export_alt_svc().is_some());
             let boundary = py.eval(c"network(interface='é' * 32768)", Some(&scope), None)?;
             assert!(parse(Some(&boundary)).is_ok());
             let path = py.eval(
@@ -323,7 +358,7 @@ class Settings:
     def __getattr__(self, name):
         self.reads[name] = self.reads.get(name, 0) + 1
         if self.reads[name] != 1: raise ValueError('private')
-        return {'host_overrides': (self.record,), 'local_addresses': ('::1',), 'interface': None, 'unix_socket': None, 'public_only': False, 'dns': None, 'dns_cache': None}[name]
+        return {'host_overrides': (self.record,), 'local_addresses': ('::1',), 'interface': None, 'unix_socket': None, 'public_only': False, 'dns': None, 'dns_cache': None, 'max_alt_svc_origins': None}[name]
 settings = Settings()
 ",
                 Some(&scope),

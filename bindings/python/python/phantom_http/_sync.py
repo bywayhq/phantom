@@ -61,6 +61,12 @@ from ._session import (
     _receiving_routes,
 )
 from ._sse import _DEFAULT_SSE_LIMITS, EventStream, SseLimits
+from ._state_transfer import (
+    AltSvcSnapshot,
+    CookieSnapshot,
+    _ticket_bytes,
+    _ticket_key,
+)
 from ._sync_websocket import WebSocket
 from ._transfer import TransferControl
 from ._websocket import (
@@ -317,6 +323,53 @@ class Client:
             client._loop.close()
             raise
         return client
+
+    def export_cookies(self) -> CookieSnapshot | None:
+        """Export cookies oldest first; None means the cookie jar is disabled."""
+        self._check_thread_loop()
+        fields = _call(self._async._native.export_cookies)
+        return None if fields is None else CookieSnapshot._from_fields(fields)
+
+    def import_cookies(self, snapshot: CookieSnapshot) -> None:
+        """Validate atomically, then merge without replacing existing cookies."""
+        self._check_thread_loop()
+        if type(snapshot) is not CookieSnapshot:
+            raise TypeError("snapshot must be CookieSnapshot")
+        _call(self._async._native.import_cookies, snapshot._fields())
+
+    def export_alt_svc(self) -> AltSvcSnapshot | None:
+        """Export direct alternatives in LRU order; None means discovery is disabled."""
+        self._check_thread_loop()
+        fields = _call(self._async._native.export_alt_svc)
+        return None if fields is None else AltSvcSnapshot._from_fields(fields)
+
+    def import_alt_svc(self, snapshot: AltSvcSnapshot) -> None:
+        """Validate atomically, then merge compatible unexpired direct alternatives."""
+        self._check_thread_loop()
+        if type(snapshot) is not AltSvcSnapshot:
+            raise TypeError("snapshot must be AltSvcSnapshot")
+        _call(self._async._native.import_alt_svc, snapshot._fields())
+
+    def export_session_tickets(self, key: bytes) -> bytes:
+        """Export authenticated encrypted tickets using a caller-owned 32-byte key."""
+        self._check_thread_loop()
+        return _call(self._async._native.export_session_tickets, _ticket_key(key))
+
+    def import_session_tickets(
+        self,
+        snapshot: bytes,
+        key: bytes,
+        *,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> None:
+        """Replace matching ticket caches; supply routes used only by individual requests."""
+        self._check_thread_loop()
+        _call(
+            self._async._native.import_session_tickets,
+            _ticket_bytes(snapshot),
+            _ticket_key(key),
+            _receiving_routes(receiving_routes),
+        )
 
     def export_session(self, key: bytes) -> bytes:
         """Export supported state without changing this client or its pools."""

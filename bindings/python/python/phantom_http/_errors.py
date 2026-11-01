@@ -131,6 +131,22 @@ class SessionSnapshotError(Error):
     """An encrypted checkpoint failed validation without exposing its contents."""
 
 
+class CookieSnapshotError(Error):
+    """A cookie transfer failed; entry_index identifies an invalid entry."""
+
+    entry_index: int | None = None
+
+
+class AltSvcSnapshotError(Error):
+    """An alternative transfer failed; entry_index identifies an invalid entry."""
+
+    entry_index: int | None = None
+
+
+class SessionTicketError(Error):
+    """Encrypted tickets failed authentication, validation or admission."""
+
+
 class DecodeError(Error):
     """Text or JSON decoding failed without including response content."""
 
@@ -145,6 +161,17 @@ def _error(error: _native.NativeError) -> Error:
     )
     if category == "session_snapshot":
         return SessionSnapshotError(category, kind, protocol, phase)
+    if category == "session_tickets":
+        return SessionTicketError(category, kind, protocol, phase)
+    if category in ("cookie_snapshot", "alt_svc_snapshot"):
+        transfer = (
+            CookieSnapshotError(category, kind, protocol, phase)
+            if category == "cookie_snapshot"
+            else AltSvcSnapshotError(category, kind, protocol, phase)
+        )
+        index = cast(object, getattr(error, "entry_index", None))
+        transfer.entry_index = index if type(index) is int else None
+        return transfer
     if category == "prepared_body":
         return PreparedBodyError(category, kind, protocol, phase)
     if category == "sse":

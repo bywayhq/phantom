@@ -31,14 +31,17 @@ from ._diagnostics import TlsConnectionInfo as TlsConnectionInfo
 from ._diagnostics import TlsConnectionState as TlsConnectionState
 from ._dns import DnsOverHttps as DnsOverHttps
 from ._dns import DnsOverTls as DnsOverTls
+from ._errors import AltSvcSnapshotError as AltSvcSnapshotError
 from ._errors import AttemptBudgetExhausted as AttemptBudgetExhausted
 from ._errors import BodyLimitExceeded as BodyLimitExceeded
 from ._errors import ClientClosed as ClientClosed
+from ._errors import CookieSnapshotError as CookieSnapshotError
 from ._errors import DecodeError as DecodeError
 from ._errors import Error as Error
 from ._errors import PreparedBodyError as PreparedBodyError
 from ._errors import ProfileError as ProfileError
 from ._errors import SessionSnapshotError as SessionSnapshotError
+from ._errors import SessionTicketError as SessionTicketError
 from ._errors import SseError as SseError
 from ._errors import TimeoutError as TimeoutError
 from ._errors import UploadError as UploadError
@@ -70,6 +73,10 @@ from ._sse import AsyncEventStream as AsyncEventStream
 from ._sse import Event as Event
 from ._sse import EventStream as EventStream
 from ._sse import SseLimits as SseLimits
+from ._state_transfer import AltSvcSnapshot as AltSvcSnapshot
+from ._state_transfer import AltSvcSnapshotEntry as AltSvcSnapshotEntry
+from ._state_transfer import CookieSnapshot as CookieSnapshot
+from ._state_transfer import CookieSnapshotEntry as CookieSnapshotEntry
 from ._storage import AsyncSessionStore as AsyncSessionStore
 from ._storage import SessionStorageError as SessionStorageError
 from ._storage import SessionStore as SessionStore
@@ -103,6 +110,13 @@ for _public_type in (
     UploadError,
     ProfileError,
     SessionSnapshotError,
+    CookieSnapshot,
+    CookieSnapshotEntry,
+    CookieSnapshotError,
+    AltSvcSnapshot,
+    AltSvcSnapshotEntry,
+    AltSvcSnapshotError,
+    SessionTicketError,
     DecodeError,
     SseError,
     SseLimits,
