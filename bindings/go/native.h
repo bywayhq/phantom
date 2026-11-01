@@ -100,6 +100,21 @@ uint64_t phantom_go_header_hook_sse_request(const struct phantom_go_request *, c
 uint64_t phantom_go_header_hook_copy(uint64_t, uint64_t, struct phantom_go_header_hook_invocation *, struct phantom_go_field *, size_t, uint8_t *, size_t);
 uint64_t phantom_go_header_hook_reply(uint64_t, uint64_t, uint64_t, const struct phantom_go_header_hook_edit *, size_t, struct phantom_go_reply *);
 uint64_t phantom_go_header_hook_cancel(uint64_t, struct phantom_go_reply *);
+/* Optional redirect-hook ABI 1; also requires the complete header-hook ABI 1.
+ * The unchanged request descriptor supplies maximum hops and credential names.
+ * count is 0..256 header hooks. A nonnull limits pair selects raw SSE decoding;
+ * otherwise the result is an ordinary response. Negotiate before admission.
+ * Completion kind 7 is intermediate and uses the same host custody as kind 6.
+ * copy returns four owned UTF-8 spans, status and one-based hop in a 256 KiB
+ * arena. Outcome 0 accepts decision 1 Follow, 2 Stop, 3 Reject; outcome 1 fails
+ * and outcome 2 discards, both with decision 0. No foreign pointer is retained.
+ */
+struct phantom_go_redirect_hook_invocation;
+struct phantom_go_callback_sse_limits;
+uint64_t phantom_go_redirect_hook_version(void);
+uint64_t phantom_go_redirect_hook_request(const struct phantom_go_request *, const uint8_t *, size_t, uint64_t, const struct phantom_go_callback_sse_limits *, struct phantom_go_reply *);
+uint64_t phantom_go_redirect_hook_copy(uint64_t, uint64_t, struct phantom_go_redirect_hook_invocation *, uint8_t *, size_t);
+uint64_t phantom_go_redirect_hook_reply(uint64_t, uint64_t, uint64_t, uint64_t, struct phantom_go_reply *);
 /* Optional state-transfer ABI 1. Negotiate all three symbols before admission.
  * Cookie/Alt-Svc rows use UTF-8 offsets into a separate <=32 MiB arena, with
  * <=16384 cookies or <=32768 alternatives. Expiry is signed Unix seconds plus

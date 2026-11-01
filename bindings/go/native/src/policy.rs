@@ -128,6 +128,18 @@ pub(super) struct RedirectPolicy {
 
 impl RedirectPolicy {
     pub(super) fn core(self) -> Result<phantom::RedirectPolicy, Failure> {
+        let (maximum, names) = self.into_parts()?;
+        Ok(maximum
+            .map_or_else(
+                phantom::RedirectPolicy::none,
+                phantom::RedirectPolicy::limited,
+            )
+            .credential_headers(names))
+    }
+
+    pub(super) fn into_parts(
+        self,
+    ) -> Result<(Option<NonZeroUsize>, Vec<http::HeaderName>), Failure> {
         let maximum = usize::try_from(self.maximum_hops)
             .map_err(|_| Failure::new("invalid_redirect_policy"))?;
         if self.credential_headers.len() > 256
@@ -148,12 +160,7 @@ impl RedirectPolicy {
                     .map_err(|_| Failure::new("invalid_redirect_policy"))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(NonZeroUsize::new(maximum)
-            .map_or_else(
-                phantom::RedirectPolicy::none,
-                phantom::RedirectPolicy::limited,
-            )
-            .credential_headers(names))
+        Ok((NonZeroUsize::new(maximum), names))
     }
 }
 

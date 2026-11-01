@@ -283,12 +283,21 @@ struct Operation {
     socket: Option<u64>,
     source: Option<u64>,
     source_result: Option<std::sync::Arc<event_source::ResultData>>,
-    header_call: Option<HeaderCall>,
+    callback_call: Option<CallbackCall>,
 }
-struct HeaderCall {
-    invocation: std::sync::Arc<header_hook::Invocation>,
-    reply: Option<oneshot::Sender<Result<Vec<header_hook::Edit>, header_hook::HostFailure>>>,
+struct CallbackCall {
+    ticket: u64,
+    invocation: CallbackInvocation,
+    reply: Option<oneshot::Sender<Result<CallbackReply, header_hook::HostFailure>>>,
     host_owned: bool,
+}
+enum CallbackInvocation {
+    Header(std::sync::Arc<header_hook::Invocation>),
+    Redirect(std::sync::Arc<crate::redirect_hook::Invocation>),
+}
+enum CallbackReply {
+    Header(Vec<header_hook::Edit>),
+    Redirect(phantom::RedirectDecision),
 }
 pub(crate) struct Completion {
     pub(crate) operation: u64,
@@ -303,6 +312,7 @@ pub(crate) enum Completed {
     Complete,
     Part(usize),
     HeaderHook(u64),
+    RedirectHook(u64),
 }
 
 #[derive(Serialize)]
@@ -336,6 +346,7 @@ impl Completion {
             Ok(Completed::Complete) => (Some(json!({})), None),
             Ok(Completed::Part(part)) => (Some(json!({"part":part})), None),
             Ok(Completed::HeaderHook(ticket)) => (Some(json!({"header_hook":ticket})), None),
+            Ok(Completed::RedirectHook(ticket)) => (Some(json!({"redirect_hook":ticket})), None),
             Err(error) => (None, Some(error)),
         };
         serde_json::to_vec(&json!({"operation":self.operation,"value":value,"error":error,"data_length":self.data.len()}))
@@ -600,7 +611,7 @@ impl State {
                 socket: None,
                 source: None,
                 source_result: None,
-                header_call: None,
+                callback_call: None,
             },
         );
         Ok((id, receiver))
@@ -714,7 +725,7 @@ impl State {
         });
         let finished = operation.finished;
         let host_owned = operation
-            .header_call
+            .callback_call
             .as_ref()
             .is_some_and(|call| call.host_owned);
         if let Some(source) = source {
@@ -815,19 +826,19 @@ impl Global {
                 operation.source = None;
                 operation.source_result = None;
                 if operation
-                    .header_call
+                    .callback_call
                     .as_ref()
                     .is_some_and(|call| !call.host_owned)
                 {
-                    operation.header_call = None;
-                } else if let Some(call) = &mut operation.header_call {
+                    operation.callback_call = None;
+                } else if let Some(call) = &mut operation.callback_call {
                     // Delivered host code still owes handback after registry failure.
                     call.reply.take();
                 }
                 operation.finished = true;
                 if operation.abandoned {
                     return operation
-                        .header_call
+                        .callback_call
                         .as_ref()
                         .is_some_and(|call| call.host_owned);
                 }
@@ -917,7 +928,7 @@ impl Global {
                 state.operations.values().any(|operation| {
                     (!operation.finished
                         || operation
-                            .header_call
+                            .callback_call
                             .as_ref()
                             .is_some_and(|call| call.host_owned))
                         && match operation.target {
@@ -962,7 +973,7 @@ impl Global {
         };
         if operation.abandoned {
             if operation
-                .header_call
+                .callback_call
                 .as_ref()
                 .is_some_and(|call| call.host_owned)
             {
@@ -1178,7 +1189,16 @@ pub(crate) fn execute_with_header_hooks(
     bytes: &[u8],
     hooks: usize,
 ) -> Result<Execution, Failure> {
-    if hooks > 256 || (hooks != 0 && !matches!(&command, Command::Request { .. })) {
+    execute_with_callbacks(command, bytes, hooks, false)
+}
+
+pub(crate) fn execute_with_callbacks(
+    command: Command,
+    bytes: &[u8],
+    hooks: usize,
+    redirects: bool,
+) -> Result<Execution, Failure> {
+    if hooks > 256 || ((hooks != 0 || redirects) && !matches!(&command, Command::Request { .. })) {
         return Err(Failure::new("invalid_header_hooks"));
     }
     (|| {
@@ -1465,7 +1485,12 @@ pub(crate) fn execute_with_header_hooks(
                     .operations
                     .get(&operation)
                     .ok_or_else(|| Failure::new("invalid_handle"))?;
-                if !op.finished || op.header_call.as_ref().is_some_and(|call| call.host_owned) {
+                if !op.finished
+                    || op
+                        .callback_call
+                        .as_ref()
+                        .is_some_and(|call| call.host_owned)
+                {
                     return Err(Failure::new("operation_pending"));
                 }
                 state.operations.remove(&operation);
@@ -1488,7 +1513,7 @@ pub(crate) fn execute_with_header_hooks(
                 diagnostics,
                 timeouts,
                 content_decoding,
-                redirect_policy,
+                mut redirect_policy,
                 redirect_history_limit,
                 retry_policy,
                 events,
@@ -1496,6 +1521,18 @@ pub(crate) fn execute_with_header_hooks(
                 prepared_body: _,
                 upload,
             } => {
+                let redirect_settings = if redirects {
+                    let (maximum, names) = redirect_policy
+                        .take()
+                        .ok_or_else(|| Failure::new("invalid_redirect_policy"))?
+                        .into_parts()?;
+                    Some((
+                        maximum.ok_or_else(|| Failure::new("invalid_redirect_policy"))?,
+                        names,
+                    ))
+                } else {
+                    None
+                };
                 if trailers.len() > 256 || headers.len() > 256 - trailers.len() {
                     return Err(Failure::new("input_limit"));
                 }
@@ -1572,6 +1609,14 @@ pub(crate) fn execute_with_header_hooks(
                     request = request.async_header_hook(move |context| {
                         Box::pin(global.header_hook(id, index, context))
                     });
+                }
+                if let Some((maximum, names)) = redirect_settings {
+                    request = request.redirect_policy(
+                        phantom::RedirectPolicy::custom_async(maximum, move |attempt| {
+                            Box::pin(global.redirect_hook(id, attempt))
+                        })
+                        .credential_headers(names),
+                    );
                 }
                 let mut stream_upload = None;
                 if let Some(upload) = upload {
@@ -1757,21 +1802,21 @@ pub(crate) fn discard_response(id: u64) -> Result<(), Failure> {
     Ok(())
 }
 
-struct HeaderWait {
+struct CallbackWait {
     global: &'static Global,
     operation: u64,
     ticket: u64,
 }
 
-impl Drop for HeaderWait {
+impl Drop for CallbackWait {
     fn drop(&mut self) {
         if let Some(call) = self
             .global
             .lock()
             .operations
             .get_mut(&self.operation)
-            .and_then(|operation| operation.header_call.as_mut())
-            .filter(|call| call.invocation.ticket == self.ticket)
+            .and_then(|operation| operation.callback_call.as_mut())
+            .filter(|call| call.ticket == self.ticket)
         {
             call.reply.take();
         }
@@ -1820,7 +1865,6 @@ impl Global {
             }
             let ticket = state.id().map_err(|_| failure())?;
             let invocation = std::sync::Arc::new(header_hook::Invocation {
-                ticket,
                 index,
                 method,
                 uri,
@@ -1830,8 +1874,9 @@ impl Global {
                 .operations
                 .get_mut(&operation)
                 .ok_or_else(failure)?
-                .header_call = Some(HeaderCall {
-                invocation,
+                .callback_call = Some(CallbackCall {
+                ticket,
+                invocation: CallbackInvocation::Header(invocation),
                 reply: Some(sender),
                 host_owned: false,
             });
@@ -1846,16 +1891,19 @@ impl Global {
             ticket
         };
         self.ready.notify_one();
-        let wait = HeaderWait {
+        let wait = CallbackWait {
             global: self,
             operation,
             ticket,
         };
-        let edits = receiver
+        let reply = receiver
             .await
             .map_err(|_| failure())?
             .map_err(phantom::HeaderHookError::new)?;
         drop(wait);
+        let CallbackReply::Header(edits) = reply else {
+            return Err(failure());
+        };
         for edit in edits {
             edit.apply(context)?;
         }
@@ -1871,9 +1919,12 @@ pub(crate) fn header_invocation(
         .lock()
         .operations
         .get(&operation)
-        .and_then(|operation| operation.header_call.as_ref())
-        .filter(|call| call.invocation.ticket == ticket)
-        .map(|call| std::sync::Arc::clone(&call.invocation))
+        .and_then(|operation| operation.callback_call.as_ref())
+        .filter(|call| call.ticket == ticket)
+        .and_then(|call| match &call.invocation {
+            CallbackInvocation::Header(invocation) => Some(std::sync::Arc::clone(invocation)),
+            CallbackInvocation::Redirect(_) => None,
+        })
         .ok_or_else(|| Failure::new("header_hook_closed"))
 }
 
@@ -1887,6 +1938,80 @@ pub(crate) fn reply_header_hook(
 }
 
 impl Global {
+    async fn redirect_hook(
+        &'static self,
+        operation: u64,
+        attempt: &phantom::RedirectAttempt<'_>,
+    ) -> Result<phantom::RedirectDecision, phantom::RedirectCallbackError> {
+        let failure = || phantom::RedirectCallbackError::new(header_hook::HostFailure);
+        let size = [
+            attempt.from_url().as_str(),
+            attempt.to_url().as_str(),
+            attempt.method().as_str(),
+            attempt.next_method().as_str(),
+        ]
+        .iter()
+        .try_fold(0_usize, |size, value| size.checked_add(value.len()));
+        if size.is_none_or(|size| size > MAX_METADATA) {
+            return Err(failure());
+        }
+        let invocation = std::sync::Arc::new(crate::redirect_hook::Invocation {
+            from: attempt.from_url().to_string(),
+            to: attempt.to_url().to_string(),
+            method: attempt.method().to_string(),
+            next_method: attempt.next_method().to_string(),
+            status: attempt.status().as_u16(),
+            hop: attempt.hop(),
+        });
+        let (sender, receiver) = oneshot::channel();
+        let ticket = {
+            let mut state = self.lock();
+            if state.failed
+                || !state
+                    .operations
+                    .get(&operation)
+                    .is_some_and(|op| !op.abandoned && !op.finished)
+            {
+                return Err(failure());
+            }
+            let ticket = state.id().map_err(|_| failure())?;
+            state
+                .operations
+                .get_mut(&operation)
+                .ok_or_else(failure)?
+                .callback_call = Some(CallbackCall {
+                ticket,
+                invocation: CallbackInvocation::Redirect(invocation),
+                reply: Some(sender),
+                host_owned: false,
+            });
+            state.ready.push_back(Queued {
+                operation,
+                completion: Completion {
+                    operation,
+                    result: Ok(Completed::RedirectHook(ticket)),
+                    data: Bytes::new(),
+                },
+            });
+            ticket
+        };
+        self.ready.notify_one();
+        let wait = CallbackWait {
+            global: self,
+            operation,
+            ticket,
+        };
+        let reply = receiver
+            .await
+            .map_err(|_| failure())?
+            .map_err(phantom::RedirectCallbackError::new)?;
+        drop(wait);
+        let CallbackReply::Redirect(decision) = reply else {
+            return Err(failure());
+        };
+        Ok(decision)
+    }
+
     fn reply_header_hook(
         &self,
         operation: u64,
@@ -1894,23 +2019,40 @@ impl Global {
         outcome: u64,
         edits: Vec<header_hook::Edit>,
     ) -> Result<(), Failure> {
+        self.reply_callback(operation, ticket, outcome, CallbackReply::Header(edits))
+    }
+
+    fn reply_callback(
+        &self,
+        operation: u64,
+        ticket: u64,
+        outcome: u64,
+        reply: CallbackReply,
+    ) -> Result<(), Failure> {
         let mut state = self.lock();
         let op = state
             .operations
             .get_mut(&operation)
             .ok_or_else(|| Failure::new("header_hook_closed"))?;
         let call = op
-            .header_call
+            .callback_call
             .as_mut()
-            .filter(|call| call.invocation.ticket == ticket && call.host_owned)
+            .filter(|call| call.ticket == ticket && call.host_owned)
             .ok_or_else(|| Failure::new("header_hook_closed"))?;
+        if !matches!(
+            (&call.invocation, &reply),
+            (CallbackInvocation::Header(_), CallbackReply::Header(_))
+                | (CallbackInvocation::Redirect(_), CallbackReply::Redirect(_))
+        ) {
+            return Err(Failure::new("header_hook_closed"));
+        }
         call.host_owned = false;
         let sender = call.reply.take();
         let closed = sender.is_none() || op.finished || op.abandoned;
         if let Some(sender) = sender {
             // The request can expire between taking this sender and delivering edits.
             let _ = sender.send(if outcome == 0 {
-                Ok(edits)
+                Ok(reply)
             } else {
                 Err(header_hook::HostFailure)
             });
@@ -1926,6 +2068,37 @@ impl Global {
             Ok(())
         }
     }
+}
+
+pub(crate) fn redirect_invocation(
+    operation: u64,
+    ticket: u64,
+) -> Result<std::sync::Arc<crate::redirect_hook::Invocation>, Failure> {
+    global()?
+        .lock()
+        .operations
+        .get(&operation)
+        .and_then(|operation| operation.callback_call.as_ref())
+        .filter(|call| call.ticket == ticket)
+        .and_then(|call| match &call.invocation {
+            CallbackInvocation::Redirect(invocation) => Some(std::sync::Arc::clone(invocation)),
+            CallbackInvocation::Header(_) => None,
+        })
+        .ok_or_else(|| Failure::new("header_hook_closed"))
+}
+
+pub(crate) fn reply_redirect_hook(
+    operation: u64,
+    ticket: u64,
+    outcome: u64,
+    decision: phantom::RedirectDecision,
+) -> Result<(), Failure> {
+    global()?.reply_callback(
+        operation,
+        ticket,
+        outcome,
+        CallbackReply::Redirect(decision),
+    )
 }
 
 pub(crate) fn cancel_header_request(operation: u64) -> Result<(), Failure> {
@@ -1960,14 +2133,16 @@ impl Global {
         loop {
             if let Some(queued) = state.ready.pop_front() {
                 if let Some(operation) = state.operations.get_mut(&queued.operation) {
-                    if let Ok(Completed::HeaderHook(ticket)) = &queued.completion.result {
+                    if let Ok(Completed::HeaderHook(ticket) | Completed::RedirectHook(ticket)) =
+                        &queued.completion.result
+                    {
                         if operation.finished || operation.abandoned {
                             continue;
                         }
                         let Some(call) = operation
-                            .header_call
+                            .callback_call
                             .as_mut()
-                            .filter(|call| call.invocation.ticket == *ticket)
+                            .filter(|call| call.ticket == *ticket)
                         else {
                             continue;
                         };
@@ -1975,7 +2150,10 @@ impl Global {
                     } else {
                         operation.delivered = true;
                     }
-                } else if matches!(queued.completion.result, Ok(Completed::HeaderHook(_))) {
+                } else if matches!(
+                    queued.completion.result,
+                    Ok(Completed::HeaderHook(_) | Completed::RedirectHook(_))
+                ) {
                     continue;
                 }
                 return Ok(queued.completion);
@@ -1997,6 +2175,7 @@ mod tests {
     mod admission;
     mod event_source;
     mod header_hooks;
+    mod redirect_hooks;
     mod response_info;
     mod session_sharing;
     mod sse;

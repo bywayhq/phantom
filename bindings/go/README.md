@@ -401,6 +401,10 @@ counter covers caller-enabled setup retries only.
 `RedirectPolicy{MaximumHops: 5}` to follow redirects. Add
 `CredentialHeaders: []string{"x-api-key"}` to strip custom secrets permanently
 when a redirect changes origin. Standard credentials are always stripped.
+Set `Callback` to return `RedirectFollow`, `RedirectStop` (the unread response),
+or `RedirectReject`. Callbacks run in your calling goroutine and must honor
+cancellation. Errors retain their cause through `errors.Is` and `errors.As`.
+Custom redirect defaults are not yet supported by reconnecting `EventSource`.
 Use `NetworkOptions{PublicOnly: true}` to admit only public IPs for new direct
 connections. Proxies and custom streams are unsupported; live pools stay usable.
 Use `StatusRetry` or

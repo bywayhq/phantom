@@ -1,6 +1,6 @@
 use super::*;
 
-type HookReply = oneshot::Receiver<Result<Vec<header_hook::Edit>, header_hook::HostFailure>>;
+type HookReply = oneshot::Receiver<Result<CallbackReply, header_hook::HostFailure>>;
 
 fn pending_hook(global: &Global, owner: u64) -> Result<(u64, u64, HookReply), Failure> {
     let mut state = global.lock();
@@ -11,14 +11,14 @@ fn pending_hook(global: &Global, owner: u64) -> Result<(u64, u64, HookReply), Fa
         .operations
         .get_mut(&operation)
         .ok_or_else(|| Failure::new("test_operation"))?
-        .header_call = Some(HeaderCall {
-        invocation: std::sync::Arc::new(header_hook::Invocation {
-            ticket,
+        .callback_call = Some(CallbackCall {
+        ticket,
+        invocation: CallbackInvocation::Header(std::sync::Arc::new(header_hook::Invocation {
             index: 0,
             method: "GET".to_owned(),
             uri: "http://127.0.0.1/".to_owned(),
             headers: Vec::new(),
-        }),
+        })),
         reply: Some(sender),
         host_owned: false,
     });
@@ -61,7 +61,7 @@ fn progress_keeps_terminal_failure_delivery_after_registry_poison() -> Result<()
     ));
     assert!(
         global.lock().operations[&operation]
-            .header_call
+            .callback_call
             .as_ref()
             .is_some_and(|call| call.host_owned)
     );
@@ -90,7 +90,7 @@ fn registry_failure_before_delivery_does_not_leave_unseen_host_custody() -> Resu
             ..
         })
     ));
-    assert!(global.lock().operations[&operation].header_call.is_none());
+    assert!(global.lock().operations[&operation].callback_call.is_none());
     global.lock().cancel(operation);
     assert!(!global.lock().operations.contains_key(&operation));
     Ok(())
@@ -119,7 +119,9 @@ fn replies_are_single_use_and_cannot_release_another_request() -> Result<(), Fai
         Err(oneshot::error::TryRecvError::Empty)
     ));
     global.reply_header_hook(first, first_ticket, 0, Vec::new())?;
-    assert!(matches!(first_reply.try_recv(), Ok(Ok(edits)) if edits.is_empty()));
+    assert!(
+        matches!(first_reply.try_recv(), Ok(Ok(CallbackReply::Header(edits))) if edits.is_empty())
+    );
     assert_eq!(
         global
             .reply_header_hook(first, first_ticket, 0, Vec::new())
@@ -133,7 +135,7 @@ fn replies_are_single_use_and_cannot_release_another_request() -> Result<(), Fai
         .lock()
         .operations
         .get_mut(&second)
-        .and_then(|op| op.header_call.as_mut())
+        .and_then(|op| op.callback_call.as_mut())
     {
         call.reply.take();
     }
@@ -147,7 +149,7 @@ fn replies_are_single_use_and_cannot_release_another_request() -> Result<(), Fai
     );
     assert!(
         !global.lock().operations[&second]
-            .header_call
+            .callback_call
             .as_ref()
             .is_some_and(|call| call.host_owned)
     );

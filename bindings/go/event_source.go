@@ -43,6 +43,9 @@ func (c *Client) EventSource(ctx context.Context, url string, options EventSourc
 	if c == nil || c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
 	}
+	if c.redirectPolicy.Callback != nil {
+		return nil, &Error{Kind: "event_source_redirect_callback_unsupported"}
+	}
 	opening, err := eventSourceOpeningValue(c.id.Load(), url, options)
 	if err != nil {
 		return nil, err

@@ -68,9 +68,10 @@ func (ProxyCredentials) GoString() string { return "[redacted]" }
 
 // Client reuses native connection pools and cookies. It is safe for concurrent use.
 type Client struct {
-	id          atomic.Uint64
-	closing     atomic.Bool
-	headerHooks []HeaderHook
+	id             atomic.Uint64
+	closing        atomic.Bool
+	headerHooks    []HeaderHook
+	redirectPolicy RedirectPolicy
 }
 
 // New creates a client. It performs no request and ignores proxy environment variables.
@@ -188,8 +189,9 @@ func New(config Config) (*Client, error) {
 		return nil, err
 	}
 	client, err := clientFromReply(value)
-	if err == nil && hooks != nil {
+	if err == nil {
 		client.headerHooks = hooks
+		client.redirectPolicy = redirects
 	}
 	return client, err
 }

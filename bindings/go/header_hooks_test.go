@@ -53,7 +53,7 @@ func TestPureHeaderHooksSnapshotListsAndPreserveOriginalErrors(t *testing.T) {
 	invoked := []int{}
 	first := []HeaderHook{func(context.Context, *HeaderHookContext) error { invoked = append(invoked, 1); return nil }}
 	second := []HeaderHook{func(context.Context, *HeaderHookContext) error { invoked = append(invoked, 2); return nil }}
-	hooks, err := newHeaderHooks(context.Background(), first, second)
+	hooks, err := newRequestHooks(context.Background(), first, second, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestPureHeaderHooksSnapshotListsAndPreserveOriginalErrors(t *testing.T) {
 		t.Fatalf("callback order: %v", invoked)
 	}
 	cause := errors.New("caller failure")
-	hooks.failure = cause
+	hooks.failure, hooks.failureKind = cause, "header_hook"
 	wrapped := hooks.wrap(&Error{Kind: "header_hook"})
 	if !errors.Is(wrapped, cause) || kind(wrapped) != "header_hook" {
 		t.Fatal("original callback error missing")
@@ -77,7 +77,7 @@ func TestPureHeaderHooksSnapshotListsAndPreserveOriginalErrors(t *testing.T) {
 	if hooks.wrap(timeout) != timeout {
 		t.Fatal("callback error replaced the timeout")
 	}
-	if _, err := newHeaderHooks(context.Background(), []HeaderHook{nil}, nil); kind(err) != "invalid_header_hooks" {
+	if _, err := newRequestHooks(context.Background(), []HeaderHook{nil}, nil, nil); kind(err) != "invalid_header_hooks" {
 		t.Fatal("nil hook accepted")
 	}
 }

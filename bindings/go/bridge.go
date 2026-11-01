@@ -28,6 +28,7 @@ type completion struct {
 	trailers  ResponseTrailers
 	part      uint64
 	header    *headerCall
+	redirect  *redirectCall
 }
 
 var scratch = sync.Pool{New: func() any { return make([]byte, maxMetadata) }}
@@ -95,7 +96,7 @@ func completionPump() {
 	for {
 		var native native.Event
 		err := nativeWaitEvent(&native, fields, hops, arena, data)
-		headerDelivered := err == nil && native.Kind == 6
+		headerDelivered := err == nil && (native.Kind == 6 || native.Kind == 7)
 		var event completion
 		if err == nil {
 			event, err = eventCompletion(native, fields, hops, arena, data)
@@ -103,7 +104,11 @@ func completionPump() {
 		if err != nil {
 			if headerDelivered {
 				// Projection failed before this invocation reached its calling goroutine.
-				_ = replyHeaderCall(native.Operation, native.Part, 2, nil)
+				if native.Kind == 6 {
+					_ = replyHeaderCall(native.Operation, native.Part, 2, nil)
+				} else {
+					_ = replyRedirectCall(native.Operation, native.Part, 2, 0)
+				}
 			}
 			pump.mu.Lock()
 			pump.failure = err
@@ -124,7 +129,7 @@ func completionPump() {
 		pump.mu.Lock()
 		channel := pump.pending[event.Operation]
 		var cancel context.CancelFunc
-		if event.kind != 6 {
+		if event.kind != 6 && event.kind != 7 {
 			delete(pump.pending, event.Operation)
 			cancel = pump.headerCancels[event.Operation]
 			delete(pump.headerCancels, event.Operation)
@@ -143,6 +148,9 @@ func completionPump() {
 			if event.header != nil {
 				// No caller can take custody of an unregistered invocation.
 				_ = replyHeaderCall(event.Operation, event.header.ticket, 2, nil)
+			}
+			if event.redirect != nil {
+				_ = replyRedirectCall(event.Operation, event.redirect.ticket, 2, 0)
 			}
 			_ = control("cancel", "operation", event.Operation)
 		}
@@ -174,7 +182,7 @@ func performSubmitted(ctx context.Context, submit func() (uint64, error), starte
 	return performSubmittedWithHooks(ctx, submit, started, accept, nil)
 }
 
-func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error), started func(), accept func(completion) error, hooks *headerHooks) error {
+func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error), started func(), accept func(completion) error, hooks *requestHooks) error {
 	if ctx == nil {
 		return &Error{Kind: "invalid_context"}
 	}
@@ -255,12 +263,18 @@ func performSubmittedWithHooks(ctx context.Context, submit func() (uint64, error
 			}
 			done = nil
 		case event := <-channel:
-			if event.kind == 6 {
+			if event.kind == 6 || event.kind == 7 {
 				if hooks == nil {
 					cancel()
 					return &Error{Kind: "native_abi"}
 				}
-				if err := hooks.invoke(operation, event.header); err != nil {
+				var err error
+				if event.kind == 6 {
+					err = hooks.invoke(operation, event.header)
+				} else {
+					err = hooks.invokeRedirect(operation, event.redirect)
+				}
+				if err != nil {
 					hookFailure = err
 					cancelHeaderRequest(operation)
 				}

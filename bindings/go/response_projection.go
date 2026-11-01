@@ -27,6 +27,9 @@ func eventCompletion(event native.Event, fields []native.OutputField, hops []nat
 	if event.Kind == 6 {
 		return readHeaderCall(event, fields, arena)
 	}
+	if event.Kind == 7 {
+		return readRedirectCall(event, arena)
+	}
 	arena = arena[:event.ArenaLength]
 	slice := func(span native.Slice) ([]byte, error) {
 		if span.Offset > uint64(len(arena)) || span.Length > uint64(len(arena))-span.Offset {

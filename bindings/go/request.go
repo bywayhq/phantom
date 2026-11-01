@@ -119,7 +119,22 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 	if c.closing.Load() || c.id.Load() == 0 {
 		return nil, &Error{Kind: "client_closed"}
 	}
-	hookOwner, err := newHeaderHooks(ctx, c.headerHooks, request.HeaderHooks)
+	var redirects *RedirectPolicy
+	if request.RedirectPolicy != nil {
+		snapshot, err := redirectPolicyWire(*request.RedirectPolicy)
+		if err != nil {
+			return nil, err
+		}
+		redirects = &snapshot
+	} else if c.redirectPolicy.Callback != nil {
+		snapshot := c.redirectPolicy
+		redirects = &snapshot
+	}
+	var redirect RedirectCallback
+	if redirects != nil {
+		redirect = redirects.Callback
+	}
+	hookOwner, err := newRequestHooks(ctx, c.headerHooks, request.HeaderHooks, redirect)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +146,11 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err := native.LoadHeaderHooks(); err != nil {
 			return nil, nativeBoundaryError(err)
 		}
+		if redirect != nil {
+			if err := native.LoadRedirectHooks(); err != nil {
+				return nil, nativeBoundaryError(err)
+			}
+		}
 	}
 	if events != nil {
 		if err := validateSSELimits(*events); err != nil {
@@ -139,7 +159,7 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		if err := loadSSE(); err != nil {
 			return nil, err
 		}
-		if hookOwner != nil {
+		if hookOwner != nil && redirect == nil {
 			if err := native.LoadSSEHeaderHooks(); err != nil {
 				return nil, nativeBoundaryError(err)
 			}
@@ -177,14 +197,6 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 			return nil, err
 		}
 		retries = &snapshot
-	}
-	var redirects *RedirectPolicy
-	if request.RedirectPolicy != nil {
-		snapshot, err := redirectPolicyWire(*request.RedirectPolicy)
-		if err != nil {
-			return nil, err
-		}
-		redirects = &snapshot
 	}
 	var history *uint64
 	if request.RedirectHistoryLimit != nil {
@@ -294,7 +306,13 @@ func (c *Client) do(ctx context.Context, request Request, events *SSELimits) (re
 		var result native.Reply
 		var err error
 		if hookOwner != nil {
-			if events == nil {
+			if redirect != nil {
+				var limits *native.CallbackSSELimits
+				if events != nil {
+					limits = &native.CallbackSSELimits{Line: uint64(events.MaxLineBytes), Event: uint64(events.MaxEventBytes)}
+				}
+				err = native.RedirectHookRequest(&descriptor, request.Body, uint64(len(hookOwner.hooks)), limits, &result)
+			} else if events == nil {
 				err = native.HeaderHookRequest(&descriptor, request.Body, uint64(len(hookOwner.hooks)), &result)
 			} else {
 				err = native.SSEHeaderHookRequest(&descriptor, request.Body, uint64(events.MaxLineBytes), uint64(events.MaxEventBytes), uint64(len(hookOwner.hooks)), &result)

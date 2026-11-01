@@ -14,6 +14,7 @@ mod policy;
 mod pool;
 mod prepared_body;
 mod profile;
+mod redirect_hook;
 mod retry;
 mod session;
 mod state_transfer;

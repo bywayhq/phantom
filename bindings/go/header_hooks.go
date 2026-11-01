@@ -130,12 +130,15 @@ type headerCall struct {
 	context       HeaderHookContext
 }
 
-type headerHooks struct {
-	hooks   []HeaderHook
-	ctx     context.Context
-	cancel  context.CancelFunc
-	next    uint64
-	failure error
+type requestHooks struct {
+	hooks       []HeaderHook
+	ctx         context.Context
+	cancel      context.CancelFunc
+	next        uint64
+	failure     error
+	failureKind string
+	redirect    RedirectCallback
+	redirectHop uint64
 }
 
 func snapshotHeaderHooks(client, request []HeaderHook) ([]HeaderHook, error) {
@@ -154,13 +157,13 @@ func snapshotHeaderHooks(client, request []HeaderHook) ([]HeaderHook, error) {
 	return hooks, nil
 }
 
-func newHeaderHooks(ctx context.Context, client, request []HeaderHook) (*headerHooks, error) {
+func newRequestHooks(ctx context.Context, client, request []HeaderHook, redirect RedirectCallback) (*requestHooks, error) {
 	hooks, err := snapshotHeaderHooks(client, request)
-	if err != nil || len(hooks) == 0 {
+	if err != nil || (len(hooks) == 0 && redirect == nil) {
 		return nil, err
 	}
 	derived, cancel := context.WithCancel(ctx)
-	return &headerHooks{hooks: hooks, ctx: derived, cancel: cancel}, nil
+	return &requestHooks{hooks: hooks, ctx: derived, cancel: cancel, redirect: redirect}, nil
 }
 
 func readHeaderCall(event native.Event, fields []native.OutputField, arena []byte) (completion, error) {
@@ -232,7 +235,7 @@ func cancelHeaderRequest(operation uint64) {
 	_ = native.HeaderHookCancel(operation, &reply)
 }
 
-func (h *headerHooks) invoke(operation uint64, call *headerCall) error {
+func (h *requestHooks) invoke(operation uint64, call *headerCall) error {
 	if call == nil {
 		return &Error{Kind: "native_abi"}
 	}
@@ -255,6 +258,7 @@ func (h *headerHooks) invoke(operation uint64, call *headerCall) error {
 	outcome := uint64(0)
 	if err != nil {
 		h.failure = err
+		h.failureKind = "header_hook"
 		outcome = 1
 	}
 	edits := call.context.edits
@@ -271,9 +275,9 @@ func (h *headerHooks) invoke(operation uint64, call *headerCall) error {
 	return nil
 }
 
-func (h *headerHooks) wrap(err error) error {
+func (h *requestHooks) wrap(err error) error {
 	if h != nil && h.failure != nil {
-		if failure, ok := err.(*Error); ok && failure.Kind == "header_hook" {
+		if failure, ok := err.(*Error); ok && failure.Kind == h.failureKind {
 			copy := *failure
 			copy.cause = h.failure
 			return &copy

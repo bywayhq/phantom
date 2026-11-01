@@ -7,7 +7,6 @@ use phantom::{HeaderHookContext, HeaderHookError};
 use crate::client::Header;
 
 pub(crate) struct Invocation {
-    pub(crate) ticket: u64,
     pub(crate) index: usize,
     pub(crate) method: String,
     pub(crate) uri: String,

@@ -2,6 +2,17 @@
 
 package native
 
+func LoadRedirectHooks() error { return &Failure{Kind: "unsupported_platform"} }
+func RedirectHookRequest(*Request, []byte, uint64, *CallbackSSELimits, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func RedirectHookCopy(uint64, uint64, *RedirectInvocation, []byte) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+func RedirectHookReply(uint64, uint64, uint64, uint64, *Reply) error {
+	return &Failure{Kind: "unsupported_platform"}
+}
+
 func LoadStateTransfer() error                         { return &Failure{Kind: "unsupported_platform"} }
 func SubmitStateTransfer(*StateTransfer, *Reply) error { return &Failure{Kind: "unsupported_platform"} }
 func StateTransferCopy(uint64, *StateResult, []StateCookie, []StateAlternative, []byte) error {

@@ -51,9 +51,16 @@ type RedirectPolicy struct {
 	MaximumHops uint64 `json:"maximum_hops"`
 	// CredentialHeaders adds names stripped permanently on cross-origin hops.
 	CredentialHeaders []string `json:"credential_headers,omitempty"`
+	// Callback decides each validated hop before DNS or another HTTP attempt.
+	// It runs in Do's calling goroutine and must honor context cancellation.
+	// A callback requires a positive MaximumHops.
+	Callback RedirectCallback `json:"-"`
 }
 
 func redirectPolicyWire(input RedirectPolicy) (RedirectPolicy, error) {
+	if input.Callback != nil && input.MaximumHops == 0 {
+		return RedirectPolicy{}, &Error{Kind: "invalid_redirect_policy"}
+	}
 	if len(input.CredentialHeaders) > 256 {
 		return RedirectPolicy{}, &Error{Kind: "input_limit"}
 	}

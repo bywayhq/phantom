@@ -15,6 +15,7 @@ use std::{
 
 mod event_source;
 mod header_hook;
+mod redirect_hook;
 mod sse;
 mod state_transfer;
 mod websocket;
@@ -533,6 +534,10 @@ unsafe extern "C" fn phantom_go_wait_event(
                 }
                 Ok(Completed::HeaderHook(ticket)) => {
                     result.kind = 6;
+                    result.part = ticket;
+                }
+                Ok(Completed::RedirectHook(ticket)) => {
+                    result.kind = 7;
                     result.part = ticket;
                 }
                 Ok(Completed::Head(head)) => {
