@@ -411,6 +411,24 @@ starts empty. Sharing does not enable disabled features. Profile, routes, trust
 and timeouts are retained. Close either client independently, or fork a closed
 source into an open client. Sync forks retain the creating-thread rule.
 
+Transfer individual stores with `snapshot = client.export_cookies()` and
+`client.import_cookies(snapshot)`. `CookieSnapshot.entries` contains editable
+frozen `CookieSnapshotEntry` values. Imports keep held cookies and validate all
+entries before mutation. `CookieSnapshotError.entry_index` identifies a rejected
+entry. Disabled storage exports `None`; enabled empty storage exports an empty
+snapshot. Snapshot values contain credentials.
+
+`export_alt_svc()` and `import_alt_svc(snapshot)` transfer direct alternatives;
+use `NetworkOptions(max_alt_svc_origins=256)` to enable discovery. Entries use
+integer `expires_at_ns` Unix timestamps. Exports round down to whole seconds;
+imports reject timestamps the host cannot represent exactly.
+
+Use `export_session_tickets(key)` and `import_session_tickets(data, key)` for
+encrypted tickets alone, with a 32-byte key. Matching caches are replaced after
+core validation. `receiving_routes` adds request-only routes, as for checkpoints
+below. Await transfer methods on `AsyncClient`; running native CPU work releases
+the GIL and continues if the await is cancelled.
+
 Export encrypted state with `checkpoint = await client.export_session(key)`,
 then `restored = await client.restore_session(checkpoint, key)`; sync clients
 have the same methods. Supply a secret random 32-byte key. Checkpoints contain

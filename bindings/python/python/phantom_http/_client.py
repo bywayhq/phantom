@@ -72,6 +72,12 @@ from ._session import (
     _receiving_routes,
 )
 from ._sse import _DEFAULT_SSE_LIMITS, AsyncEventStream, SseLimits
+from ._state_transfer import (
+    AltSvcSnapshot,
+    CookieSnapshot,
+    _ticket_bytes,
+    _ticket_key,
+)
 from ._transfer import TransferControl
 from ._websocket import (
     _DEFAULT_WEBSOCKET_LIMITS,
@@ -311,6 +317,65 @@ class AsyncClient:
                 sharing.tickets,
             ),
             self._header_hooks,
+        )
+
+    async def export_cookies(self) -> CookieSnapshot | None:
+        """Export cookies oldest first; None means the cookie jar is disabled."""
+
+        def export() -> CookieSnapshot | None:
+            fields = _call(self._native.export_cookies)
+            return None if fields is None else CookieSnapshot._from_fields(fields)
+
+        return await asyncio.to_thread(export)
+
+    async def import_cookies(self, snapshot: CookieSnapshot) -> None:
+        """Validate atomically, then merge without replacing existing cookies."""
+        if type(snapshot) is not CookieSnapshot:
+            raise TypeError("snapshot must be CookieSnapshot")
+        await asyncio.to_thread(
+            lambda: _call(self._native.import_cookies, snapshot._fields())
+        )
+
+    async def export_alt_svc(self) -> AltSvcSnapshot | None:
+        """Export direct alternatives in LRU order; None means discovery is disabled."""
+
+        def export() -> AltSvcSnapshot | None:
+            fields = _call(self._native.export_alt_svc)
+            return None if fields is None else AltSvcSnapshot._from_fields(fields)
+
+        return await asyncio.to_thread(export)
+
+    async def import_alt_svc(self, snapshot: AltSvcSnapshot) -> None:
+        """Validate atomically, then merge compatible unexpired direct alternatives."""
+        if type(snapshot) is not AltSvcSnapshot:
+            raise TypeError("snapshot must be AltSvcSnapshot")
+        await asyncio.to_thread(
+            lambda: _call(self._native.import_alt_svc, snapshot._fields())
+        )
+
+    async def export_session_tickets(self, key: bytes) -> bytes:
+        """Export authenticated encrypted tickets using a caller-owned 32-byte key."""
+        return await asyncio.to_thread(
+            _call, self._native.export_session_tickets, _ticket_key(key)
+        )
+
+    async def import_session_tickets(
+        self,
+        snapshot: bytes,
+        key: bytes,
+        *,
+        receiving_routes: Iterable[str | Proxy | None] = (),
+    ) -> None:
+        """Replace matching ticket caches; supply routes used only by individual requests.
+
+        Running native CPU work cannot be stopped by cancelling the await.
+        """
+        await asyncio.to_thread(
+            _call,
+            self._native.import_session_tickets,
+            _ticket_bytes(snapshot),
+            _ticket_key(key),
+            _receiving_routes(receiving_routes),
         )
 
     async def export_session(self, key: bytes) -> bytes:

@@ -1,5 +1,6 @@
 """Bounded network settings passed directly to the core client."""
 
+import sys
 from dataclasses import dataclass, field
 
 from ._configuration import INHERIT, _Inherit
@@ -52,6 +53,7 @@ class NetworkOptions:
     dns selects a separate direct encrypted resolver. Its endpoint settings have
     their own 1024-entry/64-KiB bound. dns_cache=None disables address caching;
     INHERIT keeps the profile policy.
+    max_alt_svc_origins enables direct-route Alt-Svc discovery with this capacity.
     """
 
     host_overrides: tuple[HostOverride, ...] = field(default=(), repr=False)
@@ -61,11 +63,17 @@ class NetworkOptions:
     public_only: bool = False
     dns: DnsOverHttps | DnsOverTls | None = field(default=None, repr=False)
     dns_cache: _Inherit | None = INHERIT
+    max_alt_svc_origins: int | None = None
 
     def __post_init__(self) -> None:
         self._validate()
 
     def _validate(self) -> None:
+        if self.max_alt_svc_origins is not None and (
+            type(self.max_alt_svc_origins) is not int
+            or not 0 < self.max_alt_svc_origins <= sys.maxsize
+        ):
+            raise ValueError("max_alt_svc_origins must be a positive platform integer")
         if self.dns_cache is not INHERIT and self.dns_cache is not None:
             raise TypeError("dns_cache must be INHERIT or None")
         if self.dns is not None:
