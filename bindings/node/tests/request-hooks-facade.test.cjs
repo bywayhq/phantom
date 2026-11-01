@@ -313,3 +313,41 @@ test('expired source callbacks finish before the next GET and never explain a la
   await assert.rejects(source.closeAsync(), error => error.code === 'RequestHookCleanup' && error.cause === late);
   await source.closeAsync(); await client.close();
 });
+
+for (const kind of ['header', 'logical']) {
+  for (const operation of ['request', 'source']) {
+    test(`${kind} callback descendants can close after ${operation} callback exit`, async () => {
+      const afterExit = deferred(); let descendant, source;
+      const {Client, sources} = facade(async hooks => {
+        if (kind === 'header') await hooks.header();
+        else await hooks.invoke(0);
+      });
+      const client = new Client({profile: 'exact', context: 'raw'});
+      const callback = async () => {
+        await assert.rejects(client.close(), {code: 'InvalidOperation'});
+        if (source) await assert.rejects(source.closeAsync(), {code: 'InvalidOperation'});
+        if (operation === 'source' && !source) return;
+        descendant = (async () => {
+          await afterExit.promise;
+          await source?.closeAsync();
+          await client.close();
+        })();
+      };
+      const options = kind === 'header' ? {headerHooks: [callback]} : {requestHooks: {onRequest: callback}};
+      try {
+        if (operation === 'source') {
+          source = await client.eventSource(initial.url, {protocol: 'http2', ...options});
+          // Exercise the source guard once the source itself is publicly available.
+          if (kind === 'header') await sources[0].hooks.header();
+          else await sources[0].hooks.invoke(0);
+          afterExit.resolve(); await descendant;
+        } else {
+          (await client.get(initial.url, options)).close();
+          afterExit.resolve(); await descendant;
+        }
+      } finally {
+        await source?.closeAsync(); await client.close();
+      }
+    });
+  }
+}

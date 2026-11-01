@@ -18,7 +18,7 @@ const {logicalMask, invokeLogical} = require('./request-hooks.cjs');
 /** @typedef {{failed: boolean, error?: unknown, failureSerial?: bigint, bridgeFailure?: HookFailure,
  * logical?: {primary?: HookFailure, secondary?: HookFailure, origin?: Readonly<{scheme: string, host: string, port: number}>}}} HookOutcome */
 
-/** @type {AsyncLocalStorage<{client: object, source?: NativeHeaderHooks}>} */
+/** @type {AsyncLocalStorage<{client: object | undefined, source?: NativeHeaderHooks}>} */
 const callbackContext = new AsyncLocalStorage();
 const contextToken = {};
 /** @type {readonly HeaderHook[]} */
@@ -114,6 +114,18 @@ function isHeaderHookContext(client, source) {
   return scope?.client === client && (source === undefined || scope.source === source);
 }
 
+/** @template T @param {object} client @param {NativeHeaderHooks | undefined} source
+ * @param {() => T | PromiseLike<T>} callback */
+async function runCallback(client, source, callback) {
+  const scope = {client: /** @type {object | undefined} */ (client), source};
+  try { return await callbackContext.run(scope, callback); }
+  finally {
+    // Descendant async resources can outlive this invocation.
+    scope.client = undefined;
+    scope.source = undefined;
+  }
+}
+
 /** @param {object} client @param {NativeHeaderHooks} owner
  * @param {readonly HeaderHook[]} hooks @param {HookOutcome} outcome
  * @param {import('../index.js').RedirectCallback} [redirect] @param {boolean} [source]
@@ -160,7 +172,7 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
         try {
           controller.signal.throwIfAborted();
           for (const bundle of logicalBundles) {
-            await callbackContext.run({client, source: source ? owner : undefined}, () => invokeLogical(bundle, logical, controller.signal, outcome));
+            await runCallback(client, source ? owner : undefined, () => invokeLogical(bundle, logical, controller.signal, outcome));
             controller.signal.throwIfAborted();
           }
         } catch (error) {
@@ -185,7 +197,7 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
         try {
           controller.signal.throwIfAborted();
           if (!redirect) throw new PhantomError('Internal', 'redirect callback is unavailable');
-          const decision = await callbackContext.run({client}, () => redirect(attempt));
+          const decision = await runCallback(client, undefined, () => redirect(attempt));
           controller.signal.throwIfAborted();
           if (decision !== 'follow' && decision !== 'stop' && decision !== 'reject') {
             throw new PhantomError('InvalidArgument', 'redirect callbacks must return Follow, Stop or Reject');
@@ -219,7 +231,7 @@ async function pumpHeaderHooks(client, owner, hooks, outcome, redirect, source =
         controller.signal.throwIfAborted();
         const hook = hooks[invocation.index];
         if (hook === undefined) throw new PhantomError('Internal', 'header callback index is unavailable');
-        await callbackContext.run({client, source: source ? owner : undefined}, () => hook(context));
+        await runCallback(client, source ? owner : undefined, () => hook(context));
         controller.signal.throwIfAborted();
         const edits = context._finish();
         if (!serialLifetime || owner.isActive(/** @type {bigint} */ (serial))) {

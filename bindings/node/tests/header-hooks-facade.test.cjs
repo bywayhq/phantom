@@ -314,3 +314,17 @@ test('ordinary inherited policies keep the no-callback request path', async () =
   assert.equal(requests.length, 3);
   assert(requests.every((request) => request.redirectPolicy === undefined));
 });
+
+test('redirect callback descendants can close after actual callback exit', async () => {
+  const {Client} = facade();
+  const afterExit = deferred(); let descendant;
+  const client = new Client({profile: 'exact', context: 'raw'});
+  try {
+    (await client.get('http://example.test/', {redirectPolicy: {mode: 'custom', maximumHops: 1, callback: async () => {
+      await assert.rejects(client.close(), {code: 'InvalidOperation'});
+      descendant = (async () => {await afterExit.promise; await client.close();})();
+      return 'follow';
+    }}})).close();
+    afterExit.resolve(); await descendant;
+  } finally {await client.close();}
+});
