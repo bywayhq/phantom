@@ -732,6 +732,7 @@ test('direct native state and byte inputs enforce typed bounds and owned backing
   assert.throws(() => client.importSessionTickets(Buffer.alloc(16 * 1024 * 1024 + 1), Buffer.alloc(32), []), /PHANTOM_STATE:SessionTickets:too_large:/);
   const oversizedRoute = {route: 'proxy', proxy: 'http://127.0.0.1:80', proxyUsername: 'user', proxyPassword: 'x'.repeat(65537)};
   const alias = 'x'.repeat(33000);
+  const boundedRoute = {...oversizedRoute, proxyPassword: 'x'.repeat(16384)};
   const oversizedRoutes = [
     Array(257).fill({route: 'direct'}),
     [oversizedRoute],
@@ -739,13 +740,14 @@ test('direct native state and byte inputs enforce typed bounds and owned backing
     [{...oversizedRoute, proxyUsername: 'x'.repeat(65537), proxyPassword: ''}],
     [{route: 'proxy', proxy: 'socks4://127.0.0.1:80', proxyUserId: 'x'.repeat(65537)}],
     [{...oversizedRoute, proxyUsername: alias, proxyPassword: alias}],
-    [{...oversizedRoute, proxyPassword: alias}, {...oversizedRoute, proxyPassword: alias}],
+    Array(4).fill(boundedRoute),
     [{...oversizedRoute, proxyPassword: '\u00e9'.repeat(32768)}],
   ];
   for (const routes of oversizedRoutes) {
     assert.throws(() => client.importSessionTickets(Buffer.alloc(0), Buffer.alloc(32), routes), /PHANTOM_STATE:SessionTickets:too_large:/);
     assert.throws(() => environment.restoreSession(client, Buffer.alloc(0), Buffer.alloc(32), routes), /PHANTOM_SNAPSHOT:too_large:/);
   }
+  await assert.rejects(client.importSessionTickets(Buffer.alloc(0), Buffer.alloc(32), [boundedRoute]), /PHANTOM_STATE:SessionTickets:invalid_snapshot:/);
   const options = {url: 'http://127.0.0.1', ...request};
   const reentrant = environment.client({profile, route: 'direct'});
   t.after(() => reentrant.close(5000));

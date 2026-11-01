@@ -7,6 +7,7 @@ const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
 const { test } = require('node:test');
+const { WebSocketServer } = require('ws');
 const { Client, PhantomError, Profile } = require('..');
 
 const identifier = process.platform === 'win32'
@@ -160,20 +161,30 @@ test('typed Alt-Svc transfer preserves core expiry, precedence and atomic valida
   const source = client(t, {network: {maxAltSvcOrigins: 8}});
   const expiry = BigInt(Date.now() + 60000) * 1000000n + 123400n;
   const entry = {origin: 'https://example.test', alternativeHost: 'alt.example.test', alternativePort: 443, expiresAtNanoseconds: expiry};
+  const second = 1000000000n;
+  const check = (snapshot, upperExpiry = expiry / second * second) => {
+    assert.equal(snapshot.length, 1);
+    const {expiresAtNanoseconds, ...fields} = snapshot[0];
+    const {expiresAtNanoseconds: _expiry, ...expected} = entry;
+    assert.deepEqual(fields, expected);
+    assert.equal(expiresAtNanoseconds % second, 0n);
+    // Core translates monotonic deadlines and floors each export, including after restore.
+    assert(expiresAtNanoseconds <= upperExpiry && expiresAtNanoseconds >= upperExpiry - second);
+  };
   source.importAltSvc([entry]);
   const exported = source.exportAltSvc();
-  assert.deepEqual(exported, [{...entry, expiresAtNanoseconds: expiry / 1000000000n * 1000000000n}]);
+  check(exported);
   source.importAltSvc([{...entry, alternativePort: 8443}]);
-  assert.deepEqual(source.exportAltSvc(), exported);
+  check(source.exportAltSvc());
   assert.throws(() => source.importAltSvc([{...entry, origin: 'https://new.test'}, {...entry, origin: 'http://invalid.test'}]),
     (error) => error.code === 'AltSvcSnapshot' && error.entryIndex === 1);
-  assert.deepEqual(source.exportAltSvc(), exported);
+  check(source.exportAltSvc());
   const forked = keep(t, source.fork());
   assert.deepEqual(forked.exportAltSvc(), []);
   const shared = keep(t, source.fork({discovery: true}));
-  assert.deepEqual(shared.exportAltSvc(), exported);
+  check(shared.exportAltSvc());
   const restored = keep(t, await source.restoreSession(await source.exportSession(key), key));
-  assert.deepEqual(restored.exportAltSvc(), exported);
+  check(restored.exportAltSvc(), exported[0].expiresAtNanoseconds);
 });
 
 test('ticket-only encrypted import authenticates before mutation and preserves source state', {timeout: 30000}, async (t) => {
@@ -201,15 +212,25 @@ test('request-only direct ticket transfer resumes real TLS without consuming sou
   const fixture = (name) => fs.readFileSync(path.join(__dirname, 'fixtures', name));
   const resumed = [], sockets = new Set();
   const peer = https.createServer({key: fixture('key.pem'), cert: fixture('certificate.pem'),
-    minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2'}, (request, response) => {
+    minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2'});
+  const websocket = new WebSocketServer({server: peer, perMessageDeflate: false});
+  websocket.on('connection', (socket, request) => {
     resumed.push(request.socket.isSessionReused());
-    response.setHeader('Connection', 'close'); response.end('ok');
+    assert.equal(request.headers['proxy-authorization'], undefined);
+    socket.on('error', () => {});
+    socket.send('ok');
   });
   peer.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   peer.listen(0, '127.0.0.1'); await once(peer, 'listening');
-  t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => peer.close(resolve)); });
+  t.after(async () => {
+    for (const socket of websocket.clients) socket.terminate();
+    websocket.close();
+    for (const socket of sockets) socket.destroy();
+    await new Promise((resolve) => peer.close(resolve));
+  });
   let proxyRequests = 0;
   const proxy = http.createServer((_, response) => { proxyRequests++; response.writeHead(502); response.end(); });
+  proxy.on('connect', (_, socket) => { proxyRequests++; socket.end('HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n'); });
   proxy.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
   proxy.listen(0, '127.0.0.1'); await once(proxy, 'listening');
   t.after(async () => { for (const socket of sockets) socket.destroy(); await new Promise((resolve) => proxy.close(resolve)); });
@@ -217,8 +238,16 @@ test('request-only direct ticket transfer resumes real TLS without consuming sou
   const source = client(t, configuration), receiver = client(t, configuration);
   source.setCookie('https://example.test', 'state=source; Secure; Path=/');
   receiver.setCookie('https://example.test', 'state=receiver; Secure; Path=/');
-  const url = `https://127.0.0.1:${peer.address().port}`;
-  const send = async (owner) => { const response = await owner.request(url, {...options, context: 'raw', route: {route: 'direct'}}); assert.equal((await response.bytes(2)).toString(), 'ok'); };
+  const url = `wss://127.0.0.1:${peer.address().port}`;
+  const send = async (owner) => {
+    const socket = await owner.websocket(url, {route: {route: 'direct'}, handshakeTimeoutMs: 5000});
+    try {
+      assert.equal(socket.handshake.protocol, 'http1');
+      assert.deepEqual(await socket.receive(), {type: 'text', data: 'ok'});
+      await socket.close(1000, 'done');
+      assert.deepEqual(await socket.receive(), {type: 'close', code: 1000, reason: 'done'});
+    } finally { socket.abort(); }
+  };
   await send(source);
   const snapshot = await source.exportSessionTickets(key);
   await assert.rejects(receiver.importSessionTickets(snapshot, key), (error) => error.code === 'SessionTickets' && error.kind === 'policy');
